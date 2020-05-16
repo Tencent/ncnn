@@ -14,6 +14,7 @@
 
 #include "hardswish_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -22,6 +23,7 @@ DEFINE_LAYER_CREATOR(HardSwish_vulkan)
 HardSwish_vulkan::HardSwish_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     pipeline_hardswish = 0;
     pipeline_hardswish_pack4 = 0;
@@ -90,7 +92,7 @@ int HardSwish_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_hardswish = new Pipeline(vkdev);
         pipeline_hardswish->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_hardswish->create("hardswish", opt, specializations, 1, 5);
+        pipeline_hardswish->create(LayerShaderType::hardswish, opt, specializations);
     }
 
     // pack4
@@ -98,7 +100,7 @@ int HardSwish_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_hardswish_pack4 = new Pipeline(vkdev);
         pipeline_hardswish_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_hardswish_pack4->create("hardswish_pack4", opt, specializations, 1, 5);
+        pipeline_hardswish_pack4->create(LayerShaderType::hardswish_pack4, opt, specializations);
     }
 
     // pack8
@@ -106,7 +108,7 @@ int HardSwish_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_hardswish_pack8 = new Pipeline(vkdev);
         pipeline_hardswish_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_hardswish_pack8->create("hardswish_pack8", opt, specializations, 1, 5);
+        pipeline_hardswish_pack8->create(LayerShaderType::hardswish_pack8, opt, specializations);
     }
 
     return 0;
@@ -139,6 +141,30 @@ int HardSwish_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     constants[2].i = bottom_top_blob.h;
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
+
+    const Pipeline* pipeline = elempack == 8 ? pipeline_hardswish_pack8
+                             : elempack == 4 ? pipeline_hardswish_pack4
+                             : pipeline_hardswish;
+
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+
+    return 0;
+}
+
+int HardSwish_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
+{
+    int elempack = bottom_top_blob.elempack;
+
+    std::vector<VkImageMat> bindings(2);
+    bindings[0] = bottom_top_blob;
+    bindings[1] = bottom_top_blob;
+
+    std::vector<vk_constant_type> constants(5);
+    constants[0].i = bottom_top_blob.dims;
+    constants[1].i = bottom_top_blob.w;
+    constants[2].i = bottom_top_blob.h;
+    constants[3].i = bottom_top_blob.c;
+    constants[4].i = 0;//bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_hardswish_pack8
                              : elempack == 4 ? pipeline_hardswish_pack4

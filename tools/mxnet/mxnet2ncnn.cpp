@@ -136,7 +136,7 @@ std::vector<int> MXNetNode::attr_ai(const char* key) const
     int i = 0;
     int c = 0;
     int nconsumed = 0;
-    int nscan = sscanf(it->second.c_str() + c, "%*[(,]%d%n", &i, &nconsumed);
+    int nscan = sscanf(it->second.c_str() + c, "%*[\[(,]%d%n", &i, &nconsumed);
     if (nscan != 1)
     {
         // (None
@@ -2387,7 +2387,8 @@ int main(int argc, char** argv)
             // skip N-dim
             begin.erase(begin.begin());
             end.erase(end.begin());
-            step.erase(step.begin());
+            if(step.size() != 0)
+                step.erase(step.begin());
 
             // assert step == 1
             for (int i=0; i<(int)step.size(); i++)

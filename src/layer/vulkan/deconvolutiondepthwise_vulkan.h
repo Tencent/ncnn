@@ -31,16 +31,18 @@ public:
 
     using DeconvolutionDepthWise::forward;
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
+    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
 
+    VkImageMat weight_data_gpu_image;
+    VkImageMat bias_data_gpu_image;
+
     ncnn::Layer* crop;
     ncnn::Layer* output_pad;
     ncnn::Layer* output_crop;
-    ncnn::Layer* packing_unpack;
-    ncnn::Layer* packing_pack;
 
     Pipeline* pipeline_deconvolutiondepthwise;
     Pipeline* pipeline_deconvolutiondepthwise_pack4;

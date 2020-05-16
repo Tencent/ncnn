@@ -34,11 +34,7 @@ static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int s
     ncnn::Option opt;
     opt.num_threads = 1;
     opt.use_vulkan_compute = true;
-    opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_int8_storage = false;
-    opt.use_int8_arithmetic = false;
+    opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Pooling>("Pooling", pd, weights, opt, a);
     if (ret != 0)

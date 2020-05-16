@@ -29,6 +29,12 @@ int Packing::load_param(const ParamDict& pd)
     out_elempack = pd.get(0, 1);
     use_padding = pd.get(1, 0);
 
+    cast_type_from = pd.get(2, 0);
+    cast_type_to = pd.get(3, 0);
+
+    storage_type_from = pd.get(4, 0);
+    storage_type_to = pd.get(5, 0);
+
     return 0;
 }
 

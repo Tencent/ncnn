@@ -14,6 +14,7 @@
 
 #include "prelu_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -22,6 +23,7 @@ DEFINE_LAYER_CREATOR(PReLU_vulkan)
 PReLU_vulkan::PReLU_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     pipeline_prelu = 0;
     pipeline_prelu_pack4 = 0;
@@ -60,11 +62,11 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     std::vector<vk_specialization_type> specializations(2 + 5);
     specializations[0].i = num_slope;
     specializations[1].f = num_slope == 1 ? slope_data[0] : 1.f;
-    specializations[1 + 0].i = shape_packed.dims;
-    specializations[1 + 1].i = shape_packed.w;
-    specializations[1 + 2].i = shape_packed.h;
-    specializations[1 + 3].i = shape_packed.c;
-    specializations[1 + 4].i = shape_packed.cstep;
+    specializations[2 + 0].i = shape_packed.dims;
+    specializations[2 + 1].i = shape_packed.w;
+    specializations[2 + 2].i = shape_packed.h;
+    specializations[2 + 3].i = shape_packed.c;
+    specializations[2 + 4].i = shape_packed.cstep;
 
     Mat local_size_xyz(4, 4, std::min(4, num_slope / elempack), (void*)0);
     if (shape_packed.dims == 1)
@@ -91,7 +93,7 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_prelu = new Pipeline(vkdev);
         pipeline_prelu->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_prelu->create("prelu", opt, specializations, 2, 5);
+        pipeline_prelu->create(LayerShaderType::prelu, opt, specializations);
     }
 
     // pack4
@@ -99,7 +101,7 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_prelu_pack4 = new Pipeline(vkdev);
         pipeline_prelu_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_prelu_pack4->create("prelu_pack4", opt, specializations, 2, 5);
+        pipeline_prelu_pack4->create(LayerShaderType::prelu_pack4, opt, specializations);
     }
 
     // pack8
@@ -107,7 +109,7 @@ int PReLU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_prelu_pack8 = new Pipeline(vkdev);
         pipeline_prelu_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_prelu_pack8->create("prelu_pack8", opt, specializations, 2, 5);
+        pipeline_prelu_pack8->create(LayerShaderType::prelu_pack8, opt, specializations);
     }
 
     return 0;
@@ -136,7 +138,14 @@ int PReLU_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         Mat slope_data_packed;
         convert_packing(slope_data, slope_data_packed, elempack);
 
-        cmd.record_upload(slope_data_packed, slope_data_gpu, opt);
+        if (opt.use_image_storage)
+        {
+            cmd.record_upload(slope_data_packed, slope_data_gpu_image, opt);
+        }
+        else
+        {
+            cmd.record_upload(slope_data_packed, slope_data_gpu, opt);
+        }
     }
 
     return 0;
@@ -148,7 +157,7 @@ int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const 
 
     std::vector<VkMat> bindings(2);
     bindings[0] = bottom_top_blob;
-    bindings[1] = num_slope > 1 ? slope_data_gpu : bottom_top_blob;
+    bindings[1] = slope_data_gpu;
 
     std::vector<vk_constant_type> constants(5);
     constants[0].i = bottom_top_blob.dims;
@@ -156,6 +165,31 @@ int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const 
     constants[2].i = bottom_top_blob.h;
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
+
+    const Pipeline* pipeline = elempack == 8 ? pipeline_prelu_pack8
+                             : elempack == 4 ? pipeline_prelu_pack4
+                             : pipeline_prelu;
+
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+
+    return 0;
+}
+
+int PReLU_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
+{
+    int elempack = bottom_top_blob.elempack;
+
+    std::vector<VkImageMat> bindings(3);
+    bindings[0] = bottom_top_blob;
+    bindings[1] = bottom_top_blob;
+    bindings[2] = slope_data_gpu_image;
+
+    std::vector<vk_constant_type> constants(5);
+    constants[0].i = bottom_top_blob.dims;
+    constants[1].i = bottom_top_blob.w;
+    constants[2].i = bottom_top_blob.h;
+    constants[3].i = bottom_top_blob.c;
+    constants[4].i = 0;//bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_prelu_pack8
                              : elempack == 4 ? pipeline_prelu_pack4

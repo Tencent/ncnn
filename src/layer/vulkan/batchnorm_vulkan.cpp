@@ -14,6 +14,7 @@
 
 #include "batchnorm_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -22,6 +23,7 @@ DEFINE_LAYER_CREATOR(BatchNorm_vulkan)
 BatchNorm_vulkan::BatchNorm_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     pipeline_batchnorm = 0;
     pipeline_batchnorm_pack4 = 0;
@@ -85,7 +87,7 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_batchnorm = new Pipeline(vkdev);
         pipeline_batchnorm->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_batchnorm->create("batchnorm", opt, specializations, 3, 5);
+        pipeline_batchnorm->create(LayerShaderType::batchnorm, opt, specializations);
     }
 
     // pack4
@@ -93,7 +95,7 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_batchnorm_pack4 = new Pipeline(vkdev);
         pipeline_batchnorm_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_batchnorm_pack4->create("batchnorm_pack4", opt, specializations, 3, 5);
+        pipeline_batchnorm_pack4->create(LayerShaderType::batchnorm_pack4, opt, specializations);
     }
 
     // pack8
@@ -101,7 +103,7 @@ int BatchNorm_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_batchnorm_pack8 = new Pipeline(vkdev);
         pipeline_batchnorm_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_batchnorm_pack8->create("batchnorm_pack8", opt, specializations, 3, 5);
+        pipeline_batchnorm_pack8->create(LayerShaderType::batchnorm_pack8, opt, specializations);
     }
 
     return 0;
@@ -128,12 +130,26 @@ int BatchNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     Mat a_data_packed;
     convert_packing(a_data, a_data_packed, elempack);
 
-    cmd.record_upload(a_data_packed, a_data_gpu, opt);
+    if (opt.use_image_storage)
+    {
+        cmd.record_upload(a_data_packed, a_data_gpu_image, opt);
+    }
+    else
+    {
+        cmd.record_upload(a_data_packed, a_data_gpu, opt);
+    }
 
     Mat b_data_packed;
     convert_packing(b_data, b_data_packed, elempack);
 
-    cmd.record_upload(b_data_packed, b_data_gpu, opt);
+    if (opt.use_image_storage)
+    {
+        cmd.record_upload(b_data_packed, b_data_gpu_image, opt);
+    }
+    else
+    {
+        cmd.record_upload(b_data_packed, b_data_gpu, opt);
+    }
 
     return 0;
 }
@@ -153,6 +169,32 @@ int BatchNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     constants[2].i = bottom_top_blob.h;
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
+
+    const Pipeline* pipeline = elempack == 8 ? pipeline_batchnorm_pack8
+                             : elempack == 4 ? pipeline_batchnorm_pack4
+                             : pipeline_batchnorm;
+
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+
+    return 0;
+}
+
+int BatchNorm_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
+{
+    int elempack = bottom_top_blob.elempack;
+
+    std::vector<VkImageMat> bindings(4);
+    bindings[0] = bottom_top_blob;
+    bindings[1] = bottom_top_blob;
+    bindings[2] = a_data_gpu_image;
+    bindings[3] = b_data_gpu_image;
+
+    std::vector<vk_constant_type> constants(5);
+    constants[0].i = bottom_top_blob.dims;
+    constants[1].i = bottom_top_blob.w;
+    constants[2].i = bottom_top_blob.h;
+    constants[3].i = bottom_top_blob.c;
+    constants[4].i = 0;//bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_batchnorm_pack8
                              : elempack == 4 ? pipeline_batchnorm_pack4

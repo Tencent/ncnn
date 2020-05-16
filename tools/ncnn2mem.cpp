@@ -365,10 +365,7 @@ int main(int argc, char** argv)
     const char* idcpppath = argv[3];
     const char* memcpppath = argv[4];
 
-    const char* lastslash = strrchr(parampath, '/');
-    const char* name = lastslash == NULL ? parampath : lastslash + 1;
-
-    std::string parambinpath = std::string(name) + ".bin";
+    std::string parambinpath = std::string(parampath) + ".bin";
 
     dump_param(parampath, parambinpath.c_str(), idcpppath);
 

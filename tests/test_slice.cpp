@@ -66,11 +66,7 @@ static int test_slice(const ncnn::Mat& a, const ncnn::Mat& slices, int axis)
     ncnn::Option opt;
     opt.num_threads = 1;
     opt.use_vulkan_compute = true;
-    opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_int8_storage = false;
-    opt.use_int8_arithmetic = false;
+    opt.use_int8_inference = false;
 
     std::vector<ncnn::Mat> a0(1);
     a0[0] = a;

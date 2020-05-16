@@ -38,9 +38,15 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_top_blob;
+layout (binding = 1) uniform unfp sampler1D mean_blob;
+layout (binding = 2, r32f) writeonly uniform highp image3D square_blob;
+#else
 layout (binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
 layout (binding = 1) readonly buffer mean_blob { sfp mean_data[]; };
 layout (binding = 2) writeonly buffer square_blob { float square_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -66,15 +72,24 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
-
+#if NCNN_image_shader
+    afp v = image3d_ld1(bottom_top_blob, ivec3(gx, gy, gz));
+    afp mean = image1d_ld1(mean_blob, gz);
+#else
     int v_offset = gz * psc(cstep) + gy * psc(w) + gx;
 
     afp v = buffer_ld1(bottom_top_blob_data, v_offset);
     afp mean = buffer_ld1(mean_data, gz);
+#endif
 
     v = v - mean;
     v = v * v;
 
+#if NCNN_image_shader
+    imageStore(square_blob, ivec3(gx, gy, gz), vec4(float(v)));
+#else
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
     square_blob_data[gi] = float(v);
+#endif
 }

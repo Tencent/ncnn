@@ -14,6 +14,7 @@
 
 #include "relu_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -22,6 +23,7 @@ DEFINE_LAYER_CREATOR(ReLU_vulkan)
 ReLU_vulkan::ReLU_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     pipeline_relu = 0;
     pipeline_relu_pack4 = 0;
@@ -89,7 +91,7 @@ int ReLU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_relu = new Pipeline(vkdev);
         pipeline_relu->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_relu->create("relu", opt, specializations, 1, 5);
+        pipeline_relu->create(LayerShaderType::relu, opt, specializations);
     }
 
     // pack4
@@ -97,7 +99,7 @@ int ReLU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_relu_pack4 = new Pipeline(vkdev);
         pipeline_relu_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_relu_pack4->create("relu_pack4", opt, specializations, 1, 5);
+        pipeline_relu_pack4->create(LayerShaderType::relu_pack4, opt, specializations);
     }
 
     // pack8
@@ -105,7 +107,7 @@ int ReLU_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_relu_pack8 = new Pipeline(vkdev);
         pipeline_relu_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_relu_pack8->create("relu_pack8", opt, specializations, 1, 5);
+        pipeline_relu_pack8->create(LayerShaderType::relu_pack8, opt, specializations);
     }
 
     return 0;
@@ -138,6 +140,30 @@ int ReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
     constants[2].i = bottom_top_blob.h;
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
+
+    const Pipeline* pipeline = elempack == 8 ? pipeline_relu_pack8
+                             : elempack == 4 ? pipeline_relu_pack4
+                             : pipeline_relu;
+
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+
+    return 0;
+}
+
+int ReLU_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
+{
+    int elempack = bottom_top_blob.elempack;
+
+    std::vector<VkImageMat> bindings(2);
+    bindings[0] = bottom_top_blob;
+    bindings[1] = bottom_top_blob;
+
+    std::vector<vk_constant_type> constants(5);
+    constants[0].i = bottom_top_blob.dims;
+    constants[1].i = bottom_top_blob.w;
+    constants[2].i = bottom_top_blob.h;
+    constants[3].i = bottom_top_blob.c;
+    constants[4].i = 0;//bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_relu_pack8
                              : elempack == 4 ? pipeline_relu_pack4

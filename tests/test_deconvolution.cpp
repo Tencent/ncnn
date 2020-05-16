@@ -29,6 +29,13 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     pd.set(5, bias);// bias_term
     pd.set(6, outch*c*kernel*kernel);
 
+    int activation_type = RAND() % 5;// 0 1 2 3 4
+    ncnn::Mat activation_params(2);
+    activation_params[0] = RandomFloat(-1, 0);// alpha
+    activation_params[1] = RandomFloat(0, 1);// beta
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
     std::vector<ncnn::Mat> weights(2);
     weights[0] = RandomMat(outch*c*kernel*kernel);
     weights[1] = RandomMat(outch);
@@ -36,16 +43,12 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     ncnn::Option opt;
     opt.num_threads = 1;
     opt.use_vulkan_compute = true;
-    opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_int8_storage = false;
-    opt.use_int8_arithmetic = false;
+    opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Deconvolution>("Deconvolution", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias);
+        fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
     }
 
     return ret;
@@ -53,44 +56,36 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
 
 static int test_deconvolution_0()
 {
-    static const int kdsp[24][4] = {
+    static const int kdsp[16][4] = {
         {1, 1, 1, 0},
         {1, 1, 2, 0},
         {2, 1, 1, 1},
         {2, 1, 2, 1},
-        {2, 2, 1, 1},
-        {2, 2, 2, 1},
         {3, 1, 1, 1},
         {3, 1, 2, 1},
         {3, 2, 1, 1},
-        {3, 2, 2, 1},
         {4, 1, 1, 2},
         {4, 1, 2, 2},
         {4, 2, 1, 2},
-        {4, 2, 2, 2},
         {5, 1, 1, 2},
         {5, 1, 2, 2},
-        {5, 2, 1, 2},
         {5, 2, 2, 2},
         {7, 1, 1, 3},
         {7, 1, 2, 3},
-        {7, 1, 3, 3},
         {7, 2, 1, 3},
-        {7, 2, 2, 3},
-        {7, 2, 3, 3},
     };
 
-    for (int i=0; i<24; i++)
+    for (int i=0; i<16; i++)
     {
         int ret = 0
             || test_deconvolution(9, 7, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-            || test_deconvolution(9, 7, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-            || test_deconvolution(9, 7, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-            || test_deconvolution(9, 7, 4, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-            || test_deconvolution(9, 7, 7, 7, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-            || test_deconvolution(9, 7, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-            || test_deconvolution(9, 7, 15, 15, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-            || test_deconvolution(9, 7, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+            || test_deconvolution(9, 7, 4, 13, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0)
+            || test_deconvolution(9, 7, 13, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+            || test_deconvolution(9, 7, 4, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0)
+            || test_deconvolution(9, 7, 8, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+            || test_deconvolution(9, 7, 8, 13, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0)
+            || test_deconvolution(9, 7, 13, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+            || test_deconvolution(9, 7, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0)
             ;
 
         if (ret != 0)

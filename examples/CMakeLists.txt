@@ -1,7 +1,6 @@
 
 macro(ncnn_add_example name)
     add_executable(${name} ${name}.cpp)
-    target_compile_options(${name} PRIVATE -std=c++11)
     target_link_libraries(${name} PRIVATE ncnn ${OpenCV_LIBS})
 
     # add test to a virtual project group
@@ -29,6 +28,7 @@ if(OpenCV_FOUND)
     ncnn_add_example(peleenetssd_seg)
     ncnn_add_example(simplepose)
     ncnn_add_example(retinaface)
+    ncnn_add_example(yolact)
 else()
     message(WARNING "OpenCV not found, examples won't be built")
 endif()

@@ -13,12 +13,11 @@
 // specific language governing permissions and limitations under the License.
 
 #include "pipeline.h"
-#include <stdio.h>
 #include <math.h>
 #include <algorithm>
-#include <string>
 #include "mat.h"
 #include "option.h"
+#include "layer_shader_type.h"
 
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
@@ -46,8 +45,24 @@ Pipeline::~Pipeline()
     destroy();
 }
 
-int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const char* entry_name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
+int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations)
 {
+    ShaderInfo si;
+    int ret = resolve_shader_info(spv_data, spv_data_size, si);
+    if (ret != 0)
+    {
+        NCNN_LOGE("resolve_shader_info failed %d", ret);
+        return -1;
+    }
+
+    // -3 for local_size_xyz
+    int specialization_count_expected = si.specialization_count - 3;
+    if ((int)specializations.size() != specialization_count_expected)
+    {
+        NCNN_LOGE("pipeline specialization count mismatch, expect %d but got %d", specialization_count_expected, (int)specializations.size());
+        return -1;
+    }
+
     if (vkdev->info.bug_local_size_spec_const)
     {
         local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
@@ -57,58 +72,100 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const char*
         local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size);
     }
 
-//     fprintf(stderr, "local_shader_module %p %s created\n", local_shader_module, entry_name);
+//     NCNN_LOGE("local_shader_module %p created", local_shader_module);
 
-    return create(local_shader_module, entry_name, specializations, binding_count, push_constant_count);
+    return create(local_shader_module, si, specializations);
 }
 
-int Pipeline::create(VkShaderModule shader_module, const char* entry_name, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
+int Pipeline::create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations)
 {
-    create_descriptorset_layout(binding_count);
+    // ncnn_add_shader cmake macro
+    // 0 = fp32
+    // 1 = fp16p
+    // 2 = fp16pa
+    // 3 = fp16s
+    // 4 = fp16sa
+    // 5 = image
+    // 6 = image_fp16p
+    // 7 = image_fp16pa
+    // 8 = image_fp16s
+    // 9 = image_fp16sa
 
-    create_pipeline_layout(push_constant_count);
-
-    create_pipeline(shader_module, entry_name, specializations);
-
-    if (vkdev->info.support_VK_KHR_descriptor_update_template)
+    if (opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
-        create_descriptor_update_template(binding_count);
+        shader_type_index += 9;
     }
-
-    return 0;
-}
-
-int Pipeline::create(const char* _name, const Option& opt, const std::vector<vk_specialization_type>& specializations, int binding_count, int push_constant_count)
-{
-    std::string name = _name;
-
-    if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    else if (opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
-        name += "_fp16sa";
+        shader_type_index += 7;
+    }
+    else if (opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage)
+    {
+        shader_type_index += 8;
+    }
+    else if (opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed)
+    {
+        shader_type_index += 6;
+    }
+    else if (opt.use_image_storage)
+    {
+        shader_type_index += 5;
+    }
+    else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    {
+        shader_type_index += 4;
     }
     else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
-        name += "_fp16pa";
+        shader_type_index += 2;
     }
     else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage)
     {
-        name += "_fp16s";
+        shader_type_index += 3;
     }
     else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed)
     {
-        name += "_fp16p";
+        shader_type_index += 1;
+    }
+
+    const ShaderInfo& si = get_shader_info(shader_type_index);
+
+    // -3 for local_size_xyz
+    int specialization_count_expected = si.specialization_count - 3;
+    if ((int)specializations.size() != specialization_count_expected)
+    {
+        NCNN_LOGE("pipeline %d specialization count mismatch, expect %d but got %d", shader_type_index, specialization_count_expected, (int)specializations.size());
+        return -1;
     }
 
     if (vkdev->info.bug_local_size_spec_const)
     {
-        local_shader_module = vkdev->create_shader_module(name.c_str(), local_size_x, local_size_y, local_size_z);
+        local_shader_module = vkdev->create_shader_module(shader_type_index, local_size_x, local_size_y, local_size_z);
 
-        return create(local_shader_module, name.c_str(), specializations, binding_count, push_constant_count);
+        return create(local_shader_module, si, specializations);
     }
 
-    VkShaderModule shader_module = vkdev->get_shader_module(name.c_str());
+    VkShaderModule shader_module = vkdev->get_shader_module(shader_type_index);
 
-    return create(shader_module, name.c_str(), specializations, binding_count, push_constant_count);
+    return create(shader_module, si, specializations);
+}
+
+int Pipeline::create(VkShaderModule shader_module, const ShaderInfo& _shader_info, const std::vector<vk_specialization_type>& specializations)
+{
+    shader_info = _shader_info;
+
+    create_descriptorset_layout();
+
+    create_pipeline_layout();
+
+    create_pipeline(shader_module, specializations);
+
+    if (vkdev->info.support_VK_KHR_descriptor_update_template)
+    {
+        create_descriptor_update_template();
+    }
+
+    return 0;
 }
 
 void Pipeline::destroy()
@@ -193,11 +250,13 @@ void Pipeline::set_local_size_xyz(int w, int h, int c)
     local_size_y = h;
     local_size_z = c;
 
-//     fprintf(stderr, "local size = %d %d %d\n", local_size_x, local_size_y, local_size_z);
+//     NCNN_LOGE("local size = %d %d %d", local_size_x, local_size_y, local_size_z);
 }
 
-int Pipeline::create_descriptorset_layout(int binding_count)
+int Pipeline::create_descriptorset_layout()
 {
+    const int binding_count = shader_info.binding_count;
+
     if (binding_count == 0)
     {
         descriptorset_layout = 0;
@@ -207,11 +266,27 @@ int Pipeline::create_descriptorset_layout(int binding_count)
     std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings(binding_count);
     for (int i=0; i<binding_count; i++)
     {
+        int binding_type = shader_info.binding_types[i];
+
         descriptorSetLayoutBindings[i].binding = i;
-        descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         descriptorSetLayoutBindings[i].descriptorCount = 1;
         descriptorSetLayoutBindings[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-        descriptorSetLayoutBindings[i].pImmutableSamplers = 0;
+
+        if (binding_type == 1)
+        {
+            descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorSetLayoutBindings[i].pImmutableSamplers = 0;
+        }
+        else if (binding_type == 2)
+        {
+            descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            descriptorSetLayoutBindings[i].pImmutableSamplers = 0;
+        }
+        else // if (binding_type == 3)
+        {
+            descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorSetLayoutBindings[i].pImmutableSamplers = vkdev->immutable_texelfetch_sampler();// we always use texelfetch
+        }
     }
 
     VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
@@ -229,19 +304,21 @@ int Pipeline::create_descriptorset_layout(int binding_count)
     VkResult ret = vkCreateDescriptorSetLayout(vkdev->vkdevice(), &descriptorSetLayoutCreateInfo, 0, &descriptorset_layout);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateDescriptorSetLayout failed %d\n", ret);
+        NCNN_LOGE("vkCreateDescriptorSetLayout failed %d", ret);
         return -1;
     }
 
     return 0;
 }
 
-int Pipeline::create_pipeline_layout(int push_constant_count)
+int Pipeline::create_pipeline_layout()
 {
+    const int push_constant_count = shader_info.push_constant_count;
+
     VkPushConstantRange pushConstantRange;
     pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pushConstantRange.offset = 0;
-    pushConstantRange.size = sizeof(int) * push_constant_count;
+    pushConstantRange.size = sizeof(vk_constant_type) * push_constant_count;
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -273,14 +350,14 @@ int Pipeline::create_pipeline_layout(int push_constant_count)
     VkResult ret = vkCreatePipelineLayout(vkdev->vkdevice(), &pipelineLayoutCreateInfo, 0, &pipeline_layout);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreatePipelineLayout failed %d\n", ret);
+        NCNN_LOGE("vkCreatePipelineLayout failed %d", ret);
         return -1;
     }
 
     return 0;
 }
 
-int Pipeline::create_pipeline(VkShaderModule shader_module, const char* entry_name, const std::vector<vk_specialization_type>& specializations)
+int Pipeline::create_pipeline(VkShaderModule shader_module, const std::vector<vk_specialization_type>& specializations)
 {
     const int specialization_count = specializations.size();
 
@@ -332,7 +409,7 @@ int Pipeline::create_pipeline(VkShaderModule shader_module, const char* entry_na
     pipelineShaderStageCreateInfo.flags = 0;
     pipelineShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     pipelineShaderStageCreateInfo.module = shader_module;
-    pipelineShaderStageCreateInfo.pName = entry_name;
+    pipelineShaderStageCreateInfo.pName = "main";
     pipelineShaderStageCreateInfo.pSpecializationInfo = &specializationInfo;
 
     VkComputePipelineCreateInfo computePipelineCreateInfo;
@@ -347,15 +424,17 @@ int Pipeline::create_pipeline(VkShaderModule shader_module, const char* entry_na
     VkResult ret = vkCreateComputePipelines(vkdev->vkdevice(), 0, 1, &computePipelineCreateInfo, 0, &pipeline);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateComputePipelines failed %d %s\n", ret, entry_name);
+        NCNN_LOGE("vkCreateComputePipelines failed %d", ret);
         return -1;
     }
 
     return 0;
 }
 
-int Pipeline::create_descriptor_update_template(int binding_count)
+int Pipeline::create_descriptor_update_template()
 {
+    const int binding_count = shader_info.binding_count;
+
     if (binding_count == 0)
     {
         descriptor_update_template = 0;
@@ -363,14 +442,33 @@ int Pipeline::create_descriptor_update_template(int binding_count)
     }
 
     std::vector<VkDescriptorUpdateTemplateEntryKHR> descriptorUpdateTemplateEntries(binding_count);
+    size_t offset = 0;
     for (int i=0; i<binding_count; i++)// TODO do not update weights
     {
+        int binding_type = shader_info.binding_types[i];
+
         descriptorUpdateTemplateEntries[i].dstBinding = i;
         descriptorUpdateTemplateEntries[i].dstArrayElement = 0;
         descriptorUpdateTemplateEntries[i].descriptorCount = 1;
-        descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptorUpdateTemplateEntries[i].offset = i * sizeof(VkDescriptorBufferInfo);
-        descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorBufferInfo);
+        descriptorUpdateTemplateEntries[i].offset = offset;
+
+        if (binding_type == 1)
+        {
+            descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorBufferInfo);
+        }
+        else if (binding_type == 2)
+        {
+            descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorImageInfo);
+        }
+        else // if (binding_type == 3)
+        {
+            descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorImageInfo);
+        }
+
+        offset += descriptorUpdateTemplateEntries[i].stride;
     }
 
     VkDescriptorUpdateTemplateCreateInfoKHR descriptorUpdateTemplateCreateInfo;
@@ -397,7 +495,7 @@ int Pipeline::create_descriptor_update_template(int binding_count)
     VkResult ret = vkdev->vkCreateDescriptorUpdateTemplateKHR(vkdev->vkdevice(), &descriptorUpdateTemplateCreateInfo, 0, &descriptor_update_template);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateDescriptorUpdateTemplateKHR failed %d\n", ret);
+        NCNN_LOGE("vkCreateDescriptorUpdateTemplateKHR failed %d", ret);
         return -1;
     }
 
@@ -407,7 +505,6 @@ int Pipeline::create_descriptor_update_template(int binding_count)
 #if __ANDROID_API__ >= 26
 ImportAndroidHardwareBufferPipeline::ImportAndroidHardwareBufferPipeline(const VulkanDevice* _vkdev) : Pipeline(_vkdev)
 {
-    samplerYcbcrConversion = 0;
     sampler = 0;
 }
 
@@ -416,82 +513,135 @@ ImportAndroidHardwareBufferPipeline::~ImportAndroidHardwareBufferPipeline()
     destroy();
 }
 
-int ImportAndroidHardwareBufferPipeline::create(AHardwareBuffer* hb, int _type_to, int _rotate_from, const Option& opt)
+int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllocator* ahb_im_allocator, int _type_to, int _rotate_from, const Option& opt)
 {
-    AHardwareBuffer_Desc bufferDesc;
-    AHardwareBuffer_describe(hb, &bufferDesc);
-
-    w = bufferDesc.width;
-    h = bufferDesc.height;
-    type_to = _type_to;
-    rotate_from = _rotate_from;
+    int target_width;
+    int target_height;
 
     if (rotate_from < 5) // 1 2 3 4
     {
-        outw = w;
-        outh = h;
+        target_width = ahb_im_allocator->width();
+        target_height = ahb_im_allocator->height();
     }
     else // 5 6 7 8
     {
-        outw = h;
-        outh = w;
+        target_width = ahb_im_allocator->height();
+        target_height = ahb_im_allocator->width();
     }
 
-    if (type_to == 1 || type_to == 2)
+    return create(ahb_im_allocator, _type_to, _rotate_from, target_width, target_height, opt);
+}
+
+int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllocator* ahb_im_allocator, int _type_to, int _rotate_from, int target_width, int target_height, const Option& opt)
+{
+    int w = ahb_im_allocator->width();
+    int h = ahb_im_allocator->height();
+
+    type_to = _type_to;
+    rotate_from = _rotate_from;
+
+    need_resize = false;
+    if (rotate_from < 5) // 1 2 3 4
     {
-        outc = 3;
-        out_elemsize = vkdev->info.support_fp16_storage && opt.use_fp16_storage ? 2u : 4u;
-        out_elempack = 1;
+        if (target_width != w || target_height != h)
+            need_resize = true;
     }
-    else if (type_to == 3)
+    else // 5 6 7 8
     {
-        outc = 1;
-        out_elemsize = vkdev->info.support_fp16_storage && opt.use_fp16_storage ? 2u : 4u;
-        out_elempack = 1;
+        if (target_width != h || target_height != w)
+            need_resize = true;
     }
-    else // if (type_to == 4)
-    {
-        outc = 4;
-        out_elemsize = ((vkdev->info.support_fp16_packed && opt.use_fp16_packed) || (vkdev->info.support_fp16_storage && opt.use_fp16_storage)) ? 8u : 16u;
-        out_elempack = 4;
-    }
+
+//     if (type_to == 1 || type_to == 2)
+//     {
+//         outc = 3;
+//         out_elemsize = vkdev->info.support_fp16_storage && opt.use_fp16_storage ? 2u : 4u;
+//         out_elempack = 1;
+//     }
+//     else if (type_to == 3)
+//     {
+//         outc = 1;
+//         out_elemsize = vkdev->info.support_fp16_storage && opt.use_fp16_storage ? 2u : 4u;
+//         out_elempack = 1;
+//     }
+//     else // if (type_to == 4 || type_to == 5)
+//     {
+//         outc = 1;
+//         out_elemsize = ((vkdev->info.support_fp16_packed && opt.use_fp16_packed) || (vkdev->info.support_fp16_storage && opt.use_fp16_storage)) ? 8u : 16u;
+//         out_elempack = 4;
+//     }
 
     set_local_size_xyz(8, 8, 1);
 
-    std::vector<vk_specialization_type> specializations(4);
-    specializations[0].i = outw;
-    specializations[1].i = outh;
-    specializations[2].i = type_to;
-    specializations[3].i = rotate_from;
+    std::vector<vk_specialization_type> specializations(7);
+    specializations[0].i = ahb_im_allocator->width();
+    specializations[1].i = ahb_im_allocator->height();
+    specializations[2].i = target_width;
+    specializations[3].i = target_height;
+    specializations[4].i = type_to;
+    specializations[5].i = rotate_from;
+    specializations[6].i = need_resize;
 
-    create_sampler(hb);
+    create_sampler(ahb_im_allocator);
 
     create_descriptorset_layout();
 
-    create_pipeline_layout(0);
+    create_pipeline_layout();
 
-    std::string name = "convert_ycbcr";
+    int shader_type_index = LayerShaderType::convert_ycbcr;
 
-    if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    // ncnn_add_shader cmake macro
+    // 0 = fp32
+    // 1 = fp16p
+    // 2 = fp16pa
+    // 3 = fp16s
+    // 4 = fp16sa
+    // 5 = image
+    // 6 = image_fp16p
+    // 7 = image_fp16pa
+    // 8 = image_fp16s
+    // 9 = image_fp16sa
+
+    if (opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
-        name += "_fp16sa";
+        shader_type_index += 9;
+    }
+    else if (opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    {
+        shader_type_index += 7;
+    }
+    else if (opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage)
+    {
+        shader_type_index += 8;
+    }
+    else if (opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed)
+    {
+        shader_type_index += 6;
+    }
+    else if (opt.use_image_storage)
+    {
+        shader_type_index += 5;
+    }
+    else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    {
+        shader_type_index += 4;
     }
     else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
-        name += "_fp16pa";
+        shader_type_index += 2;
     }
     else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage)
     {
-        name += "_fp16s";
+        shader_type_index += 3;
     }
     else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed)
     {
-        name += "_fp16p";
+        shader_type_index += 1;
     }
 
-    VkShaderModule shader_module = vkdev->get_shader_module(name.c_str());
+    VkShaderModule shader_module = vkdev->get_shader_module(shader_type_index);
 
-    create_pipeline(shader_module, name.c_str(), specializations);
+    create_pipeline(shader_module, specializations);
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template)
     {
@@ -509,68 +659,28 @@ void ImportAndroidHardwareBufferPipeline::destroy()
         sampler = 0;
     }
 
-    if (samplerYcbcrConversion)
-    {
-        vkdev->vkDestroySamplerYcbcrConversionKHR(vkdev->vkdevice(), samplerYcbcrConversion, 0);
-        samplerYcbcrConversion = 0;
-    }
-
     Pipeline::destroy();
 }
 
-int ImportAndroidHardwareBufferPipeline::create_sampler(AHardwareBuffer* hb)
+int ImportAndroidHardwareBufferPipeline::create_sampler(VkAndroidHardwareBufferImageAllocator* ahb_im_allocator)
 {
     VkResult ret;
 
-    VkAndroidHardwareBufferFormatPropertiesANDROID bufferFormatProperties;
-    bufferFormatProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID;
-    bufferFormatProperties.pNext = 0;
-
-    VkAndroidHardwareBufferPropertiesANDROID bufferProperties;
-    bufferProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID;
-    bufferProperties.pNext = &bufferFormatProperties;
-
-    ret = vkGetAndroidHardwareBufferPropertiesANDROID(vkdev->vkdevice(), hb, &bufferProperties);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkGetAndroidHardwareBufferPropertiesANDROID failed %d\n", ret);
-        return -1;
-    }
-
-    VkExternalFormatANDROID externalFormat;
-    externalFormat.sType = VK_STRUCTURE_TYPE_EXTERNAL_FORMAT_ANDROID;
-    externalFormat.pNext = 0;
-    externalFormat.externalFormat = bufferFormatProperties.externalFormat;
-
-    VkSamplerYcbcrConversionCreateInfoKHR samplerYcbcrConversionCreateInfo;
-    samplerYcbcrConversionCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO_KHR;
-    samplerYcbcrConversionCreateInfo.pNext = &externalFormat;
-    samplerYcbcrConversionCreateInfo.format = VK_FORMAT_UNDEFINED;
-    samplerYcbcrConversionCreateInfo.ycbcrModel = bufferFormatProperties.suggestedYcbcrModel;
-    samplerYcbcrConversionCreateInfo.ycbcrRange = bufferFormatProperties.suggestedYcbcrRange;
-    samplerYcbcrConversionCreateInfo.components = bufferFormatProperties.samplerYcbcrConversionComponents;
-    samplerYcbcrConversionCreateInfo.xChromaOffset = bufferFormatProperties.suggestedXChromaOffset;
-    samplerYcbcrConversionCreateInfo.yChromaOffset = bufferFormatProperties.suggestedYChromaOffset;
-    samplerYcbcrConversionCreateInfo.chromaFilter = VK_FILTER_NEAREST;
-    samplerYcbcrConversionCreateInfo.forceExplicitReconstruction = VK_FALSE;
-
-    ret = vkdev->vkCreateSamplerYcbcrConversionKHR(vkdev->vkdevice(), &samplerYcbcrConversionCreateInfo, 0, &samplerYcbcrConversion);
-    if (ret != VK_SUCCESS)
-    {
-        fprintf(stderr, "vkCreateSamplerYcbcrConversionKHR failed %d\n", ret);
-        return -1;
-    }
+    VkExternalFormatANDROID externalFormatANDROID;
+    externalFormatANDROID.sType = VK_STRUCTURE_TYPE_EXTERNAL_FORMAT_ANDROID;
+    externalFormatANDROID.pNext = 0;
+    externalFormatANDROID.externalFormat = ahb_im_allocator->external_format();
 
     VkSamplerYcbcrConversionInfoKHR samplerYcbcrConversionInfo;
     samplerYcbcrConversionInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO_KHR;
-    samplerYcbcrConversionInfo.pNext = &externalFormat;
-    samplerYcbcrConversionInfo.conversion = samplerYcbcrConversion;
+    samplerYcbcrConversionInfo.pNext = &externalFormatANDROID;
+    samplerYcbcrConversionInfo.conversion = ahb_im_allocator->samplerYcbcrConversion;
 
     VkSamplerCreateInfo samplerCreateInfo;
     samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     samplerCreateInfo.pNext = &samplerYcbcrConversionInfo;
-    samplerCreateInfo.magFilter = VK_FILTER_NEAREST;
-    samplerCreateInfo.minFilter = VK_FILTER_NEAREST;
+    samplerCreateInfo.magFilter = need_resize ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+    samplerCreateInfo.minFilter = need_resize ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
     samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
     samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
@@ -588,7 +698,7 @@ int ImportAndroidHardwareBufferPipeline::create_sampler(AHardwareBuffer* hb)
     ret = vkCreateSampler(vkdev->vkdevice(), &samplerCreateInfo, 0, &sampler);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateSampler failed %d\n", ret);
+        NCNN_LOGE("vkCreateSampler failed %d", ret);
         return -1;
     }
 
@@ -629,7 +739,7 @@ int ImportAndroidHardwareBufferPipeline::create_descriptorset_layout()
     VkResult ret = vkCreateDescriptorSetLayout(vkdev->vkdevice(), &descriptorSetLayoutCreateInfo, 0, &descriptorset_layout);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateDescriptorSetLayout failed %d\n", ret);
+        NCNN_LOGE("vkCreateDescriptorSetLayout failed %d", ret);
         return -1;
     }
 
@@ -682,7 +792,7 @@ int ImportAndroidHardwareBufferPipeline::create_descriptor_update_template()
     VkResult ret = vkdev->vkCreateDescriptorUpdateTemplateKHR(vkdev->vkdevice(), &descriptorUpdateTemplateCreateInfo, 0, &descriptor_update_template);
     if (ret != VK_SUCCESS)
     {
-        fprintf(stderr, "vkCreateDescriptorUpdateTemplateKHR failed %d\n", ret);
+        NCNN_LOGE("vkCreateDescriptorUpdateTemplateKHR failed %d", ret);
         return -1;
     }
 

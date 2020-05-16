@@ -42,9 +42,15 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_blob;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
+layout (binding = 2) uniform unfp sampler1D per_channel_pad_blob;
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout (binding = 2) readonly buffer per_channel_pad_blob { sfp per_channel_pad_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -82,35 +88,56 @@ void main()
     {
         if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
         {
+#if NCNN_image_shader
+            image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, gz));
+#else
             int v_offset = gz * psc(cstep) + y * psc(w) + x;
             buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
         }
         else if (per_channel_pad == 1)
         {
+#if NCNN_image_shader
+            afp v = image1d_ld1(per_channel_pad_blob, gz);
+            image3d_st1(top_blob, ivec3(gx, gy, gz), v);
+#else
             buffer_cp1(top_blob_data, gi, per_channel_pad_blob_data, gz);
+#endif
         }
         else
         {
             afp v = afp(value);
+#if NCNN_image_shader
+            image3d_st1(top_blob, ivec3(gx, gy, gz), v);
+#else
             buffer_st1(top_blob_data, gi, v);
+#endif
         }
     }
-    else if (type == 1)
+    if (type == 1)
     {
         x = clamp(x, 0, psc(w) - 1);
         y = clamp(y, 0, psc(h) - 1);
 
+#if NCNN_image_shader
+        image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, gz));
+#else
         int v_offset = gz * psc(cstep) + y * psc(w) + x;
         buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
     }
-    else if (type == 2)
+    if (type == 2)
     {
         x = abs(x);
         y = abs(y);
         x = (psc(w) - 1) - abs(x - (psc(w) - 1));
         y = (psc(h) - 1) - abs(y - (psc(h) - 1));
 
+#if NCNN_image_shader
+        image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, gz));
+#else
         int v_offset = gz * psc(cstep) + y * psc(w) + x;
         buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
     }
 }

@@ -22,20 +22,27 @@
 #endif
 
 #define shape_constant_id_offset 0
-layout (constant_id = shape_constant_id_offset + 0) const int size = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
 
 layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform highp sampler3D bottom_top_blob;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image1D mean_blob;
+#else
 layout (binding = 0) readonly buffer bottom_top_blob { float bottom_top_blob_data[]; };
 layout (binding = 1) writeonly buffer mean_blob { sfp mean_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
-    int size;
+    int w;
+    int h;
     int c;
     int cstep;
     float area;
@@ -52,15 +59,29 @@ void main()
 
     afp sum = afp(0.f);
 
+#if NCNN_image_shader
+    for (int i = 0; i < p.h; i++)
+    {
+        for (int j = 0; j < p.w; j++)
+        {
+            sum += afp(texelFetch(bottom_top_blob, ivec3(j, i, gx), 0).r);
+        }
+    }
+#else
     int v_offset = gx * psc(cstep);
 
-    for (int i = 0; i < p.size; i++)
+    for (int i = 0; i < p.w; i++)
     {
         sum += afp(bottom_top_blob_data[v_offset]);
         v_offset += 1;
     }
+#endif
 
     afp mean = sum / afp(p.area);
 
+#if NCNN_image_shader
+    image1d_st1(mean_blob, gx, mean);
+#else
     buffer_st1(mean_data, gx, mean);
+#endif
 }

@@ -37,11 +37,6 @@ static int test_padding(int w, int h, int c, int top, int bottom, int left, int 
     opt.num_threads = 1;
     opt.use_vulkan_compute = true;
     opt.use_int8_inference = false;
-    opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_int8_storage = false;
-    opt.use_int8_arithmetic = false;
 
     int ret = test_layer<ncnn::Padding>("Padding", pd, weights, opt, a);
     if (ret != 0)

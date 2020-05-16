@@ -32,10 +32,15 @@ public:
     using Scale::forward_inplace;
     virtual int forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const;
     virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
+    virtual int forward_inplace(std::vector<VkImageMat>& bottom_top_blobs, VkCompute& cmd, const Option& opt) const;
+    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
     VkMat scale_data_gpu;
     VkMat bias_data_gpu;
+    VkImageMat scale_data_gpu_image;
+    VkImageMat bias_data_gpu_image;
+
     Pipeline* pipeline_scale;
     Pipeline* pipeline_scale_pack4;
     Pipeline* pipeline_scale_pack8;

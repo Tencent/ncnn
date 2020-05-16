@@ -15,7 +15,6 @@
 #include "layer.h"
 
 #include <math.h>
-#include <stdio.h>
 #include <string.h>
 #include <algorithm>
 #include "cpu.h"
@@ -37,6 +36,9 @@ Layer::Layer()
     support_inplace = false;
     support_vulkan = false;
     support_packing = false;
+
+    support_bf16_storage = false;
+    support_image_storage = false;
 
 #if NCNN_VULKAN
     vkdev = 0;
@@ -119,11 +121,7 @@ int Layer::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& t
     top_blobs.resize(bottom_blobs.size());
     for (int i = 0; i < (int)top_blobs.size(); i++)
     {
-        top_blobs[i].create_like(bottom_blobs[i], bottom_blobs[i].allocator, bottom_blobs[i].staging_allocator);
-        if (top_blobs[i].empty())
-            return -100;
-
-        cmd.record_clone(bottom_blobs[i], top_blobs[i]);
+        cmd.record_clone(bottom_blobs[i], top_blobs[i], opt);
     }
 
     return forward_inplace(top_blobs, cmd, opt);
@@ -134,11 +132,31 @@ int Layer::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, co
     if (!support_inplace)
         return -1;
 
-    top_blob.create_like(bottom_blob, bottom_blob.allocator, bottom_blob.staging_allocator);
-    if (top_blob.empty())
-        return -100;
+    cmd.record_clone(bottom_blob, top_blob, opt);
 
-    cmd.record_clone(bottom_blob, top_blob);
+    return forward_inplace(top_blob, cmd, opt);
+}
+
+int Layer::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+{
+    if (!support_inplace)
+        return -1;
+
+    top_blobs.resize(bottom_blobs.size());
+    for (int i = 0; i < (int)top_blobs.size(); i++)
+    {
+        cmd.record_clone(bottom_blobs[i], top_blobs[i], opt);
+    }
+
+    return forward_inplace(top_blobs, cmd, opt);
+}
+
+int Layer::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    if (!support_inplace)
+        return -1;
+
+    cmd.record_clone(bottom_blob, top_blob, opt);
 
     return forward_inplace(top_blob, cmd, opt);
 }
@@ -149,6 +167,16 @@ int Layer::forward_inplace(std::vector<VkMat>& /*bottom_top_blobs*/, VkCompute& 
 }
 
 int Layer::forward_inplace(VkMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
+{
+    return -1;
+}
+
+int Layer::forward_inplace(std::vector<VkImageMat>& /*bottom_top_blobs*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
+{
+    return -1;
+}
+
+int Layer::forward_inplace(VkImageMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, const Option& /*opt*/) const
 {
     return -1;
 }

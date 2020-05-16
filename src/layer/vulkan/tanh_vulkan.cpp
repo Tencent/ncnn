@@ -14,6 +14,7 @@
 
 #include "tanh_vulkan.h"
 #include <algorithm>
+#include "layer_shader_type.h"
 
 namespace ncnn {
 
@@ -22,6 +23,7 @@ DEFINE_LAYER_CREATOR(TanH_vulkan)
 TanH_vulkan::TanH_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     pipeline_tanh = 0;
     pipeline_tanh_pack4 = 0;
@@ -88,7 +90,7 @@ int TanH_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_tanh = new Pipeline(vkdev);
         pipeline_tanh->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_tanh->create("tanh", opt, specializations, 1, 5);
+        pipeline_tanh->create(LayerShaderType::tanh, opt, specializations);
     }
 
     // pack4
@@ -96,7 +98,7 @@ int TanH_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_tanh_pack4 = new Pipeline(vkdev);
         pipeline_tanh_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_tanh_pack4->create("tanh_pack4", opt, specializations, 1, 5);
+        pipeline_tanh_pack4->create(LayerShaderType::tanh_pack4, opt, specializations);
     }
 
     // pack8
@@ -104,7 +106,7 @@ int TanH_vulkan::create_pipeline(const Option& opt)
     {
         pipeline_tanh_pack8 = new Pipeline(vkdev);
         pipeline_tanh_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_tanh_pack8->create("tanh_pack8", opt, specializations, 1, 5);
+        pipeline_tanh_pack8->create(LayerShaderType::tanh_pack8, opt, specializations);
     }
 
     return 0;
@@ -137,6 +139,30 @@ int TanH_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
     constants[2].i = bottom_top_blob.h;
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
+
+    const Pipeline* pipeline = elempack == 8 ? pipeline_tanh_pack8
+                             : elempack == 4 ? pipeline_tanh_pack4
+                             : pipeline_tanh;
+
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+
+    return 0;
+}
+
+int TanH_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
+{
+    int elempack = bottom_top_blob.elempack;
+
+    std::vector<VkImageMat> bindings(2);
+    bindings[0] = bottom_top_blob;
+    bindings[1] = bottom_top_blob;
+
+    std::vector<vk_constant_type> constants(5);
+    constants[0].i = bottom_top_blob.dims;
+    constants[1].i = bottom_top_blob.w;
+    constants[2].i = bottom_top_blob.h;
+    constants[3].i = bottom_top_blob.c;
+    constants[4].i = 0;//bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_tanh_pack8
                              : elempack == 4 ? pipeline_tanh_pack4
