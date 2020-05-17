@@ -249,14 +249,15 @@ public:
 
 public:
     const VulkanDevice* vkdev;
-    uint32_t memory_type_index;
+    uint32_t buffer_memory_type_index;
+    uint32_t image_memory_type_index;
     bool mappable;
     bool coherent;
 
 protected:
     VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage);
-    VkDeviceMemory allocate_memory(size_t size);
-    VkDeviceMemory allocate_dedicated_memory(size_t size, VkImage image, VkBuffer buffer);
+    VkDeviceMemory allocate_memory(size_t size, uint32_t memory_type_index);
+    VkDeviceMemory allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkImage image, VkBuffer buffer);
 
     VkImage create_image(VkImageType type, int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage);
     VkImageView create_imageview(VkImageViewType type, VkImage image, VkFormat format);
