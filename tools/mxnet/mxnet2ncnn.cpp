@@ -136,7 +136,7 @@ std::vector<int> MXNetNode::attr_ai(const char* key) const
     int i = 0;
     int c = 0;
     int nconsumed = 0;
-    int nscan = sscanf(it->second.c_str() + c, "%*[(,]%d%n", &i, &nconsumed);
+    int nscan = sscanf(it->second.c_str() + c, "%*[\[(,]%d%n", &i, &nconsumed);
     if (nscan != 1)
     {
         // (None

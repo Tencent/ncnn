@@ -22,8 +22,9 @@
 #endif
 
 layout (constant_id = 0) const int group = 1;
+layout (constant_id = 1) const int bugihfa = 0;
 
-#define shape_constant_id_offset 1
+#define shape_constant_id_offset 2
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
@@ -40,8 +41,13 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D bottom_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -73,19 +79,58 @@ void main()
 
     ivec4 z4 = (gz4 % group) * channels_g + (gz4 / group);
 
+#if NCNN_image_shader
+    ivec4 sz4 = z4 / 4;
+
+    afpvec4 vr = image3d_ld4(bottom_blob, ivec3(gx, gy, sz4.r));
+    afpvec4 vg = image3d_ld4(bottom_blob, ivec3(gx, gy, sz4.g));
+    afpvec4 vb = image3d_ld4(bottom_blob, ivec3(gx, gy, sz4.b));
+    afpvec4 va = image3d_ld4(bottom_blob, ivec3(gx, gy, sz4.a));
+#else
     ivec4 v_offset = (z4 / 4) * psc(cstep) + gy * psc(w) + gx;
 
-    ivec4 lane4 = z4 % 4;
-
     // v = v4[lane]
-    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     afpvec4 vr = buffer_ld4(bottom_blob_data, v_offset.r);
     afpvec4 vg = buffer_ld4(bottom_blob_data, v_offset.g);
     afpvec4 vb = buffer_ld4(bottom_blob_data, v_offset.b);
     afpvec4 va = buffer_ld4(bottom_blob_data, v_offset.a);
+#endif
 
-    afpvec4 v = afpvec4(vr[lane4.r], vg[lane4.g], vb[lane4.b], va[lane4.a]);
+    ivec4 lane4 = z4 % 4;
+
+    afpvec4 v;
+#if NCNN_fp16_arithmetic
+    if (bugihfa == 1)
+    {
+        if (lane4.r == 0) v.r = vr.r;
+        if (lane4.r == 1) v.r = vr.g;
+        if (lane4.r == 2) v.r = vr.b;
+        if (lane4.r == 3) v.r = vr.a;
+        if (lane4.g == 0) v.g = vg.r;
+        if (lane4.g == 1) v.g = vg.g;
+        if (lane4.g == 2) v.g = vg.b;
+        if (lane4.g == 3) v.g = vg.a;
+        if (lane4.b == 0) v.b = vb.r;
+        if (lane4.b == 1) v.b = vb.g;
+        if (lane4.b == 2) v.b = vb.b;
+        if (lane4.b == 3) v.b = vb.a;
+        if (lane4.a == 0) v.a = va.r;
+        if (lane4.a == 1) v.a = va.g;
+        if (lane4.a == 2) v.a = va.b;
+        if (lane4.a == 3) v.a = va.a;
+    }
+    else
+#endif
+    {
+        v = afpvec4(vr[lane4.r], vg[lane4.g], vb[lane4.b], va[lane4.a]);
+    }
+
+#if NCNN_image_shader
+    image3d_st4(top_blob, ivec3(gx, gy, gz), v);
+#else
+    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_st4(top_blob_data, gi, v);
+#endif
 }

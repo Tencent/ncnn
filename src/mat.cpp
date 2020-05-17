@@ -188,7 +188,7 @@ VkImageMat VkImageMat::from_android_hardware_buffer(VkAndroidHardwareBufferImage
     int width = allocator->width();
     int height = allocator->height();
 
-    return VkImageMat(width, height, VK_FORMAT_UNDEFINED, allocator);
+    return VkImageMat(width, height, allocator);
 }
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_VULKAN
@@ -209,7 +209,7 @@ unsigned short float32_to_float16(float value)
     unsigned short exponent = (tmp.u & 0x7F800000) >> 23;
     unsigned int significand = tmp.u & 0x7FFFFF;
 
-    //     fprintf(stderr, "%d %d %d\n", sign, exponent, significand);
+    //     NCNN_LOGE("%d %d %d", sign, exponent, significand);
 
     // 1 : 5 : 10
     unsigned short fp16;
@@ -263,7 +263,7 @@ float float16_to_float32(unsigned short value)
     unsigned short exponent = (value & 0x7c00) >> 10;
     unsigned short significand = value & 0x03FF;
 
-    //     fprintf(stderr, "%d %d %d\n", sign, exponent, significand);
+    //     NCNN_LOGE("%d %d %d", sign, exponent, significand);
 
     // 1 : 8 : 23
     union

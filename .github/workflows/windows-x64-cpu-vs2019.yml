@@ -57,28 +57,6 @@ jobs:
     - name: test
       run: cd build; ctest --output-on-failure -j 2
 
-  windows-vs2019-nostdio:
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: configure
-      run: |
-        mkdir build; cd build
-        cmake -DNCNN_STDIO=OFF -DNCNN_STRING=ON -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-    - name: build
-      run: cmake --build build --config Release -j 2
-
-  windows-vs2019-nostring:
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: configure
-      run: |
-        mkdir build; cd build
-        cmake -DNCNN_STDIO=ON -DNCNN_STRING=OFF -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-    - name: build
-      run: cmake --build build --config Release -j 2
-
   windows-vs2019-nostdio-nostring:
     runs-on: windows-latest
     steps:

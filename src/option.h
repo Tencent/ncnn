@@ -93,6 +93,9 @@ public:
 
     bool use_shader_pack8;
 
+    // turn on for adreno
+    bool use_image_storage;
+
     // enable bf16 data type for storage
     // improve most operator performace on all arm devices, may consume more memory
     bool use_bf16_storage;

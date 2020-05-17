@@ -23,6 +23,7 @@ DEFINE_LAYER_CREATOR(Softmax_vulkan)
 Softmax_vulkan::Softmax_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     pipeline_softmax_reduce_max = 0;
     pipeline_softmax_exp_sub_max = 0;
@@ -404,6 +405,154 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     constants[7].i = sum_workspace.h;
     constants[8].i = sum_workspace.c;
     constants[9].i = sum_workspace.cstep;
+
+    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_div_sum_pack8
+                             : elempack == 4 ? pipeline_softmax_div_sum_pack4
+                             : pipeline_softmax_div_sum;
+
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+    }
+
+    return 0;
+}
+
+int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+{
+    int dims = bottom_top_blob.dims;
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    size_t elemsize = bottom_top_blob.elemsize;
+    int elempack = bottom_top_blob.elempack;
+
+    VkImageMat max_workspace;
+    VkImageMat sum_workspace;
+
+    if (dims == 1) // axis == 0
+    {
+        max_workspace.create(1, elemsize, elempack, opt.workspace_vkallocator);
+        sum_workspace.create(1, elemsize, elempack, opt.workspace_vkallocator);
+    }
+    else if (dims == 2 && axis == 0)
+    {
+        max_workspace.create(w, elemsize, elempack, opt.workspace_vkallocator);
+        sum_workspace.create(w, elemsize, elempack, opt.workspace_vkallocator);
+    }
+    else if (dims == 2 && axis == 1)
+    {
+        max_workspace.create(h, elemsize, elempack, opt.workspace_vkallocator);
+        sum_workspace.create(h, elemsize, elempack, opt.workspace_vkallocator);
+    }
+    else if (dims == 3 && axis == 0)
+    {
+        max_workspace.create(w, h, elemsize, elempack, opt.workspace_vkallocator);
+        sum_workspace.create(w, h, elemsize, elempack, opt.workspace_vkallocator);
+    }
+    else if (dims == 3 && axis == 1)
+    {
+        max_workspace.create(w, channels, elemsize, elempack, opt.workspace_vkallocator);
+        sum_workspace.create(w, channels, elemsize, elempack, opt.workspace_vkallocator);
+    }
+    else if (dims == 3 && axis == 2)
+    {
+        max_workspace.create(h, channels, elemsize, elempack, opt.workspace_vkallocator);
+        sum_workspace.create(h, channels, elemsize, elempack, opt.workspace_vkallocator);
+    }
+
+    // reduce max
+    {
+    std::vector<VkImageMat> bindings(2);
+    bindings[0] = bottom_top_blob;
+    bindings[1] = max_workspace;
+
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_top_blob.dims;
+    constants[1].i = bottom_top_blob.w;
+    constants[2].i = bottom_top_blob.h;
+    constants[3].i = bottom_top_blob.c;
+    constants[4].i = 0;//bottom_top_blob.cstep;
+    constants[5].i = max_workspace.dims;
+    constants[6].i = max_workspace.w;
+    constants[7].i = max_workspace.h;
+    constants[8].i = max_workspace.c;
+    constants[9].i = 0;//max_workspace.cstep;
+
+    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_max_pack8
+                             : elempack == 4 ? pipeline_softmax_reduce_max_pack4
+                             : pipeline_softmax_reduce_max;
+
+    cmd.record_pipeline(pipeline, bindings, constants, max_workspace);
+    }
+
+    // exp( v - max )
+    {
+    std::vector<VkImageMat> bindings(3);
+    bindings[0] = bottom_top_blob;
+    bindings[1] = bottom_top_blob;
+    bindings[2] = max_workspace;
+
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_top_blob.dims;
+    constants[1].i = bottom_top_blob.w;
+    constants[2].i = bottom_top_blob.h;
+    constants[3].i = bottom_top_blob.c;
+    constants[4].i = 0;//bottom_top_blob.cstep;
+    constants[5].i = max_workspace.dims;
+    constants[6].i = max_workspace.w;
+    constants[7].i = max_workspace.h;
+    constants[8].i = max_workspace.c;
+    constants[9].i = 0;//max_workspace.cstep;
+
+    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_exp_sub_max_pack8
+                             : elempack == 4 ? pipeline_softmax_exp_sub_max_pack4
+                             : pipeline_softmax_exp_sub_max;
+
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+    }
+
+    // reduce sum
+    {
+    std::vector<VkImageMat> bindings(2);
+    bindings[0] = bottom_top_blob;
+    bindings[1] = sum_workspace;
+
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_top_blob.dims;
+    constants[1].i = bottom_top_blob.w;
+    constants[2].i = bottom_top_blob.h;
+    constants[3].i = bottom_top_blob.c;
+    constants[4].i = 0;//bottom_top_blob.cstep;
+    constants[5].i = sum_workspace.dims;
+    constants[6].i = sum_workspace.w;
+    constants[7].i = sum_workspace.h;
+    constants[8].i = sum_workspace.c;
+    constants[9].i = 0;//sum_workspace.cstep;
+
+    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_sum_pack8
+                             : elempack == 4 ? pipeline_softmax_reduce_sum_pack4
+                             : pipeline_softmax_reduce_sum;
+
+    cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
+    }
+
+    // div sum
+    {
+    std::vector<VkImageMat> bindings(3);
+    bindings[0] = bottom_top_blob;
+    bindings[1] = bottom_top_blob;
+    bindings[2] = sum_workspace;
+
+    std::vector<vk_constant_type> constants(10);
+    constants[0].i = bottom_top_blob.dims;
+    constants[1].i = bottom_top_blob.w;
+    constants[2].i = bottom_top_blob.h;
+    constants[3].i = bottom_top_blob.c;
+    constants[4].i = 0;//bottom_top_blob.cstep;
+    constants[5].i = sum_workspace.dims;
+    constants[6].i = sum_workspace.w;
+    constants[7].i = sum_workspace.h;
+    constants[8].i = sum_workspace.c;
+    constants[9].i = 0;//sum_workspace.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_div_sum_pack8
                              : elempack == 4 ? pipeline_softmax_div_sum_pack4

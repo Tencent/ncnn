@@ -33,9 +33,9 @@ int Interp::load_param(const ParamDict& pd)
     output_height = pd.get(3, 0);
     output_width = pd.get(4, 0);
 
-    if (resize_type < 1 || resize_type > 3)
+    if (resize_type < 0 || resize_type > 3)
     {
-        fprintf(stderr, "unsupported resize type %d\n", resize_type);
+        NCNN_LOGE("unsupported resize type %d", resize_type);
         return -1;
     }
 

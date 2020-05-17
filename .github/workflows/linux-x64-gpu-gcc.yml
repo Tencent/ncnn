@@ -27,14 +27,14 @@ jobs:
       uses: actions/cache@v1
       with:
         path: swiftshader-install
-        key: swiftshader-linux-install
+        key: swiftshader-linux-install-20200508
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: 59465799210b3f4962af1a9dc44a4ffecb422c10
+        ref: 2dd864470e310d173d35fa95ca3a14d216734aab
     - name: checkout-swiftshader-submodules
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
@@ -45,7 +45,7 @@ jobs:
       run: |
         cd swiftshader
         mkdir -p build; cd build
-        cmake -DCMAKE_INSTALL_PREFIX=install -DBUILD_EGL=0 -DBUILD_GLESv2=0 -DBUILD_GLES_CM=0 -DBUILD_VULKAN=1 -DBUILD_SAMPLES=0 -DBUILD_TESTS=0 -DWARNINGS_AS_ERRORS=0 ..
+        cmake -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . -j 2
         mkdir $GITHUB_WORKSPACE/swiftshader-install
         cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
@@ -57,69 +57,3 @@ jobs:
       run: |
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
         cd build && ctest --output-on-failure -j 2
-
-  linux-gcc-gpu-nostdio:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: cache-vulkansdk
-      id: cache-vulkansdk
-      uses: actions/cache@v1
-      with:
-        path: "1.1.114.0"
-        key: vulkansdk-linux-x86_64-1.1.114.0
-    - name: vulkansdk
-      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
-      run: |
-        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/linux/vulkansdk-linux-x86_64-1.1.114.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.114.0.tar.gz
-        tar -xf vulkansdk-linux-x86_64-1.1.114.0.tar.gz
-        rm -rf 1.1.114.0/source 1.1.114.0/samples
-        find 1.1.114.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
-    - name: configure
-      run: export VULKAN_SDK=`pwd`/1.1.114.0/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON -DNCNN_STDIO=OFF -DNCNN_STRING=ON -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-    - name: build
-      run: cmake --build build -j 2
-
-  linux-gcc-gpu-nostring:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: cache-vulkansdk
-      id: cache-vulkansdk
-      uses: actions/cache@v1
-      with:
-        path: "1.1.114.0"
-        key: vulkansdk-linux-x86_64-1.1.114.0
-    - name: vulkansdk
-      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
-      run: |
-        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/linux/vulkansdk-linux-x86_64-1.1.114.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.114.0.tar.gz
-        tar -xf vulkansdk-linux-x86_64-1.1.114.0.tar.gz
-        rm -rf 1.1.114.0/source 1.1.114.0/samples
-        find 1.1.114.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
-    - name: configure
-      run: export VULKAN_SDK=`pwd`/1.1.114.0/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON -DNCNN_STDIO=ON -DNCNN_STRING=OFF -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-    - name: build
-      run: cmake --build build -j 2
-
-  linux-gcc-gpu-nostdio-nostring:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: cache-vulkansdk
-      id: cache-vulkansdk
-      uses: actions/cache@v1
-      with:
-        path: "1.1.114.0"
-        key: vulkansdk-linux-x86_64-1.1.114.0
-    - name: vulkansdk
-      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
-      run: |
-        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/linux/vulkansdk-linux-x86_64-1.1.114.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.114.0.tar.gz
-        tar -xf vulkansdk-linux-x86_64-1.1.114.0.tar.gz
-        rm -rf 1.1.114.0/source 1.1.114.0/samples
-        find 1.1.114.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
-    - name: configure
-      run: export VULKAN_SDK=`pwd`/1.1.114.0/x86_64 && mkdir build && cd build && cmake -DNCNN_VULKAN=ON -DNCNN_STDIO=OFF -DNCNN_STRING=OFF -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-    - name: build
-      run: cmake --build build -j 2

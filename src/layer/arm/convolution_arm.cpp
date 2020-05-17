@@ -105,6 +105,13 @@ int Convolution_arm::create_pipeline(const Option& opt)
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
+    else if (activation_type == 5)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Mish);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
 
     if (activation)
     {
@@ -467,7 +474,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-//     fprintf(stderr, "Convolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
+//     NCNN_LOGE("Convolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -993,6 +1000,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                         {
                             sum = static_cast<float>(1.f / (1.f + exp(-sum)));
                         }
+                        else if (activation_type == 5)
+                        {
+                            sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
+                        }
 
                         outptr[j] = sum;
                     }
@@ -1218,7 +1229,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-//     fprintf(stderr, "Convolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
+//     NCNN_LOGE("Convolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -1622,6 +1633,10 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
                         {
                             sum = static_cast<float>(1.f / (1.f + exp(-sum)));
                         }
+                        else if (activation_type == 5)
+                        {
+                            sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
+                        }
 
                         outptr[j] = float32_to_bfloat16(sum);
                     }
@@ -1679,7 +1694,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     // int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
-//     fprintf(stderr, "Convolution_arm input %d x %d  ksize=%d %d  stride=%d %d\n", w, h, kernel_w, kernel_h, stride_w, stride_h);
+//     NCNN_LOGE("Convolution_arm input %d x %d  ksize=%d %d  stride=%d %d", w, h, kernel_w, kernel_h, stride_w, stride_h);
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;

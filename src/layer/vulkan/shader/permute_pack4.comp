@@ -40,12 +40,19 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
+layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
+#else
 #if NCNN_fp16_packed
 layout (binding = 0) readonly buffer bottom_blob { sfpvec2 bottom_blob_data[]; };
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 #endif
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -71,6 +78,93 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
+#if NCNN_image_shader
+    if (psc(dims) == 2)
+    {
+        // order_type
+        // 0 = w h
+        // 1 = h w
+
+        ivec4 i4;
+
+        if (order_type == 0)
+        {
+            i4 = ivec4((gy * 4) * psc(w) + gx) + ivec4(0, 1, 2, 3) * psc(w);
+        }
+        if (order_type == 1)
+        {
+            i4 = ivec4(gx * psc(w) + gy * 4) + ivec4(0, 1, 2, 3);
+        }
+
+        ivec4 y4 = i4 / psc(w);
+        ivec4 x4 = i4 % psc(w);
+
+        afpvec4 vr = image2d_ld4(bottom_blob_2d, ivec2(x4.r, y4.r / 4));
+        afpvec4 vg = image2d_ld4(bottom_blob_2d, ivec2(x4.g, y4.g / 4));
+        afpvec4 vb = image2d_ld4(bottom_blob_2d, ivec2(x4.b, y4.b / 4));
+        afpvec4 va = image2d_ld4(bottom_blob_2d, ivec2(x4.a, y4.a / 4));
+
+        ivec4 lane4 = y4 % 4;
+
+        afpvec4 v = afpvec4(vr[lane4.r], vg[lane4.g], vb[lane4.b], va[lane4.a]);
+
+        image2d_st4(top_blob_2d, ivec2(gx, gy), v);
+    }
+    else // if (psc(dims) == 3)
+    {
+        // order_type
+        // 0 = w h c
+        // 1 = h w c
+        // 2 = w c h
+        // 3 = c w h
+        // 4 = h c w
+        // 5 = c h w
+
+        int size = psc(w) * psc(h);
+
+        ivec4 i4;
+
+        if (order_type == 0)
+        {
+            i4 = ivec4((gz * 4) * size + gy * psc(w) + gx) + ivec4(0, 1, 2, 3) * size;
+        }
+        if (order_type == 1)
+        {
+            i4 = ivec4((gz * 4) * size + gx * psc(w) + gy) + ivec4(0, 1, 2, 3) * size;
+        }
+        if (order_type == 2)
+        {
+            i4 = ivec4(gy * size + (gz * 4) * psc(w) + gx) + ivec4(0, 1, 2, 3) * psc(w);
+        }
+        if (order_type == 3)
+        {
+            i4 = ivec4(gx * size+ (gz * 4) * psc(w) + gy) + ivec4(0, 1, 2, 3) * psc(w);
+        }
+        if (order_type == 4)
+        {
+            i4 = ivec4(gy * size + gx * psc(w) + gz * 4) + ivec4(0, 1, 2, 3);
+        }
+        if (order_type == 5)
+        {
+            i4 = ivec4(gx * size + gy * psc(w) + gz * 4) + ivec4(0, 1, 2, 3);
+        }
+
+        ivec4 z4 = i4 / size;
+        ivec4 y4 = i4 % size / psc(w);
+        ivec4 x4 = i4 % size % psc(w);
+
+        afpvec4 vr = image3d_ld4(bottom_blob_3d, ivec3(x4.r, y4.r, z4.r / 4));
+        afpvec4 vg = image3d_ld4(bottom_blob_3d, ivec3(x4.g, y4.g, z4.g / 4));
+        afpvec4 vb = image3d_ld4(bottom_blob_3d, ivec3(x4.b, y4.b, z4.b / 4));
+        afpvec4 va = image3d_ld4(bottom_blob_3d, ivec3(x4.a, y4.a, z4.a / 4));
+
+        ivec4 lane4 = z4 % 4;
+
+        afpvec4 v = afpvec4(vr[lane4.r], vg[lane4.g], vb[lane4.b], va[lane4.a]);
+
+        image3d_st4(top_blob_3d, ivec3(gx, gy, gz), v);
+    }
+#else
     ivec4 i4;
 
     if (psc(dims) == 2)
@@ -182,5 +276,6 @@ void main()
     int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
     buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
 #endif
 }

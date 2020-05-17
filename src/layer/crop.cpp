@@ -334,6 +334,8 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
 
             if (dims == 1) // axis == 0
             {
+                if (start == -233) start=0;
+                if (end == -233) end=w;
                 _woffset = start >= 0 ? start : w + start;
                 _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
             }
@@ -341,29 +343,40 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
             {
                 if (axis == 0)
                 {
+                    if (start == -233) start=0;
+                    if (end == -233) end=h;
                     _hoffset = start >= 0 ? start : h + start;
-                    _outh = std::min(h, end > 0 ? end : h + end) - _woffset;
+                    _outh = std::min(h, end > 0 ? end : h + end) - _hoffset;
                 }
                 if (axis == 1)
                 {
+                    if (start == -233) start=0;
+                    if (end == -233) end=w;
                     _woffset = start >= 0 ? start : w + start;
                     _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
                 }
             }
             if (dims == 3)
             {
+
                 if (axis == 0)
                 {
+                    if (start == -233) start=0;
+                    if (end == -233) end=channels;
                     _coffset = start >= 0 ? start : channels + start;
                     _outc = std::min(channels, end > 0 ? end : channels + end) - _coffset;
                 }
                 if (axis == 1)
                 {
+                    if (start == -233) start=0;
+                    if (end == -233) end=h;
                     _hoffset = start >= 0 ? start : h + start;
-                    _outh = std::min(h, end > 0 ? end : h + end) - _woffset;
+                    _outh = std::min(h, end > 0 ? end : h + end) - _hoffset;
                 }
                 if (axis == 2)
                 {
+                    if (start == -233) start=0;
+                    if (end == -233) end=w;
                     _woffset = start >= 0 ? start : w + start;
                     _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
                 }

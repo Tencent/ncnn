@@ -158,7 +158,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
-//     fprintf(stderr, "Convolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d\n", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
+//     NCNN_LOGE("Convolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -255,6 +255,18 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 {
                     sum = static_cast<float>(1.f / (1.f + exp(-sum)));
                 }
+                else if (activation_type == 5)
+                {
+                    const float MISH_THRESHOLD = 20;
+                    float x = sum, y;
+                    if (x > MISH_THRESHOLD)
+                        y = x;
+                    else if (x < -MISH_THRESHOLD)
+                        y = expf(x);
+                    else
+                        y = logf(expf(x) + 1);
+                    sum = static_cast<float>(x * tanh(y));
+                }
 
                 outptr[j] = sum;
             }
@@ -322,7 +334,7 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
-//     fprintf(stderr, "Convolution input %d x %d  ksize=%d %d  stride=%d %d\n", w, h, kernel_w, kernel_h, stride_w, stride_h);
+//     NCNN_LOGE("Convolution input %d x %d  ksize=%d %d  stride=%d %d", w, h, kernel_w, kernel_h, stride_w, stride_h);
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
