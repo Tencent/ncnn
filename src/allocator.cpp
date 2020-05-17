@@ -248,7 +248,8 @@ void UnlockedPoolAllocator::fastFree(void* ptr)
 #if NCNN_VULKAN
 VkAllocator::VkAllocator(const VulkanDevice* _vkdev) : vkdev(_vkdev)
 {
-    memory_type_index = (uint32_t)-1;
+    buffer_memory_type_index = (uint32_t)-1;
+    image_memory_type_index = (uint32_t)-1;
     mappable = false;
     coherent = false;
 }
@@ -330,7 +331,7 @@ VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
     return buffer;
 }
 
-VkDeviceMemory VkAllocator::allocate_memory(size_t size)
+VkDeviceMemory VkAllocator::allocate_memory(size_t size, uint32_t memory_type_index)
 {
     VkMemoryAllocateInfo memoryAllocateInfo;
     memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -349,7 +350,7 @@ VkDeviceMemory VkAllocator::allocate_memory(size_t size)
     return memory;
 }
 
-VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, VkImage image, VkBuffer buffer)
+VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkImage image, VkBuffer buffer)
 {
     VkMemoryAllocateInfo memoryAllocateInfo;
     memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -583,24 +584,24 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), block->buffer, &memoryRequirements);
 
     // setup memory type and alignment
-    if (memory_type_index == (uint32_t)-1)
+    if (buffer_memory_type_index == (uint32_t)-1)
     {
         if (vkdev->info.type == 1)
         {
             // integrated gpu, prefer unified memory
-            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+            buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
         }
         else
         {
             // discrete gpu, device local
-            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
         }
 
-        mappable = vkdev->is_mappable(memory_type_index);
-        coherent = vkdev->is_coherent(memory_type_index);
+        mappable = vkdev->is_mappable(buffer_memory_type_index);
+        coherent = vkdev->is_coherent(buffer_memory_type_index);
     }
 
-    block->memory = allocate_memory(memoryRequirements.size);
+    block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
@@ -862,28 +863,28 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int w, int h, int c, size_t
     }
 
     // setup memory type and alignment
-    if (memory_type_index == (uint32_t)-1)
+    if (image_memory_type_index == (uint32_t)-1)
     {
         if (vkdev->info.type == 1)
         {
             // integrated gpu, prefer unified memory
-            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+            image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
         }
         else
         {
             // discrete gpu, device local
-            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
         }
 
-        mappable = vkdev->is_mappable(memory_type_index);
-        coherent = vkdev->is_coherent(memory_type_index);
+        mappable = vkdev->is_mappable(image_memory_type_index);
+        coherent = vkdev->is_coherent(image_memory_type_index);
     }
 
     // create new block
     size_t new_block_size = std::max(block_size, aligned_size);
 
     // bind at memory offset
-    ptr->memory = allocate_memory(new_block_size);
+    ptr->memory = allocate_memory(new_block_size, image_memory_type_index);
     ptr->bind_offset = 0;
     ptr->bind_capacity = aligned_size;
 
@@ -1138,24 +1139,24 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
         if (dedicatedAllocation)
         {
             // setup memory type and alignment
-            if (memory_type_index == (uint32_t)-1)
+            if (buffer_memory_type_index == (uint32_t)-1)
             {
                 if (vkdev->info.type == 1)
                 {
                     // integrated gpu, prefer unified memory
-                    memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+                    buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
                 }
                 else
                 {
                     // discrete gpu, device local
-                    memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
                 }
 
-                mappable = vkdev->is_mappable(memory_type_index);
-                coherent = vkdev->is_coherent(memory_type_index);
+                mappable = vkdev->is_mappable(buffer_memory_type_index);
+                coherent = vkdev->is_coherent(buffer_memory_type_index);
             }
 
-            block->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, 0, block->buffer);
+            block->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, buffer_memory_type_index, 0, block->buffer);
 
             // ignore memoryRequirements2.memoryRequirements.alignment as we always bind at zero offset
             vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
@@ -1187,24 +1188,24 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), block->buffer, &memoryRequirements);
 
     // setup memory type and alignment
-    if (memory_type_index == (uint32_t)-1)
+    if (buffer_memory_type_index == (uint32_t)-1)
     {
         if (vkdev->info.type == 1)
         {
             // integrated gpu, prefer unified memory
-            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+            buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
         }
         else
         {
             // discrete gpu, device local
-            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
         }
 
-        mappable = vkdev->is_mappable(memory_type_index);
-        coherent = vkdev->is_coherent(memory_type_index);
+        mappable = vkdev->is_mappable(buffer_memory_type_index);
+        coherent = vkdev->is_coherent(buffer_memory_type_index);
     }
 
-    block->memory = allocate_memory(memoryRequirements.size);
+    block->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
@@ -1355,25 +1356,25 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int w, int h, int c, size
         if (dedicatedAllocation)
         {
             // setup memory type and alignment
-            if (memory_type_index == (uint32_t)-1)
+            if (image_memory_type_index == (uint32_t)-1)
             {
                 if (vkdev->info.type == 1)
                 {
                     // integrated gpu, prefer unified memory
-                    memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+                    image_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
                 }
                 else
                 {
                     // discrete gpu, device local
-                    memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+                    image_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
                 }
 
-                mappable = vkdev->is_mappable(memory_type_index);
-                coherent = vkdev->is_coherent(memory_type_index);
+                mappable = vkdev->is_mappable(image_memory_type_index);
+                coherent = vkdev->is_coherent(image_memory_type_index);
             }
 
             // bind memory
-            ptr->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, ptr->image, 0);
+            ptr->memory = allocate_dedicated_memory(memoryRequirements2.memoryRequirements.size, image_memory_type_index, ptr->image, 0);
             ptr->bind_offset = 0;
             ptr->bind_capacity = memoryRequirements2.memoryRequirements.size;
 
@@ -1449,28 +1450,28 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int w, int h, int c, size
     }
 
     // setup memory type and alignment
-    if (memory_type_index == (uint32_t)-1)
+    if (image_memory_type_index == (uint32_t)-1)
     {
         if (vkdev->info.type == 1)
         {
             // integrated gpu, prefer unified memory
-            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
+            image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
         }
         else
         {
             // discrete gpu, device local
-            memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+            image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
         }
 
-        mappable = vkdev->is_mappable(memory_type_index);
-        coherent = vkdev->is_coherent(memory_type_index);
+        mappable = vkdev->is_mappable(image_memory_type_index);
+        coherent = vkdev->is_coherent(image_memory_type_index);
     }
 
     // create new block
     size_t new_block_size = std::max(block_size, aligned_size);
 
     // bind at memory offset
-    ptr->memory = allocate_memory(new_block_size);
+    ptr->memory = allocate_memory(new_block_size, image_memory_type_index);
     ptr->bind_offset = 0;
     ptr->bind_capacity = aligned_size;
 
@@ -1579,12 +1580,12 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), ptr->buffer, &memoryRequirements);
 
     // setup memory type
-    if (memory_type_index == (uint32_t)-1)
+    if (buffer_memory_type_index == (uint32_t)-1)
     {
-        memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
-    ptr->memory = allocate_memory(memoryRequirements.size);
+    ptr->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
@@ -1691,12 +1692,12 @@ VkBufferMemory* VkWeightStagingAllocator::fastMalloc(size_t size)
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), ptr->buffer, &memoryRequirements);
 
     // setup memory type
-    if (memory_type_index == (uint32_t)-1)
+    if (buffer_memory_type_index == (uint32_t)-1)
     {
-        memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
-    ptr->memory = allocate_memory(memoryRequirements.size);
+    ptr->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
@@ -1783,9 +1784,9 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*dims*/, i
     }
 
     // setup memory type
-    if (memory_type_index == (uint32_t)-1)
+    if (image_memory_type_index == (uint32_t)-1)
     {
-        memory_type_index = vkdev->find_memory_index(bufferProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+        image_memory_type_index = vkdev->find_memory_index(bufferProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     }
 
     VkImportAndroidHardwareBufferInfoANDROID importAndroidHardwareBufferInfo;
@@ -1803,7 +1804,7 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*dims*/, i
     memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     memoryAllocateInfo.pNext = &memoryDedicatedAllocateInfo;
     memoryAllocateInfo.allocationSize = bufferProperties.allocationSize;
-    memoryAllocateInfo.memoryTypeIndex = memory_type_index;
+    memoryAllocateInfo.memoryTypeIndex = image_memory_type_index;
 
     VkDeviceMemory memory = 0;
     ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &memory);
