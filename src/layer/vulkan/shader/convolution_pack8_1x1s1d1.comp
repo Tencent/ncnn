@@ -283,6 +283,17 @@ void main()
         sum3[0] = afp(1.f) / (afp(1.f) + exp(-sum3[0]));
         sum3[1] = afp(1.f) / (afp(1.f) + exp(-sum3[1]));
     }
+    if (activation_type == 5)
+    {
+        sum0[0] = sum0[0] * tanh(log(exp(sum0[0]) + afp(1.f)));
+        sum0[1] = sum0[1] * tanh(log(exp(sum0[1]) + afp(1.f)));
+        sum1[0] = sum1[0] * tanh(log(exp(sum1[0]) + afp(1.f)));
+        sum1[1] = sum1[1] * tanh(log(exp(sum1[1]) + afp(1.f)));
+        sum2[0] = sum2[0] * tanh(log(exp(sum2[0]) + afp(1.f)));
+        sum2[1] = sum2[1] * tanh(log(exp(sum2[1]) + afp(1.f)));
+        sum3[0] = sum3[0] * tanh(log(exp(sum3[0]) + afp(1.f)));
+        sum3[1] = sum3[1] * tanh(log(exp(sum3[1]) + afp(1.f)));
+    }
 
 #if NCNN_image_shader
     image3d_st8(top_blob, ivec3(gx, gy, gz), sum0);

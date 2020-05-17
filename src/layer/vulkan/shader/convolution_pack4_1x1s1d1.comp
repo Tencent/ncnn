@@ -208,6 +208,13 @@ void main()
         sum2 = afp(1.f) / (afp(1.f) + exp(-sum2));
         sum3 = afp(1.f) / (afp(1.f) + exp(-sum3));
     }
+    if (activation_type == 5)
+    {
+        sum0 = sum0 * tanh(log(exp(sum0) + afp(1.f)));
+        sum1 = sum1 * tanh(log(exp(sum1) + afp(1.f)));
+        sum2 = sum2 * tanh(log(exp(sum2) + afp(1.f)));
+        sum3 = sum3 * tanh(log(exp(sum3) + afp(1.f)));
+    }
 
 #if NCNN_image_shader
     image3d_st4(top_blob, ivec3(gx, gy, gz), sum0);

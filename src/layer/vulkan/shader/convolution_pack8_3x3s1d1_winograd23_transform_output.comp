@@ -201,6 +201,17 @@ void main()
         v11[0] = afp(1.f) / (afp(1.f) + exp(-v11[0]));
         v11[1] = afp(1.f) / (afp(1.f) + exp(-v11[1]));
     }
+    if (activation_type == 5)
+    {
+        v00[0] = v00[0] * tanh(log(exp(v00[0]) + afp(1.f)));
+        v00[1] = v00[1] * tanh(log(exp(v00[1]) + afp(1.f)));
+        v10[0] = v10[0] * tanh(log(exp(v10[0]) + afp(1.f)));
+        v10[1] = v10[1] * tanh(log(exp(v10[1]) + afp(1.f)));
+        v01[0] = v01[0] * tanh(log(exp(v01[0]) + afp(1.f)));
+        v01[1] = v01[1] * tanh(log(exp(v01[1]) + afp(1.f)));
+        v11[0] = v11[0] * tanh(log(exp(v11[0]) + afp(1.f)));
+        v11[1] = v11[1] * tanh(log(exp(v11[1]) + afp(1.f)));
+    }
 
     // store 2x2
 #if NCNN_image_shader

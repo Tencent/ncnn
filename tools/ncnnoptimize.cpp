@@ -884,7 +884,7 @@ int NetOptimize::fuse_convolution_activation()
         int j = i + 1;
         for (; j<layer_count; j++)
         {
-            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip" && layers[j]->type != "Sigmoid")
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip" && layers[j]->type != "Sigmoid" && layers[j]->type != "Mish")
                 continue;
 
             if (layers[j]->bottoms.size() != 1)
@@ -931,6 +931,10 @@ int NetOptimize::fuse_convolution_activation()
         {
             convolution->activation_type = 4;
         }
+        else if (activation->type == "Mish")
+        {
+            convolution->activation_type = 5;
+        }
 
         int top_blob_index_final = activation->tops[0];
         convolution->tops[0] = top_blob_index_final;
@@ -955,7 +959,7 @@ int NetOptimize::fuse_convolutiondepthwise_activation()
         int j = i + 1;
         for (; j<layer_count; j++)
         {
-            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip" && layers[j]->type != "Sigmoid")
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip" && layers[j]->type != "Sigmoid" && layers[j]->type != "Mish")
                 continue;
 
             if (layers[j]->bottoms.size() != 1)
@@ -1001,6 +1005,10 @@ int NetOptimize::fuse_convolutiondepthwise_activation()
         else if (activation->type == "Sigmoid")
         {
             convolutiondepthwise->activation_type = 4;
+        }
+        else if (activation->type == "Mish")
+        {
+            convolutiondepthwise->activation_type = 5;
         }
 
         int top_blob_index_final = activation->tops[0];
