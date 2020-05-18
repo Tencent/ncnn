@@ -1542,8 +1542,12 @@ bool VulkanDevice::shape_support_image_storage(const Mat& shape) const
     return true;
 }
 
-void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
+void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& _opt) const
 {
+    // buffer2buffer uop is created with use_image_storage disabled
+    Option opt = _opt;
+    opt.use_image_storage = false;
+
     int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;
     int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
@@ -1900,9 +1904,11 @@ int VulkanDevice::create_utility_operator()
     {
     for (int i1=0; i1<2; i1++)
     {
-        // TODO use macro
-//         opt.use_image_storage = (i0 == 1 || i1 == 1);
-        opt.use_image_storage = true;
+        opt.use_image_storage = (i0 == 1 || i1 == 1);
+#if __APPLE__
+        if (opt.use_image_storage)
+            continue;
+#endif
 
         // from fp32-b/i | fp16p-b/i | fp16s-b/i
         // to fp32-b/i | fp16p-b/i | fp16s-b/i
@@ -1960,6 +1966,10 @@ void VulkanDevice::destroy_utility_operator()
     for (int i1=0; i1<2; i1++)
     {
         opt.use_image_storage = (i0 == 1 || i1 == 1);
+#if __APPLE__
+        if (opt.use_image_storage)
+            continue;
+#endif
 
         // from fp32-b/i | fp16p-b/i | fp16s-b/i
         // to fp32-b/i | fp16p-b/i | fp16s-b/i

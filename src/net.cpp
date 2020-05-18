@@ -153,6 +153,10 @@ int Net::load_param(const DataReader& dr)
         if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
         if (!vkdev->info.support_int8_storage) opt.use_int8_storage = false;
         if (!vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
+
+#if __APPLE__
+        opt.use_image_storage = false;
+#endif
     }
 #endif // NCNN_VULKAN
 
@@ -343,6 +347,10 @@ int Net::load_param_bin(const DataReader& dr)
         if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
         if (!vkdev->info.support_int8_storage) opt.use_int8_storage = false;
         if (!vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
+
+#if __APPLE__
+        opt.use_image_storage = false;
+#endif
     }
 #endif // NCNN_VULKAN
 
@@ -522,6 +530,9 @@ int Net::load_model(const DataReader& dr)
         {
             opt1.use_image_storage = false;
         }
+#if __APPLE__
+        opt1.use_image_storage = false;
+#endif
 
         int cret = layer->create_pipeline(opt1);
         if (cret != 0)
