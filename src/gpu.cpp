@@ -543,6 +543,7 @@ int create_gpu_instance()
 //         NCNN_LOGE("[%u] pipelineCacheUUID = %u", i, physicalDeviceProperties.pipelineCacheUUID);
 
         gpu_info.bug_local_size_spec_const = false;
+        gpu_info.bug_storage_buffer_no_l1 = false;
         gpu_info.bug_implicit_fp16_arithmetic = false;
 
         if (physicalDeviceProperties.vendorID == 0x13b5 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 66))
@@ -555,6 +556,12 @@ int create_gpu_instance()
         {
             // qcom adreno with old buggy driver
             gpu_info.bug_local_size_spec_const = true;
+        }
+
+        if (physicalDeviceProperties.vendorID == 0x5143)
+        {
+            // qcom adreno storage buffer without L1 cache
+            gpu_info.bug_storage_buffer_no_l1 = true;
         }
 
         if (physicalDeviceProperties.vendorID == 0x13b5 && (physicalDeviceProperties.deviceID == 0x7500001 || physicalDeviceProperties.deviceID == 0x8602000))
@@ -824,8 +831,8 @@ int create_gpu_instance()
                 gpu_info.graphics_queue_family_index, gpu_info.graphics_queue_count,
                 gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count);
 
-        NCNN_LOGE("[%u %s]  buglssc=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
-                gpu_info.bug_local_size_spec_const, gpu_info.bug_implicit_fp16_arithmetic);
+        NCNN_LOGE("[%u %s]  buglssc=%d  bugsbn1=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
+                gpu_info.bug_local_size_spec_const, gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_implicit_fp16_arithmetic);
 
         NCNN_LOGE("[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d", i, physicalDeviceProperties.deviceName,
                 gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
