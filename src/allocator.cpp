@@ -1336,7 +1336,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int w, int h, int c, size
     if (vkdev->info.support_VK_KHR_get_memory_requirements2 && vkdev->info.support_VK_KHR_dedicated_allocation)
     {
         VkImageMemoryRequirementsInfo2KHR imageMemoryRequirementsInfo2;
-        imageMemoryRequirementsInfo2.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2;
+        imageMemoryRequirementsInfo2.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2_KHR;
         imageMemoryRequirementsInfo2.pNext = 0;
         imageMemoryRequirementsInfo2.image = ptr->image;
 
