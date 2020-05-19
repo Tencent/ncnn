@@ -221,7 +221,6 @@ int main(int argc, char** argv)
     // TODO better default option setting
     if (g_vkdev->info.bug_storage_buffer_no_l1)
     {
-        opt.use_shader_pack8 = true;
         opt.use_image_storage = true;
     }
 #endif // NCNN_VULKAN
