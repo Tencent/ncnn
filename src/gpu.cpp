@@ -54,11 +54,19 @@ static Mutex g_default_vkdev_lock;
 static VulkanDevice* g_default_vkdev[NCNN_MAX_GPU_COUNT] = {0};
 
 // precompiled spirv
+#if NCNN_VULKAN_ONLINE_SPIRV
+struct layer_shader_registry_entry
+{
+    const unsigned char* comp_data;
+    size_t comp_data_size;
+};
+#else
 struct layer_shader_registry_entry
 {
     const uint32_t* spv_data;
     size_t spv_data_size;
 };
+#endif
 
 #include "layer_shader_spv_data.h"
 
@@ -67,7 +75,9 @@ static const layer_shader_registry_entry layer_shader_registry[] =
 #include "layer_shader_registry.h"
 };
 
+#if !NCNN_VULKAN_ONLINE_SPIRV
 static ShaderInfo layer_shader_infos[sizeof(layer_shader_registry) / sizeof(layer_shader_registry_entry)];
+#endif
 
 static const int layer_shader_registry_entry_count = sizeof(layer_shader_registry) / sizeof(layer_shader_registry_entry);
 
@@ -846,11 +856,13 @@ int create_gpu_instance()
     // the default gpu device
     g_default_gpu_index = find_default_vulkan_device_index();
 
+#if !NCNN_VULKAN_ONLINE_SPIRV
     // resolve shader info
     for (int i=0; i<layer_shader_registry_entry_count; i++)
     {
         resolve_shader_info(layer_shader_registry[i].spv_data, layer_shader_registry[i].spv_data_size, layer_shader_infos[i]);
     }
+#endif
 
     return 0;
 }
@@ -1051,7 +1063,9 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
 
     init_device_extension();
 
+#if !NCNN_VULKAN_ONLINE_SPIRV
     create_shader_module();
+#endif
 
     compute_queues.resize(info.compute_queue_count);
     blob_allocators.resize(info.compute_queue_count);
@@ -1133,11 +1147,14 @@ VulkanDevice::~VulkanDevice()
     blob_allocators.clear();
     staging_allocators.clear();
 
+#if !NCNN_VULKAN_ONLINE_SPIRV
     destroy_shader_module();
+#endif
 
     vkDestroyDevice(device, 0);
 }
 
+#if !NCNN_VULKAN_ONLINE_SPIRV
 VkShaderModule VulkanDevice::get_shader_module(int shader_type_index) const
 {
     if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
@@ -1162,6 +1179,7 @@ VkShaderModule VulkanDevice::create_shader_module(int shader_type_index, uint32_
 
     return compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
 }
+#endif
 
 VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const
 {
@@ -1601,6 +1619,7 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_el
     uop->forward(src, dst, cmd, opt);
 }
 
+#if !NCNN_VULKAN_ONLINE_SPIRV
 int VulkanDevice::create_shader_module()
 {
     if (info.bug_local_size_spec_const)
@@ -1706,6 +1725,7 @@ void VulkanDevice::destroy_shader_module()
 
     shader_modules.clear();
 }
+#endif
 
 int VulkanDevice::init_device_extension()
 {
@@ -2025,6 +2045,7 @@ VulkanDevice* get_gpu_device(int device_index)
     return g_default_vkdev[device_index];
 }
 
+#if !NCNN_VULKAN_ONLINE_SPIRV
 const ShaderInfo& get_shader_info(int shader_type_index)
 {
     if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
@@ -2035,6 +2056,7 @@ const ShaderInfo& get_shader_info(int shader_type_index)
 
     return layer_shader_infos[shader_type_index];
 }
+#endif
 
 int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderInfo& shader_info)
 {

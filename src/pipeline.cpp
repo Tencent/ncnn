@@ -79,6 +79,40 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::
 
 int Pipeline::create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations)
 {
+#if NCNN_VULKAN_ONLINE_SPIRV
+    // TODO compile spirv with glslang
+    const uint32_t* spv_data;
+    size_t spv_data_size;
+
+    ShaderInfo si;
+    int ret = resolve_shader_info(spv_data, spv_data_size, si);
+    if (ret != 0)
+    {
+        NCNN_LOGE("resolve_shader_info failed %d", ret);
+        return -1;
+    }
+
+    // -3 for local_size_xyz
+    int specialization_count_expected = si.specialization_count - 3;
+    if ((int)specializations.size() != specialization_count_expected)
+    {
+        NCNN_LOGE("pipeline specialization count mismatch, expect %d but got %d", specialization_count_expected, (int)specializations.size());
+        return -1;
+    }
+
+    if (vkdev->info.bug_local_size_spec_const)
+    {
+        local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
+    }
+    else
+    {
+        local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size);
+    }
+
+//     NCNN_LOGE("local_shader_module %p created", local_shader_module);
+
+    return create(local_shader_module, si, specializations);
+#else
     // ncnn_add_shader cmake macro
     // 0 = fp32
     // 1 = fp16p
@@ -148,6 +182,7 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
     VkShaderModule shader_module = vkdev->get_shader_module(shader_type_index);
 
     return create(shader_module, si, specializations);
+#endif
 }
 
 int Pipeline::create(VkShaderModule shader_module, const ShaderInfo& _shader_info, const std::vector<vk_specialization_type>& specializations)
