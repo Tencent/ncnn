@@ -80,9 +80,16 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::
 int Pipeline::create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations)
 {
 #if NCNN_VULKAN_ONLINE_SPIRV
-    // TODO compile spirv with glslang
-    const uint32_t* spv_data;
-    size_t spv_data_size;
+    std::vector<uint32_t> spirv;
+    int retc = compile_spirv_module(shader_type_index, opt, spirv);
+    if (retc != 0)
+    {
+        NCNN_LOGE("compile_spirv_module failed %d", retc);
+        return -1;
+    }
+
+    const uint32_t* spv_data = spirv.data();
+    size_t spv_data_size = spirv.size() * 4;
 
     ShaderInfo si;
     int ret = resolve_shader_info(spv_data, spv_data_size, si);

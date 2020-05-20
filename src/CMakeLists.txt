@@ -21,6 +21,7 @@ endfunction()
 
 set(ncnn_SRCS
     allocator.cpp
+    benchmark.cpp
     blob.cpp
     command.cpp
     cpu.cpp
@@ -37,7 +38,6 @@ set(ncnn_SRCS
     option.cpp
     paramdict.cpp
     pipeline.cpp
-    benchmark.cpp
 )
 
 if(ANDROID)
@@ -57,6 +57,9 @@ macro(ncnn_add_shader SHADER_SRC)
         string(FIND "${comp_data}" "#version" version_start)
         string(SUBSTRING "${comp_data}" ${version_start} -1 comp_data)
 
+        # remove whitespace
+        string(REGEX REPLACE "\n +" "\n" comp_data "${comp_data}")
+
         # text to hex
         file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/text2hex.txt "${comp_data}")
         file(READ ${CMAKE_CURRENT_BINARY_DIR}/text2hex.txt comp_data_hex HEX)
@@ -66,7 +69,7 @@ macro(ncnn_add_shader SHADER_SRC)
 
         get_filename_component(SHADER_SRC_NAME_WE ${SHADER_SRC} NAME_WE)
         set(SHADER_COMP_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_SRC_NAME_WE}.comp.hex.h)
-        file(WRITE ${SHADER_COMP_HEADER} "static const unsigned char ${SHADER_SRC_NAME_WE}_comp_data[] = {${comp_data_hex}};\n")
+        file(WRITE ${SHADER_COMP_HEADER} "static const char ${SHADER_SRC_NAME_WE}_comp_data[] = {${comp_data_hex}};\n")
         set_source_files_properties(${SHADER_COMP_HEADER} PROPERTIES GENERATED TRUE)
 
         string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_comp_data,sizeof(${SHADER_SRC_NAME_WE}_comp_data)},\n")
@@ -335,6 +338,11 @@ endif()
 if(NCNN_VULKAN)
     find_package(Vulkan REQUIRED)
     target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
+
+    if(NCNN_VULKAN_ONLINE_SPIRV)
+        target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
+        target_link_libraries(ncnn PRIVATE glslang SPIRV)
+    endif()
 endif()
 
 if(ANDROID_NDK)

@@ -310,6 +310,11 @@ private:
 
 VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());
 
+#if NCNN_VULKAN_ONLINE_SPIRV
+// online spirv compilation
+int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<uint32_t>& spirv);
+#endif
+
 // info from spirv
 class ShaderInfo
 {

@@ -29,8 +29,8 @@ option(NCNN_BENCHMARK "print benchmark information for every layer" OFF)
 option(NCNN_PIXEL "convert and resize from/to image pixel" ON)
 option(NCNN_PIXEL_ROTATE "rotate image pixel orientation" ON)
 option(NCNN_CMAKE_VERBOSE "print verbose cmake messages" OFF)
-option(NCNN_VULKAN "vulkan compute support" OFF)
-option(NCNN_VULKAN_ONLINE_SPIRV "online spir-v module compilation" ON)
+option(NCNN_VULKAN "vulkan compute support" ON)
+option(NCNN_VULKAN_ONLINE_SPIRV "online SPIR-V module compilation" ON)
 option(NCNN_REQUANT "auto merge int8 quant and dequant" OFF)
 option(NCNN_AVX2 "optimize x86 platform with avx2" OFF)
 option(NCNN_DISABLE_PIC "disable position-independent code" OFF)
@@ -66,23 +66,16 @@ if(NCNN_COVERAGE)
 endif()
 
 if(NCNN_VULKAN_ONLINE_SPIRV)
-    # build glslang
-    include(ExternalProject)
-    externalproject_add(glslang
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/glslang
-        CMAKE_CACHE_ARGS
-            -DBUILD_EXTERNAL:BOOL=OFF
-            -DENABLE_SPVREMAPPER:BOOL=OFF
-            -DENABLE_GLSLANG_BINARIES:BOOL=OFF
-            -DENABLE_HLSL:BOOL=OFF
-            -DENABLE_RTTI:BOOL=OFF
-            -DENABLE_OPT:BOOL=OFF
-            -DENABLE_PCH:BOOL=OFF
-            -DENABLE_CTEST:BOOL=OFF
-            -DCMAKE_TOOLCHAIN_FILE:STRING=${CMAKE_TOOLCHAIN_FILE}
-            -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-            -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_CURRENT_BINARY_DIR}/glslang-install
-    )
+    # override glslang options
+    option(BUILD_EXTERNAL "" OFF)
+    option(ENABLE_SPVREMAPPER "" OFF)
+    option(ENABLE_GLSLANG_BINARIES "" OFF)
+    option(ENABLE_HLSL "" OFF)
+    option(ENABLE_RTTI "" OFF)
+    option(ENABLE_OPT "" OFF)
+    option(ENABLE_PCH "" OFF)
+    option(ENABLE_CTEST "" OFF)
+    add_subdirectory(glslang)
 endif()
 
 add_subdirectory(src)
