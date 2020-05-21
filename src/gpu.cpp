@@ -2564,8 +2564,8 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
         if (!pr)
         {
             NCNN_LOGE("compile spir-v module failed");
-            NCNN_LOGE(s.getInfoLog());
-            NCNN_LOGE(s.getInfoDebugLog());
+            NCNN_LOGE("%s", s.getInfoLog());
+            NCNN_LOGE("%s", s.getInfoDebugLog());
 
             compile_success = false;
         }
