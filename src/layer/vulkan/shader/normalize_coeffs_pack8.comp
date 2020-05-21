@@ -31,12 +31,18 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform highp sampler3D sqsum_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image1D coeffs_blob;
+#else
 layout (binding = 0) readonly buffer sqsum_blob { mat2x4 sqsum_blob_data[]; };
 layout (binding = 1) writeonly buffer coeffs_blob { sfpvec8 coeffs_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
-    int size;
+    int w;
+    int h;
     int c;
     int cstep;
 } p;
@@ -47,14 +53,16 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.size || gy >= 1 || gz >= p.c)
+    if (gx >= p.w || gy >= p.h || gz >= p.c)
         return;
 
+#if NCNN_image_shader
+    mat2x4 sqsum_8 = mat2x4(texelFetch(sqsum_blob, ivec3(gx * 2, gy, gz), 0), texelFetch(sqsum_blob, ivec3(gx * 2 + 1, gy, gz), 0));
+#else
     int v_offset = gz * p.cstep + gx;
 
-    int gi = gz * p.size + gx;
-
     mat2x4 sqsum_8 = sqsum_blob_data[v_offset];
+#endif
 
     if (across_channel == 0)
     {
@@ -80,7 +88,15 @@ void main()
             a[1] = afp(1.f) / sqrt(max(sqsum[1], afp(eps)));
         }
 
+#if NCNN_image_shader
+        int gi = gz * p.w * p.h + gy * p.w + gx;
+
+        image1d_st8(coeffs_blob, gi, a);
+#else
+        int gi = gz * p.w + gx;
+
         buffer_st8(coeffs_blob_data, gi, a);
+#endif
     }
 
     if (across_channel == 1)
@@ -108,6 +124,14 @@ void main()
 
         afpvec8 a8 = afpvec8(afpvec4(a), afpvec4(a));
 
+#if NCNN_image_shader
+        int gi = gz * p.w * p.h + gy * p.w + gx;
+
+        image1d_st8(coeffs_blob, gi, a8);
+#else
+        int gi = gz * p.w + gx;
+
         buffer_st8(coeffs_blob_data, gi, a8);
+#endif
     }
 }

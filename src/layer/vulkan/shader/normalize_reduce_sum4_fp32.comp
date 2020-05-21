@@ -28,16 +28,23 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform highp sampler3D square_blob;
+layout (binding = 1, r32f) writeonly uniform highp image3D sqsum_blob;
+#else
 layout (binding = 0) readonly buffer square_blob { float square_blob_data[]; };
 layout (binding = 1) writeonly buffer sqsum_blob { float sqsum_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
-    int size;
+    int w;
+    int h;
     int c;
     int cstep;
 
-    int outsize;
+    int outw;
+    int outh;
     int outc;
     int outcstep;
 } p;
@@ -48,13 +55,104 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= p.outsize || gy >= 1 || gz >= p.outc)
+    if (gx >= p.outw || gy >= p.outh || gz >= p.outc)
         return;
 
-    int gi = gz * p.outcstep + gx;
+    float sqsum;
 
     if (across_spatial == 1 && across_channel == 1)
     {
+#if NCNN_image_shader
+        int sz = gz * 2;
+        int sy = gy * 2;
+        int sx = gx * 2;
+
+        if (sz == p.c - 1)
+        {
+            if (sy == p.h - 1)
+            {
+                if (sx == p.w - 1)
+                {
+                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
+
+                    sqsum = v0;
+                }
+                else
+                {
+                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
+                    float v1 = texelFetch(square_blob, ivec3(sx + 1, sy, sz), 0).r;
+
+                    sqsum = v0 + v1;
+                }
+            }
+            else
+            {
+                if (sx == p.w - 1)
+                {
+                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
+                    float v2 = texelFetch(square_blob, ivec3(sx, sy + 1, sz), 0).r;
+
+                    sqsum = v0 + v2;
+                }
+                else
+                {
+                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
+                    float v1 = texelFetch(square_blob, ivec3(sx + 1, sy, sz), 0).r;
+                    float v2 = texelFetch(square_blob, ivec3(sx, sy + 1, sz), 0).r;
+                    float v3 = texelFetch(square_blob, ivec3(sx + 1, sy + 1, sz), 0).r;
+
+                    sqsum = v0 + v1 + v2 + v3;
+                }
+            }
+        }
+        else
+        {
+            if (sy == p.h - 1)
+            {
+                if (sx == p.w - 1)
+                {
+                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
+                    float v4 = texelFetch(square_blob, ivec3(sx, sy, sz + 1), 0).r;
+
+                    sqsum = v0 + v4;
+                }
+                else
+                {
+                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
+                    float v1 = texelFetch(square_blob, ivec3(sx + 1, sy, sz), 0).r;
+                    float v4 = texelFetch(square_blob, ivec3(sx, sy, sz + 1), 0).r;
+                    float v5 = texelFetch(square_blob, ivec3(sx + 1, sy, sz + 1), 0).r;
+
+                    sqsum = v0 + v1 + v4 + v5;
+                }
+            }
+            else
+            {
+                if (sx == p.w - 1)
+                {
+                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
+                    float v2 = texelFetch(square_blob, ivec3(sx, sy + 1, sz), 0).r;
+                    float v4 = texelFetch(square_blob, ivec3(sx, sy, sz + 1), 0).r;
+                    float v6 = texelFetch(square_blob, ivec3(sx, sy + 1, sz + 1), 0).r;
+
+                    sqsum = v0 + v2 + v4 + v6;
+                }
+                else
+                {
+                    float v0 = texelFetch(square_blob, ivec3(sx, sy, sz), 0).r;
+                    float v1 = texelFetch(square_blob, ivec3(sx + 1, sy, sz), 0).r;
+                    float v2 = texelFetch(square_blob, ivec3(sx, sy + 1, sz), 0).r;
+                    float v3 = texelFetch(square_blob, ivec3(sx + 1, sy + 1, sz), 0).r;
+                    float v4 = texelFetch(square_blob, ivec3(sx, sy, sz + 1), 0).r;
+                    float v5 = texelFetch(square_blob, ivec3(sx + 1, sy, sz + 1), 0).r;
+                    float v6 = texelFetch(square_blob, ivec3(sx, sy + 1, sz + 1), 0).r;
+                    float v7 = texelFetch(square_blob, ivec3(sx + 1, sy + 1, sz + 1), 0).r;
+
+                    sqsum = v0 + v1 + v2 + v3 + v4 + v5 + v6 + v7;
+                }
+            }
+        }
+#else
         int sz = gz * 2;
         int sx = gx * 2;
 
@@ -63,34 +161,28 @@ void main()
 
         if (sz == p.c - 1)
         {
-            if (sx == p.size - 1)
+            if (sx == p.w - 1)
             {
                 float v0 = square_blob_data[v_offset0.r];
 
-                float sqsum = v0;
-
-                sqsum_blob_data[gi] = sqsum;
+                sqsum = v0;
             }
             else
             {
                 float v0 = square_blob_data[v_offset0.r];
                 float v1 = square_blob_data[v_offset0.g];
 
-                float sqsum = v0 + v1;
-
-                sqsum_blob_data[gi] = sqsum;
+                sqsum = v0 + v1;
             }
         }
         else
         {
-            if (sx == p.size - 1)
+            if (sx == p.w - 1)
             {
                 float v0 = square_blob_data[v_offset0.r];
                 float v2 = square_blob_data[v_offset1.r];
 
-                float sqsum = v0 + v2;
-
-                sqsum_blob_data[gi] = sqsum;
+                sqsum = v0 + v2;
             }
             else
             {
@@ -99,46 +191,79 @@ void main()
                 float v2 = square_blob_data[v_offset1.r];
                 float v3 = square_blob_data[v_offset1.g];
 
-                float sqsum = v0 + v1 + v2 + v3;
-
-                sqsum_blob_data[gi] = sqsum;
+                sqsum = v0 + v1 + v2 + v3;
             }
         }
+#endif
     }
 
     if (across_spatial == 1 && across_channel == 0)
     {
+#if NCNN_image_shader
+        int sy = gy * 2;
+        int sx = gx * 2;
+
+        if (sy == p.h - 1)
+        {
+            if (sx == p.w - 1)
+            {
+                float v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0).r;
+
+                sqsum = v0;
+            }
+            else
+            {
+                float v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0).r;
+                float v1 = texelFetch(square_blob, ivec3(sx + 1, sy, gz), 0).r;
+
+                sqsum = v0 + v1;
+            }
+        }
+        else
+        {
+            if (sx == p.w - 1)
+            {
+                float v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0).r;
+                float v2 = texelFetch(square_blob, ivec3(sx, sy + 1, gz), 0).r;
+
+                sqsum = v0 + v2;
+            }
+            else
+            {
+                float v0 = texelFetch(square_blob, ivec3(sx, sy, gz), 0).r;
+                float v1 = texelFetch(square_blob, ivec3(sx + 1, sy, gz), 0).r;
+                float v2 = texelFetch(square_blob, ivec3(sx, sy + 1, gz), 0).r;
+                float v3 = texelFetch(square_blob, ivec3(sx + 1, sy + 1, gz), 0).r;
+
+                sqsum = v0 + v1 + v2 + v3;
+            }
+        }
+#else
         int sz = gz;
         int sx = gx * 4;
 
         ivec4 v_offset = sz * p.cstep + sx + ivec4(0, 1, 2, 3);
 
-        if (sx == p.size - 1)
+        if (sx == p.w - 1)
         {
             float v0 = square_blob_data[v_offset.r];
 
-            float sqsum = v0;
-
-            sqsum_blob_data[gi] = sqsum;
+            sqsum = v0;
         }
-        else if (sx == p.size - 2)
+        else if (sx == p.w - 2)
         {
             float v0 = square_blob_data[v_offset.r];
             float v1 = square_blob_data[v_offset.g];
 
-            float sqsum = v0 + v1;
-
-            sqsum_blob_data[gi] = sqsum;
+            sqsum = v0 + v1;
         }
-        else if (sx == p.size - 3)
+        else if (sx == p.w - 3)
         {
             float v0 = square_blob_data[v_offset.r];
             float v1 = square_blob_data[v_offset.g];
             float v2 = square_blob_data[v_offset.b];
 
-            float sqsum = v0 + v1 + v2;
-
-            sqsum_blob_data[gi] = sqsum;
+            sqsum = v0 + v1 + v2;
         }
         else
         {
@@ -147,14 +272,47 @@ void main()
             float v2 = square_blob_data[v_offset.b];
             float v3 = square_blob_data[v_offset.a];
 
-            float sqsum = v0 + v1 + v2 + v3;
-
-            sqsum_blob_data[gi] = sqsum;
+            sqsum = v0 + v1 + v2 + v3;
         }
+#endif
     }
 
     if (across_spatial == 0 && across_channel == 1)
     {
+#if NCNN_image_shader
+        int sz = gz * 4;
+
+        if (sz == p.c - 1)
+        {
+            float v0 = texelFetch(square_blob, ivec3(gx, gy, sz), 0).r;
+
+            sqsum = v0;
+        }
+        else if (sz == p.c - 2)
+        {
+            float v0 = texelFetch(square_blob, ivec3(gx, gy, sz), 0).r;
+            float v1 = texelFetch(square_blob, ivec3(gx, gy, sz + 1), 0).r;
+
+            sqsum = v0 + v1;
+        }
+        else if (sz == p.c - 3)
+        {
+            float v0 = texelFetch(square_blob, ivec3(gx, gy, sz), 0).r;
+            float v1 = texelFetch(square_blob, ivec3(gx, gy, sz + 1), 0).r;
+            float v2 = texelFetch(square_blob, ivec3(gx, gy, sz + 2), 0).r;
+
+            sqsum = v0 + v1 + v2;
+        }
+        else
+        {
+            float v0 = texelFetch(square_blob, ivec3(gx, gy, sz), 0).r;
+            float v1 = texelFetch(square_blob, ivec3(gx, gy, sz + 1), 0).r;
+            float v2 = texelFetch(square_blob, ivec3(gx, gy, sz + 2), 0).r;
+            float v3 = texelFetch(square_blob, ivec3(gx, gy, sz + 3), 0).r;
+
+            sqsum = v0 + v1 + v2 + v3;
+        }
+#else
         int sz = gz * 4;
         int sx = gx;
 
@@ -164,18 +322,14 @@ void main()
         {
             float v0 = square_blob_data[v_offset.r];
 
-            float sqsum = v0;
-
-            sqsum_blob_data[gi] = sqsum;
+            sqsum = v0;
         }
         else if (sz == p.c - 2)
         {
             float v0 = square_blob_data[v_offset.r];
             float v1 = square_blob_data[v_offset.g];
 
-            float sqsum = v0 + v1;
-
-            sqsum_blob_data[gi] = sqsum;
+            sqsum = v0 + v1;
         }
         else if (sz == p.c - 3)
         {
@@ -183,9 +337,7 @@ void main()
             float v1 = square_blob_data[v_offset.g];
             float v2 = square_blob_data[v_offset.b];
 
-            float sqsum = v0 + v1 + v2;
-
-            sqsum_blob_data[gi] = sqsum;
+            sqsum = v0 + v1 + v2;
         }
         else
         {
@@ -194,9 +346,16 @@ void main()
             float v2 = square_blob_data[v_offset.b];
             float v3 = square_blob_data[v_offset.a];
 
-            float sqsum = v0 + v1 + v2 + v3;
-
-            sqsum_blob_data[gi] = sqsum;
+            sqsum = v0 + v1 + v2 + v3;
         }
+#endif
     }
+
+#if NCNN_image_shader
+    imageStore(sqsum_blob, ivec3(gx, gy, gz), vec4(sqsum));
+#else
+    int gi = gz * p.outcstep + gx;
+
+    sqsum_blob_data[gi] = sqsum;
+#endif
 }

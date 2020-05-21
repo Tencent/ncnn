@@ -543,6 +543,7 @@ int create_gpu_instance()
 //         NCNN_LOGE("[%u] pipelineCacheUUID = %u", i, physicalDeviceProperties.pipelineCacheUUID);
 
         gpu_info.bug_local_size_spec_const = false;
+        gpu_info.bug_storage_buffer_no_l1 = false;
         gpu_info.bug_implicit_fp16_arithmetic = false;
 
         if (physicalDeviceProperties.vendorID == 0x13b5 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 66))
@@ -555,6 +556,12 @@ int create_gpu_instance()
         {
             // qcom adreno with old buggy driver
             gpu_info.bug_local_size_spec_const = true;
+        }
+
+        if (physicalDeviceProperties.vendorID == 0x5143)
+        {
+            // qcom adreno storage buffer without L1 cache
+            gpu_info.bug_storage_buffer_no_l1 = true;
         }
 
         if (physicalDeviceProperties.vendorID == 0x13b5 && (physicalDeviceProperties.deviceID == 0x7500001 || physicalDeviceProperties.deviceID == 0x8602000))
@@ -824,8 +831,8 @@ int create_gpu_instance()
                 gpu_info.graphics_queue_family_index, gpu_info.graphics_queue_count,
                 gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count);
 
-        NCNN_LOGE("[%u %s]  buglssc=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
-                gpu_info.bug_local_size_spec_const, gpu_info.bug_implicit_fp16_arithmetic);
+        NCNN_LOGE("[%u %s]  buglssc=%d  bugsbn1=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
+                gpu_info.bug_local_size_spec_const, gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_implicit_fp16_arithmetic);
 
         NCNN_LOGE("[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d", i, physicalDeviceProperties.deviceName,
                 gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
@@ -1542,8 +1549,12 @@ bool VulkanDevice::shape_support_image_storage(const Mat& shape) const
     return true;
 }
 
-void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
+void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& _opt) const
 {
+    // buffer2buffer uop is created with use_image_storage disabled
+    Option opt = _opt;
+    opt.use_image_storage = false;
+
     int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;
     int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
@@ -1900,9 +1911,11 @@ int VulkanDevice::create_utility_operator()
     {
     for (int i1=0; i1<2; i1++)
     {
-        // TODO use macro
-//         opt.use_image_storage = (i0 == 1 || i1 == 1);
-        opt.use_image_storage = true;
+        opt.use_image_storage = (i0 == 1 || i1 == 1);
+#if __APPLE__
+        if (opt.use_image_storage)
+            continue;
+#endif
 
         // from fp32-b/i | fp16p-b/i | fp16s-b/i
         // to fp32-b/i | fp16p-b/i | fp16s-b/i
@@ -1960,6 +1973,10 @@ void VulkanDevice::destroy_utility_operator()
     for (int i1=0; i1<2; i1++)
     {
         opt.use_image_storage = (i0 == 1 || i1 == 1);
+#if __APPLE__
+        if (opt.use_image_storage)
+            continue;
+#endif
 
         // from fp32-b/i | fp16p-b/i | fp16s-b/i
         // to fp32-b/i | fp16p-b/i | fp16s-b/i

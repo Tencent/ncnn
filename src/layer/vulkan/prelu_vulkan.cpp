@@ -23,6 +23,7 @@ DEFINE_LAYER_CREATOR(PReLU_vulkan)
 PReLU_vulkan::PReLU_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     pipeline_prelu = 0;
     pipeline_prelu_pack4 = 0;
@@ -137,7 +138,14 @@ int PReLU_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         Mat slope_data_packed;
         convert_packing(slope_data, slope_data_packed, elempack);
 
-        cmd.record_upload(slope_data_packed, slope_data_gpu, opt);
+        if (opt.use_image_storage)
+        {
+            cmd.record_upload(slope_data_packed, slope_data_gpu_image, opt);
+        }
+        else
+        {
+            cmd.record_upload(slope_data_packed, slope_data_gpu, opt);
+        }
     }
 
     return 0;
@@ -149,7 +157,7 @@ int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const 
 
     std::vector<VkMat> bindings(2);
     bindings[0] = bottom_top_blob;
-    bindings[1] = num_slope > 1 ? slope_data_gpu : bottom_top_blob;
+    bindings[1] = slope_data_gpu;
 
     std::vector<vk_constant_type> constants(5);
     constants[0].i = bottom_top_blob.dims;
@@ -157,6 +165,31 @@ int PReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const 
     constants[2].i = bottom_top_blob.h;
     constants[3].i = bottom_top_blob.c;
     constants[4].i = bottom_top_blob.cstep;
+
+    const Pipeline* pipeline = elempack == 8 ? pipeline_prelu_pack8
+                             : elempack == 4 ? pipeline_prelu_pack4
+                             : pipeline_prelu;
+
+    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+
+    return 0;
+}
+
+int PReLU_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& /*opt*/) const
+{
+    int elempack = bottom_top_blob.elempack;
+
+    std::vector<VkImageMat> bindings(3);
+    bindings[0] = bottom_top_blob;
+    bindings[1] = bottom_top_blob;
+    bindings[2] = slope_data_gpu_image;
+
+    std::vector<vk_constant_type> constants(5);
+    constants[0].i = bottom_top_blob.dims;
+    constants[1].i = bottom_top_blob.w;
+    constants[2].i = bottom_top_blob.h;
+    constants[3].i = bottom_top_blob.c;
+    constants[4].i = 0;//bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_prelu_pack8
                              : elempack == 4 ? pipeline_prelu_pack4

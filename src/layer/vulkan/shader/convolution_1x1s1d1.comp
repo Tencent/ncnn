@@ -84,11 +84,11 @@ layout (push_constant) uniform parameter
 void main()
 {
 #if NCNN_image_shader
-    int gx = int(gl_GlobalInvocationID.x) * 2;
-    int gy = int(gl_GlobalInvocationID.y) * 2;
+    int gx = int(gl_GlobalInvocationID.x) * 4;
+    int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+    if (gx >= psc(outw) * psc(outh) || gy >= 1 || gz >= psc(outc))
         return;
 #else
     int gx = int(gl_GlobalInvocationID.x);
@@ -115,14 +115,19 @@ void main()
     }
 
 #if NCNN_image_shader
+    ivec4 gx4 = gx + ivec4(0, 1, 2, 3);
+
+    ivec4 sy4 = gx4 / psc(w);
+    ivec4 sx4 = gx4 % psc(w);
+
     for (int z = 0; z < psc(c); z++)
     {
         afp k = image3d_ld1(weight_blob, ivec3(0, z, gz));
 
-        sum.r += k * image3d_ld1(bottom_blob, ivec3(gx, gy, z));
-        sum.g += k * image3d_ld1(bottom_blob, ivec3(gx+1, gy, z));
-        sum.b += k * image3d_ld1(bottom_blob, ivec3(gx, gy+1, z));
-        sum.a += k * image3d_ld1(bottom_blob, ivec3(gx+1, gy+1, z));
+        sum.r += k * image3d_ld1(bottom_blob, ivec3(sx4.r, sy4.r, z));
+        sum.g += k * image3d_ld1(bottom_blob, ivec3(sx4.g, sy4.g, z));
+        sum.b += k * image3d_ld1(bottom_blob, ivec3(sx4.b, sy4.b, z));
+        sum.a += k * image3d_ld1(bottom_blob, ivec3(sx4.a, sy4.a, z));
     }
 #else
     int w_offset = gz * psc(c);
@@ -166,10 +171,10 @@ void main()
     }
 
 #if NCNN_image_shader
-    image3d_st1(top_blob, ivec3(gx, gy, gz), sum.r);
-    image3d_st1(top_blob, ivec3(gx+1, gy, gz), sum.g);
-    image3d_st1(top_blob, ivec3(gx, gy+1, gz), sum.b);
-    image3d_st1(top_blob, ivec3(gx+1, gy+1, gz), sum.a);
+    image3d_st1(top_blob, ivec3(sx4.r, sy4.r, gz), sum.r);
+    image3d_st1(top_blob, ivec3(sx4.g, sy4.g, gz), sum.g);
+    image3d_st1(top_blob, ivec3(sx4.b, sy4.b, gz), sum.b);
+    image3d_st1(top_blob, ivec3(sx4.a, sy4.a, gz), sum.a);
 #else
     const int gi = gz * psc(outcstep) + gx;
 

@@ -202,7 +202,7 @@ int Concat_vulkan::create_pipeline(const Option& _opt)
     return 0;
 }
 
-int Concat_vulkan::destroy_pipeline(const Option& opt)
+int Concat_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_concat[0];
     delete pipeline_concat[1];
