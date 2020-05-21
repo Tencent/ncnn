@@ -71,6 +71,9 @@ if(NCNN_VULKAN_ONLINE_SPIRV)
         message(WARNING "Please update submodules with \"git submodule update --init\" and try again.")
         set(NCNN_VULKAN_ONLINE_SPIRV OFF)
     else()
+        # glslang requires c++11
+        set(CMAKE_CXX_STANDARD 11)
+
         # override glslang options
         if(NOT CMAKE_VERSION VERSION_LESS "3.13")
             # CMP0077: option() honors normal variables
