@@ -3,7 +3,7 @@
 
 configure_file(platform.h.in ${CMAKE_CURRENT_BINARY_DIR}/platform.h)
 
-if(NCNN_VULKAN)
+if(NCNN_VULKAN AND NOT NCNN_VULKAN_ONLINE_SPIRV)
     find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator PATHS $ENV{VULKAN_SDK}/bin NO_CMAKE_FIND_ROOT_PATH)
     message(STATUS "Found glslangValidator: ${GLSLANGVALIDATOR_EXECUTABLE}")
 endif()
@@ -21,6 +21,7 @@ endfunction()
 
 set(ncnn_SRCS
     allocator.cpp
+    benchmark.cpp
     blob.cpp
     command.cpp
     cpu.cpp
@@ -37,59 +38,93 @@ set(ncnn_SRCS
     option.cpp
     paramdict.cpp
     pipeline.cpp
-    benchmark.cpp
 )
-
-ncnn_src_group(ncnn_SRCS "sources")
 
 if(ANDROID)
     list(APPEND ncnn_SRCS mat_pixel_android.cpp)
 endif()
 
+ncnn_src_group(ncnn_SRCS "sources")
+
 include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_shader_spv_header.cmake)
 
 macro(ncnn_add_shader SHADER_SRC)
-    ncnn_generate_shader_spv_header(SHADER_SPV_HEADER SHADER_SPV_HEX_HEADERS ${SHADER_SRC})
+    if(NCNN_VULKAN_ONLINE_SPIRV)
 
-    get_filename_component(SHADER_SPV_HEADER_NAME ${SHADER_SPV_HEADER} NAME)
-    string(APPEND layer_shader_spv_data "#include \"${SHADER_SPV_HEADER_NAME}\"\n")
+        file(READ ${SHADER_SRC} comp_data)
 
-    get_filename_component(SHADER_SRC_NAME_WE ${SHADER_SRC} NAME_WE)
-    string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_spv_data,sizeof(${SHADER_SRC_NAME_WE}_spv_data)},\n")
-    string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_fp16p_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16p_spv_data)},\n")
-    string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_fp16pa_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16pa_spv_data)},\n")
-    string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_fp16s_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16s_spv_data)},\n")
-    string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_fp16sa_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16sa_spv_data)},\n")
-    string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_image_spv_data,sizeof(${SHADER_SRC_NAME_WE}_image_spv_data)},\n")
-    string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_image_fp16p_spv_data,sizeof(${SHADER_SRC_NAME_WE}_image_fp16p_spv_data)},\n")
-    string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_image_fp16pa_spv_data,sizeof(${SHADER_SRC_NAME_WE}_image_fp16pa_spv_data)},\n")
-    string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_image_fp16s_spv_data,sizeof(${SHADER_SRC_NAME_WE}_image_fp16s_spv_data)},\n")
-    string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_image_fp16sa_spv_data,sizeof(${SHADER_SRC_NAME_WE}_image_fp16sa_spv_data)},\n")
+        # skip leading comment
+        string(FIND "${comp_data}" "#version" version_start)
+        string(SUBSTRING "${comp_data}" ${version_start} -1 comp_data)
 
-    list(APPEND SHADER_SPV_HEX_FILES ${SHADER_SPV_HEADER})
-    list(APPEND SHADER_SPV_HEX_FILES ${SHADER_SPV_HEX_HEADERS})
+        # remove whitespace
+        string(REGEX REPLACE "\n +" "\n" comp_data "${comp_data}")
 
-    # generate layer_shader_type_enum file
-    set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE} = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
-    math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
-    set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_fp16p = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
-    math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
-    set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_fp16pa = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
-    math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
-    set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_fp16s = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
-    math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
-    set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_fp16sa = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
-    math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
-    set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_image = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
-    math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
-    set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_image_fp16p = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
-    math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
-    set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_image_fp16pa = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
-    math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
-    set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_image_fp16s = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
-    math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
-    set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_image_fp16sa = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
-    math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+        # text to hex
+        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/text2hex.txt "${comp_data}")
+        file(READ ${CMAKE_CURRENT_BINARY_DIR}/text2hex.txt comp_data_hex HEX)
+        string(REGEX REPLACE "([0-9a-f][0-9a-f])" "0x\\1," comp_data_hex ${comp_data_hex})
+        string(FIND "${comp_data_hex}" "," tail_comma REVERSE)
+        string(SUBSTRING "${comp_data_hex}" 0 ${tail_comma} comp_data_hex)
+
+        get_filename_component(SHADER_SRC_NAME_WE ${SHADER_SRC} NAME_WE)
+        set(SHADER_COMP_HEADER ${CMAKE_CURRENT_BINARY_DIR}/${SHADER_SRC_NAME_WE}.comp.hex.h)
+        file(WRITE ${SHADER_COMP_HEADER} "static const char ${SHADER_SRC_NAME_WE}_comp_data[] = {${comp_data_hex}};\n")
+        set_source_files_properties(${SHADER_COMP_HEADER} PROPERTIES GENERATED TRUE)
+
+        string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_comp_data,sizeof(${SHADER_SRC_NAME_WE}_comp_data)},\n")
+
+        get_filename_component(SHADER_COMP_HEADER_NAME ${SHADER_COMP_HEADER} NAME)
+        list(APPEND SHADER_SPV_HEX_FILES ${SHADER_COMP_HEADER_NAME})
+
+        string(APPEND layer_shader_spv_data "#include \"${SHADER_COMP_HEADER_NAME}\"\n")
+
+        # generate layer_shader_type_enum file
+        set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE} = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+        math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+    else()
+        ncnn_generate_shader_spv_header(SHADER_SPV_HEADER SHADER_SPV_HEX_HEADERS ${SHADER_SRC})
+
+        get_filename_component(SHADER_SPV_HEADER_NAME ${SHADER_SPV_HEADER} NAME)
+        string(APPEND layer_shader_spv_data "#include \"${SHADER_SPV_HEADER_NAME}\"\n")
+
+        get_filename_component(SHADER_SRC_NAME_WE ${SHADER_SRC} NAME_WE)
+        string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_spv_data,sizeof(${SHADER_SRC_NAME_WE}_spv_data)},\n")
+        string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_fp16p_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16p_spv_data)},\n")
+        string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_fp16pa_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16pa_spv_data)},\n")
+        string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_fp16s_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16s_spv_data)},\n")
+        string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_fp16sa_spv_data,sizeof(${SHADER_SRC_NAME_WE}_fp16sa_spv_data)},\n")
+        string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_image_spv_data,sizeof(${SHADER_SRC_NAME_WE}_image_spv_data)},\n")
+        string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_image_fp16p_spv_data,sizeof(${SHADER_SRC_NAME_WE}_image_fp16p_spv_data)},\n")
+        string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_image_fp16pa_spv_data,sizeof(${SHADER_SRC_NAME_WE}_image_fp16pa_spv_data)},\n")
+        string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_image_fp16s_spv_data,sizeof(${SHADER_SRC_NAME_WE}_image_fp16s_spv_data)},\n")
+        string(APPEND layer_shader_registry "{${SHADER_SRC_NAME_WE}_image_fp16sa_spv_data,sizeof(${SHADER_SRC_NAME_WE}_image_fp16sa_spv_data)},\n")
+
+        list(APPEND SHADER_SPV_HEX_FILES ${SHADER_SPV_HEADER})
+        list(APPEND SHADER_SPV_HEX_FILES ${SHADER_SPV_HEX_HEADERS})
+
+        # generate layer_shader_type_enum file
+        set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE} = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+        math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+        set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_fp16p = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+        math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+        set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_fp16pa = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+        math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+        set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_fp16s = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+        math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+        set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_fp16sa = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+        math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+        set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_image = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+        math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+        set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_image_fp16p = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+        math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+        set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_image_fp16pa = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+        math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+        set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_image_fp16s = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+        math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+        set(layer_shader_type_enum "${layer_shader_type_enum}${SHADER_SRC_NAME_WE}_image_fp16sa = ${__LAYER_SHADER_TYPE_ENUM_INDEX},\n")
+        math(EXPR __LAYER_SHADER_TYPE_ENUM_INDEX "${__LAYER_SHADER_TYPE_ENUM_INDEX}+1")
+    endif()
 endmacro()
 
 macro(ncnn_add_layer class)
@@ -303,6 +338,11 @@ endif()
 if(NCNN_VULKAN)
     find_package(Vulkan REQUIRED)
     target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
+
+    if(NCNN_VULKAN_ONLINE_SPIRV)
+        target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
+        target_link_libraries(ncnn PRIVATE glslang SPIRV)
+    endif()
 endif()
 
 if(ANDROID_NDK)
