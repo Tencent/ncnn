@@ -352,8 +352,11 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     buffer_bindings[0] = bottom_blob;
     buffer_bindings[1] = top_blob;
 
-    // TODO use macro
     std::vector<VkImageMat> image_bindings(2);
+    if (!opt.use_image_storage)
+    {
+        image_bindings.clear();
+    }
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;

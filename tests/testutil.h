@@ -215,6 +215,10 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
     if (!op->support_image_storage) opt.use_image_storage = false;
 
+#if __APPLE__
+    opt.use_image_storage = false;
+#endif
+
     if (opt.use_int8_inference) opt.use_bf16_storage = false;
     if (opt.use_int8_inference) opt.use_packing_layout = false;
 
@@ -459,6 +463,10 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     if (!op->support_packing) opt.use_packing_layout = false;
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
     if (!op->support_image_storage) opt.use_image_storage = false;
+
+#if __APPLE__
+    opt.use_image_storage = false;
+#endif
 
     if (opt.use_int8_inference) opt.use_bf16_storage = false;
     if (opt.use_int8_inference) opt.use_packing_layout = false;

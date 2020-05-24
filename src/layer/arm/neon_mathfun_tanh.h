@@ -35,13 +35,14 @@ static inline float32x4_t tanh_ps(float32x4_t x)
     uint32x4_t mask_l2 = vcgtq_f32(x2, vdupq_n_f32(c_cephes_HALFMAXLOGF));
 
     // abs(x) >= 0.625
-    // tanh(x) = (exp(2x) - 1) / (exp(2x) + 1)
+    // tanh(x) = 1 − 2 / (exp(2x) + 1)
     float32x4_t _one = vdupq_n_f32(1.f);
+    float32x4_t _two = vdupq_n_f32(2.f);
     float32x4_t exp_x_x = exp_ps(vaddq_f32(x, x));
 #if __aarch64__
-    float32x4_t y0 = vdivq_f32(vsubq_f32(exp_x_x, _one), vaddq_f32(exp_x_x, _one));
+    float32x4_t y0 = vsubq_f32(_one, vdivq_f32(_two, vaddq_f32(exp_x_x, _one)));
 #else
-    float32x4_t y0 = div_ps(vsubq_f32(exp_x_x, _one), vaddq_f32(exp_x_x, _one));
+    float32x4_t y0 = vsubq_f32(_one, div_ps(_two, vaddq_f32(exp_x_x, _one)));
 #endif
 
     // abs(x) < 0.625

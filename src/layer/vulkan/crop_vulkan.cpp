@@ -258,7 +258,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Crop_vulkan::destroy_pipeline(const Option& opt)
+int Crop_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_crop;
     pipeline_crop = 0;
@@ -292,9 +292,6 @@ int Crop_vulkan::destroy_pipeline(const Option& opt)
 
 int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
@@ -417,8 +414,6 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     const VkMat& bottom_blob = bottom_blobs[0];
     const VkMat& reference_blob = bottom_blobs[1];
 
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
@@ -547,9 +542,6 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
 int Crop_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
@@ -672,8 +664,6 @@ int Crop_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
     const VkImageMat& bottom_blob = bottom_blobs[0];
     const VkImageMat& reference_blob = bottom_blobs[1];
 
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;

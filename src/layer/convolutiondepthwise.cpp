@@ -238,6 +238,18 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     {
                         sum = static_cast<float>(1.f / (1.f + exp(-sum)));
                     }
+                    else if (activation_type == 5)
+                    {
+                        const float MISH_THRESHOLD = 20;
+                        float x = sum, y;
+                        if (x > MISH_THRESHOLD)
+                            y = x;
+                        else if (x < -MISH_THRESHOLD)
+                            y = expf(x);
+                        else
+                            y = logf(expf(x) + 1);
+                        sum = static_cast<float>(x * tanh(y));
+                    }
 
                     outptr[j] = sum;
                 }
@@ -312,6 +324,18 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         else if (activation_type == 4)
                         {
                             sum = static_cast<float>(1.f / (1.f + exp(-sum)));
+                        }
+                        else if (activation_type == 5)
+                        {
+                            const float MISH_THRESHOLD = 20;
+                            float x = sum, y;
+                            if (x > MISH_THRESHOLD)
+                                y = x;
+                            else if (x < -MISH_THRESHOLD)
+                                y = expf(x);
+                            else
+                                y = logf(expf(x) + 1);
+                            sum = static_cast<float>(x * tanh(y));
                         }
 
                         outptr[j] = sum;

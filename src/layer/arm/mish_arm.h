@@ -12,31 +12,24 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_DEEPCOPY_VULKAN_H
-#define LAYER_DEEPCOPY_VULKAN_H
+#ifndef LAYER_MISH_ARM_H
+#define LAYER_MISH_ARM_H
 
-#include "deepcopy.h"
+#include "mish.h"
 
 namespace ncnn {
 
-class DeepCopy_vulkan : virtual public DeepCopy
+class Mish_arm : virtual public Mish
 {
 public:
-    DeepCopy_vulkan();
+    Mish_arm();
 
-    virtual int create_pipeline(const Option& opt);
-    virtual int destroy_pipeline(const Option& opt);
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
-    using DeepCopy::forward;
-    virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
-    virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
-
-public:
-    Pipeline* pipeline_deepcopy;
-    Pipeline* pipeline_deepcopy_pack4;
-    Pipeline* pipeline_deepcopy_pack8;
+protected:
+    int forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_DEEPCOPY_VULKAN_H
+#endif // LAYER_MISH_ARM_H

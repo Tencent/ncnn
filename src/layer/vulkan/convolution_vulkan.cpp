@@ -284,21 +284,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         if (is_conv1x1s1d1)
         {
             pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
-            if (opt.use_image_storage)
-            {
-            Mat local_size_xyz_local(4, 4, std::min(4, num_output / out_elempack), (void*)0);
-            if (out_shape_packed.dims != 0)
-            {
-                local_size_xyz_local.w = std::max(1, std::min(4, (out_shape_packed.w + 1) / 2));
-                local_size_xyz_local.h = std::max(1, std::min(4, (out_shape_packed.h + 1) / 2));
-                local_size_xyz_local.c = std::min(4, out_shape_packed.c);
-            }
-            pipeline_convolution_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz_local);
-            }
-            else
-            {
             pipeline_convolution_1x1s1d1->set_local_size_xyz(8, 1, std::min(8, num_output));
-            }
             pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1, opt, specializations);
         }
         else
@@ -315,21 +301,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         if (is_conv1x1s1d1)
         {
             pipeline_convolution_pack4_1x1s1d1 = new Pipeline(vkdev);
-            if (opt.use_image_storage)
-            {
-            Mat local_size_xyz_local(4, 4, std::min(4, num_output / out_elempack), (void*)0);
-            if (out_shape_packed.dims != 0)
-            {
-                local_size_xyz_local.w = std::max(1, std::min(4, (out_shape_packed.w + 1) / 2));
-                local_size_xyz_local.h = std::max(1, std::min(4, (out_shape_packed.h + 1) / 2));
-                local_size_xyz_local.c = std::min(4, out_shape_packed.c);
-            }
-            pipeline_convolution_pack4_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz_local);
-            }
-            else
-            {
             pipeline_convolution_pack4_1x1s1d1->set_local_size_xyz(8, 1, std::min(8, num_output / 4));
-            }
             pipeline_convolution_pack4_1x1s1d1->create(LayerShaderType::convolution_pack4_1x1s1d1, opt, specializations);
         }
         else if (is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
@@ -456,21 +428,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         if (is_conv1x1s1d1)
         {
             pipeline_convolution_pack8_1x1s1d1 = new Pipeline(vkdev);
-            if (opt.use_image_storage)
-            {
-            Mat local_size_xyz_local(4, 4, std::min(4, num_output / out_elempack), (void*)0);
-            if (out_shape_packed.dims != 0)
-            {
-                local_size_xyz_local.w = std::max(1, std::min(4, (out_shape_packed.w + 1) / 2));
-                local_size_xyz_local.h = std::max(1, std::min(4, (out_shape_packed.h + 1) / 2));
-                local_size_xyz_local.c = std::min(4, out_shape_packed.c);
-            }
-            pipeline_convolution_pack8_1x1s1d1->set_optimal_local_size_xyz(local_size_xyz_local);
-            }
-            else
-            {
             pipeline_convolution_pack8_1x1s1d1->set_local_size_xyz(8, 1, std::min(8, num_output / 8));
-            }
             pipeline_convolution_pack8_1x1s1d1->create(LayerShaderType::convolution_pack8_1x1s1d1, opt, specializations);
         }
         else if (is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
@@ -1901,8 +1859,8 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
     if (elempack == 1 && out_elempack == 1 && kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
     {
         VkImageMat dispatcher;
-        dispatcher.w = (top_blob.w + 1) / 2;
-        dispatcher.h = (top_blob.h + 1) / 2;
+        dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
+        dispatcher.h = 1;
         dispatcher.c = top_blob.c;
 
         cmd.record_pipeline(pipeline_convolution_1x1s1d1, bindings, constants, dispatcher);
@@ -1910,8 +1868,8 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
     else if (elempack == 4 && out_elempack == 4 && kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
     {
         VkImageMat dispatcher;
-        dispatcher.w = (top_blob.w + 1) / 2;
-        dispatcher.h = (top_blob.h + 1) / 2;
+        dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
+        dispatcher.h = 1;
         dispatcher.c = top_blob.c;
 
         cmd.record_pipeline(pipeline_convolution_pack4_1x1s1d1, bindings, constants, dispatcher);
@@ -1919,8 +1877,8 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
     else if (elempack == 8 && out_elempack == 8 && kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
     {
         VkImageMat dispatcher;
-        dispatcher.w = (top_blob.w + 1) / 2;
-        dispatcher.h = (top_blob.h + 1) / 2;
+        dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
+        dispatcher.h = 1;
         dispatcher.c = top_blob.c;
 
         cmd.record_pipeline(pipeline_convolution_pack8_1x1s1d1, bindings, constants, dispatcher);
