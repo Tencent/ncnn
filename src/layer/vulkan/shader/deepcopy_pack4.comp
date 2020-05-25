@@ -32,8 +32,17 @@ layout (local_size_x_id = 233) in;
 layout (local_size_y_id = 234) in;
 layout (local_size_z_id = 235) in;
 
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler1D bottom_blob_1d;
+layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
+layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image1D top_blob_1d;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+#endif
 
 layout (push_constant) uniform parameter
 {
@@ -53,7 +62,22 @@ void main()
     if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
+#if NCNN_image_shader
+    if (psc(dims) == 1)
+    {
+        image1d_cp4(top_blob_1d, gx, bottom_blob_1d, gx);
+    }
+    else if (psc(dims) == 2)
+    {
+        image2d_cp4(top_blob_2d, ivec2(gx, gy), bottom_blob_2d, ivec2(gx, gy));
+    }
+    else // if (psc(dims) == 3)
+    {
+        image3d_cp4(top_blob_3d, ivec3(gx, gy, gz), bottom_blob_3d, ivec3(gx, gy, gz));
+    }
+#else
     const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     buffer_cp4(top_blob_data, gi, bottom_blob_data, gi);
+#endif
 }

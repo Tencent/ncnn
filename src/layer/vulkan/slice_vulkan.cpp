@@ -194,7 +194,7 @@ int Slice_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Slice_vulkan::destroy_pipeline(const Option& opt)
+int Slice_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
     delete pipeline_slice[0];
     delete pipeline_slice[1];

@@ -84,11 +84,11 @@ layout (push_constant) uniform parameter
 void main()
 {
 #if NCNN_image_shader
-    int gx = int(gl_GlobalInvocationID.x) * 2;
-    int gy = int(gl_GlobalInvocationID.y) * 2;
+    int gx = int(gl_GlobalInvocationID.x) * 4;
+    int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+    if (gx >= psc(outw) * psc(outh) || gy >= 1 || gz >= psc(outc))
         return;
 #else
     int gx = int(gl_GlobalInvocationID.x) * 4;
@@ -125,12 +125,17 @@ void main()
     }
 
 #if NCNN_image_shader
+    ivec4 gx4 = gx + ivec4(0, 1, 2, 3);
+
+    ivec4 sy4 = gx4 / psc(w);
+    ivec4 sx4 = gx4 % psc(w);
+
     for (int z = 0; z < psc(c); z++)
     {
-        afpvec4 v0 = image3d_ld4(bottom_blob, ivec3(gx, gy, z));
-        afpvec4 v1 = image3d_ld4(bottom_blob, ivec3(gx+1, gy, z));
-        afpvec4 v2 = image3d_ld4(bottom_blob, ivec3(gx, gy+1, z));
-        afpvec4 v3 = image3d_ld4(bottom_blob, ivec3(gx+1, gy+1, z));
+        afpvec4 v0 = image3d_ld4(bottom_blob, ivec3(sx4.r, sy4.r, z));
+        afpvec4 v1 = image3d_ld4(bottom_blob, ivec3(sx4.g, sy4.g, z));
+        afpvec4 v2 = image3d_ld4(bottom_blob, ivec3(sx4.b, sy4.b, z));
+        afpvec4 v3 = image3d_ld4(bottom_blob, ivec3(sx4.a, sy4.a, z));
 
         afpmat4 k = afpmat4(
             image3d_ld4(weight_blob, ivec3(0, z, gz)),
@@ -217,10 +222,10 @@ void main()
     }
 
 #if NCNN_image_shader
-    image3d_st4(top_blob, ivec3(gx, gy, gz), sum0);
-    image3d_st4(top_blob, ivec3(gx+1, gy, gz), sum1);
-    image3d_st4(top_blob, ivec3(gx, gy+1, gz), sum2);
-    image3d_st4(top_blob, ivec3(gx+1, gy+1, gz), sum3);
+    image3d_st4(top_blob, ivec3(sx4.r, sy4.r, gz), sum0);
+    image3d_st4(top_blob, ivec3(sx4.g, sy4.g, gz), sum1);
+    image3d_st4(top_blob, ivec3(sx4.b, sy4.b, gz), sum2);
+    image3d_st4(top_blob, ivec3(sx4.a, sy4.a, gz), sum3);
 #else
     int gi = gz * psc(outcstep) + gx;
 
