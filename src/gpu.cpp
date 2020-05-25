@@ -732,6 +732,8 @@ int create_gpu_instance()
                 gpu_info.support_VK_KHR_storage_buffer_storage_class = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_swapchain") == 0)
                 gpu_info.support_VK_KHR_swapchain = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_EXT_memory_budget") == 0)
+                gpu_info.support_VK_EXT_memory_budget = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_EXT_queue_family_foreign") == 0)
                 gpu_info.support_VK_EXT_queue_family_foreign = exp.specVersion;
 #if __ANDROID_API__ >= 26
@@ -942,6 +944,8 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
         enabledExtensions.push_back("VK_KHR_storage_buffer_storage_class");
     if (info.support_VK_KHR_swapchain)
         enabledExtensions.push_back("VK_KHR_swapchain");
+    if (info.support_VK_EXT_memory_budget)
+        enabledExtensions.push_back("VK_EXT_memory_budget");
     if (info.support_VK_EXT_queue_family_foreign)
         enabledExtensions.push_back("VK_EXT_queue_family_foreign");
 #if __ANDROID_API__ >= 26
@@ -1576,6 +1580,45 @@ bool VulkanDevice::shape_support_image_storage(const Mat& shape) const
     }
 
     return true;
+}
+
+uint32_t VulkanDevice::get_heap_budget() const
+{
+    // the first device local heap
+    uint32_t device_local_heap_index = 0;
+    uint32_t device_local_heap_size = 0;
+    for (uint32_t i=0; i<info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    {
+        const VkMemoryHeap& memoryHeap = info.physicalDeviceMemoryProperties.memoryHeaps[i];
+        if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+        {
+            device_local_heap_index = i;
+            device_local_heap_size = memoryHeap.size / 1024 / 1024;
+            break;
+        }
+    }
+
+    if (!info.support_VK_EXT_memory_budget)
+    {
+//         NCNN_LOGE("heap budget from assumption\n");
+
+        // we usually cannot use all heap
+        // 70% for 4G+
+        // 50% for 4G-
+        return device_local_heap_size >= 4000 ? device_local_heap_size * 0.7 : device_local_heap_size * 0.5;
+    }
+
+    VkPhysicalDeviceMemoryBudgetPropertiesEXT memoryBudgetProperties;
+    memoryBudgetProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT;
+    memoryBudgetProperties.pNext = 0;
+
+    VkPhysicalDeviceMemoryProperties2KHR memoryProperties;
+    memoryProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2_KHR;
+    memoryProperties.pNext = &memoryBudgetProperties;
+
+    vkGetPhysicalDeviceMemoryProperties2KHR(info.physical_device, &memoryProperties);
+
+    return memoryBudgetProperties.heapBudget[device_local_heap_index] / 1024 / 1024;
 }
 
 void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& _opt) const
