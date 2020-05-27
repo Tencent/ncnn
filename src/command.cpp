@@ -2273,8 +2273,16 @@ int VkCompute::reset()
     }
     image_blocks_to_destroy.clear();
 
-    descriptor_pools.clear();
-    descriptorsets.clear();
+    if (!vkdev->info.support_VK_KHR_push_descriptor)
+    {
+        for (size_t i=0; i<descriptorsets.size(); i++)
+        {
+            vkFreeDescriptorSets(vkdev->vkdevice(), descriptor_pools[i], 1, &descriptorsets[i]);
+            vkDestroyDescriptorPool(vkdev->vkdevice(), descriptor_pools[i], 0);
+        }
+        descriptor_pools.clear();
+        descriptorsets.clear();
+    }
 
     delayed_records.clear();
 
