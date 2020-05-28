@@ -57,6 +57,7 @@ jobs:
       run: |
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
         cd build && ctest --output-on-failure -j 2
+        ctest --output-on-failure -j 2
 
   linux-gcc-gpu-online-spirv:
     runs-on: ubuntu-latest
@@ -116,3 +117,4 @@ jobs:
       run: |
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
         cd build && ctest --output-on-failure -j 2
+        ctest --output-on-failure -j 2

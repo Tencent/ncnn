@@ -43,7 +43,22 @@ public:
         g_vkdev = ncnn::get_gpu_device();
 
         g_vkcache = new ncnn::VkCache(g_vkdev);
-        g_vkcache->init();
+
+        // load cache
+        std::vector<unsigned char> cache_data;
+        {
+            FILE* fp = fopen("vkcache.bin", "rb");
+            if (fp)
+            {
+                fseek(fp, 0, SEEK_END);
+                int len = ftell(fp);
+                rewind(fp);
+                cache_data.resize(len);
+                fread(cache_data.data(), 1, len, fp);
+                fclose(fp);
+            }
+        }
+        g_vkcache->init_cache_data(cache_data);
     }
     ~GlobalGpuInstance()
     {
@@ -51,6 +66,14 @@ public:
         delete g_vkcache;
 
         fprintf(stderr, "cache_data %d\n", (int)cache_data.size());
+        {
+            FILE* fp = fopen("vkcache.bin", "wb");
+            if (fp)
+            {
+                fwrite(cache_data.data(), 1, cache_data.size(), fp);
+                fclose(fp);
+            }
+        }
 
         ncnn::destroy_gpu_instance();
     }
