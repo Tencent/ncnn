@@ -16,6 +16,7 @@
 #include <math.h>
 #include <algorithm>
 #include "mat.h"
+#include "cache.h"
 #include "option.h"
 #include "layer_shader_type.h"
 
@@ -79,6 +80,12 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::
 
 int Pipeline::create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations)
 {
+    VkPipelineCache pipeline_cache = 0;
+    if (opt.vkcache)
+    {
+        pipeline_cache = opt.vkcache->pipeline_cache;
+    }
+
 #if NCNN_VULKAN_ONLINE_SPIRV
     std::vector<uint32_t> spirv;
     int retc = compile_spirv_module(shader_type_index, opt, spirv);
@@ -118,7 +125,7 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
 
 //     NCNN_LOGE("local_shader_module %p created", local_shader_module);
 
-    return create(local_shader_module, si, specializations);
+    return create(local_shader_module, si, specializations, pipeline_cache);
 #else
     // ncnn_add_shader cmake macro
     // 0 = fp32
@@ -183,16 +190,16 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
     {
         local_shader_module = vkdev->create_shader_module(shader_type_index, local_size_x, local_size_y, local_size_z);
 
-        return create(local_shader_module, si, specializations);
+        return create(local_shader_module, si, specializations, pipeline_cache);
     }
 
     VkShaderModule shader_module = vkdev->get_shader_module(shader_type_index);
 
-    return create(shader_module, si, specializations);
+    return create(shader_module, si, specializations, pipeline_cache);
 #endif
 }
 
-int Pipeline::create(VkShaderModule shader_module, const ShaderInfo& _shader_info, const std::vector<vk_specialization_type>& specializations)
+int Pipeline::create(VkShaderModule shader_module, const ShaderInfo& _shader_info, const std::vector<vk_specialization_type>& specializations, VkPipelineCache pipeline_cache)
 {
     shader_info = _shader_info;
 
@@ -200,7 +207,7 @@ int Pipeline::create(VkShaderModule shader_module, const ShaderInfo& _shader_inf
 
     create_pipeline_layout();
 
-    create_pipeline(shader_module, specializations);
+    create_pipeline(shader_module, specializations, pipeline_cache);
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template)
     {
@@ -399,7 +406,7 @@ int Pipeline::create_pipeline_layout()
     return 0;
 }
 
-int Pipeline::create_pipeline(VkShaderModule shader_module, const std::vector<vk_specialization_type>& specializations)
+int Pipeline::create_pipeline(VkShaderModule shader_module, const std::vector<vk_specialization_type>& specializations, VkPipelineCache pipeline_cache)
 {
     const int specialization_count = specializations.size();
 
@@ -463,7 +470,7 @@ int Pipeline::create_pipeline(VkShaderModule shader_module, const std::vector<vk
     computePipelineCreateInfo.basePipelineHandle = 0;
     computePipelineCreateInfo.basePipelineIndex = 0;
 
-    VkResult ret = vkCreateComputePipelines(vkdev->vkdevice(), 0, 1, &computePipelineCreateInfo, 0, &pipeline);
+    VkResult ret = vkCreateComputePipelines(vkdev->vkdevice(), pipeline_cache, 1, &computePipelineCreateInfo, 0, &pipeline);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateComputePipelines failed %d", ret);

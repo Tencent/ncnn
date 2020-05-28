@@ -27,13 +27,33 @@
 
 #if NCNN_VULKAN
 #include "gpu.h"
+#include "cache.h"
 #include "command.h"
+
+static ncnn::VulkanDevice* g_vkdev = 0;
+static ncnn::VkCache* g_vkcache = 0;
 
 class GlobalGpuInstance
 {
 public:
-    GlobalGpuInstance() { ncnn::create_gpu_instance(); }
-    ~GlobalGpuInstance() { ncnn::destroy_gpu_instance(); }
+    GlobalGpuInstance()
+    {
+        ncnn::create_gpu_instance();
+
+        g_vkdev = ncnn::get_gpu_device();
+
+        g_vkcache = new ncnn::VkCache(g_vkdev);
+        g_vkcache->init();
+    }
+    ~GlobalGpuInstance()
+    {
+        std::vector<unsigned char> cache_data = g_vkcache->get_cache_data();
+        delete g_vkcache;
+
+        fprintf(stderr, "cache_data %d\n", (int)cache_data.size());
+
+        ncnn::destroy_gpu_instance();
+    }
 };
 // initialize vulkan runtime before main()
 GlobalGpuInstance g_global_gpu_instance;
@@ -223,23 +243,23 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     if (opt.use_int8_inference) opt.use_packing_layout = false;
 
 #if NCNN_VULKAN
-    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkWeightAllocator g_weight_vkallocator(g_vkdev);
+    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(g_vkdev);
 
-    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
-    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
-
-    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
-    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+    ncnn::VkAllocator* blob_vkallocator = g_vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = g_vkdev->acquire_staging_allocator();
 
     opt.blob_vkallocator = blob_vkallocator;
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
-    if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
+    opt.vkcache = g_vkcache;
 
-    op->vkdev = vkdev;
+    if (!g_vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
+    if (!g_vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+    if (!g_vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
+
+    op->vkdev = g_vkdev;
 #endif // NCNN_VULKAN
 
     if (!top_shapes.empty())
@@ -266,7 +286,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 #if NCNN_VULKAN
     if (opt.use_vulkan_compute)
     {
-        ncnn::VkTransfer cmd(vkdev);
+        ncnn::VkTransfer cmd(g_vkdev);
 
         ncnn::Option opt_upload = opt;
         opt_upload.blob_vkallocator = &g_weight_vkallocator;
@@ -349,7 +369,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     if (opt.use_vulkan_compute)
     {
         // forward
-        ncnn::VkCompute cmd(vkdev);
+        ncnn::VkCompute cmd(g_vkdev);
 
         if (opt.use_image_storage)
         {
@@ -415,8 +435,8 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     delete op;
 
 #if NCNN_VULKAN
-    vkdev->reclaim_blob_allocator(blob_vkallocator);
-    vkdev->reclaim_staging_allocator(staging_vkallocator);
+    g_vkdev->reclaim_blob_allocator(blob_vkallocator);
+    g_vkdev->reclaim_staging_allocator(staging_vkallocator);
     g_weight_vkallocator.clear();
     g_weight_staging_vkallocator.clear();
 #endif // NCNN_VULKAN
@@ -472,23 +492,23 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     if (opt.use_int8_inference) opt.use_packing_layout = false;
 
 #if NCNN_VULKAN
-    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkWeightAllocator g_weight_vkallocator(g_vkdev);
+    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(g_vkdev);
 
-    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
-    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
-
-    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
-    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+    ncnn::VkAllocator* blob_vkallocator = g_vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = g_vkdev->acquire_staging_allocator();
 
     opt.blob_vkallocator = blob_vkallocator;
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
-    if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
+    opt.vkcache = g_vkcache;
 
-    op->vkdev = vkdev;
+    if (!g_vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
+    if (!g_vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+    if (!g_vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
+
+    op->vkdev = g_vkdev;
 #endif // NCNN_VULKAN
 
     if (top_shape.dims)
@@ -510,7 +530,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 #if NCNN_VULKAN
     if (opt.use_vulkan_compute)
     {
-        ncnn::VkTransfer cmd(vkdev);
+        ncnn::VkTransfer cmd(g_vkdev);
 
         ncnn::Option opt_upload = opt;
         opt_upload.blob_vkallocator = &g_weight_vkallocator;
@@ -576,7 +596,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     if (opt.use_vulkan_compute)
     {
         // forward
-        ncnn::VkCompute cmd(vkdev);
+        ncnn::VkCompute cmd(g_vkdev);
 
         if (opt.use_image_storage)
         {
@@ -630,8 +650,8 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     delete op;
 
 #if NCNN_VULKAN
-    vkdev->reclaim_blob_allocator(blob_vkallocator);
-    vkdev->reclaim_staging_allocator(staging_vkallocator);
+    g_vkdev->reclaim_blob_allocator(blob_vkallocator);
+    g_vkdev->reclaim_staging_allocator(staging_vkallocator);
     g_weight_vkallocator.clear();
     g_weight_staging_vkallocator.clear();
 #endif // NCNN_VULKAN

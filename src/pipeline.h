@@ -41,14 +41,14 @@ public:
 
     int create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations);
 
-    int create(VkShaderModule shader_module, const ShaderInfo& si, const std::vector<vk_specialization_type>& specializations);
+    int create(VkShaderModule shader_module, const ShaderInfo& si, const std::vector<vk_specialization_type>& specializations, VkPipelineCache pipeline_cache = 0);
 
     void destroy();
 
 protected:
     int create_descriptorset_layout();
     int create_pipeline_layout();
-    int create_pipeline(VkShaderModule shader_module, const std::vector<vk_specialization_type>& specializations);
+    int create_pipeline(VkShaderModule shader_module, const std::vector<vk_specialization_type>& specializations, VkPipelineCache pipeline_cache);
     int create_descriptor_update_template();
 
 public:

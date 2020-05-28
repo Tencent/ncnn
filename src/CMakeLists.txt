@@ -23,6 +23,7 @@ set(ncnn_SRCS
     allocator.cpp
     benchmark.cpp
     blob.cpp
+    cache.cpp
     command.cpp
     cpu.cpp
     datareader.cpp
