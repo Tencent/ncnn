@@ -303,6 +303,7 @@ ncnn_add_layer(PixelShuffle)
 ncnn_add_layer(DeepCopy)
 ncnn_add_layer(Mish)
 ncnn_add_layer(StatisticsPooling)
+ncnn_add_layer(Swish)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
