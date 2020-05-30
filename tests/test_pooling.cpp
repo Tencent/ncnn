@@ -66,12 +66,12 @@ static int test_pooling_0()
         int ret = 0
             || test_pooling(9, 7, 1, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
             || test_pooling(9, 7, 2, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
-            || test_pooling(9, 7, 3, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
-            || test_pooling(9, 7, 4, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
+            || test_pooling(9, 7, 3, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 2, 0)
+            || test_pooling(9, 7, 4, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 3, 0)
             || test_pooling(9, 7, 7, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
             || test_pooling(9, 7, 8, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
-            || test_pooling(9, 7, 15, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
-            || test_pooling(9, 7, 16, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
+            || test_pooling(9, 7, 15, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 2, 0)
+            || test_pooling(9, 7, 16, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 3, 0)
             ;
 
         if (ret != 0)

@@ -1,20 +1,26 @@
 
+macro(ncnn_add_test name)
+    add_executable(test_${name} test_${name}.cpp)
+    target_link_libraries(test_${name} PRIVATE ncnn)
+    add_test(test_${name} test_${name})
+
+    # add test to a virtual project group
+    set_property(TARGET test_${name} PROPERTY FOLDER "tests")
+endmacro()
+
 macro(ncnn_add_layer_test class)
     string(TOLOWER ${class} name)
 
     # enable if WITH_LAYER_xxx option ON
     if(${WITH_LAYER_${name}})
-        add_executable(test_${name} test_${name}.cpp)
-        target_link_libraries(test_${name} PRIVATE ncnn)
-        add_test(test_${name} test_${name})
-
-        # add test to a virtual project group
-        set_property(TARGET test_${name} PROPERTY FOLDER "tests")
+        ncnn_add_test(${name})
     endif()
 endmacro()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src/layer)
+
+ncnn_add_test(mat_pixel_rotate)
 
 ncnn_add_layer_test(AbsVal)
 ncnn_add_layer_test(BatchNorm)

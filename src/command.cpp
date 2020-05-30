@@ -2248,6 +2248,44 @@ int VkCompute::submit_and_wait()
 
 int VkCompute::reset()
 {
+    upload_staging_buffers.clear();
+    download_post_buffers.clear();
+    download_post_mats_fp16.clear();
+    download_post_mats.clear();
+
+    for (size_t i=0; i<image_blocks_to_destroy.size(); i++)
+    {
+        VkImageMemory* ptr = image_blocks_to_destroy[i];
+
+        int old_command_refcount = NCNN_XADD(&ptr->command_refcount, -1);
+        if (ptr->refcount == 0 && old_command_refcount == 1)
+        {
+            // no userspace reference and we are the last command reference
+            vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
+            vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+
+            delete ptr;
+        }
+        else
+        {
+            // reference exists in user code or other command
+        }
+    }
+    image_blocks_to_destroy.clear();
+
+    if (!vkdev->info.support_VK_KHR_push_descriptor)
+    {
+        for (size_t i=0; i<descriptorsets.size(); i++)
+        {
+            vkFreeDescriptorSets(vkdev->vkdevice(), descriptor_pools[i], 1, &descriptorsets[i]);
+            vkDestroyDescriptorPool(vkdev->vkdevice(), descriptor_pools[i], 0);
+        }
+        descriptor_pools.clear();
+        descriptorsets.clear();
+    }
+
+    delayed_records.clear();
+
     // reset command buffer and fence
     {
         VkResult ret = vkResetCommandBuffer(compute_command_buffer, 0);
