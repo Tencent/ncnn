@@ -2166,7 +2166,7 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
     }
 }
 
-void yuv420sp2rgb_half(const unsigned char* yuv, const int w, const int h, unsigned char* rgb)
+void yuv420sp2rgb_half(const unsigned char* yuv, int w, int h, unsigned char* rgb)
 {
     const unsigned char* puv = yuv + w * h;
     const unsigned char* py0 = yuv, *py1 = yuv + w; 
