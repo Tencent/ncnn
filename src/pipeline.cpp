@@ -132,23 +132,23 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
     // 8 = image_fp16s
     // 9 = image_fp16sa
 
-    if (opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
         shader_type_index += 9;
     }
-    else if (opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
         shader_type_index += 7;
     }
-    else if (opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage)
     {
         shader_type_index += 8;
     }
-    else if (opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed)
     {
         shader_type_index += 6;
     }
-    else if (opt.use_image_storage)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage)
     {
         shader_type_index += 5;
     }
@@ -682,23 +682,23 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
     // 8 = image_fp16s
     // 9 = image_fp16sa
 
-    if (opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
         shader_type_index += 9;
     }
-    else if (opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
         shader_type_index += 7;
     }
-    else if (opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage)
     {
         shader_type_index += 8;
     }
-    else if (opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed)
     {
         shader_type_index += 6;
     }
-    else if (opt.use_image_storage)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage)
     {
         shader_type_index += 5;
     }

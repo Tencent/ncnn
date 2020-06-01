@@ -157,9 +157,7 @@ int Net::load_param(const DataReader& dr)
         // TODO give user a choice
         if (vkdev->info.bug_storage_buffer_no_l1) opt.use_image_storage = true;
 
-#if __APPLE__
-        opt.use_image_storage = false;
-#endif
+        if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
     }
 #endif // NCNN_VULKAN
 
@@ -354,9 +352,7 @@ int Net::load_param_bin(const DataReader& dr)
         // TODO give user a choice
         if (vkdev->info.bug_storage_buffer_no_l1) opt.use_image_storage = true;
 
-#if __APPLE__
-        opt.use_image_storage = false;
-#endif
+        if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
     }
 #endif // NCNN_VULKAN
 
@@ -536,9 +532,7 @@ int Net::load_model(const DataReader& dr)
         {
             opt1.use_image_storage = false;
         }
-#if __APPLE__
-        opt1.use_image_storage = false;
-#endif
+        if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
 
         int cret = layer->create_pipeline(opt1);
         if (cret != 0)
