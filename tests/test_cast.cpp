@@ -397,6 +397,9 @@ static int test_cast_gpu_image_fp16p(const ncnn::Mat& a, int type_from, int type
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
 
+    if (vkdev->info.bug_layout_binding_id_alias)
+        return 0;
+
     ncnn::Layer* op = ncnn::create_layer("Cast");
 
     op->vkdev = vkdev;
@@ -510,6 +513,9 @@ static int test_cast_gpu_image_fp16p_pack8(const ncnn::Mat& a, int type_from, in
 
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+
+    if (vkdev->info.bug_layout_binding_id_alias)
+        return 0;
 
     ncnn::Layer* op = ncnn::create_layer("Cast");
 
