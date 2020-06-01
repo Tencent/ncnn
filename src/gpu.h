@@ -121,6 +121,7 @@ public:
     // bug is not feature
     bool bug_local_size_spec_const;
     bool bug_storage_buffer_no_l1;
+    bool bug_layout_binding_id_alias;
 
     // but sometimes bug is a feature
     bool bug_implicit_fp16_arithmetic;
