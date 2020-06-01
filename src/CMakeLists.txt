@@ -347,7 +347,7 @@ if(NCNN_VULKAN)
 endif()
 
 if(ANDROID_NDK)
-    target_link_libraries(ncnn PUBLIC android)
+    target_link_libraries(ncnn PUBLIC android log)
 endif()
 
 if(WIN32)

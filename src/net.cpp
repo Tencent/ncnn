@@ -154,6 +154,9 @@ int Net::load_param(const DataReader& dr)
         if (!vkdev->info.support_int8_storage) opt.use_int8_storage = false;
         if (!vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
 
+        // TODO give user a choice
+        if (vkdev->info.bug_storage_buffer_no_l1) opt.use_image_storage = true;
+
 #if __APPLE__
         opt.use_image_storage = false;
 #endif
@@ -347,6 +350,9 @@ int Net::load_param_bin(const DataReader& dr)
         if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
         if (!vkdev->info.support_int8_storage) opt.use_int8_storage = false;
         if (!vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
+
+        // TODO give user a choice
+        if (vkdev->info.bug_storage_buffer_no_l1) opt.use_image_storage = true;
 
 #if __APPLE__
         opt.use_image_storage = false;

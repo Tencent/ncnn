@@ -566,6 +566,17 @@ int create_gpu_instance()
 //         NCNN_LOGE("[%u] deviceName = %s", i, physicalDeviceProperties.deviceName);
 //         NCNN_LOGE("[%u] pipelineCacheUUID = %u", i, physicalDeviceProperties.pipelineCacheUUID);
 
+        // adreno
+        // 506 = 0x5143 0x5000600
+        // 510 = 0x5143 0x5010000
+        // 512 = 0x5143 0x5010200
+        // 530 = 0x5143 0x5030004
+        // 540 = 0x5143 0x5040001
+        // 616 = 0x5143 0x6010600
+        // 630 = 0x5143 0x6030001
+        // 640 = 0x5143 0x6040001
+        // 650 = 0x5143 0x6050002
+
         gpu_info.bug_local_size_spec_const = false;
         gpu_info.bug_storage_buffer_no_l1 = false;
         gpu_info.bug_implicit_fp16_arithmetic = false;
@@ -582,8 +593,9 @@ int create_gpu_instance()
             gpu_info.bug_local_size_spec_const = true;
         }
 
-        if (physicalDeviceProperties.vendorID == 0x5143)
+        if (physicalDeviceProperties.vendorID == 0x5143 && !(physicalDeviceProperties.deviceID == 0x6040001 || physicalDeviceProperties.deviceID == 0x6050002))
         {
+            // NOTE but qcom855/qcom855plus/qcom865 are known exceptions
             // qcom adreno storage buffer without L1 cache
             gpu_info.bug_storage_buffer_no_l1 = true;
         }
@@ -595,9 +607,12 @@ int create_gpu_instance()
             gpu_info.bug_implicit_fp16_arithmetic = true;
         }
 
-        if (physicalDeviceProperties.vendorID == 0x5143 && (physicalDeviceProperties.deviceID == 0x6030001 || physicalDeviceProperties.deviceID == 0x6040001))
+        if (physicalDeviceProperties.vendorID == 0x5143
+            && (physicalDeviceProperties.deviceID == 0x6030001
+            || physicalDeviceProperties.deviceID == 0x6040001
+            || physicalDeviceProperties.deviceID == 0x6050002))
         {
-            // TODO enable devices other than qcom855/qcom855plus
+            // TODO enable devices other than qcom845/qcom855/qcom855plus/qcom865
             // qcom adreno driver accept spirv with fp16 arithmetic
             gpu_info.bug_implicit_fp16_arithmetic = true;
         }
