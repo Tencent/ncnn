@@ -217,14 +217,6 @@ int main(int argc, char** argv)
     opt.use_shader_pack8 = false;
     opt.use_image_storage = false;
 
-#if NCNN_VULKAN
-    // TODO better default option setting
-    if (g_vkdev->info.bug_storage_buffer_no_l1)
-    {
-        opt.use_image_storage = true;
-    }
-#endif // NCNN_VULKAN
-
     ncnn::set_cpu_powersave(powersave);
 
     ncnn::set_omp_dynamic(0);
