@@ -1490,7 +1490,7 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
         }
     }
 
-    // out of hardware queue
+    NCNN_LOGE("out of hardware queue %u", queue_family_index);
     return 0;
 }
 
@@ -1534,7 +1534,7 @@ VkAllocator* VulkanDevice::acquire_blob_allocator() const
         }
     }
 
-    // out of blob allocator
+    NCNN_LOGE("out of blob allocator");
     return 0;
 }
 
@@ -1568,7 +1568,7 @@ VkAllocator* VulkanDevice::acquire_staging_allocator() const
         }
     }
 
-    // out of staging allocator
+    NCNN_LOGE("out of staging allocator");
     return 0;
 }
 
