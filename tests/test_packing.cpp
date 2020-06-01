@@ -177,6 +177,9 @@ static int test_packing_gpu_image(const ncnn::Mat& a, int in_elempack, int out_e
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
+    if (vkdev->info.bug_layout_binding_id_alias)
+        return 0;
+
     ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
     ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
 
@@ -186,9 +189,6 @@ static int test_packing_gpu_image(const ncnn::Mat& a, int in_elempack, int out_e
 
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
-
-    if (vkdev->info.bug_layout_binding_id_alias)
-        return 0;
 
     ncnn::Layer* op = ncnn::create_layer("Packing");
 
@@ -267,6 +267,9 @@ static int test_packing_gpu_buffer2image(const ncnn::Mat& a, int in_elempack, in
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
+    if (vkdev->info.bug_layout_binding_id_alias)
+        return 0;
+
     ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
     ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
 
@@ -276,9 +279,6 @@ static int test_packing_gpu_buffer2image(const ncnn::Mat& a, int in_elempack, in
 
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
-
-    if (vkdev->info.bug_layout_binding_id_alias)
-        return 0;
 
     ncnn::Packing_vulkan* op = new ncnn::Packing_vulkan;
 
@@ -357,6 +357,9 @@ static int test_packing_gpu_image2buffer(const ncnn::Mat& a, int in_elempack, in
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
+    if (vkdev->info.bug_layout_binding_id_alias)
+        return 0;
+
     ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
     ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
 
@@ -366,9 +369,6 @@ static int test_packing_gpu_image2buffer(const ncnn::Mat& a, int in_elempack, in
 
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
-
-    if (vkdev->info.bug_layout_binding_id_alias)
-        return 0;
 
     ncnn::Packing_vulkan* op = new ncnn::Packing_vulkan;
 
