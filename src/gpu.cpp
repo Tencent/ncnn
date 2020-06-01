@@ -143,6 +143,15 @@ typedef struct VkPhysicalDeviceFloat16Int8FeaturesKHR {
     VkBool32           shaderInt8;
 } VkPhysicalDeviceFloat16Int8FeaturesKHR;
 #endif // VK_HEADER_VERSION < 95
+#if VK_HEADER_VERSION < 97
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT (VkStructureType)1000237000
+typedef struct VkPhysicalDeviceMemoryBudgetPropertiesEXT {
+    VkStructureType    sType;
+    void*              pNext;
+    VkDeviceSize       heapBudget[VK_MAX_MEMORY_HEAPS];
+    VkDeviceSize       heapUsage[VK_MAX_MEMORY_HEAPS];
+} VkPhysicalDeviceMemoryBudgetPropertiesEXT;
+#endif // VK_HEADER_VERSION < 97
 
 static int init_instance_extension()
 {
