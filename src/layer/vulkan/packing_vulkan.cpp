@@ -42,23 +42,36 @@ int Packing_vulkan::create_pipeline(const Option& _opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     size_t out_elemsize;
-    if (opt.use_fp16_storage)
+    if (cast_type_to == 0)
+    {
+        if (opt.use_fp16_storage)
+        {
+            out_elemsize = out_elempack * 2u;
+        }
+        else if (opt.use_fp16_packed)
+        {
+            if (out_elempack == 8) out_elemsize = 8*2u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
+        }
+        else
+        {
+            out_elemsize = out_elempack * 4u;
+        }
+    }
+    else if (cast_type_to == 1)
+    {
+        out_elemsize = out_elempack * 4u;
+    }
+    else if (cast_type_to == 2)
+    {
+        if (out_elempack == 8) out_elemsize = 8*2u;
+        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 1) out_elemsize = 4u;
+    }
+    else // if (cast_type_to == 3)
     {
         out_elemsize = out_elempack * 2u;
-    }
-    else if (opt.use_fp16_packed)
-    {
-        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
-    }
-    else
-    {
-        out_elemsize = out_elempack * 4u;
-    }
-
-    // type casting override
-    if (cast_type_to == 1)
-    {
-        out_elemsize = out_elempack * 4u;
     }
 
     Mat out_shape_packed;
@@ -272,6 +285,39 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         }
     }
 
+    size_t out_elemsize;
+    if (cast_type_to == 0)
+    {
+        if (opt.use_fp16_storage)
+        {
+            out_elemsize = out_elempack * 2u;
+        }
+        else if (opt.use_fp16_packed)
+        {
+            if (out_elempack == 8) out_elemsize = 8*2u;
+            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 1) out_elemsize = 4u;
+        }
+        else
+        {
+            out_elemsize = out_elempack * 4u;
+        }
+    }
+    else if (cast_type_to == 1)
+    {
+        out_elemsize = out_elempack * 4u;
+    }
+    else if (cast_type_to == 2)
+    {
+        if (out_elempack == 8) out_elemsize = 8*2u;
+        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 1) out_elemsize = 4u;
+    }
+    else // if (cast_type_to == 3)
+    {
+        out_elemsize = out_elempack * 2u;
+    }
+
     if (dims == 1)
     {
         if (opt.use_fp16_storage && out_elempack == 1 && cast_type_from == cast_type_to && bottom_blob.allocator == opt.blob_vkallocator)
@@ -285,19 +331,6 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         }
 
         int outw = (w * elempack + out_elempack - 1) / out_elempack;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (out_elempack == 8) out_elemsize = 8*2u;
-            if (out_elempack == 4) out_elemsize = 4*2u;
-            if (out_elempack == 1) out_elemsize = 4u;
-        }
-
-        // type casting override
-        if (cast_type_to == 1)
-        {
-            out_elemsize = out_elempack * 4u;
-        }
 
         top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -307,19 +340,6 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     if (dims == 2)
     {
         int outh = (h * elempack + out_elempack - 1) / out_elempack;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (out_elempack == 8) out_elemsize = 8*2u;
-            if (out_elempack == 4) out_elemsize = 4*2u;
-            if (out_elempack == 1) out_elemsize = 4u;
-        }
-
-        // type casting override
-        if (cast_type_to == 1)
-        {
-            out_elemsize = out_elempack * 4u;
-        }
 
         top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -329,19 +349,6 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     if (dims == 3)
     {
         int outc = (channels * elempack + out_elempack - 1) / out_elempack;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (out_elempack == 8) out_elemsize = 8*2u;
-            if (out_elempack == 4) out_elemsize = 4*2u;
-            if (out_elempack == 1) out_elemsize = 4u;
-        }
-
-        // type casting override
-        if (cast_type_to == 1)
-        {
-            out_elemsize = out_elempack * 4u;
-        }
 
         top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -425,7 +432,6 @@ int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
-    size_t elemsize = bottom_blob.elemsize;
 
     if (!use_padding)
     {
@@ -447,22 +453,42 @@ int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         }
     }
 
-    if (dims == 1)
+    size_t out_elemsize;
+    if (cast_type_to == 0)
     {
-        int outw = (w * elempack + out_elempack - 1) / out_elempack;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
+        if (opt.use_fp16_storage)
+        {
+            out_elemsize = out_elempack * 2u;
+        }
+        else if (opt.use_fp16_packed)
         {
             if (out_elempack == 8) out_elemsize = 8*2u;
             if (out_elempack == 4) out_elemsize = 4*2u;
             if (out_elempack == 1) out_elemsize = 4u;
         }
-
-        // type casting override
-        if (cast_type_to == 1)
+        else
         {
             out_elemsize = out_elempack * 4u;
         }
+    }
+    else if (cast_type_to == 1)
+    {
+        out_elemsize = out_elempack * 4u;
+    }
+    else if (cast_type_to == 2)
+    {
+        if (out_elempack == 8) out_elemsize = 8*2u;
+        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 1) out_elemsize = 4u;
+    }
+    else // if (cast_type_to == 3)
+    {
+        out_elemsize = out_elempack * 2u;
+    }
+
+    if (dims == 1)
+    {
+        int outw = (w * elempack + out_elempack - 1) / out_elempack;
 
         top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -472,19 +498,6 @@ int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     if (dims == 2)
     {
         int outh = (h * elempack + out_elempack - 1) / out_elempack;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (out_elempack == 8) out_elemsize = 8*2u;
-            if (out_elempack == 4) out_elemsize = 4*2u;
-            if (out_elempack == 1) out_elemsize = 4u;
-        }
-
-        // type casting override
-        if (cast_type_to == 1)
-        {
-            out_elemsize = out_elempack * 4u;
-        }
 
         top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -494,19 +507,6 @@ int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     if (dims == 3)
     {
         int outc = (channels * elempack + out_elempack - 1) / out_elempack;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (out_elempack == 8) out_elemsize = 8*2u;
-            if (out_elempack == 4) out_elemsize = 4*2u;
-            if (out_elempack == 1) out_elemsize = 4u;
-        }
-
-        // type casting override
-        if (cast_type_to == 1)
-        {
-            out_elemsize = out_elempack * 4u;
-        }
 
         top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -580,7 +580,6 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkImageMat& top_blob, VkCo
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
-    size_t elemsize = bottom_blob.elemsize;
 
 //     if (!use_padding)
 //     {
@@ -589,22 +588,42 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkImageMat& top_blob, VkCo
 //         return -1;
 //     }
 
-    if (dims == 1)
+    size_t out_elemsize;
+    if (cast_type_to == 0)
     {
-        int outw = (w * elempack + out_elempack - 1) / out_elempack;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
+        if (opt.use_fp16_storage)
+        {
+            out_elemsize = out_elempack * 2u;
+        }
+        else if (opt.use_fp16_packed)
         {
             if (out_elempack == 8) out_elemsize = 8*2u;
             if (out_elempack == 4) out_elemsize = 4*2u;
             if (out_elempack == 1) out_elemsize = 4u;
         }
-
-        // type casting override
-        if (cast_type_to == 1)
+        else
         {
             out_elemsize = out_elempack * 4u;
         }
+    }
+    else if (cast_type_to == 1)
+    {
+        out_elemsize = out_elempack * 4u;
+    }
+    else if (cast_type_to == 2)
+    {
+        if (out_elempack == 8) out_elemsize = 8*2u;
+        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 1) out_elemsize = 4u;
+    }
+    else // if (cast_type_to == 3)
+    {
+        out_elemsize = out_elempack * 2u;
+    }
+
+    if (dims == 1)
+    {
+        int outw = (w * elempack + out_elempack - 1) / out_elempack;
 
         top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -614,19 +633,6 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkImageMat& top_blob, VkCo
     if (dims == 2)
     {
         int outh = (h * elempack + out_elempack - 1) / out_elempack;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (out_elempack == 8) out_elemsize = 8*2u;
-            if (out_elempack == 4) out_elemsize = 4*2u;
-            if (out_elempack == 1) out_elemsize = 4u;
-        }
-
-        // type casting override
-        if (cast_type_to == 1)
-        {
-            out_elemsize = out_elempack * 4u;
-        }
 
         top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -636,19 +642,6 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkImageMat& top_blob, VkCo
     if (dims == 3)
     {
         int outc = (channels * elempack + out_elempack - 1) / out_elempack;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (out_elempack == 8) out_elemsize = 8*2u;
-            if (out_elempack == 4) out_elemsize = 4*2u;
-            if (out_elempack == 1) out_elemsize = 4u;
-        }
-
-        // type casting override
-        if (cast_type_to == 1)
-        {
-            out_elemsize = out_elempack * 4u;
-        }
 
         top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -722,7 +715,6 @@ int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkMat& top_blob, VkCo
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
-    size_t elemsize = bottom_blob.elemsize;
 
 //     if (!use_padding)
 //     {
@@ -731,22 +723,42 @@ int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkMat& top_blob, VkCo
 //         return -1;
 //     }
 
-    if (dims == 1)
+    size_t out_elemsize;
+    if (cast_type_to == 0)
     {
-        int outw = (w * elempack + out_elempack - 1) / out_elempack;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
+        if (opt.use_fp16_storage)
+        {
+            out_elemsize = out_elempack * 2u;
+        }
+        else if (opt.use_fp16_packed)
         {
             if (out_elempack == 8) out_elemsize = 8*2u;
             if (out_elempack == 4) out_elemsize = 4*2u;
             if (out_elempack == 1) out_elemsize = 4u;
         }
-
-        // type casting override
-        if (cast_type_to == 1)
+        else
         {
             out_elemsize = out_elempack * 4u;
         }
+    }
+    else if (cast_type_to == 1)
+    {
+        out_elemsize = out_elempack * 4u;
+    }
+    else if (cast_type_to == 2)
+    {
+        if (out_elempack == 8) out_elemsize = 8*2u;
+        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 1) out_elemsize = 4u;
+    }
+    else // if (cast_type_to == 3)
+    {
+        out_elemsize = out_elempack * 2u;
+    }
+
+    if (dims == 1)
+    {
+        int outw = (w * elempack + out_elempack - 1) / out_elempack;
 
         top_blob.create(outw, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -756,19 +768,6 @@ int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkMat& top_blob, VkCo
     if (dims == 2)
     {
         int outh = (h * elempack + out_elempack - 1) / out_elempack;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (out_elempack == 8) out_elemsize = 8*2u;
-            if (out_elempack == 4) out_elemsize = 4*2u;
-            if (out_elempack == 1) out_elemsize = 4u;
-        }
-
-        // type casting override
-        if (cast_type_to == 1)
-        {
-            out_elemsize = out_elempack * 4u;
-        }
 
         top_blob.create(w, outh, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())
@@ -778,19 +777,6 @@ int Packing_vulkan::forward(const VkImageMat& bottom_blob, VkMat& top_blob, VkCo
     if (dims == 3)
     {
         int outc = (channels * elempack + out_elempack - 1) / out_elempack;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (out_elempack == 8) out_elemsize = 8*2u;
-            if (out_elempack == 4) out_elemsize = 4*2u;
-            if (out_elempack == 1) out_elemsize = 4u;
-        }
-
-        // type casting override
-        if (cast_type_to == 1)
-        {
-            out_elemsize = out_elempack * 4u;
-        }
 
         top_blob.create(w, h, outc, out_elemsize, out_elempack, opt.blob_vkallocator);
         if (top_blob.empty())

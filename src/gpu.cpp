@@ -1687,7 +1687,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     Option opt = _opt;
     opt.use_image_storage = false;
 
-    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;
+    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : src.elemsize == src.elempack * 2u && info.support_fp16_storage ? 2 : 1;
     int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
@@ -1705,7 +1705,7 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int d
         return;
     }
 
-    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;
+    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : src.elemsize == src.elempack * 2u && info.support_fp16_storage ? 2 : 1;
     int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
@@ -1723,7 +1723,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_el
         return;
     }
 
-    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;
+    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : src.elemsize == src.elempack * 2u && info.support_fp16_storage ? 2 : 1;
     int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
@@ -1741,7 +1741,7 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_el
         return;
     }
 
-    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;
+    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : src.elemsize == src.elempack * 2u && info.support_fp16_storage ? 2 : 1;
     int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
@@ -2082,7 +2082,7 @@ int VulkanDevice::create_utility_operator()
             if (!info.support_fp16_storage && opt.use_fp16_storage)
                 continue;
 
-            // from pack1 | pack4 | pack8
+            // to pack1 | pack4 | pack8
             for (int k=0; k<3; k++)
             {
                 // enable pack8 for pack8to1/pack8to4
@@ -2141,10 +2141,11 @@ void VulkanDevice::destroy_utility_operator()
             if (!info.support_fp16_storage && opt.use_fp16_storage)
                 continue;
 
-            // from pack1 | pack4 | pack8
+            // to pack1 | pack4 | pack8
             for (int k=0; k<3; k++)
             {
-                opt.use_shader_pack8 = (k == 2 || k == 2);
+                // enable pack8 for pack8to1/pack8to4
+                opt.use_shader_pack8 = true;
 
                 ncnn::Layer* uop = uop_packing[i0][i1][j0][j1][k];
 
