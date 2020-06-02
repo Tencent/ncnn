@@ -1687,9 +1687,29 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     Option opt = _opt;
     opt.use_image_storage = false;
 
-    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : src.elemsize == src.elempack * 2u && info.support_fp16_storage ? 2 : 1;
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
+
+    int cast_type_from_index;
+    if (src.elemsize == src.elempack * 4u)
+    {
+        cast_type_from_index = 0;
+    }
+    else // if (src.elemsize == src.elempack * 2u)
+    {
+        if (cast_type_to_index != 0)
+        {
+            cast_type_from_index = cast_type_to_index;
+        }
+        else if (info.support_fp16_storage)
+        {
+            cast_type_from_index = 2;
+        }
+        else // if (info.support_fp16_packed)
+        {
+            cast_type_from_index = 1;
+        }
+    }
 
 //     NCNN_LOGE("convert_packing b2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
@@ -1705,9 +1725,29 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int d
         return;
     }
 
-    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : src.elemsize == src.elempack * 2u && info.support_fp16_storage ? 2 : 1;
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
+
+    int cast_type_from_index;
+    if (src.elemsize == src.elempack * 4u)
+    {
+        cast_type_from_index = 0;
+    }
+    else // if (src.elemsize == src.elempack * 2u)
+    {
+        if (cast_type_to_index != 0)
+        {
+            cast_type_from_index = cast_type_to_index;
+        }
+        else if (info.support_fp16_storage)
+        {
+            cast_type_from_index = 2;
+        }
+        else // if (info.support_fp16_packed)
+        {
+            cast_type_from_index = 1;
+        }
+    }
 
 //     NCNN_LOGE("convert_packing i2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
@@ -1723,9 +1763,29 @@ void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_el
         return;
     }
 
-    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : src.elemsize == src.elempack * 2u && info.support_fp16_storage ? 2 : 1;
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
+
+    int cast_type_from_index;
+    if (src.elemsize == src.elempack * 4u)
+    {
+        cast_type_from_index = 0;
+    }
+    else // if (src.elemsize == src.elempack * 2u)
+    {
+        if (cast_type_to_index != 0)
+        {
+            cast_type_from_index = cast_type_to_index;
+        }
+        else if (info.support_fp16_storage)
+        {
+            cast_type_from_index = 2;
+        }
+        else // if (info.support_fp16_packed)
+        {
+            cast_type_from_index = 1;
+        }
+    }
 
 //     NCNN_LOGE("convert_packing b2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
@@ -1741,9 +1801,29 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_el
         return;
     }
 
-    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : src.elemsize == src.elempack * 2u && info.support_fp16_storage ? 2 : 1;
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
+
+    int cast_type_from_index;
+    if (src.elemsize == src.elempack * 4u)
+    {
+        cast_type_from_index = 0;
+    }
+    else // if (src.elemsize == src.elempack * 2u)
+    {
+        if (cast_type_to_index != 0)
+        {
+            cast_type_from_index = cast_type_to_index;
+        }
+        else if (info.support_fp16_storage)
+        {
+            cast_type_from_index = 2;
+        }
+        else // if (info.support_fp16_packed)
+        {
+            cast_type_from_index = 1;
+        }
+    }
 
 //     NCNN_LOGE("convert_packing i2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
@@ -2073,6 +2153,12 @@ int VulkanDevice::create_utility_operator()
         {
         for (int j1=0; j1<3; j1++)
         {
+            if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
+            {
+                // no fp16p to/from fp16s conversion
+                continue;
+            }
+
             opt.use_fp16_packed = (j0 == 1 || j1 == 1);
             opt.use_fp16_storage = (j0 == 2 || j1 == 2);
 
@@ -2132,6 +2218,12 @@ void VulkanDevice::destroy_utility_operator()
         {
         for (int j1=0; j1<3; j1++)
         {
+            if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
+            {
+                // no fp16p to/from fp16s conversion
+                continue;
+            }
+
             opt.use_fp16_packed = (j0 == 1 || j1 == 1);
             opt.use_fp16_storage = (j0 == 2 || j1 == 2);
 

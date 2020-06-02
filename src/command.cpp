@@ -230,7 +230,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
     // gpu cast to fp32 on the fly (integrated gpu)
     Option opt_staging = opt;
-    if (vkdev->info.type == 1)
+    if (vkdev->info.type != 0)
     {
         opt_staging.use_fp16_packed = false;
         opt_staging.use_fp16_storage = false;
@@ -358,7 +358,7 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
 
     // gpu cast to fp32 on the fly (integrated gpu)
     Option opt_staging = opt;
-    if (vkdev->info.type == 1)
+    if (vkdev->info.type != 0)
     {
         opt_staging.use_fp16_packed = false;
         opt_staging.use_fp16_storage = false;
