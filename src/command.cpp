@@ -144,6 +144,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     else
         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
+    // gpu cast to fp16 on the fly (integrated gpu)
     vkdev->convert_packing(dst_staging, dst, dst_elempack, *this, opt);
 }
 
@@ -206,6 +207,7 @@ void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt
     else
         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
+    // gpu cast to fp16 on the fly (integrated gpu)
     vkdev->convert_packing(dst_staging, dst, dst_elempack, *this, opt);
 }
 
@@ -226,14 +228,21 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     else
         dst_elempack = 1;
 
-    VkMat dst_staging;
-    if (opt.blob_vkallocator->mappable)
+    // gpu cast to fp32 on the fly (integrated gpu)
+    Option opt_staging = opt;
+    if (vkdev->info.type == 1)
     {
-        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt);
+        opt_staging.use_fp16_packed = false;
+        opt_staging.use_fp16_storage = false;
+    }
+
+    VkMat dst_staging;
+    if (opt_staging.blob_vkallocator->mappable)
+    {
+        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
     else
     {
-        Option opt_staging = opt;
         opt_staging.blob_vkallocator = opt.staging_vkallocator;
         vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
@@ -310,7 +319,6 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
             if (dims == 3)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
 
-            download_post_mats_fp16.push_back(dst_fp16);
             download_post_mats.push_back(dst);
 
             record r;
@@ -348,14 +356,21 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
     else
         dst_elempack = 1;
 
-    VkMat dst_staging;
-    if (opt.blob_vkallocator->mappable)
+    // gpu cast to fp32 on the fly (integrated gpu)
+    Option opt_staging = opt;
+    if (vkdev->info.type == 1)
     {
-        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt);
+        opt_staging.use_fp16_packed = false;
+        opt_staging.use_fp16_storage = false;
+    }
+
+    VkMat dst_staging;
+    if (opt_staging.blob_vkallocator->mappable)
+    {
+        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
     else
     {
-        Option opt_staging = opt;
         opt_staging.blob_vkallocator = opt.staging_vkallocator;
         vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
@@ -432,7 +447,6 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
             if (dims == 3)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
 
-            download_post_mats_fp16.push_back(dst_fp16);
             download_post_mats.push_back(dst);
 
             record r;
