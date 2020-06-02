@@ -2507,7 +2507,7 @@ VkTransfer::~VkTransfer()
     }
 }
 
-void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt)
+void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bool flatten)
 {
 //     NCNN_LOGE("record_upload src = %d | %d %d %d @ %d", src.dims, src.w, src.h, src.c, src.elempack);
 
@@ -2525,7 +2525,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt)
         }
     }
 
-    Mat src_flattened = src.reshape(src.w * src.h * src.c);
+    Mat src_flattened = flatten ? src.reshape(src.w * src.h * src.c) : src;
 
     // create dst
     dst.create_like(src_flattened, opt.blob_vkallocator);
