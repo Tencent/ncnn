@@ -63,22 +63,16 @@ int MemoryData_vulkan::create_pipeline(const Option& opt)
     return 0;
 }
 
-int MemoryData_vulkan::upload_model(VkTransfer& /*cmd*/, const Option& opt)
+int MemoryData_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
-    // VkTransfer will flatten weight data
-    // so we use VkCompute for uploading
-    VkCompute cmd2(vkdev);
-
     if (support_image_storage && opt.use_image_storage)
     {
-        cmd2.record_upload(data, data_gpu_image, opt);
+        cmd.record_upload(data, data_gpu_image, opt);
     }
     else
     {
-        cmd2.record_upload(data, data_gpu, opt);
+        cmd.record_upload(data, data_gpu, opt, /*bool flatten*/ false);
     }
-
-    cmd2.submit_and_wait();
 
     return 0;
 }
