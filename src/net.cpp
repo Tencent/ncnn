@@ -529,11 +529,14 @@ int Net::load_model(const DataReader& dr)
 
         Option opt1 = opt;
 #if NCNN_VULKAN
-        if (!layer->support_image_storage)
+        if (opt.use_vulkan_compute)
         {
-            opt1.use_image_storage = false;
+            if (!layer->support_image_storage)
+            {
+                opt1.use_image_storage = false;
+            }
+            if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
         }
-        if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
 #endif // NCNN_VULKAN
 
         int cret = layer->create_pipeline(opt1);
