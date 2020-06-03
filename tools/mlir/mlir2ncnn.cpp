@@ -370,6 +370,24 @@ static std::string get_mlir_value_uniq_id(const mlir::Value& value)
     return std::string();
 }
 
+static std::string get_operation_attr_s(const mlir::Operation& _operation, const char* key)
+{
+    mlir::Operation& operation = const_cast<mlir::Operation&>(_operation);
+
+    mlir::Attribute attribute = operation.getAttr(key);
+
+    std::string s;
+
+    if (attribute.isa<mlir::StringAttr>())
+    {
+        mlir::StringAttr a = attribute.cast<mlir::StringAttr>();
+
+        s = a.getValue().str();
+    }
+
+    return s;
+}
+
 static std::vector<int> get_operation_attr_ai(const mlir::Operation& _operation, const char* key)
 {
     mlir::Operation& operation = const_cast<mlir::Operation&>(_operation);
@@ -488,7 +506,7 @@ int main(int argc, char** argv)
         {
             bool isBinaryOp = false;
             // TODO add more binaryop
-            if (op == "tf.BiasAdd")
+            if (op == "tf.BiasAdd" || op == "tf.AddV2")
             {
                 isBinaryOp = true;
             }
@@ -594,6 +612,14 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Noop");
         }
+        else if (op == "tf.AddN")
+        {
+            fprintf(pp, "%-16s", "Eltwise");
+        }
+        else if (op == "tf.AddV2")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (op == "tf.BiasAdd")
         {
             fprintf(pp, "%-16s", "BinaryOp");
@@ -615,6 +641,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Convolution");
         }
+        else if (op == "tf.DepthwiseConv2dNative")
+        {
+            fprintf(pp, "%-16s", "ConvolutionDepthWise");
+        }
         else if (op == "tf.Identity")
         {
             fprintf(pp, "%-16s", "Noop");
@@ -623,6 +653,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "InnerProduct");
         }
+        else if (op == "tf.Pad")
+        {
+            fprintf(pp, "%-16s", "Padding");
+        }
         else if (op == "tf.Placeholder")
         {
             fprintf(pp, "%-16s", "Input");
@@ -630,6 +664,10 @@ int main(int argc, char** argv)
         else if (op == "tf.Relu")
         {
             fprintf(pp, "%-16s", "ReLU");
+        }
+        else if (op == "tf.Relu6")
+        {
+            fprintf(pp, "%-16s", "Clip");
         }
         else if (op == "tf.Reshape")
         {
@@ -677,6 +715,12 @@ int main(int argc, char** argv)
 
 
         if (op == "std.return")
+        {
+        }
+        else if (op == "tf.AddN")
+        {
+        }
+        else if (op == "tf.AddV2")
         {
         }
         else if (op == "tf.Const")
@@ -766,6 +810,7 @@ int main(int argc, char** argv)
 
             std::vector<int> dilations = get_operation_attr_ai(operation, "dilations");
             std::vector<int> strides = get_operation_attr_ai(operation, "strides");
+            std::string padding = get_operation_attr_s(operation, "padding");
 
             if (dilations.size() == 4) {
                 fprintf(pp, " 2=%d", dilations[2]);
@@ -775,6 +820,25 @@ int main(int argc, char** argv)
             if (strides.size() == 4) {
                 fprintf(pp, " 3=%d", strides[2]);
                 fprintf(pp, " 13=%d", strides[1]);
+            }
+
+            if (padding == "EXPLICIT")
+            {
+                // nhwc = [[0, 0], [pad_top, pad_bottom], [pad_left, pad_right], [0, 0]]
+                std::vector<int> explicit_paddings = get_operation_attr_ai(operation, "explicit_paddings");
+
+                fprintf(pp, " 4=%d", explicit_paddings[4]);
+                fprintf(pp, " 15=%d", explicit_paddings[5]);
+                fprintf(pp, " 14=%d", explicit_paddings[2]);
+                fprintf(pp, " 16=%d", explicit_paddings[3]);
+            }
+            else if (padding == "VALID")
+            {
+                fprintf(pp, " 4=%d", 0);
+            }
+            else if (padding == "SAME")
+            {
+                fprintf(pp, " 4=%d", -233);
             }
 
             std::vector<float> v;
@@ -804,6 +868,99 @@ int main(int argc, char** argv)
                             for (int j=0; j<kernel_size_w; j++)
                             {
                                 tmp = v[i*kernel_size_w*num_input*num_output + j*num_input*num_output + q*num_output + p];
+                                fwrite(&tmp, sizeof(float), 1, bp);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        else if (op == "tf.DepthwiseConv2dNative")
+        {
+            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            const mlir::Attribute& W = weights[weight_name];
+
+            llvm::ArrayRef<int64_t> shape = W.getType().cast<mlir::RankedTensorType>().getShape();
+
+//             assert(shape.size() == 4)
+
+            // kh-kw-inch-cm
+            int kernel_size_h = shape[0];
+            int kernel_size_w = shape[1];
+            int num_input = shape[2];
+            int channel_multiplier = shape[3];
+
+            int num_output = num_input * channel_multiplier;
+            int group = num_input;
+
+            int weight_data_size = shape[0] * shape[1] * shape[2] * shape[3];
+
+            fprintf(pp, " 0=%d", num_output);
+            fprintf(pp, " 1=%d", kernel_size_w);
+            fprintf(pp, " 11=%d", kernel_size_h);
+            fprintf(pp, " 6=%d", weight_data_size);
+            fprintf(pp, " 7=%d", group);
+
+            std::vector<int> dilations = get_operation_attr_ai(operation, "dilations");
+            std::vector<int> strides = get_operation_attr_ai(operation, "strides");
+            std::string padding = get_operation_attr_s(operation, "padding");
+
+            if (dilations.size() == 4) {
+                fprintf(pp, " 2=%d", dilations[2]);
+                fprintf(pp, " 12=%d", dilations[1]);
+            }
+
+            if (strides.size() == 4) {
+                fprintf(pp, " 3=%d", strides[2]);
+                fprintf(pp, " 13=%d", strides[1]);
+            }
+
+            if (padding == "EXPLICIT")
+            {
+                // nhwc = [[0, 0], [pad_top, pad_bottom], [pad_left, pad_right], [0, 0]]
+                std::vector<int> explicit_paddings = get_operation_attr_ai(operation, "explicit_paddings");
+
+                fprintf(pp, " 4=%d", explicit_paddings[4]);
+                fprintf(pp, " 15=%d", explicit_paddings[5]);
+                fprintf(pp, " 14=%d", explicit_paddings[2]);
+                fprintf(pp, " 16=%d", explicit_paddings[3]);
+            }
+            else if (padding == "VALID")
+            {
+                fprintf(pp, " 4=%d", 0);
+            }
+            else if (padding == "SAME")
+            {
+                fprintf(pp, " 4=%d", -233);
+            }
+
+            std::vector<float> v;
+            v.reserve(weight_data_size);
+            if (W.isa<mlir::DenseFPElementsAttr>())
+            {
+                mlir::DenseFPElementsAttr afp = W.cast<mlir::DenseFPElementsAttr>();
+
+                for (auto ff : afp.getFloatValues())
+                {
+                    v.push_back(ff.convertToFloat());
+                }
+            }
+
+            // reorder h-w-i-cm to i-cm-h-w
+            {
+                int quantize_tag = 0;
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                float tmp;
+                for (int p=0; p<num_input; p++)
+                {
+                    for (int q=0; q<channel_multiplier; q++)
+                    {
+                        for (int i=0; i<kernel_size_h; i++)
+                        {
+                            for (int j=0; j<kernel_size_w; j++)
+                            {
+                                tmp = v[i*kernel_size_w*channel_multiplier*num_input + j*channel_multiplier*num_input + p*channel_multiplier + q];
                                 fwrite(&tmp, sizeof(float), 1, bp);
                             }
                         }
@@ -859,11 +1016,40 @@ int main(int argc, char** argv)
                 }
             }
         }
+        else if (op == "tf.Pad")
+        {
+            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            const mlir::Attribute& P = weights[weight_name];
+
+            std::vector<int> v;
+            if (P.isa<mlir::DenseIntElementsAttr>())
+            {
+                mlir::DenseIntElementsAttr ai = P.cast<mlir::DenseIntElementsAttr>();
+
+                for (auto ii : ai.getIntValues())
+                {
+                    v.push_back(ii.getSExtValue());
+                }
+            }
+
+            // nhwc = [[0, 0], [pad_top, pad_bottom], [pad_left, pad_right], [0, 0]]
+            fprintf(pp, " 0=%d", v[2]);
+            fprintf(pp, " 1=%d", v[3]);
+            fprintf(pp, " 2=%d", v[4]);
+            fprintf(pp, " 3=%d", v[5]);
+        }
         else if (op == "tf.Placeholder")
         {
         }
         else if (op == "tf.Relu")
         {
+        }
+        else if (op == "tf.Relu6")
+        {
+            float min = 0.f;
+            float max = 6.f;
+            fprintf(pp, " 0=%f", min);
+            fprintf(pp, " 1=%f", max);
         }
         else if (op == "tf.Reshape")
         {
