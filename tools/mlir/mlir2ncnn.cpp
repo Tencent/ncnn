@@ -370,17 +370,13 @@ static std::string get_mlir_value_uniq_id(const mlir::Value& value)
     return std::string();
 }
 
-static std::string get_operation_attr_s(const mlir::Operation& _operation, const char* key)
+static std::string get_attr_s(const mlir::Attribute& attr)
 {
-    mlir::Operation& operation = const_cast<mlir::Operation&>(_operation);
-
-    mlir::Attribute attribute = operation.getAttr(key);
-
     std::string s;
 
-    if (attribute.isa<mlir::StringAttr>())
+    if (attr.isa<mlir::StringAttr>())
     {
-        mlir::StringAttr a = attribute.cast<mlir::StringAttr>();
+        mlir::StringAttr a = attr.cast<mlir::StringAttr>();
 
         s = a.getValue().str();
     }
@@ -388,17 +384,33 @@ static std::string get_operation_attr_s(const mlir::Operation& _operation, const
     return s;
 }
 
-static std::vector<int> get_operation_attr_ai(const mlir::Operation& _operation, const char* key)
+static int get_attr_i(const mlir::Attribute& attr)
 {
-    mlir::Operation& operation = const_cast<mlir::Operation&>(_operation);
+    int i;
 
-    mlir::Attribute attribute = operation.getAttr(key);
+    if (attr.isa<mlir::IntegerAttr>())
+    {
+        mlir::IntegerAttr a = attr.cast<mlir::IntegerAttr>();
 
+        i = (int)a.getInt();
+    }
+    else if (attr.isa<mlir::BoolAttr>())
+    {
+        mlir::BoolAttr a = attr.cast<mlir::BoolAttr>();
+
+        i = a.getValue() ? 1 : 0;
+    }
+
+    return i;
+}
+
+static std::vector<int> get_attr_ai(const mlir::Attribute& attr)
+{
     std::vector<int> v;
 
-    if (attribute.isa<mlir::ArrayAttr>())
+    if (attr.isa<mlir::ArrayAttr>())
     {
-        mlir::ArrayAttr a = attribute.cast<mlir::ArrayAttr>();
+        mlir::ArrayAttr a = attr.cast<mlir::ArrayAttr>();
 
         const int array_size = a.getValue().size();
 
@@ -412,21 +424,26 @@ static std::vector<int> get_operation_attr_ai(const mlir::Operation& _operation,
             }
         }
     }
+    else if (attr.isa<mlir::DenseIntElementsAttr>())
+    {
+        mlir::DenseIntElementsAttr ai = attr.cast<mlir::DenseIntElementsAttr>();
+
+        for (auto ii : ai.getIntValues())
+        {
+            v.push_back(ii.getSExtValue());
+        }
+    }
 
     return v;
 }
 
-static std::vector<float> get_operation_attr_af(const mlir::Operation& _operation, const char* key)
+static std::vector<float> get_attr_af(const mlir::Attribute& attr)
 {
-    mlir::Operation& operation = const_cast<mlir::Operation&>(_operation);
-
-    mlir::Attribute attribute = operation.getAttr(key);
-
     std::vector<float> v;
 
-    if (attribute.isa<mlir::ArrayAttr>())
+    if (attr.isa<mlir::ArrayAttr>())
     {
-        mlir::ArrayAttr a = attribute.cast<mlir::ArrayAttr>();
+        mlir::ArrayAttr a = attr.cast<mlir::ArrayAttr>();
 
         const int array_size = a.getValue().size();
 
@@ -440,8 +457,53 @@ static std::vector<float> get_operation_attr_af(const mlir::Operation& _operatio
             }
         }
     }
+    else if (attr.isa<mlir::DenseFPElementsAttr>())
+    {
+        mlir::DenseFPElementsAttr af = attr.cast<mlir::DenseFPElementsAttr>();
+
+        for (auto ff : af.getFloatValues())
+        {
+            v.push_back(ff.convertToFloat());
+        }
+    }
 
     return v;
+}
+
+static std::string get_operation_attr_s(const mlir::Operation& _operation, const char* key)
+{
+    mlir::Operation& operation = const_cast<mlir::Operation&>(_operation);
+
+    mlir::Attribute attr = operation.getAttr(key);
+
+    return get_attr_s(attr);
+}
+
+static int get_operation_attr_i(const mlir::Operation& _operation, const char* key)
+{
+    mlir::Operation& operation = const_cast<mlir::Operation&>(_operation);
+
+    mlir::Attribute attr = operation.getAttr(key);
+
+    return get_attr_i(attr);
+}
+
+static std::vector<int> get_operation_attr_ai(const mlir::Operation& _operation, const char* key)
+{
+    mlir::Operation& operation = const_cast<mlir::Operation&>(_operation);
+
+    mlir::Attribute attr = operation.getAttr(key);
+
+    return get_attr_ai(attr);
+}
+
+static std::vector<float> get_operation_attr_af(const mlir::Operation& _operation, const char* key)
+{
+    mlir::Operation& operation = const_cast<mlir::Operation&>(_operation);
+
+    mlir::Attribute attr = operation.getAttr(key);
+
+    return get_attr_af(attr);
 }
 
 int main(int argc, char** argv)
@@ -506,7 +568,7 @@ int main(int argc, char** argv)
         {
             bool isBinaryOp = false;
             // TODO add more binaryop
-            if (op == "tf.BiasAdd" || op == "tf.AddV2")
+            if (op == "tf.BiasAdd" || op == "tf.AddV2" || op == "tf.Mul")
             {
                 isBinaryOp = true;
             }
@@ -653,6 +715,30 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "InnerProduct");
         }
+        else if (op == "tf.Mean")
+        {
+            std::string reduction_indices_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            const mlir::Attribute& R = weights[reduction_indices_name];
+
+            std::vector<int> v = get_attr_ai(R);
+
+            int keep_dims = get_operation_attr_i(operation, "keep_dims");
+
+            if (keep_dims == 0 && v.size() == 2 && v[0] == 1 && v[1] == 2)
+            {
+                // global avg pooling style nhwc -> nc
+                fprintf(pp, "%-16s", "Pooling");
+            }
+            else
+            {
+                fprintf(stderr, "tf.Mean is not global avg pooling\n");
+                fprintf(pp, "%-16s", "Reduction");
+            }
+        }
+        else if (op == "tf.Mul")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (op == "tf.Pad")
         {
             fprintf(pp, "%-16s", "Padding");
@@ -719,9 +805,13 @@ int main(int argc, char** argv)
         }
         else if (op == "tf.AddN")
         {
+            int op_type = 1;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (op == "tf.AddV2")
         {
+            int op_type = 0;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (op == "tf.Const")
         {
@@ -750,16 +840,7 @@ int main(int argc, char** argv)
                     fprintf(pp, " 2=%d", (int)shape[2]);
                 }
 
-                std::vector<float> v;
-                if (M.isa<mlir::DenseFPElementsAttr>())
-                {
-                    mlir::DenseFPElementsAttr afp = M.cast<mlir::DenseFPElementsAttr>();
-
-                    for (auto ff : afp.getFloatValues())
-                    {
-                        v.push_back(ff.convertToFloat());
-                    }
-                }
+                std::vector<float> v = get_attr_af(M);
 
                 if (shape.size() != 3)
                 {
@@ -801,7 +882,7 @@ int main(int argc, char** argv)
             int kernel_size_w = shape[1];
             int num_input = shape[2];
             int num_output = shape[3];
-            int weight_data_size = shape[0] * shape[1] * shape[2] * shape[3];
+            int weight_data_size = kernel_size_h * kernel_size_w * num_input * num_output;
 
             fprintf(pp, " 0=%d", num_output);
             fprintf(pp, " 1=%d", kernel_size_w);
@@ -841,17 +922,7 @@ int main(int argc, char** argv)
                 fprintf(pp, " 4=%d", -233);
             }
 
-            std::vector<float> v;
-            v.reserve(weight_data_size);
-            if (W.isa<mlir::DenseFPElementsAttr>())
-            {
-                mlir::DenseFPElementsAttr afp = W.cast<mlir::DenseFPElementsAttr>();
-
-                for (auto ff : afp.getFloatValues())
-                {
-                    v.push_back(ff.convertToFloat());
-                }
-            }
+            std::vector<float> v = get_attr_af(W);
 
             // reorder h-w-i-o to o-i-h-w
             {
@@ -893,7 +964,7 @@ int main(int argc, char** argv)
             int num_output = num_input * channel_multiplier;
             int group = num_input;
 
-            int weight_data_size = shape[0] * shape[1] * shape[2] * shape[3];
+            int weight_data_size = kernel_size_h * kernel_size_w * num_input * channel_multiplier;
 
             fprintf(pp, " 0=%d", num_output);
             fprintf(pp, " 1=%d", kernel_size_w);
@@ -934,17 +1005,7 @@ int main(int argc, char** argv)
                 fprintf(pp, " 4=%d", -233);
             }
 
-            std::vector<float> v;
-            v.reserve(weight_data_size);
-            if (W.isa<mlir::DenseFPElementsAttr>())
-            {
-                mlir::DenseFPElementsAttr afp = W.cast<mlir::DenseFPElementsAttr>();
-
-                for (auto ff : afp.getFloatValues())
-                {
-                    v.push_back(ff.convertToFloat());
-                }
-            }
+            std::vector<float> v = get_attr_af(W);
 
             // reorder h-w-i-cm to i-cm-h-w
             {
@@ -988,17 +1049,7 @@ int main(int argc, char** argv)
             fprintf(pp, " 0=%d", num_output);
             fprintf(pp, " 2=%d", weight_data_size);
 
-            std::vector<float> v;
-            v.reserve(weight_data_size);
-            if (W.isa<mlir::DenseFPElementsAttr>())
-            {
-                mlir::DenseFPElementsAttr afp = W.cast<mlir::DenseFPElementsAttr>();
-
-                for (auto ff : afp.getFloatValues())
-                {
-                    v.push_back(ff.convertToFloat());
-                }
-            }
+            std::vector<float> v = get_attr_af(W);
 
             // reorder i-o to o-i
             {
@@ -1016,21 +1067,40 @@ int main(int argc, char** argv)
                 }
             }
         }
+        else if (op == "tf.Mean")
+        {
+            std::string reduction_indices_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            const mlir::Attribute& R = weights[reduction_indices_name];
+
+            std::vector<int> v = get_attr_ai(R);
+
+            int keep_dims = get_operation_attr_i(operation, "keep_dims");
+
+            if (keep_dims == 0 && v.size() == 2 && v[0] == 1 && v[1] == 2)
+            {
+                // global avg pooling style nhwc -> nc
+                int pool = 1;
+                int global_pool = 1;
+
+                fprintf(pp, " 0=%d", pool);
+                fprintf(pp, " 4=%d", global_pool);
+            }
+            else
+            {
+                // TODO
+            }
+        }
+        else if (op == "tf.Mul")
+        {
+            int op_type = 2;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (op == "tf.Pad")
         {
             std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
             const mlir::Attribute& P = weights[weight_name];
 
-            std::vector<int> v;
-            if (P.isa<mlir::DenseIntElementsAttr>())
-            {
-                mlir::DenseIntElementsAttr ai = P.cast<mlir::DenseIntElementsAttr>();
-
-                for (auto ii : ai.getIntValues())
-                {
-                    v.push_back(ii.getSExtValue());
-                }
-            }
+            std::vector<int> v = get_attr_ai(P);
 
             // nhwc = [[0, 0], [pad_top, pad_bottom], [pad_left, pad_right], [0, 0]]
             fprintf(pp, " 0=%d", v[2]);
@@ -1056,16 +1126,7 @@ int main(int argc, char** argv)
             std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
             const mlir::Attribute& S = weights[weight_name];
 
-            std::vector<int> v;
-            if (S.isa<mlir::DenseIntElementsAttr>())
-            {
-                mlir::DenseIntElementsAttr ai = S.cast<mlir::DenseIntElementsAttr>();
-
-                for (auto ii : ai.getIntValues())
-                {
-                    v.push_back(ii.getSExtValue());
-                }
-            }
+            std::vector<int> v = get_attr_ai(S);
 
             int size = v.size();
 
@@ -1094,18 +1155,18 @@ int main(int argc, char** argv)
         for (const mlir::NamedAttribute& attr : operation.getAttrs())
         {
             const mlir::Identifier& identifier = attr.first;
-            const mlir::Attribute& attribute = attr.second;
+            const mlir::Attribute& attr = attr.second;
 
             fprintf(pp, " %s=", identifier.c_str());
 
-            if (attribute.isa<mlir::AffineMapAttr>())
+            if (attr.isa<mlir::AffineMapAttr>())
             {
                 fprintf(pp, "AffineMap");
             }
-            if (attribute.isa<mlir::ArrayAttr>())
+            if (attr.isa<mlir::ArrayAttr>())
             {
 //                 fprintf(pp, "Array");
-                mlir::ArrayAttr a = attribute.cast<mlir::ArrayAttr>();
+                mlir::ArrayAttr a = attr.cast<mlir::ArrayAttr>();
                 int array_size = a.getValue().size();
                 for (int t=0; t<array_size; t++)
                 {
@@ -1116,79 +1177,79 @@ int main(int argc, char** argv)
                     }
                 }
             }
-            if (attribute.isa<mlir::BoolAttr>())
+            if (attr.isa<mlir::BoolAttr>())
             {
 //                 fprintf(pp, "Bool");
-                mlir::BoolAttr a = attribute.cast<mlir::BoolAttr>();
+                mlir::BoolAttr a = attr.cast<mlir::BoolAttr>();
                 fprintf(pp, "%d", a.getValue() ? 1 : 0);
             }
-            if (attribute.isa<mlir::DictionaryAttr>())
+            if (attr.isa<mlir::DictionaryAttr>())
             {
                 fprintf(pp, "Dictionary");
             }
-            if (attribute.isa<mlir::FloatAttr>())
+            if (attr.isa<mlir::FloatAttr>())
             {
                 fprintf(pp, "Float");
             }
-            if (attribute.isa<mlir::IntegerAttr>())
+            if (attr.isa<mlir::IntegerAttr>())
             {
                 fprintf(pp, "Integer");
             }
-            if (attribute.isa<mlir::IntegerSetAttr>())
+            if (attr.isa<mlir::IntegerSetAttr>())
             {
                 fprintf(pp, "IntegerSet");
             }
-            if (attribute.isa<mlir::OpaqueAttr>())
+            if (attr.isa<mlir::OpaqueAttr>())
             {
                 fprintf(pp, "Opaque");
             }
-            if (attribute.isa<mlir::StringAttr>())
+            if (attr.isa<mlir::StringAttr>())
             {
 //                 fprintf(pp, "String");
-                mlir::StringAttr s = attribute.cast<mlir::StringAttr>();
+                mlir::StringAttr s = attr.cast<mlir::StringAttr>();
                 fprintf(pp, "%s", s.getValue().empty() ? "" : s.getValue().data());
             }
-            if (attribute.isa<mlir::SymbolRefAttr>())
+            if (attr.isa<mlir::SymbolRefAttr>())
             {
                 fprintf(pp, "SymbolRef");
             }
-            if (attribute.isa<mlir::FlatSymbolRefAttr>())
+            if (attr.isa<mlir::FlatSymbolRefAttr>())
             {
                 fprintf(pp, "FlatSymbolRef");
             }
-            if (attribute.isa<mlir::TypeAttr>())
+            if (attr.isa<mlir::TypeAttr>())
             {
                 fprintf(pp, "Type");
             }
-            if (attribute.isa<mlir::UnitAttr>())
+            if (attr.isa<mlir::UnitAttr>())
             {
                 fprintf(pp, "Unit");
             }
-            if (attribute.isa<mlir::ElementsAttr>())
+            if (attr.isa<mlir::ElementsAttr>())
             {
                 fprintf(pp, "Elements");
             }
-            if (attribute.isa<mlir::DenseElementsAttr>())
+            if (attr.isa<mlir::DenseElementsAttr>())
             {
                 fprintf(pp, "DenseElements");
             }
-            if (attribute.isa<mlir::DenseFPElementsAttr>())
+            if (attr.isa<mlir::DenseFPElementsAttr>())
             {
                 fprintf(pp, "DenseFPElements");
             }
-            if (attribute.isa<mlir::DenseIntElementsAttr>())
+            if (attr.isa<mlir::DenseIntElementsAttr>())
             {
                 fprintf(pp, "DenseIntElements");
             }
-            if (attribute.isa<mlir::OpaqueElementsAttr>())
+            if (attr.isa<mlir::OpaqueElementsAttr>())
             {
                 fprintf(pp, "OpaqueElements");
             }
-            if (attribute.isa<mlir::SparseElementsAttr>())
+            if (attr.isa<mlir::SparseElementsAttr>())
             {
                 fprintf(pp, "SparseElements");
             }
-            if (attribute.isa<mlir::SplatElementsAttr>())
+            if (attr.isa<mlir::SplatElementsAttr>())
             {
                 fprintf(pp, "SplatElements");
             }
