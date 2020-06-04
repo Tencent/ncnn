@@ -682,9 +682,17 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
+        else if (op == "tf.AvgPool")
+        {
+            fprintf(pp, "%-16s", "Pooling");
+        }
         else if (op == "tf.BiasAdd")
         {
             fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (op == "tf.ConcatV2")
+        {
+            fprintf(pp, "%-16s", "Concat");
         }
         else if (op == "tf.Const")
         {
@@ -714,6 +722,10 @@ int main(int argc, char** argv)
         else if (op == "tf.MatMul")
         {
             fprintf(pp, "%-16s", "InnerProduct");
+        }
+        else if (op == "tf.MaxPool")
+        {
+            fprintf(pp, "%-16s", "Pooling");
         }
         else if (op == "tf.Mean")
         {
@@ -812,6 +824,71 @@ int main(int argc, char** argv)
         {
             int op_type = 0;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "tf.AvgPool")
+        {
+            std::vector<int> ksize = get_operation_attr_ai(operation, "ksize");
+            std::vector<int> strides = get_operation_attr_ai(operation, "strides");
+            std::string padding = get_operation_attr_s(operation, "padding");
+
+            if (ksize.size() == 4) {
+                fprintf(pp, " 1=%d", ksize[2]);
+                fprintf(pp, " 11=%d", ksize[1]);
+            }
+
+            if (strides.size() == 4) {
+                fprintf(pp, " 2=%d", strides[2]);
+                fprintf(pp, " 12=%d", strides[1]);
+            }
+
+            int pad_mode = 1;
+            if (padding == "VALID")
+            {
+                pad_mode = 1;
+            }
+            else if (padding == "SAME")
+            {
+                pad_mode = 2;
+            }
+
+            fprintf(pp, " 5=%d", pad_mode);
+        }
+        else if (op == "tf.ConcatV2")
+        {
+            std::string axis_name = get_mlir_value_uniq_id(operation.getOperand(num_input));
+            const mlir::Attribute& A = weights[axis_name];
+
+            int axis = get_attr_i(A);
+
+            // axis nhwc to nchw
+            int dims = operation.getOperand(0).getType().cast<mlir::RankedTensorType>().getShape().size();
+
+            if (dims == 2 && axis == 1)
+            {
+                axis = 0;
+            }
+            if (dims == 3 && axis == 1)
+            {
+                axis = 1;
+            }
+            if (dims == 3 && axis == 2)
+            {
+                axis = 0;
+            }
+            if (dims == 4 && axis == 1)
+            {
+                axis = 1;
+            }
+            if (dims == 4 && axis == 2)
+            {
+                axis = 2;
+            }
+            if (dims == 4 && axis == 3)
+            {
+                axis = 0;
+            }
+
+            fprintf(pp, " 0=%d", axis);
         }
         else if (op == "tf.Const")
         {
@@ -1066,6 +1143,34 @@ int main(int argc, char** argv)
                     }
                 }
             }
+        }
+        else if (op == "tf.MaxPool")
+        {
+            std::vector<int> ksize = get_operation_attr_ai(operation, "ksize");
+            std::vector<int> strides = get_operation_attr_ai(operation, "strides");
+            std::string padding = get_operation_attr_s(operation, "padding");
+
+            if (ksize.size() == 4) {
+                fprintf(pp, " 1=%d", ksize[2]);
+                fprintf(pp, " 11=%d", ksize[1]);
+            }
+
+            if (strides.size() == 4) {
+                fprintf(pp, " 2=%d", strides[2]);
+                fprintf(pp, " 12=%d", strides[1]);
+            }
+
+            int pad_mode = 1;
+            if (padding == "VALID")
+            {
+                pad_mode = 1;
+            }
+            else if (padding == "SAME")
+            {
+                pad_mode = 2;
+            }
+
+            fprintf(pp, " 5=%d", pad_mode);
         }
         else if (op == "tf.Mean")
         {
