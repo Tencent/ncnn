@@ -659,7 +659,7 @@ int main(int argc, char** argv)
         int num_input = (int)operation.getNumOperands();
         int num_output = (int)operation.getNumResults();
 
-        for (int i=0; i<num_input; i++)
+        for (int i=0; i<(int)operation.getNumOperands(); i++)
         {
             std::string input_name = get_mlir_value_uniq_id(operation.getOperand(i));
 
@@ -774,6 +774,10 @@ int main(int argc, char** argv)
         else if (op == "tf.Softmax")
         {
             fprintf(pp, "%-16s", "Softmax");
+        }
+        else if (op == "tf.StridedSlice")
+        {
+            fprintf(pp, "%-16s", "Crop");
         }
         else
         {
@@ -1254,6 +1258,47 @@ int main(int argc, char** argv)
         }
         else if (op == "tf.Softmax")
         {
+        }
+        else if (op == "tf.StridedSlice")
+        {
+            std::string begin_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            std::string end_name = get_mlir_value_uniq_id(operation.getOperand(2));
+            std::string strides_name = get_mlir_value_uniq_id(operation.getOperand(3));
+            const mlir::Attribute& B = weights[begin_name];
+            const mlir::Attribute& E = weights[end_name];
+            const mlir::Attribute& S = weights[strides_name];
+
+            std::vector<int> begin = get_attr_ai(B);
+            std::vector<int> end = get_attr_ai(E);
+            std::vector<int> strides = get_attr_ai(S);
+
+            // assert strides == 1
+            for (int i=0; i<(int)strides.size(); i++)
+            {
+                if (strides[i] != 1)
+                    fprintf(stderr, "Unsupported StridedSlice strides !\n");
+            }
+
+            int size = begin.size();
+
+            // n h w c
+            // n h w
+            // n w
+            if (size == 4)
+            {
+                fprintf(pp, " -23309=3,%d,%d,%d", begin[2], begin[1], begin[3]);
+                fprintf(pp, " -23310=3,%d,%d,%d", end[2], end[1], end[3]);
+            }
+            if (size == 3)
+            {
+                fprintf(pp, " -23309=2,%d,%d", begin[2], begin[1]);
+                fprintf(pp, " -23310=2,%d,%d", end[2], end[1]);
+            }
+            if (size == 2)
+            {
+                fprintf(pp, " -23309=1,%d", begin[1]);
+                fprintf(pp, " -23310=1,%d", end[1]);
+            }
         }
 
 #if 0
