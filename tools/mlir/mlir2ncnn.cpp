@@ -538,7 +538,6 @@ int main(int argc, char** argv)
     // weight node before BinaryOp
     std::map<std::string, mlir::Attribute> binaryop_weights;
 
-
     fprintf(pp, "7767517\n");
 
     const mlir::Block::OpListType& operations = bb.getOperations();
@@ -619,9 +618,6 @@ int main(int argc, char** argv)
 
             blob_names.insert(output_name);
         }
-
-//         layer_count ++;
-//         blob_count += num_output;
     }
 
     // remove node_reference entry with reference equals to one
@@ -1272,29 +1268,63 @@ int main(int argc, char** argv)
             std::vector<int> end = get_attr_ai(E);
             std::vector<int> strides = get_attr_ai(S);
 
+            int begin_mask = get_operation_attr_i(operation, "begin_mask");
+            int end_mask = get_operation_attr_i(operation, "end_mask");
+            int ellipsis_mask = get_operation_attr_i(operation, "ellipsis_mask");
+            int new_axis_mask = get_operation_attr_i(operation, "new_axis_mask");
+            int shrink_axis_mask = get_operation_attr_i(operation, "shrink_axis_mask");
+
+            int dims = strides.size();
+
             // assert strides == 1
-            for (int i=0; i<(int)strides.size(); i++)
+            for (int i=0; i<dims; i++)
             {
                 if (strides[i] != 1)
                     fprintf(stderr, "Unsupported StridedSlice strides !\n");
             }
 
-            int size = begin.size();
+            for (int i=0; i<dims; i++)
+            {
+                // TODO strides[i] < 0
+                if (begin_mask & (1<<i))
+                {
+                    begin[i] = 0;
+                }
+                if (end_mask & (1<<i))
+                {
+                    end[i] = -233;
+                }
+                if (ellipsis_mask & (1<<i))
+                {
+                    begin[i] = 0;
+                    end[i] = -233;
+                }
+            }
+
+            if (new_axis_mask)
+            {
+                fprintf(stderr, "Unsupported StridedSlice new_axis_mask !\n");
+            }
+
+            if (shrink_axis_mask)
+            {
+                fprintf(stderr, "Unsupported StridedSlice shrink_axis_mask !\n");
+            }
 
             // n h w c
             // n h w
             // n w
-            if (size == 4)
+            if (dims == 4)
             {
-                fprintf(pp, " -23309=3,%d,%d,%d", begin[2], begin[1], begin[3]);
-                fprintf(pp, " -23310=3,%d,%d,%d", end[2], end[1], end[3]);
+                fprintf(pp, " -23309=3,%d,%d,%d", begin[3], begin[1], begin[2]);
+                fprintf(pp, " -23310=3,%d,%d,%d", end[3], end[1], end[2]);
             }
-            if (size == 3)
+            if (dims == 3)
             {
-                fprintf(pp, " -23309=2,%d,%d", begin[2], begin[1]);
-                fprintf(pp, " -23310=2,%d,%d", end[2], end[1]);
+                fprintf(pp, " -23309=2,%d,%d", begin[1], begin[2]);
+                fprintf(pp, " -23310=2,%d,%d", end[1], end[2]);
             }
-            if (size == 2)
+            if (dims == 2)
             {
                 fprintf(pp, " -23309=1,%d", begin[1]);
                 fprintf(pp, " -23310=1,%d", end[1]);
