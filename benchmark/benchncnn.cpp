@@ -264,6 +264,10 @@ int main(int argc, char** argv)
 
     benchmark("proxylessnasnet", ncnn::Mat(224, 224, 3), opt);
 
+    benchmark("efficientnet_b0", ncnn::Mat(224, 224, 3), opt);
+
+    benchmark("regnety_400m", ncnn::Mat(224, 224, 3), opt);
+
     benchmark("googlenet", ncnn::Mat(224, 224, 3), opt);
 
 #if NCNN_VULKAN
