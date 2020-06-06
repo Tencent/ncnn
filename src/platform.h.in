@@ -40,6 +40,9 @@
 #endif // __ANDROID_API__ >= 26
 
 #include <locale.h>
+#if (defined _WIN32 && !(defined __MINGW32__))
+#include <xlocinfo.h> // _locale_t
+#endif
 #if __APPLE__
 #include <xlocale.h> // uselocale
 #endif
