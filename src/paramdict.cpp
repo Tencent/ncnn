@@ -87,10 +87,80 @@ static bool vstr_is_float(const char vstr[16])
     return false;
 }
 
+static float vstr_to_float(const char vstr[16])
+{
+    double v = 0.0;
+
+    const char* p = vstr;
+
+    // sign
+    bool sign = *p != '-';
+    if (*p == '+' || *p == '-')
+    {
+        p++;
+    }
+
+    // digits before decimal point or exponent
+    unsigned int v1 = 0;
+    while (isdigit(*p))
+    {
+        v1 = v1 * 10 + (*p - '0');
+        p++;
+    }
+
+    v = (double)v1;
+
+    // digits after decimal point
+    if (*p == '.')
+    {
+        p++;
+
+        unsigned int pow10 = 1;
+        unsigned int v2 = 0;
+
+        while (isdigit(*p))
+        {
+            v2 = v2 * 10 + (*p - '0');
+            pow10 *= 10;
+            p++;
+        }
+
+        v += v2 / (double)pow10;
+    }
+
+    // exponent
+    if (*p == 'e' || *p == 'E')
+    {
+        p++;
+
+        // sign of exponent
+        bool fact = *p != '-';
+        if (*p == '+' || *p == '-')
+        {
+            p++;
+        }
+
+        // digits of exponent
+        unsigned int expon = 0;
+        while (isdigit(*p))
+        {
+            expon = expon * 10 + (*p - '0');
+            p++;
+        }
+
+        double scale = 1.0;
+        while (expon >=  8) { scale *= 1e8;  expon -=  8; }
+        while (expon >   0) { scale *= 10.0; expon -=  1; }
+
+        v = fact ? v * scale : v / scale;
+    }
+
+//     fprintf(stderr, "v = %f\n", v);
+    return sign ? (float)v : (float)-v;
+}
+
 int ParamDict::load_param(const DataReader& dr)
 {
-    UseLocaleGuard c_locale_guard("C");
-
     clear();
 
 //     0=100 1=1.250000 -23303=5,0.1,0.2,0.4,0.8,1.0
@@ -132,17 +202,17 @@ int ParamDict::load_param(const DataReader& dr)
                 if (is_float)
                 {
                     float* ptr = params[id].v;
-                    nscan = sscanf(vstr, "%f", &ptr[j]);
+                    ptr[j] = vstr_to_float(vstr);
                 }
                 else
                 {
                     int* ptr = params[id].v;
                     nscan = sscanf(vstr, "%d", &ptr[j]);
-                }
-                if (nscan != 1)
-                {
-                    NCNN_LOGE("ParamDict parse array element failed");
-                    return -1;
+                    if (nscan != 1)
+                    {
+                        NCNN_LOGE("ParamDict parse array element failed");
+                        return -1;
+                    }
                 }
 
                 params[id].type = is_float ? 6 : 5;
@@ -161,13 +231,17 @@ int ParamDict::load_param(const DataReader& dr)
             bool is_float = vstr_is_float(vstr);
 
             if (is_float)
-                nscan = sscanf(vstr, "%f", &params[id].f);
-            else
-                nscan = sscanf(vstr, "%d", &params[id].i);
-            if (nscan != 1)
             {
-                NCNN_LOGE("ParamDict parse value failed");
-                return -1;
+                params[id].f = vstr_to_float(vstr);
+            }
+            else
+            {
+                nscan = sscanf(vstr, "%d", &params[id].i);
+                if (nscan != 1)
+                {
+                    NCNN_LOGE("ParamDict parse value failed");
+                    return -1;
+                }
             }
 
             params[id].type = is_float ? 3 : 2;

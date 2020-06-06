@@ -39,14 +39,6 @@
 #define VK_USE_PLATFORM_ANDROID_KHR
 #endif // __ANDROID_API__ >= 26
 
-#include <locale.h>
-#if (defined _WIN32 && !(defined __MINGW32__))
-#include <xlocinfo.h> // _locale_t
-#endif
-#if __APPLE__
-#include <xlocale.h> // uselocale
-#endif
-
 namespace ncnn {
 
 #if (defined _WIN32 && !(defined __MINGW32__))
@@ -140,44 +132,6 @@ public:
     void join() { pthread_join(t, 0); }
 private:
     pthread_t t;
-};
-#endif // _WIN32
-
-#if (defined _WIN32 && !(defined __MINGW32__))
-class UseLocaleGuard
-{
-public:
-    UseLocaleGuard(const char* locale)
-    {
-        loc = _create_locale(LC_ALL, locale);
-        nloc = _get_current_locale();
-        _configthreadlocale(_ENABLE_PER_THREAD_LOCALE);
-        setlocale(LC_ALL, loc->locinfo->lc_category[LC_ALL].locale);
-    }
-    ~UseLocaleGuard()
-    {
-        setlocale(LC_ALL, nloc->locinfo->lc_category[LC_ALL].locale);
-        _free_locale(loc);
-    }
-private:
-    _locale_t loc, nloc;
-};
-#else // _WIN32
-class UseLocaleGuard
-{
-public:
-    UseLocaleGuard(const char* locale)
-    {
-        loc = newlocale(LC_ALL_MASK, locale, NULL);
-        nloc = uselocale(loc);
-    }
-    ~UseLocaleGuard()
-    {
-        uselocale(nloc);
-        freelocale(loc);
-    }
-private:
-    locale_t loc, nloc;
 };
 #endif // _WIN32
 
