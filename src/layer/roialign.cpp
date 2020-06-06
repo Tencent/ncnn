@@ -48,7 +48,7 @@ void pre_calc_for_bilinear_interpolate(
     T bin_size_w,
     int roi_bin_grid_h,
     int roi_bin_grid_w,
-    std::vector<PreCalc<T>>& pre_calc) {
+    std::vector<PreCalc<T> >& pre_calc) {
   int pre_calc_index = 0;
   for (int ph = 0; ph < pooled_height; ph++) {
     for (int pw = 0; pw < pooled_width; pw++) {
