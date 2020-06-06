@@ -146,35 +146,17 @@ class UseLocaleGuard
 public:
     UseLocaleGuard(const char* locale)
     {
-        per_thread_locale = _configthreadlocale(0) == _ENABLE_PER_THREAD_LOCALE;
-
-        loc = _create_locale(LC_ALL, locale, NULL);
-
-        if (per_thread_locale)
-        {
-            nloc = _get_current_locale();
-        }
-        else
-        {
-            nloc = LC_GLOBAL_LOCALE;
-            _configthreadlocale(_ENABLE_PER_THREAD_LOCALE);
-        }
-
-        setlocale(LC_ALL, loc->locinfo->lc_category[i].locale);
+        loc = _create_locale(LC_ALL, locale);
+        nloc = _get_current_locale();
+        _configthreadlocale(_ENABLE_PER_THREAD_LOCALE);
+        setlocale(LC_ALL, loc->locinfo->lc_category[LC_ALL].locale);
     }
     ~UseLocaleGuard()
     {
-        setlocale(LC_ALL, nloc->locinfo->lc_category[i].locale);
-
-        if (!per_thread_locale)
-        {
-            _configthreadlocale(_DISABLE_PER_THREAD_LOCALE);
-        }
-
+        setlocale(LC_ALL, nloc->locinfo->lc_category[LC_ALL].locale);
         _free_locale(loc);
     }
 private:
-    bool per_thread_locale;
     _locale_t loc, nloc;
 };
 #else // _WIN32
