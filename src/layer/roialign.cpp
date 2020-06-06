@@ -141,7 +141,7 @@ int ROIAlign::load_param(const ParamDict& pd)
     pooled_height = pd.get(1, 0);
     spatial_scale = pd.get(2, 1.f);
     sampling_ratio = pd.get(3, 0);
-    aligned = pd.get(4, true);
+    aligned = pd.get(4, false);
 
     return 0;
 }
