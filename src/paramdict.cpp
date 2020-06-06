@@ -89,6 +89,8 @@ static bool vstr_is_float(const char vstr[16])
 
 int ParamDict::load_param(const DataReader& dr)
 {
+    UseLocaleGuard c_locale_guard("C");
+
     clear();
 
 //     0=100 1=1.250000 -23303=5,0.1,0.2,0.4,0.8,1.0
