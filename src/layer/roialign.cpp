@@ -188,7 +188,7 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     const float count = std::max(roi_bin_grid_h * roi_bin_grid_w, 1);
 
-    std::vector<PreCalc<float>> pre_calc(
+    std::vector<PreCalc<float> > pre_calc(
         roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
     pre_calc_for_bilinear_interpolate(
         height,
