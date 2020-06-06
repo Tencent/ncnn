@@ -182,9 +182,9 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     float bin_size_h = (float)roi_height / (float)pooled_height;
 
     int roi_bin_grid_h = sampling_ratio > 0 ?
-      sampling_ratio : std::ceil(roi_height / pooled_height);
+      sampling_ratio : ceil(roi_height / pooled_height);
     int roi_bin_grid_w = sampling_ratio > 0 ?
-      sampling_ratio : std::ceil(roi_width / pooled_width);
+      sampling_ratio : ceil(roi_width / pooled_width);
 
     const float count = std::max(roi_bin_grid_h * roi_bin_grid_w, 1);
 
