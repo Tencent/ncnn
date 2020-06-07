@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -20,117 +20,6 @@ namespace ncnn {
 
 DEFINE_LAYER_CREATOR(ROIAlign)
 
-// adapted from detectron2
-// https://github.com/facebookresearch/detectron2/blob/master/detectron2/layers/csrc/ROIAlign/ROIAlign_cpu.cpp
-template <typename T>
-struct PreCalc {
-  int pos1;
-  int pos2;
-  int pos3;
-  int pos4;
-  T w1;
-  T w2;
-  T w3;
-  T w4;
-};
-
-template <typename T>
-void pre_calc_for_bilinear_interpolate(
-    const int height,
-    const int width,
-    const int pooled_height,
-    const int pooled_width,
-    const int iy_upper,
-    const int ix_upper,
-    T roi_start_h,
-    T roi_start_w,
-    T bin_size_h,
-    T bin_size_w,
-    int roi_bin_grid_h,
-    int roi_bin_grid_w,
-    std::vector<PreCalc<T> >& pre_calc) {
-  int pre_calc_index = 0;
-  for (int ph = 0; ph < pooled_height; ph++) {
-    for (int pw = 0; pw < pooled_width; pw++) {
-      for (int iy = 0; iy < iy_upper; iy++) {
-        const T yy = roi_start_h + ph * bin_size_h +
-            static_cast<T>(iy + .5f) * bin_size_h /
-                static_cast<T>(roi_bin_grid_h); // e.g., 0.5, 1.5
-        for (int ix = 0; ix < ix_upper; ix++) {
-          const T xx = roi_start_w + pw * bin_size_w +
-              static_cast<T>(ix + .5f) * bin_size_w /
-                  static_cast<T>(roi_bin_grid_w);
-
-          T x = xx;
-          T y = yy;
-          // deal with: inverse elements are out of feature map boundary
-          if (y < -1.0 || y > height || x < -1.0 || x > width) {
-            // empty
-            PreCalc<T> pc;
-            pc.pos1 = 0;
-            pc.pos2 = 0;
-            pc.pos3 = 0;
-            pc.pos4 = 0;
-            pc.w1 = 0;
-            pc.w2 = 0;
-            pc.w3 = 0;
-            pc.w4 = 0;
-            pre_calc[pre_calc_index] = pc;
-            pre_calc_index += 1;
-            continue;
-          }
-
-          if (y <= 0) {
-            y = 0;
-          }
-          if (x <= 0) {
-            x = 0;
-          }
-
-          int y_low = (int)y;
-          int x_low = (int)x;
-          int y_high;
-          int x_high;
-
-          if (y_low >= height - 1) {
-            y_high = y_low = height - 1;
-            y = (T)y_low;
-          } else {
-            y_high = y_low + 1;
-          }
-
-          if (x_low >= width - 1) {
-            x_high = x_low = width - 1;
-            x = (T)x_low;
-          } else {
-            x_high = x_low + 1;
-          }
-
-          T ly = y - y_low;
-          T lx = x - x_low;
-          T hy = 1. - ly, hx = 1. - lx;
-          T w1 = hy * hx, w2 = hy * lx, w3 = ly * hx, w4 = ly * lx;
-
-          // save weights and indices
-          PreCalc<T> pc;
-          pc.pos1 = y_low * width + x_low;
-          pc.pos2 = y_low * width + x_high;
-          pc.pos3 = y_high * width + x_low;
-          pc.pos4 = y_high * width + x_high;
-          pc.w1 = w1;
-          pc.w2 = w2;
-          pc.w3 = w3;
-          pc.w4 = w4;
-          pre_calc[pre_calc_index] = pc;
-
-          pre_calc_index += 1;
-        }
-      }
-    }
-  }
-}
-
-
 ROIAlign::ROIAlign()
 {
 }
@@ -146,13 +35,46 @@ int ROIAlign::load_param(const ParamDict& pd)
     return 0;
 }
 
+static inline float bilinear_interpolate(const float* ptr, int w, int h, float x, float y)
+{
+    int x0 = x;
+    int x1 = x0 + 1;
+    int y0 = y;
+    int y1 = y0 + 1;
+
+    float a0 = x1 - x;
+    float a1 = x - x0;
+    float b0 = y1 - y;
+    float b1 = y - y0;
+
+    if (x1 >= w)
+    {
+        x1 = w-1;
+        a0 = 1.f;
+        a1 = 0.f;
+    }
+    if (y1 >= h)
+    {
+        y1 = h-1;
+        b0 = 1.f;
+        b1 = 0.f;
+    }
+
+    float r0 = ptr[ y0 * w + x0 ] * a0 + ptr[ y0 * w + x1 ] * a1;
+    float r1 = ptr[ y1 * w + x0 ] * a0 + ptr[ y1 * w + x1 ] * a1;
+
+    float v = r0 * b0 + r1 * b1;
+
+    return v;
+}
+
 int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
-    const int width = bottom_blob.w;
-    const int height = bottom_blob.h;
-    const size_t elemsize = bottom_blob.elemsize;
-    const int channels = bottom_blob.c;
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    size_t elemsize = bottom_blob.elemsize;
+    int channels = bottom_blob.c;
 
     const Mat& roi_blob = bottom_blobs[1];
 
@@ -161,79 +83,79 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (top_blob.empty())
         return -100;
 
-    const float offset = aligned ? 0.5f : 0.0f;
-    // For each ROI R = [x y w h]: max pool over R
+    // For each ROI R = [x y w h]: avg pool over R
     const float* roi_ptr = roi_blob;
 
-    const float roi_start_w = roi_ptr[0] * spatial_scale - offset;
-    const float roi_start_h = roi_ptr[1] * spatial_scale - offset;
-    const float roi_end_w = roi_ptr[2] * spatial_scale - offset;
-    const float roi_end_h = roi_ptr[3] * spatial_scale - offset;
-
-    float roi_width = roi_end_w - roi_start_w;
-    float roi_height = roi_end_h - roi_start_h;
-
-    if (!aligned) {
-      roi_width = std::max(roi_width, 1.f);
-      roi_height = std::max(roi_height, 1.f);
+    float roi_x1 = roi_ptr[0] * spatial_scale;
+    float roi_y1 = roi_ptr[1] * spatial_scale;
+    float roi_x2 = roi_ptr[2] * spatial_scale;
+    float roi_y2 = roi_ptr[3] * spatial_scale;
+    if (aligned) {
+      roi_x1 -= 0.5f; roi_y1 -= 0.5f;
+      roi_x2 -= 0.5f; roi_y2 -= 0.5f;
     }
 
-    float bin_size_w = (float)roi_width / (float)pooled_width;
-    float bin_size_h = (float)roi_height / (float)pooled_height;
+    float roi_w = roi_x2 - roi_x1;
+    float roi_h = roi_y2 - roi_y1;
 
-    int roi_bin_grid_h = sampling_ratio > 0 ?
-      sampling_ratio : ceil(roi_height / pooled_height);
-    int roi_bin_grid_w = sampling_ratio > 0 ?
-      sampling_ratio : ceil(roi_width / pooled_width);
+    if (!aligned) {
+      roi_w = std::max(roi_w, 1.f);
+      roi_h = std::max(roi_h, 1.f);
+    }
 
-    const float count = std::max(roi_bin_grid_h * roi_bin_grid_w, 1);
-
-    std::vector<PreCalc<float> > pre_calc(
-        roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
-    pre_calc_for_bilinear_interpolate(
-        height,
-        width,
-        pooled_height,
-        pooled_width,
-        roi_bin_grid_h,
-        roi_bin_grid_w,
-        roi_start_h,
-        roi_start_w,
-        bin_size_h,
-        bin_size_w,
-        roi_bin_grid_h,
-        roi_bin_grid_w,
-        pre_calc);
-
+    float bin_size_w = roi_w / (float)pooled_width;
+    float bin_size_h = roi_h / (float)pooled_height;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<channels; q++)
     {
         const float* ptr = bottom_blob.channel(q);
         float* outptr = top_blob.channel(q);
-        int pre_calc_index = 0;
 
         for (int ph = 0; ph < pooled_height; ph++)
         {
             for (int pw = 0; pw < pooled_width; pw++)
             {
-                float output_val = 0.f;
-                for (int iy = 0; iy < roi_bin_grid_h; iy++)
+                // Compute pooling region for this output unit:
+                //  start (included) = ph * roi_height / pooled_height
+                //  end (excluded) = (ph + 1) * roi_height / pooled_height
+                float hstart = roi_y1 + ph * bin_size_h;
+                float wstart = roi_x1 + pw * bin_size_w;
+                float hend = roi_y1 + (ph + 1) * bin_size_h;
+                float wend = roi_x1 + (pw + 1) * bin_size_w;
+
+                hstart = std::min(std::max(hstart, 0.f), (float)h);
+                wstart = std::min(std::max(wstart, 0.f), (float)w);
+                hend = std::min(std::max(hend, 0.f), (float)h);
+                wend = std::min(std::max(wend, 0.f), (float)w);
+
+                int bin_grid_h = sampling_ratio > 0 ?
+                  sampling_ratio : ceil(hend - hstart);
+                int bin_grid_w = sampling_ratio > 0 ?
+                  sampling_ratio : ceil(wend - wstart);
+
+                bool is_empty = (hend <= hstart) || (wend <= wstart);
+                int area = bin_grid_h * bin_grid_w;
+
+                float sum = 0.f;
+                for (int by = 0; by < bin_grid_h; by++)
                 {
-                    for (int ix = 0; ix < roi_bin_grid_w; ix++)
+                    float y = hstart + (by + 0.5f) * bin_size_h / (float)bin_grid_h;
+
+                    for (int bx = 0; bx < bin_grid_w; bx++)
                     {
-                        PreCalc<float> pc = pre_calc[pre_calc_index];
+                        float x = wstart + (bx + 0.5f) * bin_size_w / (float)bin_grid_w;
 
-                        output_val += pc.w1 * ptr[pc.pos1] +
-                            pc.w2 * ptr[pc.pos2] +
-                            pc.w3 * ptr[pc.pos3] + pc.w4 * ptr[pc.pos4];
+                        // bilinear interpolate at (x,y)
+                        float v = bilinear_interpolate(ptr, w, h, x, y);
 
-                        pre_calc_index += 1;
+                        sum += v;
                     }
                 }
-                output_val /= count;
-                outptr[pw] = output_val;
+
+                outptr[pw] = is_empty ? 0.f : (sum / (float)area);
             }
+
             outptr += pooled_width;
         }
     }
