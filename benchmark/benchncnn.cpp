@@ -217,14 +217,6 @@ int main(int argc, char** argv)
     opt.use_shader_pack8 = false;
     opt.use_image_storage = false;
 
-#if NCNN_VULKAN
-    // TODO better default option setting
-    if (g_vkdev->info.bug_storage_buffer_no_l1)
-    {
-        opt.use_image_storage = true;
-    }
-#endif // NCNN_VULKAN
-
     ncnn::set_cpu_powersave(powersave);
 
     ncnn::set_omp_dynamic(0);
@@ -271,6 +263,10 @@ int main(int argc, char** argv)
     benchmark("mnasnet", ncnn::Mat(224, 224, 3), opt);
 
     benchmark("proxylessnasnet", ncnn::Mat(224, 224, 3), opt);
+
+    benchmark("efficientnet_b0", ncnn::Mat(224, 224, 3), opt);
+
+    benchmark("regnety_400m", ncnn::Mat(224, 224, 3), opt);
 
     benchmark("googlenet", ncnn::Mat(224, 224, 3), opt);
 

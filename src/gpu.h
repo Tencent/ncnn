@@ -121,6 +121,7 @@ public:
     // bug is not feature
     bool bug_local_size_spec_const;
     bool bug_storage_buffer_no_l1;
+    bool bug_layout_binding_id_alias;
 
     // but sometimes bug is a feature
     bool bug_implicit_fp16_arithmetic;
@@ -150,6 +151,7 @@ public:
     int support_VK_KHR_shader_float_controls;
     int support_VK_KHR_storage_buffer_storage_class;
     int support_VK_KHR_swapchain;
+    int support_VK_EXT_memory_budget;
     int support_VK_EXT_queue_family_foreign;
 #if __ANDROID_API__ >= 26
     int support_VK_ANDROID_external_memory_android_hardware_buffer;
@@ -208,6 +210,9 @@ public:
 
     // test image allocation
     bool shape_support_image_storage(const Mat& shape) const;
+
+    // current gpu heap memory budget in MB
+    uint32_t get_heap_budget() const;
 
     // utility operator
     void convert_packing(const VkMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const;
