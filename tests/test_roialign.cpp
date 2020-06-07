@@ -57,9 +57,9 @@ static int test_roialign(int w, int h, int c,
 static int test_roialign_0()
 {
     int ret = 0;
-    for (int sampling_ratio = 0; sampling_ratio <= 4; ++sampling_ratio)
+    for (int sampling_ratio = 0; sampling_ratio <= 4 && ret == 0; ++sampling_ratio)
     {
-        for (int aligned_i = 0; aligned_i < 2; ++aligned_i)
+        for (int aligned_i = 0; aligned_i < 2 && ret == 0; ++aligned_i)
         {
             bool aligned = aligned_i;
             int lret = 0
@@ -69,6 +69,7 @@ static int test_roialign_0()
                 || test_roialign(14 , 14 , 128, 27, 17, 0.06250, sampling_ratio, aligned)
                 || test_roialign(7  , 7  , 256,  3,  3, 0.03125, sampling_ratio, aligned)
                 ;
+            ret |= lret;
         }
     }
 
