@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <initializer_list>
 #include "testutil.h"
 
 #include "layer.h"
@@ -58,10 +57,11 @@ static int test_roialign(int w, int h, int c,
 static int test_roialign_0()
 {
     int ret = 0;
-    for (int sampling_ratio : {0, 1, 2, 4})
+    for (int sampling_ratio = 0; sampling_ratio <= 4; ++sampling_ratio)
     {
-        for (bool aligned : {false, true})
+        for (int aligned_i = 0; aligned_i < 2; ++aligned_i)
         {
+            bool aligned = aligned_i;
             int lret = 0
                 || test_roialign(112, 112, 16 , 56, 56, 0.50000, sampling_ratio, aligned)
                 || test_roialign(56 , 56 , 32 , 28, 28, 0.25000, sampling_ratio, aligned)
