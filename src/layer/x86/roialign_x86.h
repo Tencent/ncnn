@@ -24,8 +24,6 @@ class ROIAlign_x86 : virtual public ROIAlign
 public:
     ROIAlign_x86();
 
-    virtual int load_param(const ParamDict& pd);
-
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 public:

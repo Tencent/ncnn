@@ -135,17 +135,6 @@ ROIAlign_x86::ROIAlign_x86()
 {
 }
 
-int ROIAlign_x86::load_param(const ParamDict& pd)
-{
-    pooled_width = pd.get(0, 0);
-    pooled_height = pd.get(1, 0);
-    spatial_scale = pd.get(2, 1.f);
-    sampling_ratio = pd.get(3, 0);
-    aligned = pd.get(4, false);
-
-    return 0;
-}
-
 int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
