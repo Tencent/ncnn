@@ -130,6 +130,80 @@ void pre_calc_for_bilinear_interpolate(
   }
 }
 
+template <typename T>
+void pre_calc_area_for_bilinear_interpolate(
+    const int height,
+    const int width,
+    const int pooled_height,
+    const int pooled_width,
+    T roi_start_h,
+    T roi_start_w,
+    T bin_size_h,
+    T bin_size_w,
+    int sampling_ratio,
+    std::vector<PreCalc<T> >& pre_calc) {
+
+  for (int ph = 0; ph < pooled_height; ph++) {
+    for (int pw = 0; pw < pooled_width; pw++) {
+      float hstart = roi_start_h + ph * bin_size_h;
+      float wstart = roi_start_w + pw * bin_size_w;
+      float hend = roi_start_h + (ph + 1) * bin_size_h;
+      float wend = roi_start_w + (pw + 1) * bin_size_w;
+      hstart = std::min(std::max(hstart, 0.f), (float)height);
+      wstart = std::min(std::max(wstart, 0.f), (float)width);
+      hend = std::min(std::max(hend, 0.f), (float)height);
+      wend = std::min(std::max(wend, 0.f), (float)width);
+
+      int bin_grid_h = sampling_ratio > 0 ?
+        sampling_ratio : ceil(hend - hstart);
+      int bin_grid_w = sampling_ratio > 0 ?
+        sampling_ratio : ceil(wend - wstart);
+
+      for (int by = 0; by < bin_grid_h; by++) {
+        float y = hstart + (by + 0.5f) * bin_size_h / (float)bin_grid_h;
+
+        for (int bx = 0; bx < bin_grid_w; bx++)
+        {
+          float x = wstart + (bx + 0.5f) * bin_size_w / (float)bin_grid_w;
+          int x0 = x;
+          int x1 = x0 + 1;
+          int y0 = y;
+          int y1 = y0 + 1;
+
+          float a0 = x1 - x;
+          float a1 = x - x0;
+          float b0 = y1 - y;
+          float b1 = y - y0;
+
+          if (x1 >= width)
+          {
+            x1 = width-1;
+            a0 = 1.f;
+            a1 = 0.f;
+          }
+          if (y1 >= height)
+          {
+            y1 = height-1;
+            b0 = 1.f;
+            b1 = 0.f;
+          }
+          // save weights and indices
+          pre_calc.push_back({});
+          PreCalc<T> &pc = pre_calc.back();
+          pc.pos1 = y0 * width + x0;
+          pc.pos2 = y0 * width + x1;
+          pc.pos3 = y1 * width + x0;
+          pc.pos4 = y1 * width + x1;
+          pc.w1 = a0 * b0;
+          pc.w2 = a1 * b0;
+          pc.w3 = a0 * b1;
+          pc.w4 = a1 * b1;
+        }
+      }
+    }
+  }
+}
+
 
 static inline float bilinear_interpolate(const float* ptr, int w, int h, float x, float y)
 {
@@ -209,11 +283,25 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
     if (version == 0)
     {
+        std::vector<PreCalc<float> > pre_calc;
+        pre_calc_area_for_bilinear_interpolate(
+            height,
+            width,
+            pooled_height,
+            pooled_width,
+            roi_start_h,
+            roi_start_w,
+            bin_size_h,
+            bin_size_w,
+            sampling_ratio,
+            pre_calc);
+
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
+            int pre_calc_index = 0;
 
             for (int ph = 0; ph < pooled_height; ph++)
             {
@@ -243,16 +331,15 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                     float sum = 0.f;
                     for (int by = 0; by < bin_grid_h; by++)
                     {
-                        float y = hstart + (by + 0.5f) * bin_size_h / (float)bin_grid_h;
 
                         for (int bx = 0; bx < bin_grid_w; bx++)
                         {
-                            float x = wstart + (bx + 0.5f) * bin_size_w / (float)bin_grid_w;
-
+                            PreCalc<float> &pc = pre_calc[pre_calc_index++];
                             // bilinear interpolate at (x,y)
-                            float v = bilinear_interpolate(ptr, width, height, x, y);
+                            sum += pc.w1 * ptr[pc.pos1] +
+                                pc.w2 * ptr[pc.pos2] +
+                                pc.w3 * ptr[pc.pos3] + pc.w4 * ptr[pc.pos4];
 
-                            sum += v;
                         }
                     }
                     outptr[pw] = is_empty ? 0.f : (sum / (float)area);
@@ -288,7 +375,7 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             pre_calc);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
@@ -303,7 +390,7 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                     {
                         for (int ix = 0; ix < roi_bin_grid_w; ix++)
                         {
-                            PreCalc<float> pc = pre_calc[pre_calc_index];
+                            PreCalc<float> &pc = pre_calc[pre_calc_index];
 
                             output_val += pc.w1 * ptr[pc.pos1] +
                                 pc.w2 * ptr[pc.pos2] +
