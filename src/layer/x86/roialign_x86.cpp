@@ -189,7 +189,7 @@ void original_pre_calc_for_bilinear_interpolate(
           }
           // save weights and indices
           pre_calc.push_back({});
-          PreCalc<T> &pc = pre_calc.back();
+          PreCalc<T> &pc = pre_calc[pre_calc.size()-1];
           pc.pos1 = y0 * width + x0;
           pc.pos2 = y0 * width + x1;
           pc.pos3 = y1 * width + x0;
