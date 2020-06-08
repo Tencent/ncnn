@@ -410,7 +410,7 @@ if(NCNN_OPENMP AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
         message("Building with OpenMP")
     endif()
 
-    if(DEFINED ANDROID_NDK_MAJOR AND ${ANDROID_NDK_MAJOR} GREATER 20)
+    if(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
         target_compile_options(ncnn PRIVATE -fopenmp)
         target_link_libraries(ncnn PUBLIC -fopenmp -static-openmp)
     elseif(OpenMP_CXX_FOUND)
