@@ -15,6 +15,7 @@
 #include "roialign.h"
 #include <math.h>
 #include <algorithm>
+#include <cassert>
 
 namespace ncnn {
 
@@ -31,6 +32,14 @@ int ROIAlign::load_param(const ParamDict& pd)
     spatial_scale = pd.get(2, 1.f);
     sampling_ratio = pd.get(3, 0);
     aligned = pd.get(4, false);
+    version = pd.get(5, 0);
+    /*
+     * version 0:
+     *  the eldder version of ROIAlign in ncnn
+     * version 1:
+     *  ROIAlign in detectron2
+     */
+    assert(version >= 0 && version <= 1);
 
     return 0;
 }
@@ -106,57 +115,106 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     float bin_size_w = roi_w / (float)pooled_width;
     float bin_size_h = roi_h / (float)pooled_height;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
-    {
-        const float* ptr = bottom_blob.channel(q);
-        float* outptr = top_blob.channel(q);
-
-        for (int ph = 0; ph < pooled_height; ph++)
+    if (version == 0) {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
         {
-            for (int pw = 0; pw < pooled_width; pw++)
+            const float* ptr = bottom_blob.channel(q);
+            float* outptr = top_blob.channel(q);
+
+            for (int ph = 0; ph < pooled_height; ph++)
             {
-                // Compute pooling region for this output unit:
-                //  start (included) = ph * roi_height / pooled_height
-                //  end (excluded) = (ph + 1) * roi_height / pooled_height
-                float hstart = roi_y1 + ph * bin_size_h;
-                float wstart = roi_x1 + pw * bin_size_w;
-                float hend = roi_y1 + (ph + 1) * bin_size_h;
-                float wend = roi_x1 + (pw + 1) * bin_size_w;
-
-                hstart = std::min(std::max(hstart, 0.f), (float)h);
-                wstart = std::min(std::max(wstart, 0.f), (float)w);
-                hend = std::min(std::max(hend, 0.f), (float)h);
-                wend = std::min(std::max(wend, 0.f), (float)w);
-
-                int bin_grid_h = sampling_ratio > 0 ?
-                  sampling_ratio : ceil(hend - hstart);
-                int bin_grid_w = sampling_ratio > 0 ?
-                  sampling_ratio : ceil(wend - wstart);
-
-                bool is_empty = (hend <= hstart) || (wend <= wstart);
-                int area = bin_grid_h * bin_grid_w;
-
-                float sum = 0.f;
-                for (int by = 0; by < bin_grid_h; by++)
+                for (int pw = 0; pw < pooled_width; pw++)
                 {
-                    float y = hstart + (by + 0.5f) * bin_size_h / (float)bin_grid_h;
+                    // Compute pooling region for this output unit:
+                    //  start (included) = ph * roi_height / pooled_height
+                    //  end (excluded) = (ph + 1) * roi_height / pooled_height
+                    float hstart = roi_y1 + ph * bin_size_h;
+                    float wstart = roi_x1 + pw * bin_size_w;
+                    float hend = roi_y1 + (ph + 1) * bin_size_h;
+                    float wend = roi_x1 + (pw + 1) * bin_size_w;
 
-                    for (int bx = 0; bx < bin_grid_w; bx++)
+                    hstart = std::min(std::max(hstart, 0.f), (float)h);
+                    wstart = std::min(std::max(wstart, 0.f), (float)w);
+                    hend = std::min(std::max(hend, 0.f), (float)h);
+                    wend = std::min(std::max(wend, 0.f), (float)w);
+
+                    int bin_grid_h = sampling_ratio > 0 ?
+                      sampling_ratio : ceil(hend - hstart);
+                    int bin_grid_w = sampling_ratio > 0 ?
+                      sampling_ratio : ceil(wend - wstart);
+
+                    bool is_empty = (hend <= hstart) || (wend <= wstart);
+                    int area = bin_grid_h * bin_grid_w;
+
+                    float sum = 0.f;
+                    for (int by = 0; by < bin_grid_h; by++)
                     {
-                        float x = wstart + (bx + 0.5f) * bin_size_w / (float)bin_grid_w;
+                        float y = hstart + (by + 0.5f) * bin_size_h / (float)bin_grid_h;
 
-                        // bilinear interpolate at (x,y)
-                        float v = bilinear_interpolate(ptr, w, h, x, y);
+                        for (int bx = 0; bx < bin_grid_w; bx++)
+                        {
+                            float x = wstart + (bx + 0.5f) * bin_size_w / (float)bin_grid_w;
 
-                        sum += v;
+                            // bilinear interpolate at (x,y)
+                            float v = bilinear_interpolate(ptr, w, h, x, y);
+
+                            sum += v;
+                        }
                     }
+
+                    outptr[pw] = is_empty ? 0.f : (sum / (float)area);
                 }
 
-                outptr[pw] = is_empty ? 0.f : (sum / (float)area);
+                outptr += pooled_width;
             }
+        }
+    } else {
+        // detectron 2
+        int roi_bin_grid_h = sampling_ratio > 0 ?
+          sampling_ratio : ceil(roi_h / pooled_height);
+        int roi_bin_grid_w = sampling_ratio > 0 ?
+          sampling_ratio : ceil(roi_w / pooled_width);
 
-            outptr += pooled_width;
+        const float count = std::max(roi_bin_grid_h * roi_bin_grid_w, 1);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            const float* ptr = bottom_blob.channel(q);
+            float* outptr = top_blob.channel(q);
+
+            for (int ph = 0; ph < pooled_height; ph++)
+            {
+                for (int pw = 0; pw < pooled_width; pw++)
+                {
+                    float sum = 0.f;
+                    for (int by = 0; by < roi_bin_grid_h; by++)
+                    {
+                        float y = roi_y1 + ph * bin_size_h + (by + 0.5f) * bin_size_h / (float)roi_bin_grid_h;
+
+                        for (int bx = 0; bx < roi_bin_grid_w; bx++)
+                        {
+                            float x = roi_x1 + pw * bin_size_w + (bx + 0.5f) * bin_size_w / (float)roi_bin_grid_w;
+
+                            if (y < -1.0 || y > h || x < -1.0 || x > w) {
+                              // empty
+                              continue;
+                            } else {
+                              if (y <= 0) y = 0;
+                              if (x <= 0) x = 0;
+
+                              // bilinear interpolate at (x,y)
+                              float v = bilinear_interpolate(ptr, w, h, x, y);
+                              sum += v;
+                            }
+                        }
+                    }
+                    outptr[pw] = sum / count;
+                }
+
+                outptr += pooled_width;
+            }
         }
     }
 

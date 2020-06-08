@@ -34,6 +34,7 @@ public:
     float spatial_scale;
     int sampling_ratio;
     bool aligned;
+    int version;
 };
 
 } // namespace ncnn

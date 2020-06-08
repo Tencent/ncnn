@@ -131,6 +131,40 @@ void pre_calc_for_bilinear_interpolate(
 }
 
 
+static inline float bilinear_interpolate(const float* ptr, int w, int h, float x, float y)
+{
+    int x0 = x;
+    int x1 = x0 + 1;
+    int y0 = y;
+    int y1 = y0 + 1;
+
+    float a0 = x1 - x;
+    float a1 = x - x0;
+    float b0 = y1 - y;
+    float b1 = y - y0;
+
+    if (x1 >= w)
+    {
+        x1 = w-1;
+        a0 = 1.f;
+        a1 = 0.f;
+    }
+    if (y1 >= h)
+    {
+        y1 = h-1;
+        b0 = 1.f;
+        b1 = 0.f;
+    }
+
+    float r0 = ptr[ y0 * w + x0 ] * a0 + ptr[ y0 * w + x1 ] * a1;
+    float r1 = ptr[ y1 * w + x0 ] * a0 + ptr[ y1 * w + x1 ] * a1;
+
+    float v = r0 * b0 + r1 * b1;
+
+    return v;
+}
+
+
 ROIAlign_x86::ROIAlign_x86()
 {
 }
@@ -173,60 +207,116 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     float bin_size_w = (float)roi_width / (float)pooled_width;
     float bin_size_h = (float)roi_height / (float)pooled_height;
 
-    int roi_bin_grid_h = sampling_ratio > 0 ?
-      sampling_ratio : ceil(roi_height / pooled_height);
-    int roi_bin_grid_w = sampling_ratio > 0 ?
-      sampling_ratio : ceil(roi_width / pooled_width);
-
-    const float count = std::max(roi_bin_grid_h * roi_bin_grid_w, 1);
-
-    std::vector<PreCalc<float> > pre_calc(
-        roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
-    pre_calc_for_bilinear_interpolate(
-        height,
-        width,
-        pooled_height,
-        pooled_width,
-        roi_bin_grid_h,
-        roi_bin_grid_w,
-        roi_start_h,
-        roi_start_w,
-        bin_size_h,
-        bin_size_w,
-        roi_bin_grid_h,
-        roi_bin_grid_w,
-        pre_calc);
-
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    if (version == 0)
     {
-        const float* ptr = bottom_blob.channel(q);
-        float* outptr = top_blob.channel(q);
-        int pre_calc_index = 0;
-
-        for (int ph = 0; ph < pooled_height; ph++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
         {
-            for (int pw = 0; pw < pooled_width; pw++)
+            const float* ptr = bottom_blob.channel(q);
+            float* outptr = top_blob.channel(q);
+
+            for (int ph = 0; ph < pooled_height; ph++)
             {
-                float output_val = 0.f;
-                for (int iy = 0; iy < roi_bin_grid_h; iy++)
+                for (int pw = 0; pw < pooled_width; pw++)
                 {
-                    for (int ix = 0; ix < roi_bin_grid_w; ix++)
+                    // Compute pooling region for this output unit:
+                    //  start (included) = ph * roi_height / pooled_height
+                    //  end (excluded) = (ph + 1) * roi_height / pooled_height
+                    float hstart = roi_start_h + ph * bin_size_h;
+                    float wstart = roi_start_w + pw * bin_size_w;
+                    float hend = roi_start_h + (ph + 1) * bin_size_h;
+                    float wend = roi_start_w + (pw + 1) * bin_size_w;
+
+                    hstart = std::min(std::max(hstart, 0.f), (float)height);
+                    wstart = std::min(std::max(wstart, 0.f), (float)width);
+                    hend = std::min(std::max(hend, 0.f), (float)height);
+                    wend = std::min(std::max(wend, 0.f), (float)width);
+
+                    int bin_grid_h = sampling_ratio > 0 ?
+                      sampling_ratio : ceil(hend - hstart);
+                    int bin_grid_w = sampling_ratio > 0 ?
+                      sampling_ratio : ceil(wend - wstart);
+
+                    bool is_empty = (hend <= hstart) || (wend <= wstart);
+                    int area = bin_grid_h * bin_grid_w;
+
+                    float sum = 0.f;
+                    for (int by = 0; by < bin_grid_h; by++)
                     {
-                        PreCalc<float> pc = pre_calc[pre_calc_index];
+                        float y = hstart + (by + 0.5f) * bin_size_h / (float)bin_grid_h;
 
-                        output_val += pc.w1 * ptr[pc.pos1] +
-                            pc.w2 * ptr[pc.pos2] +
-                            pc.w3 * ptr[pc.pos3] + pc.w4 * ptr[pc.pos4];
+                        for (int bx = 0; bx < bin_grid_w; bx++)
+                        {
+                            float x = wstart + (bx + 0.5f) * bin_size_w / (float)bin_grid_w;
 
-                        pre_calc_index += 1;
+                            // bilinear interpolate at (x,y)
+                            float v = bilinear_interpolate(ptr, width, height, x, y);
+
+                            sum += v;
+                        }
                     }
+                    outptr[pw] = is_empty ? 0.f : (sum / (float)area);
                 }
-                output_val /= count;
-                outptr[pw] = output_val;
+
+                outptr += pooled_width;
             }
-            outptr += pooled_width;
+        }
+    } else {
+        // detectron2
+        int roi_bin_grid_h = sampling_ratio > 0 ?
+          sampling_ratio : ceil(roi_height / pooled_height);
+        int roi_bin_grid_w = sampling_ratio > 0 ?
+          sampling_ratio : ceil(roi_width / pooled_width);
+
+        const float count = std::max(roi_bin_grid_h * roi_bin_grid_w, 1);
+
+        std::vector<PreCalc<float> > pre_calc(
+            roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
+        pre_calc_for_bilinear_interpolate(
+            height,
+            width,
+            pooled_height,
+            pooled_width,
+            roi_bin_grid_h,
+            roi_bin_grid_w,
+            roi_start_h,
+            roi_start_w,
+            bin_size_h,
+            bin_size_w,
+            roi_bin_grid_h,
+            roi_bin_grid_w,
+            pre_calc);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            const float* ptr = bottom_blob.channel(q);
+            float* outptr = top_blob.channel(q);
+            int pre_calc_index = 0;
+
+            for (int ph = 0; ph < pooled_height; ph++)
+            {
+                for (int pw = 0; pw < pooled_width; pw++)
+                {
+                    float output_val = 0.f;
+                    for (int iy = 0; iy < roi_bin_grid_h; iy++)
+                    {
+                        for (int ix = 0; ix < roi_bin_grid_w; ix++)
+                        {
+                            PreCalc<float> pc = pre_calc[pre_calc_index];
+
+                            output_val += pc.w1 * ptr[pc.pos1] +
+                                pc.w2 * ptr[pc.pos2] +
+                                pc.w3 * ptr[pc.pos3] + pc.w4 * ptr[pc.pos4];
+
+                            pre_calc_index += 1;
+                        }
+                    }
+                    output_val /= count;
+                    outptr[pw] = output_val;
+                }
+                outptr += pooled_width;
+            }
         }
     }
 
