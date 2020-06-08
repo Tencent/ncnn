@@ -16,6 +16,7 @@
 #define LAYER_ARGMAX_H
 
 #include "layer.h"
+#include <algorithm>
 
 namespace ncnn {
 
@@ -29,9 +30,15 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
-    int out_max_val;
-    int topk;
+    // 0 for c, 1 for h, 2 for w
+    int axis;
 };
+
+template<class ForwardIterator>
+int argmax(ForwardIterator first, ForwardIterator last)
+{
+    return std::distance(first, std::max_element(first, last));
+}
 
 } // namespace ncnn
 

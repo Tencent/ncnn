@@ -27,55 +27,49 @@ ArgMax::ArgMax()
 
 int ArgMax::load_param(const ParamDict& pd)
 {
-    out_max_val = pd.get(0, 0);
-    topk = pd.get(1, 1);
-
+    axis = pd.get(0, 0);  // id 0, default 0;
     return 0;
 }
 
 int ArgMax::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    int size = bottom_blob.total();
+    std::vector<float> vec;
+    int space, max_length;
 
-    if (out_max_val)
-        top_blob.create(topk, 2, 4u, opt.blob_allocator);
-    else
-        top_blob.create(topk, 1, 4u, opt.blob_allocator);
+    if (axis == 0) {
+        top_blob.create(bottom_blob.w, bottom_blob.h, 1, 4u, opt.blob_allocator);
+        space = bottom_blob.w * bottom_blob.h;
+        max_length = bottom_blob.c;
+    } else if (axis == 1) {
+        top_blob.create(bottom_blob.w, 1, bottom_blob.c, 4u, opt.blob_allocator);
+        space = bottom_blob.w;
+        max_length = bottom_blob.h;
+    } else if (axis == 2) {
+        top_blob.create(1, bottom_blob.h, bottom_blob.c, 4u, opt.blob_allocator);
+        space = 1;
+        max_length = bottom_blob.w;
+    } else
+        return -1001;
+        
     if (top_blob.empty())
-        return -100;
+        return -1001;
 
     const float* ptr = bottom_blob;
-
-    // partial sort topk with index
-    // optional value
-    std::vector< std::pair<float, int> > vec;
-    vec.resize(size);
-    for (int i=0; i<size; i++)
-    {
-        vec[i] = std::make_pair(ptr[i], i);
-    }
-
-    std::partial_sort(vec.begin(), vec.begin() + topk, vec.end(),
-                        std::greater< std::pair<float, int> >());
-
     float* outptr = top_blob;
-    if (out_max_val)
-    {
-        float* valptr = outptr + topk;
-        for (int i=0; i<topk; i++)
-        {
-            outptr[i] = vec[i].first;
-            valptr[i] = vec[i].second;
+    int size = top_blob.w * top_blob.h * top_blob.c;
+    //printf("size: %d, space: %d\n", size, space);
+    
+    //#pragma omp parallel for num_threads(opt.num_threads)
+    for (int i=0; i<size; i++) {
+        for (int j=0; j<max_length; j++) {
+            vec.push_back(ptr[(i / space * max_length + j) * space + i % space]);
+            //printf("%f ", ptr[(i / space * max_length + j) * space + i % space]);
         }
+        outptr[i] = argmax(vec.begin(), vec.end());
+        //printf(" res: %f\n", outptr[i]);
+        vec.clear();
     }
-    else
-    {
-        for (int i=0; i<topk; i++)
-        {
-            outptr[i] = vec[i].second;
-        }
-    }
-
+    
     return 0;
 }
 
