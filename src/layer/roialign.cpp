@@ -170,7 +170,8 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 outptr += pooled_width;
             }
         }
-    } else {
+    } else if (version == 1)
+    {
         // the version in detectron 2
         int roi_bin_grid_h = sampling_ratio > 0 ?
           sampling_ratio : ceil(roi_h / pooled_height);
