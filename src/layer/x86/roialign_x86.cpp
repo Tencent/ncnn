@@ -283,6 +283,7 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
     if (version == 0)
     {
+        // original version
         std::vector<PreCalc<float> > pre_calc;
         pre_calc_area_for_bilinear_interpolate(
             height,
@@ -349,7 +350,7 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             }
         }
     } else {
-        // detectron2
+        // the version in detectron 2
         int roi_bin_grid_h = sampling_ratio > 0 ?
           sampling_ratio : ceil(roi_height / pooled_height);
         int roi_bin_grid_w = sampling_ratio > 0 ?

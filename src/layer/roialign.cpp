@@ -35,9 +35,9 @@ int ROIAlign::load_param(const ParamDict& pd)
     version = pd.get(5, 0);
     /*
      * version 0:
-     *  the eldder version of ROIAlign in ncnn
+     *  the original version of ROIAlign in ncnn
      * version 1:
-     *  ROIAlign in detectron2
+     *  the version in detectron2
      */
     assert(version >= 0 && version <= 1);
 
@@ -116,6 +116,7 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     float bin_size_h = roi_h / (float)pooled_height;
 
     if (version == 0) {
+        // original version
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
         {
@@ -170,7 +171,7 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             }
         }
     } else {
-        // detectron 2
+        // the version in detectron 2
         int roi_bin_grid_h = sampling_ratio > 0 ?
           sampling_ratio : ceil(roi_h / pooled_height);
         int roi_bin_grid_w = sampling_ratio > 0 ?
