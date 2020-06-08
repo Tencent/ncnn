@@ -75,8 +75,7 @@ void detectron2_pre_calc_for_bilinear_interpolate(
             pc.w2 = 0;
             pc.w3 = 0;
             pc.w4 = 0;
-            pre_calc[pre_calc_index] = pc;
-            pre_calc_index += 1;
+            pre_calc[pre_calc_index++] = pc;
             continue;
           }
 
@@ -112,7 +111,7 @@ void detectron2_pre_calc_for_bilinear_interpolate(
           T w1 = hy * hx, w2 = hy * lx, w3 = ly * hx, w4 = ly * lx;
 
           // save weights and indices
-          PreCalc<T> &pc = pre_calc[pre_calc_index++];
+          PreCalc<T> pc;
           pc.pos1 = y_low * width + x_low;
           pc.pos2 = y_low * width + x_high;
           pc.pos3 = y_high * width + x_low;
@@ -121,6 +120,7 @@ void detectron2_pre_calc_for_bilinear_interpolate(
           pc.w2 = w2;
           pc.w3 = w3;
           pc.w4 = w4;
+          pre_calc[pre_calc_index++] = pc;
         }
       }
     }
@@ -139,7 +139,7 @@ void original_pre_calc_for_bilinear_interpolate(
     T bin_size_w,
     int sampling_ratio,
     std::vector<PreCalc<T> >& pre_calc) {
-
+  int pre_calc_index = 0;
   for (int ph = 0; ph < pooled_height; ph++) {
     for (int pw = 0; pw < pooled_width; pw++) {
       float hstart = roi_start_h + ph * bin_size_h;
@@ -185,8 +185,7 @@ void original_pre_calc_for_bilinear_interpolate(
             b1 = 0.f;
           }
           // save weights and indices
-          pre_calc.push_back({});
-          PreCalc<T> &pc = pre_calc[pre_calc.size()-1];
+          PreCalc<T> pc;
           pc.pos1 = y0 * width + x0;
           pc.pos2 = y0 * width + x1;
           pc.pos3 = y1 * width + x0;
@@ -195,6 +194,7 @@ void original_pre_calc_for_bilinear_interpolate(
           pc.w2 = a1 * b0;
           pc.w3 = a0 * b1;
           pc.w4 = a1 * b1;
+          pre_calc[pre_calc_index++] = pc;
         }
       }
     }
@@ -246,7 +246,12 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     if (version == 0)
     {
         // original version
-        std::vector<PreCalc<float> > pre_calc;
+        int roi_bin_grid_h = sampling_ratio > 0 ?
+          sampling_ratio : ceil(roi_height / pooled_height);
+        int roi_bin_grid_w = sampling_ratio > 0 ?
+          sampling_ratio : ceil(roi_width / pooled_width);
+        std::vector<PreCalc<float> > pre_calc(
+            roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
         original_pre_calc_for_bilinear_interpolate(
             height,
             width,
