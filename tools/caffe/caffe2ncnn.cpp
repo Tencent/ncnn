@@ -1538,6 +1538,9 @@ int main(int argc, char** argv)
             fprintf(pp, " 0=%d", roi_align_param.pooled_w());
             fprintf(pp, " 1=%d", roi_align_param.pooled_h());
             fprintf(pp, " 2=%e", roi_align_param.spatial_scale());
+            fprintf(pp, " 3=%d", 0);
+            fprintf(pp, " 4=%d", false);
+            fprintf(pp, " 5=%d", 0);
         }
         else if (layer.type() == "ROIPooling")
         {

@@ -12,31 +12,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_ROIALIGN_H
-#define LAYER_ROIALIGN_H
+#ifndef LAYER_ROIALIGN_X86_H
+#define LAYER_ROIALIGN_X86_H
 
-#include "layer.h"
+#include "roialign.h"
 
 namespace ncnn {
 
-class ROIAlign : public Layer
+class ROIAlign_x86 : virtual public ROIAlign
 {
 public:
-    ROIAlign();
-
-    virtual int load_param(const ParamDict& pd);
+    ROIAlign_x86();
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
-
-public:
-    int pooled_width;
-    int pooled_height;
-    float spatial_scale;
-    int sampling_ratio;
-    bool aligned;
-    int version;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_ROIALIGN_H
+#endif // LAYER_ROIALIGN_X86_H
