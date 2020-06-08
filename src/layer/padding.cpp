@@ -411,8 +411,14 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         _bottom = param_data[1];
         _left = param_data[2];
         _right = param_data[3];
-        _front = param_data[7];
-        _behind = param_data[8];
+        if (reference_blob.total() >= 9){
+            _front = param_data[7];
+            _behind = param_data[8];
+        } else {
+            _front = 0;
+            _behind = 0;
+        }
+        
     }
     if (_top == 0 && _bottom == 0 && _left == 0 && _right == 0 && _front == 0 && _behind == 0)
     {
