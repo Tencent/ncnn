@@ -35,7 +35,7 @@ struct PreCalc {
 };
 
 template <typename T>
-void pre_calc_for_bilinear_interpolate(
+void detectron2_pre_calc_for_bilinear_interpolate(
     const int height,
     const int width,
     const int pooled_height,
@@ -131,7 +131,7 @@ void pre_calc_for_bilinear_interpolate(
 }
 
 template <typename T>
-void pre_calc_area_for_bilinear_interpolate(
+void original_pre_calc_for_bilinear_interpolate(
     const int height,
     const int width,
     const int pooled_height,
@@ -204,41 +204,6 @@ void pre_calc_area_for_bilinear_interpolate(
   }
 }
 
-
-static inline float bilinear_interpolate(const float* ptr, int w, int h, float x, float y)
-{
-    int x0 = x;
-    int x1 = x0 + 1;
-    int y0 = y;
-    int y1 = y0 + 1;
-
-    float a0 = x1 - x;
-    float a1 = x - x0;
-    float b0 = y1 - y;
-    float b1 = y - y0;
-
-    if (x1 >= w)
-    {
-        x1 = w-1;
-        a0 = 1.f;
-        a1 = 0.f;
-    }
-    if (y1 >= h)
-    {
-        y1 = h-1;
-        b0 = 1.f;
-        b1 = 0.f;
-    }
-
-    float r0 = ptr[ y0 * w + x0 ] * a0 + ptr[ y0 * w + x1 ] * a1;
-    float r1 = ptr[ y1 * w + x0 ] * a0 + ptr[ y1 * w + x1 ] * a1;
-
-    float v = r0 * b0 + r1 * b1;
-
-    return v;
-}
-
-
 ROIAlign_x86::ROIAlign_x86()
 {
 }
@@ -285,7 +250,7 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     {
         // original version
         std::vector<PreCalc<float> > pre_calc;
-        pre_calc_area_for_bilinear_interpolate(
+        original_pre_calc_for_bilinear_interpolate(
             height,
             width,
             pooled_height,
@@ -360,7 +325,7 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
         std::vector<PreCalc<float> > pre_calc(
             roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
-        pre_calc_for_bilinear_interpolate(
+        detectron2_pre_calc_for_bilinear_interpolate(
             height,
             width,
             pooled_height,
