@@ -268,6 +268,8 @@ int main(int argc, char** argv)
 
     benchmark("regnety_400m", ncnn::Mat(224, 224, 3), opt);
 
+    benchmark("blazeface", ncnn::Mat(128, 128, 3), opt);
+
     benchmark("googlenet", ncnn::Mat(224, 224, 3), opt);
 
 #if NCNN_VULKAN
@@ -316,6 +318,7 @@ int main(int argc, char** argv)
     }
 
     benchmark("mobilenet_ssd", ncnn::Mat(300, 300, 3), opt);
+
 
 #if NCNN_VULKAN
     if (!use_vulkan_compute)
