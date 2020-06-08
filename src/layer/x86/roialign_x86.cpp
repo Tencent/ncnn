@@ -112,7 +112,7 @@ void detectron2_pre_calc_for_bilinear_interpolate(
           T w1 = hy * hx, w2 = hy * lx, w3 = ly * hx, w4 = ly * lx;
 
           // save weights and indices
-          PreCalc<T> pc;
+          PreCalc<T> &pc = pre_calc[pre_calc_index++];
           pc.pos1 = y_low * width + x_low;
           pc.pos2 = y_low * width + x_high;
           pc.pos3 = y_high * width + x_low;
@@ -121,9 +121,6 @@ void detectron2_pre_calc_for_bilinear_interpolate(
           pc.w2 = w2;
           pc.w3 = w3;
           pc.w4 = w4;
-          pre_calc[pre_calc_index] = pc;
-
-          pre_calc_index += 1;
         }
       }
     }
@@ -357,13 +354,11 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                     {
                         for (int ix = 0; ix < roi_bin_grid_w; ix++)
                         {
-                            PreCalc<float> &pc = pre_calc[pre_calc_index];
+                            PreCalc<float> &pc = pre_calc[pre_calc_index++];
 
                             output_val += pc.w1 * ptr[pc.pos1] +
                                 pc.w2 * ptr[pc.pos2] +
                                 pc.w3 * ptr[pc.pos3] + pc.w4 * ptr[pc.pos4];
-
-                            pre_calc_index += 1;
                         }
                     }
                     output_val /= count;
