@@ -81,7 +81,7 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (type == 0){
             int offset_elempack =  front % 4 == 0 ? 4 : 1;
             int channel_elempack = padded_channels % 4 == 0 ? 4 : 1;
-            out_elempack = std::min(offset_elempack,channel_elempack);
+            out_elempack = offset_elempack <= channel_elempack? offset_elempack : channel_elempack;
         } else {
             //Reflective padding and edge padding only supports channel padding in elempack 1
             out_elempack = 1;
@@ -186,7 +186,7 @@ int Padding_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
         if (type == 0){
             int offset_elempack =  front % 4 == 0 ? 4 : 1;
             int channel_elempack = padded_channels % 4 == 0 ? 4 : 1;
-            out_elempack = std::min(offset_elempack,channel_elempack);
+            out_elempack = offset_elempack <= channel_elempack? offset_elempack : channel_elempack;
         } else {
             //Reflective padding and edge padding only supports channel padding in elempack 1
             out_elempack = 1;

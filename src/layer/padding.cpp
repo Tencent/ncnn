@@ -369,10 +369,11 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 int q_  = q-front;
 
                 if (type == 1){
-                    q_ = std::min(std::max(q_, 0), channels - 1);
+                    q_ = q_ <= 0 ? 0 : q_;
+                    q_ = q_ >= channels-1 ? channels-1 : q_;
                 }
                 if (type == 2){
-                    q_ = std::abs(q_);
+                    q_ = abs(q_);
                     q_ = (channels - 1) - abs(q_ - (channels - 1));
                 }
                 const Mat m = bottom_blob.channel(q_);
@@ -489,10 +490,11 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
                 int q_  = q-_front;
                 //Clamp channel
                 if (type == 1){
-                    q_ = std::min(std::max(q_, 0), channels - 1);
+                    q_ = q_ <= 0 ? 0 : q_;
+                    q_ = q_ >= channels-1 ? channels-1 : q_;
                 }
                 if (type == 2){
-                    q_ = std::abs(q_);
+                    q_ = abs(q_);
                     q_ = (channels - 1) - abs(q_ - (channels - 1));
                 }
                 
