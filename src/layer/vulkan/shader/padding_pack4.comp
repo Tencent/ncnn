@@ -68,6 +68,7 @@ layout (push_constant) uniform parameter
 
     int left;
     int top;
+    int front;
 } p;
 
 void main()
@@ -83,15 +84,15 @@ void main()
 
     int x = gx - p.left;
     int y = gy - p.top;
-
+    int z = gz - p.front;
     if (type == 0)
     {
-        if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+        if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h) && z >= 0 && z < psc(c))
         {
 #if NCNN_image_shader
-            image3d_cp4(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, gz));
+            image3d_cp4(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
 #else
-            int v_offset = gz * psc(cstep) + y * psc(w) + x;
+            int v_offset = z * psc(cstep) + y * psc(w) + x;
             buffer_cp4(top_blob_data, gi, bottom_blob_data, v_offset);
 #endif
         }

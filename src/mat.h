@@ -83,6 +83,7 @@ public:
     void fill(int v);
 #if __ARM_NEON
     void fill(float32x4_t _v);
+    void fill(uint16x4_t _v);
 #endif // __ARM_NEON
     template <typename T> void fill(T v);
     // deep copy
@@ -795,6 +796,16 @@ inline void Mat::fill(float32x4_t _v)
     for (int i=0; i<size; i++)
     {
         vst1q_f32(ptr, _v);
+        ptr += 4;
+    }
+}
+inline void Mat::fill(uint16x4_t _v)
+{
+    int size = total();
+    unsigned short* ptr = (unsigned short*)data;
+    for (int i=0; i<size; i++)
+    {
+        vst1_u16(ptr, _v);
         ptr += 4;
     }
 }
