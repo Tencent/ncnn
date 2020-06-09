@@ -40,6 +40,8 @@ public:
     int right;
     int type;// 0=CONSTANT 1=REPLICATE 2=REFLECT
     float value;
+    int front;
+    int behind;
 
     // per channel pad value
     int per_channel_pad_data_size;

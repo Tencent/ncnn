@@ -356,13 +356,15 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         Option opt_pad = opt;
         opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-        VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
+        VkMat padding_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
         int* padding_params = padding_param_blob.mapped();
 
         padding_params[0] = pad_top;
         padding_params[1] = pad_bottom + htailpad;
         padding_params[2] = pad_left;
         padding_params[3] = pad_right + wtailpad;
+        padding_params[4] = 0;
+        padding_params[5] = 0;
 
         std::vector<VkMat> padding_inputs(2);
         padding_inputs[0] = bottom_blob;
@@ -388,13 +390,15 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
+            VkMat padding_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
             int* padding_params = padding_param_blob.mapped();
 
             padding_params[0] = hpad / 2;
             padding_params[1] = hpad - hpad / 2;
             padding_params[2] = wpad / 2;
             padding_params[3] = wpad - wpad / 2;
+            padding_params[4] = 0;
+            padding_params[5] = 0;
 
             std::vector<VkMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
@@ -414,13 +418,15 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-            VkMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
+            VkMat padding_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
             int* padding_params = padding_param_blob.mapped();
 
             padding_params[0] = hpad - hpad / 2;
             padding_params[1] = hpad / 2;
             padding_params[2] = wpad - wpad / 2;
             padding_params[3] = wpad / 2;
+            padding_params[4] = 0;
+            padding_params[5] = 0;
 
             std::vector<VkMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
@@ -526,13 +532,15 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         Option opt_pad = opt;
         opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-        VkImageMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
+        VkImageMat padding_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
         int* padding_params = padding_param_blob.mapped();
 
         padding_params[0] = pad_top;
         padding_params[1] = pad_bottom + htailpad;
         padding_params[2] = pad_left;
         padding_params[3] = pad_right + wtailpad;
+        padding_params[4] = 0;
+        padding_params[5] = 0;
 
         std::vector<VkImageMat> padding_inputs(2);
         padding_inputs[0] = bottom_blob;
@@ -558,13 +566,15 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
             Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-            VkImageMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
+            VkImageMat padding_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
             int* padding_params = padding_param_blob.mapped();
 
             padding_params[0] = hpad / 2;
             padding_params[1] = hpad - hpad / 2;
             padding_params[2] = wpad / 2;
             padding_params[3] = wpad - wpad / 2;
+            padding_params[4] = 0;
+            padding_params[5] = 0;
 
             std::vector<VkImageMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
@@ -584,13 +594,15 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
             Option opt_pad = opt;
             opt_pad.blob_vkallocator = opt.workspace_vkallocator;
 
-            VkImageMat padding_param_blob(4, (size_t)4u, 1, opt.staging_vkallocator);
+            VkImageMat padding_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
             int* padding_params = padding_param_blob.mapped();
 
             padding_params[0] = hpad - hpad / 2;
             padding_params[1] = hpad / 2;
             padding_params[2] = wpad - wpad / 2;
             padding_params[3] = wpad / 2;
+            padding_params[4] = 0;
+            padding_params[5] = 0;
 
             std::vector<VkImageMat> padding_inputs(2);
             padding_inputs[0] = bottom_blob;
