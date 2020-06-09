@@ -603,6 +603,9 @@ int create_gpu_instance()
         {
             // qcom adreno with old buggy driver
             gpu_info.bug_local_size_spec_const = true;
+
+            // old buggy driver cannot handle binding id alias
+            gpu_info.bug_layout_binding_id_alias = true;
         }
 
         if (physicalDeviceProperties.vendorID == 0x5143 && !(physicalDeviceProperties.deviceID == 0x6040001 || physicalDeviceProperties.deviceID == 0x6050002))
