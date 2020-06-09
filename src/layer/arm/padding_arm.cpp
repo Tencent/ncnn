@@ -87,12 +87,13 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             out_elempack = 1;
         }
         outc = padded_channels/out_elempack;
-    }
-    if (out_elempack != elempack){
+        if (out_elempack != elempack){
             Option opt_pack = opt;
             opt_pack.blob_allocator = opt.workspace_allocator;
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
+        }
     }
+   
     if (elempack == 4 && out_elempack == 4)
     {
 
@@ -100,7 +101,7 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (dims == 1)
         {
-            top_blob.create(outw, elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(outw, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -118,7 +119,7 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (dims == 2)
         {
-            top_blob.create(outw, outh, elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(outw, outh, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -134,10 +135,10 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (dims == 3)
         {
-            top_blob.create(outw, outh, outc, elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(outw, outh, outc, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
-            int front_ = front/out_elempack;
+            int front_ = front/elempack;
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<outc; q++)
             {
@@ -192,12 +193,13 @@ int Padding_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
             out_elempack = 1;
         }
         outc = padded_channels/out_elempack;
-    }
-    if (out_elempack != elempack){
+        if (out_elempack != elempack){
             Option opt_pack = opt;
             opt_pack.blob_allocator = opt.workspace_allocator;
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
+        }
     }
+    
     if (elempack == 4 && out_elempack == 4)
     {
 
@@ -239,11 +241,11 @@ int Padding_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
         if (dims == 3)
         {
-            top_blob.create(outw, outh, outc, elemsize, out_elempack, opt.blob_allocator);
+            top_blob.create(outw, outh, outc, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
             
-            int front_ = front/out_elempack;
+            int front_ = front/elempack;
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q=0; q<outc; q++)
             {

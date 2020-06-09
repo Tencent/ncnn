@@ -220,10 +220,12 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         if (out_elempack == 1) out_elemsize = 4u;
     }
     // unpacking
-    VkMat bottom_blob_unpacked = bottom_blob;
+    VkMat bottom_blob_unpacked;
     if (elempack != out_elempack)
     {
-        vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, cmd, opt);
+        Option opt_unpack = opt;
+        opt_unpack.blob_vkallocator = opt.workspace_vkallocator;
+        vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, cmd, opt_unpack);
     } else {
         bottom_blob_unpacked = bottom_blob;
     }
@@ -281,13 +283,8 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         _bottom = param_data[1];
         _left = param_data[2];
         _right = param_data[3];
-        if (reference_blob.total() >= 9){
-            _front = param_data[7];
-            _behind = param_data[8];
-        } else {
-            _front = 0;
-            _behind = 0;
-        }
+        _front = param_data[4];
+        _behind = param_data[5];
     }
 
     if (_top == 0 && _bottom == 0 && _left == 0 && _right == 0 && _front == 0&& _behind == 0)
@@ -326,10 +323,12 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         if (out_elempack == 1) out_elemsize = 4u;
     }
     // unpacking
-    VkMat bottom_blob_unpacked = bottom_blob;
+    VkMat bottom_blob_unpacked;
     if (elempack != out_elempack)
     {
-        vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, cmd, opt);
+        Option opt_unpack = opt;
+        opt_unpack.blob_vkallocator = opt.workspace_vkallocator;
+        vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, cmd, opt_unpack);
     } else {
         bottom_blob_unpacked = bottom_blob;
     }
@@ -407,11 +406,14 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         if (out_elempack == 4) out_elemsize = 4*2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
+
     // unpacking
-    VkImageMat bottom_blob_unpacked = bottom_blob;
+    VkImageMat bottom_blob_unpacked;
     if (elempack != out_elempack)
     {
-        vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, cmd, opt);
+        Option opt_unpack = opt;
+        opt_unpack.blob_vkallocator = opt.workspace_vkallocator;
+        vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, cmd, opt_unpack);
     } else {
         bottom_blob_unpacked = bottom_blob;
     }
@@ -471,13 +473,9 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
         _bottom = param_data[1];
         _left = param_data[2];
         _right = param_data[3];
-        if (reference_blob.total() >= 9){
-            _front = param_data[7];
-            _behind = param_data[8];
-        } else {
-            _front = 0;
-            _behind = 0;
-        }
+        _front = param_data[4];
+        _behind = param_data[5];
+
     }
 
     if (_top == 0 && _bottom == 0 && _left == 0 && _right == 0 && _front == 0&& _behind == 0)
@@ -515,11 +513,14 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
         if (out_elempack == 4) out_elemsize = 4*2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
+    
     // unpacking
-    VkImageMat bottom_blob_unpacked = bottom_blob;
+    VkImageMat bottom_blob_unpacked;
     if (elempack != out_elempack)
     {
-        vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, cmd, opt);
+        Option opt_unpack = opt;
+        opt_unpack.blob_vkallocator = opt.workspace_vkallocator;
+        vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, cmd, opt_unpack);
     } else {
         bottom_blob_unpacked = bottom_blob;
     }
