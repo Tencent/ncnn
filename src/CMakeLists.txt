@@ -399,7 +399,7 @@ elseif(NCNN_AVX2)
         target_compile_options(ncnn PRIVATE /arch:AVX2 /DAVX2)
     #Linux
     else()
-        target_compile_options(ncnn PRIVATE -mfma -mf16c)
+        target_compile_options(ncnn PRIVATE -mfma -mf16c -mavx2)
     endif()
 endif()
 
