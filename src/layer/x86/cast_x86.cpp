@@ -207,7 +207,7 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             }            
             if(remain >= 8)
             {
-                remain = size & 7;
+                remain -= 8;
                 _mm_store_si128((__m128i *) outptr,float2bfloat_avx(_mm256_load_ps(ptr)));
                 ptr += 8;
                 outptr += 8;
