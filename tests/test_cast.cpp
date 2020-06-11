@@ -147,6 +147,8 @@ static int test_cast_cpu_packed(const ncnn::Mat& a, int type_from, int type_to)
 #if NCNN_VULKAN
 static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
 {
+    if (type_to == 4 || type_from == 4)
+        return 0;
     ncnn::ParamDict pd;
     pd.set(0, type_from);
     pd.set(1, type_to);
@@ -260,6 +262,8 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
 
 static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type_to)
 {
+    if (type_to == 4 || type_from == 4)
+        return 0;
     ncnn::ParamDict pd;
     pd.set(0, type_from);
     pd.set(1, type_to);
@@ -376,6 +380,8 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
 
 static int test_cast_gpu_image_fp16p(const ncnn::Mat& a, int type_from, int type_to)
 {
+    if (type_to == 4 || type_from == 4)
+        return 0;
     ncnn::ParamDict pd;
     pd.set(0, type_from);
     pd.set(1, type_to);
@@ -492,6 +498,8 @@ static int test_cast_gpu_image_fp16p(const ncnn::Mat& a, int type_from, int type
 
 static int test_cast_gpu_image_fp16p_pack8(const ncnn::Mat& a, int type_from, int type_to)
 {
+    if (type_to == 4 || type_from == 4)
+        return 0;
     ncnn::ParamDict pd;
     pd.set(0, type_from);
     pd.set(1, type_to);
