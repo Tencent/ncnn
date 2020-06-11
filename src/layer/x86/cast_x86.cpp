@@ -52,9 +52,9 @@ static inline  __m256 bfloat2float_avx(__m128i v0)
     __m128i zero = _mm_set1_epi32(0);
     __m128i a = _mm_slli_epi32(_mm_unpacklo_epi16(v0,zero),16);
     __m128i b = _mm_slli_epi32(_mm_unpackhi_epi16(v0,zero),16);
-    __m256i ab;
-    ab = _mm256_insertf128_pd(ab,a,0);  // insert in low 128-bit lane
-    ab = _mm256_insertf128_pd(ab,b,1);  // insert in high 128-bit lane
+    __m256i ab = _mm256_set1_epi32(0);
+    ab = _mm256_insertf128_si256(ab,a,0);  // insert in low 128-bit lane
+    ab = _mm256_insertf128_si256(ab,b,1);  // insert in high 128-bit lane
     return _mm256_castsi256_ps(ab);
 }
 
