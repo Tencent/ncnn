@@ -33,7 +33,7 @@ typedef union m256i
 } m256;
 static inline __m256i float2bfloat_avx(__m256 v0, __m256 v1)
 {
-   __m256i a = _mm256_castps_si256(v0);
+    __m256i a = _mm256_castps_si256(v0);
     a = _mm256_srli_epi32(a,16);
     __m256i b = _mm256_castps_si256(v1);
     b = _mm256_srli_epi32(b,16);
@@ -46,16 +46,16 @@ static inline  __m128i float2bfloat_avx(__m256 v0)
     a = _mm256_srli_epi32(a,16);
     __m256i aaaa = _mm256_packus_epi32(a,a);
     return _mm256_castsi256_si128(_mm256_permutevar8x32_epi32(aaaa, _mm256_setr_epi32(0,1, 4,5, 2,3, 6,7)));
-}
+    }
 static inline  __m256 bfloat2float_avx(__m128i v0)
 {
-   __m128i zero = _mm_set1_epi32(0);
-   __m128i a = _mm_slli_epi32(_mm_unpacklo_epi16(v0,zero),16);
-   __m128i b = _mm_slli_epi32(_mm_unpackhi_epi16(v0,zero),16);
-   __m256i ab;
-   ab = _mm256_insertf128_pd(ab,a,0);  // insert in low 128-bit lane
-   ab = _mm256_insertf128_pd(ab,b,1);  // insert in high 128-bit lane
-   return _mm256_castsi256_ps(ab);
+    __m128i zero = _mm_set1_epi32(0);
+    __m128i a = _mm_slli_epi32(_mm_unpacklo_epi16(v0,zero),16);
+    __m128i b = _mm_slli_epi32(_mm_unpackhi_epi16(v0,zero),16);
+    __m256i ab;
+    ab = _mm256_insertf128_pd(ab,a,0);  // insert in low 128-bit lane
+    ab = _mm256_insertf128_pd(ab,b,1);  // insert in high 128-bit lane
+    return _mm256_castsi256_ps(ab);
 }
 
 #endif //NCNN_AVX2
@@ -190,7 +190,7 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             }
         }
     }
-   if (type_from == 1 && type_to == 4)
+    if (type_from == 1 && type_to == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<channels; q++)
