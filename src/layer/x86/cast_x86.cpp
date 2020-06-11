@@ -198,17 +198,16 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             const float* ptr = bottom_blob.channel(q);
             unsigned short* outptr = top_blob.channel(q);
             int nn = size >> 4;
-            // int remain = size & 15;
+            int remain = size & 15;
             for (; nn>0; nn--)
             {
                 _mm256_store_si256((__m256i *) outptr,float2bfloat_avx(_mm256_load_ps(ptr),_mm256_load_ps(ptr+8)));
                 ptr += 16;
                 outptr += 16;
-            }
-            nn = (size-((size>>4)<<4)) >> 3;
-            int remain = size & 7;
-            for (; nn>0; nn--)
+            }            
+            if(remain >= 8)
             {
+                remain = size & 7;
                 _mm_store_si128((__m128i *) outptr,float2bfloat_avx(_mm256_load_ps(ptr)));
                 ptr += 8;
                 outptr += 8;
