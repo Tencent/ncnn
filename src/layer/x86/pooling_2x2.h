@@ -33,14 +33,14 @@ static void pooling2x2s2_max_avx(const Mat& bottom_blob, Mat& top_blob, const Op
 
         for (int i = 0; i < outh; i++)
         {
-#if __AVX__
+#if __AVX2__
             int nn = outw >> 2;
             int remain = outw - (nn << 2);
 #else
             int remain = outw;
 #endif // __ARM_NEON
-            
-#if __AVX__
+
+#if __AVX2__
              for (; nn>0; nn--)
             {
                 __m256 _r0 = _mm256_loadu_ps(r0);
