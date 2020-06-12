@@ -129,7 +129,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     Mat shape_unpacked = shape_packed;
-    if (bottom_shapes.size() == 1 && shape.dims != 0 && elempack == out_elempack && elempack > offset_elempack)
+    if (one_blob_only && shape.dims != 0 && elempack == out_elempack && elempack > offset_elempack)
     {
         size_t offset_elemsize;
         if (opt.use_fp16_storage)

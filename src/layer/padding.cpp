@@ -36,7 +36,11 @@ int Padding::load_param(const ParamDict& pd)
     front = pd.get(7, 0);
     behind = pd.get(8, 0);
 
-    if (top == -233 && bottom == -233 && left == -233 && right == -233 && front == -233 && behind == -233)
+    if (top == -233 && bottom == -233 && left == -233 && right == -233)
+    {
+        one_blob_only = false;
+    }
+    if (top == -234 && bottom == -234 && left == -234 && right == -234)
     {
         one_blob_only = false;
     }
