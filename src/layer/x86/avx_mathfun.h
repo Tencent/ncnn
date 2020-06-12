@@ -28,6 +28,8 @@
 
   (this is the zlib license)
 */
+#ifndef AVX_MATHFUN
+#define AVX_MATHFUN
 
 #include <immintrin.h>
 
@@ -53,7 +55,7 @@ _PI32AVX_CONST(4, 4);
 #define _PS256_CONST(Name, Val)                                            \
   static const ALIGN32_BEG float _ps256_##Name[8] ALIGN32_END = { Val, Val, Val, Val, Val, Val, Val, Val }
 #define _PI32_CONST256(Name, Val)                                            \
-  static const ALIGN32_BEG unsigned int _pi32_256_##Name[8] ALIGN32_END = { Val, Val, Val, Val, Val, Val, Val, Val }
+  static const ALIGN32_BEG int _pi32_256_##Name[8] ALIGN32_END = { Val, Val, Val, Val, Val, Val, Val, Val }
 #define _PS256_CONST_TYPE(Name, Type, Val)                                 \
   static const ALIGN32_BEG Type _ps256_##Name[8] ALIGN32_END = { Val, Val, Val, Val, Val, Val, Val, Val }
 
@@ -64,8 +66,8 @@ _PS256_CONST_TYPE(min_norm_pos, int, 0x00800000);
 _PS256_CONST_TYPE(mant_mask, int, 0x7f800000);
 _PS256_CONST_TYPE(inv_mant_mask, int, ~0x7f800000);
 
-_PS256_CONST_TYPE(sign_mask, int, 0x80000000);
-_PS256_CONST_TYPE(inv_sign_mask, int, ~0x80000000);
+_PS256_CONST_TYPE(sign_mask, unsigned int, 0x80000000);
+_PS256_CONST_TYPE(inv_sign_mask, unsigned int, ~0x80000000);
 
 _PI32_CONST256(0, 0);
 _PI32_CONST256(1, 1);
@@ -733,3 +735,4 @@ void sincos256_ps(v8sf x, v8sf *s, v8sf *c) {
   *c = _mm256_xor_ps(xmm2, sign_bit_cos);
 }
 
+#endif //AVX_MATHFUN
