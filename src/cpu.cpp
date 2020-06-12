@@ -346,8 +346,10 @@ typedef struct
     NCNN_CPU_ZERO(&mask);
     for (int i=0; i<(int)sizeof(size_t) * 8; i++)
     {
-        if (thread_affinity_mask & (1 << i))
+        if (thread_affinity_mask & (1ul << i))
+        {
             NCNN_CPU_SET(i, &mask);
+        }
     }
 
     int syscallret = syscall(__NR_sched_setaffinity, pid, sizeof(mask), &mask);
@@ -393,7 +395,7 @@ static size_t g_thread_affinity_mask_big = 0;
 
 static int setup_thread_affinity_masks()
 {
-    g_thread_affinity_mask_all = (1 << g_cpucount) - 1;
+    g_thread_affinity_mask_all = (1ul << g_cpucount) - 1;
 
 #ifdef __ANDROID__
     int max_freq_khz_min = INT_MAX;
@@ -424,9 +426,9 @@ static int setup_thread_affinity_masks()
     for (int i=0; i<g_cpucount; i++)
     {
         if (cpu_max_freq_khz[i] < max_freq_khz_medium)
-            g_thread_affinity_mask_little |= (1 << i);
+            g_thread_affinity_mask_little |= (1ul << i);
         else
-            g_thread_affinity_mask_big |= (1 << i);
+            g_thread_affinity_mask_big |= (1ul << i);
     }
 #else
     // TODO implement me for other platforms
@@ -472,7 +474,7 @@ int set_cpu_thread_affinity(size_t thread_affinity_mask)
     int num_threads = 0;
     for (int i=0; i<(int)sizeof(size_t) * 8; i++)
     {
-        if (thread_affinity_mask & (1 << i))
+        if (thread_affinity_mask & (1ul << i))
             num_threads++;
     }
 
