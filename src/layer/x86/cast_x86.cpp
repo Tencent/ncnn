@@ -60,7 +60,7 @@ typedef union m256i
 //     return _mm256_castsi256_ps(ab);
 // }
 
-// #endif //NCNN_AVX2
+#endif //NCNN_AVX2
 
 DEFINE_LAYER_CREATOR(Cast_x86)
 
