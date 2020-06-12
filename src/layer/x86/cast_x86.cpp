@@ -205,7 +205,7 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             int remain = size & 7;
             for (; nn>0; nn--)
             {
-                _mm256_store_ps(outptr,bfloat2float_avx(_mm_lddqu_si128((__m128i*)ptr)));
+                _mm256_storeu_ps(outptr,bfloat2float_avx(_mm_lddqu_si128 ((__m128i const*)ptr)));
                 ptr += 8;
                 outptr += 8;
             }
