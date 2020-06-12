@@ -19,7 +19,7 @@ namespace ncnn {
 #if NCNN_AVX2
 #include <emmintrin.h>
 #include <immintrin.h>
-
+#include "avx_mathfun.h"
 typedef union m128i
 {
     __m128i vec;
@@ -31,22 +31,24 @@ typedef union m256i
     __m256i  vec;
     uint32_t m256i_u32[8];
 } m256;
+#ifdef __AVX2__
 static inline __m256i float2bfloat_avx(__m256 v0, __m256 v1)
 {
     __m256i a = _mm256_castps_si256(v0);
-    a = _mm256_srli_epi32(a,16);
+    a = _avx_mm256_srli_epi32(a,16);
     __m256i b = _mm256_castps_si256(v1);
-    b = _mm256_srli_epi32(b,16);
+    b = _avx_mm256_srli_epi32(b,16);
     __m256i abab = _mm256_packus_epi32(a,b);
     return _mm256_permutevar8x32_epi32(abab, _mm256_setr_epi32(0,1, 4,5, 2,3, 6,7));
 }
 static inline  __m128i float2bfloat_avx(__m256 v0)
 {
     __m256i a = _mm256_castps_si256(v0);
-    a = _mm256_srli_epi32(a,16);
+    a = _avx_mm256_srli_epi32(a,16);
     __m256i aaaa = _mm256_packus_epi32(a,a);
     return _mm256_castsi256_si128(_mm256_permutevar8x32_epi32(aaaa, _mm256_setr_epi32(0,1, 4,5, 2,3, 6,7)));
-    }
+}
+#endif
 static inline  __m256 bfloat2float_avx(__m128i v0)
 {
     __m128i zero = _mm_set1_epi32(0);
@@ -190,6 +192,34 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             }
         }
     }
+    if (type_from == 4 && type_to == 1)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            const unsigned short* ptr = bottom_blob.channel(q);
+            float* outptr = top_blob.channel(q);
+
+            
+            int nn = size >> 3;
+            int remain = size & 7;
+            for (; nn>0; nn--)
+            {
+                _mm256_store_ps(outptr,bfloat2float_avx(_mm_lddqu_si128((__m128i*)ptr)));
+                ptr += 8;
+                outptr += 8;
+            }
+
+            for (; remain>0; remain--)
+            {
+                *outptr = bfloat16_to_float32(*ptr);
+                outptr++;
+                ptr++;
+            }
+        }
+    }
+
+    #ifdef __AVX2__
     if (type_from == 1 && type_to == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -220,32 +250,14 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             }
         }
     }
-    if (type_from == 4 && type_to == 1)
+    #else
+    if (type_from == 1 && type_to == 4)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
-            const unsigned short* ptr = bottom_blob.channel(q);
-            float* outptr = top_blob.channel(q);
-
-            
-            int nn = size >> 3;
-            int remain = size & 7;
-            for (; nn>0; nn--)
-            {
-                _mm256_store_ps(outptr,bfloat2float_avx(_mm_lddqu_si128((__m128i*)ptr)));
-                ptr += 8;
-                outptr += 8;
-            }
-
-            for (; remain>0; remain--)
-            {
-                *outptr = bfloat16_to_float32(*ptr);
-                outptr++;
-                ptr++;
-            }
-        }
+         return Cast::forward(bottom_blob, top_blob, opt);
     }
+
+    #endif
+    
 
     return 0;
 #else //NCNN_AVX2

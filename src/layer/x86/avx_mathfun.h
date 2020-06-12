@@ -88,7 +88,6 @@ _PS256_CONST(cephes_log_q1, -2.12194440e-4);
 _PS256_CONST(cephes_log_q2, 0.693359375);
 
 #ifndef __AVX2__
-
 typedef union imm_xmm_union {
   v8si imm;
   v4si xmm[2];
@@ -108,7 +107,7 @@ typedef union imm_xmm_union {
 
 
 #define AVX2_BITOP_USING_SSE2(fn) \
-static inline v8si _mm256_##fn(v8si x, int a) \
+static inline v8si _avx_mm256_##fn(v8si x, int a) \
 { \
   /* use SSE2 instruction to perform the bitop AVX2 */ \
   v4si x1, x2; \
@@ -125,7 +124,7 @@ AVX2_BITOP_USING_SSE2(slli_epi32)
 AVX2_BITOP_USING_SSE2(srli_epi32)
 
 #define AVX2_INTOP_USING_SSE2(fn) \
-static inline v8si _mm256_##fn(v8si x, v8si y) \
+static inline v8si _avx_mm256_##fn(v8si x, v8si y) \
 { \
   /* use SSE2 instructions to perform the AVX2 integer operation */ \
   v4si x1, x2; \
@@ -145,7 +144,31 @@ AVX2_INTOP_USING_SSE2(andnot_si128)
 AVX2_INTOP_USING_SSE2(cmpeq_epi32)
 AVX2_INTOP_USING_SSE2(sub_epi32)
 AVX2_INTOP_USING_SSE2(add_epi32)
+#else
 
+
+#define AVX2_BITOP_USING_SSE2(fn) \
+static inline v8si _avx_mm256_##fn(v8si x, int a) \
+{ \
+  return(_mm256_##fn(x,a);); \
+}
+
+#warning "Using SSE2 to perform AVX2 bitshift ops"
+AVX2_BITOP_USING_SSE2(slli_epi32)
+AVX2_BITOP_USING_SSE2(srli_epi32)
+
+#define AVX2_INTOP_USING_SSE2(fn) \
+static inline v8si _avx_mm256_##fn(v8si x, v8si y) \
+{ \
+  return(_mm256_##fn(x,y)); \
+}
+
+#warning "Using SSE2 to perform AVX2 integer ops"
+AVX2_INTOP_USING_SSE2(and_si128)
+AVX2_INTOP_USING_SSE2(andnot_si128)
+AVX2_INTOP_USING_SSE2(cmpeq_epi32)
+AVX2_INTOP_USING_SSE2(sub_epi32)
+AVX2_INTOP_USING_SSE2(add_epi32)
 #endif /* __AVX2__ */
 
 
@@ -162,14 +185,14 @@ v8sf log256_ps(v8sf x) {
   x = _mm256_max_ps(x, *(v8sf*)_ps256_min_norm_pos);  /* cut off denormalized stuff */
 
   // can be done with AVX2
-  imm0 = _mm256_srli_epi32(_mm256_castps_si256(x), 23);
+  imm0 = _avx_mm256_srli_epi32(_mm256_castps_si256(x), 23);
 
   /* keep only the fractional part */
   x = _mm256_and_ps(x, *(v8sf*)_ps256_inv_mant_mask);
   x = _mm256_or_ps(x, *(v8sf*)_ps256_0p5);
 
   // this is again another AVX2 instruction
-  imm0 = _mm256_sub_epi32(imm0, *(v8si*)_pi32_256_0x7f);
+  imm0 = _avx_mm256_sub_epi32(imm0, *(v8si*)_pi32_256_0x7f);
   v8sf e = _mm256_cvtepi32_ps(imm0);
 
   e = _mm256_add_ps(e, one);
@@ -287,8 +310,8 @@ v8sf exp256_ps(v8sf x) {
   /* build 2^n */
   imm0 = _mm256_cvttps_epi32(fx);
   // another two AVX2 instructions
-  imm0 = _mm256_add_epi32(imm0, *(v8si*)_pi32_256_0x7f);
-  imm0 = _mm256_slli_epi32(imm0, 23);
+  imm0 = _avx_mm256_add_epi32(imm0, *(v8si*)_pi32_256_0x7f);
+  imm0 = _avx_mm256_slli_epi32(imm0, 23);
   v8sf pow2n = _mm256_castsi256_ps(imm0);
   y = _mm256_mul_ps(y, pow2n);
   return y;
@@ -347,7 +370,7 @@ v8sf sin256_ps(v8sf x) { // any x
   imm2 = _mm256_cvttps_epi32(y);
   /* j=(j+1) & (~1) (see the cephes sources) */
   // another two AVX2 instruction
-  imm2 = _mm256_add_epi32(imm2, *(v8si*)_pi32_256_1);
+  imm2 = _avx_mm256_add_epi32(imm2, *(v8si*)_pi32_256_1);
   imm2 = _mm256_and_si128(imm2, *(v8si*)_pi32_256_inv1);
   y = _mm256_cvtepi32_ps(imm2);
 
@@ -464,10 +487,10 @@ v8sf cos256_ps(v8sf x) { // any x
   /* store the integer part of y in mm0 */
   imm2 = _mm256_cvttps_epi32(y);
   /* j=(j+1) & (~1) (see the cephes sources) */
-  imm2 = _mm256_add_epi32(imm2, *(v8si*)_pi32_256_1);
+  imm2 = _avx_mm256_add_epi32(imm2, *(v8si*)_pi32_256_1);
   imm2 = _mm256_and_si128(imm2, *(v8si*)_pi32_256_inv1);
   y = _mm256_cvtepi32_ps(imm2);
-  imm2 = _mm256_sub_epi32(imm2, *(v8si*)_pi32_256_2);
+  imm2 = _avx_avx_mm256_sub_epi32(imm2, *(v8si*)_pi32_256_2);
   
   /* get the swap sign flag */
   imm0 = _mm256_andnot_si128(imm2, *(v8si*)_pi32_256_4);
@@ -587,7 +610,7 @@ void sincos256_ps(v8sf x, v8sf *s, v8sf *c) {
   imm2 = _mm256_cvttps_epi32(y);
 
   /* j=(j+1) & (~1) (see the cephes sources) */
-  imm2 = _mm256_add_epi32(imm2, *(v8si*)_pi32_256_1);
+  imm2 = _avx_avx_mm256_add_epi32(imm2, *(v8si*)_pi32_256_1);
   imm2 = _mm256_and_si128(imm2, *(v8si*)_pi32_256_inv1);
 
   y = _mm256_cvtepi32_ps(imm2);
@@ -650,7 +673,7 @@ void sincos256_ps(v8sf x, v8sf *s, v8sf *c) {
   x = _mm256_add_ps(x, xmm3);
 
 #ifdef __AVX2__
-  imm4 = _mm256_sub_epi32(imm4, *(v8si*)_pi32_256_2);
+  imm4 = _avx_mm256_sub_epi32(imm4, *(v8si*)_pi32_256_2);
   imm4 = _mm256_andnot_si128(imm4, *(v8si*)_pi32_256_4);
   imm4 = _mm256_slli_epi32(imm4, 29);
 #else
