@@ -304,6 +304,12 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
 
     if (dims == 3)
     {
+        if (_woffset == 0 && _hoffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outc == bottom_blob.c * elempack)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
         int offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
 
         int out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
@@ -433,6 +439,12 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     if (dims == 3)
     {
+        if (_woffset == 0 && _hoffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outc == bottom_blob.c * elempack)
+        {
+            top_blobs[0] = bottom_blob;
+            return 0;
+        }
+
         int offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
 
         int out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
@@ -554,6 +566,12 @@ int Crop_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
 
     if (dims == 3)
     {
+        if (_woffset == 0 && _hoffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outc == bottom_blob.c * elempack)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
         int offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
 
         int out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
@@ -683,6 +701,12 @@ int Crop_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
 
     if (dims == 3)
     {
+        if (_woffset == 0 && _hoffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outc == bottom_blob.c * elempack)
+        {
+            top_blobs[0] = bottom_blob;
+            return 0;
+        }
+
         int offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
 
         int out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
