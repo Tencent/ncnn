@@ -340,6 +340,115 @@ gpu_device = 0
     mobilenet_yolov3  min =  249.49  max =  250.87  avg =  249.94
 ```
 
+Qualcomm SDM660 Snapdragon 660 (Kyro260 2.2GHz x 4 + Kyro260 1.84GHz x 4 + Adreno 512)
+```
+lavender:/data/local/tmp/ncnnbench $ ./benchncnn 8 8 0 -1 1
+[0 Adreno (TM) 512]  queueC=0[3]  queueG=0[3]  queueT=0[3]
+[0 Adreno (TM) 512]  buglssc=0  bugsbn1=1  buglbia=0  bugihfa=0
+[0 Adreno (TM) 512]  fp16p=1  fp16s=0  fp16a=0  int8s=0  int8a=0
+loop_count = 8
+num_threads = 8
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =   29.05  max =   44.86  avg =   33.26
+     squeezenet_int8  min =   35.47  max =   37.10  avg =   36.09
+           mobilenet  min =   31.59  max =   33.47  avg =   32.33
+      mobilenet_int8  min =   77.50  max =   91.15  avg =   82.98
+        mobilenet_v2  min =   33.63  max =   35.43  avg =   34.54
+        mobilenet_v3  min =   29.97  max =   49.80  avg =   34.81
+          shufflenet  min =   28.52  max =   30.09  avg =   29.09
+       shufflenet_v2  min =   19.15  max =   21.15  avg =   19.99
+             mnasnet  min =   29.91  max =   35.11  avg =   31.46
+     proxylessnasnet  min =   33.28  max =  117.09  avg =   55.22
+     efficientnet_b0  min =   52.29  max =   57.93  avg =   55.04
+        regnety_400m  min =   96.05  max =  116.42  avg =  102.07
+           blazeface  min =    7.98  max =   11.83  avg =    8.89
+           googlenet  min =   76.88  max =  103.99  avg =   84.54
+      googlenet_int8  min =   97.68  max =  118.56  avg =  104.92
+            resnet18  min =   75.93  max =   89.31  avg =   80.00
+       resnet18_int8  min =   73.27  max =   80.84  avg =   76.19
+             alexnet  min =   90.94  max =  114.57  avg =   96.42
+               vgg16  min =  381.30  max =  615.62  avg =  555.96
+          vgg16_int8  min =  803.75  max = 1126.53  avg =  886.03
+            resnet50  min =  257.38  max =  285.19  avg =  266.59
+       resnet50_int8  min =  304.81  max =  338.01  avg =  314.84
+      squeezenet_ssd  min =  117.59  max =  145.79  avg =  123.79
+ squeezenet_ssd_int8  min =  132.80  max =  163.00  avg =  149.99
+       mobilenet_ssd  min =  103.98  max =  126.90  avg =  113.10
+  mobilenet_ssd_int8  min =  167.86  max =  188.46  avg =  180.56
+      mobilenet_yolo  min =  201.75  max =  263.92  avg =  240.17
+  mobilenetv2_yolov3  min =  143.76  max =  167.77  avg =  151.94
+  
+lavender:/data/local/tmp/ncnnbench $ ./benchncnn 4 1 2 -1 1
+[0 Adreno (TM) 512]  queueC=0[3]  queueG=0[3]  queueT=0[3]
+[0 Adreno (TM) 512]  buglssc=0  bugsbn1=1  buglbia=0  bugihfa=0
+[0 Adreno (TM) 512]  fp16p=1  fp16s=0  fp16a=0  int8s=0  int8a=0
+loop_count = 4
+num_threads = 1
+powersave = 2
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =   69.75  max =   71.33  avg =   70.38
+     squeezenet_int8  min =   67.12  max =   68.07  avg =   67.59
+           mobilenet  min =  107.65  max =  110.48  avg =  108.82
+      mobilenet_int8  min =  163.13  max =  164.74  avg =  164.24
+        mobilenet_v2  min =   75.50  max =   77.36  avg =   76.38
+        mobilenet_v3  min =   59.05  max =   59.36  avg =   59.23
+          shufflenet  min =   38.33  max =   38.74  avg =   38.57
+       shufflenet_v2  min =   37.43  max =   38.97  avg =   38.32
+             mnasnet  min =   69.29  max =   73.20  avg =   70.73
+     proxylessnasnet  min =   80.81  max =   82.66  avg =   81.52
+     efficientnet_b0  min =  151.20  max =  152.38  avg =  151.72
+        regnety_400m  min =   93.53  max =   94.53  avg =   94.19
+           blazeface  min =   12.15  max =   12.82  avg =   12.46
+           googlenet  min =  239.63  max =  242.64  avg =  241.06
+      googlenet_int8  min =  214.71  max =  216.53  avg =  215.79
+            resnet18  min =  234.20  max =  238.74  avg =  236.90
+       resnet18_int8  min =  181.57  max =  183.97  avg =  182.66
+             alexnet  min =  205.94  max =  207.44  avg =  206.63
+               vgg16  min = 1188.14  max = 1201.95  avg = 1196.93
+          vgg16_int8  min = 1081.21  max = 1087.84  avg = 1085.17
+            resnet50  min =  556.54  max =  566.68  avg =  561.21
+       resnet50_int8  min =  433.19  max =  433.93  avg =  433.48
+      squeezenet_ssd  min =  169.02  max =  170.54  avg =  169.73
+ squeezenet_ssd_int8  min =  176.28  max =  177.90  avg =  176.87
+       mobilenet_ssd  min =  228.15  max =  232.69  avg =  230.38
+  mobilenet_ssd_int8  min =  236.97  max =  239.69  avg =  238.35
+      mobilenet_yolo  min =  493.33  max =  506.34  avg =  499.79
+  mobilenetv2_yolov3  min =  252.53  max =  261.58  avg =  256.30
+
+lavender:/data/local/tmp/ncnnbench $ ./benchncnn 4 1 2 0 1
+[0 Adreno (TM) 512]  queueC=0[3]  queueG=0[3]  queueT=0[3]
+[0 Adreno (TM) 512]  buglssc=0  bugsbn1=1  buglbia=0  bugihfa=0
+[0 Adreno (TM) 512]  fp16p=1  fp16s=0  fp16a=0  int8s=0  int8a=0
+loop_count = 4
+num_threads = 1
+powersave = 2
+gpu_device = 0
+cooling_down = 1
+          squeezenet  min =   34.49  max =   34.65  avg =   34.55
+           mobilenet  min =   54.45  max =   55.52  avg =   54.75
+        mobilenet_v2  min =   39.32  max =   39.58  avg =   39.50
+        mobilenet_v3  min =   36.13  max =   36.28  avg =   36.19
+          shufflenet  min =   35.25  max =   35.42  avg =   35.31
+       shufflenet_v2  min =   31.38  max =   31.70  avg =   31.53
+             mnasnet  min =   40.95  max =   41.32  avg =   41.13
+     proxylessnasnet  min =   43.81  max =   44.05  avg =   43.90
+     efficientnet_b0  min =   68.34  max =   68.56  avg =   68.47
+        regnety_400m  min =   53.89  max =   54.23  avg =   54.02
+           blazeface  min =   19.82  max =   27.74  avg =   22.01
+           googlenet  min =  119.46  max =  119.98  avg =  119.80
+            resnet18  min =  115.56  max =  120.28  avg =  116.88
+             alexnet  min =  102.06  max =  105.56  avg =  102.97
+               vgg16  min = 1192.29  max = 1202.17  avg = 1197.03
+            resnet50  min =  294.87  max =  298.79  avg =  296.05
+      squeezenet_ssd  min =  167.85  max =  168.42  avg =  168.09
+       mobilenet_ssd  min =  120.30  max =  120.37  avg =  120.34
+      mobilenet_yolo  min =  256.60  max =  260.21  avg =  257.54
+  mobilenetv2_yolov3  min =  121.48  max =  125.22  avg =  122.53
+```
+
 Qualcomm MSM8996 Snapdragon 820 (Kyro 2.15GHz x 2 + Kyro 1.6GHz x 2)
 ```
 root@msm8996:/data/local/tmp/ncnn # ./benchncnn 8 4 0
