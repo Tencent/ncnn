@@ -231,14 +231,14 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     //         int remain = size & 15;
     //         for (; nn>0; nn--)
     //         {
-    //             _mm256_store_si256((__m256i *) outptr,float2bfloat_avx(_mm256_load_ps(ptr),_mm256_load_ps(ptr+8)));
+    //             _mm256_storeu_si256((__m256i *) outptr,float2bfloat_avx(_mm256_loadu_ps(ptr),_mm256_loadu_ps(ptr+8)));
     //             ptr += 16;
     //             outptr += 16;
     //         }            
     //         if(remain >= 8)
     //         {
     //             remain -= 8;
-    //             _mm_store_si128((__m128i *) outptr,float2bfloat_avx(_mm256_load_ps(ptr)));
+    //             _mm_store_si128((__m128i *) outptr,float2bfloat_avx(_mm256_loadu_ps(ptr)));
     //             ptr += 8;
     //             outptr += 8;
     //         }
@@ -255,11 +255,6 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     {
          return Cast::forward(bottom_blob, top_blob, opt);
     }
-    if (type_from == 4 && type_to == 1)
-    {
-         return Cast::forward(bottom_blob, top_blob, opt);
-    }
-
     // #endif
     
 
