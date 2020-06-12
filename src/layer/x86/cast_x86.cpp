@@ -40,25 +40,22 @@ static inline  __m256 bfloat2float_avx(__m128i v0)
     ab = _mm256_insertf128_si256(ab,b,1);  // insert in high 128-bit lane
     return _mm256_castsi256_ps(ab);
 }
-// #ifdef __AVX2__
-// static inline __m256i float2bfloat_avx(__m256 v0, __m256 v1)
-// {
-//     __m256i a = _mm256_castps_si256(v0);
-//     a = _avx_mm256_srli_epi32(a,16);
-//     __m256i b = _mm256_castps_si256(v1);
-//     b = _avx_mm256_srli_epi32(b,16);
-//     __m256i abab = _mm256_packus_epi32(a,b);
-//     return _mm256_permutevar8x32_epi32(abab, _mm256_setr_epi32(0,1, 4,5, 2,3, 6,7));
-// }
-// static inline  __m128i float2bfloat_avx(__m256 v0)
-// {
-//     __m256i a = _mm256_castps_si256(v0);
-//     a = _avx_mm256_srli_epi32(a,16);
-//     __m256i aaaa = _mm256_packus_epi32(a,a);
-//     return _mm256_castsi256_si128(_mm256_permutevar8x32_epi32(aaaa, _mm256_setr_epi32(0,1, 4,5, 2,3, 6,7)));
-// }
-// #endif
-
+static inline __m256i float2bfloat_avx(__m256 v0, __m256 v1)
+{
+    __m256i a = _mm256_castps_si256(v0);
+    a = _mm256_srli_epi32(a,16);
+    __m256i b = _mm256_castps_si256(v1);
+    b = _mm256_srli_epi32(b,16);
+    __m256i abab = _mm256_packus_epi32(a,b);
+    return _mm256_permutevar8x32_epi32(abab, _mm256_setr_epi32(0,1, 4,5, 2,3, 6,7));
+}
+static inline  __m128i float2bfloat_avx(__m256 v0)
+{
+    __m256i a = _mm256_castps_si256(v0);
+    a = _mm256_srli_epi32(a,16);
+    __m256i aaaa = _mm256_packus_epi32(a,a);
+    return _mm256_castsi256_si128(_mm256_permutevar8x32_epi32(aaaa, _mm256_setr_epi32(0,1, 4,5, 2,3, 6,7)));
+}
 
 #endif //NCNN_AVX2
 
@@ -218,44 +215,37 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             }
         }
     }
-
-    // #ifdef __AVX2__
-    // if (type_from == 1 && type_to == 4)
-    // {
-    //     #pragma omp parallel for num_threads(opt.num_threads)
-    //     for (int q=0; q<channels; q++)
-    //     {
-    //         const float* ptr = bottom_blob.channel(q);
-    //         unsigned short* outptr = top_blob.channel(q);
-    //         int nn = size >> 4;
-    //         int remain = size & 15;
-    //         for (; nn>0; nn--)
-    //         {
-    //             _mm256_storeu_si256((__m256i *) outptr,float2bfloat_avx(_mm256_loadu_ps(ptr),_mm256_loadu_ps(ptr+8)));
-    //             ptr += 16;
-    //             outptr += 16;
-    //         }            
-    //         if(remain >= 8)
-    //         {
-    //             remain -= 8;
-    //             _mm_store_si128((__m128i *) outptr,float2bfloat_avx(_mm256_loadu_ps(ptr)));
-    //             ptr += 8;
-    //             outptr += 8;
-    //         }
-    //         for (; remain>0; remain--)
-    //         {
-    //             *outptr = float32_to_bfloat16(*ptr);
-    //             outptr++;
-    //             ptr++;
-    //         }
-    //     }
-    // }
-    // #else
     if (type_from == 1 && type_to == 4)
     {
-         return Cast::forward(bottom_blob, top_blob, opt);
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q=0; q<channels; q++)
+        {
+            const float* ptr = bottom_blob.channel(q);
+            unsigned short* outptr = top_blob.channel(q);
+            int nn = size >> 4;
+            int remain = size & 15;
+            for (; nn>0; nn--)
+            {
+                _mm256_storeu_si256((__m256i *) outptr,float2bfloat_avx(_mm256_loadu_ps(ptr),_mm256_loadu_ps(ptr+8)));
+                ptr += 16;
+                outptr += 16;
+            }            
+            if(remain >= 8)
+            {
+                remain -= 8;
+                _mm_store_si128((__m128i *) outptr,float2bfloat_avx(_mm256_loadu_ps(ptr)));
+                ptr += 8;
+                outptr += 8;
+            }
+            for (; remain>0; remain--)
+            {
+                *outptr = float32_to_bfloat16(*ptr);
+                outptr++;
+                ptr++;
+            }
+        }
     }
-    // #endif
+   
     
 
     return 0;
