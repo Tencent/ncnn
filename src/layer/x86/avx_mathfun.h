@@ -53,7 +53,7 @@ _PI32AVX_CONST(4, 4);
 #define _PS256_CONST(Name, Val)                                            \
   static const ALIGN32_BEG float _ps256_##Name[8] ALIGN32_END = { Val, Val, Val, Val, Val, Val, Val, Val }
 #define _PI32_CONST256(Name, Val)                                            \
-  static const ALIGN32_BEG int _pi32_256_##Name[8] ALIGN32_END = { Val, Val, Val, Val, Val, Val, Val, Val }
+  static const ALIGN32_BEG unsigned int _pi32_256_##Name[8] ALIGN32_END = { Val, Val, Val, Val, Val, Val, Val, Val }
 #define _PS256_CONST_TYPE(Name, Type, Val)                                 \
   static const ALIGN32_BEG Type _ps256_##Name[8] ALIGN32_END = { Val, Val, Val, Val, Val, Val, Val, Val }
 
