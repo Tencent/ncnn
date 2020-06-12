@@ -2722,14 +2722,15 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
 
     custom_defines.push_back(std::make_pair("psc(x)", "(x==0?p.x:x)"));
 
-    if (opt.use_fp16_packed)
-    {
-        custom_defines.push_back(std::make_pair("NCNN_fp16_packed", "1"));
-    }
     if (opt.use_fp16_storage)
     {
         custom_defines.push_back(std::make_pair("NCNN_fp16_storage", "1"));
     }
+    else if (opt.use_fp16_packed)
+    {
+        custom_defines.push_back(std::make_pair("NCNN_fp16_packed", "1"));
+    }
+
     if (opt.use_fp16_arithmetic)
     {
         custom_defines.push_back(std::make_pair("NCNN_fp16_arithmetic", "1"));
