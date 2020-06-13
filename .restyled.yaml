@@ -1,0 +1,14 @@
+# See https://github.com/restyled-io/restyled.io/wiki/Configuring-Restyled
+
+enabled: true
+
+pull_requests: true
+
+statuses:
+  differences: true
+  no_differences: true
+  error: true
+
+restylers:
+  - name: astyle
+    arguments: ["-n -r \"benchmark/*.h,*.cpp\" \"src/*.h,*.cpp\" \"tests/*.h,*.cpp\" \"tools/*.h,*.cpp\""]
