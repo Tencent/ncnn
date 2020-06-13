@@ -124,5 +124,5 @@ Standard: Cpp03
 #StatementMacros:
 TabWidth: 4
 # TypenameMacros:
-UseCRLF: false
+# UseCRLF: false
 UseTab: Never
