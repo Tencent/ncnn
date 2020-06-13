@@ -10,6 +10,12 @@ statuses:
   error: true
 
 restylers:
+  - name: clang-format
+    include:
+      - "**/*.h"
+      - "**/*.cpp"
+      - "!/glslang/*"
+
   - name: astyle
     include:
       - "**/*.h"
