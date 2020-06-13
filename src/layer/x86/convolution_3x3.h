@@ -211,13 +211,13 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
 
         bottom_blob_tm.create(4 * 4, tiles, inch, 4u, opt.workspace_allocator);
 
-// BT
-// const float itm[4][4] = {
-//     {1.0f,  0.0f, -1.0f,  0.0f},
-//     {0.0f,  1.0f,  1.00f, 0.0f},
-//     {0.0f, -1.0f,  1.00f, 0.0f},
-//     {0.0f, -1.0f,  0.00f, 1.0f}
-// };
+        // BT
+        // const float itm[4][4] = {
+        //     {1.0f,  0.0f, -1.0f,  0.0f},
+        //     {0.0f,  1.0f,  1.00f, 0.0f},
+        //     {0.0f, -1.0f,  1.00f, 0.0f},
+        //     {0.0f, -1.0f,  0.00f, 1.0f}
+        // };
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < inch; q++) {
             const float* img = bottom_blob_bordered.channel(q);

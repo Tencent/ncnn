@@ -117,7 +117,7 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     float bin_size_h = roi_h / (float)pooled_height;
 
     if (version == 0) {
-// original version
+        // original version
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++) {
             const float* ptr = bottom_blob.channel(q);

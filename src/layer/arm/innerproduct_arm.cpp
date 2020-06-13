@@ -18,10 +18,10 @@
 
 #if __ARM_NEON
 #include "neon_mathfun.h"
+#include "neon_activation.h"
 
 #include <arm_neon.h>
 #endif // __ARM_NEON
-#include "neon_activation.h"
 
 namespace ncnn {
 
@@ -249,7 +249,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         top_blob[p + 3] = sum3;
     }
 
-// num_output
+    // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++) {
         float sum = 0.f;
@@ -521,7 +521,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
         outptr[3] = float32_to_bfloat16(sum3);
     }
 
-// num_output
+    // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++) {
         float sum = 0.f;

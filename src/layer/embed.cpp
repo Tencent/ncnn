@@ -59,7 +59,7 @@ int Embed::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) con
     if (top_blob.empty())
         return -100;
 
-// num_output
+    // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < words; q++) {
         float* outptr = top_blob.row(q);

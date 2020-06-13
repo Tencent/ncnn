@@ -72,7 +72,7 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
         }
         mean = mean / (channels * size);
 
-// subtract mean
+        // subtract mean
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++) {
             const float* ptr = bottom_blob.channel(q);
@@ -84,7 +84,7 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
         }
     }
     else {
-// subtract mean
+        // subtract mean
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++) {
             const float* ptr = bottom_blob.channel(q);
@@ -127,7 +127,7 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
             float norm_var = static_cast<float>(sqrt(sqmean) + eps);
             float norm_var_inv = 1.f / norm_var;
 
-// apply normalize_variance
+            // apply normalize_variance
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++) {
                 float* outptr = top_blob.channel(q);
@@ -138,7 +138,7 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
             }
         }
         else {
-// apply normalize_variance
+            // apply normalize_variance
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++) {
                 float* outptr = top_blob.channel(q);

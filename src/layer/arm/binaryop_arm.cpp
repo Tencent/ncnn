@@ -189,7 +189,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             return -100;
 
         if (b.dims == 2) {
-// type 18
+            // type 18
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++) {
                 const float* ptr = a.channel(q);
@@ -234,7 +234,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 return 0;
             }
 
-// type 17
+            // type 17
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++) {
                 const float* ptr = a.channel(q);
@@ -854,7 +854,7 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
             return -100;
 
         if (b.dims == 2) {
-// type 18
+            // type 18
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++) {
                 const unsigned short* ptr = a.channel(q);
@@ -899,7 +899,7 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                 return 0;
             }
 
-// type 17
+            // type 17
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++) {
                 const unsigned short* ptr = a.channel(q);
@@ -1315,7 +1315,7 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
             return -100;
 
         if (b.dims == 2) {
-// type 18
+            // type 18
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++) {
                 const unsigned short* ptr = a.channel(q);
@@ -1353,7 +1353,7 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 return 0;
             }
 
-// type 17
+            // type 17
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++) {
                 const unsigned short* ptr = a.channel(q);

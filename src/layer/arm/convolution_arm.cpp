@@ -19,8 +19,8 @@
 #include "layer_type.h"
 
 #if __ARM_NEON
-#include "neon_activation.h"
 #include "neon_mathfun.h"
+#include "neon_activation.h"
 
 #include <arm_neon.h>
 #endif // __ARM_NEON
@@ -519,7 +519,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
         }
         else {
-// num_output
+            // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++) {
                 float* outptr = top_blob.channel(p);
@@ -598,7 +598,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
         }
         else {
-// num_output
+            // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++) {
                 float* outptr = top_blob.channel(p);
@@ -665,7 +665,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
         }
         else {
-// num_output
+            // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++) {
                 float* outptr = top_blob.channel(p);
@@ -820,7 +820,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
         }
         else {
-// num_output
+            // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++) {
                 float* outptr = top_blob.channel(p);
@@ -1164,7 +1164,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
             }
         }
         else {
-// num_output
+            // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++) {
                 unsigned short* outptr = top_blob.channel(p);
@@ -1242,7 +1242,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
             }
         }
         else {
-// num_output
+            // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++) {
                 unsigned short* outptr = top_blob.channel(p);
@@ -1308,7 +1308,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
             }
         }
         else {
-// num_output
+            // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++) {
                 unsigned short* outptr = top_blob.channel(p);
@@ -1365,7 +1365,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
             }
         }
         else {
-// num_output
+            // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++) {
                 unsigned short* outptr = top_blob.channel(p);
@@ -1539,7 +1539,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
             conv_im2col_sgemm_int8_neon(bottom_blob_bordered, top_blob_tm, weight_sgemm_data_int8, kernel_w, kernel_h, stride_w, stride_h, opt);
         }
 
-// requantize, reverse scale inplace
+        // requantize, reverse scale inplace
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output; p++) {
             Option opt_g = opt;
@@ -1576,7 +1576,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
             conv_im2col_sgemm_int8_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_int8, kernel_w, kernel_h, stride_w, stride_h, opt);
         }
 
-// dequantize, reverse scale inplace
+        // dequantize, reverse scale inplace
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output; p++) {
             Option opt_g = opt;

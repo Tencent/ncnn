@@ -17,8 +17,8 @@
 #include "layer_type.h"
 
 #if __ARM_NEON
-#include "neon_activation.h"
 #include "neon_mathfun.h"
+#include "neon_activation.h"
 
 #include <arm_neon.h>
 #endif // __ARM_NEON
@@ -752,7 +752,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
 
         const int channels_g = channels / group;
 
-// quantize, scale and round to nearest
+        // quantize, scale and round to nearest
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++) {
             Option opt_g = opt;
@@ -832,7 +832,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                 convdw3x3s1_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
                 //                 convdw3x3s1_int8_dequant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);
 
-// dequantize, reverse scale inplace
+                // dequantize, reverse scale inplace
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g = 0; g < group; g++) {
                     // dequantize and relu
@@ -860,7 +860,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                 convdw3x3s2_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
                 //                 convdw3x3s2_int8_dequant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);
 
-// dequantize, reverse scale inplace
+                // dequantize, reverse scale inplace
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g = 0; g < group; g++) {
                     // dequantize and relu

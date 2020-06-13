@@ -116,7 +116,7 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         }
     }
 
-// num_output
+    // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < num_output; p++) {
         Mat out = top_blob_bordered.channel(p);

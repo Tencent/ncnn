@@ -392,7 +392,7 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
 
         const int channels_g = channels / group;
 
-// quantize, scale and round to nearest
+        // quantize, scale and round to nearest
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++) {
             Option opt_g = opt;

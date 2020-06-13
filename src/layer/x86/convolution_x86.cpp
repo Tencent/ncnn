@@ -27,14 +27,14 @@
 
 namespace ncnn {
 
+#include "convolution_sgemm.h"
+#include "convolution_sgemm_int8.h"
 #include "convolution_1x1.h"
 #include "convolution_1x1_int8.h"
 #include "convolution_3x3.h"
 #include "convolution_3x3_int8.h"
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
-#include "convolution_sgemm.h"
-#include "convolution_sgemm_int8.h"
 
 DEFINE_LAYER_CREATOR(Convolution_x86)
 
@@ -325,7 +325,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
             conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data_int8, opt);
             //             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data_int8, opt);
 
-// requantize, reverse scale inplace
+            // requantize, reverse scale inplace
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++) {
                 Option opt_g = opt;
@@ -370,7 +370,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
             conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data_int8, opt);
             //             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data_int8, opt);
 
-// dequantize, reverse scale inplace
+            // dequantize, reverse scale inplace
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++) {
                 Option opt_g = opt;

@@ -17,8 +17,8 @@
 #include "layer_type.h"
 
 #if __ARM_NEON
-#include "neon_activation.h"
 #include "neon_mathfun.h"
+#include "neon_activation.h"
 
 #include <arm_neon.h>
 #endif // __ARM_NEON
@@ -291,7 +291,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
 #if __ARM_NEON
     if (elempack == 4 && out_elempack == 4) {
-// num_output
+        // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++) {
             float* outptr = top_blob_bordered.channel(p);
@@ -367,7 +367,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     }
 
     if (elempack == 1 && out_elempack == 4) {
-// num_output
+        // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++) {
             float* outptr = top_blob_bordered.channel(p);
@@ -430,7 +430,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     }
 
     if (elempack == 4 && out_elempack == 1) {
-// num_output
+        // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++) {
             float* outptr = top_blob_bordered.channel(p);
@@ -530,7 +530,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             }
         }
         else {
-// num_output
+            // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++) {
                 float* outptr = top_blob_bordered.channel(p);

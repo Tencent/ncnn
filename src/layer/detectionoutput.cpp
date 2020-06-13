@@ -194,7 +194,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     all_class_bbox_rects.resize(num_class_copy);
     all_class_bbox_scores.resize(num_class_copy);
 
-// start from 1 to ignore background class
+    // start from 1 to ignore background class
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 1; i < num_class_copy; i++) {
         // filter by confidence_threshold
