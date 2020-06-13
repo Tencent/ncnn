@@ -12,3 +12,5 @@ statuses:
 restylers:
   - clang-format
   - astyle
+  - clang-format
+  - astyle
