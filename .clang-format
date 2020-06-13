@@ -10,7 +10,7 @@ AlignTrailingComments: true
 AllowAllArgumentsOnNextLine: true
 AllowAllConstructorInitializersOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
-AllowShortBlocksOnASingleLine: Always
+# AllowShortBlocksOnASingleLine: Always
 AllowShortCaseLabelsOnASingleLine: true
 # AllowShortEnumsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: None
