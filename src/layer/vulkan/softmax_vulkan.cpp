@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "softmax_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -315,102 +317,102 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
 
     // reduce max
     {
-    std::vector<VkMat> bindings(2);
-    bindings[0] = bottom_top_blob;
-    bindings[1] = max_workspace;
+        std::vector<VkMat> bindings(2);
+        bindings[0] = bottom_top_blob;
+        bindings[1] = max_workspace;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_top_blob.dims;
-    constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
-    constants[3].i = bottom_top_blob.c;
-    constants[4].i = bottom_top_blob.cstep;
-    constants[5].i = max_workspace.dims;
-    constants[6].i = max_workspace.w;
-    constants[7].i = max_workspace.h;
-    constants[8].i = max_workspace.c;
-    constants[9].i = max_workspace.cstep;
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_top_blob.dims;
+        constants[1].i = bottom_top_blob.w;
+        constants[2].i = bottom_top_blob.h;
+        constants[3].i = bottom_top_blob.c;
+        constants[4].i = bottom_top_blob.cstep;
+        constants[5].i = max_workspace.dims;
+        constants[6].i = max_workspace.w;
+        constants[7].i = max_workspace.h;
+        constants[8].i = max_workspace.c;
+        constants[9].i = max_workspace.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_max_pack8
-                             : elempack == 4 ? pipeline_softmax_reduce_max_pack4
-                             : pipeline_softmax_reduce_max;
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_max_pack8
+                                   : elempack == 4 ? pipeline_softmax_reduce_max_pack4
+                                   : pipeline_softmax_reduce_max;
 
-    cmd.record_pipeline(pipeline, bindings, constants, max_workspace);
+        cmd.record_pipeline(pipeline, bindings, constants, max_workspace);
     }
 
     // exp( v - max )
     {
-    std::vector<VkMat> bindings(2);
-    bindings[0] = bottom_top_blob;
-    bindings[1] = max_workspace;
+        std::vector<VkMat> bindings(2);
+        bindings[0] = bottom_top_blob;
+        bindings[1] = max_workspace;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_top_blob.dims;
-    constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
-    constants[3].i = bottom_top_blob.c;
-    constants[4].i = bottom_top_blob.cstep;
-    constants[5].i = max_workspace.dims;
-    constants[6].i = max_workspace.w;
-    constants[7].i = max_workspace.h;
-    constants[8].i = max_workspace.c;
-    constants[9].i = max_workspace.cstep;
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_top_blob.dims;
+        constants[1].i = bottom_top_blob.w;
+        constants[2].i = bottom_top_blob.h;
+        constants[3].i = bottom_top_blob.c;
+        constants[4].i = bottom_top_blob.cstep;
+        constants[5].i = max_workspace.dims;
+        constants[6].i = max_workspace.w;
+        constants[7].i = max_workspace.h;
+        constants[8].i = max_workspace.c;
+        constants[9].i = max_workspace.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_exp_sub_max_pack8
-                             : elempack == 4 ? pipeline_softmax_exp_sub_max_pack4
-                             : pipeline_softmax_exp_sub_max;
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_exp_sub_max_pack8
+                                   : elempack == 4 ? pipeline_softmax_exp_sub_max_pack4
+                                   : pipeline_softmax_exp_sub_max;
 
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
 
     // reduce sum
     {
-    std::vector<VkMat> bindings(2);
-    bindings[0] = bottom_top_blob;
-    bindings[1] = sum_workspace;
+        std::vector<VkMat> bindings(2);
+        bindings[0] = bottom_top_blob;
+        bindings[1] = sum_workspace;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_top_blob.dims;
-    constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
-    constants[3].i = bottom_top_blob.c;
-    constants[4].i = bottom_top_blob.cstep;
-    constants[5].i = sum_workspace.dims;
-    constants[6].i = sum_workspace.w;
-    constants[7].i = sum_workspace.h;
-    constants[8].i = sum_workspace.c;
-    constants[9].i = sum_workspace.cstep;
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_top_blob.dims;
+        constants[1].i = bottom_top_blob.w;
+        constants[2].i = bottom_top_blob.h;
+        constants[3].i = bottom_top_blob.c;
+        constants[4].i = bottom_top_blob.cstep;
+        constants[5].i = sum_workspace.dims;
+        constants[6].i = sum_workspace.w;
+        constants[7].i = sum_workspace.h;
+        constants[8].i = sum_workspace.c;
+        constants[9].i = sum_workspace.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_sum_pack8
-                             : elempack == 4 ? pipeline_softmax_reduce_sum_pack4
-                             : pipeline_softmax_reduce_sum;
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_sum_pack8
+                                   : elempack == 4 ? pipeline_softmax_reduce_sum_pack4
+                                   : pipeline_softmax_reduce_sum;
 
-    cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
+        cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
     }
 
     // div sum
     {
-    std::vector<VkMat> bindings(2);
-    bindings[0] = bottom_top_blob;
-    bindings[1] = sum_workspace;
+        std::vector<VkMat> bindings(2);
+        bindings[0] = bottom_top_blob;
+        bindings[1] = sum_workspace;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_top_blob.dims;
-    constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
-    constants[3].i = bottom_top_blob.c;
-    constants[4].i = bottom_top_blob.cstep;
-    constants[5].i = sum_workspace.dims;
-    constants[6].i = sum_workspace.w;
-    constants[7].i = sum_workspace.h;
-    constants[8].i = sum_workspace.c;
-    constants[9].i = sum_workspace.cstep;
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_top_blob.dims;
+        constants[1].i = bottom_top_blob.w;
+        constants[2].i = bottom_top_blob.h;
+        constants[3].i = bottom_top_blob.c;
+        constants[4].i = bottom_top_blob.cstep;
+        constants[5].i = sum_workspace.dims;
+        constants[6].i = sum_workspace.w;
+        constants[7].i = sum_workspace.h;
+        constants[8].i = sum_workspace.c;
+        constants[9].i = sum_workspace.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_div_sum_pack8
-                             : elempack == 4 ? pipeline_softmax_div_sum_pack4
-                             : pipeline_softmax_div_sum;
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_div_sum_pack8
+                                   : elempack == 4 ? pipeline_softmax_div_sum_pack4
+                                   : pipeline_softmax_div_sum;
 
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
 
     return 0;
@@ -461,104 +463,104 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
 
     // reduce max
     {
-    std::vector<VkImageMat> bindings(2);
-    bindings[0] = bottom_top_blob;
-    bindings[1] = max_workspace;
+        std::vector<VkImageMat> bindings(2);
+        bindings[0] = bottom_top_blob;
+        bindings[1] = max_workspace;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_top_blob.dims;
-    constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
-    constants[3].i = bottom_top_blob.c;
-    constants[4].i = 0;//bottom_top_blob.cstep;
-    constants[5].i = max_workspace.dims;
-    constants[6].i = max_workspace.w;
-    constants[7].i = max_workspace.h;
-    constants[8].i = max_workspace.c;
-    constants[9].i = 0;//max_workspace.cstep;
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_top_blob.dims;
+        constants[1].i = bottom_top_blob.w;
+        constants[2].i = bottom_top_blob.h;
+        constants[3].i = bottom_top_blob.c;
+        constants[4].i = 0; //bottom_top_blob.cstep;
+        constants[5].i = max_workspace.dims;
+        constants[6].i = max_workspace.w;
+        constants[7].i = max_workspace.h;
+        constants[8].i = max_workspace.c;
+        constants[9].i = 0; //max_workspace.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_max_pack8
-                             : elempack == 4 ? pipeline_softmax_reduce_max_pack4
-                             : pipeline_softmax_reduce_max;
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_max_pack8
+                                   : elempack == 4 ? pipeline_softmax_reduce_max_pack4
+                                   : pipeline_softmax_reduce_max;
 
-    cmd.record_pipeline(pipeline, bindings, constants, max_workspace);
+        cmd.record_pipeline(pipeline, bindings, constants, max_workspace);
     }
 
     // exp( v - max )
     {
-    std::vector<VkImageMat> bindings(3);
-    bindings[0] = bottom_top_blob;
-    bindings[1] = bottom_top_blob;
-    bindings[2] = max_workspace;
+        std::vector<VkImageMat> bindings(3);
+        bindings[0] = bottom_top_blob;
+        bindings[1] = bottom_top_blob;
+        bindings[2] = max_workspace;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_top_blob.dims;
-    constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
-    constants[3].i = bottom_top_blob.c;
-    constants[4].i = 0;//bottom_top_blob.cstep;
-    constants[5].i = max_workspace.dims;
-    constants[6].i = max_workspace.w;
-    constants[7].i = max_workspace.h;
-    constants[8].i = max_workspace.c;
-    constants[9].i = 0;//max_workspace.cstep;
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_top_blob.dims;
+        constants[1].i = bottom_top_blob.w;
+        constants[2].i = bottom_top_blob.h;
+        constants[3].i = bottom_top_blob.c;
+        constants[4].i = 0; //bottom_top_blob.cstep;
+        constants[5].i = max_workspace.dims;
+        constants[6].i = max_workspace.w;
+        constants[7].i = max_workspace.h;
+        constants[8].i = max_workspace.c;
+        constants[9].i = 0; //max_workspace.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_exp_sub_max_pack8
-                             : elempack == 4 ? pipeline_softmax_exp_sub_max_pack4
-                             : pipeline_softmax_exp_sub_max;
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_exp_sub_max_pack8
+                                   : elempack == 4 ? pipeline_softmax_exp_sub_max_pack4
+                                   : pipeline_softmax_exp_sub_max;
 
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
 
     // reduce sum
     {
-    std::vector<VkImageMat> bindings(2);
-    bindings[0] = bottom_top_blob;
-    bindings[1] = sum_workspace;
+        std::vector<VkImageMat> bindings(2);
+        bindings[0] = bottom_top_blob;
+        bindings[1] = sum_workspace;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_top_blob.dims;
-    constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
-    constants[3].i = bottom_top_blob.c;
-    constants[4].i = 0;//bottom_top_blob.cstep;
-    constants[5].i = sum_workspace.dims;
-    constants[6].i = sum_workspace.w;
-    constants[7].i = sum_workspace.h;
-    constants[8].i = sum_workspace.c;
-    constants[9].i = 0;//sum_workspace.cstep;
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_top_blob.dims;
+        constants[1].i = bottom_top_blob.w;
+        constants[2].i = bottom_top_blob.h;
+        constants[3].i = bottom_top_blob.c;
+        constants[4].i = 0; //bottom_top_blob.cstep;
+        constants[5].i = sum_workspace.dims;
+        constants[6].i = sum_workspace.w;
+        constants[7].i = sum_workspace.h;
+        constants[8].i = sum_workspace.c;
+        constants[9].i = 0; //sum_workspace.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_sum_pack8
-                             : elempack == 4 ? pipeline_softmax_reduce_sum_pack4
-                             : pipeline_softmax_reduce_sum;
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_sum_pack8
+                                   : elempack == 4 ? pipeline_softmax_reduce_sum_pack4
+                                   : pipeline_softmax_reduce_sum;
 
-    cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
+        cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
     }
 
     // div sum
     {
-    std::vector<VkImageMat> bindings(3);
-    bindings[0] = bottom_top_blob;
-    bindings[1] = bottom_top_blob;
-    bindings[2] = sum_workspace;
+        std::vector<VkImageMat> bindings(3);
+        bindings[0] = bottom_top_blob;
+        bindings[1] = bottom_top_blob;
+        bindings[2] = sum_workspace;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_top_blob.dims;
-    constants[1].i = bottom_top_blob.w;
-    constants[2].i = bottom_top_blob.h;
-    constants[3].i = bottom_top_blob.c;
-    constants[4].i = 0;//bottom_top_blob.cstep;
-    constants[5].i = sum_workspace.dims;
-    constants[6].i = sum_workspace.w;
-    constants[7].i = sum_workspace.h;
-    constants[8].i = sum_workspace.c;
-    constants[9].i = 0;//sum_workspace.cstep;
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_top_blob.dims;
+        constants[1].i = bottom_top_blob.w;
+        constants[2].i = bottom_top_blob.h;
+        constants[3].i = bottom_top_blob.c;
+        constants[4].i = 0; //bottom_top_blob.cstep;
+        constants[5].i = sum_workspace.dims;
+        constants[6].i = sum_workspace.w;
+        constants[7].i = sum_workspace.h;
+        constants[8].i = sum_workspace.c;
+        constants[9].i = 0; //sum_workspace.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_div_sum_pack8
-                             : elempack == 4 ? pipeline_softmax_div_sum_pack4
-                             : pipeline_softmax_div_sum;
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_div_sum_pack8
+                                   : elempack == 4 ? pipeline_softmax_div_sum_pack4
+                                   : pipeline_softmax_div_sum;
 
-    cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+        cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
 
     return 0;

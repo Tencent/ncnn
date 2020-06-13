@@ -130,7 +130,7 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
             {
                 outptr[x] = ptr[0];
             }
-            if(src.w < 12)
+            if (src.w < 12)
             {
                 for (; x < (left + src.w); x++)
                 {
@@ -156,7 +156,7 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
             {
                 outptr[x] = ptr[0];
             }
-            if(src.w < 12)
+            if (src.w < 12)
             {
                 for (; x < (left + src.w); x++)
                 {
@@ -184,7 +184,7 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
             {
                 outptr[x] = ptr[0];
             }
-            if(src.w < 12)
+            if (src.w < 12)
             {
                 for (; x < (left + src.w); x++)
                 {
@@ -216,7 +216,7 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
             {
                 outptr[x] = ptr[left - x];
             }
-            if(src.w < 12)
+            if (src.w < 12)
             {
                 for (; x < (left + src.w); x++)
                 {
@@ -243,7 +243,7 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
             {
                 outptr[x] = ptr[left - x];
             }
-            if(src.w < 12)
+            if (src.w < 12)
             {
                 for (; x < (left + src.w); x++)
                 {
@@ -271,7 +271,7 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
             {
                 outptr[x] = ptr[left - x];
             }
-            if(src.w < 12)
+            if (src.w < 12)
             {
                 for (; x < (left + src.w); x++)
                 {
@@ -291,7 +291,6 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
             ptr -= src.w;
         }
     }
-
 }
 
 int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -353,30 +352,39 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<outc; q++)
+        for (int q = 0; q < outc; q++)
         {
             Mat borderm = top_blob.channel(q);
 
             float pad_value = per_channel_pad_data_size ? per_channel_pad_data[q] : value;
 
             //Channel padding
-            if (((q< front) || (q >= (channels+front))) && type == 0){
-                    if (elemsize == 1){
-                        borderm.fill(static_cast<signed char>(pad_value));                    }
-                    if (elemsize == 2){
-                        borderm.fill(float32_to_bfloat16(pad_value));
-                    }
-                    if (elemsize == 4){
-                        borderm.fill(pad_value);
-                    }
-            }else{
-                int q_  = q-front;
-
-                if (type == 1){
-                    q_ = q_ <= 0 ? 0 : q_;
-                    q_ = q_ >= channels-1 ? channels-1 : q_;
+            if (((q < front) || (q >= (channels + front))) && type == 0)
+            {
+                if (elemsize == 1)
+                {
+                    borderm.fill(static_cast<signed char>(pad_value));
                 }
-                if (type == 2){
+                if (elemsize == 2)
+                {
+                    borderm.fill(float32_to_bfloat16(pad_value));
+                }
+                if (elemsize == 4)
+                {
+                    borderm.fill(pad_value);
+                }
+            }
+            else
+            {
+                int q_ = q - front;
+
+                if (type == 1)
+                {
+                    q_ = q_ <= 0 ? 0 : q_;
+                    q_ = q_ >= channels - 1 ? channels - 1 : q_;
+                }
+                if (type == 2)
+                {
                     q_ = abs(q_);
                     q_ = (channels - 1) - abs(q_ - (channels - 1));
                 }
@@ -387,7 +395,7 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                     copy_make_border_image<unsigned short>(m, borderm, top, left, type, float32_to_bfloat16(pad_value));
                 if (elemsize == 4)
                     copy_make_border_image<float>(m, borderm, top, left, type, pad_value);
-            } 
+            }
         }
         return 0;
     }
@@ -417,8 +425,6 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         _right = param_data[3];
         _front = param_data[4];
         _behind = param_data[5];
-
-        
     }
     if (_top == 0 && _bottom == 0 && _left == 0 && _right == 0 && _front == 0 && _behind == 0)
     {
@@ -477,33 +483,42 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<outc; q++)
+        for (int q = 0; q < outc; q++)
         {
             Mat borderm = top_blob.channel(q);
 
             float pad_value = per_channel_pad_data_size ? per_channel_pad_data[q] : value;
             //Channel padding
-            if (((q< _front) || (q >= (channels+_front))) && type == 0){
-                    if (elemsize == 1){
-                        borderm.fill(static_cast<signed char>(pad_value));                    }
-                    if (elemsize == 2){
-                        borderm.fill(float32_to_bfloat16(pad_value));
-                    }
-                    if (elemsize == 4){
-                        borderm.fill(pad_value);
-                    }
-            }else{
-                int q_  = q-_front;
-                //Clamp channel
-                if (type == 1){
-                    q_ = q_ <= 0 ? 0 : q_;
-                    q_ = q_ >= channels-1 ? channels-1 : q_;
+            if (((q < _front) || (q >= (channels + _front))) && type == 0)
+            {
+                if (elemsize == 1)
+                {
+                    borderm.fill(static_cast<signed char>(pad_value));
                 }
-                if (type == 2){
+                if (elemsize == 2)
+                {
+                    borderm.fill(float32_to_bfloat16(pad_value));
+                }
+                if (elemsize == 4)
+                {
+                    borderm.fill(pad_value);
+                }
+            }
+            else
+            {
+                int q_ = q - _front;
+                //Clamp channel
+                if (type == 1)
+                {
+                    q_ = q_ <= 0 ? 0 : q_;
+                    q_ = q_ >= channels - 1 ? channels - 1 : q_;
+                }
+                if (type == 2)
+                {
                     q_ = abs(q_);
                     q_ = (channels - 1) - abs(q_ - (channels - 1));
                 }
-                
+
                 const Mat m = bottom_blob.channel(q_);
                 if (elemsize == 1)
                     copy_make_border_image<signed char>(m, borderm, top, left, type, static_cast<signed char>(pad_value));
@@ -511,9 +526,7 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
                     copy_make_border_image<unsigned short>(m, borderm, top, left, type, float32_to_bfloat16(pad_value));
                 if (elemsize == 4)
                     copy_make_border_image<float>(m, borderm, top, left, type, pad_value);
-            }  
-
-           
+            }
         }
 
         return 0;

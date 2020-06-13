@@ -68,175 +68,86 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
-
-    if (ndim == 1)
-    {
-        // flatten
-        return flatten->forward(bottom_blob, top_blob, opt);
-    }
-
-    int dims = bottom_blob.dims;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-
-    int total = bottom_blob.w * bottom_blob.h * bottom_blob.c * elempack;
-
-    if (ndim == 2)
-    {
-        int _w = w;
-        int _h = h;
-
-        if (_w == 0)
-            _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-        if (_h == 0)
-            _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
-
-        if (_w == -1)
-            _w = total / _h;
-        if (_h == -1)
-            _h = total / _w;
-
-        int out_elempack = _h % 4 == 0 ? 4 : 1;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-
-        if (dims == 2 && bottom_blob.h == _h && elempack == out_elempack)
-        {
-            top_blob = bottom_blob;
-            return 0;
-        }
-
-        if (out_elempack == 1)
+        if (ndim == 1)
         {
             // flatten
-            flatten->forward(bottom_blob, top_blob, opt);
-
-            top_blob.dims = 2;
-            top_blob.w = _w;
-            top_blob.h = _h;
-            top_blob.cstep = _w * _h;
-            top_blob.elemsize = out_elemsize;
-            top_blob.elempack = out_elempack;
-
-            return 0;
+            return flatten->forward(bottom_blob, top_blob, opt);
         }
 
-        // flatten
-        Mat bottom_blob_flattened = bottom_blob;
+        int dims = bottom_blob.dims;
+        size_t elemsize = bottom_blob.elemsize;
+        int elempack = bottom_blob.elempack;
+
+        int total = bottom_blob.w * bottom_blob.h * bottom_blob.c * elempack;
+
+        if (ndim == 2)
         {
-            Option opt_flatten = opt;
-            opt_flatten.blob_allocator = opt.workspace_allocator;
+            int _w = w;
+            int _h = h;
 
-            flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
-        }
+            if (_w == 0)
+                _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+            if (_h == 0)
+                _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
 
-        top_blob.create(_w, _h / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
+            if (_w == -1)
+                _w = total / _h;
+            if (_h == -1)
+                _h = total / _w;
 
-        int outw = top_blob.w;
-        int outh = top_blob.h;
+            int out_elempack = _h % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        // assert out_elempack == 4
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i=0; i<outh; i++)
-        {
-            const float* ptr0 = (const float*)bottom_blob_flattened + outw * i*4;
-            const float* ptr1 = (const float*)bottom_blob_flattened + outw * (i*4 + 1);
-            const float* ptr2 = (const float*)bottom_blob_flattened + outw * (i*4 + 2);
-            const float* ptr3 = (const float*)bottom_blob_flattened + outw * (i*4 + 3);
-            float* outptr = (float*)top_blob.row(i);
-
-            int j=0;
-            for (; j+3<outw; j+=4)
+            if (dims == 2 && bottom_blob.h == _h && elempack == out_elempack)
             {
-                float32x4x4_t _v4;
-                _v4.val[0] = vld1q_f32(ptr0);
-                _v4.val[1] = vld1q_f32(ptr1);
-                _v4.val[2] = vld1q_f32(ptr2);
-                _v4.val[3] = vld1q_f32(ptr3);
-
-                vst4q_f32(outptr, _v4);
-
-                ptr0 += 4;
-                ptr1 += 4;
-                ptr2 += 4;
-                ptr3 += 4;
-                outptr += 16;
+                top_blob = bottom_blob;
+                return 0;
             }
-            for (; j<outw; j++)
+
+            if (out_elempack == 1)
             {
-                outptr[0] = *ptr0++;
-                outptr[1] = *ptr1++;
-                outptr[2] = *ptr2++;
-                outptr[3] = *ptr3++;
+                // flatten
+                flatten->forward(bottom_blob, top_blob, opt);
 
-                outptr += 4;
+                top_blob.dims = 2;
+                top_blob.w = _w;
+                top_blob.h = _h;
+                top_blob.cstep = _w * _h;
+                top_blob.elemsize = out_elemsize;
+                top_blob.elempack = out_elempack;
+
+                return 0;
             }
-        }
 
-        return 0;
-    }
+            // flatten
+            Mat bottom_blob_flattened = bottom_blob;
+            {
+                Option opt_flatten = opt;
+                opt_flatten.blob_allocator = opt.workspace_allocator;
 
-    if (ndim == 3)
-    {
-        int _w = w;
-        int _h = h;
-        int _c = c;
+                flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+            }
 
-        if (_w == 0)
-            _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-        if (_h == 0)
-            _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
-        if (_c == 0)
-            _c = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
+            top_blob.create(_w, _h / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
 
-        if (_w == -1)
-            _w = total / _c / _h;
-        if (_h == -1)
-            _h = total / _c / _w;
-        if (_c == -1)
-            _c = total / _h / _w;
+            int outw = top_blob.w;
+            int outh = top_blob.h;
 
-        int out_elempack = _c % 4 == 0 ? 4 : 1;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
+            // assert out_elempack == 4
 
-        if (dims == 3 && bottom_blob.c == _c && elempack == out_elempack)
-        {
-            top_blob = bottom_blob;
-            top_blob.w = _w;
-            top_blob.h = _h;
-            return 0;
-        }
-
-        // flatten
-        Mat bottom_blob_flattened = bottom_blob;
-        {
-            Option opt_flatten = opt;
-            opt_flatten.blob_allocator = opt.workspace_allocator;
-
-            flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
-        }
-
-        top_blob.create(_w, _h, _c / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
-
-        int size = top_blob.w * top_blob.h;
-
-        if (out_elempack == 4)
-        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<top_blob.c; q++)
+            for (int i = 0; i < outh; i++)
             {
-                const float* ptr0 = (const float*)bottom_blob_flattened + size * q*4;
-                const float* ptr1 = (const float*)bottom_blob_flattened + size * (q*4 + 1);
-                const float* ptr2 = (const float*)bottom_blob_flattened + size * (q*4 + 2);
-                const float* ptr3 = (const float*)bottom_blob_flattened + size * (q*4 + 3);
-                float* outptr = top_blob.channel(q);
+                const float* ptr0 = (const float*)bottom_blob_flattened + outw * i * 4;
+                const float* ptr1 = (const float*)bottom_blob_flattened + outw * (i * 4 + 1);
+                const float* ptr2 = (const float*)bottom_blob_flattened + outw * (i * 4 + 2);
+                const float* ptr3 = (const float*)bottom_blob_flattened + outw * (i * 4 + 3);
+                float* outptr = (float*)top_blob.row(i);
 
-                int i=0;
-                for (; i+3<size; i+=4)
+                int j = 0;
+                for (; j + 3 < outw; j += 4)
                 {
                     float32x4x4_t _v4;
                     _v4.val[0] = vld1q_f32(ptr0);
@@ -252,7 +163,7 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     ptr3 += 4;
                     outptr += 16;
                 }
-                for (; i<size; i++)
+                for (; j < outw; j++)
                 {
                     outptr[0] = *ptr0++;
                     outptr[1] = *ptr1++;
@@ -266,35 +177,123 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             return 0;
         }
 
-        if (out_elempack == 1)
+        if (ndim == 3)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<top_blob.c; q++)
-            {
-                const float* ptr = (const float*)bottom_blob_flattened + size * q;
-                float* outptr = top_blob.channel(q);
+            int _w = w;
+            int _h = h;
+            int _c = c;
 
-                int i=0;
-                for (; i+3<size; i+=4)
-                {
-                    float32x4_t _v = vld1q_f32(ptr);
-                    vst1q_f32(outptr, _v);
-                    ptr += 4;
-                    outptr += 4;
-                }
-                for (; i<size; i++)
-                {
-                    *outptr++ = *ptr++;
-                }
+            if (_w == 0)
+                _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+            if (_h == 0)
+                _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
+            if (_c == 0)
+                _c = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
+
+            if (_w == -1)
+                _w = total / _c / _h;
+            if (_h == -1)
+                _h = total / _c / _w;
+            if (_c == -1)
+                _c = total / _h / _w;
+
+            int out_elempack = _c % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (dims == 3 && bottom_blob.c == _c && elempack == out_elempack)
+            {
+                top_blob = bottom_blob;
+                top_blob.w = _w;
+                top_blob.h = _h;
+                return 0;
             }
 
-            return 0;
+            // flatten
+            Mat bottom_blob_flattened = bottom_blob;
+            {
+                Option opt_flatten = opt;
+                opt_flatten.blob_allocator = opt.workspace_allocator;
+
+                flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+            }
+
+            top_blob.create(_w, _h, _c / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            int size = top_blob.w * top_blob.h;
+
+            if (out_elempack == 4)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    const float* ptr0 = (const float*)bottom_blob_flattened + size * q * 4;
+                    const float* ptr1 = (const float*)bottom_blob_flattened + size * (q * 4 + 1);
+                    const float* ptr2 = (const float*)bottom_blob_flattened + size * (q * 4 + 2);
+                    const float* ptr3 = (const float*)bottom_blob_flattened + size * (q * 4 + 3);
+                    float* outptr = top_blob.channel(q);
+
+                    int i = 0;
+                    for (; i + 3 < size; i += 4)
+                    {
+                        float32x4x4_t _v4;
+                        _v4.val[0] = vld1q_f32(ptr0);
+                        _v4.val[1] = vld1q_f32(ptr1);
+                        _v4.val[2] = vld1q_f32(ptr2);
+                        _v4.val[3] = vld1q_f32(ptr3);
+
+                        vst4q_f32(outptr, _v4);
+
+                        ptr0 += 4;
+                        ptr1 += 4;
+                        ptr2 += 4;
+                        ptr3 += 4;
+                        outptr += 16;
+                    }
+                    for (; i < size; i++)
+                    {
+                        outptr[0] = *ptr0++;
+                        outptr[1] = *ptr1++;
+                        outptr[2] = *ptr2++;
+                        outptr[3] = *ptr3++;
+
+                        outptr += 4;
+                    }
+                }
+
+                return 0;
+            }
+
+            if (out_elempack == 1)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    const float* ptr = (const float*)bottom_blob_flattened + size * q;
+                    float* outptr = top_blob.channel(q);
+
+                    int i = 0;
+                    for (; i + 3 < size; i += 4)
+                    {
+                        float32x4_t _v = vld1q_f32(ptr);
+                        vst1q_f32(outptr, _v);
+                        ptr += 4;
+                        outptr += 4;
+                    }
+                    for (; i < size; i++)
+                    {
+                        *outptr++ = *ptr++;
+                    }
+                }
+
+                return 0;
+            }
         }
-    }
 
-    return 0;
+        return 0;
 
-    } // opt.use_packing_layout
+    }  // opt.use_packing_layout
 #endif // __ARM_NEON
 
     return Reshape::forward(bottom_blob, top_blob, opt);

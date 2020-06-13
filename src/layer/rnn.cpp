@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "rnn.h"
+
 #include <math.h>
 
 namespace ncnn {
@@ -85,7 +86,7 @@ int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
         return -100;
 
     // unroll
-    for (int t=0; t<T; t++)
+    for (int t = 0; t < T; t++)
     {
         // clip hidden by continuation indicator
         // h_cont_{t-1} = cont_t * h_{t-1}
@@ -96,7 +97,7 @@ int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
         const float cont = cont_blob[t];
         const Mat x = input_blob.channel(t);
         float* hidden_data = hidden;
-        for (int q=0; q<num_output; q++)
+        for (int q = 0; q < num_output; q++)
         {
             float h_cont = cont ? hidden_data[q] : 0.f;
 
@@ -105,7 +106,7 @@ int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
             const float* x_data = x;
 
             float s0 = bias_h_data[q];
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 s0 += weight_hh_data_ptr[i] * h_cont + weight_xh_data_ptr[i] * x_data[i];
             }
@@ -117,12 +118,12 @@ int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
         // o_t = tanh( W_ho * h_t + b_o )
         Mat output = top_blob.channel(t);
         float* output_data = output;
-        for (int q=0; q<num_output; q++)
+        for (int q = 0; q < num_output; q++)
         {
             const float* weight_ho_data_ptr = (const float*)weight_ho_data + weight_ho_data.w * q;
 
             float s0 = bias_o_data[q];
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 s0 += weight_ho_data_ptr[i] * hidden_data[i];
             }

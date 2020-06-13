@@ -11,10 +11,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "statisticspooling.h"
+
 #include <float.h>
 #include <limits.h>
 #include <math.h>
-
 
 namespace ncnn {
 
@@ -33,7 +33,6 @@ int StatisticsPooling::load_param(const ParamDict& pd)
     return 0;
 }
 
-
 int StatisticsPooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
@@ -43,30 +42,35 @@ int StatisticsPooling::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     size_t elemsize = bottom_blob.elemsize;
 
     int out_channels = channels;
-    if (include_stddev){
+    if (include_stddev)
+    {
         out_channels *= 2;
     }
 
     top_blob.create(out_channels, elemsize, opt.blob_allocator);
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++){
+    for (int q = 0; q < channels; q++)
+    {
         const float* ptr = bottom_blob.channel(q);
 
         float mean = 0.f;
-        for (int i=0; i<size; i++){
+        for (int i = 0; i < size; i++)
+        {
             mean += ptr[i];
         }
         top_blob[q] = mean / w / h;
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=channels; q<out_channels; q++){
-        const float* ptr = bottom_blob.channel(q-channels);
+    for (int q = channels; q < out_channels; q++)
+    {
+        const float* ptr = bottom_blob.channel(q - channels);
 
         float std = 0.f;
-        for (int i=0; i<size; i++){
-            std += pow( (ptr[i] - top_blob[q-channels]), 2);
+        for (int i = 0; i < size; i++)
+        {
+            std += pow((ptr[i] - top_blob[q - channels]), 2);
         }
         top_blob[q] = sqrt(std / w / h);
     }

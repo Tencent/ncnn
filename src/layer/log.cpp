@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "log.h"
+
 #include <math.h>
 
 namespace ncnn {
@@ -44,11 +45,11 @@ int Log::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     if (base == -1.f)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 ptr[i] = static_cast<float>(log(shift + ptr[i] * scale));
             }
@@ -59,11 +60,11 @@ int Log::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float log_base_inv = static_cast<float>(1.f / log(base));
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 ptr[i] = static_cast<float>(log(shift + ptr[i] * scale) * log_base_inv);
             }

@@ -22,19 +22,20 @@
 #include <immintrin.h>
 #endif
 
-#include "layer_type.h"
 #include "benchmark.h"
+#include "layer_type.h"
 
 namespace ncnn {
 
 #include "convolution_sgemm.h"
+#include "convolution_sgemm_int8.h"
+
 #include "convolution_1x1.h"
+#include "convolution_1x1_int8.h"
 #include "convolution_3x3.h"
+#include "convolution_3x3_int8.h"
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
-#include "convolution_sgemm_int8.h"
-#include "convolution_1x1_int8.h"
-#include "convolution_3x3_int8.h"
 
 DEFINE_LAYER_CREATOR(Convolution_x86)
 
@@ -58,7 +59,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         activation = ncnn::create_layer(ncnn::LayerType::ReLU);
 
         ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]);// slope
+        pd.set(0, activation_params[0]); // slope
         activation->load_param(pd);
     }
     else if (activation_type == 3)
@@ -68,11 +69,13 @@ int Convolution_x86::create_pipeline(const Option& opt)
         ncnn::ParamDict pd;
         if (use_int8_requantize)
         {
-            pd.set(0, activation_params[0] * top_blob_int8_scale);// min
-            pd.set(1, activation_params[1] * top_blob_int8_scale);// max
-        }else{
-            pd.set(0, activation_params[0]);// min
-            pd.set(1, activation_params[1]);// max
+            pd.set(0, activation_params[0] * top_blob_int8_scale); // min
+            pd.set(1, activation_params[1] * top_blob_int8_scale); // max
+        }
+        else
+        {
+            pd.set(0, activation_params[0]); // min
+            pd.set(1, activation_params[1]); // max
         }
 
         activation->load_param(pd);
@@ -113,15 +116,15 @@ int Convolution_x86::create_pipeline(const Option& opt)
 
         // set param
         ncnn::ParamDict pd;
-        pd.set(0, num_output);// num_output
+        pd.set(0, num_output); // num_output
         pd.set(1, kernel_w);
         pd.set(11, kernel_h);
         pd.set(2, 1);
         pd.set(12, 1);
-        pd.set(3, 1);// stride_w
-        pd.set(13, 1);// stride_h
-        pd.set(4, 0);// pad_w
-        pd.set(14, 0);// pad_h
+        pd.set(3, 1);  // stride_w
+        pd.set(13, 1); // stride_h
+        pd.set(4, 0);  // pad_w
+        pd.set(14, 0); // pad_h
         pd.set(5, bias_term);
         pd.set(6, weight_data_size);
 
@@ -147,13 +150,13 @@ int Convolution_x86::create_pipeline(const Option& opt)
         convolution_dilation1->create_pipeline(opt);
     }
     else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1
-        && num_input >= 16 && num_output >= 16)
+             && num_input >= 16 && num_output >= 16)
     {
         // winograd is slow on small channel count
         use_winograd3x3 = true;
 
         conv3x3s1_winograd23_transform_kernel_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
-//         conv3x3s1_winograd43_transform_kernel_sse(weight_data, weight_3x3_winograd43_data, num_input, num_output);
+        //         conv3x3s1_winograd43_transform_kernel_sse(weight_data, weight_3x3_winograd43_data, num_input, num_output);
 
         // for small size
         conv_im2col_sgemm_transform_kernel_sse(weight_data, weight_sgemm_data, num_input, num_output, kernel_size);
@@ -245,10 +248,10 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
-        if (use_winograd3x3 && outw >= 8 && outh >=8)
+        if (use_winograd3x3 && outw >= 8 && outh >= 8)
         {
             conv3x3s1_winograd23_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data, bias_data, opt);
-//             conv3x3s1_winograd43_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd43_data, bias_data, opt);
+            //             conv3x3s1_winograd43_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd43_data, bias_data, opt);
         }
         else
         {
@@ -262,11 +265,11 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }
     else
     {
-//         conv1x1s1_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-//         conv1x1s2_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-//         conv3x3s1_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-//         conv3x3s2_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-//         conv5x5s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+        //         conv1x1s1_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+        //         conv1x1s2_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+        //         conv3x3s1_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+        //         conv3x3s2_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+        //         conv5x5s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
         conv_im2col_sgemm_sse(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
 
@@ -287,13 +290,13 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
     use_winograd3x3_int8 = false;
 
     if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1
-        && num_input >= 16 && num_output >= 16)
+            && num_input >= 16 && num_output >= 16)
     {
         // winograd is slow on small channel count
         use_winograd3x3_int8 = true;
 
         conv3x3s1_winograd23_transform_kernel_int8_sse(weight_data, weight_3x3_winograd23_data_int8, num_input, num_output);
-//         conv3x3s1_winograd43_transform_kernel_int8_sse(weight_data, weight_3x3_winograd23_data_int8, num_input, num_output);
+        //         conv3x3s1_winograd43_transform_kernel_int8_sse(weight_data, weight_3x3_winograd23_data_int8, num_input, num_output);
     }
     else
     {
@@ -355,11 +358,11 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         if (use_winograd3x3_int8)
         {
             conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data_int8, opt);
-//             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data_int8, opt);
+            //             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data_int8, opt);
 
             // requantize, reverse scale inplace
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p=0; p<num_output; p++)
+            for (int p = 0; p < num_output; p++)
             {
                 Option opt_g = opt;
                 opt_g.num_threads = 1;
@@ -375,7 +378,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
                 else
                     scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
 
-                float scale_out = top_blob_int8_scale;//FIXME load param
+                float scale_out = top_blob_int8_scale; //FIXME load param
 
                 requantize_int8_to_int8(top_blob_tm_g, top_blob_g, scale_in, scale_out, bias_term ? (const float*)bias_data + p : 0, bias_term ? 1 : 0, 0, opt_g);
             }
@@ -383,7 +386,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         else
         {
             std::vector<float> requantize_scales;
-            for (int p=0; p<num_output; p++)
+            for (int p = 0; p < num_output; p++)
             {
                 float scale_in;
                 if (weight_data_int8_scales[p] == 0)
@@ -405,11 +408,11 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         if (use_winograd3x3_int8)
         {
             conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data_int8, opt);
-//             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data_int8, opt);
+            //             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data_int8, opt);
 
             // dequantize, reverse scale inplace
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p=0; p<num_output; p++)
+            for (int p = 0; p < num_output; p++)
             {
                 Option opt_g = opt;
                 opt_g.num_threads = 1;
@@ -430,7 +433,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         else
         {
             std::vector<float> dequantize_scales;
-            for (int p=0; p<num_output; p++)
+            for (int p = 0; p < num_output; p++)
             {
                 float scale_in;
                 if (weight_data_int8_scales[p] == 0)
@@ -474,9 +477,9 @@ int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, 
     // Make (dilation * dilation) batches
     Mat inner_bottom_blob;
     Mat inner_top_blob;
-    for (int x = 0; x < dilation; x ++)
+    for (int x = 0; x < dilation; x++)
     {
-        for (int y = 0; y < dilation; y ++)
+        for (int y = 0; y < dilation; y++)
         {
             int inner_w = (w - y + dilation - 1) / dilation;
             int inner_h = (h - x + dilation - 1) / dilation;
@@ -493,16 +496,16 @@ int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, 
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int c = 0; c < bottom_blob.c; c ++)
+            for (int c = 0; c < bottom_blob.c; c++)
             {
-                float *outptr = inner_bottom_blob.channel(c);
+                float* outptr = inner_bottom_blob.channel(c);
 
-                for (int i = 0; i < inner_h; i ++)
+                for (int i = 0; i < inner_h; i++)
                 {
-                    const float* ptr = (const float *)bottom_blob.channel(c) + dilation * i * w + x * w + y;
-                    for (int j = 0; j < inner_w; j ++)
+                    const float* ptr = (const float*)bottom_blob.channel(c) + dilation * i * w + x * w + y;
+                    for (int j = 0; j < inner_w; j++)
                     {
-                        outptr[j] = ptr[j*dilation];
+                        outptr[j] = ptr[j * dilation];
                     }
                     outptr += inner_w;
                 }
@@ -513,15 +516,15 @@ int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, 
             convolution_dilation1->forward(inner_bottom_blob, inner_top_blob, opt_g);
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int c = 0; c < num_output; c ++)
+            for (int c = 0; c < num_output; c++)
             {
-                float *outptr = (float *)top_blob.channel(c) + x * outw + y;
-                for (int i = 0; i < inner_outh; i ++)
+                float* outptr = (float*)top_blob.channel(c) + x * outw + y;
+                for (int i = 0; i < inner_outh; i++)
                 {
-                    const float* ptr = (const float *)inner_top_blob.channel(c) + i * inner_outw;
-                    for (int j = 0; j < inner_outw; j ++)
+                    const float* ptr = (const float*)inner_top_blob.channel(c) + i * inner_outw;
+                    for (int j = 0; j < inner_outw; j++)
                     {
-                        outptr[j*dilation] = ptr[j];
+                        outptr[j * dilation] = ptr[j];
                     }
                     outptr += dilation * outw;
                 }

@@ -12,15 +12,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/elu.h"
+#include "testutil.h"
 
 static int test_elu(const ncnn::Mat& a)
 {
     ncnn::ParamDict pd;
     float alpha = RandomFloat(0.001f, 1000.f);
-    pd.set(0, alpha);//alpha
+    pd.set(0, alpha); //alpha
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -41,31 +40,28 @@ static int test_elu(const ncnn::Mat& a)
 static int test_elu_0()
 {
     return 0
-        || test_elu(RandomMat(13, 15, 16))
-        || test_elu(RandomMat(9, 11, 16))
-        || test_elu(RandomMat(6, 7, 16))
-        || test_elu(RandomMat(3, 5, 13))
-        ;
+           || test_elu(RandomMat(13, 15, 16))
+           || test_elu(RandomMat(9, 11, 16))
+           || test_elu(RandomMat(6, 7, 16))
+           || test_elu(RandomMat(3, 5, 13));
 }
 
 static int test_elu_1()
 {
     return 0
-        || test_elu(RandomMat(6, 16))
-        || test_elu(RandomMat(7, 15))
-        || test_elu(RandomMat(9, 21))
-        || test_elu(RandomMat(11, 23))
-        ;
+           || test_elu(RandomMat(6, 16))
+           || test_elu(RandomMat(7, 15))
+           || test_elu(RandomMat(9, 21))
+           || test_elu(RandomMat(11, 23));
 }
 
 static int test_elu_2()
 {
     return 0
-        || test_elu(RandomMat(384))
-        || test_elu(RandomMat(256))
-        || test_elu(RandomMat(128))
-        || test_elu(RandomMat(127))
-        ;
+           || test_elu(RandomMat(384))
+           || test_elu(RandomMat(256))
+           || test_elu(RandomMat(128))
+           || test_elu(RandomMat(127));
 }
 
 int main()
@@ -73,8 +69,7 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_elu_0()
-        || test_elu_1()
-        || test_elu_2()
-        ;
+           || test_elu_0()
+           || test_elu_1()
+           || test_elu_2();
 }

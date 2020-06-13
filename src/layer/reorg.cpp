@@ -47,7 +47,7 @@ int Reorg::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) con
         return -100;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         const Mat m = bottom_blob.channel(q);
 
@@ -55,11 +55,11 @@ int Reorg::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) con
         {
             for (int sw = 0; sw < stride; sw++)
             {
-                float* outptr = top_blob.channel(q*stride*stride + sh*stride + sw);
+                float* outptr = top_blob.channel(q * stride * stride + sh * stride + sw);
 
                 for (int i = 0; i < outh; i++)
                 {
-                    const float* sptr = m.row(i*stride + sh) + sw;
+                    const float* sptr = m.row(i * stride + sh) + sw;
                     for (int j = 0; j < outw; j++)
                     {
                         outptr[0] = sptr[0];

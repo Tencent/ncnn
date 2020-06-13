@@ -65,14 +65,14 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
             // c-h-w to h-w-c
             float* ptr = top_blob;
-            for (int i=0; i<bottom_blob.h; i++)
+            for (int i = 0; i < bottom_blob.h; i++)
             {
-                for (int j=0; j<bottom_blob.w; j++)
+                for (int j = 0; j < bottom_blob.w; j++)
                 {
-                    for (int p=0; p<bottom_blob.c; p++)
+                    for (int p = 0; p < bottom_blob.c; p++)
                     {
                         const float* bptr = bottom_blob.channel(p);
-                        *ptr++ = bptr[i*bottom_blob.w + j];
+                        *ptr++ = bptr[i * bottom_blob.w + j];
                     }
                 }
             }

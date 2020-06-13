@@ -15,11 +15,11 @@
 #ifndef NCNN_NET_H
 #define NCNN_NET_H
 
-#include "platform.h"
 #include "blob.h"
 #include "layer.h"
 #include "mat.h"
 #include "option.h"
+#include "platform.h"
 
 #if __ANDROID_API__ >= 9
 #include <android/asset_manager.h>

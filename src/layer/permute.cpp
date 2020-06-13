@@ -63,7 +63,7 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             {
                 for (int j = 0; j < h; j++)
                 {
-                    outptr[i*h + j] = ptr[j*w + i];
+                    outptr[i * h + j] = ptr[j * w + i];
                 }
             }
         }
@@ -90,7 +90,7 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
@@ -99,7 +99,7 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             {
                 for (int j = 0; j < h; j++)
                 {
-                    outptr[i*h + j] = ptr[j*w + i];
+                    outptr[i * h + j] = ptr[j * w + i];
                 }
             }
         }
@@ -111,7 +111,7 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<h; q++)
+        for (int q = 0; q < h; q++)
         {
             float* outptr = top_blob.channel(q);
 
@@ -121,7 +121,7 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
                 for (int j = 0; j < w; j++)
                 {
-                    outptr[i*w + j] = ptr[j];
+                    outptr[i * w + j] = ptr[j];
                 }
             }
         }
@@ -133,7 +133,7 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<h; q++)
+        for (int q = 0; q < h; q++)
         {
             float* outptr = top_blob.channel(q);
 
@@ -143,7 +143,7 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 {
                     const float* ptr = bottom_blob.channel(j).row(q);
 
-                    outptr[i*channels + j] = ptr[i];
+                    outptr[i * channels + j] = ptr[i];
                 }
             }
         }
@@ -155,7 +155,7 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<w; q++)
+        for (int q = 0; q < w; q++)
         {
             float* outptr = top_blob.channel(q);
 
@@ -165,7 +165,7 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
                 for (int j = 0; j < h; j++)
                 {
-                    outptr[i*h + j] = ptr[j*w + q];
+                    outptr[i * h + j] = ptr[j * w + q];
                 }
             }
         }
@@ -177,7 +177,7 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<w; q++)
+        for (int q = 0; q < w; q++)
         {
             float* outptr = top_blob.channel(q);
 
@@ -187,7 +187,7 @@ int Permute::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 {
                     const float* ptr = bottom_blob.channel(j);
 
-                    outptr[i*channels + j] = ptr[i*w + q];
+                    outptr[i * channels + j] = ptr[i * w + q];
                 }
             }
         }

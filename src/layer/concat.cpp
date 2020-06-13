@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "concat.h"
+
 #include <algorithm>
 
 namespace ncnn {
@@ -42,7 +43,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         // concat vector
         // total length
         int top_w = 0;
-        for (size_t b=0; b<bottom_blobs.size(); b++)
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob = bottom_blobs[b];
             top_w += bottom_blob.w;
@@ -54,7 +55,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             return -100;
 
         unsigned char* outptr = top_blob;
-        for (size_t b=0; b<bottom_blobs.size(); b++)
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob = bottom_blobs[b];
 
@@ -76,7 +77,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
         // total height
         int top_h = 0;
-        for (size_t b=0; b<bottom_blobs.size(); b++)
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob = bottom_blobs[b];
             top_h += bottom_blob.h;
@@ -88,7 +89,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             return -100;
 
         unsigned char* outptr = top_blob;
-        for (size_t b=0; b<bottom_blobs.size(); b++)
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob = bottom_blobs[b];
 
@@ -110,7 +111,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
         // total width
         int top_w = 0;
-        for (size_t b=0; b<bottom_blobs.size(); b++)
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob = bottom_blobs[b];
             top_w += bottom_blob.w;
@@ -122,10 +123,10 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i=0; i<h; i++)
+        for (int i = 0; i < h; i++)
         {
             unsigned char* outptr = top_blob.row<unsigned char>(i);
-            for (size_t b=0; b<bottom_blobs.size(); b++)
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
             {
                 const Mat& bottom_blob = bottom_blobs[b];
 
@@ -147,7 +148,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
         // total channels
         int top_channels = 0;
-        for (size_t b=0; b<bottom_blobs.size(); b++)
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob = bottom_blobs[b];
             top_channels += bottom_blob.c;
@@ -159,7 +160,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             return -100;
 
         int q = 0;
-        for (size_t b=0; b<bottom_blobs.size(); b++)
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob = bottom_blobs[b];
 
@@ -184,7 +185,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
         // total height
         int top_h = 0;
-        for (size_t b=0; b<bottom_blobs.size(); b++)
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob = bottom_blobs[b];
             top_h += bottom_blob.h;
@@ -196,11 +197,11 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             unsigned char* outptr = top_blob.channel(q);
 
-            for (size_t b=0; b<bottom_blobs.size(); b++)
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
             {
                 const Mat& bottom_blob = bottom_blobs[b];
 
@@ -224,7 +225,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
         // total height
         int top_w = 0;
-        for (size_t b=0; b<bottom_blobs.size(); b++)
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob = bottom_blobs[b];
             top_w += bottom_blob.w;
@@ -236,13 +237,13 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             unsigned char* outptr = top_blob.channel(q);
 
-            for (int i=0; i<h; i++)
+            for (int i = 0; i < h; i++)
             {
-                for (size_t b=0; b<bottom_blobs.size(); b++)
+                for (size_t b = 0; b < bottom_blobs.size(); b++)
                 {
                     const Mat& bottom_blob = bottom_blobs[b];
 

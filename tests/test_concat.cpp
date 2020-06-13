@@ -12,14 +12,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/concat.h"
+#include "testutil.h"
 
 static int test_concat(const std::vector<ncnn::Mat>& a, int axis)
 {
     ncnn::ParamDict pd;
-    pd.set(0, axis);//axis
+    pd.set(0, axis); //axis
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -45,10 +44,9 @@ static int test_concat_0()
     a[2] = RandomMat(16, 12, 8);
 
     return 0
-        || test_concat(a, 0)
-        || test_concat(a, 1)
-        || test_concat(a, 2)
-        ;
+           || test_concat(a, 0)
+           || test_concat(a, 1)
+           || test_concat(a, 2);
 }
 
 static int test_concat_1()
@@ -156,16 +154,15 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_concat_0()
-        || test_concat_1()
-        || test_concat_2()
-        || test_concat_3()
-        || test_concat_4()
-        || test_concat_5()
-        || test_concat_6()
-        || test_concat_7()
-        || test_concat_8()
-        || test_concat_9()
-        || test_concat_10()
-        ;
+           || test_concat_0()
+           || test_concat_1()
+           || test_concat_2()
+           || test_concat_3()
+           || test_concat_4()
+           || test_concat_5()
+           || test_concat_6()
+           || test_concat_7()
+           || test_concat_8()
+           || test_concat_9()
+           || test_concat_10();
 }

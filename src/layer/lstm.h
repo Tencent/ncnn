@@ -33,7 +33,7 @@ public:
 public:
     int num_output;
     int weight_data_size;
-    int direction;// 0=forward 1=reverse 2=bidirectional
+    int direction; // 0=forward 1=reverse 2=bidirectional
 
     Mat weight_hc_data;
     Mat weight_xc_data;

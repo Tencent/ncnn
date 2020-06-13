@@ -49,11 +49,11 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         int size = bottom_blob.cstep * channels;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<tiles; p++)
+        for (int p = 0; p < tiles; p++)
         {
             float* outptr = top_blob.channel(p * channels);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 outptr[i] = ptr[i];
             }
@@ -68,14 +68,14 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         int size = w * h;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int p=0; p<tiles; p++)
+            for (int p = 0; p < tiles; p++)
             {
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     outptr[i] = ptr[i];
                 }
@@ -91,14 +91,14 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
             for (int i = 0; i < h; i++)
             {
-                for (int p=0; p<tiles; p++)
+                for (int p = 0; p < tiles; p++)
                 {
                     for (int j = 0; j < w; j++)
                     {
