@@ -166,16 +166,16 @@ static void padding_constant_pack4_bf16_neon(const Mat& src, Mat& dst, int top, 
         "20:                            \n"
 
         : "=r"(outptr),     // %0
-          "=r"(ptr)         // %1
+        "=r"(ptr)         // %1
         : "0"(outptr),
-          "1"(ptr),
-          "r"(w),           // %4
-          "r"(h),           // %5
-          "r"(left),        // %6
-          "r"(right),       // %7
-          "r"(top_size),    // %8
-          "r"(bottom_size), // %9
-          "w"(v)            // %10
+        "1"(ptr),
+        "r"(w),           // %4
+        "r"(h),           // %5
+        "r"(left),        // %6
+        "r"(right),       // %7
+        "r"(top_size),    // %8
+        "r"(bottom_size), // %9
+        "w"(v)            // %10
         : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v16", "v17", "v18", "v19"
     );
 #else // __aarch64__
@@ -321,16 +321,16 @@ static void padding_constant_pack4_bf16_neon(const Mat& src, Mat& dst, int top, 
         "20:                            \n"
 
         : "=r"(outptr),     // %0
-          "=r"(ptr)         // %1
+        "=r"(ptr)         // %1
         : "0"(outptr),
-          "1"(ptr),
-          "r"(w),           // %4
-          "r"(h),           // %5
-          "r"(left),        // %6
-          "r"(right),       // %7
-          "r"(top_size),    // %8
-          "r"(bottom_size), // %9
-          "w"(v)            // %10
+        "1"(ptr),
+        "r"(w),           // %4
+        "r"(h),           // %5
+        "r"(left),        // %6
+        "r"(right),       // %7
+        "r"(top_size),    // %8
+        "r"(bottom_size), // %9
+        "w"(v)            // %10
         : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11"
     );
 #endif // __aarch64__

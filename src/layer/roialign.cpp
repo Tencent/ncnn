@@ -100,16 +100,18 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     float roi_x2 = roi_ptr[2] * spatial_scale;
     float roi_y2 = roi_ptr[3] * spatial_scale;
     if (aligned) {
-      roi_x1 -= 0.5f; roi_y1 -= 0.5f;
-      roi_x2 -= 0.5f; roi_y2 -= 0.5f;
+        roi_x1 -= 0.5f;
+        roi_y1 -= 0.5f;
+        roi_x2 -= 0.5f;
+        roi_y2 -= 0.5f;
     }
 
     float roi_w = roi_x2 - roi_x1;
     float roi_h = roi_y2 - roi_y1;
 
     if (!aligned) {
-      roi_w = std::max(roi_w, 1.f);
-      roi_h = std::max(roi_h, 1.f);
+        roi_w = std::max(roi_w, 1.f);
+        roi_h = std::max(roi_h, 1.f);
     }
 
     float bin_size_w = roi_w / (float)pooled_width;
@@ -141,9 +143,9 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     wend = std::min(std::max(wend, 0.f), (float)w);
 
                     int bin_grid_h = sampling_ratio > 0 ?
-                      sampling_ratio : ceil(hend - hstart);
+                                     sampling_ratio : ceil(hend - hstart);
                     int bin_grid_w = sampling_ratio > 0 ?
-                      sampling_ratio : ceil(wend - wstart);
+                                     sampling_ratio : ceil(wend - wstart);
 
                     bool is_empty = (hend <= hstart) || (wend <= wstart);
                     int area = bin_grid_h * bin_grid_w;
@@ -174,9 +176,9 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     {
         // the version in detectron 2
         int roi_bin_grid_h = sampling_ratio > 0 ?
-          sampling_ratio : ceil(roi_h / pooled_height);
+                             sampling_ratio : ceil(roi_h / pooled_height);
         int roi_bin_grid_w = sampling_ratio > 0 ?
-          sampling_ratio : ceil(roi_w / pooled_width);
+                             sampling_ratio : ceil(roi_w / pooled_width);
 
         const float count = std::max(roi_bin_grid_h * roi_bin_grid_w, 1);
 
@@ -200,15 +202,15 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                             float x = roi_x1 + pw * bin_size_w + (bx + 0.5f) * bin_size_w / (float)roi_bin_grid_w;
 
                             if (y < -1.0 || y > h || x < -1.0 || x > w) {
-                              // empty
-                              continue;
+                                // empty
+                                continue;
                             } else {
-                              if (y <= 0) y = 0;
-                              if (x <= 0) x = 0;
+                                if (y <= 0) y = 0;
+                                if (x <= 0) x = 0;
 
-                              // bilinear interpolate at (x,y)
-                              float v = bilinear_interpolate(ptr, w, h, x, y);
-                              sum += v;
+                                // bilinear interpolate at (x,y)
+                                float v = bilinear_interpolate(ptr, w, h, x, y);
+                                sum += v;
                             }
                         }
                     }

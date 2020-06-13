@@ -112,13 +112,13 @@ static void pooling3x3s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
                     "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
 
                     : "=r"(outptr),     // %0
-                      "=r"(r0),         // %1
-                      "=r"(r1),         // %2
-                      "=r"(r2)          // %3
+                    "=r"(r0),         // %1
+                    "=r"(r1),         // %2
+                    "=r"(r2)          // %3
                     : "0"(outptr),
-                      "1"(r0),
-                      "2"(r1),
-                      "3"(r2)
+                    "1"(r0),
+                    "2"(r1),
+                    "3"(r2)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
                 );
 #else // __aarch64__
@@ -186,13 +186,13 @@ static void pooling3x3s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
                     "vstm       %0!, {d24-d31}  \n"
 
                     : "=r"(outptr),     // %0
-                      "=r"(r0),         // %1
-                      "=r"(r1),         // %2
-                      "=r"(r2)          // %3
+                    "=r"(r0),         // %1
+                    "=r"(r1),         // %2
+                    "=r"(r2)          // %3
                     : "0"(outptr),
-                      "1"(r0),
-                      "2"(r1),
-                      "3"(r2)
+                    "1"(r0),
+                    "2"(r1),
+                    "3"(r2)
                     : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
                 );
 #endif // __aarch64__
@@ -241,13 +241,13 @@ static void pooling3x3s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
                     "st1    {v20.4s, v21.4s}, [%0], #32 \n"
 
                     : "=r"(outptr),     // %0
-                      "=r"(r0),         // %1
-                      "=r"(r1),         // %2
-                      "=r"(r2)          // %3
+                    "=r"(r0),         // %1
+                    "=r"(r1),         // %2
+                    "=r"(r2)          // %3
                     : "0"(outptr),
-                      "1"(r0),
-                      "2"(r1),
-                      "3"(r2)
+                    "1"(r0),
+                    "2"(r1),
+                    "3"(r2)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
                 );
 #else // __aarch64__
@@ -292,13 +292,13 @@ static void pooling3x3s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
                     "vst1.f32   {d8-d11}, [%0 :128]! \n"
 
                     : "=r"(outptr),     // %0
-                      "=r"(r0),         // %1
-                      "=r"(r1),         // %2
-                      "=r"(r2)          // %3
+                    "=r"(r0),         // %1
+                    "=r"(r1),         // %2
+                    "=r"(r2)          // %3
                     : "0"(outptr),
-                      "1"(r0),
-                      "2"(r1),
-                      "3"(r2)
+                    "1"(r0),
+                    "2"(r1),
+                    "3"(r2)
                     : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
                 );
 #endif // __aarch64__

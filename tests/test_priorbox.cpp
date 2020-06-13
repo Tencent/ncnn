@@ -123,7 +123,7 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_priorbox_caffe()
-        || test_priorbox_mxnet()
-        ;
+           || test_priorbox_caffe()
+           || test_priorbox_mxnet()
+           ;
 }

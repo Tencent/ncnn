@@ -34,14 +34,26 @@ public:
         const char* const _key;
     public:
         AttrProxy( MXNetNode const* n, const char* key ) : _n(n), _key(key) {}
-        operator int() const { return _n->attr_i(_key); }
-        operator float() const { return _n->attr_f(_key); }
-        operator std::string() const { return _n->attr_s(_key); }
-        operator std::vector<int>() const { return _n->attr_ai(_key); }
-        operator std::vector<float>() const { return _n->attr_af(_key); }
+        operator int() const {
+            return _n->attr_i(_key);
+        }
+        operator float() const {
+            return _n->attr_f(_key);
+        }
+        operator std::string() const {
+            return _n->attr_s(_key);
+        }
+        operator std::vector<int>() const {
+            return _n->attr_ai(_key);
+        }
+        operator std::vector<float>() const {
+            return _n->attr_af(_key);
+        }
     };
 
-    AttrProxy attr(const char* key) const { return AttrProxy(this, key); }
+    AttrProxy attr(const char* key) const {
+        return AttrProxy(this, key);
+    }
 
     int attr_i(const char* key) const;
     float attr_f(const char* key) const;
@@ -1959,17 +1971,17 @@ int main(int argc, char** argv)
             }
             for (int g=0; g<num_group; g++)
             {
-            // reorder weight from inch-outch to outch-inch
-            int num_filter_g = num_filter / num_group;
-            int num_input = static_cast<int>(weight_data.size() / maxk / num_filter_g / num_group);
-            const float* weight_data_ptr = weight_data.data() + g * maxk * num_filter_g * num_input;
-            for (int k=0; k<num_filter_g; k++)
-            {
-                for (int j=0; j<num_input; j++)
+                // reorder weight from inch-outch to outch-inch
+                int num_filter_g = num_filter / num_group;
+                int num_input = static_cast<int>(weight_data.size() / maxk / num_filter_g / num_group);
+                const float* weight_data_ptr = weight_data.data() + g * maxk * num_filter_g * num_input;
+                for (int k=0; k<num_filter_g; k++)
                 {
-                    fwrite(weight_data_ptr + (j*num_filter_g + k) * maxk, sizeof(float), maxk, bp);
+                    for (int j=0; j<num_input; j++)
+                    {
+                        fwrite(weight_data_ptr + (j*num_filter_g + k) * maxk, sizeof(float), maxk, bp);
+                    }
                 }
-            }
             }
 
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);

@@ -80,7 +80,7 @@ static void conv3x3s1_int8_sse(const Mat &bottom_blob, Mat &top_blob, const Mat 
 
 static void conv3x3s1_winograd23_transform_kernel_int8_sse(const Mat& kernel, Mat& kernel_tm, int inch, int outch)
 {
-    kernel_tm.create(4*4, inch, outch, 2ul);  
+    kernel_tm.create(4*4, inch, outch, 2ul);
 
     // G
     const short ktm[4][3] = {
@@ -168,7 +168,7 @@ static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob,
         //     {0.0f, -1.0f,  1.00f, 0.0f},
         //     {0.0f, -1.0f,  0.00f, 1.0f}
         // };
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<inch; q++)
         {
@@ -187,37 +187,49 @@ static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob,
                     short d0[4],d1[4],d2[4],d3[4];
                     short w0[4],w1[4],w2[4],w3[4];
                     short t0[4],t1[4],t2[4],t3[4];
-                    // load 
+                    // load
                     for (int n = 0; n < 4; n++)
                     {
                         d0[n] = r0[n];
                         d1[n] = r1[n];
                         d2[n] = r2[n];
                         d3[n] = r3[n];
-                    }                                  
+                    }
                     // w = B_t * d
                     for (int n = 0; n < 4; n++)
-                    {   
+                    {
                         w0[n] = d0[n] - d2[n];
                         w1[n] = d1[n] + d2[n];
                         w2[n] = d2[n] - d1[n];
                         w3[n] = d3[n] - d1[n];
-                    }                                
+                    }
                     // transpose d to d_t
                     {
-                        t0[0]=w0[0]; t1[0]=w0[1]; t2[0]=w0[2]; t3[0]=w0[3];
-                        t0[1]=w1[0]; t1[1]=w1[1]; t2[1]=w1[2]; t3[1]=w1[3];
-                        t0[2]=w2[0]; t1[2]=w2[1]; t2[2]=w2[2]; t3[2]=w2[3];
-                        t0[3]=w3[0]; t1[3]=w3[1]; t2[3]=w3[2]; t3[3]=w3[3];
+                        t0[0]=w0[0];
+                        t1[0]=w0[1];
+                        t2[0]=w0[2];
+                        t3[0]=w0[3];
+                        t0[1]=w1[0];
+                        t1[1]=w1[1];
+                        t2[1]=w1[2];
+                        t3[1]=w1[3];
+                        t0[2]=w2[0];
+                        t1[2]=w2[1];
+                        t2[2]=w2[2];
+                        t3[2]=w2[3];
+                        t0[3]=w3[0];
+                        t1[3]=w3[1];
+                        t2[3]=w3[2];
+                        t3[3]=w3[3];
                     }
                     // U = B_t * d_t
                     for (int n = 0; n < 4; n++)
-                    {   
+                    {
                         d0[n] = t0[n] - t2[n];
                         d1[n] = t1[n] + t2[n];
                         d2[n] = t2[n] - t1[n];
                         d3[n] = t3[n] - t1[n];
-                    }                
+                    }
                     // save to out_tm
                     for (int n = 0; n < 4; n++)
                     {
@@ -225,7 +237,7 @@ static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob,
                         out_tm0[n+ 4] = d1[n];
                         out_tm0[n+ 8] = d2[n];
                         out_tm0[n+12] = d3[n];
-                    }                  
+                    }
 
                     r0 += 2;
                     r1 += 2;
@@ -238,7 +250,7 @@ static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob,
         }
     }
     bottom_blob_bordered = Mat();
-    
+
     // BEGIN dot
     Mat top_blob_tm;
     {
@@ -248,7 +260,7 @@ static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob,
         int nColBlocks = h_tm/4; // may be the block num in Feathercnn
         int nRowBlocks = w_tm/4;
 
-        const int tiles = nColBlocks * nRowBlocks; 
+        const int tiles = nColBlocks * nRowBlocks;
 
         top_blob_tm.create(16, tiles, outch, 4u, opt.workspace_allocator);
 
@@ -284,7 +296,7 @@ static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob,
 
                 int q = 0;
                 for (; q+3<inch; q+=4)
-                {   
+                {
                     const short* r0 = bottom_blob_tm.channel(q).row<short>(i);
                     const short* r1 = bottom_blob_tm.channel(q+1).row<short>(i);
                     const short* r2 = bottom_blob_tm.channel(q+2).row<short>(i);
@@ -377,7 +389,7 @@ static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob,
 
                 int q = 0;
                 for (; q+3<inch; q+=4)
-                {   
+                {
                     const short* r0 = bottom_blob_tm.channel(q).row<short>(i);
                     const short* r1 = bottom_blob_tm.channel(q+1).row<short>(i);
                     const short* r2 = bottom_blob_tm.channel(q+2).row<short>(i);
@@ -405,7 +417,7 @@ static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob,
                     for (int n=0; n<16; n++)
                     {
                         sum0[n] += (int)r0[n] * k0[n];
-                    }             
+                    }
                 }
 
                 for (int n=0; n<16; n++)
@@ -416,7 +428,7 @@ static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob,
         }
     }
     bottom_blob_tm = Mat();
-    // END dot    
+    // END dot
 
     // BEGIN transform output
     Mat top_blob_bordered;
@@ -426,7 +438,7 @@ static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob,
         // const float itm[2][4] = {
         //     {1.0f,  1.0f,  1.0f,  0.0f},
         //     {0.0f,  1.0f, -1.0f,  1.0f}
-        // }; 
+        // };
 
         int w_tm = outw / 2 * 4;
         int h_tm = outh / 2 * 4;
@@ -469,10 +481,14 @@ static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob,
                     }
                     // transpose w to w_t
                     {
-                        d0[0] = w0[0]; d0[1] = w1[0];
-                        d1[0] = w0[1]; d1[1] = w1[1];
-                        d2[0] = w0[2]; d2[1] = w1[2];
-                        d3[0] = w0[3]; d3[1] = w1[3];
+                        d0[0] = w0[0];
+                        d0[1] = w1[0];
+                        d1[0] = w0[1];
+                        d1[1] = w1[1];
+                        d2[0] = w0[2];
+                        d2[1] = w1[2];
+                        d3[0] = w0[3];
+                        d3[1] = w1[3];
                     }
                     // Y = A_T * w_t
                     for (int n = 0; n < 2; n++)
@@ -487,12 +503,12 @@ static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob,
                     outRow1[1] = o1[1] >> 2;
 
                     outRow0 += 2;
-                    outRow1 += 2;           
+                    outRow1 += 2;
                 }
             }
-        }        
+        }
     }
-    // END transform output 
+    // END transform output
 
     // cut result pad
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
@@ -518,7 +534,7 @@ static void conv3x3s1_winograd43_transform_kernel_int8_sse(const Mat& kernel, Ma
         {  1,    2,    4},
         {  1,   -2,    4},
         {  0,    0,   24}
-    };    
+    };
 
     #pragma omp parallel for
     for (int p = 0; p<outch; p++)
@@ -601,12 +617,12 @@ static void conv3x3s1_winograd43_int8_sse(const Mat& bottom_blob, Mat& top_blob,
         //     {0.0f, 4.0f,  0.0f,-5.0f, 0.0f, 1.0f}
         // };
 
-		// 0 =	4 * r00  - 5 * r02	+ r04
+        // 0 =	4 * r00  - 5 * r02	+ r04
         // 1 = -4 * (r01 + r02)  + r03 + r04
         // 2 =	4 * (r01 - r02)  - r03 + r04
         // 3 = -2 * r01 - r02 + 2 * r03 + r04
         // 4 =	2 * r01 - r02 - 2 * r03 + r04
-		// 5 =	4 * r01 - 5 * r03 + r05
+        // 5 =	4 * r01 - 5 * r03 + r05
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<inch; q++)
@@ -641,7 +657,7 @@ static void conv3x3s1_winograd43_int8_sse(const Mat& bottom_blob, Mat& top_blob,
                     }
                     // w = B_t * d
                     for (int n = 0; n < 6; n++)
-                    {   
+                    {
                         w0[n] =  4*d0[n]          - 5*d2[n]           + d4[n];
                         w1[n] =          -4*d1[n] - 4*d2[n] +   d3[n] + d4[n];
                         w2[n] =           4*d1[n] - 4*d2[n] -   d3[n] + d4[n];
@@ -651,23 +667,53 @@ static void conv3x3s1_winograd43_int8_sse(const Mat& bottom_blob, Mat& top_blob,
                     }
                     // transpose d to d_t
                     {
-                        t0[0]=w0[0]; t1[0]=w0[1]; t2[0]=w0[2]; t3[0]=w0[3]; t4[0]=w0[4]; t5[0]=w0[5];
-                        t0[1]=w1[0]; t1[1]=w1[1]; t2[1]=w1[2]; t3[1]=w1[3]; t4[1]=w1[4]; t5[1]=w1[5];
-                        t0[2]=w2[0]; t1[2]=w2[1]; t2[2]=w2[2]; t3[2]=w2[3]; t4[2]=w2[4]; t5[2]=w2[5];
-                        t0[3]=w3[0]; t1[3]=w3[1]; t2[3]=w3[2]; t3[3]=w3[3]; t4[3]=w3[4]; t5[3]=w3[5];
-                        t0[4]=w4[0]; t1[4]=w4[1]; t2[4]=w4[2]; t3[4]=w4[3]; t4[4]=w4[4]; t5[4]=w4[5];
-                        t0[5]=w5[0]; t1[5]=w5[1]; t2[5]=w5[2]; t3[5]=w5[3]; t4[5]=w5[4]; t5[5]=w5[5];
-                    }                   
+                        t0[0]=w0[0];
+                        t1[0]=w0[1];
+                        t2[0]=w0[2];
+                        t3[0]=w0[3];
+                        t4[0]=w0[4];
+                        t5[0]=w0[5];
+                        t0[1]=w1[0];
+                        t1[1]=w1[1];
+                        t2[1]=w1[2];
+                        t3[1]=w1[3];
+                        t4[1]=w1[4];
+                        t5[1]=w1[5];
+                        t0[2]=w2[0];
+                        t1[2]=w2[1];
+                        t2[2]=w2[2];
+                        t3[2]=w2[3];
+                        t4[2]=w2[4];
+                        t5[2]=w2[5];
+                        t0[3]=w3[0];
+                        t1[3]=w3[1];
+                        t2[3]=w3[2];
+                        t3[3]=w3[3];
+                        t4[3]=w3[4];
+                        t5[3]=w3[5];
+                        t0[4]=w4[0];
+                        t1[4]=w4[1];
+                        t2[4]=w4[2];
+                        t3[4]=w4[3];
+                        t4[4]=w4[4];
+                        t5[4]=w4[5];
+                        t0[5]=w5[0];
+                        t1[5]=w5[1];
+                        t2[5]=w5[2];
+                        t3[5]=w5[3];
+                        t4[5]=w5[4];
+                        t5[5]=w5[5];
+                    }
                     // d = B_t * d_t
                     for (int n = 0; n < 6; n++)
-                    {   
+                    {
                         d0[n] =  4*t0[n]           - 5*t2[n]           + t4[n];
                         d1[n] =          - 4*t1[n] - 4*t2[n] +   t3[n] + t4[n];
                         d2[n] =            4*t1[n] - 4*t2[n] -   t3[n] + t4[n];
                         d3[n] =          - 2*t1[n] -   t2[n] + 2*t3[n] + t4[n];
                         d4[n] =            2*t1[n] -   t2[n] - 2*t3[n] + t4[n];
                         d5[n] =            4*t1[n]           - 5*t3[n]          + t5[n];
-                    }                   
+                    }
                     // save to out_tm
                     for (int n = 0; n < 6; n++)
                     {
@@ -702,7 +748,7 @@ static void conv3x3s1_winograd43_int8_sse(const Mat& bottom_blob, Mat& top_blob,
         int nColBlocks = h_tm/6; // may be the block num in Feathercnn
         int nRowBlocks = w_tm/6;
 
-        const int tiles = nColBlocks * nRowBlocks; 
+        const int tiles = nColBlocks * nRowBlocks;
 
         top_blob_tm.create(36, tiles, outch, 4u, opt.workspace_allocator);
 
@@ -755,7 +801,7 @@ static void conv3x3s1_winograd43_int8_sse(const Mat& bottom_blob, Mat& top_blob,
         // 1 =		  r01 - r02 + 2 * (r03 - r04)
         // 2 =		  r01 + r02 + 4 * (r03 + r04)
         // 3 =		  r01 - r02 + 8 * (r03 - r04)  + r05
-        
+
 
         int w_tm = outw / 4 * 6;
         int h_tm = outh / 4 * 6;
@@ -774,7 +820,7 @@ static void conv3x3s1_winograd43_int8_sse(const Mat& bottom_blob, Mat& top_blob,
                 int* outRow0 = out.row<int>(j*4);
                 int* outRow1 = out.row<int>(j*4+1);
                 int* outRow2 = out.row<int>(j*4+2);
-                int* outRow3 = out.row<int>(j*4+3);                
+                int* outRow3 = out.row<int>(j*4+3);
 
                 for(int i=0; i<nRowBlocks; i++)
                 {
@@ -804,12 +850,30 @@ static void conv3x3s1_winograd43_int8_sse(const Mat& bottom_blob, Mat& top_blob,
                     }
                     // transpose w to w_t
                     {
-                        d0[0] = w0[0]; d0[1] = w1[0]; d0[2] = w2[0]; d0[3] = w3[0];
-                        d1[0] = w0[1]; d1[1] = w1[1]; d1[2] = w2[1]; d1[3] = w3[1];
-                        d2[0] = w0[2]; d2[1] = w1[2]; d2[2] = w2[2]; d2[3] = w3[2];
-                        d3[0] = w0[3]; d3[1] = w1[3]; d3[2] = w2[3]; d3[3] = w3[3];
-                        d4[0] = w0[4]; d4[1] = w1[4]; d4[2] = w2[4]; d4[3] = w3[4];
-                        d5[0] = w0[5]; d5[1] = w1[5]; d5[2] = w2[5]; d5[3] = w3[5];
+                        d0[0] = w0[0];
+                        d0[1] = w1[0];
+                        d0[2] = w2[0];
+                        d0[3] = w3[0];
+                        d1[0] = w0[1];
+                        d1[1] = w1[1];
+                        d1[2] = w2[1];
+                        d1[3] = w3[1];
+                        d2[0] = w0[2];
+                        d2[1] = w1[2];
+                        d2[2] = w2[2];
+                        d2[3] = w3[2];
+                        d3[0] = w0[3];
+                        d3[1] = w1[3];
+                        d3[2] = w2[3];
+                        d3[3] = w3[3];
+                        d4[0] = w0[4];
+                        d4[1] = w1[4];
+                        d4[2] = w2[4];
+                        d4[3] = w3[4];
+                        d5[0] = w0[5];
+                        d5[1] = w1[5];
+                        d5[2] = w2[5];
+                        d5[3] = w3[5];
                     }
                     // Y = A_T * w_t
                     for (int n = 0; n < 4; n++)
@@ -836,7 +900,7 @@ static void conv3x3s1_winograd43_int8_sse(const Mat& bottom_blob, Mat& top_blob,
             }
         }
     }
-    // END transform output 
+    // END transform output
 
     // cut result pad
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);

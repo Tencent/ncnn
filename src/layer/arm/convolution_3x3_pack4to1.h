@@ -568,9 +568,9 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "st1    {v7.4s}, [%1], #16          \n"
                         "st1    {v19.4s}, [%1], #16         \n"
                         : "=r"(r0),     // %0
-                          "=r"(tm2p)    // %1
+                        "=r"(tm2p)    // %1
                         : "0"(r0),
-                          "1"(tm2p)
+                        "1"(tm2p)
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19"
                     );
                     r0 += bottom_blob_tm.cstep * 4;
@@ -607,9 +607,9 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "st1    {v3.4s}, [%1], #16          \n"
                         "st1    {v7.4s}, [%1], #16          \n"
                         : "=r"(r0),     // %0
-                          "=r"(tm2p)    // %1
+                        "=r"(tm2p)    // %1
                         : "0"(r0),
-                          "1"(tm2p)
+                        "1"(tm2p)
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"
                     );
 #else
@@ -636,9 +636,9 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "vst1.f32   {d6-d7}, [%1 :128]! \n"
                         "vst1.f32   {d22-d23}, [%1 :128]! \n"
                         : "=r"(r0),     // %0
-                          "=r"(tm2p)    // %1
+                        "=r"(tm2p)    // %1
                         : "0"(r0),
-                          "1"(tm2p)
+                        "1"(tm2p)
                         : "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11"
                     );
 #endif
@@ -665,9 +665,9 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
                         "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
                         : "=r"(r0),     // %0
-                          "=r"(tm2p)    // %1
+                        "=r"(tm2p)    // %1
                         : "0"(r0),
-                          "1"(tm2p)
+                        "1"(tm2p)
                         : "memory", "v0", "v1", "v2", "v3"
                     );
 #else
@@ -684,9 +684,9 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "vst1.f32   {d2-d3}, [%1 :128]! \n"
                         "vst1.f32   {d6-d7}, [%1 :128]! \n"
                         : "=r"(r0),     // %0
-                          "=r"(tm2p)    // %1
+                        "=r"(tm2p)    // %1
                         : "0"(r0),
-                          "1"(tm2p)
+                        "1"(tm2p)
                         : "memory", "q0", "q1", "q2", "q3"
                     );
 #endif // __aarch64__
@@ -713,9 +713,9 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "ld1    {v0.4s}, [%0]               \n"
                         "st1    {v0.4s}, [%1], #16          \n"
                         : "=r"(r0),     // %0
-                          "=r"(tm2p)    // %1
+                        "=r"(tm2p)    // %1
                         : "0"(r0),
-                          "1"(tm2p)
+                        "1"(tm2p)
                         : "memory", "v0"
                     );
 #else
@@ -724,9 +724,9 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "vld1.f32   {d0-d1}, [%0 :128]  \n"
                         "vst1.f32   {d0-d1}, [%1 :128]! \n"
                         : "=r"(r0),     // %0
-                          "=r"(tm2p)    // %1
+                        "=r"(tm2p)    // %1
                         : "0"(r0),
-                          "1"(tm2p)
+                        "1"(tm2p)
                         : "memory", "q0"
                     );
 #endif // __aarch64__
@@ -940,27 +940,27 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "st1    {v29.4s, v30.4s, v31.4s}, [%8], #48 \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(output4_tm), // %5
-                          "=r"(output5_tm), // %6
-                          "=r"(output6_tm), // %7
-                          "=r"(output7_tm), // %8
-                          "=r"(r0),         // %9
-                          "=r"(kptr)        // %10
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(output4_tm), // %5
+                        "=r"(output5_tm), // %6
+                        "=r"(output6_tm), // %7
+                        "=r"(output7_tm), // %8
+                        "=r"(r0),         // %9
+                        "=r"(kptr)        // %10
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(output4_tm),
-                          "6"(output5_tm),
-                          "7"(output6_tm),
-                          "8"(output7_tm),
-                          "9"(r0),
-                          "10"(kptr)
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(output4_tm),
+                        "6"(output5_tm),
+                        "7"(output6_tm),
+                        "8"(output7_tm),
+                        "9"(r0),
+                        "10"(kptr)
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
                     );
                 }
@@ -1086,27 +1086,27 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "st1    {v30.4s, v31.4s}, [%8], #32 \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(output4_tm), // %5
-                          "=r"(output5_tm), // %6
-                          "=r"(output6_tm), // %7
-                          "=r"(output7_tm), // %8
-                          "=r"(r0),         // %9
-                          "=r"(kptr)        // %10
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(output4_tm), // %5
+                        "=r"(output5_tm), // %6
+                        "=r"(output6_tm), // %7
+                        "=r"(output7_tm), // %8
+                        "=r"(r0),         // %9
+                        "=r"(kptr)        // %10
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(output4_tm),
-                          "6"(output5_tm),
-                          "7"(output6_tm),
-                          "8"(output7_tm),
-                          "9"(r0),
-                          "10"(kptr)
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(output4_tm),
+                        "6"(output5_tm),
+                        "7"(output6_tm),
+                        "8"(output7_tm),
+                        "9"(r0),
+                        "10"(kptr)
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
                     );
                 }
@@ -1189,27 +1189,27 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "st1    {v23.4s}, [%8], #16     \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(output4_tm), // %5
-                          "=r"(output5_tm), // %6
-                          "=r"(output6_tm), // %7
-                          "=r"(output7_tm), // %8
-                          "=r"(r0),         // %9
-                          "=r"(kptr)        // %10
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(output4_tm), // %5
+                        "=r"(output5_tm), // %6
+                        "=r"(output6_tm), // %7
+                        "=r"(output7_tm), // %8
+                        "=r"(r0),         // %9
+                        "=r"(kptr)        // %10
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(output4_tm),
-                          "6"(output5_tm),
-                          "7"(output6_tm),
-                          "8"(output7_tm),
-                          "9"(r0),
-                          "10"(kptr)
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(output4_tm),
+                        "6"(output5_tm),
+                        "7"(output6_tm),
+                        "8"(output7_tm),
+                        "9"(r0),
+                        "10"(kptr)
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
                     );
                 }
@@ -1265,27 +1265,27 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "st1    {v17.s}[3], [%8], #4    \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(output4_tm), // %5
-                          "=r"(output5_tm), // %6
-                          "=r"(output6_tm), // %7
-                          "=r"(output7_tm), // %8
-                          "=r"(r0),         // %9
-                          "=r"(kptr)        // %10
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(output4_tm), // %5
+                        "=r"(output5_tm), // %6
+                        "=r"(output6_tm), // %7
+                        "=r"(output7_tm), // %8
+                        "=r"(r0),         // %9
+                        "=r"(kptr)        // %10
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(output4_tm),
-                          "6"(output5_tm),
-                          "7"(output6_tm),
-                          "8"(output7_tm),
-                          "9"(r0),
-                          "10"(kptr)
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(output4_tm),
+                        "6"(output5_tm),
+                        "7"(output6_tm),
+                        "8"(output7_tm),
+                        "9"(r0),
+                        "10"(kptr)
                         : "cc", "memory", "v0", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19"
                     );
                 }
@@ -1418,19 +1418,19 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "st1    {v17.4s, v18.4s, v19.4s}, [%4], #48 \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(r0),         // %5
-                          "=r"(kptr)        // %6
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(r0),         // %5
+                        "=r"(kptr)        // %6
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(r0),
-                          "6"(kptr)
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(r0),
+                        "6"(kptr)
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27"
                     );
                 }
@@ -1515,19 +1515,19 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "st1    {v14.4s, v15.4s}, [%4], #32 \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(r0),         // %5
-                          "=r"(kptr)        // %6
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(r0),         // %5
+                        "=r"(kptr)        // %6
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(r0),
-                          "6"(kptr)
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(r0),
+                        "6"(kptr)
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19"
                     );
 #else // __aarch64__
@@ -1598,19 +1598,19 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "vst1.f32   {d28-d31}, [%4]! \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(r0),         // %5
-                          "=r"(kptr)        // %6
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(r0),         // %5
+                        "=r"(kptr)        // %6
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(r0),
-                          "6"(kptr)
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(r0),
+                        "6"(kptr)
                         : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
                     );
 #endif // __aarch64__
@@ -1672,19 +1672,19 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "st1    {v11.4s}, [%4], #16     \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(r0),         // %5
-                          "=r"(kptr)        // %6
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(r0),         // %5
+                        "=r"(kptr)        // %6
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(r0),
-                          "6"(kptr)
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(r0),
+                        "6"(kptr)
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
                     );
 #else // __aarch64__
@@ -1732,19 +1732,19 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "vst1.f32   {d22-d23}, [%4]! \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(r0),         // %5
-                          "=r"(kptr)        // %6
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(r0),         // %5
+                        "=r"(kptr)        // %6
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(r0),
-                          "6"(kptr)
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(r0),
+                        "6"(kptr)
                         : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11"
                     );
 #endif // __aarch64__
@@ -1795,19 +1795,19 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "st1    {v8.s}[3], [%4], #4     \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(r0),         // %5
-                          "=r"(kptr)        // %6
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(r0),         // %5
+                        "=r"(kptr)        // %6
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(r0),
-                          "6"(kptr)
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(r0),
+                        "6"(kptr)
                         : "cc", "memory", "v0", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
                     );
 #else // __aarch64__
@@ -1844,19 +1844,19 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "vst1.f32   {d17[1]}, [%4]! \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(r0),         // %5
-                          "=r"(kptr)        // %6
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(r0),         // %5
+                        "=r"(kptr)        // %6
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(r0),
-                          "6"(kptr)
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(r0),
+                        "6"(kptr)
                         : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11"
                     );
 #endif // __aarch64__
@@ -1940,13 +1940,13 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "st1    {v8.4s, v9.4s, v10.4s}, [%1], #48 \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(r0),         // %2
-                          "=r"(kptr)        // %3
+                        "=r"(output0_tm), // %1
+                        "=r"(r0),         // %2
+                        "=r"(kptr)        // %3
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(r0),
-                          "3"(kptr)
+                        "1"(output0_tm),
+                        "2"(r0),
+                        "3"(kptr)
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19"
                     );
                 }
@@ -2001,13 +2001,13 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "st1    {v8.4s, v9.4s}, [%1], #32 \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(r0),         // %2
-                          "=r"(kptr)        // %3
+                        "=r"(output0_tm), // %1
+                        "=r"(r0),         // %2
+                        "=r"(kptr)        // %3
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(r0),
-                          "3"(kptr)
+                        "1"(output0_tm),
+                        "2"(r0),
+                        "3"(kptr)
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
                     );
 #else // __aarch64__
@@ -2048,13 +2048,13 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "vst1.f32   {d16-d19}, [%1]! \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(r0),         // %2
-                          "=r"(kptr)        // %3
+                        "=r"(output0_tm), // %1
+                        "=r"(r0),         // %2
+                        "=r"(kptr)        // %3
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(r0),
-                          "3"(kptr)
+                        "1"(output0_tm),
+                        "2"(r0),
+                        "3"(kptr)
                         : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
                     );
 #endif // __aarch64__
@@ -2102,13 +2102,13 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "st1    {v8.4s}, [%1], #16      \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(r0),         // %2
-                          "=r"(kptr)        // %3
+                        "=r"(output0_tm), // %1
+                        "=r"(r0),         // %2
+                        "=r"(kptr)        // %3
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(r0),
-                          "3"(kptr)
+                        "1"(output0_tm),
+                        "2"(r0),
+                        "3"(kptr)
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11"
                     );
 #else // __aarch64__
@@ -2142,13 +2142,13 @@ static void conv3x3s1_winograd64_pack4to1_neon(const Mat& bottom_blob, Mat& top_
                         "vst1.f32   {d16-d17}, [%1]! \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(r0),         // %2
-                          "=r"(kptr)        // %3
+                        "=r"(output0_tm), // %1
+                        "=r"(r0),         // %2
+                        "=r"(kptr)        // %3
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(r0),
-                          "3"(kptr)
+                        "1"(output0_tm),
+                        "2"(r0),
+                        "3"(kptr)
                         : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q8", "q9", "q10", "q11"
                     );
 #endif // __aarch64__
@@ -2523,33 +2523,33 @@ static void conv3x3s1_pack4to1_neon(const Mat& bottom_blob, Mat& top_blob, const
                         "st1    {v1.4s}, [%1], #16          \n"
 
                         : "=r"(outptr0),    // %0
-                          "=r"(outptr1),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2)          // %4
+                        "=r"(outptr1),    // %1
+                        "=r"(r0),         // %2
+                        "=r"(r1),         // %3
+                        "=r"(r2)          // %4
                         : "0"(outptr0),
-                          "1"(outptr1),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "w"(_k00_0),      // %10
-                          "w"(_k01_0),      // %11
-                          "w"(_k02_0),      // %12
-                          "w"(_k10_0),      // %13
-                          "w"(_k11_0),      // %14
-                          "w"(_k12_0),      // %15
-                          "w"(_k20_0),      // %16
-                          "w"(_k21_0),      // %17
-                          "w"(_k22_0),      // %18
-                          "w"(_k00_1),      // %19
-                          "w"(_k01_1),      // %20
-                          "w"(_k02_1),      // %21
-                          "w"(_k10_1),      // %22
-                          "w"(_k11_1),      // %23
-                          "w"(_k12_1),      // %24
-                          "w"(_k20_1),      // %25
-                          "w"(_k21_1),      // %26
-                          "w"(_k22_1)       // %27
+                        "1"(outptr1),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "w"(_k00_0),      // %10
+                        "w"(_k01_0),      // %11
+                        "w"(_k02_0),      // %12
+                        "w"(_k10_0),      // %13
+                        "w"(_k11_0),      // %14
+                        "w"(_k12_0),      // %15
+                        "w"(_k20_0),      // %16
+                        "w"(_k21_0),      // %17
+                        "w"(_k22_0),      // %18
+                        "w"(_k00_1),      // %19
+                        "w"(_k01_1),      // %20
+                        "w"(_k02_1),      // %21
+                        "w"(_k10_1),      // %22
+                        "w"(_k11_1),      // %23
+                        "w"(_k12_1),      // %24
+                        "w"(_k20_1),      // %25
+                        "w"(_k21_1),      // %26
+                        "w"(_k22_1)       // %27
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v16", "v17", "v18", "v19"
                     );
                 }
@@ -2630,33 +2630,33 @@ static void conv3x3s1_pack4to1_neon(const Mat& bottom_blob, Mat& top_blob, const
                         "st1    {v5.2s}, [%1], #8           \n"
 
                         : "=r"(outptr0),    // %0
-                          "=r"(outptr1),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2)          // %4
+                        "=r"(outptr1),    // %1
+                        "=r"(r0),         // %2
+                        "=r"(r1),         // %3
+                        "=r"(r2)          // %4
                         : "0"(outptr0),
-                          "1"(outptr1),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "w"(_k00_0),      // %10
-                          "w"(_k01_0),      // %11
-                          "w"(_k02_0),      // %12
-                          "w"(_k10_0),      // %13
-                          "w"(_k11_0),      // %14
-                          "w"(_k12_0),      // %15
-                          "w"(_k20_0),      // %16
-                          "w"(_k21_0),      // %17
-                          "w"(_k22_0),      // %18
-                          "w"(_k00_1),      // %19
-                          "w"(_k01_1),      // %20
-                          "w"(_k02_1),      // %21
-                          "w"(_k10_1),      // %22
-                          "w"(_k11_1),      // %23
-                          "w"(_k12_1),      // %24
-                          "w"(_k20_1),      // %25
-                          "w"(_k21_1),      // %26
-                          "w"(_k22_1)       // %27
+                        "1"(outptr1),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "w"(_k00_0),      // %10
+                        "w"(_k01_0),      // %11
+                        "w"(_k02_0),      // %12
+                        "w"(_k10_0),      // %13
+                        "w"(_k11_0),      // %14
+                        "w"(_k12_0),      // %15
+                        "w"(_k20_0),      // %16
+                        "w"(_k21_0),      // %17
+                        "w"(_k22_0),      // %18
+                        "w"(_k00_1),      // %19
+                        "w"(_k01_1),      // %20
+                        "w"(_k02_1),      // %21
+                        "w"(_k10_1),      // %22
+                        "w"(_k11_1),      // %23
+                        "w"(_k12_1),      // %24
+                        "w"(_k20_1),      // %25
+                        "w"(_k21_1),      // %26
+                        "w"(_k22_1)       // %27
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19"
                     );
                 }
@@ -2720,33 +2720,33 @@ static void conv3x3s1_pack4to1_neon(const Mat& bottom_blob, Mat& top_blob, const
                         "st1    {v4.s}[0], [%1], #4         \n"
 
                         : "=r"(outptr0),    // %0
-                          "=r"(outptr1),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2)          // %4
+                        "=r"(outptr1),    // %1
+                        "=r"(r0),         // %2
+                        "=r"(r1),         // %3
+                        "=r"(r2)          // %4
                         : "0"(outptr0),
-                          "1"(outptr1),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "w"(_k00_0),      // %10
-                          "w"(_k01_0),      // %11
-                          "w"(_k02_0),      // %12
-                          "w"(_k10_0),      // %13
-                          "w"(_k11_0),      // %14
-                          "w"(_k12_0),      // %15
-                          "w"(_k20_0),      // %16
-                          "w"(_k21_0),      // %17
-                          "w"(_k22_0),      // %18
-                          "w"(_k00_1),      // %19
-                          "w"(_k01_1),      // %20
-                          "w"(_k02_1),      // %21
-                          "w"(_k10_1),      // %22
-                          "w"(_k11_1),      // %23
-                          "w"(_k12_1),      // %24
-                          "w"(_k20_1),      // %25
-                          "w"(_k21_1),      // %26
-                          "w"(_k22_1)       // %27
+                        "1"(outptr1),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "w"(_k00_0),      // %10
+                        "w"(_k01_0),      // %11
+                        "w"(_k02_0),      // %12
+                        "w"(_k10_0),      // %13
+                        "w"(_k11_0),      // %14
+                        "w"(_k12_0),      // %15
+                        "w"(_k20_0),      // %16
+                        "w"(_k21_0),      // %17
+                        "w"(_k22_0),      // %18
+                        "w"(_k00_1),      // %19
+                        "w"(_k01_1),      // %20
+                        "w"(_k02_1),      // %21
+                        "w"(_k10_1),      // %22
+                        "w"(_k11_1),      // %23
+                        "w"(_k12_1),      // %24
+                        "w"(_k20_1),      // %25
+                        "w"(_k21_1),      // %26
+                        "w"(_k22_1)       // %27
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v16", "v17", "v18", "v19"
                     );
                 }
@@ -2929,22 +2929,22 @@ static void conv3x3s1_pack4to1_neon(const Mat& bottom_blob, Mat& top_blob, const
                         "st1    {v0.4s, v1.4s}, [%0], #32   \n"
 
                         : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        "=r"(r0),         // %1
+                        "=r"(r1),         // %2
+                        "=r"(r2)          // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00),        // %8
+                        "w"(_k01),        // %9
+                        "w"(_k02),        // %10
+                        "w"(_k10),        // %11
+                        "w"(_k11),        // %12
+                        "w"(_k12),        // %13
+                        "w"(_k20),        // %14
+                        "w"(_k21),        // %15
+                        "w"(_k22)         // %16
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
                     );
                 }
@@ -3029,22 +3029,22 @@ static void conv3x3s1_pack4to1_neon(const Mat& bottom_blob, Mat& top_blob, const
                         "st1    {v0.4s}, [%0], #16          \n"
 
                         : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        "=r"(r0),         // %1
+                        "=r"(r1),         // %2
+                        "=r"(r2)          // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00),        // %8
+                        "w"(_k01),        // %9
+                        "w"(_k02),        // %10
+                        "w"(_k10),        // %11
+                        "w"(_k11),        // %12
+                        "w"(_k12),        // %13
+                        "w"(_k20),        // %14
+                        "w"(_k21),        // %15
+                        "w"(_k22)         // %16
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v16", "v17", "v18", "v19"
                     );
 #else // __aarch64__
@@ -3160,22 +3160,22 @@ static void conv3x3s1_pack4to1_neon(const Mat& bottom_blob, Mat& top_blob, const
                         "vst1.f32   {d0-d1}, [%0]!  \n"
 
                         : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        "=r"(r0),         // %1
+                        "=r"(r1),         // %2
+                        "=r"(r2)          // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00),        // %8
+                        "w"(_k01),        // %9
+                        "w"(_k02),        // %10
+                        "w"(_k10),        // %11
+                        "w"(_k11),        // %12
+                        "w"(_k12),        // %13
+                        "w"(_k20),        // %14
+                        "w"(_k21),        // %15
+                        "w"(_k22)         // %16
                         : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6"
                     );
 #endif // __aarch64__
@@ -3236,22 +3236,22 @@ static void conv3x3s1_pack4to1_neon(const Mat& bottom_blob, Mat& top_blob, const
                         "st1    {v0.2s}, [%0], #8           \n"
 
                         : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        "=r"(r0),         // %1
+                        "=r"(r1),         // %2
+                        "=r"(r2)          // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00),        // %8
+                        "w"(_k01),        // %9
+                        "w"(_k02),        // %10
+                        "w"(_k10),        // %11
+                        "w"(_k11),        // %12
+                        "w"(_k12),        // %13
+                        "w"(_k20),        // %14
+                        "w"(_k21),        // %15
+                        "w"(_k22)         // %16
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19"
                     );
 #else // __aarch64__
@@ -3313,22 +3313,22 @@ static void conv3x3s1_pack4to1_neon(const Mat& bottom_blob, Mat& top_blob, const
                         "vst1.f32   {d8}, [%0]!     \n"
 
                         : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        "=r"(r0),         // %1
+                        "=r"(r1),         // %2
+                        "=r"(r2)          // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00),        // %8
+                        "w"(_k01),        // %9
+                        "w"(_k02),        // %10
+                        "w"(_k10),        // %11
+                        "w"(_k11),        // %12
+                        "w"(_k12),        // %13
+                        "w"(_k20),        // %14
+                        "w"(_k21),        // %15
+                        "w"(_k22)         // %16
                         : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6"
                     );
 #endif // __aarch64__
@@ -3379,22 +3379,22 @@ static void conv3x3s1_pack4to1_neon(const Mat& bottom_blob, Mat& top_blob, const
                         "st1    {v16.s}[0], [%0], #4        \n"
 
                         : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        "=r"(r0),         // %1
+                        "=r"(r1),         // %2
+                        "=r"(r2)          // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00),        // %8
+                        "w"(_k01),        // %9
+                        "w"(_k02),        // %10
+                        "w"(_k10),        // %11
+                        "w"(_k11),        // %12
+                        "w"(_k12),        // %13
+                        "w"(_k20),        // %14
+                        "w"(_k21),        // %15
+                        "w"(_k22)         // %16
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v16", "v17", "v18"
                     );
 #else // __aarch64__
@@ -3439,22 +3439,22 @@ static void conv3x3s1_pack4to1_neon(const Mat& bottom_blob, Mat& top_blob, const
                         "vst1.f32   {d6[0]}, [%0]!  \n"
 
                         : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        "=r"(r0),         // %1
+                        "=r"(r1),         // %2
+                        "=r"(r2)          // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00),        // %8
+                        "w"(_k01),        // %9
+                        "w"(_k02),        // %10
+                        "w"(_k10),        // %11
+                        "w"(_k11),        // %12
+                        "w"(_k12),        // %13
+                        "w"(_k20),        // %14
+                        "w"(_k21),        // %15
+                        "w"(_k22)         // %16
                         : "memory", "q0", "q1", "q2", "q3", "q4", "q5"
                     );
 #endif // __aarch64__

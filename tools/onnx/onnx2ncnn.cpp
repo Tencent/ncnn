@@ -158,7 +158,7 @@ static std::vector<int> get_node_attr_from_input_ai(const onnx::TensorProto& tp)
     std::vector<int> v;
 
     // int64
-    if (tp.data_type() == 7) 
+    if (tp.data_type() == 7)
     {
         const int64_t* shape_data = 0;
         if (tp.has_raw_data())
@@ -166,7 +166,7 @@ static std::vector<int> get_node_attr_from_input_ai(const onnx::TensorProto& tp)
             shape_data = (const int64_t*)tp.raw_data().data();
             size = tp.raw_data().size() / 8;
         }
-        else 
+        else
         {
             shape_data = tp.int64_data().data();
             size = tp.int64_data_size();
@@ -175,17 +175,17 @@ static std::vector<int> get_node_attr_from_input_ai(const onnx::TensorProto& tp)
         {
             v.push_back(shape_data[j]);
         }
-    } 
+    }
     // int32
-    else if (tp.data_type() == 6) 
+    else if (tp.data_type() == 6)
     {
         const int32_t* shape_data = 0;
         if (tp.has_raw_data())
         {
             shape_data = (const int32_t*)tp.raw_data().data();
             size = tp.raw_data().size() / 4;
-        } 
-        else 
+        }
+        else
         {
             shape_data = tp.int32_data().data();
             size = tp.int32_data_size();
@@ -887,8 +887,8 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
                 continue;
 
             if (node2->input(0) != node->output(0) || node3->input(0) != node->input(0)
-                || node4->input(0) != node2->output(0) || node4->input(1) != node3->output(0)
-                || node5->input(0) != node->input(0) || node5->input(1) != node4->output(0))
+                    || node4->input(0) != node2->output(0) || node4->input(1) != node3->output(0)
+                    || node5->input(0) != node->input(0) || node5->input(1) != node4->output(0))
                 continue;
 
             // +eps
@@ -960,7 +960,7 @@ static void fuse_flatten(onnx::GraphProto* mutable_graph, std::map<std::string, 
             onnx::NodeProto* node7 = mutable_graph->mutable_node(i+6);
 
             if (node2->op_type() != "Gather" || node3->op_type() != "Constant" || node4->op_type() != "Unsqueeze" || node5->op_type() != "Unsqueeze"
-                || node6->op_type() != "Concat" || node7->op_type() != "Reshape")
+                    || node6->op_type() != "Concat" || node7->op_type() != "Reshape")
                 continue;
 
             if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
@@ -979,8 +979,8 @@ static void fuse_flatten(onnx::GraphProto* mutable_graph, std::map<std::string, 
                 continue;
 
             if (node2->input(0) != node->output(0) || node4->input(0) != node2->output(0) || node5->input(0) != node3->output(0)
-                || node6->input(0) != node4->output(0) || node6->input(1) != node5->output(0)
-                || node7->input(0) != node->input(0) || node7->input(1) != node6->output(0))
+                    || node6->input(0) != node4->output(0) || node6->input(1) != node5->output(0)
+                    || node7->input(0) != node->input(0) || node7->input(1) != node6->output(0))
                 continue;
 
             // axis = 0
@@ -1417,12 +1417,12 @@ int main(int argc, char** argv)
         fprintf(pp, "%-16s %-24s 0 1 %s\n", "Input", input_name.c_str(), input_name.c_str());
 
         // split the input
-        if (node_reference.find(input_name) == node_reference.end()){
+        if (node_reference.find(input_name) == node_reference.end()) {
             continue;
         }
 
         int refcount = node_reference[input_name];
-        if (refcount <= 1){
+        if (refcount <= 1) {
             continue;
         }
 
@@ -1431,7 +1431,7 @@ int main(int argc, char** argv)
         fprintf(pp, "%-16s %-24s %d %d", "Split", splitname, 1, refcount);
         fprintf(pp, " %s", input_name.c_str());
 
-        for (int k=0; k<refcount; k++){
+        for (int k=0; k<refcount; k++) {
             fprintf(pp, " %s_splitncnn_%d", input_name.c_str(), k);
         }
         fprintf(pp, "\n");
@@ -1469,12 +1469,12 @@ int main(int argc, char** argv)
         fwrite_tensor_proto_data(M, bp);
 
         // split the input
-        if (node_reference.find(input_name) == node_reference.end()){
+        if (node_reference.find(input_name) == node_reference.end()) {
             continue;
         }
 
         int refcount = node_reference[input_name];
-        if (refcount <= 1){
+        if (refcount <= 1) {
             continue;
         }
 
@@ -1747,8 +1747,8 @@ int main(int argc, char** argv)
             fprintf(pp, "%-16s", "UnaryOp");
         }
         else if (op == "ReduceMax" || op == "ReduceMin" || op == "ReduceMean" ||
-                op == "ReduceProd" || op == "ReduceSum" || op == "ReduceSumSquare" ||
-                op == "ReduceL1" || op == "ReduceL2" || op == "ReduceLogSum" || op == "ReduceLogSumExp")
+                 op == "ReduceProd" || op == "ReduceSum" || op == "ReduceSumSquare" ||
+                 op == "ReduceL1" || op == "ReduceL2" || op == "ReduceLogSum" || op == "ReduceLogSumExp")
         {
             fprintf(pp, "%-16s", "Reduction");
         }
@@ -2092,17 +2092,17 @@ int main(int argc, char** argv)
             else
             {
 
-            if (pads.size() == 1) {
-                fprintf(pp, " 4=%d", pads[0]);
-            } else if (pads.size() == 2) {
-                fprintf(pp, " 4=%d", pads[1]);
-                fprintf(pp, " 14=%d", pads[0]);
-            } else if (pads.size() == 4) {
-                fprintf(pp, " 4=%d", pads[1]);
-                fprintf(pp, " 14=%d", pads[0]);
-                fprintf(pp, " 15=%d", pads[3]);
-                fprintf(pp, " 16=%d", pads[2]);
-            }
+                if (pads.size() == 1) {
+                    fprintf(pp, " 4=%d", pads[0]);
+                } else if (pads.size() == 2) {
+                    fprintf(pp, " 4=%d", pads[1]);
+                    fprintf(pp, " 14=%d", pads[0]);
+                } else if (pads.size() == 4) {
+                    fprintf(pp, " 4=%d", pads[1]);
+                    fprintf(pp, " 14=%d", pads[0]);
+                    fprintf(pp, " 15=%d", pads[3]);
+                    fprintf(pp, " 16=%d", pads[2]);
+                }
 
             }
 
@@ -2175,17 +2175,17 @@ int main(int argc, char** argv)
             else
             {
 
-            if (pads.size() == 1) {
-                fprintf(pp, " 4=%d", pads[0]);
-            } else if (pads.size() == 2) {
-                fprintf(pp, " 4=%d", pads[1]);
-                fprintf(pp, " 14=%d", pads[0]);
-            } else if (pads.size() == 4) {
-                fprintf(pp, " 4=%d", pads[1]);
-                fprintf(pp, " 14=%d", pads[0]);
-                fprintf(pp, " 15=%d", pads[3]);
-                fprintf(pp, " 16=%d", pads[2]);
-            }
+                if (pads.size() == 1) {
+                    fprintf(pp, " 4=%d", pads[0]);
+                } else if (pads.size() == 2) {
+                    fprintf(pp, " 4=%d", pads[1]);
+                    fprintf(pp, " 14=%d", pads[0]);
+                } else if (pads.size() == 4) {
+                    fprintf(pp, " 4=%d", pads[1]);
+                    fprintf(pp, " 14=%d", pads[0]);
+                    fprintf(pp, " 15=%d", pads[3]);
+                    fprintf(pp, " 16=%d", pads[2]);
+                }
 
             }
 
@@ -2235,17 +2235,17 @@ int main(int argc, char** argv)
             }
             for (int g=0; g<group; g++)
             {
-            // reorder weight from inch-outch to outch-inch
-            int num_filter_g = num_filter / group;
-            int num_input = weight_data_size / maxk / num_filter_g / group;
-            const float* weight_data_ptr = weight_data + g * maxk * num_filter_g * num_input;
-            for (int k=0; k<num_filter_g; k++)
-            {
-                for (int j=0; j<num_input; j++)
+                // reorder weight from inch-outch to outch-inch
+                int num_filter_g = num_filter / group;
+                int num_input = weight_data_size / maxk / num_filter_g / group;
+                const float* weight_data_ptr = weight_data + g * maxk * num_filter_g * num_input;
+                for (int k=0; k<num_filter_g; k++)
                 {
-                    fwrite(weight_data_ptr + (j*num_filter_g + k) * maxk, sizeof(float), maxk, bp);
+                    for (int j=0; j<num_input; j++)
+                    {
+                        fwrite(weight_data_ptr + (j*num_filter_g + k) * maxk, sizeof(float), maxk, bp);
+                    }
                 }
-            }
             }
 
             if (has_bias)
@@ -2734,8 +2734,8 @@ int main(int argc, char** argv)
             fprintf(pp, " 0=%d", op_type);
         }
         else if (op == "ReduceMax" || op == "ReduceMin" || op == "ReduceMean" ||
-                op == "ReduceProd" || op == "ReduceSum" || op == "ReduceSumSquare" ||
-                op == "ReduceL1" || op == "ReduceL2" || op == "ReduceLogSum" || op == "ReduceLogSumExp")
+                 op == "ReduceProd" || op == "ReduceSum" || op == "ReduceSumSquare" ||
+                 op == "ReduceL1" || op == "ReduceL2" || op == "ReduceLogSum" || op == "ReduceLogSumExp")
         {
             int op_type = -233;
             if (op == "ReduceSum")

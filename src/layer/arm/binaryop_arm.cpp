@@ -589,48 +589,70 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
 }
 
 struct binary_op_add_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const { return vaddq_f32(x, y); }
+    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const {
+        return vaddq_f32(x, y);
+    }
 };
 
 struct binary_op_sub_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const { return vsubq_f32(x, y); }
+    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const {
+        return vsubq_f32(x, y);
+    }
 };
 
 struct binary_op_mul_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const { return vmulq_f32(x, y); }
+    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const {
+        return vmulq_f32(x, y);
+    }
 };
 
 struct binary_op_div_pack4 {
     float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const
 #if __aarch64__
-    { return vdivq_f32(x, y); }
+    {
+        return vdivq_f32(x, y);
+    }
 #else
-    { return div_ps(x, y); }
+    {
+        return div_ps(x, y);
+    }
 #endif
 };
 
 struct binary_op_max_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const { return vmaxq_f32(x, y); }
+    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const {
+        return vmaxq_f32(x, y);
+    }
 };
 
 struct binary_op_min_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const { return vminq_f32(x, y); }
+    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const {
+        return vminq_f32(x, y);
+    }
 };
 
 struct binary_op_pow_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const { return pow_ps(x, y); }
+    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const {
+        return pow_ps(x, y);
+    }
 };
 
 struct binary_op_rsub_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const { return vsubq_f32(y, x); }
+    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const {
+        return vsubq_f32(y, x);
+    }
 };
 
 struct binary_op_rdiv_pack4 {
     float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const
 #if __aarch64__
-    { return vdivq_f32(y, x); }
+    {
+        return vdivq_f32(y, x);
+    }
 #else
-    { return div_ps(y, x); }
+    {
+        return div_ps(y, x);
+    }
 #endif
 };
 #endif // __ARM_NEON
@@ -1734,39 +1756,57 @@ static int binary_op_scalar_inplace_bf16s(Mat& a, float b, const Option& opt)
 }
 
 struct binary_op_add {
-    float operator() (const float& x, const float& y) const { return x + y; }
+    float operator() (const float& x, const float& y) const {
+        return x + y;
+    }
 };
 
 struct binary_op_sub {
-    float operator() (const float& x, const float& y) const { return x - y; }
+    float operator() (const float& x, const float& y) const {
+        return x - y;
+    }
 };
 
 struct binary_op_mul {
-    float operator() (const float& x, const float& y) const { return x * y; }
+    float operator() (const float& x, const float& y) const {
+        return x * y;
+    }
 };
 
 struct binary_op_div {
-    float operator() (const float& x, const float& y) const { return x / y; }
+    float operator() (const float& x, const float& y) const {
+        return x / y;
+    }
 };
 
 struct binary_op_max {
-    float operator() (const float& x, const float& y) const { return std::max(x, y); }
+    float operator() (const float& x, const float& y) const {
+        return std::max(x, y);
+    }
 };
 
 struct binary_op_min {
-    float operator() (const float& x, const float& y) const { return std::min(x, y); }
+    float operator() (const float& x, const float& y) const {
+        return std::min(x, y);
+    }
 };
 
 struct binary_op_pow {
-    float operator() (const float& x, const float& y) const { return (float)pow(x, y); }
+    float operator() (const float& x, const float& y) const {
+        return (float)pow(x, y);
+    }
 };
 
 struct binary_op_rsub {
-    float operator() (const float& x, const float& y) const { return y - x; }
+    float operator() (const float& x, const float& y) const {
+        return y - x;
+    }
 };
 
 struct binary_op_rdiv {
-    float operator() (const float& x, const float& y) const { return y / x; }
+    float operator() (const float& x, const float& y) const {
+        return y / x;
+    }
 };
 
 int BinaryOp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const

@@ -56,7 +56,7 @@ int ArgMax::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
     }
 
     std::partial_sort(vec.begin(), vec.begin() + topk, vec.end(),
-                        std::greater< std::pair<float, int> >());
+                      std::greater< std::pair<float, int> >());
 
     float* outptr = top_blob;
     if (out_max_val)

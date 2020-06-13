@@ -296,54 +296,54 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 #if __aarch64__
             if (nn > 0)
             {
-            asm volatile(
-                "0:                                   \n"
-                "prfm       pldl1keep, [%1, #256]     \n"
-                "ld1        {v0.4s, v1.4s}, [%1], #32 \n"
-                "prfm       pldl1keep, [%2, #256]     \n"
-                "ld1        {v2.4s, v3.4s}, [%2], #32 \n"
-                "fmla       %3.4s, v0.4s, v2.4s       \n"
-                "subs       %w0, %w0, #1              \n"
-                "fmla       %4.4s, v1.4s, v3.4s       \n"
-                "bne        0b                        \n"
-                : "=r"(nn),     // %0
-                  "=r"(m),      // %1
-                  "=r"(w),      // %2
-                  "=w"(_sum),   // %3
-                  "=w"(_sum2)   // %4
-                : "0"(nn),
-                  "1"(m),
-                  "2"(w),
-                  "3"(_sum),
-                  "4"(_sum2)
-                : "cc", "memory", "v0", "v1", "v2", "v3"
-            );
+                asm volatile(
+                    "0:                                   \n"
+                    "prfm       pldl1keep, [%1, #256]     \n"
+                    "ld1        {v0.4s, v1.4s}, [%1], #32 \n"
+                    "prfm       pldl1keep, [%2, #256]     \n"
+                    "ld1        {v2.4s, v3.4s}, [%2], #32 \n"
+                    "fmla       %3.4s, v0.4s, v2.4s       \n"
+                    "subs       %w0, %w0, #1              \n"
+                    "fmla       %4.4s, v1.4s, v3.4s       \n"
+                    "bne        0b                        \n"
+                    : "=r"(nn),     // %0
+                    "=r"(m),      // %1
+                    "=r"(w),      // %2
+                    "=w"(_sum),   // %3
+                    "=w"(_sum2)   // %4
+                    : "0"(nn),
+                    "1"(m),
+                    "2"(w),
+                    "3"(_sum),
+                    "4"(_sum2)
+                    : "cc", "memory", "v0", "v1", "v2", "v3"
+                );
             }
 #else
             if (nn > 0)
             {
-            asm volatile(
-                "0:                             \n"
-                "pld        [%1, #256]          \n"
-                "vld1.f32   {d0-d3}, [%1 :128]! \n"
-                "pld        [%2, #256]          \n"
-                "vld1.f32   {d4-d7}, [%2]!      \n"
-                "vmla.f32   %q3, q0, q2         \n"
-                "subs       %0, #1              \n"
-                "vmla.f32   %q4, q1, q3         \n"
-                "bne        0b                  \n"
-                : "=r"(nn),     // %0
-                  "=r"(m),      // %1
-                  "=r"(w),      // %2
-                  "=w"(_sum),   // %3
-                  "=w"(_sum2)   // %4
-                : "0"(nn),
-                  "1"(m),
-                  "2"(w),
-                  "3"(_sum),
-                  "4"(_sum2)
-                : "cc", "memory", "q0", "q1", "q2", "q3"
-            );
+                asm volatile(
+                    "0:                             \n"
+                    "pld        [%1, #256]          \n"
+                    "vld1.f32   {d0-d3}, [%1 :128]! \n"
+                    "pld        [%2, #256]          \n"
+                    "vld1.f32   {d4-d7}, [%2]!      \n"
+                    "vmla.f32   %q3, q0, q2         \n"
+                    "subs       %0, #1              \n"
+                    "vmla.f32   %q4, q1, q3         \n"
+                    "bne        0b                  \n"
+                    : "=r"(nn),     // %0
+                    "=r"(m),      // %1
+                    "=r"(w),      // %2
+                    "=w"(_sum),   // %3
+                    "=w"(_sum2)   // %4
+                    : "0"(nn),
+                    "1"(m),
+                    "2"(w),
+                    "3"(_sum),
+                    "4"(_sum2)
+                    : "cc", "memory", "q0", "q1", "q2", "q3"
+                );
             }
 #endif // __aarch64__
 #endif // __ARM_NEON

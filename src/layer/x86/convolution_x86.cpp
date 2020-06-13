@@ -70,7 +70,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         {
             pd.set(0, activation_params[0] * top_blob_int8_scale);// min
             pd.set(1, activation_params[1] * top_blob_int8_scale);// max
-        }else{
+        } else {
             pd.set(0, activation_params[0]);// min
             pd.set(1, activation_params[1]);// max
         }
@@ -147,7 +147,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         convolution_dilation1->create_pipeline(opt);
     }
     else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1
-        && num_input >= 16 && num_output >= 16)
+             && num_input >= 16 && num_output >= 16)
     {
         // winograd is slow on small channel count
         use_winograd3x3 = true;
@@ -287,7 +287,7 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
     use_winograd3x3_int8 = false;
 
     if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1
-        && num_input >= 16 && num_output >= 16)
+            && num_input >= 16 && num_output >= 16)
     {
         // winograd is slow on small channel count
         use_winograd3x3_int8 = true;

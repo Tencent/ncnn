@@ -177,8 +177,8 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     constants[6].f = coeffs.w == 0 ? 1.f : coeffs[1];
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[1]
-                             : elempack == 4 ? pipeline_eltwise_pack4[1]
-                             : pipeline_eltwise[1];
+                               : elempack == 4 ? pipeline_eltwise_pack4[1]
+                               : pipeline_eltwise[1];
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -199,8 +199,8 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         constants[6].f = coeffs.w == 0 ? 1 : coeffs[b];
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[b%2]
-                                 : elempack == 4 ? pipeline_eltwise_pack4[b%2]
-                                 : pipeline_eltwise[b%2];
+                                   : elempack == 4 ? pipeline_eltwise_pack4[b%2]
+                                   : pipeline_eltwise[b%2];
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
@@ -239,8 +239,8 @@ int Eltwise_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     constants[6].f = coeffs.w == 0 ? 1.f : coeffs[1];
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[1]
-                             : elempack == 4 ? pipeline_eltwise_pack4[1]
-                             : pipeline_eltwise[1];
+                               : elempack == 4 ? pipeline_eltwise_pack4[1]
+                               : pipeline_eltwise[1];
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -261,8 +261,8 @@ int Eltwise_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
         constants[6].f = coeffs.w == 0 ? 1 : coeffs[b];
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[b%2]
-                                 : elempack == 4 ? pipeline_eltwise_pack4[b%2]
-                                 : pipeline_eltwise[b%2];
+                                   : elempack == 4 ? pipeline_eltwise_pack4[b%2]
+                                   : pipeline_eltwise[b%2];
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }

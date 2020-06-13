@@ -121,11 +121,11 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "st1    {v1.4h}, [%2], #8       \n"
                     "bne    0b                      \n"
                     : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    "=r"(ptr),    // %1
+                    "=r"(outptr)  // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
+                    "1"(ptr),
+                    "2"(outptr)
                     : "cc", "memory", "v0", "v1"
                 );
 #else
@@ -138,11 +138,11 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "vst1.f32   {d2}, [%2 :64]!     \n"
                     "bne        0b                  \n"
                     : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    "=r"(ptr),    // %1
+                    "=r"(outptr)  // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
+                    "1"(ptr),
+                    "2"(outptr)
                     : "cc", "memory", "q0", "q1"
                 );
 #endif // __aarch64__
@@ -169,11 +169,11 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "st1    {v1.4s}, [%2], #16      \n"
                     "bne    0b                      \n"
                     : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    "=r"(ptr),    // %1
+                    "=r"(outptr)  // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
+                    "1"(ptr),
+                    "2"(outptr)
                     : "cc", "memory", "v0", "v1"
                 );
 #else
@@ -186,11 +186,11 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "vst1.f32   {d2-d3}, [%2 :128]! \n"
                     "bne        0b                  \n"
                     : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    "=r"(ptr),    // %1
+                    "=r"(outptr)  // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
+                    "1"(ptr),
+                    "2"(outptr)
                     : "cc", "memory", "q0", "q1"
                 );
 #endif // __aarch64__
@@ -233,11 +233,11 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "st1    {v1.4h}, [%2], #8       \n"
                     "bne    0b                      \n"
                     : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    "=r"(ptr),    // %1
+                    "=r"(outptr)  // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
+                    "1"(ptr),
+                    "2"(outptr)
                     : "cc", "memory", "v0", "v1"
                 );
 #else
@@ -250,11 +250,11 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "vst1.u16   {d2}, [%2 :64]!     \n"
                     "bne        0b                  \n"
                     : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    "=r"(ptr),    // %1
+                    "=r"(outptr)  // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
+                    "1"(ptr),
+                    "2"(outptr)
                     : "cc", "memory", "q0", "q1"
                 );
 #endif // __aarch64__
@@ -281,11 +281,11 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "st1    {v1.4s}, [%2], #16      \n"
                     "bne    0b                      \n"
                     : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    "=r"(ptr),    // %1
+                    "=r"(outptr)  // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
+                    "1"(ptr),
+                    "2"(outptr)
                     : "cc", "memory", "v0", "v1"
                 );
 #else
@@ -298,11 +298,11 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "vst1.f32   {d2-d3}, [%2 :128]! \n"
                     "bne        0b                  \n"
                     : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    "=r"(ptr),    // %1
+                    "=r"(outptr)  // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
+                    "1"(ptr),
+                    "2"(outptr)
                     : "cc", "memory", "q0", "q1"
                 );
 #endif // __aarch64__

@@ -43,9 +43,9 @@ static int test_permute_0()
     ncnn::Mat b = RandomMat(127);
 
     return 0
-        || test_permute(a, 0)
-        || test_permute(b, 0)
-        ;
+           || test_permute(a, 0)
+           || test_permute(b, 0)
+           ;
 }
 
 static int test_permute_1()
@@ -58,11 +58,11 @@ static int test_permute_1()
     for (int order_type=0; order_type<2; order_type++)
     {
         int ret = 0
-            || test_permute(a, order_type)
-            || test_permute(b, order_type)
-            || test_permute(c, order_type)
-            || test_permute(d, order_type)
-            ;
+                  || test_permute(a, order_type)
+                  || test_permute(b, order_type)
+                  || test_permute(c, order_type)
+                  || test_permute(d, order_type)
+                  ;
 
         if (ret != 0)
             return -1;
@@ -83,13 +83,13 @@ static int test_permute_2()
     for (int order_type=0; order_type<6; order_type++)
     {
         int ret = 0
-            || test_permute(a, order_type)
-            || test_permute(b, order_type)
-            || test_permute(c, order_type)
-            || test_permute(d, order_type)
-            || test_permute(e, order_type)
-            || test_permute(f, order_type)
-            ;
+                  || test_permute(a, order_type)
+                  || test_permute(b, order_type)
+                  || test_permute(c, order_type)
+                  || test_permute(d, order_type)
+                  || test_permute(e, order_type)
+                  || test_permute(f, order_type)
+                  ;
 
         if (ret != 0)
             return -1;
@@ -103,8 +103,8 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_permute_0()
-        || test_permute_1()
-        || test_permute_2()
-        ;
+           || test_permute_0()
+           || test_permute_1()
+           || test_permute_2()
+           ;
 }

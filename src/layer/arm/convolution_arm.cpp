@@ -393,25 +393,25 @@ int Convolution_arm::create_pipeline(const Option& opt)
         {
             switch (impl_type)
             {
-                case 1:
-                    // winograd
-                    conv3x3s1_winograd64_transform_kernel_neon5(weight_data, weight_3x3_winograd64_data, num_input, num_output);
-                    break;
-                case 2:
-                    // pointwise
-                    conv1x1s1_sgemm_transform_kernel_neon(weight_data, weight_1x1_sgemm_data, num_input, num_output);
-                    break;
-                case 3:
-                    // im2col
-                    conv_im2col_sgemm_transform_kernel_neon(weight_data, weight_sgemm_data, num_input, num_output, maxk);
-                    break;
+            case 1:
+                // winograd
+                conv3x3s1_winograd64_transform_kernel_neon5(weight_data, weight_3x3_winograd64_data, num_input, num_output);
+                break;
+            case 2:
+                // pointwise
+                conv1x1s1_sgemm_transform_kernel_neon(weight_data, weight_1x1_sgemm_data, num_input, num_output);
+                break;
+            case 3:
+                // im2col
+                conv_im2col_sgemm_transform_kernel_neon(weight_data, weight_sgemm_data, num_input, num_output, maxk);
+                break;
 //                 case 4:
 //                     // direct
 //                     break;
-                case 5:
-                    // conv3x3s2
-                    conv3x3s2_transform_kernel_neon(weight_data, weight_3x3s2_data, num_input, num_output);
-                    break;
+            case 5:
+                // conv3x3s2
+                conv3x3s2_transform_kernel_neon(weight_data, weight_3x3s2_data, num_input, num_output);
+                break;
             }
         }
 
@@ -500,7 +500,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     {
         if (outw >= dilation_w && outh >= dilation_h)
         {
-        return forwardDilation_arm(bottom_blob_bordered, top_blob, opt);
+            return forwardDilation_arm(bottom_blob_bordered, top_blob, opt);
         }
     }
 
@@ -817,21 +817,21 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             // engineering is magic.
             switch (impl_type)
             {
-                case 1:
-                    conv3x3s1_winograd64_neon5(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
-                    break;
-                case 2:
-                    conv1x1s1_sgemm_neon(bottom_blob_bordered, top_blob, weight_1x1_sgemm_data, bias_data, opt);
-                    break;
-                case 3:
-                    conv_im2col_sgemm_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
-                    break;
+            case 1:
+                conv3x3s1_winograd64_neon5(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
+                break;
+            case 2:
+                conv1x1s1_sgemm_neon(bottom_blob_bordered, top_blob, weight_1x1_sgemm_data, bias_data, opt);
+                break;
+            case 3:
+                conv_im2col_sgemm_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
+                break;
 //                 case 4: FIXME fallback to auto path
 //                     conv(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 //                     break;
-                case 5:
-                    conv3x3s2_packed_neon(bottom_blob_bordered, top_blob, weight_3x3s2_data, bias_data, opt);
-                    break;
+            case 5:
+                conv3x3s2_packed_neon(bottom_blob_bordered, top_blob, weight_3x3s2_data, bias_data, opt);
+                break;
             }
 
             if (activation)
@@ -1733,7 +1733,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         top_blob_tm.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
         if (top_blob_tm.empty())
             return -100;
-        
+
         if (use_sgemm1x1_int8)
         {
             std::vector<float> requantize_scales;
@@ -1841,7 +1841,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     if (activation)
     {
         activation->forward_inplace(top_blob, opt);
-    }           
+    }
 
     return 0;
 }

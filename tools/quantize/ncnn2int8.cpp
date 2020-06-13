@@ -563,20 +563,34 @@ int NetQuantize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", num_output)
             fprintf_param_value(" 1=%d", kernel_w)
-            { if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h); }
+            {
+                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
+            }
             fprintf_param_value(" 2=%d", dilation_w)
-            { if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h); }
+            {
+                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
+            }
             fprintf_param_value(" 3=%d", stride_w)
-            { if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h); }
+            {
+                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
+            }
             fprintf_param_value(" 4=%d", pad_left)
-            { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
-            { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
-            { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
+            {
+                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
+            }
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            {
+                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
+            }
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 8=%d", int8_scale_term)
             fprintf_param_value(" 9=%d", activation_type)
-            { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
@@ -612,21 +626,35 @@ int NetQuantize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", num_output)
             fprintf_param_value(" 1=%d", kernel_w)
-            { if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h); }
+            {
+                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
+            }
             fprintf_param_value(" 2=%d", dilation_w)
-            { if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h); }
+            {
+                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
+            }
             fprintf_param_value(" 3=%d", stride_w)
-            { if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h); }
+            {
+                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
+            }
             fprintf_param_value(" 4=%d", pad_left)
-            { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
-            { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
-            { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
+            {
+                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
+            }
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            {
+                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
+            }
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 7=%d", group)
             fprintf_param_value(" 8=%d", int8_scale_term)
             fprintf_param_value(" 9=%d", activation_type)
-            { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
@@ -669,9 +697,15 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 6=%d", woffset2)
             fprintf_param_value(" 7=%d", hoffset2)
             fprintf_param_value(" 8=%d", coffset2)
-            { if (!op->starts.empty()) fprintf_param_int_array(9, op->starts, pp); }
-            { if (!op->ends.empty()) fprintf_param_int_array(10, op->ends, pp); }
-            { if (!op->axes.empty()) fprintf_param_int_array(11, op->axes, pp); }
+            {
+                if (!op->starts.empty()) fprintf_param_int_array(9, op->starts, pp);
+            }
+            {
+                if (!op->ends.empty()) fprintf_param_int_array(10, op->ends, pp);
+            }
+            {
+                if (!op->axes.empty()) fprintf_param_int_array(11, op->axes, pp);
+            }
         }
         else if (layer->type == "Deconvolution")
         {
@@ -680,19 +714,33 @@ int NetQuantize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", num_output)
             fprintf_param_value(" 1=%d", kernel_w)
-            { if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h); }
+            {
+                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
+            }
             fprintf_param_value(" 2=%d", dilation_w)
-            { if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h); }
+            {
+                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
+            }
             fprintf_param_value(" 3=%d", stride_w)
-            { if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h); }
+            {
+                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
+            }
             fprintf_param_value(" 4=%d", pad_left)
-            { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
-            { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
-            { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
+            {
+                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
+            }
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            {
+                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
+            }
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 9=%d", activation_type)
-            { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
@@ -704,20 +752,34 @@ int NetQuantize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", num_output)
             fprintf_param_value(" 1=%d", kernel_w)
-            { if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h); }
+            {
+                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
+            }
             fprintf_param_value(" 2=%d", dilation_w)
-            { if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h); }
+            {
+                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
+            }
             fprintf_param_value(" 3=%d", stride_w)
-            { if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h); }
+            {
+                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
+            }
             fprintf_param_value(" 4=%d", pad_left)
-            { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
-            { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
-            { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
+            {
+                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
+            }
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            {
+                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
+            }
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 7=%d", group)
             fprintf_param_value(" 9=%d", activation_type)
-            { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
@@ -750,7 +812,9 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             ncnn::Eltwise* op_default = (ncnn::Eltwise*)layer_default;
 
             fprintf_param_value(" 0=%d", op_type)
-            { if (!op->coeffs.empty()) fprintf_param_float_array(1, op->coeffs, pp); }
+            {
+                if (!op->coeffs.empty()) fprintf_param_float_array(1, op->coeffs, pp);
+            }
         }
         else if (layer->type == "ELU")
         {
@@ -778,7 +842,9 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%d", weight_data_size)
             fprintf_param_value(" 8=%d", int8_scale_term)
             fprintf_param_value(" 9=%d", activation_type)
-            { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
@@ -898,7 +964,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 3=%d", scale_data_size)
             fprintf_param_value(" 4=%d", across_channel)
 
-                fwrite_weight_data(op->scale_data, bp);
+            fwrite_weight_data(op->scale_data, bp);
         }
         else if (layer->type == "Padding")
         {
@@ -933,13 +999,23 @@ int NetQuantize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", pooling_type)
             fprintf_param_value(" 1=%d", kernel_w)
-            { if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h); }
+            {
+                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
+            }
             fprintf_param_value(" 2=%d", stride_w)
-            { if (op->stride_h != op->stride_w) fprintf(pp, " 12=%d", op->stride_h); }
+            {
+                if (op->stride_h != op->stride_w) fprintf(pp, " 12=%d", op->stride_h);
+            }
             fprintf_param_value(" 3=%d", pad_left)
-            { if (op->pad_top != op->pad_left) fprintf(pp, " 13=%d", op->pad_top); }
-            { if (op->pad_right != op->pad_left) fprintf(pp, " 14=%d", op->pad_right); }
-            { if (op->pad_bottom != op->pad_top) fprintf(pp, " 15=%d", op->pad_bottom); }
+            {
+                if (op->pad_top != op->pad_left) fprintf(pp, " 13=%d", op->pad_top);
+            }
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 14=%d", op->pad_right);
+            }
+            {
+                if (op->pad_bottom != op->pad_top) fprintf(pp, " 15=%d", op->pad_bottom);
+            }
             fprintf_param_value(" 4=%d", global_pooling)
             fprintf_param_value(" 5=%d", pad_mode)
         }
@@ -966,9 +1042,15 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             ncnn::PriorBox* op = (ncnn::PriorBox*)layer;
             ncnn::PriorBox* op_default = (ncnn::PriorBox*)layer_default;
 
-            { if (!op->min_sizes.empty()) fprintf_param_float_array(0, op->min_sizes, pp); }
-            { if (!op->max_sizes.empty()) fprintf_param_float_array(1, op->max_sizes, pp); }
-            { if (!op->aspect_ratios.empty()) fprintf_param_float_array(2, op->aspect_ratios, pp); }
+            {
+                if (!op->min_sizes.empty()) fprintf_param_float_array(0, op->min_sizes, pp);
+            }
+            {
+                if (!op->max_sizes.empty()) fprintf_param_float_array(1, op->max_sizes, pp);
+            }
+            {
+                if (!op->aspect_ratios.empty()) fprintf_param_float_array(2, op->aspect_ratios, pp);
+            }
             fprintf_param_value(" 3=%f", variances[0])
             fprintf_param_value(" 4=%f", variances[1])
             fprintf_param_value(" 5=%f", variances[2])
@@ -1018,7 +1100,9 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", operation)
             fprintf_param_value(" 1=%d", reduce_all)
             fprintf_param_value(" 2=%f", coeff)
-            { if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp); }
+            {
+                if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp);
+            }
             fprintf_param_value(" 4=%d", keepdims)
         }
         else if (layer->type == "ReLU")
@@ -1100,7 +1184,9 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             ncnn::Slice* op = (ncnn::Slice*)layer;
             ncnn::Slice* op_default = (ncnn::Slice*)layer_default;
 
-            { if (!op->slices.empty()) fprintf_param_int_array(0, op->slices, pp); }
+            {
+                if (!op->slices.empty()) fprintf_param_int_array(0, op->slices, pp);
+            }
             fprintf_param_value(" 1=%d", axis)
         }
         else if (layer->type == "Softmax")
@@ -1140,7 +1226,9 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", num_box)
             fprintf_param_value(" 2=%f", confidence_threshold)
             fprintf_param_value(" 3=%f", nms_threshold)
-            { if (!op->biases.empty()) fprintf_param_float_array(4, op->biases, pp); }
+            {
+                if (!op->biases.empty()) fprintf_param_float_array(4, op->biases, pp);
+            }
         }
         else if (layer->type == "Yolov3DetectionOutput")
         {
@@ -1151,9 +1239,15 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", num_box)
             fprintf_param_value(" 2=%f", confidence_threshold)
             fprintf_param_value(" 3=%f", nms_threshold)
-            { if (!op->biases.empty()) fprintf_param_float_array(4, op->biases, pp); }
-            { if (!op->mask.empty()) fprintf_param_int_array(5, op->mask, pp); }
-            { if (!op->anchors_scale.empty()) fprintf_param_float_array(6, op->anchors_scale, pp); }
+            {
+                if (!op->biases.empty()) fprintf_param_float_array(4, op->biases, pp);
+            }
+            {
+                if (!op->mask.empty()) fprintf_param_int_array(5, op->mask, pp);
+            }
+            {
+                if (!op->anchors_scale.empty()) fprintf_param_float_array(6, op->anchors_scale, pp);
+            }
         }
 
 #undef fprintf_param_value

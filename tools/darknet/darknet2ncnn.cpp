@@ -62,7 +62,7 @@ typedef struct Section {
     std::vector<std::string> input_blobs, output_blobs;
     std::vector<std::string> real_output_blobs;
     std::vector<std::string> param;
-}Section;
+} Section;
 
 static inline std::string &trim(std::string &s) {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
@@ -84,7 +84,7 @@ typedef struct Section_Field {
     size_t offset;
 } Section_Field;
 
-#define FIELD_OFFSET(c)     ((size_t)&(((Section *)0)->c)) 
+#define FIELD_OFFSET(c)     ((size_t)&(((Section *)0)->c))
 
 int yolo_layer_count = 0;
 
@@ -160,7 +160,7 @@ void update_field(Section *section, std::string key, std::string value)
             return;
 
         case IARRAY:
-           for (auto v : split(value, ','))
+            for (auto v : split(value, ','))
                 reinterpret_cast<std::vector<int> *>(addr)->push_back(std::stoi(v));
             return;
 
@@ -168,7 +168,7 @@ void update_field(Section *section, std::string key, std::string value)
             for (auto v : split(value, ','))
                 reinterpret_cast<std::vector<float> *>(addr)->push_back(std::stof(v));
             return;
-            
+
         case STRING:
             *reinterpret_cast<std::string *>(addr) = value;
             return;
@@ -286,8 +286,12 @@ void addActivationLayer(Section *s, std::deque<Section *>::iterator &it, std::de
         act->layer_name = s->layer_name + "_bn";
     else
         act->layer_name = s->layer_name;
-    act->h = s->out_h; act->w = s->out_w; act->c = s->out_c;
-    act->out_h = s->out_h; act->out_w = s->out_w; act->out_c = s->out_c;
+    act->h = s->out_h;
+    act->w = s->out_w;
+    act->c = s->out_c;
+    act->out_h = s->out_h;
+    act->out_w = s->out_w;
+    act->out_c = s->out_c;
     act->layer_name += "_" + s->activation;
     act->input_blobs = s->real_output_blobs;
     act->output_blobs.push_back(act->layer_name);
@@ -325,8 +329,11 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
 
         if (s->name == "net")
         {
-            s->out_h = s->h; s->out_w = s->w; s->out_c = s->c;
-            input_h = s->h;  input_w = s->w;
+            s->out_h = s->h;
+            s->out_w = s->w;
+            s->out_c = s->c;
+            input_h = s->h;
+            input_w = s->w;
 
             s->layer_type = "Input";
             s->layer_name = "data";
@@ -342,8 +349,12 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
         {
             if (s->padding == -1)
                 s->padding = 0;
-            s->h = p->out_h; s->w = p->out_w; s->c = p->out_c;
-            s->out_h = s->h / s->stride; s->out_w = s->w / s->stride; s->out_c = s->filters;
+            s->h = p->out_h;
+            s->w = p->out_w;
+            s->c = p->out_c;
+            s->out_h = s->h / s->stride;
+            s->out_w = s->w / s->stride;
+            s->out_c = s->filters;
 
 #if OUTPUT_LAYER_MAP
             if (s->groups == 1)
@@ -370,13 +381,17 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
                 Section *bn = new Section;
                 bn->layer_type = "BatchNorm";
                 bn->layer_name = s->layer_name + "_bn";
-                bn->h = s->out_h; bn->w = s->out_w; bn->c = s->out_c;
-                bn->out_h = s->out_h; bn->out_w = s->out_w; bn->out_c = s->out_c;
+                bn->h = s->out_h;
+                bn->w = s->out_w;
+                bn->c = s->out_c;
+                bn->out_h = s->out_h;
+                bn->out_w = s->out_w;
+                bn->out_c = s->out_c;
                 bn->input_blobs = s->real_output_blobs;
                 bn->output_blobs.push_back(bn->layer_name);
                 bn->param.push_back(format("0=%d", s->filters));    //channels
                 bn->param.push_back("1=.00001");                    //eps
-                
+
                 s->real_output_blobs = bn->real_output_blobs = bn->output_blobs;
                 it = dnet.insert(it + 1, bn);
             }
@@ -392,7 +407,7 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
             if (s->activation.size() > 0)
             {
                 if (s->activation == "relu" || s->activation == "leaky" || s->activation == "mish" ||
-                    s->activation == "logistic" || s->activation == "swish")
+                        s->activation == "logistic" || s->activation == "swish")
                 {
                     addActivationLayer(s, it, dnet);
                 }
@@ -406,21 +421,25 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
             if (p->out_h != q->out_h || p->out_w != q->out_w)
                 error("shortcut dim not match");
 
-            s->h = p->out_h; s->w = p->out_w; s->c = p->out_c;
-            s->out_h = s->h; s->out_w = s->w; s->out_c = p->out_c;
+            s->h = p->out_h;
+            s->w = p->out_w;
+            s->c = p->out_c;
+            s->out_h = s->h;
+            s->out_w = s->w;
+            s->out_c = p->out_c;
 
 #if OUTPUT_LAYER_MAP
             printf("Shortcut Layer: %d, ", q->original_layer_count - 1);
             printf("outputs: %4d x%4d x%4d\n", s->out_h, s->out_w, s->out_c);
             if (p->out_c != q->out_c)
                 printf("(%4d x%4d x%4d) + (%4d x%4d x%4d)\n", p->out_h, p->out_w, p->out_c,
-                    q->out_h, q->out_w, q->out_c);
+                       q->out_h, q->out_w, q->out_c);
 #endif
 
             if (s->activation.size() > 0)
             {
                 if (s->activation == "relu" || s->activation == "leaky" || s->activation == "mish" ||
-                    s->activation == "logistic" || s->activation == "swish")
+                        s->activation == "logistic" || s->activation == "swish")
                 {
                     addActivationLayer(s, it, dnet);
                 }
@@ -439,8 +458,12 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
         {
             if (s->padding == -1)
                 s->padding = s->size - 1;
-            s->h = p->out_h; s->w = p->out_w; s->c = p->out_c;
-            s->out_h = (s->h + s->padding - s->size) / s->stride + 1; s->out_w = s->out_h; s->out_c = s->c;
+            s->h = p->out_h;
+            s->w = p->out_w;
+            s->c = p->out_c;
+            s->out_h = (s->h + s->padding - s->size) / s->stride + 1;
+            s->out_w = s->out_h;
+            s->out_c = s->c;
 
 #if OUTPUT_LAYER_MAP
             printf("max             %2d x%2d/%2d   ", s->size, s->size, s->stride);
@@ -459,8 +482,12 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
         {
             if (s->padding == -1)
                 s->padding = s->size - 1;
-            s->h = p->out_h; s->w = p->out_w; s->c = p->out_c;
-            s->out_h = 1; s->out_w = s->out_h; s->out_c = s->c;
+            s->h = p->out_h;
+            s->w = p->out_w;
+            s->c = p->out_c;
+            s->out_h = 1;
+            s->out_w = s->out_h;
+            s->out_c = s->c;
 
 #if OUTPUT_LAYER_MAP
             printf("avg                         %4d x%4d x%4d ->   %4d\n", s->h, s->w, s->c, s->out_c);
@@ -473,8 +500,12 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
             Section *r = new Section;
             r->layer_type = "Reshape";
             r->layer_name = s->layer_name + "_reshape";
-            r->h = s->out_h; r->w = s->out_w; r->c = s->out_c;
-            r->out_h = 1; r->out_w = 1; r->out_c = r->h * r->w * r->c;
+            r->h = s->out_h;
+            r->w = s->out_w;
+            r->c = s->out_c;
+            r->out_h = 1;
+            r->out_w = 1;
+            r->out_c = r->h * r->w * r->c;
             r->input_blobs.push_back(s->output_blobs[0]);
             r->output_blobs.push_back(r->layer_name);
             r->param.push_back("0=1");                      //w
@@ -492,8 +523,12 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
             if (p->out_c != q->out_c)
                 error("scale channels not match");
 
-            s->h = q->out_h; s->w = q->out_w; s->c = q->out_c;
-            s->out_h = s->h; s->out_w = s->w; s->out_c = q->out_c;
+            s->h = q->out_h;
+            s->w = q->out_w;
+            s->c = q->out_c;
+            s->out_h = s->h;
+            s->out_w = s->w;
+            s->out_c = q->out_c;
 
 #if OUTPUT_LAYER_MAP
             printf("scale Layer: %d\n", q->original_layer_count - 1);
@@ -521,7 +556,9 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
 #if OUTPUT_LAYER_MAP
                 printf("%d ", q->original_layer_count - 1);
 #endif
-                s->out_h = q->out_h; s->out_w = q->out_w; s->out_c += q->out_c;
+                s->out_h = q->out_h;
+                s->out_w = q->out_w;
+                s->out_c += q->out_c;
 
                 for (auto blob : q->real_output_blobs)
                     s->input_blobs.push_back(blob);
@@ -537,8 +574,12 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
         }
         else if (s->name == "upsample")
         {
-            s->h = p->out_h; s->w = p->out_w; s->c = p->out_c;
-            s->out_h = s->h * s->stride; s->out_w = s->w * s->stride; s->out_c = s->c;
+            s->h = p->out_h;
+            s->w = p->out_w;
+            s->c = p->out_c;
+            s->out_h = s->h * s->stride;
+            s->out_w = s->w * s->stride;
+            s->out_c = s->c;
 
 #if OUTPUT_LAYER_MAP
             printf("upsample               %2dx  ", s->stride);
@@ -558,15 +599,19 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
             if (s->ignore_thresh > 0.25)
             {
                 fprintf(stderr, "WARNING: The ignore_thresh=%f of yolo%d is too high. "
-                    "An alternative value 0.25 is written instead.\n", s->ignore_thresh, yolo_count);
+                        "An alternative value 0.25 is written instead.\n", s->ignore_thresh, yolo_count);
                 s->ignore_thresh = 0.25;
             }
 
             s->layer_type = "Yolov3DetectionOutput";
             s->layer_name = format("yolo%d", yolo_count++);
             s->output_blobs[0] = s->layer_name;
-            s->h = p->out_h; s->w = p->out_w; s->c = p->out_c;
-            s->out_h = s->h; s->out_w = s->w; s->out_c = s->c * (int)s->mask.size();
+            s->h = p->out_h;
+            s->w = p->out_w;
+            s->c = p->out_c;
+            s->out_h = s->h;
+            s->out_w = s->w;
+            s->out_c = s->c * (int)s->mask.size();
             s->param.push_back(format("0=%d", s->classes));         //num_class
             s->param.push_back(format("1=%d", s->mask.size()));             //num_box
             s->param.push_back(format("2=%f", s->ignore_thresh));   //confidence_threshold
@@ -580,10 +625,14 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
         else if (s->name == "dropout")
         {
 #if OUTPUT_LAYER_MAP
-        printf("dropout\n");
+            printf("dropout\n");
 #endif
-            s->h = p->out_h; s->w = p->out_w; s->c = p->out_c;
-            s->out_h = s->h; s->out_w = s->w; s->out_c = p->out_c;
+            s->h = p->out_h;
+            s->w = p->out_w;
+            s->c = p->out_c;
+            s->out_h = s->h;
+            s->out_w = s->w;
+            s->out_c = p->out_c;
             s->layer_type = "Noop";
         }
         else
@@ -623,8 +672,12 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
             Section *p = new Section;
             p->layer_type = "Split";
             p->layer_name = s->layer_name + "_split";
-            p->w = s->w; p->h = s->h; p->c = s->c;
-            p->out_w = s->out_w; p->out_h = s->out_h; p->out_c = s->out_c;
+            p->w = s->w;
+            p->h = s->h;
+            p->c = s->c;
+            p->out_w = s->out_w;
+            p->out_h = s->out_h;
+            p->out_c = s->out_c;
             p->input_blobs.push_back(output_name);
             for (size_t i = 0; i < q.size(); i++)
             {
@@ -656,7 +709,7 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
 
             if (s->anchors.size() != p->anchors.size())
                 error("yolo layer anchor count not match, output cannot be merged.");
-            
+
             for (int i = 0; i < s->anchors.size(); i++)
                 if (s->anchors[i] != p->anchors[i])
                     error("yolo anchor size not match, output cannot be merged.");
@@ -754,12 +807,12 @@ int main(int argc, char** argv)
     if (!(argc == 3 || argc == 5 || argc == 6))
     {
         fprintf(stderr, "Usage: %s [darknetcfg] [darknetweights] [ncnnparam] [ncnnbin] [merge_output]\n"
-            "\t[darknetcfg]     .cfg file of input darknet model.\n"
-            "\t[darknetweights] .weights file of input darknet model.\n"
-            "\t[cnnparam]       .param file of output ncnn model.\n"
-            "\t[ncnnbin]        .bin file of output ncnn model.\n"
-            "\t[merge_output]   merge all output yolo layers into one, enabled by default.\n"
-            , argv[0]);
+                "\t[darknetcfg]     .cfg file of input darknet model.\n"
+                "\t[darknetweights] .weights file of input darknet model.\n"
+                "\t[cnnparam]       .param file of output ncnn model.\n"
+                "\t[ncnnbin]        .bin file of output ncnn model.\n"
+                "\t[merge_output]   merge all output yolo layers into one, enabled by default.\n"
+                , argv[0]);
         return -1;
     }
 

@@ -73,213 +73,213 @@ static void conv4x4s4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 #if __aarch64__
                 if (nn > 0)
                 {
-                asm volatile(
-                    "prfm       pldl1keep, [%1, #128]          \n"
-                    "0:                                        \n"
+                    asm volatile(
+                        "prfm       pldl1keep, [%1, #128]          \n"
+                        "0:                                        \n"
 
-                    "prfm       pldl1keep, [%2, #512]          \n"
-                    "prfm       pldl1keep, [%3, #512]          \n"
+                        "prfm       pldl1keep, [%2, #512]          \n"
+                        "prfm       pldl1keep, [%3, #512]          \n"
 
-                    "ld1        {v7.4s}, [%1]                  \n" // v7 = outptr
+                        "ld1        {v7.4s}, [%1]                  \n" // v7 = outptr
 
-                    "ld1        {v8.4s}, [%2], #16             \n"// v8  = r0
-                    "ld1        {v9.4s}, [%3], #16             \n"// v9  = r1
+                        "ld1        {v8.4s}, [%2], #16             \n"// v8  = r0
+                        "ld1        {v9.4s}, [%3], #16             \n"// v9  = r1
 
-                    "prfm       pldl1keep, [%4, #512]          \n"
-                    "prfm       pldl1keep, [%5, #512]          \n"
+                        "prfm       pldl1keep, [%4, #512]          \n"
+                        "prfm       pldl1keep, [%5, #512]          \n"
 
-                    "fmul       v12.4s, v8.4s, %12.4s          \n"
-                    "fmul       v13.4s, v9.4s, %13.4s          \n"
+                        "fmul       v12.4s, v8.4s, %12.4s          \n"
+                        "fmul       v13.4s, v9.4s, %13.4s          \n"
 
-                    "ld1        {v10.4s}, [%4], #16            \n"// v10 = r2
-                    "ld1        {v11.4s}, [%5], #16            \n"// v11 = r3
+                        "ld1        {v10.4s}, [%4], #16            \n"// v10 = r2
+                        "ld1        {v11.4s}, [%5], #16            \n"// v11 = r3
 
-                    "fmla       v12.4s, v10.4s, %14.4s         \n"
-                    "fmla       v13.4s, v11.4s, %15.4s         \n"
+                        "fmla       v12.4s, v10.4s, %14.4s         \n"
+                        "fmla       v13.4s, v11.4s, %15.4s         \n"
 
-                    "fadd       v5.4s, v12.4s, v13.4s          \n"
+                        "fadd       v5.4s, v12.4s, v13.4s          \n"
 
-                    "ld1        {v8.4s}, [%2], #16             \n"// v8  = r0
-                    "ld1        {v9.4s}, [%3], #16             \n"// v9  = r1
+                        "ld1        {v8.4s}, [%2], #16             \n"// v8  = r0
+                        "ld1        {v9.4s}, [%3], #16             \n"// v9  = r1
 
-                    "fmul       v12.4s, v8.4s, %12.4s          \n"
-                    "fmul       v13.4s, v9.4s, %13.4s          \n"
+                        "fmul       v12.4s, v8.4s, %12.4s          \n"
+                        "fmul       v13.4s, v9.4s, %13.4s          \n"
 
-                    "ld1        {v10.4s}, [%4], #16            \n"// v10 = r2
-                    "ld1        {v11.4s}, [%5], #16            \n"// v11 = r3
-                    
-                    "fmla       v12.4s, v10.4s, %14.4s         \n"
-                    "fmla       v13.4s, v11.4s, %15.4s         \n"
+                        "ld1        {v10.4s}, [%4], #16            \n"// v10 = r2
+                        "ld1        {v11.4s}, [%5], #16            \n"// v11 = r3
 
-                    "fadd       v6.4s, v12.4s, v13.4s          \n"
+                        "fmla       v12.4s, v10.4s, %14.4s         \n"
+                        "fmla       v13.4s, v11.4s, %15.4s         \n"
 
-                    "ld1        {v8.4s}, [%2], #16             \n"// v8  = r0
-                    "ld1        {v9.4s}, [%3], #16             \n"// v9  = r1
+                        "fadd       v6.4s, v12.4s, v13.4s          \n"
 
-                    "fmul       v12.4s, v8.4s, %12.4s          \n"
-                    "fmul       v13.4s, v9.4s, %13.4s          \n"
+                        "ld1        {v8.4s}, [%2], #16             \n"// v8  = r0
+                        "ld1        {v9.4s}, [%3], #16             \n"// v9  = r1
 
-                    "ld1        {v10.4s}, [%4], #16            \n"// v10 = r2
-                    "ld1        {v11.4s}, [%5], #16            \n"// v11 = r3
+                        "fmul       v12.4s, v8.4s, %12.4s          \n"
+                        "fmul       v13.4s, v9.4s, %13.4s          \n"
 
-                    "fmla       v12.4s, v10.4s, %14.4s         \n"
-                    "fmla       v13.4s, v11.4s, %15.4s         \n"
+                        "ld1        {v10.4s}, [%4], #16            \n"// v10 = r2
+                        "ld1        {v11.4s}, [%5], #16            \n"// v11 = r3
 
-                    "fadd       v14.4s, v12.4s, v13.4s         \n"
-                    "faddp      v5.4s, v5.4s, v6.4s            \n"  // Move to here to enhance ILP
+                        "fmla       v12.4s, v10.4s, %14.4s         \n"
+                        "fmla       v13.4s, v11.4s, %15.4s         \n"
 
-                    "ld1        {v8.4s}, [%2], #16             \n"// v8  = r0
-                    "ld1        {v9.4s}, [%3], #16             \n"// v9  = r1
+                        "fadd       v14.4s, v12.4s, v13.4s         \n"
+                        "faddp      v5.4s, v5.4s, v6.4s            \n"  // Move to here to enhance ILP
 
-                    "fmul       v12.4s, v8.4s, %12.4s          \n"
-                    "fmul       v13.4s, v9.4s, %13.4s          \n"
+                        "ld1        {v8.4s}, [%2], #16             \n"// v8  = r0
+                        "ld1        {v9.4s}, [%3], #16             \n"// v9  = r1
 
-                    "ld1        {v10.4s}, [%4], #16            \n"// v10 = r2
-                    "ld1        {v11.4s}, [%5], #16            \n"// v11 = r3
+                        "fmul       v12.4s, v8.4s, %12.4s          \n"
+                        "fmul       v13.4s, v9.4s, %13.4s          \n"
 
-                    "fmla       v12.4s, v10.4s, %14.4s         \n"
-                    "fmla       v13.4s, v11.4s, %15.4s         \n"
+                        "ld1        {v10.4s}, [%4], #16            \n"// v10 = r2
+                        "ld1        {v11.4s}, [%5], #16            \n"// v11 = r3
 
-                    "fadd       v15.4s, v12.4s, v13.4s         \n"
+                        "fmla       v12.4s, v10.4s, %14.4s         \n"
+                        "fmla       v13.4s, v11.4s, %15.4s         \n"
+
+                        "fadd       v15.4s, v12.4s, v13.4s         \n"
 
 //                  "faddp      v5.4s ,  v5.4s,  v6.4s         \n"  // Move this line upward.
-                    "faddp      v14.4s, v14.4s, v15.4s         \n"
-                    "faddp      v5.4s ,  v5.4s, v14.4s         \n"
-            
-                    "fadd       v7.4s, v7.4s, v5.4s            \n"
+                        "faddp      v14.4s, v14.4s, v15.4s         \n"
+                        "faddp      v5.4s ,  v5.4s, v14.4s         \n"
 
-                    "st1        {v7.4s}, [%1], #16             \n"
+                        "fadd       v7.4s, v7.4s, v5.4s            \n"
 
-                    "prfm       pldl1keep, [%1, #128]          \n"
+                        "st1        {v7.4s}, [%1], #16             \n"
 
-                    "subs       %w0, %w0, #1                   \n"
-                    "bne        0b                             \n"
-                    : "=r"(nn),         // %0
-                      "=r"(outptr),     // %1
-                      "=r"(r0),         // %2
-                      "=r"(r1),         // %3
-                      "=r"(r2),         // %4
-                      "=r"(r3)          // %5
-                    : "0"(nn),
-                      "1"(outptr),
-                      "2"(r0),
-                      "3"(r1),
-                      "4"(r2),
-                      "5"(r3),
-                      "w"(_k0123),      // %12
-                      "w"(_k4567),      // %13
-                      "w"(_k891011),    // %14
-                      "w"(_k12131415)   // %15
-                    : "cc", "memory", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
-                );
+                        "prfm       pldl1keep, [%1, #128]          \n"
+
+                        "subs       %w0, %w0, #1                   \n"
+                        "bne        0b                             \n"
+                        : "=r"(nn),         // %0
+                        "=r"(outptr),     // %1
+                        "=r"(r0),         // %2
+                        "=r"(r1),         // %3
+                        "=r"(r2),         // %4
+                        "=r"(r3)          // %5
+                        : "0"(nn),
+                        "1"(outptr),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "5"(r3),
+                        "w"(_k0123),      // %12
+                        "w"(_k4567),      // %13
+                        "w"(_k891011),    // %14
+                        "w"(_k12131415)   // %15
+                        : "cc", "memory", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
+                    );
                 }
 #else
                 if (nn > 0)
                 {
-                asm volatile(
+                    asm volatile(
 
-                    "pld        [%1, #128]          \n"
+                        "pld        [%1, #128]          \n"
 
-                    "0:                             \n"
+                        "0:                             \n"
 
-                    "pld        [%2, #512]          \n"
-                    "pld        [%3, #512]          \n"
+                        "pld        [%2, #512]          \n"
+                        "pld        [%3, #512]          \n"
 
-                    "vld1.f32   {d14-d15}, [%1]     \n"// q7 = outptr
+                        "vld1.f32   {d14-d15}, [%1]     \n"// q7 = outptr
 
-                    "vld1.f32   {d16-d17}, [%2]!    \n"// q8  = r0
-                    "vld1.f32   {d18-d19}, [%3]!    \n"// q9  = r1
+                        "vld1.f32   {d16-d17}, [%2]!    \n"// q8  = r0
+                        "vld1.f32   {d18-d19}, [%3]!    \n"// q9  = r1
 
-                    "pld        [%4, #512]          \n"
-                    "pld        [%5, #512]          \n"
+                        "pld        [%4, #512]          \n"
+                        "pld        [%5, #512]          \n"
 
-                    "vmul.f32   q12, q8, %q12       \n"
-                    "vmul.f32   q13, q9, %q13       \n"
+                        "vmul.f32   q12, q8, %q12       \n"
+                        "vmul.f32   q13, q9, %q13       \n"
 
-                    "vld1.f32   {d20-d21}, [%4]!    \n"// q10 = r2
-                    "vld1.f32   {d22-d23}, [%5]!    \n"// q11 = r3
+                        "vld1.f32   {d20-d21}, [%4]!    \n"// q10 = r2
+                        "vld1.f32   {d22-d23}, [%5]!    \n"// q11 = r3
 
-                    "vmla.f32   q12, q10, %q14      \n"
-                    "vmla.f32   q13, q11, %q15      \n"
+                        "vmla.f32   q12, q10, %q14      \n"
+                        "vmla.f32   q13, q11, %q15      \n"
 
-                    "vadd.f32   q5, q12, q13        \n"
+                        "vadd.f32   q5, q12, q13        \n"
 
-                    "vld1.f32   {d16-d17}, [%2]!    \n"// q8  = r0
-                    "vld1.f32   {d18-d19}, [%3]!    \n"// q9  = r1
+                        "vld1.f32   {d16-d17}, [%2]!    \n"// q8  = r0
+                        "vld1.f32   {d18-d19}, [%3]!    \n"// q9  = r1
 
-                    "vmul.f32   q12, q8, %q12       \n"
-                    "vmul.f32   q13, q9, %q13       \n"
+                        "vmul.f32   q12, q8, %q12       \n"
+                        "vmul.f32   q13, q9, %q13       \n"
 
-                    "vld1.f32   {d20-d21}, [%4]!    \n"// q10 = r2
-                    "vld1.f32   {d22-d23}, [%5]!    \n"// q11 = r3
+                        "vld1.f32   {d20-d21}, [%4]!    \n"// q10 = r2
+                        "vld1.f32   {d22-d23}, [%5]!    \n"// q11 = r3
 
-                    "vmla.f32   q12, q10, %q14      \n"
-                    "vmla.f32   q13, q11, %q15      \n"
+                        "vmla.f32   q12, q10, %q14      \n"
+                        "vmla.f32   q13, q11, %q15      \n"
 
-                    "vadd.f32   q6, q12, q13        \n"
+                        "vadd.f32   q6, q12, q13        \n"
 
-                    "vld1.f32   {d16-d17}, [%2]!    \n"// q8  = r0
-                    "vld1.f32   {d18-d19}, [%3]!    \n"// q9  = r1
+                        "vld1.f32   {d16-d17}, [%2]!    \n"// q8  = r0
+                        "vld1.f32   {d18-d19}, [%3]!    \n"// q9  = r1
 
-                    "vmul.f32   q12, q8, %q12       \n"
-                    "vmul.f32   q13, q9, %q13       \n"
+                        "vmul.f32   q12, q8, %q12       \n"
+                        "vmul.f32   q13, q9, %q13       \n"
 
-                    "vld1.f32   {d20-d21}, [%4]!    \n"// q10 = r2
-                    "vld1.f32   {d22-d23}, [%5]!    \n"// q11 = r3
+                        "vld1.f32   {d20-d21}, [%4]!    \n"// q10 = r2
+                        "vld1.f32   {d22-d23}, [%5]!    \n"// q11 = r3
 
-                    "vmla.f32   q12, q10, %q14      \n"
-                    "vmla.f32   q13, q11, %q15      \n"
+                        "vmla.f32   q12, q10, %q14      \n"
+                        "vmla.f32   q13, q11, %q15      \n"
 
-                    "vadd.f32   q14, q12, q13       \n"
+                        "vadd.f32   q14, q12, q13       \n"
 
-                    "vld1.f32   {d16-d17}, [%2]!    \n"// q8  = r0
-                    "vld1.f32   {d18-d19}, [%3]!    \n"// q9  = r1
+                        "vld1.f32   {d16-d17}, [%2]!    \n"// q8  = r0
+                        "vld1.f32   {d18-d19}, [%3]!    \n"// q9  = r1
 
-                    "vmul.f32   q12, q8, %q12       \n"
-                    "vmul.f32   q13, q9, %q13       \n"
+                        "vmul.f32   q12, q8, %q12       \n"
+                        "vmul.f32   q13, q9, %q13       \n"
 
-                    "vld1.f32   {d20-d21}, [%4]!    \n"// q10 = r2
-                    "vld1.f32   {d22-d23}, [%5]!    \n"// q11 = r3
+                        "vld1.f32   {d20-d21}, [%4]!    \n"// q10 = r2
+                        "vld1.f32   {d22-d23}, [%5]!    \n"// q11 = r3
 
-                    "vmla.f32   q12, q10, %q14      \n"
-                    "vmla.f32   q13, q11, %q15      \n"
+                        "vmla.f32   q12, q10, %q14      \n"
+                        "vmla.f32   q13, q11, %q15      \n"
 
-                    "vadd.f32   q15, q12, q13       \n"
+                        "vadd.f32   q15, q12, q13       \n"
 
-                    "vadd.f32   d10, d10, d11       \n"
-                    "vadd.f32   d28, d28, d29       \n"
-                    "vadd.f32   d11, d12, d13       \n"
-                    "vadd.f32   d29, d30, d31       \n"
+                        "vadd.f32   d10, d10, d11       \n"
+                        "vadd.f32   d28, d28, d29       \n"
+                        "vadd.f32   d11, d12, d13       \n"
+                        "vadd.f32   d29, d30, d31       \n"
 
-                    "vpadd.f32  d10, d10, d11       \n"
-                    "vpadd.f32  d11, d28, d29       \n"
+                        "vpadd.f32  d10, d10, d11       \n"
+                        "vpadd.f32  d11, d28, d29       \n"
 
-                    "vadd.f32   q7, q7, q5          \n"
+                        "vadd.f32   q7, q7, q5          \n"
 
-                    "vst1.f32   {d14-d15}, [%1]!    \n"
+                        "vst1.f32   {d14-d15}, [%1]!    \n"
 
-                    "pld        [%1, #128]          \n"
+                        "pld        [%1, #128]          \n"
 
-                    "subs       %0, #1              \n"
-                    "bne        0b                  \n"
-                    : "=r"(nn),         // %0
-                      "=r"(outptr),     // %1
-                      "=r"(r0),         // %2
-                      "=r"(r1),         // %3
-                      "=r"(r2),         // %4
-                      "=r"(r3)          // %5
-                    : "0"(nn),
-                      "1"(outptr),
-                      "2"(r0),
-                      "3"(r1),
-                      "4"(r2),
-                      "5"(r3),
-                      "w"(_k0123),      // %12
-                      "w"(_k4567),      // %13
-                      "w"(_k891011),    // %14
-                      "w"(_k12131415)   // %15
-                    : "cc", "memory", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                );
+                        "subs       %0, #1              \n"
+                        "bne        0b                  \n"
+                        : "=r"(nn),         // %0
+                        "=r"(outptr),     // %1
+                        "=r"(r0),         // %2
+                        "=r"(r1),         // %3
+                        "=r"(r2),         // %4
+                        "=r"(r3)          // %5
+                        : "0"(nn),
+                        "1"(outptr),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "5"(r3),
+                        "w"(_k0123),      // %12
+                        "w"(_k4567),      // %13
+                        "w"(_k891011),    // %14
+                        "w"(_k12131415)   // %15
+                        : "cc", "memory", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+                    );
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
@@ -302,26 +302,26 @@ static void conv4x4s4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "fmla       v12.4s, v10.4s, %11.4s         \n"
                         "fmla       v13.4s, v11.4s, %12.4s         \n"
 
-                        "fadd       v5.4s, v12.4s, v13.4s          \n"            
-                        "faddp      v5.4s, v5.4s, v5.4s            \n"  
-                        "faddp      s5, v5.2s                      \n" 
+                        "fadd       v5.4s, v12.4s, v13.4s          \n"
+                        "faddp      v5.4s, v5.4s, v5.4s            \n"
+                        "faddp      s5, v5.2s                      \n"
                         "fmov       %w4, s5                        \n"
                         : "=r"(r0),         // %0
-                          "=r"(r1),         // %1
-                          "=r"(r2),         // %2
-                          "=r"(r3),         // %3
-                          "=r"(sum)         // %4
+                        "=r"(r1),         // %1
+                        "=r"(r2),         // %2
+                        "=r"(r3),         // %3
+                        "=r"(sum)         // %4
                         : "0"(r0),
-                          "1"(r1),
-                          "2"(r2),
-                          "3"(r3),
-                          "w"(_k0123),      // %9
-                          "w"(_k4567),      // %10
-                          "w"(_k891011),    // %11
-                          "w"(_k12131415)   // %12
+                        "1"(r1),
+                        "2"(r2),
+                        "3"(r3),
+                        "w"(_k0123),      // %9
+                        "w"(_k4567),      // %10
+                        "w"(_k891011),    // %11
+                        "w"(_k12131415)   // %12
                         : "cc", "memory", "v5", "v6", "v8", "v9", "v10", "v11", "v12", "v13"
                     );
-                    
+
                     *outptr += sum;
 #else
                     float sum = 0.f;
@@ -344,18 +344,18 @@ static void conv4x4s4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vpadd.f32  d10, d10, d10       \n"
                         "vmov.f32   %4, d10[0]          \n"
                         : "=r"(r0),         // %0
-                          "=r"(r1),         // %1
-                          "=r"(r2),         // %2
-                          "=r"(r3),         // %3
-                          "=r"(sum)         // %4
+                        "=r"(r1),         // %1
+                        "=r"(r2),         // %2
+                        "=r"(r3),         // %3
+                        "=r"(sum)         // %4
                         : "0"(r0),
-                          "1"(r1),
-                          "2"(r2),
-                          "3"(r3),
-                          "w"(_k0123),      // %9
-                          "w"(_k4567),      // %10
-                          "w"(_k891011),    // %11
-                          "w"(_k12131415)   // %12
+                        "1"(r1),
+                        "2"(r2),
+                        "3"(r3),
+                        "w"(_k0123),      // %9
+                        "w"(_k4567),      // %10
+                        "w"(_k891011),    // %11
+                        "w"(_k12131415)   // %12
                         : "cc", "memory", "q5", "q6", "q8", "q9", "q10", "q11", "q12", "q13"
                     );
 

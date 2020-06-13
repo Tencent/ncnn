@@ -38,7 +38,7 @@ static inline signed char float2int8(float v)
 int Requantize::load_param(const ParamDict& pd)
 {
     scale_in = pd.get(0, 1.f);	// bottom_blob_scale * weight_scale
-	scale_out = pd.get(1, 1.f);	// top_blob_scale
+    scale_out = pd.get(1, 1.f);	// top_blob_scale
     bias_term = pd.get(2, 0);
     bias_data_size = pd.get(3, 0);
     fusion_relu = pd.get(4, 0);
@@ -59,7 +59,7 @@ int Requantize::load_model(const ModelBin& mb)
 }
 
 int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{ 
+{
     int dims = bottom_blob.dims;
 
     if (dims == 1)
@@ -151,7 +151,7 @@ int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
         int w = bottom_blob.w;
         int h = bottom_blob.h;
         int channels = bottom_blob.c;
-        int size = w * h;      
+        int size = w * h;
 
         if (bias_term)
         {
@@ -186,7 +186,7 @@ int Requantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
                         ptr[i] = 0;
                 }
             }
-        }    
+        }
     }
 
     return 0;

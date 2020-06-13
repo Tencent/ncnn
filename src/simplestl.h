@@ -27,12 +27,18 @@ template <typename T>
 struct vector
 {
     vector() {}
-    vector(const size_t new_size, const T& value = T()) { resize(new_size, value); }
-    ~vector() { clear(); }
+    vector(const size_t new_size, const T& value = T()) {
+        resize(new_size, value);
+    }
+    ~vector() {
+        clear();
+    }
     vector(const vector& v)
     {
         resize(v.size());
-        for (size_t i = 0; i < size_; i++) { data_[i] = v.data_[i]; }
+        for (size_t i = 0; i < size_; i++) {
+            data_[i] = v.data_[i];
+        }
     }
 
     vector& operator=(const vector& v)
@@ -82,12 +88,24 @@ struct vector
         capacity_ = 0;
     }
 
-    T* data() const { return data_; }
-    size_t size() const { return size_; }
-    T& operator[](size_t i) const { return data_[i]; }
-    T* begin() const { return &data_[0]; }
-    T* end() const { return &data_[size_]; }
-    bool empty() const { return size_ == 0; }
+    T* data() const {
+        return data_;
+    }
+    size_t size() const {
+        return size_;
+    }
+    T& operator[](size_t i) const {
+        return data_[i];
+    }
+    T* begin() const {
+        return &data_[0];
+    }
+    T* end() const {
+        return &data_[size_];
+    }
+    bool empty() const {
+        return size_ == 0;
+    }
 
     void push_back(const T& t)
     {
@@ -159,10 +177,18 @@ struct string : public vector<char>
         resize(len);
         memcpy(data_, str, len);
     }
-    const char* c_str() const { return (const char*)data_; }
-    bool operator==(const string& str2) const { return strcmp(data_, str2.data_) == 0; }
-    bool operator==(const char* str2) const { return strcmp(data_, str2) == 0; }
-    bool operator!=(const char* str2) const { return strcmp(data_, str2) != 0; }
+    const char* c_str() const {
+        return (const char*)data_;
+    }
+    bool operator==(const string& str2) const {
+        return strcmp(data_, str2.data_) == 0;
+    }
+    bool operator==(const char* str2) const {
+        return strcmp(data_, str2) == 0;
+    }
+    bool operator!=(const char* str2) const {
+        return strcmp(data_, str2) != 0;
+    }
     string& operator+=(const string& str1)
     {
         insert(end(), str1.begin(), str1.end());

@@ -32,8 +32,12 @@
 class GlobalGpuInstance
 {
 public:
-    GlobalGpuInstance() { ncnn::create_gpu_instance(); }
-    ~GlobalGpuInstance() { ncnn::destroy_gpu_instance(); }
+    GlobalGpuInstance() {
+        ncnn::create_gpu_instance();
+    }
+    ~GlobalGpuInstance() {
+        ncnn::destroy_gpu_instance();
+    }
 };
 // initialize vulkan runtime before main()
 GlobalGpuInstance g_global_gpu_instance;

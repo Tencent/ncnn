@@ -78,7 +78,7 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
 {
     FILE* fp = fopen(parampath, "rb");
 
-    if (!fp){
+    if (!fp) {
         fprintf(stderr, "fopen %s failed\n", parampath);
         return -1;
     }
@@ -283,7 +283,7 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
 
     FILE* mp = fopen(parambinpath, "rb");
 
-    if (!mp){
+    if (!mp) {
         fprintf(stderr, "fopen %s failed\n", parambinpath);
         return -1;
     }
@@ -318,7 +318,7 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
 
     FILE* bp = fopen(modelpath, "rb");
 
-    if (!bp){
+    if (!bp) {
         fprintf(stderr, "fopen %s failed\n", modelpath);
         return -1;
     }

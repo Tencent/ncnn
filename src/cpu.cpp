@@ -55,9 +55,15 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv()
 #define AT_HWCAP2 26
 #if __aarch64__
 
-    struct { uint64_t tag; uint64_t value; } entry;
+    struct {
+        uint64_t tag;
+        uint64_t value;
+    } entry;
 #else
-    struct { unsigned int tag; unsigned int value; } entry;
+    struct {
+        unsigned int tag;
+        unsigned int value;
+    } entry;
 
 #endif
 
@@ -321,10 +327,10 @@ static int set_sched_affinity(size_t thread_affinity_mask)
     // ref http://stackoverflow.com/questions/16319725/android-set-thread-affinity
 #define CPU_SETSIZE 1024
 #define __NCPUBITS  (8 * sizeof (unsigned long))
-typedef struct
-{
-    unsigned long __bits[CPU_SETSIZE / __NCPUBITS];
-} cpu_set_t;
+    typedef struct
+    {
+        unsigned long __bits[CPU_SETSIZE / __NCPUBITS];
+    } cpu_set_t;
 
 #define NCNN_CPU_SET(cpu, cpusetp) \
     ((cpusetp)->__bits[(cpu)/__NCPUBITS] |= (1UL << ((cpu) % __NCPUBITS)))

@@ -97,7 +97,7 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
     for (int i=0; i<(int)group_ops.size(); i++)
         delete group_ops[i];
 
-    group_ops.clear();      
+    group_ops.clear();
 
     if (channels == group && group == num_output)
     {
@@ -116,10 +116,10 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
     const int channels_g = channels / group;
     const int num_output_g = num_output / group;
 
-    group_ops.resize(group);     
+    group_ops.resize(group);
 
     for (int g=0; g<group; g++)
-    {  
+    {
         Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
         Mat bias_data_g;
         if (bias_term)
@@ -156,7 +156,7 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
             if (int8_scale_term)
             {
                 weights[2] = weight_data_int8_scales.range(g, 1);
-                weights[3] = bottom_blob_int8_scales.range(g, 1);     
+                weights[3] = bottom_blob_int8_scales.range(g, 1);
             }
 
             op->load_model(ModelBinFromMatArray(weights));
@@ -180,7 +180,7 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
 //         op->use_int8_requantize = use_int8_requantize; FIXME
 
         group_ops[g] = op;
-    }      
+    }
 
     return 0;
 }

@@ -47,11 +47,11 @@ int SELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float32x4_t _zero = vdupq_n_f32(0.f);
         float32x4_t _alphaxlambda = vdupq_n_f32(alphaxlambda);
         float32x4_t _lambda = vdupq_n_f32(lambda);
-        for(;nn>0; nn--){
+        for(; nn>0; nn--) {
             float32x4_t _p = vld1q_f32(ptr);
             uint32x4_t _lemask = vcleq_f32(_p, _zero);
 
-            float32x4_t _nps = exp_ps(_p); 
+            float32x4_t _nps = exp_ps(_p);
             _nps = vsubq_f32(_nps, _one);
             _nps = vmulq_f32(_nps, _alphaxlambda);
 

@@ -243,8 +243,8 @@ int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkComput
     constants[4].i = bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_scale_pack8
-                             : elempack == 4 ? pipeline_scale_pack4
-                             : pipeline_scale;
+                               : elempack == 4 ? pipeline_scale_pack4
+                               : pipeline_scale;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
@@ -281,8 +281,8 @@ int Scale_vulkan::forward_inplace(std::vector<VkImageMat>& bottom_top_blobs, VkC
     constants[4].i = 0;//bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_scale_pack8
-                             : elempack == 4 ? pipeline_scale_pack4
-                             : pipeline_scale;
+                               : elempack == 4 ? pipeline_scale_pack4
+                               : pipeline_scale;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

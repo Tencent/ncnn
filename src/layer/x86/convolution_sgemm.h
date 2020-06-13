@@ -19,14 +19,14 @@ static void conv_im2col_sgemm_transform_kernel_sse(const Mat& _kernel, Mat& kern
     const float* kernel = _kernel;
 
     // kernel memory packed 8 x 8
-    kernel_tm.create(8*kernel_size, inch, outch/8 + (outch%8)/4 + outch%4);  
-    
+    kernel_tm.create(8*kernel_size, inch, outch/8 + (outch%8)/4 + outch%4);
+
     int nn_outch = 0;
     int remain_outch_start = 0;
 
     nn_outch = outch >> 3;
     remain_outch_start = nn_outch << 3;
-    
+
     for (int pp=0; pp<nn_outch; pp++)
     {
         int p = pp * 8;
@@ -100,7 +100,7 @@ static void conv_im2col_sgemm_transform_kernel_sse(const Mat& _kernel, Mat& kern
         const float* k0 = kernel + (p+0)*inch*kernel_size;
 
         float* ktmp = kernel_tm.channel(p/8 + (p%8)/4 + p%4);
-          
+
         for (int q=0; q<inch*kernel_size; q++)
         {
             ktmp[0] = k0[0];
@@ -111,7 +111,7 @@ static void conv_im2col_sgemm_transform_kernel_sse(const Mat& _kernel, Mat& kern
 }
 
 static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const Mat & kernel_tm, const Mat& _bias, \
-            const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Option& opt)
+                                  const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -128,7 +128,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
     {
         const int stride = kernel_h*kernel_w*outw*outh;
         float* ret = (float*)bottom_im2col;
-    
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p=0; p<inch; p++)
         {
@@ -177,7 +177,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
             {
 #if __AVX__
                 _mm256_storeu_ps(tmpptr, _mm256_loadu_ps(img0));
-#else                
+#else
                 tmpptr[0] = img0[0];
                 tmpptr[1] = img0[1];
                 tmpptr[2] = img0[2];
@@ -207,9 +207,9 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                 tmpptr += 1;
                 img0 += out_size;
             }
-        }       
+        }
     }
-    
+
     // sgemm(int M, int N, int L, float* A, float* B, float* C)
     {
         //int M = outch;                    // outch
@@ -273,7 +273,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     _va0 = _mm256_broadcast_ss(va+4);
                     _va1 = _mm256_broadcast_ss(va+5);
                     _va2 = _mm256_broadcast_ss(va+6);
-                    _va3 = _mm256_broadcast_ss(va+7); 
+                    _va3 = _mm256_broadcast_ss(va+7);
                     _sum4 = _mm256_fmadd_ps(_vb0, _va0, _sum4);    // sum4 = (a00-a07) * k40
                     _sum5 = _mm256_fmadd_ps(_vb0, _va1, _sum5);    // sum5 = (a00-a07) * k50
                     _sum6 = _mm256_fmadd_ps(_vb0, _va2, _sum6);    // sum6 = (a00-a07) * k60
@@ -285,7 +285,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     _va0 = _mm256_broadcast_ss(va);
                     _va1 = _mm256_broadcast_ss(va+1);
                     _va2 = _mm256_broadcast_ss(va+2);
-                    _va3 = _mm256_broadcast_ss(va+3);                  
+                    _va3 = _mm256_broadcast_ss(va+3);
                     _sum0 = _mm256_fmadd_ps(_vb1, _va0, _sum0);    // sum0 += (a10-a17) * k01
                     _sum1 = _mm256_fmadd_ps(_vb1, _va1, _sum1);    // sum1 += (a10-a17) * k11
                     _sum2 = _mm256_fmadd_ps(_vb1, _va2, _sum2);    // sum2 += (a10-a17) * k21
@@ -293,7 +293,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     _va0 = _mm256_broadcast_ss(va+4);
                     _va1 = _mm256_broadcast_ss(va+5);
                     _va2 = _mm256_broadcast_ss(va+6);
-                    _va3 = _mm256_broadcast_ss(va+7);                     
+                    _va3 = _mm256_broadcast_ss(va+7);
                     _sum4 = _mm256_fmadd_ps(_vb1, _va0, _sum4);    // sum4 += (a10-a17) * k41
                     _sum5 = _mm256_fmadd_ps(_vb1, _va1, _sum5);    // sum5 += (a10-a17) * k51
                     _sum6 = _mm256_fmadd_ps(_vb1, _va2, _sum6);    // sum6 += (a10-a17) * k61
@@ -313,13 +313,13 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     _va0 = _mm256_broadcast_ss(va+4);
                     _va1 = _mm256_broadcast_ss(va+5);
                     _va2 = _mm256_broadcast_ss(va+6);
-                    _va3 = _mm256_broadcast_ss(va+7);                     
+                    _va3 = _mm256_broadcast_ss(va+7);
                     _sum4 = _mm256_fmadd_ps(_vb2, _va0, _sum4);    // sum4 += (a20-a27) * k42
                     _sum5 = _mm256_fmadd_ps(_vb2, _va1, _sum5);    // sum5 += (a20-a27) * k52
                     _sum6 = _mm256_fmadd_ps(_vb2, _va2, _sum6);    // sum6 += (a20-a27) * k62
-                    _sum7 = _mm256_fmadd_ps(_vb2, _va3, _sum7);    // sum7 += (a20-a27) * k72  
+                    _sum7 = _mm256_fmadd_ps(_vb2, _va3, _sum7);    // sum7 += (a20-a27) * k72
 
-                    va += 8;                  
+                    va += 8;
 
                     // k3
                     _va0 = _mm256_broadcast_ss(va);
@@ -333,11 +333,11 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     _va0 = _mm256_broadcast_ss(va+4);
                     _va1 = _mm256_broadcast_ss(va+5);
                     _va2 = _mm256_broadcast_ss(va+6);
-                    _va3 = _mm256_broadcast_ss(va+7);                     
+                    _va3 = _mm256_broadcast_ss(va+7);
                     _sum4 = _mm256_fmadd_ps(_vb3, _va0, _sum4);    // sum4 += (a30-a37) * k43
                     _sum5 = _mm256_fmadd_ps(_vb3, _va1, _sum5);    // sum5 += (a30-a37) * k53
                     _sum6 = _mm256_fmadd_ps(_vb3, _va2, _sum6);    // sum6 += (a30-a37) * k63
-                    _sum7 = _mm256_fmadd_ps(_vb3, _va3, _sum7);    // sum7 += (a30-a37) * k73                      
+                    _sum7 = _mm256_fmadd_ps(_vb3, _va3, _sum7);    // sum7 += (a30-a37) * k73
 
                     va += 8;
                     vb += 32;
@@ -353,7 +353,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     __m256 _va4 = _mm256_broadcast_ss(va+4);
                     __m256 _va5 = _mm256_broadcast_ss(va+5);
                     __m256 _va6 = _mm256_broadcast_ss(va+6);
-                    __m256 _va7 = _mm256_broadcast_ss(va+7); 
+                    __m256 _va7 = _mm256_broadcast_ss(va+7);
                     __m256 _vb0 = _mm256_loadu_ps(vb);
                     _sum0 = _mm256_fmadd_ps(_vb0, _va0, _sum0);    // sum0 = (a00-a07) * k00
                     _sum1 = _mm256_fmadd_ps(_vb0, _va1, _sum1);    // sum1 = (a00-a07) * k10
@@ -369,14 +369,14 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                 }
 
                 _mm256_storeu_ps(output0, _sum0);
-                _mm256_storeu_ps(output1, _sum1); 
+                _mm256_storeu_ps(output1, _sum1);
                 _mm256_storeu_ps(output2, _sum2);
-                _mm256_storeu_ps(output3, _sum3); 
+                _mm256_storeu_ps(output3, _sum3);
                 _mm256_storeu_ps(output4, _sum4);
-                _mm256_storeu_ps(output5, _sum5); 
+                _mm256_storeu_ps(output5, _sum5);
                 _mm256_storeu_ps(output6, _sum6);
-                _mm256_storeu_ps(output7, _sum7);                
-#else                
+                _mm256_storeu_ps(output7, _sum7);
+#else
                 float sum0[8] = {0};
                 float sum1[8] = {0};
                 float sum2[8] = {0};
@@ -468,7 +468,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                         sum4[n] += va[4] * vb[n+56];
                         sum5[n] += va[5] * vb[n+56];
                         sum6[n] += va[6] * vb[n+56];
-                        sum7[n] += va[7] * vb[n+56];                        
+                        sum7[n] += va[7] * vb[n+56];
                         va -= 56;
                     }
 
@@ -489,7 +489,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                         sum6[n] += va[6] * vb[n];
                         sum7[n] += va[7] * vb[n];
                     }
-                    
+
                     va += 8;
                     vb += 8;
                 }
@@ -557,7 +557,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                 for (; k<L; k++)
                 {
                     __m256 _vb0 = _mm256_broadcast_ss(vb);
-                    __m256 _va = _mm256_loadu_ps(va); 
+                    __m256 _va = _mm256_loadu_ps(va);
 
                     _sum0_7 = _mm256_fmadd_ps(_va, _vb0, _sum0_7);// sum0 += (k00-k70) * a00
 
@@ -566,7 +566,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                 }
 
                 float output_sum0_7[8] = {0.f};
-                _mm256_storeu_ps(output_sum0_7, _sum0_7); 
+                _mm256_storeu_ps(output_sum0_7, _sum0_7);
 
                 output0[0] = output_sum0_7[0];
                 output1[0] = output_sum0_7[1];
@@ -600,7 +600,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     va += 8;
                     vb += 1;
                 }
-                
+
                 output0[0] = sum0;
                 output1[0] = sum1;
                 output2[0] = sum2;
@@ -670,7 +670,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     _va0 = _mm256_broadcast_ss(va);
                     _va1 = _mm256_broadcast_ss(va+1);
                     _va2 = _mm256_broadcast_ss(va+2);
-                    _va3 = _mm256_broadcast_ss(va+3);                  
+                    _va3 = _mm256_broadcast_ss(va+3);
                     _sum0 = _mm256_fmadd_ps(_vb1, _va0, _sum0);    // sum0 += (a10-a17) * k01
                     _sum1 = _mm256_fmadd_ps(_vb1, _va1, _sum1);    // sum1 += (a10-a17) * k11
                     _sum2 = _mm256_fmadd_ps(_vb1, _va2, _sum2);    // sum2 += (a10-a17) * k21
@@ -688,7 +688,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     _sum2 = _mm256_fmadd_ps(_vb2, _va2, _sum2);    // sum2 += (a20-a27) * k22
                     _sum3 = _mm256_fmadd_ps(_vb2, _va3, _sum3);    // sum3 += (a20-a27) * k32
 
-                    va += 4;                  
+                    va += 4;
 
                     // k3
                     _va0 = _mm256_broadcast_ss(va);
@@ -698,7 +698,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     _sum0 = _mm256_fmadd_ps(_vb3, _va0, _sum0);    // sum0 += (a30-a37) * k03
                     _sum1 = _mm256_fmadd_ps(_vb3, _va1, _sum1);    // sum1 += (a30-a37) * k13
                     _sum2 = _mm256_fmadd_ps(_vb3, _va2, _sum2);    // sum2 += (a30-a37) * k23
-                    _sum3 = _mm256_fmadd_ps(_vb3, _va3, _sum3);    // sum3 += (a30-a37) * k33                   
+                    _sum3 = _mm256_fmadd_ps(_vb3, _va3, _sum3);    // sum3 += (a30-a37) * k33
 
                     va += 4;
                     vb += 32;
@@ -722,15 +722,15 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                 }
 
                 _mm256_storeu_ps(output0, _sum0);
-                _mm256_storeu_ps(output1, _sum1); 
+                _mm256_storeu_ps(output1, _sum1);
                 _mm256_storeu_ps(output2, _sum2);
-                _mm256_storeu_ps(output3, _sum3);   
+                _mm256_storeu_ps(output3, _sum3);
 #else
                 float sum0[8] = {0};
                 float sum1[8] = {0};
                 float sum2[8] = {0};
                 float sum3[8] = {0};
-               
+
                 int k=0;
                 for (; k+7<L; k=k+8)
                 {
@@ -798,7 +798,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                         sum2[n] += va[2] * vb[n];
                         sum3[n] += va[3] * vb[n];
                     }
-                    
+
                     va += 4;
                     vb += 8;
                 }
@@ -818,7 +818,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
             }
 
             for (; j<N; j++)
-            {                
+            {
                 const float* vb = bottom_tm.channel(j/8 + j%8);
                 const float* va = kernel_tm.channel(i/8 + (i%8)/4);
 #if __AVX__
@@ -857,20 +857,20 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                 for (; k<L; k++)
                 {
                     __m128 _vb0 = _mm_set1_ps(vb[0]);
-                    __m128 _va = _mm_loadu_ps(va); 
+                    __m128 _va = _mm_loadu_ps(va);
 
                     _sum0_3 = _mm_fmadd_ps(_va, _vb0, _sum0_3);// sum0 += (k00-k30) * a00
 
                     va += 4;
                     vb += 1;
-                }         
+                }
 
                 float output_sum0_3[4] = {0.f};
-                _mm_storeu_ps(output_sum0_3, _sum0_3); 
+                _mm_storeu_ps(output_sum0_3, _sum0_3);
                 output0[0] = output_sum0_3[0];
                 output1[0] = output_sum0_3[1];
                 output2[0] = output_sum0_3[2];
-                output3[0] = output_sum0_3[3];  
+                output3[0] = output_sum0_3[3];
 #else
                 float sum0 = biasptr[0];
                 float sum1 = biasptr[1];
@@ -887,7 +887,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     va += 4;
                     vb += 1;
                 }
-                
+
                 output0[0] = sum0;
                 output1[0] = sum1;
                 output2[0] = sum2;
@@ -904,7 +904,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i=remain_outch_start; i<outch; i++)
-        { 
+        {
             float* output = top_blob.channel(i);
 
             const float bias0 = bias ? bias[i] : 0.f;
@@ -930,11 +930,11 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     __m256 _vb2 = _mm256_loadu_ps(vb+16);
                     __m256 _vb3 = _mm256_loadu_ps(vb+24);
 
-                    _sum0 = _mm256_fmadd_ps(_vb0, _va0, _sum0);    // sum0 = (a00-a07) * k00                
+                    _sum0 = _mm256_fmadd_ps(_vb0, _va0, _sum0);    // sum0 = (a00-a07) * k00
                     _sum0 = _mm256_fmadd_ps(_vb1, _va1, _sum0);    // sum0 += (a10-a17) * k01
                     _sum0 = _mm256_fmadd_ps(_vb2, _va2, _sum0);    // sum0 += (a20-a27) * k02
                     _sum0 = _mm256_fmadd_ps(_vb3, _va3, _sum0);    // sum0 += (a30-a37) * k03
-                
+
                     va += 4;
                     vb += 32;
                 }
@@ -951,8 +951,8 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     vb += 8;
                 }
 
-                _mm256_storeu_ps(output, _sum0); 
-#else                
+                _mm256_storeu_ps(output, _sum0);
+#else
                 float sum[8] = {0};
 
                 int k=0;
@@ -971,7 +971,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     }
 
                     va += 8;
-                    vb += 64;    
+                    vb += 64;
                 }
 
                 for (; k<L; k++)
@@ -1014,10 +1014,10 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                 }
 
                 float output_sum0[4] = {0.f};
-                _mm_storeu_ps(output_sum0, _sum0); 
+                _mm_storeu_ps(output_sum0, _sum0);
 
                 float sum0 = bias0 + output_sum0[0] + output_sum0[1] + output_sum0[2] + output_sum0[3];
-				
+
 #else
                 float sum0 = bias0;
 #endif // __AVX__
@@ -1033,7 +1033,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                 output++;
             }
         }
-    }   
+    }
 }
 #else
 static void conv_im2col_sgemm_transform_kernel_sse(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_size)
@@ -1042,7 +1042,7 @@ static void conv_im2col_sgemm_transform_kernel_sse(const Mat& _kernel, Mat& kern
 
     // kernel memory packed 4 x 4
     kernel_tm.create(4*kernel_size, inch, outch/4 + outch%4);
-    
+
     int nn_outch = 0;
     int remain_outch_start = 0;
 
@@ -1074,7 +1074,7 @@ static void conv_im2col_sgemm_transform_kernel_sse(const Mat& _kernel, Mat& kern
             k3 += 1;
         }
     }
-    
+
     for (int p=remain_outch_start; p<outch; p++)
     {
         const float* k0 = kernel + (p+0)*inch*kernel_size;
@@ -1091,7 +1091,7 @@ static void conv_im2col_sgemm_transform_kernel_sse(const Mat& _kernel, Mat& kern
 }
 
 static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const Mat & kernel_tm, const Mat& _bias, \
-            const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Option& opt)
+                                  const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -1108,7 +1108,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
     {
         const int stride = kernel_h*kernel_w*outw*outh;
         float* ret = (float*)bottom_im2col;
-    
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p=0; p<inch; p++)
         {
@@ -1157,7 +1157,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
             {
 #if __SSE__
                 _mm_storeu_ps(tmpptr, _mm_loadu_ps(img0));
-#else                
+#else
                 tmpptr[0] = img0[0];
                 tmpptr[1] = img0[1];
                 tmpptr[2] = img0[2];
@@ -1185,7 +1185,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
             }
         }
     }
-    
+
     // sgemm(int M, int N, int L, float* A, float* B, float* C)
     {
         //int M = outch;                    // outch
@@ -1285,7 +1285,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     _sum1 = _mm_add_ps(_sum1, _mm_mul_ps(_vb, _va1));// sum1 = (a00-a03) * k10
                     _sum2 = _mm_add_ps(_sum2, _mm_mul_ps(_vb, _va2));// sum2 = (a00-a03) * k20
                     _sum3 = _mm_add_ps(_sum3, _mm_mul_ps(_vb, _va3));// sum3 = (a00-a03) * k30
-                    
+
                     va += 4;
                     vb += 4;
                 }
@@ -1298,7 +1298,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                 float sum1[4] = {0};
                 float sum2[4] = {0};
                 float sum3[4] = {0};
-               
+
                 int k=0;
                 for (; k+7<L; k=k+8)
                 {
@@ -1366,7 +1366,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                         sum2[n] += va[2] * vb[n];
                         sum3[n] += va[3] * vb[n];
                     }
-                    
+
                     va += 4;
                     vb += 4;
                 }
@@ -1386,7 +1386,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
             }
 
             for (; j<N; j++)
-            {                
+            {
                 const float* vb = bottom_tm.channel(j/4 + j%4);
                 const float* va = kernel_tm.channel(i/4);
 #if __SSE__
@@ -1425,13 +1425,13 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                 for (; k<L; k++)
                 {
                     __m128 _vb0 = _mm_set1_ps(vb[0]);
-                    __m128 _va = _mm_loadu_ps(va); 
+                    __m128 _va = _mm_loadu_ps(va);
 
                     _sum0_3 = _mm_add_ps(_sum0_3, _mm_mul_ps(_va, _vb0));// sum0 += (k00-k30) * a00
 
                     va += 4;
                     vb += 1;
-                }         
+                }
                 output0[0] = _sum0_3[0];
                 output1[0] = _sum0_3[1];
                 output2[0] = _sum0_3[2];
@@ -1452,7 +1452,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     va += 4;
                     vb += 1;
                 }
-                
+
                 output0[0] = sum0;
                 output1[0] = sum1;
                 output2[0] = sum2;
@@ -1475,7 +1475,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
             int j=0;
             for (; j+3<N; j=j+4)
             {
-                const float* vb = bottom_tm.channel(j/4);       
+                const float* vb = bottom_tm.channel(j/4);
                 const float* va = kernel_tm.channel(i/4 + i%4);
 #if __SSE__
                 __m128 _sum0 = _mm_set1_ps(bias0);
@@ -1493,11 +1493,11 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     __m128 _vb2 = _mm_loadu_ps(vb+8);
                     __m128 _vb3 = _mm_loadu_ps(vb+12);
 
-                    _sum0 = _mm_add_ps(_sum0, _mm_mul_ps(_vb0, _va0));// sum0 = (a00-a03) * k00                
+                    _sum0 = _mm_add_ps(_sum0, _mm_mul_ps(_vb0, _va0));// sum0 = (a00-a03) * k00
                     _sum0 = _mm_add_ps(_sum0, _mm_mul_ps(_vb1, _va1));// sum0 += (a10-a13) * k01
                     _sum0 = _mm_add_ps(_sum0, _mm_mul_ps(_vb2, _va2));// sum0 += (a20-a23) * k02
                     _sum0 = _mm_add_ps(_sum0, _mm_mul_ps(_vb3, _va3));// sum0 += (a30-a33) * k03
-                
+
                     va += 4;
                     vb += 16;
                 }
@@ -1513,8 +1513,8 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     va += 1;
                     vb += 4;
                 }
-                _mm_storeu_ps(output, _sum0); 
-#else                
+                _mm_storeu_ps(output, _sum0);
+#else
                 float sum[4] = {0};
 
                 int k=0;
@@ -1571,7 +1571,7 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                     _sum0 = _mm_add_ps(_sum0, _mm_mul_ps(_p0, _k0));
 
                     va += 4;
-                    vb += 4;                    
+                    vb += 4;
                 }
                 float sum0 = bias0 + _sum0[0] + _sum0[1] + _sum0[2] + _sum0[3];
 #else
@@ -1589,6 +1589,6 @@ static void conv_im2col_sgemm_sse(const Mat &bottom_blob, Mat &top_blob, const M
                 output++;
             }
         }
-    }   
+    }
 }
 #endif

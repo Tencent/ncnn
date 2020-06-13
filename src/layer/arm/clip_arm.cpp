@@ -95,27 +95,27 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #128]          \n"
-            "vld1.f32   {d0-d1}, [%1: 128]  \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #128]          \n"
+                "vld1.f32   {d0-d1}, [%1: 128]  \n"
 
-            "vmax.f32   q0, q0, %q4         \n"
-            "vmin.f32   q0, q0, %q5         \n"
+                "vmax.f32   q0, q0, %q4         \n"
+                "vmin.f32   q0, q0, %q5         \n"
 
-            "subs       %0, #1              \n"
-            "vst1.f32   {d0-d1}, [%1: 128]! \n"
+                "subs       %0, #1              \n"
+                "vst1.f32   {d0-d1}, [%1: 128]! \n"
 
-            "bne        0b                  \n"
+                "bne        0b                  \n"
 
-            : "=r"(nn),     // %0
-              "=r"(ptr)     // %1
-            : "0"(nn),
-              "1"(ptr),
-              "w"(_min),    // %q4
-              "w"(_max)     // %q5
-            : "cc", "memory", "q0"
-        );
+                : "=r"(nn),     // %0
+                "=r"(ptr)     // %1
+                : "0"(nn),
+                "1"(ptr),
+                "w"(_min),    // %q4
+                "w"(_max)     // %q5
+                : "cc", "memory", "q0"
+            );
         }
 #endif // __aarch64__
 #endif // __ARM_NEON

@@ -58,7 +58,7 @@ int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
             shape_bordered = Mat(shape.w + pad_left + pad_right, shape.h + pad_top + pad_bottom, shape.c, (void*)0);
         }
         else if ((pad_left == -233 && pad_right == -233 && pad_top == -233 && pad_bottom == -233)
-            || (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234))
+                 || (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234))
         {
             const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
             const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -635,8 +635,8 @@ int ConvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_bl
         constants[9].i = top_blob.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_convolutiondepthwise_pack8
-                                 : elempack == 4 ? pipeline_convolutiondepthwise_pack4
-                                 : pipeline_convolutiondepthwise;
+                                   : elempack == 4 ? pipeline_convolutiondepthwise_pack4
+                                   : pipeline_convolutiondepthwise;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -863,8 +863,8 @@ int ConvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImageM
         constants[9].i = 0;//top_blob.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_convolutiondepthwise_pack8
-                                 : elempack == 4 ? pipeline_convolutiondepthwise_pack4
-                                 : pipeline_convolutiondepthwise;
+                                   : elempack == 4 ? pipeline_convolutiondepthwise_pack4
+                                   : pipeline_convolutiondepthwise;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

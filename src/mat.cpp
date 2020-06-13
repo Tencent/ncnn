@@ -132,41 +132,41 @@ Mat Mat::from_float16(const unsigned short* data, int size)
 #if __aarch64__
     if (nn > 0)
     {
-    asm volatile(
-        "0:                             \n"
-        "ld1    {v0.4h}, [%1], #8       \n"
-        "fcvtl  v1.4s, v0.4h            \n"
-        "subs   %w0, %w0, #1            \n"
-        "st1    {v1.4s}, [%2], #16      \n"
-        "bne    0b                      \n"
-        : "=r"(nn),     // %0
-          "=r"(data),   // %1
-          "=r"(ptr)     // %2
-        : "0"(nn),
-          "1"(data),
-          "2"(ptr)
-        : "cc", "memory", "v0", "v1"
-    );
+        asm volatile(
+            "0:                             \n"
+            "ld1    {v0.4h}, [%1], #8       \n"
+            "fcvtl  v1.4s, v0.4h            \n"
+            "subs   %w0, %w0, #1            \n"
+            "st1    {v1.4s}, [%2], #16      \n"
+            "bne    0b                      \n"
+            : "=r"(nn),     // %0
+            "=r"(data),   // %1
+            "=r"(ptr)     // %2
+            : "0"(nn),
+            "1"(data),
+            "2"(ptr)
+            : "cc", "memory", "v0", "v1"
+        );
     }
 #else
     if (nn > 0)
     {
-    asm volatile(
-        "0:                             \n"
-        "pld        [%1, #64]           \n"
-        "vld1.s16   {d0}, [%1 :64]!     \n"
-        "vcvt.f32.f16 q1, d0            \n"
-        "subs       %0, #1              \n"
-        "vst1.f32   {d2-d3}, [%2 :128]! \n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(data),   // %1
-          "=r"(ptr)     // %2
-        : "0"(nn),
-          "1"(data),
-          "2"(ptr)
-        : "cc", "memory", "q0", "q1"
-    );
+        asm volatile(
+            "0:                             \n"
+            "pld        [%1, #64]           \n"
+            "vld1.s16   {d0}, [%1 :64]!     \n"
+            "vcvt.f32.f16 q1, d0            \n"
+            "subs       %0, #1              \n"
+            "vst1.f32   {d2-d3}, [%2 :128]! \n"
+            "bne        0b                  \n"
+            : "=r"(nn),     // %0
+            "=r"(data),   // %1
+            "=r"(ptr)     // %2
+            : "0"(nn),
+            "1"(data),
+            "2"(ptr)
+            : "cc", "memory", "q0", "q1"
+        );
     }
 #endif // __aarch64__
 #endif // __ARM_NEON

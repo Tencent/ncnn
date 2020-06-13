@@ -41,25 +41,25 @@ static int test_hardsigmoid(const ncnn::Mat& a, float alpha, float beta)
 static int test_hardsigmoid_0()
 {
     return 0
-        || test_hardsigmoid(RandomMat(6, 7, 16), 0.5f, 0.5f)
-        || test_hardsigmoid(RandomMat(3, 5, 13), 0.5f, 0.5f)
-        ;
+           || test_hardsigmoid(RandomMat(6, 7, 16), 0.5f, 0.5f)
+           || test_hardsigmoid(RandomMat(3, 5, 13), 0.5f, 0.5f)
+           ;
 }
 
 static int test_hardsigmoid_1()
 {
     return 0
-        || test_hardsigmoid(RandomMat(6, 16), 0.5f, 0.5f)
-        || test_hardsigmoid(RandomMat(7, 15), 0.5f, 0.5f)
-        ;
+           || test_hardsigmoid(RandomMat(6, 16), 0.5f, 0.5f)
+           || test_hardsigmoid(RandomMat(7, 15), 0.5f, 0.5f)
+           ;
 }
 
 static int test_hardsigmoid_2()
 {
     return 0
-        || test_hardsigmoid(RandomMat(128), 0.5f, 0.5f)
-        || test_hardsigmoid(RandomMat(127), 0.5f, 0.5f)
-        ;
+           || test_hardsigmoid(RandomMat(128), 0.5f, 0.5f)
+           || test_hardsigmoid(RandomMat(127), 0.5f, 0.5f)
+           ;
 }
 
 int main()
@@ -67,8 +67,8 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_hardsigmoid_0()
-        || test_hardsigmoid_1()
-        || test_hardsigmoid_2()
-        ;
+           || test_hardsigmoid_0()
+           || test_hardsigmoid_1()
+           || test_hardsigmoid_2()
+           ;
 }

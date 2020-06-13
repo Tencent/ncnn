@@ -42,19 +42,19 @@ static int test_shufflechannel(int w, int h, int c, int group)
 static int test_shufflechannel_0()
 {
     return 0
-        || test_shufflechannel(3, 7, 1, 1)
-        || test_shufflechannel(3, 7, 2, 2)
-        || test_shufflechannel(3, 7, 3, 3)
-        || test_shufflechannel(3, 7, 4, 2)
-        || test_shufflechannel(3, 7, 12, 3)
-        || test_shufflechannel(3, 7, 12, 4)
-        || test_shufflechannel(3, 7, 12, 6)
-        || test_shufflechannel(3, 7, 15, 3)
-        || test_shufflechannel(3, 7, 15, 5)
-        || test_shufflechannel(3, 7, 16, 2)
-        || test_shufflechannel(3, 7, 16, 4)
-        || test_shufflechannel(3, 7, 16, 8)
-        ;
+           || test_shufflechannel(3, 7, 1, 1)
+           || test_shufflechannel(3, 7, 2, 2)
+           || test_shufflechannel(3, 7, 3, 3)
+           || test_shufflechannel(3, 7, 4, 2)
+           || test_shufflechannel(3, 7, 12, 3)
+           || test_shufflechannel(3, 7, 12, 4)
+           || test_shufflechannel(3, 7, 12, 6)
+           || test_shufflechannel(3, 7, 15, 3)
+           || test_shufflechannel(3, 7, 15, 5)
+           || test_shufflechannel(3, 7, 16, 2)
+           || test_shufflechannel(3, 7, 16, 4)
+           || test_shufflechannel(3, 7, 16, 8)
+           ;
 }
 
 int main()

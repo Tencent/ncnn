@@ -60,7 +60,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
             sum = op(sum, ptr[i]);
         }
         b[0] = sum;
-        
+
         return 0;
     }
 
@@ -251,7 +251,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
                     ptr += w;
                 }
             }
-            
+
             b.fill(v0);
 
             for (int q=0; q<channels; q++)
@@ -331,7 +331,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
         {
             // w h c -> w X c
             b.create(w, channels, elemsize, opt.blob_allocator);
-            
+
             b.fill(v0);
 
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -573,7 +573,7 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
                     ptr += w;
                 }
             }
-            
+
             b.fill(v0);
 
             for (int q=0; q<channels; q++)
@@ -695,7 +695,7 @@ static int reduction_post_process(Mat& a, float coeff, const Option& opt)
     else if (dims == 2)
     {
         int size = a.w * a.h;
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i=0; i<size; i++)
             a[i] = mathop(a[i]) * coeff;
@@ -721,7 +721,7 @@ static int reduction_post_process(Mat& a, float coeff, const Option& opt)
             }
         }
     }
-    
+
     return 0;
 }
 
@@ -747,52 +747,72 @@ static int reduction(const Mat& a, Mat& b, float v0, bool reduce_w, bool reduce_
 
 template<typename T>
 struct post_process_identity {
-    T operator() (const T& x) const { return x; }
+    T operator() (const T& x) const {
+        return x;
+    }
 };
 
 template<typename T>
 struct post_process_sqrt {
-    T operator() (const T& x) const { return static_cast<T>(sqrt(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(sqrt(x));
+    }
 };
 
 template<typename T>
 struct post_process_log {
-    T operator() (const T& x) const { return static_cast<T>(log(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(log(x));
+    }
 };
 
 template<typename T>
 struct reduction_op_add {
-    T operator() (const T& x, const T& y) const { return x + y; }
+    T operator() (const T& x, const T& y) const {
+        return x + y;
+    }
 };
 
 template<typename T>
 struct reduction_op_mul {
-    T operator() (const T& x, const T& y) const { return x * y; }
+    T operator() (const T& x, const T& y) const {
+        return x * y;
+    }
 };
 
 template<typename T>
 struct reduction_op_asum {
-    T operator() (const T& x, const T& y) const { return static_cast<T>(x + fabs(y)); }
+    T operator() (const T& x, const T& y) const {
+        return static_cast<T>(x + fabs(y));
+    }
 };
 
 template<typename T>
 struct reduction_op_sumsq {
-    T operator() (const T& x, const T& y) const { return x + y * y; }
+    T operator() (const T& x, const T& y) const {
+        return x + y * y;
+    }
 };
 
 template<typename T>
 struct reduction_op_sumsexp {
-    T operator() (const T& x, const T& y) const { return static_cast<T>(x + exp(y)); }
+    T operator() (const T& x, const T& y) const {
+        return static_cast<T>(x + exp(y));
+    }
 };
 
 template<typename T>
 struct reduction_op_max {
-    T operator() (const T& x, const T& y) const { return std::max(x, y); }
+    T operator() (const T& x, const T& y) const {
+        return std::max(x, y);
+    }
 };
 
 template<typename T>
 struct reduction_op_min {
-    T operator() (const T& x, const T& y) const { return std::min(x, y); }
+    T operator() (const T& x, const T& y) const {
+        return std::min(x, y);
+    }
 };
 
 
@@ -882,16 +902,16 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 
     if (operation == ReductionOp_PROD)
         return reduction< reduction_op_mul<float>, reduction_op_mul<float>, post_process_identity<float> >(bottom_blob, top_blob, 1.f, reduce_w, reduce_h, reduce_c, false, coeff, keepdims, opt);
-    
+
     if (operation == ReductionOp_L1)
         return reduction< reduction_op_asum<float>, reduction_op_add<float>, post_process_identity<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, false, 1.f, keepdims, opt);
 
     if (operation == ReductionOp_L2)
         return reduction< reduction_op_sumsq<float>, reduction_op_add<float>, post_process_sqrt<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, true, 1.f, keepdims, opt);
-    
+
     if (operation == ReductionOp_LogSum)
         return reduction< reduction_op_add<float>, reduction_op_add<float>, post_process_log<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, true, 1.f, keepdims, opt);
-    
+
     if (operation == ReductionOp_LogSumExp)
         return reduction< reduction_op_sumsexp<float>, reduction_op_add<float>, post_process_log<float> >(bottom_blob, top_blob, 0.f, reduce_w, reduce_h, reduce_c, true, 1.f, keepdims, opt);
 

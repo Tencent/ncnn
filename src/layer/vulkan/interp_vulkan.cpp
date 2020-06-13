@@ -308,8 +308,8 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
         constants[11].f = h / (float)outh;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
-                                 : elempack == 4 ? pipeline_interp_pack4
-                                 : pipeline_interp;
+                                   : elempack == 4 ? pipeline_interp_pack4
+                                   : pipeline_interp;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
@@ -380,8 +380,8 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
         constants[9].i = top_blob.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_interp_bicubic_pack8
-                                 : elempack == 4 ? pipeline_interp_bicubic_pack4
-                                 : pipeline_interp_bicubic;
+                                   : elempack == 4 ? pipeline_interp_bicubic_pack4
+                                   : pipeline_interp_bicubic;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
@@ -436,8 +436,8 @@ int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, 
         constants[11].f = h / (float)outh;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
-                                 : elempack == 4 ? pipeline_interp_pack4
-                                 : pipeline_interp;
+                                   : elempack == 4 ? pipeline_interp_pack4
+                                   : pipeline_interp;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
@@ -510,8 +510,8 @@ int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, 
         constants[9].i = 0;//top_blob.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_interp_bicubic_pack8
-                                 : elempack == 4 ? pipeline_interp_bicubic_pack4
-                                 : pipeline_interp_bicubic;
+                                   : elempack == 4 ? pipeline_interp_bicubic_pack4
+                                   : pipeline_interp_bicubic;
 
         cmd.record_pipeline(pipeline, buffer_bindings, image_bindings, constants, top_blob);
     }

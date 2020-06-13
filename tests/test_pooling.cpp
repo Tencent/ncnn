@@ -64,15 +64,15 @@ static int test_pooling_0()
     for (int i=0; i<11; i++)
     {
         int ret = 0
-            || test_pooling(9, 7, 1, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
-            || test_pooling(9, 7, 2, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
-            || test_pooling(9, 7, 3, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 2, 0)
-            || test_pooling(9, 7, 4, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 3, 0)
-            || test_pooling(9, 7, 7, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
-            || test_pooling(9, 7, 8, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
-            || test_pooling(9, 7, 15, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 2, 0)
-            || test_pooling(9, 7, 16, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 3, 0)
-            ;
+                  || test_pooling(9, 7, 1, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
+                  || test_pooling(9, 7, 2, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
+                  || test_pooling(9, 7, 3, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 2, 0)
+                  || test_pooling(9, 7, 4, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 3, 0)
+                  || test_pooling(9, 7, 7, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
+                  || test_pooling(9, 7, 8, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
+                  || test_pooling(9, 7, 15, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 2, 0)
+                  || test_pooling(9, 7, 16, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 3, 0)
+                  ;
 
         if (ret != 0)
             return -1;
@@ -100,15 +100,15 @@ static int test_pooling_1()
     for (int i=0; i<11; i++)
     {
         int ret = 0
-            || test_pooling(9, 7, 1, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
-            || test_pooling(9, 7, 2, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
-            || test_pooling(9, 7, 3, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 1)
-            || test_pooling(9, 7, 4, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
-            || test_pooling(9, 7, 7, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
-            || test_pooling(9, 7, 8, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 1)
-            || test_pooling(9, 7, 15, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
-            || test_pooling(9, 7, 16, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
-            ;
+                  || test_pooling(9, 7, 1, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
+                  || test_pooling(9, 7, 2, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
+                  || test_pooling(9, 7, 3, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 1)
+                  || test_pooling(9, 7, 4, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
+                  || test_pooling(9, 7, 7, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
+                  || test_pooling(9, 7, 8, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 1)
+                  || test_pooling(9, 7, 15, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
+                  || test_pooling(9, 7, 16, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
+                  ;
 
         if (ret != 0)
             return -1;
@@ -120,17 +120,17 @@ static int test_pooling_1()
 static int test_pooling_2()
 {
     return 0
-        || test_pooling(2, 5, 1, 0, 1, 1, 0, 1, 0, 0)
-        || test_pooling(5, 2, 1, 1, 1, 1, 0, 1, 0, 0)
-        || test_pooling(3, 6, 3, 0, 1, 1, 0, 1, 0, 0)
-        || test_pooling(6, 3, 3, 1, 1, 1, 0, 1, 0, 0)
-        || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0)
-        || test_pooling(6, 4, 4, 1, 1, 1, 0, 1, 0, 0)
-        || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0)
-        || test_pooling(7, 8, 8, 1, 1, 1, 0, 1, 0, 0)
-        || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 0)
-        || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 0)
-        ;
+           || test_pooling(2, 5, 1, 0, 1, 1, 0, 1, 0, 0)
+           || test_pooling(5, 2, 1, 1, 1, 1, 0, 1, 0, 0)
+           || test_pooling(3, 6, 3, 0, 1, 1, 0, 1, 0, 0)
+           || test_pooling(6, 3, 3, 1, 1, 1, 0, 1, 0, 0)
+           || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0)
+           || test_pooling(6, 4, 4, 1, 1, 1, 0, 1, 0, 0)
+           || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0)
+           || test_pooling(7, 8, 8, 1, 1, 1, 0, 1, 0, 0)
+           || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 0)
+           || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 0)
+           ;
 }
 
 int main()
@@ -138,8 +138,8 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_pooling_0()
-        || test_pooling_1()
-        || test_pooling_2()
-        ;
+           || test_pooling_0()
+           || test_pooling_1()
+           || test_pooling_2()
+           ;
 }

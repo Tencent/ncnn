@@ -71,7 +71,7 @@ void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, double
                 ((Convolution*)layer)->kernel_h,
                 ((Convolution*)layer)->stride_w,
                 ((Convolution*)layer)->stride_h
-        );
+               );
     }
     else if (layer->type == "ConvolutionDepthWise")
     {
@@ -80,7 +80,7 @@ void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, double
                 ((ConvolutionDepthWise*)layer)->kernel_h,
                 ((ConvolutionDepthWise*)layer)->stride_w,
                 ((ConvolutionDepthWise*)layer)->stride_h
-        );
+               );
     }
     else if (layer->type == "Deconvolution")
     {
@@ -89,7 +89,7 @@ void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, double
                 ((Deconvolution*)layer)->kernel_h,
                 ((Deconvolution*)layer)->stride_w,
                 ((Deconvolution*)layer)->stride_h
-        );
+               );
     }
     else if (layer->type == "DeconvolutionDepthWise")
     {
@@ -98,7 +98,7 @@ void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, double
                 ((DeconvolutionDepthWise*)layer)->kernel_h,
                 ((DeconvolutionDepthWise*)layer)->stride_w,
                 ((DeconvolutionDepthWise*)layer)->stride_h
-        );
+               );
     }
     fprintf(stderr, "\n");
 }

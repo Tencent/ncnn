@@ -486,8 +486,8 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             constants[10].i = woffset;
 
             const Pipeline* pipeline = elempack == 8 ? pipeline_concat_pack8[b%2]
-                                     : elempack == 4 ? pipeline_concat_pack4[b%2]
-                                     : pipeline_concat[b%2];
+                                       : elempack == 4 ? pipeline_concat_pack4[b%2]
+                                       : pipeline_concat[b%2];
 
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
@@ -644,8 +644,8 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             constants[10].i = hoffset;
 
             const Pipeline* pipeline = elempack == 8 ? pipeline_concat_pack8[b%2]
-                                     : elempack == 4 ? pipeline_concat_pack4[b%2]
-                                     : pipeline_concat[b%2];
+                                       : elempack == 4 ? pipeline_concat_pack4[b%2]
+                                       : pipeline_concat[b%2];
 
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
@@ -699,8 +699,8 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             constants[10].i = woffset;
 
             const Pipeline* pipeline = elempack == 8 ? pipeline_concat_pack8[b%2]
-                                     : elempack == 4 ? pipeline_concat_pack4[b%2]
-                                     : pipeline_concat[b%2];
+                                       : elempack == 4 ? pipeline_concat_pack4[b%2]
+                                       : pipeline_concat[b%2];
 
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
@@ -962,8 +962,8 @@ int Concat_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
             constants[10].i = woffset;
 
             const Pipeline* pipeline = elempack == 8 ? pipeline_concat_pack8[b%2]
-                                     : elempack == 4 ? pipeline_concat_pack4[b%2]
-                                     : pipeline_concat[b%2];
+                                       : elempack == 4 ? pipeline_concat_pack4[b%2]
+                                       : pipeline_concat[b%2];
 
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
@@ -1120,8 +1120,8 @@ int Concat_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
             constants[10].i = hoffset;
 
             const Pipeline* pipeline = elempack == 8 ? pipeline_concat_pack8[b%2]
-                                     : elempack == 4 ? pipeline_concat_pack4[b%2]
-                                     : pipeline_concat[b%2];
+                                       : elempack == 4 ? pipeline_concat_pack4[b%2]
+                                       : pipeline_concat[b%2];
 
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
@@ -1175,8 +1175,8 @@ int Concat_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
             constants[10].i = woffset;
 
             const Pipeline* pipeline = elempack == 8 ? pipeline_concat_pack8[b%2]
-                                     : elempack == 4 ? pipeline_concat_pack4[b%2]
-                                     : pipeline_concat[b%2];
+                                       : elempack == 4 ? pipeline_concat_pack4[b%2]
+                                       : pipeline_concat[b%2];
 
             cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 

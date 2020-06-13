@@ -19,9 +19,9 @@ static void pooling2x2s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
 
     int outw = top_blob.w;
     int outh = top_blob.h;
-    
+
     const int tailstep = (w - 2*outw + w) * 4;
-    
+
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q=0; q<inch; q++)
     {
@@ -71,11 +71,11 @@ static void pooling2x2s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
                     "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
 
                     : "=r"(outptr),     // %0
-                      "=r"(r0),         // %1
-                      "=r"(r1)          // %2
+                    "=r"(r0),         // %1
+                    "=r"(r1)          // %2
                     : "0"(outptr),
-                      "1"(r0),
-                      "2"(r1)
+                    "1"(r0),
+                    "2"(r1)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
                 );
 #else // __aarch64__
@@ -112,11 +112,11 @@ static void pooling2x2s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
                     "vstm       %0!, {d0-d7}    \n"
 
                     : "=r"(outptr),     // %0
-                      "=r"(r0),         // %1
-                      "=r"(r1)          // %2
+                    "=r"(r0),         // %1
+                    "=r"(r1)          // %2
                     : "0"(outptr),
-                      "1"(r0),
-                      "2"(r1)
+                    "1"(r0),
+                    "2"(r1)
                     : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
                 );
 #endif // __aarch64__

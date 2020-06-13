@@ -106,7 +106,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             shape_bordered = Mat(shape.w + pad_left + pad_right, shape.h + pad_top + pad_bottom, shape.c, (void*)0);
         }
         else if ((pad_left == -233 && pad_right == -233 && pad_top == -233 && pad_bottom == -233)
-            || (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234))
+                 || (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234))
         {
             const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
             const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -193,9 +193,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
         // check blob shape
         if (!vkdev->shape_support_image_storage(shape_winograd_bordered_packed)
-            || !vkdev->shape_support_image_storage(shape_winograd_input_transformed_packed)
-            || !vkdev->shape_support_image_storage(shape_winograd_gemm_packed)
-            || !vkdev->shape_support_image_storage(shape_winograd_out_bordered_packed))
+                || !vkdev->shape_support_image_storage(shape_winograd_input_transformed_packed)
+                || !vkdev->shape_support_image_storage(shape_winograd_gemm_packed)
+                || !vkdev->shape_support_image_storage(shape_winograd_out_bordered_packed))
         {
             support_image_storage = false;
             opt.use_image_storage = false;

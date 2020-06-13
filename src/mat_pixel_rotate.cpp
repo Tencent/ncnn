@@ -62,28 +62,28 @@ static void kanna_rotate_1_c1(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "pld        [%2, #256]          \n"
-            "vld1.u8    {d4-d7}, [%2]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%3]!      \n"
-            "vst1.u8    {d4-d7}, [%4]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1)
-            : "cc", "memory", "q0", "q1", "q2", "q3"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "pld        [%2, #256]          \n"
+                "vld1.u8    {d4-d7}, [%2]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%3]!      \n"
+                "vst1.u8    {d4-d7}, [%4]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1)
+                : "cc", "memory", "q0", "q1", "q2", "q3"
+            );
         }
 #endif // __aarch64__
 #else
@@ -121,21 +121,21 @@ static void kanna_rotate_1_c1(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%2]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%2]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1"
+            );
         }
 #endif // __aarch64__
 #else
@@ -191,28 +191,28 @@ static void kanna_rotate_1_c2(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "pld        [%2, #256]          \n"
-            "vld1.u8    {d4-d7}, [%2]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%3]!      \n"
-            "vst1.u8    {d4-d7}, [%4]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1)
-            : "cc", "memory", "q0", "q1", "q2", "q3"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "pld        [%2, #256]          \n"
+                "vld1.u8    {d4-d7}, [%2]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%3]!      \n"
+                "vst1.u8    {d4-d7}, [%4]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1)
+                : "cc", "memory", "q0", "q1", "q2", "q3"
+            );
         }
 #endif // __aarch64__
 #else
@@ -250,21 +250,21 @@ static void kanna_rotate_1_c2(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%2]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%2]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1"
+            );
         }
 #endif // __aarch64__
 #else
@@ -320,28 +320,28 @@ static void kanna_rotate_1_c3(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "pld        [%2, #256]          \n"
-            "vld1.u8    {d4-d7}, [%2]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%3]!      \n"
-            "vst1.u8    {d4-d7}, [%4]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1)
-            : "cc", "memory", "q0", "q1", "q2", "q3"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "pld        [%2, #256]          \n"
+                "vld1.u8    {d4-d7}, [%2]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%3]!      \n"
+                "vst1.u8    {d4-d7}, [%4]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1)
+                : "cc", "memory", "q0", "q1", "q2", "q3"
+            );
         }
 #endif // __aarch64__
 #else
@@ -379,21 +379,21 @@ static void kanna_rotate_1_c3(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%2]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%2]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1"
+            );
         }
 #endif // __aarch64__
 #else
@@ -449,28 +449,28 @@ static void kanna_rotate_1_c4(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "pld        [%2, #256]          \n"
-            "vld1.u8    {d4-d7}, [%2]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%3]!      \n"
-            "vst1.u8    {d4-d7}, [%4]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1)
-            : "cc", "memory", "q0", "q1", "q2", "q3"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "pld        [%2, #256]          \n"
+                "vld1.u8    {d4-d7}, [%2]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%3]!      \n"
+                "vst1.u8    {d4-d7}, [%4]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1)
+                : "cc", "memory", "q0", "q1", "q2", "q3"
+            );
         }
 #endif // __aarch64__
 #else
@@ -508,21 +508,21 @@ static void kanna_rotate_1_c4(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%2]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%2]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1"
+            );
         }
 #endif // __aarch64__
 #else
@@ -574,24 +574,24 @@ static void kanna_rotate_2_c1(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "mov        r4, #-16            \n"
-            "0:                             \n"
-            "pld        [%1, #128]          \n"
-            "vld1.u8    {d0-d1}, [%1]!      \n"
-            "vrev64.u8  d3, d0              \n"
-            "vrev64.u8  d2, d1              \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d2-d3}, [%2], r4   \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1", "r4"
-        );
+            asm volatile(
+                "mov        r4, #-16            \n"
+                "0:                             \n"
+                "pld        [%1, #128]          \n"
+                "vld1.u8    {d0-d1}, [%1]!      \n"
+                "vrev64.u8  d3, d0              \n"
+                "vrev64.u8  d2, d1              \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d2-d3}, [%2], r4   \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1", "r4"
+            );
         }
 #endif // __aarch64__
 
@@ -651,29 +651,29 @@ static void kanna_rotate_2_c2(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "mov        r4, #-16            \n"
-            "0:                             \n"
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d0-d1}, [%1]!      \n"
-            "vrev64.u8  d0, d0              \n"
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d2-d3}, [%1]!      \n"
-            "vrev64.u8  d1, d1              \n"
-            "vrev64.u8  d2, d2              \n"
-            "vst2.u8    {d0-d1}, [%2], r4   \n"
-            "vrev64.u8  d3, d3              \n"
-            "subs       %0, #1              \n"
-            "vst2.u8    {d2-d3}, [%2], r4   \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1", "r4"
-        );
+            asm volatile(
+                "mov        r4, #-16            \n"
+                "0:                             \n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d0-d1}, [%1]!      \n"
+                "vrev64.u8  d0, d0              \n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d2-d3}, [%1]!      \n"
+                "vrev64.u8  d1, d1              \n"
+                "vrev64.u8  d2, d2              \n"
+                "vst2.u8    {d0-d1}, [%2], r4   \n"
+                "vrev64.u8  d3, d3              \n"
+                "subs       %0, #1              \n"
+                "vst2.u8    {d2-d3}, [%2], r4   \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1", "r4"
+            );
         }
 #endif // __aarch64__
 
@@ -736,31 +736,31 @@ static void kanna_rotate_2_c3(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "mov        r4, #-24            \n"
-            "0:                             \n"
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d0-d2}, [%1]!      \n"
-            "vrev64.u8  d0, d0              \n"
-            "vrev64.u8  d1, d1              \n"
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d4-d6}, [%1]!      \n"
-            "vrev64.u8  d2, d2              \n"
-            "vrev64.u8  d4, d4              \n"
-            "vst3.u8    {d0-d2}, [%2], r4   \n"
-            "vrev64.u8  d5, d5              \n"
-            "vrev64.u8  d6, d6              \n"
-            "subs       %0, #1              \n"
-            "vst3.u8    {d4-d6}, [%2], r4   \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1", "q2", "q3", "r4"
-        );
+            asm volatile(
+                "mov        r4, #-24            \n"
+                "0:                             \n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d0-d2}, [%1]!      \n"
+                "vrev64.u8  d0, d0              \n"
+                "vrev64.u8  d1, d1              \n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d4-d6}, [%1]!      \n"
+                "vrev64.u8  d2, d2              \n"
+                "vrev64.u8  d4, d4              \n"
+                "vst3.u8    {d0-d2}, [%2], r4   \n"
+                "vrev64.u8  d5, d5              \n"
+                "vrev64.u8  d6, d6              \n"
+                "subs       %0, #1              \n"
+                "vst3.u8    {d4-d6}, [%2], r4   \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1", "q2", "q3", "r4"
+            );
         }
 #endif // __aarch64__
 
@@ -826,33 +826,33 @@ static void kanna_rotate_2_c4(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "mov        r4, #-32            \n"
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d0-d3}, [%1]!      \n"
-            "vrev64.u8  d0, d0              \n"
-            "vrev64.u8  d1, d1              \n"
-            "vrev64.u8  d2, d2              \n"
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d4-d7}, [%1]!      \n"
-            "vrev64.u8  d3, d3              \n"
-            "vrev64.u8  d4, d4              \n"
-            "vrev64.u8  d5, d5              \n"
-            "vst4.u8    {d0-d3}, [%2], r4   \n"
-            "vrev64.u8  d6, d6              \n"
-            "vrev64.u8  d7, d7              \n"
-            "subs       %0, #1              \n"
-            "vst4.u8    {d4-d7}, [%2], r4   \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1", "q2", "q3", "r4"
-        );
+            asm volatile(
+                "mov        r4, #-32            \n"
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d0-d3}, [%1]!      \n"
+                "vrev64.u8  d0, d0              \n"
+                "vrev64.u8  d1, d1              \n"
+                "vrev64.u8  d2, d2              \n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d4-d7}, [%1]!      \n"
+                "vrev64.u8  d3, d3              \n"
+                "vrev64.u8  d4, d4              \n"
+                "vrev64.u8  d5, d5              \n"
+                "vst4.u8    {d0-d3}, [%2], r4   \n"
+                "vrev64.u8  d6, d6              \n"
+                "vrev64.u8  d7, d7              \n"
+                "subs       %0, #1              \n"
+                "vst4.u8    {d4-d7}, [%2], r4   \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1", "q2", "q3", "r4"
+            );
         }
 #endif // __aarch64__
 
@@ -915,24 +915,24 @@ static void kanna_rotate_3_c1(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "mov        r4, #-16            \n"
-            "0:                             \n"
-            "pld        [%1, #128]          \n"
-            "vld1.u8    {d0-d1}, [%1]!      \n"
-            "vrev64.u8  d3, d0              \n"
-            "vrev64.u8  d2, d1              \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d2-d3}, [%2], r4   \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1", "r4"
-        );
+            asm volatile(
+                "mov        r4, #-16            \n"
+                "0:                             \n"
+                "pld        [%1, #128]          \n"
+                "vld1.u8    {d0-d1}, [%1]!      \n"
+                "vrev64.u8  d3, d0              \n"
+                "vrev64.u8  d2, d1              \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d2-d3}, [%2], r4   \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1", "r4"
+            );
         }
 #endif // __aarch64__
 
@@ -995,29 +995,29 @@ static void kanna_rotate_3_c2(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "mov        r4, #-16            \n"
-            "0:                             \n"
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d0-d1}, [%1]!      \n"
-            "vrev64.u8  d0, d0              \n"
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d2-d3}, [%1]!      \n"
-            "vrev64.u8  d1, d1              \n"
-            "vrev64.u8  d2, d2              \n"
-            "vst2.u8    {d0-d1}, [%2], r4   \n"
-            "vrev64.u8  d3, d3              \n"
-            "subs       %0, #1              \n"
-            "vst2.u8    {d2-d3}, [%2], r4   \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1", "r4"
-        );
+            asm volatile(
+                "mov        r4, #-16            \n"
+                "0:                             \n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d0-d1}, [%1]!      \n"
+                "vrev64.u8  d0, d0              \n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d2-d3}, [%1]!      \n"
+                "vrev64.u8  d1, d1              \n"
+                "vrev64.u8  d2, d2              \n"
+                "vst2.u8    {d0-d1}, [%2], r4   \n"
+                "vrev64.u8  d3, d3              \n"
+                "subs       %0, #1              \n"
+                "vst2.u8    {d2-d3}, [%2], r4   \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1", "r4"
+            );
         }
 #endif // __aarch64__
 
@@ -1083,31 +1083,31 @@ static void kanna_rotate_3_c3(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "mov        r4, #-24            \n"
-            "0:                             \n"
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d0-d2}, [%1]!      \n"
-            "vrev64.u8  d0, d0              \n"
-            "vrev64.u8  d1, d1              \n"
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d4-d6}, [%1]!      \n"
-            "vrev64.u8  d2, d2              \n"
-            "vrev64.u8  d4, d4              \n"
-            "vst3.u8    {d0-d2}, [%2], r4   \n"
-            "vrev64.u8  d5, d5              \n"
-            "vrev64.u8  d6, d6              \n"
-            "subs       %0, #1              \n"
-            "vst3.u8    {d4-d6}, [%2], r4   \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1", "q2", "q3", "r4"
-        );
+            asm volatile(
+                "mov        r4, #-24            \n"
+                "0:                             \n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d0-d2}, [%1]!      \n"
+                "vrev64.u8  d0, d0              \n"
+                "vrev64.u8  d1, d1              \n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d4-d6}, [%1]!      \n"
+                "vrev64.u8  d2, d2              \n"
+                "vrev64.u8  d4, d4              \n"
+                "vst3.u8    {d0-d2}, [%2], r4   \n"
+                "vrev64.u8  d5, d5              \n"
+                "vrev64.u8  d6, d6              \n"
+                "subs       %0, #1              \n"
+                "vst3.u8    {d4-d6}, [%2], r4   \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1", "q2", "q3", "r4"
+            );
         }
 #endif // __aarch64__
 
@@ -1176,33 +1176,33 @@ static void kanna_rotate_3_c4(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "mov        r4, #-32            \n"
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d0-d3}, [%1]!      \n"
-            "vrev64.u8  d0, d0              \n"
-            "vrev64.u8  d1, d1              \n"
-            "vrev64.u8  d2, d2              \n"
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d4-d7}, [%1]!      \n"
-            "vrev64.u8  d3, d3              \n"
-            "vrev64.u8  d4, d4              \n"
-            "vrev64.u8  d5, d5              \n"
-            "vst4.u8    {d0-d3}, [%2], r4   \n"
-            "vrev64.u8  d6, d6              \n"
-            "vrev64.u8  d7, d7              \n"
-            "subs       %0, #1              \n"
-            "vst4.u8    {d4-d7}, [%2], r4   \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1", "q2", "q3", "r4"
-        );
+            asm volatile(
+                "mov        r4, #-32            \n"
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d0-d3}, [%1]!      \n"
+                "vrev64.u8  d0, d0              \n"
+                "vrev64.u8  d1, d1              \n"
+                "vrev64.u8  d2, d2              \n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d4-d7}, [%1]!      \n"
+                "vrev64.u8  d3, d3              \n"
+                "vrev64.u8  d4, d4              \n"
+                "vrev64.u8  d5, d5              \n"
+                "vst4.u8    {d0-d3}, [%2], r4   \n"
+                "vrev64.u8  d6, d6              \n"
+                "vrev64.u8  d7, d7              \n"
+                "subs       %0, #1              \n"
+                "vst4.u8    {d4-d7}, [%2], r4   \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1", "q2", "q3", "r4"
+            );
         }
 #endif // __aarch64__
 
@@ -1267,28 +1267,28 @@ static void kanna_rotate_4_c1(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "pld        [%2, #256]          \n"
-            "vld1.u8    {d4-d7}, [%2]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%3]!      \n"
-            "vst1.u8    {d4-d7}, [%4]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1)
-            : "cc", "memory", "q0", "q1", "q2", "q3"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "pld        [%2, #256]          \n"
+                "vld1.u8    {d4-d7}, [%2]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%3]!      \n"
+                "vst1.u8    {d4-d7}, [%4]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1)
+                : "cc", "memory", "q0", "q1", "q2", "q3"
+            );
         }
 #endif // __aarch64__
 #else
@@ -1326,21 +1326,21 @@ static void kanna_rotate_4_c1(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%2]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%2]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1"
+            );
         }
 #endif // __aarch64__
 #else
@@ -1399,28 +1399,28 @@ static void kanna_rotate_4_c2(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "pld        [%2, #256]          \n"
-            "vld1.u8    {d4-d7}, [%2]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%3]!      \n"
-            "vst1.u8    {d4-d7}, [%4]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1)
-            : "cc", "memory", "q0", "q1", "q2", "q3"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "pld        [%2, #256]          \n"
+                "vld1.u8    {d4-d7}, [%2]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%3]!      \n"
+                "vst1.u8    {d4-d7}, [%4]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1)
+                : "cc", "memory", "q0", "q1", "q2", "q3"
+            );
         }
 #endif // __aarch64__
 #else
@@ -1458,21 +1458,21 @@ static void kanna_rotate_4_c2(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%2]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%2]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1"
+            );
         }
 #endif // __aarch64__
 #else
@@ -1531,28 +1531,28 @@ static void kanna_rotate_4_c3(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "pld        [%2, #256]          \n"
-            "vld1.u8    {d4-d7}, [%2]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%3]!      \n"
-            "vst1.u8    {d4-d7}, [%4]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1)
-            : "cc", "memory", "q0", "q1", "q2", "q3"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "pld        [%2, #256]          \n"
+                "vld1.u8    {d4-d7}, [%2]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%3]!      \n"
+                "vst1.u8    {d4-d7}, [%4]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1)
+                : "cc", "memory", "q0", "q1", "q2", "q3"
+            );
         }
 #endif // __aarch64__
 #else
@@ -1590,21 +1590,21 @@ static void kanna_rotate_4_c3(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%2]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%2]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1"
+            );
         }
 #endif // __aarch64__
 #else
@@ -1663,28 +1663,28 @@ static void kanna_rotate_4_c4(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "pld        [%2, #256]          \n"
-            "vld1.u8    {d4-d7}, [%2]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%3]!      \n"
-            "vst1.u8    {d4-d7}, [%4]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1)
-            : "cc", "memory", "q0", "q1", "q2", "q3"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "pld        [%2, #256]          \n"
+                "vld1.u8    {d4-d7}, [%2]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%3]!      \n"
+                "vst1.u8    {d4-d7}, [%4]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1)
+                : "cc", "memory", "q0", "q1", "q2", "q3"
+            );
         }
 #endif // __aarch64__
 #else
@@ -1722,21 +1722,21 @@ static void kanna_rotate_4_c4(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld1.u8    {d0-d3}, [%1]!      \n"
-            "subs       %0, #1              \n"
-            "vst1.u8    {d0-d3}, [%2]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(dst0)    // %2
-            : "0"(nn),
-              "1"(src0),
-              "2"(dst0)
-            : "cc", "memory", "q0", "q1"
-        );
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u8    {d0-d3}, [%1]!      \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d0-d3}, [%2]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(dst0)    // %2
+                : "0"(nn),
+                "1"(src0),
+                "2"(dst0)
+                : "cc", "memory", "q0", "q1"
+            );
         }
 #endif // __aarch64__
 #else
@@ -1831,82 +1831,82 @@ static void kanna_rotate_5_c1(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d0}, [%1], %10     \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d0}, [%1], %10     \n"
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d1}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d1}, [%2], %10     \n"
 
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d2}, [%1], %10     \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d2}, [%1], %10     \n"
 
-            "vtrn.u8    d0, d1              \n"// _src01t_r
+                "vtrn.u8    d0, d1              \n"// _src01t_r
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d3}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d3}, [%2], %10     \n"
 
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d4}, [%1], %10     \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d4}, [%1], %10     \n"
 
-            "vtrn.u8    d2, d3              \n"// _src23t_r
+                "vtrn.u8    d2, d3              \n"// _src23t_r
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d5}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d5}, [%2], %10     \n"
 
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d6}, [%1], %10     \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d6}, [%1], %10     \n"
 
-            "vtrn.u8    d4, d5              \n"// _src45t_r
+                "vtrn.u8    d4, d5              \n"// _src45t_r
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d7}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d7}, [%2], %10     \n"
 
-            "vtrn.u8    d6, d7              \n"// _src67t_r
+                "vtrn.u8    d6, d7              \n"// _src67t_r
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q0, q1              \n"// _src02tt_r _src13tt_r
+                "vtrn.u16   q0, q1              \n"// _src02tt_r _src13tt_r
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q2, q3              \n"// _src13tt_r _src46tt_r
+                "vtrn.u16   q2, q3              \n"// _src13tt_r _src46tt_r
 
-            "add        %1, #8              \n"// src0 += 8
+                "add        %1, #8              \n"// src0 += 8
 
-            "vtrn.u32   q0, q2              \n"// _src04ttt_r _src15ttt_r
+                "vtrn.u32   q0, q2              \n"// _src04ttt_r _src15ttt_r
 
-            "add        %2, #8              \n"// src1 += 8
+                "add        %2, #8              \n"// src1 += 8
 
-            "vtrn.u32   q1, q3              \n"// _src26ttt_r _src37ttt_r
-            "vst1.u8    {d0}, [%3], %11     \n"
-            "vst1.u8    {d1}, [%4], %11     \n"
+                "vtrn.u32   q1, q3              \n"// _src26ttt_r _src37ttt_r
+                "vst1.u8    {d0}, [%3], %11     \n"
+                "vst1.u8    {d1}, [%4], %11     \n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst1.u8    {d2}, [%3], %11     \n"
-            "vst1.u8    {d3}, [%4], %11     \n"
-            "vst1.u8    {d4}, [%3], %11     \n"
-            "vst1.u8    {d5}, [%4], %11     \n"
-            "vst1.u8    {d6}, [%3], %11     \n"
-            "vst1.u8    {d7}, [%4], %11     \n"
+                "vst1.u8    {d2}, [%3], %11     \n"
+                "vst1.u8    {d3}, [%4], %11     \n"
+                "vst1.u8    {d4}, [%3], %11     \n"
+                "vst1.u8    {d5}, [%4], %11     \n"
+                "vst1.u8    {d6}, [%3], %11     \n"
+                "vst1.u8    {d7}, [%4], %11     \n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)
@@ -2057,90 +2057,90 @@ static void kanna_rotate_5_c2(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d0-d1}, [%1], %10  \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d0-d1}, [%1], %10  \n"
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d2-d3}, [%2], %10  \n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d2-d3}, [%2], %10  \n"
 
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d4-d5}, [%1], %10  \n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d4-d5}, [%1], %10  \n"
 
-            "vtrn.u8    q0, q1              \n"// _src01t_r
+                "vtrn.u8    q0, q1              \n"// _src01t_r
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d6-d7}, [%2], %10  \n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d6-d7}, [%2], %10  \n"
 
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d16-d17}, [%1], %10\n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d16-d17}, [%1], %10\n"
 
-            "vtrn.u8    q2, q3              \n"// _src23t_r
+                "vtrn.u8    q2, q3              \n"// _src23t_r
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d18-d19}, [%2], %10\n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d18-d19}, [%2], %10\n"
 
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d20-d21}, [%1], %10\n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d20-d21}, [%1], %10\n"
 
-            "vtrn.u8    q8, q9              \n"// _src45t_r
+                "vtrn.u8    q8, q9              \n"// _src45t_r
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d22-d23}, [%2], %10\n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d22-d23}, [%2], %10\n"
 
-            "vtrn.u8    q10, q11            \n"// _src67t_r
+                "vtrn.u8    q10, q11            \n"// _src67t_r
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q0, q2              \n"// _src02tt_r
+                "vtrn.u16   q0, q2              \n"// _src02tt_r
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q1, q3              \n"// _src13tt_r
+                "vtrn.u16   q1, q3              \n"// _src13tt_r
 
-            "add        %1, #16             \n"// src0 += 16
+                "add        %1, #16             \n"// src0 += 16
 
-            "vtrn.u16   q8, q10             \n"// _src46tt_r
+                "vtrn.u16   q8, q10             \n"// _src46tt_r
 
-            "add        %2, #16             \n"// src1 += 16
+                "add        %2, #16             \n"// src1 += 16
 
-            "vtrn.u16   q9, q11             \n"// _src57tt_r
+                "vtrn.u16   q9, q11             \n"// _src57tt_r
 
-            "vtrn.u32   q0, q8              \n"// _src04ttt_r
+                "vtrn.u32   q0, q8              \n"// _src04ttt_r
 
-            "vtrn.u32   q1, q9              \n"// _src15ttt_r
-            "vst2.u8    {d0-d1}, [%3], %11  \n"
+                "vtrn.u32   q1, q9              \n"// _src15ttt_r
+                "vst2.u8    {d0-d1}, [%3], %11  \n"
 
-            "vtrn.u32   q2, q10             \n"// _src26ttt_r
-            "vst2.u8    {d2-d3}, [%4], %11  \n"
+                "vtrn.u32   q2, q10             \n"// _src26ttt_r
+                "vst2.u8    {d2-d3}, [%4], %11  \n"
 
-            "vtrn.u32   q3, q11             \n"// _src37ttt_r
-            "vst2.u8    {d4-d5}, [%3], %11  \n"
+                "vtrn.u32   q3, q11             \n"// _src37ttt_r
+                "vst2.u8    {d4-d5}, [%3], %11  \n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst2.u8    {d6-d7}, [%4], %11  \n"
-            "vst2.u8    {d16-d17}, [%3], %11\n"
-            "vst2.u8    {d18-d19}, [%4], %11\n"
-            "vst2.u8    {d20-d21}, [%3], %11\n"
-            "vst2.u8    {d22-d23}, [%4], %11\n"
+                "vst2.u8    {d6-d7}, [%4], %11  \n"
+                "vst2.u8    {d16-d17}, [%3], %11\n"
+                "vst2.u8    {d18-d19}, [%4], %11\n"
+                "vst2.u8    {d20-d21}, [%3], %11\n"
+                "vst2.u8    {d22-d23}, [%4], %11\n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)
@@ -2324,102 +2324,102 @@ static void kanna_rotate_5_c3(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d0-d2}, [%1], %10  \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d0-d2}, [%1], %10  \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d4-d6}, [%2], %10  \n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d4-d6}, [%2], %10  \n"
 
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d8-d10}, [%1], %10 \n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d8-d10}, [%1], %10 \n"
 
-            "vtrn.u8    q0, q2              \n"// _src01t_r
-            "vtrn.u8    d2, d6              \n"
+                "vtrn.u8    q0, q2              \n"// _src01t_r
+                "vtrn.u8    d2, d6              \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d12-d14}, [%2], %10\n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d12-d14}, [%2], %10\n"
 
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d16-d18}, [%1], %10\n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d16-d18}, [%1], %10\n"
 
-            "vtrn.u8    q4, q6              \n"// _src23t_r
-            "vtrn.u8    d10, d14            \n"
+                "vtrn.u8    q4, q6              \n"// _src23t_r
+                "vtrn.u8    d10, d14            \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d20-d22}, [%2], %10\n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d20-d22}, [%2], %10\n"
 
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d24-d26}, [%1], %10\n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d24-d26}, [%1], %10\n"
 
-            "vtrn.u8    q8, q10             \n"// _src45t_r
-            "vtrn.u8    d18, d22            \n"
+                "vtrn.u8    q8, q10             \n"// _src45t_r
+                "vtrn.u8    d18, d22            \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d28-d30}, [%2], %10\n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d28-d30}, [%2], %10\n"
 
-            "vtrn.u8    q12, q14            \n"// _src67t_r
-            "vtrn.u8    d26, d30            \n"
+                "vtrn.u8    q12, q14            \n"// _src67t_r
+                "vtrn.u8    d26, d30            \n"
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q0, q4              \n"// _src02tt_r
-            "vtrn.u16   d2, d10             \n"
+                "vtrn.u16   q0, q4              \n"// _src02tt_r
+                "vtrn.u16   d2, d10             \n"
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q2, q6              \n"// _src13tt_r
-            "vtrn.u16   d6, d14             \n"
+                "vtrn.u16   q2, q6              \n"// _src13tt_r
+                "vtrn.u16   d6, d14             \n"
 
-            "add        %1, #24             \n"// src0 += 24
+                "add        %1, #24             \n"// src0 += 24
 
-            "vtrn.u16   q8, q12             \n"// _src46tt_r
-            "vtrn.u16   d18, d26            \n"
+                "vtrn.u16   q8, q12             \n"// _src46tt_r
+                "vtrn.u16   d18, d26            \n"
 
-            "add        %2, #24             \n"// src1 += 24
+                "add        %2, #24             \n"// src1 += 24
 
-            "vtrn.u16   q10, q14            \n"// _src57tt_r
-            "vtrn.u16   d22, d30            \n"
+                "vtrn.u16   q10, q14            \n"// _src57tt_r
+                "vtrn.u16   d22, d30            \n"
 
-            "vtrn.u32   q0, q8              \n"// _src04ttt_r
-            "vtrn.u32   d2, d18             \n"
+                "vtrn.u32   q0, q8              \n"// _src04ttt_r
+                "vtrn.u32   d2, d18             \n"
 
-            "vtrn.u32   q2, q10             \n"// _src15ttt_r
-            "vst3.u8    {d0-d2}, [%3], %11  \n"
-            "vtrn.u32   d6, d22             \n"
+                "vtrn.u32   q2, q10             \n"// _src15ttt_r
+                "vst3.u8    {d0-d2}, [%3], %11  \n"
+                "vtrn.u32   d6, d22             \n"
 
-            "vtrn.u32   q4, q12             \n"// _src26ttt_r
-            "vst3.u8    {d4-d6}, [%4], %11  \n"
-            "vtrn.u32   d10, d26            \n"
+                "vtrn.u32   q4, q12             \n"// _src26ttt_r
+                "vst3.u8    {d4-d6}, [%4], %11  \n"
+                "vtrn.u32   d10, d26            \n"
 
-            "vtrn.u32   q6, q14             \n"// _src37ttt_r
-            "vst3.u8    {d8-d10}, [%3], %11 \n"
-            "vtrn.u32   d14, d30            \n"
+                "vtrn.u32   q6, q14             \n"// _src37ttt_r
+                "vst3.u8    {d8-d10}, [%3], %11 \n"
+                "vtrn.u32   d14, d30            \n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst3.u8    {d16-d18}, [%3], %11\n"
-            "vst3.u8    {d12-d14}, [%4], %11\n"
-            "vst3.u8    {d20-d22}, [%4], %11\n"
-            "vst3.u8    {d24-d26}, [%3], %11\n"
-            "vst3.u8    {d28-d30}, [%4], %11\n"
+                "vst3.u8    {d16-d18}, [%3], %11\n"
+                "vst3.u8    {d12-d14}, [%4], %11\n"
+                "vst3.u8    {d20-d22}, [%4], %11\n"
+                "vst3.u8    {d24-d26}, [%3], %11\n"
+                "vst3.u8    {d28-d30}, [%4], %11\n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)
@@ -2636,102 +2636,102 @@ static void kanna_rotate_5_c4(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d0-d3}, [%1], %10  \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d0-d3}, [%1], %10  \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d4-d7}, [%2], %10  \n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d4-d7}, [%2], %10  \n"
 
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d8-d11}, [%1], %10 \n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d8-d11}, [%1], %10 \n"
 
-            "vtrn.u8    q0, q2              \n"// _src01t_r
-            "vtrn.u8    q1, q3              \n"
+                "vtrn.u8    q0, q2              \n"// _src01t_r
+                "vtrn.u8    q1, q3              \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d12-d15}, [%2], %10\n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d12-d15}, [%2], %10\n"
 
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d16-d19}, [%1], %10\n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d16-d19}, [%1], %10\n"
 
-            "vtrn.u8    q4, q6              \n"// _src23t_r
-            "vtrn.u8    q5, q7              \n"
+                "vtrn.u8    q4, q6              \n"// _src23t_r
+                "vtrn.u8    q5, q7              \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d20-d23}, [%2], %10\n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d20-d23}, [%2], %10\n"
 
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d24-d27}, [%1], %10\n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d24-d27}, [%1], %10\n"
 
-            "vtrn.u8    q8, q10             \n"// _src45t_r
-            "vtrn.u8    q9, q11             \n"
+                "vtrn.u8    q8, q10             \n"// _src45t_r
+                "vtrn.u8    q9, q11             \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d28-d31}, [%2], %10\n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d28-d31}, [%2], %10\n"
 
-            "vtrn.u8    q12, q14            \n"// _src67t_r
-            "vtrn.u8    q13, q15            \n"
+                "vtrn.u8    q12, q14            \n"// _src67t_r
+                "vtrn.u8    q13, q15            \n"
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q0, q4              \n"// _src02tt_r
-            "vtrn.u16   q1, q5              \n"
+                "vtrn.u16   q0, q4              \n"// _src02tt_r
+                "vtrn.u16   q1, q5              \n"
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q2, q6              \n"// _src13tt_r
-            "vtrn.u16   q3, q7              \n"
+                "vtrn.u16   q2, q6              \n"// _src13tt_r
+                "vtrn.u16   q3, q7              \n"
 
-            "add        %1, #32             \n"// src0 += 32
+                "add        %1, #32             \n"// src0 += 32
 
-            "vtrn.u16   q8, q12             \n"// _src46tt_r
-            "vtrn.u16   q9, q13             \n"
+                "vtrn.u16   q8, q12             \n"// _src46tt_r
+                "vtrn.u16   q9, q13             \n"
 
-            "add        %2, #32             \n"// src1 += 32
+                "add        %2, #32             \n"// src1 += 32
 
-            "vtrn.u16   q10, q14            \n"// _src57tt_r
-            "vtrn.u16   q11, q15            \n"
+                "vtrn.u16   q10, q14            \n"// _src57tt_r
+                "vtrn.u16   q11, q15            \n"
 
-            "vtrn.u32   q0, q8              \n"// _src04ttt_r
-            "vtrn.u32   q1, q9              \n"
+                "vtrn.u32   q0, q8              \n"// _src04ttt_r
+                "vtrn.u32   q1, q9              \n"
 
-            "vtrn.u32   q2, q10             \n"// _src15ttt_r
-            "vst4.u8    {d0-d3}, [%3], %11  \n"
-            "vtrn.u32   q3, q11             \n"
+                "vtrn.u32   q2, q10             \n"// _src15ttt_r
+                "vst4.u8    {d0-d3}, [%3], %11  \n"
+                "vtrn.u32   q3, q11             \n"
 
-            "vtrn.u32   q4, q12             \n"// _src26ttt_r
-            "vst4.u8    {d4-d7}, [%4], %11  \n"
-            "vtrn.u32   q5, q13             \n"
+                "vtrn.u32   q4, q12             \n"// _src26ttt_r
+                "vst4.u8    {d4-d7}, [%4], %11  \n"
+                "vtrn.u32   q5, q13             \n"
 
-            "vtrn.u32   q6, q14             \n"// _src37ttt_r
-            "vst4.u8    {d8-d11}, [%3], %11 \n"
-            "vtrn.u32   q7, q15             \n"
+                "vtrn.u32   q6, q14             \n"// _src37ttt_r
+                "vst4.u8    {d8-d11}, [%3], %11 \n"
+                "vtrn.u32   q7, q15             \n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst4.u8    {d16-d19}, [%3], %11\n"
-            "vst4.u8    {d12-d15}, [%4], %11\n"
-            "vst4.u8    {d20-d23}, [%4], %11\n"
-            "vst4.u8    {d24-d27}, [%3], %11\n"
-            "vst4.u8    {d28-d31}, [%4], %11\n"
+                "vst4.u8    {d16-d19}, [%3], %11\n"
+                "vst4.u8    {d12-d15}, [%4], %11\n"
+                "vst4.u8    {d20-d23}, [%4], %11\n"
+                "vst4.u8    {d24-d27}, [%3], %11\n"
+                "vst4.u8    {d28-d31}, [%4], %11\n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)
@@ -2879,82 +2879,82 @@ static void kanna_rotate_6_c1(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d0}, [%1], %10     \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d0}, [%1], %10     \n"
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d1}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d1}, [%2], %10     \n"
 
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d2}, [%1], %10     \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d2}, [%1], %10     \n"
 
-            "vtrn.u8    d1, d0              \n"// _src01t_r
+                "vtrn.u8    d1, d0              \n"// _src01t_r
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d3}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d3}, [%2], %10     \n"
 
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d4}, [%1], %10     \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d4}, [%1], %10     \n"
 
-            "vtrn.u8    d3, d2              \n"// _src23t_r
+                "vtrn.u8    d3, d2              \n"// _src23t_r
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d5}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d5}, [%2], %10     \n"
 
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d6}, [%1], %10     \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d6}, [%1], %10     \n"
 
-            "vtrn.u8    d5, d4              \n"// _src45t_r
+                "vtrn.u8    d5, d4              \n"// _src45t_r
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d7}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d7}, [%2], %10     \n"
 
-            "vtrn.u8    d7, d6              \n"// _src67t_r
+                "vtrn.u8    d7, d6              \n"// _src67t_r
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q1, q0              \n"// _src02tt_r _src13tt_r
+                "vtrn.u16   q1, q0              \n"// _src02tt_r _src13tt_r
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q3, q2              \n"// _src46tt_r _src57tt_r
+                "vtrn.u16   q3, q2              \n"// _src46tt_r _src57tt_r
 
-            "add        %1, #8              \n"// src0 += 8
+                "add        %1, #8              \n"// src0 += 8
 
-            "vtrn.u32   q3, q1              \n"// _src26ttt_r _src37ttt_r
+                "vtrn.u32   q3, q1              \n"// _src26ttt_r _src37ttt_r
 
-            "add        %2, #8              \n"// src1 += 8
+                "add        %2, #8              \n"// src1 += 8
 
-            "vtrn.u32   q2, q0              \n"// _src04ttt_r _src15ttt_r
-            "vst1.u8    {d6}, [%4], %11     \n"
-            "vst1.u8    {d7}, [%3], %11     \n"
+                "vtrn.u32   q2, q0              \n"// _src04ttt_r _src15ttt_r
+                "vst1.u8    {d6}, [%4], %11     \n"
+                "vst1.u8    {d7}, [%3], %11     \n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst1.u8    {d4}, [%4], %11     \n"
-            "vst1.u8    {d5}, [%3], %11     \n"
-            "vst1.u8    {d2}, [%4], %11     \n"
-            "vst1.u8    {d3}, [%3], %11     \n"
-            "vst1.u8    {d0}, [%4], %11     \n"
-            "vst1.u8    {d1}, [%3], %11     \n"
+                "vst1.u8    {d4}, [%4], %11     \n"
+                "vst1.u8    {d5}, [%3], %11     \n"
+                "vst1.u8    {d2}, [%4], %11     \n"
+                "vst1.u8    {d3}, [%3], %11     \n"
+                "vst1.u8    {d0}, [%4], %11     \n"
+                "vst1.u8    {d1}, [%3], %11     \n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)
@@ -3108,90 +3108,90 @@ static void kanna_rotate_6_c2(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d0-d1}, [%1], %10  \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d0-d1}, [%1], %10  \n"
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d2-d3}, [%2], %10  \n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d2-d3}, [%2], %10  \n"
 
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d4-d5}, [%1], %10  \n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d4-d5}, [%1], %10  \n"
 
-            "vtrn.u8    q1, q0              \n"// _src01t_r
+                "vtrn.u8    q1, q0              \n"// _src01t_r
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d6-d7}, [%2], %10  \n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d6-d7}, [%2], %10  \n"
 
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d16-d17}, [%1], %10\n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d16-d17}, [%1], %10\n"
 
-            "vtrn.u8    q3, q2              \n"// _src23t_r
+                "vtrn.u8    q3, q2              \n"// _src23t_r
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d18-d19}, [%2], %10\n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d18-d19}, [%2], %10\n"
 
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d20-d21}, [%1], %10\n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d20-d21}, [%1], %10\n"
 
-            "vtrn.u8    q9, q8              \n"// _src45t_r
+                "vtrn.u8    q9, q8              \n"// _src45t_r
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d22-d23}, [%2], %10\n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d22-d23}, [%2], %10\n"
 
-            "vtrn.u8    q11, q10            \n"// _src67t_r
+                "vtrn.u8    q11, q10            \n"// _src67t_r
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q2, q0              \n"// _src02tt_r
+                "vtrn.u16   q2, q0              \n"// _src02tt_r
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q3, q1              \n"// _src13tt_r
+                "vtrn.u16   q3, q1              \n"// _src13tt_r
 
-            "add        %1, #16             \n"// src0 += 16
+                "add        %1, #16             \n"// src0 += 16
 
-            "vtrn.u16   q10, q8             \n"// _src46tt_r
+                "vtrn.u16   q10, q8             \n"// _src46tt_r
 
-            "add        %2, #16             \n"// src1 += 16
+                "add        %2, #16             \n"// src1 += 16
 
-            "vtrn.u16   q11, q9             \n"// _src57tt_r
+                "vtrn.u16   q11, q9             \n"// _src57tt_r
 
-            "vtrn.u32   q10, q2             \n"// _src26ttt_r
+                "vtrn.u32   q10, q2             \n"// _src26ttt_r
 
-            "vtrn.u32   q11, q3             \n"// _src37ttt_r
-            "vst2.u8    {d20-d21}, [%4], %11\n"
+                "vtrn.u32   q11, q3             \n"// _src37ttt_r
+                "vst2.u8    {d20-d21}, [%4], %11\n"
 
-            "vtrn.u32   q8, q0              \n"// _src04ttt_r
-            "vst2.u8    {d22-d23}, [%3], %11\n"
+                "vtrn.u32   q8, q0              \n"// _src04ttt_r
+                "vst2.u8    {d22-d23}, [%3], %11\n"
 
-            "vtrn.u32   q9, q1              \n"// _src15ttt_r
-            "vst2.u8    {d16-d17}, [%4], %11\n"
+                "vtrn.u32   q9, q1              \n"// _src15ttt_r
+                "vst2.u8    {d16-d17}, [%4], %11\n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst2.u8    {d18-d19}, [%3], %11\n"
-            "vst2.u8    {d4-d5}, [%4], %11  \n"
-            "vst2.u8    {d6-d7}, [%3], %11  \n"
-            "vst2.u8    {d0-d1}, [%4], %11  \n"
-            "vst2.u8    {d2-d3}, [%3], %11  \n"
+                "vst2.u8    {d18-d19}, [%3], %11\n"
+                "vst2.u8    {d4-d5}, [%4], %11  \n"
+                "vst2.u8    {d6-d7}, [%3], %11  \n"
+                "vst2.u8    {d0-d1}, [%4], %11  \n"
+                "vst2.u8    {d2-d3}, [%3], %11  \n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)
@@ -3378,102 +3378,102 @@ static void kanna_rotate_6_c3(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d0-d2}, [%1], %10  \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d0-d2}, [%1], %10  \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d4-d6}, [%2], %10  \n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d4-d6}, [%2], %10  \n"
 
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d8-d10}, [%1], %10 \n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d8-d10}, [%1], %10 \n"
 
-            "vtrn.u8    q2, q0              \n"// _src01t_r
-            "vtrn.u8    d6, d2              \n"
+                "vtrn.u8    q2, q0              \n"// _src01t_r
+                "vtrn.u8    d6, d2              \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d12-d14}, [%2], %10\n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d12-d14}, [%2], %10\n"
 
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d16-d18}, [%1], %10\n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d16-d18}, [%1], %10\n"
 
-            "vtrn.u8    q6, q4              \n"// _src23t_r
-            "vtrn.u8    d14, d10            \n"
+                "vtrn.u8    q6, q4              \n"// _src23t_r
+                "vtrn.u8    d14, d10            \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d20-d22}, [%2], %10\n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d20-d22}, [%2], %10\n"
 
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d24-d26}, [%1], %10\n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d24-d26}, [%1], %10\n"
 
-            "vtrn.u8    q10, q8             \n"// _src45t_r
-            "vtrn.u8    d22, d18            \n"
+                "vtrn.u8    q10, q8             \n"// _src45t_r
+                "vtrn.u8    d22, d18            \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d28-d30}, [%2], %10\n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d28-d30}, [%2], %10\n"
 
-            "vtrn.u8    q14, q12            \n"// _src67t_r
-            "vtrn.u8    d30, d26            \n"
+                "vtrn.u8    q14, q12            \n"// _src67t_r
+                "vtrn.u8    d30, d26            \n"
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q4, q0              \n"// _src02tt_r
-            "vtrn.u16   d10, d2             \n"
+                "vtrn.u16   q4, q0              \n"// _src02tt_r
+                "vtrn.u16   d10, d2             \n"
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q6, q2              \n"// _src13tt_r
-            "vtrn.u16   d14, d6             \n"
+                "vtrn.u16   q6, q2              \n"// _src13tt_r
+                "vtrn.u16   d14, d6             \n"
 
-            "add        %1, #24             \n"// src0 += 24
+                "add        %1, #24             \n"// src0 += 24
 
-            "vtrn.u16   q12, q8             \n"// _src46tt_r
-            "vtrn.u16   d26, d18            \n"
+                "vtrn.u16   q12, q8             \n"// _src46tt_r
+                "vtrn.u16   d26, d18            \n"
 
-            "add        %2, #24             \n"// src1 += 24
+                "add        %2, #24             \n"// src1 += 24
 
-            "vtrn.u16   q14, q10            \n"// _src57tt_r
-            "vtrn.u16   d30, d22            \n"
+                "vtrn.u16   q14, q10            \n"// _src57tt_r
+                "vtrn.u16   d30, d22            \n"
 
-            "vtrn.u32   q12, q4             \n"// _src26ttt_r
-            "vtrn.u32   d26, d10            \n"
+                "vtrn.u32   q12, q4             \n"// _src26ttt_r
+                "vtrn.u32   d26, d10            \n"
 
-            "vtrn.u32   q14, q6             \n"// _src37ttt_r
-            "vst3.u8    {d24-d26}, [%4], %11\n"
-            "vtrn.u32   d30, d14            \n"
+                "vtrn.u32   q14, q6             \n"// _src37ttt_r
+                "vst3.u8    {d24-d26}, [%4], %11\n"
+                "vtrn.u32   d30, d14            \n"
 
-            "vtrn.u32   q8, q0              \n"// _src04ttt_r
-            "vst3.u8    {d28-d30}, [%3], %11\n"
-            "vtrn.u32   d18, d2             \n"
+                "vtrn.u32   q8, q0              \n"// _src04ttt_r
+                "vst3.u8    {d28-d30}, [%3], %11\n"
+                "vtrn.u32   d18, d2             \n"
 
-            "vtrn.u32   q10, q2             \n"// _src15ttt_r
-            "vst3.u8    {d16-d18}, [%4], %11\n"
-            "vtrn.u32   d22, d6             \n"
+                "vtrn.u32   q10, q2             \n"// _src15ttt_r
+                "vst3.u8    {d16-d18}, [%4], %11\n"
+                "vtrn.u32   d22, d6             \n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst3.u8    {d20-d22}, [%3], %11\n"
-            "vst3.u8    {d8-d10}, [%4], %11 \n"
-            "vst3.u8    {d12-d14}, [%3], %11\n"
-            "vst3.u8    {d0-d2}, [%4], %11  \n"
-            "vst3.u8    {d4-d6}, [%3], %11  \n"
+                "vst3.u8    {d20-d22}, [%3], %11\n"
+                "vst3.u8    {d8-d10}, [%4], %11 \n"
+                "vst3.u8    {d12-d14}, [%3], %11\n"
+                "vst3.u8    {d0-d2}, [%4], %11  \n"
+                "vst3.u8    {d4-d6}, [%3], %11  \n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)
@@ -3693,102 +3693,102 @@ static void kanna_rotate_6_c4(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d0-d3}, [%1], %10  \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d0-d3}, [%1], %10  \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d4-d7}, [%2], %10  \n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d4-d7}, [%2], %10  \n"
 
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d8-d11}, [%1], %10 \n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d8-d11}, [%1], %10 \n"
 
-            "vtrn.u8    q2, q0              \n"// _src01t_r
-            "vtrn.u8    q3, q1              \n"
+                "vtrn.u8    q2, q0              \n"// _src01t_r
+                "vtrn.u8    q3, q1              \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d12-d15}, [%2], %10\n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d12-d15}, [%2], %10\n"
 
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d16-d19}, [%1], %10\n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d16-d19}, [%1], %10\n"
 
-            "vtrn.u8    q6, q4              \n"// _src23t_r
-            "vtrn.u8    q7, q5              \n"
+                "vtrn.u8    q6, q4              \n"// _src23t_r
+                "vtrn.u8    q7, q5              \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d20-d23}, [%2], %10\n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d20-d23}, [%2], %10\n"
 
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d24-d27}, [%1], %10\n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d24-d27}, [%1], %10\n"
 
-            "vtrn.u8    q10, q8             \n"// _src45t_r
-            "vtrn.u8    q11, q9             \n"
+                "vtrn.u8    q10, q8             \n"// _src45t_r
+                "vtrn.u8    q11, q9             \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d28-d31}, [%2], %10\n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d28-d31}, [%2], %10\n"
 
-            "vtrn.u8    q14, q12            \n"// _src67t_r
-            "vtrn.u8    q15, q13            \n"
+                "vtrn.u8    q14, q12            \n"// _src67t_r
+                "vtrn.u8    q15, q13            \n"
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q4, q0              \n"// _src02tt_r
-            "vtrn.u16   q5, q1              \n"
+                "vtrn.u16   q4, q0              \n"// _src02tt_r
+                "vtrn.u16   q5, q1              \n"
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q6, q2              \n"// _src13tt_r
-            "vtrn.u16   q7, q3              \n"
+                "vtrn.u16   q6, q2              \n"// _src13tt_r
+                "vtrn.u16   q7, q3              \n"
 
-            "add        %1, #32             \n"// src0 += 32
+                "add        %1, #32             \n"// src0 += 32
 
-            "vtrn.u16   q12, q8             \n"// _src46tt_r
-            "vtrn.u16   q13, q9             \n"
+                "vtrn.u16   q12, q8             \n"// _src46tt_r
+                "vtrn.u16   q13, q9             \n"
 
-            "add        %2, #32             \n"// src1 += 32
+                "add        %2, #32             \n"// src1 += 32
 
-            "vtrn.u16   q14, q10            \n"// _src57tt_r
-            "vtrn.u16   q15, q11            \n"
+                "vtrn.u16   q14, q10            \n"// _src57tt_r
+                "vtrn.u16   q15, q11            \n"
 
-            "vtrn.u32   q12, q4             \n"// _src26ttt_r
-            "vtrn.u32   q13, q5             \n"
+                "vtrn.u32   q12, q4             \n"// _src26ttt_r
+                "vtrn.u32   q13, q5             \n"
 
-            "vtrn.u32   q14, q6             \n"// _src37ttt_r
-            "vst4.u8    {d24-d27}, [%4], %11\n"
-            "vtrn.u32   q15, q7             \n"
+                "vtrn.u32   q14, q6             \n"// _src37ttt_r
+                "vst4.u8    {d24-d27}, [%4], %11\n"
+                "vtrn.u32   q15, q7             \n"
 
-            "vtrn.u32   q8, q0              \n"// _src04ttt_r
-            "vst4.u8    {d28-d31}, [%3], %11\n"
-            "vtrn.u32   q9, q1              \n"
+                "vtrn.u32   q8, q0              \n"// _src04ttt_r
+                "vst4.u8    {d28-d31}, [%3], %11\n"
+                "vtrn.u32   q9, q1              \n"
 
-            "vtrn.u32   q10, q2             \n"// _src15ttt_r
-            "vst4.u8    {d16-d19}, [%4], %11\n"
-            "vtrn.u32   q11, q3             \n"
+                "vtrn.u32   q10, q2             \n"// _src15ttt_r
+                "vst4.u8    {d16-d19}, [%4], %11\n"
+                "vtrn.u32   q11, q3             \n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst4.u8    {d8-d11}, [%4], %11 \n"
-            "vst4.u8    {d20-d23}, [%3], %11\n"
-            "vst4.u8    {d12-d15}, [%3], %11\n"
-            "vst4.u8    {d0-d3}, [%4], %11  \n"
-            "vst4.u8    {d4-d7}, [%3], %11  \n"
+                "vst4.u8    {d8-d11}, [%4], %11 \n"
+                "vst4.u8    {d20-d23}, [%3], %11\n"
+                "vst4.u8    {d12-d15}, [%3], %11\n"
+                "vst4.u8    {d0-d3}, [%4], %11  \n"
+                "vst4.u8    {d4-d7}, [%3], %11  \n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst0),   // %3
-              "=r"(dst1)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst0),
-              "4"(dst1),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst0),   // %3
+                "=r"(dst1)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst0),
+                "4"(dst1),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)
@@ -3936,82 +3936,82 @@ static void kanna_rotate_7_c1(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d0}, [%1], %10     \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d0}, [%1], %10     \n"
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d1}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d1}, [%2], %10     \n"
 
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d2}, [%1], %10     \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d2}, [%1], %10     \n"
 
-            "vtrn.u8    d1, d0              \n"// _src01t_r
+                "vtrn.u8    d1, d0              \n"// _src01t_r
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d3}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d3}, [%2], %10     \n"
 
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d4}, [%1], %10     \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d4}, [%1], %10     \n"
 
-            "vtrn.u8    d3, d2              \n"// _src23t_r
+                "vtrn.u8    d3, d2              \n"// _src23t_r
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d5}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d5}, [%2], %10     \n"
 
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d6}, [%1], %10     \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d6}, [%1], %10     \n"
 
-            "vtrn.u8    d5, d4              \n"// _src45t_r
+                "vtrn.u8    d5, d4              \n"// _src45t_r
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d7}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d7}, [%2], %10     \n"
 
-            "vtrn.u8    d7, d6              \n"// _src67t_r
+                "vtrn.u8    d7, d6              \n"// _src67t_r
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q1, q0              \n"// _src02tt_r _src13tt_r
+                "vtrn.u16   q1, q0              \n"// _src02tt_r _src13tt_r
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q3, q2              \n"// _src46tt_r _src57tt_r
+                "vtrn.u16   q3, q2              \n"// _src46tt_r _src57tt_r
 
-            "add        %1, #8              \n"// src0 += 8
+                "add        %1, #8              \n"// src0 += 8
 
-            "vtrn.u32   q3, q1              \n"// _src26ttt_r _src37ttt_r
+                "vtrn.u32   q3, q1              \n"// _src26ttt_r _src37ttt_r
 
-            "add        %2, #8              \n"// src1 += 8
+                "add        %2, #8              \n"// src1 += 8
 
-            "vtrn.u32   q2, q0              \n"// _src04ttt_r _src15ttt_r
-            "vst1.u8    {d6}, [%4], %11     \n"
-            "vst1.u8    {d7}, [%3], %11     \n"
+                "vtrn.u32   q2, q0              \n"// _src04ttt_r _src15ttt_r
+                "vst1.u8    {d6}, [%4], %11     \n"
+                "vst1.u8    {d7}, [%3], %11     \n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst1.u8    {d4}, [%4], %11     \n"
-            "vst1.u8    {d5}, [%3], %11     \n"
-            "vst1.u8    {d2}, [%4], %11     \n"
-            "vst1.u8    {d3}, [%3], %11     \n"
-            "vst1.u8    {d0}, [%4], %11     \n"
-            "vst1.u8    {d1}, [%3], %11     \n"
+                "vst1.u8    {d4}, [%4], %11     \n"
+                "vst1.u8    {d5}, [%3], %11     \n"
+                "vst1.u8    {d2}, [%4], %11     \n"
+                "vst1.u8    {d3}, [%3], %11     \n"
+                "vst1.u8    {d0}, [%4], %11     \n"
+                "vst1.u8    {d1}, [%3], %11     \n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst7),   // %3
-              "=r"(dst6)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst7),
-              "4"(dst6),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst7),   // %3
+                "=r"(dst6)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst7),
+                "4"(dst6),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)
@@ -4165,90 +4165,90 @@ static void kanna_rotate_7_c2(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d0-d1}, [%1], %10  \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d0-d1}, [%1], %10  \n"
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d2-d3}, [%2], %10  \n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d2-d3}, [%2], %10  \n"
 
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d4-d5}, [%1], %10  \n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d4-d5}, [%1], %10  \n"
 
-            "vtrn.u8    q1, q0              \n"// _src01t_r
+                "vtrn.u8    q1, q0              \n"// _src01t_r
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d6-d7}, [%2], %10  \n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d6-d7}, [%2], %10  \n"
 
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d16-d17}, [%1], %10\n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d16-d17}, [%1], %10\n"
 
-            "vtrn.u8    q3, q2              \n"// _src23t_r
+                "vtrn.u8    q3, q2              \n"// _src23t_r
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d18-d19}, [%2], %10\n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d18-d19}, [%2], %10\n"
 
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d20-d21}, [%1], %10\n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d20-d21}, [%1], %10\n"
 
-            "vtrn.u8    q9, q8              \n"// _src45t_r
+                "vtrn.u8    q9, q8              \n"// _src45t_r
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d22-d23}, [%2], %10\n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d22-d23}, [%2], %10\n"
 
-            "vtrn.u8    q11, q10            \n"// _src67t_r
+                "vtrn.u8    q11, q10            \n"// _src67t_r
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q2, q0              \n"// _src02tt_r
+                "vtrn.u16   q2, q0              \n"// _src02tt_r
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q3, q1              \n"// _src13tt_r
+                "vtrn.u16   q3, q1              \n"// _src13tt_r
 
-            "add        %1, #16             \n"// src0 += 16
+                "add        %1, #16             \n"// src0 += 16
 
-            "vtrn.u16   q10, q8            \n"// _src46tt_r
+                "vtrn.u16   q10, q8            \n"// _src46tt_r
 
-            "add        %2, #16             \n"// src1 += 16
+                "add        %2, #16             \n"// src1 += 16
 
-            "vtrn.u16   q11, q9             \n"// _src57tt_r
+                "vtrn.u16   q11, q9             \n"// _src57tt_r
 
-            "vtrn.u32   q10, q2             \n"// _src26ttt_r
+                "vtrn.u32   q10, q2             \n"// _src26ttt_r
 
-            "vtrn.u32   q11, q3             \n"// _src37ttt_r
-            "vst2.u8    {d20-d21}, [%4], %11\n"
+                "vtrn.u32   q11, q3             \n"// _src37ttt_r
+                "vst2.u8    {d20-d21}, [%4], %11\n"
 
-            "vtrn.u32   q8, q0              \n"// _src04ttt_r
-            "vst2.u8    {d22-d23}, [%3], %11\n"
+                "vtrn.u32   q8, q0              \n"// _src04ttt_r
+                "vst2.u8    {d22-d23}, [%3], %11\n"
 
-            "vtrn.u32   q9, q1              \n"// _src15ttt_r
-            "vst2.u8    {d16-d17}, [%4], %11\n"
+                "vtrn.u32   q9, q1              \n"// _src15ttt_r
+                "vst2.u8    {d16-d17}, [%4], %11\n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst2.u8    {d4-d5}, [%4], %11  \n"
-            "vst2.u8    {d18-d19}, [%3], %11\n"
-            "vst2.u8    {d6-d7}, [%3], %11  \n"
-            "vst2.u8    {d0-d1}, [%4], %11  \n"
-            "vst2.u8    {d2-d3}, [%3], %11  \n"
+                "vst2.u8    {d4-d5}, [%4], %11  \n"
+                "vst2.u8    {d18-d19}, [%3], %11\n"
+                "vst2.u8    {d6-d7}, [%3], %11  \n"
+                "vst2.u8    {d0-d1}, [%4], %11  \n"
+                "vst2.u8    {d2-d3}, [%3], %11  \n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst7),   // %3
-              "=r"(dst6)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst7),
-              "4"(dst6),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst7),   // %3
+                "=r"(dst6)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst7),
+                "4"(dst6),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)
@@ -4435,102 +4435,102 @@ static void kanna_rotate_7_c3(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d0-d2}, [%1], %10  \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d0-d2}, [%1], %10  \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d4-d6}, [%2], %10  \n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d4-d6}, [%2], %10  \n"
 
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d8-d10}, [%1], %10 \n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d8-d10}, [%1], %10 \n"
 
-            "vtrn.u8    q2, q0              \n"// _src01t_r
-            "vtrn.u8    d6, d2              \n"
+                "vtrn.u8    q2, q0              \n"// _src01t_r
+                "vtrn.u8    d6, d2              \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d12-d14}, [%2], %10\n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d12-d14}, [%2], %10\n"
 
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d16-d18}, [%1], %10\n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d16-d18}, [%1], %10\n"
 
-            "vtrn.u8    q6, q4             \n"// _src23t_r
-            "vtrn.u8    d14, d10            \n"
+                "vtrn.u8    q6, q4             \n"// _src23t_r
+                "vtrn.u8    d14, d10            \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d20-d22}, [%2], %10\n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d20-d22}, [%2], %10\n"
 
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d24-d26}, [%1], %10\n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d24-d26}, [%1], %10\n"
 
-            "vtrn.u8    q10, q8             \n"// _src45t_r
-            "vtrn.u8    d22, d18            \n"
+                "vtrn.u8    q10, q8             \n"// _src45t_r
+                "vtrn.u8    d22, d18            \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d28-d30}, [%2], %10\n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d28-d30}, [%2], %10\n"
 
-            "vtrn.u8    q14, q12            \n"// _src67t_r
-            "vtrn.u8    d30, d26            \n"
+                "vtrn.u8    q14, q12            \n"// _src67t_r
+                "vtrn.u8    d30, d26            \n"
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q4, q0              \n"// _src02tt_r
-            "vtrn.u16   d10, d2             \n"
+                "vtrn.u16   q4, q0              \n"// _src02tt_r
+                "vtrn.u16   d10, d2             \n"
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q6, q2              \n"// _src13tt_r
-            "vtrn.u16   d14, d6             \n"
+                "vtrn.u16   q6, q2              \n"// _src13tt_r
+                "vtrn.u16   d14, d6             \n"
 
-            "add        %1, #24             \n"// src0 += 24
+                "add        %1, #24             \n"// src0 += 24
 
-            "vtrn.u16   q12, q8             \n"// _src46tt_r
-            "vtrn.u16   d26, d18            \n"
+                "vtrn.u16   q12, q8             \n"// _src46tt_r
+                "vtrn.u16   d26, d18            \n"
 
-            "add        %2, #24             \n"// src1 += 24
+                "add        %2, #24             \n"// src1 += 24
 
-            "vtrn.u16   q14, q10            \n"// _src57tt_r
-            "vtrn.u16   d30, d22            \n"
+                "vtrn.u16   q14, q10            \n"// _src57tt_r
+                "vtrn.u16   d30, d22            \n"
 
-            "vtrn.u32   q12, q4             \n"// _src26ttt_r
-            "vtrn.u32   d26, d10            \n"
+                "vtrn.u32   q12, q4             \n"// _src26ttt_r
+                "vtrn.u32   d26, d10            \n"
 
-            "vtrn.u32   q14, q6             \n"// _src37ttt_r
-            "vst3.u8    {d24-d26}, [%4], %11\n"
-            "vtrn.u32   d30, d14            \n"
+                "vtrn.u32   q14, q6             \n"// _src37ttt_r
+                "vst3.u8    {d24-d26}, [%4], %11\n"
+                "vtrn.u32   d30, d14            \n"
 
-            "vtrn.u32   q8, q0             \n"// _src04ttt_r
-            "vst3.u8    {d28-d30}, [%3], %11\n"
-            "vtrn.u32   d18, d2             \n"
+                "vtrn.u32   q8, q0             \n"// _src04ttt_r
+                "vst3.u8    {d28-d30}, [%3], %11\n"
+                "vtrn.u32   d18, d2             \n"
 
-            "vtrn.u32   q10, q2             \n"// _src15ttt_r
-            "vst3.u8    {d16-d18}, [%4], %11\n"
-            "vtrn.u32   d22, d6             \n"
+                "vtrn.u32   q10, q2             \n"// _src15ttt_r
+                "vst3.u8    {d16-d18}, [%4], %11\n"
+                "vtrn.u32   d22, d6             \n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst3.u8    {d8-d10}, [%4], %11 \n"
-            "vst3.u8    {d20-d22}, [%3], %11\n"
-            "vst3.u8    {d12-d14}, [%3], %11\n"
-            "vst3.u8    {d0-d2}, [%4], %11  \n"
-            "vst3.u8    {d4-d6}, [%3], %11  \n"
+                "vst3.u8    {d8-d10}, [%4], %11 \n"
+                "vst3.u8    {d20-d22}, [%3], %11\n"
+                "vst3.u8    {d12-d14}, [%3], %11\n"
+                "vst3.u8    {d0-d2}, [%4], %11  \n"
+                "vst3.u8    {d4-d6}, [%3], %11  \n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst7),   // %3
-              "=r"(dst6)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst7),
-              "4"(dst6),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst7),   // %3
+                "=r"(dst6)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst7),
+                "4"(dst6),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)
@@ -4750,102 +4750,102 @@ static void kanna_rotate_7_c4(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d0-d3}, [%1], %10  \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d0-d3}, [%1], %10  \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d4-d7}, [%2], %10  \n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d4-d7}, [%2], %10  \n"
 
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d8-d11}, [%1], %10 \n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d8-d11}, [%1], %10 \n"
 
-            "vtrn.u8    q2, q0              \n"// _src01t_r
-            "vtrn.u8    q3, q1              \n"
+                "vtrn.u8    q2, q0              \n"// _src01t_r
+                "vtrn.u8    q3, q1              \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d12-d15}, [%2], %10\n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d12-d15}, [%2], %10\n"
 
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d16-d19}, [%1], %10\n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d16-d19}, [%1], %10\n"
 
-            "vtrn.u8    q6, q4              \n"// _src23t_r
-            "vtrn.u8    q7, q5              \n"
+                "vtrn.u8    q6, q4              \n"// _src23t_r
+                "vtrn.u8    q7, q5              \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d20-d23}, [%2], %10\n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d20-d23}, [%2], %10\n"
 
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d24-d27}, [%1], %10\n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d24-d27}, [%1], %10\n"
 
-            "vtrn.u8    q10, q8             \n"// _src45t_r
-            "vtrn.u8    q11, q9             \n"
+                "vtrn.u8    q10, q8             \n"// _src45t_r
+                "vtrn.u8    q11, q9             \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d28-d31}, [%2], %10\n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d28-d31}, [%2], %10\n"
 
-            "vtrn.u8    q14, q12            \n"// _src67t_r
-            "vtrn.u8    q15, q13            \n"
+                "vtrn.u8    q14, q12            \n"// _src67t_r
+                "vtrn.u8    q15, q13            \n"
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q4, q0              \n"// _src02tt_r
-            "vtrn.u16   q5, q1              \n"
+                "vtrn.u16   q4, q0              \n"// _src02tt_r
+                "vtrn.u16   q5, q1              \n"
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q6, q2              \n"// _src13tt_r
-            "vtrn.u16   q7, q3              \n"
+                "vtrn.u16   q6, q2              \n"// _src13tt_r
+                "vtrn.u16   q7, q3              \n"
 
-            "add        %1, #32             \n"// src0 += 32
+                "add        %1, #32             \n"// src0 += 32
 
-            "vtrn.u16   q12, q8             \n"// _src46tt_r
-            "vtrn.u16   q13, q9             \n"
+                "vtrn.u16   q12, q8             \n"// _src46tt_r
+                "vtrn.u16   q13, q9             \n"
 
-            "add        %2, #32             \n"// src1 += 32
+                "add        %2, #32             \n"// src1 += 32
 
-            "vtrn.u16   q14, q10            \n"// _src57tt_r
-            "vtrn.u16   q15, q11            \n"
+                "vtrn.u16   q14, q10            \n"// _src57tt_r
+                "vtrn.u16   q15, q11            \n"
 
-            "vtrn.u32   q12, q4             \n"// _src26ttt_r
-            "vtrn.u32   q13, q5             \n"
+                "vtrn.u32   q12, q4             \n"// _src26ttt_r
+                "vtrn.u32   q13, q5             \n"
 
-            "vtrn.u32   q14, q6             \n"// _src37ttt_r
-            "vst4.u8    {d24-d27}, [%4], %11\n"
-            "vtrn.u32   q15, q7             \n"
+                "vtrn.u32   q14, q6             \n"// _src37ttt_r
+                "vst4.u8    {d24-d27}, [%4], %11\n"
+                "vtrn.u32   q15, q7             \n"
 
-            "vtrn.u32   q8, q0              \n"// _src04ttt_r
-            "vst4.u8    {d28-d31}, [%3], %11\n"
-            "vtrn.u32   q9, q1              \n"
+                "vtrn.u32   q8, q0              \n"// _src04ttt_r
+                "vst4.u8    {d28-d31}, [%3], %11\n"
+                "vtrn.u32   q9, q1              \n"
 
-            "vtrn.u32   q10, q2             \n"// _src15ttt_r
-            "vst4.u8    {d16-d19}, [%4], %11\n"
-            "vtrn.u32   q11, q3             \n"
+                "vtrn.u32   q10, q2             \n"// _src15ttt_r
+                "vst4.u8    {d16-d19}, [%4], %11\n"
+                "vtrn.u32   q11, q3             \n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst4.u8    {d8-d11}, [%4], %11 \n"
-            "vst4.u8    {d20-d23}, [%3], %11\n"
-            "vst4.u8    {d12-d15}, [%3], %11\n"
-            "vst4.u8    {d0-d3}, [%4], %11  \n"
-            "vst4.u8    {d4-d7}, [%3], %11  \n"
+                "vst4.u8    {d8-d11}, [%4], %11 \n"
+                "vst4.u8    {d20-d23}, [%3], %11\n"
+                "vst4.u8    {d12-d15}, [%3], %11\n"
+                "vst4.u8    {d0-d3}, [%4], %11  \n"
+                "vst4.u8    {d4-d7}, [%3], %11  \n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst7),   // %3
-              "=r"(dst6)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst7),
-              "4"(dst6),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst7),   // %3
+                "=r"(dst6)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst7),
+                "4"(dst6),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)
@@ -4993,82 +4993,82 @@ static void kanna_rotate_8_c1(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d0}, [%1], %10     \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d0}, [%1], %10     \n"
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d1}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d1}, [%2], %10     \n"
 
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d2}, [%1], %10     \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d2}, [%1], %10     \n"
 
-            "vtrn.u8    d0, d1              \n"// _src01t_r
+                "vtrn.u8    d0, d1              \n"// _src01t_r
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d3}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d3}, [%2], %10     \n"
 
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d4}, [%1], %10     \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d4}, [%1], %10     \n"
 
-            "vtrn.u8    d2, d3              \n"// _src23t_r
+                "vtrn.u8    d2, d3              \n"// _src23t_r
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d5}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d5}, [%2], %10     \n"
 
-            "pld        [%1, #64]           \n"
-            "vld1.u8    {d6}, [%1], %10     \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u8    {d6}, [%1], %10     \n"
 
-            "vtrn.u8    d4, d5              \n"// _src45t_r
+                "vtrn.u8    d4, d5              \n"// _src45t_r
 
-            "pld        [%2, #64]           \n"
-            "vld1.u8    {d7}, [%2], %10     \n"
+                "pld        [%2, #64]           \n"
+                "vld1.u8    {d7}, [%2], %10     \n"
 
-            "vtrn.u8    d6, d7              \n"// _src67t_r
+                "vtrn.u8    d6, d7              \n"// _src67t_r
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q0, q1              \n"// _src02tt_r _src13tt_r
+                "vtrn.u16   q0, q1              \n"// _src02tt_r _src13tt_r
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q2, q3              \n"// _src46tt_r _src57tt_r
+                "vtrn.u16   q2, q3              \n"// _src46tt_r _src57tt_r
 
-            "add        %1, #8              \n"// src0 += 8
+                "add        %1, #8              \n"// src0 += 8
 
-            "vtrn.u32   q0, q2              \n"// _src04ttt_r _src15ttt_r
+                "vtrn.u32   q0, q2              \n"// _src04ttt_r _src15ttt_r
 
-            "add        %2, #8              \n"// src1 += 8
+                "add        %2, #8              \n"// src1 += 8
 
-            "vtrn.u32   q1, q3              \n"// _src26ttt_r _src37ttt_r
-            "vst1.u8    {d0}, [%3], %11     \n"
-            "vst1.u8    {d1}, [%4], %11     \n"
+                "vtrn.u32   q1, q3              \n"// _src26ttt_r _src37ttt_r
+                "vst1.u8    {d0}, [%3], %11     \n"
+                "vst1.u8    {d1}, [%4], %11     \n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst1.u8    {d2}, [%3], %11     \n"
-            "vst1.u8    {d3}, [%4], %11     \n"
-            "vst1.u8    {d4}, [%3], %11     \n"
-            "vst1.u8    {d5}, [%4], %11     \n"
-            "vst1.u8    {d6}, [%3], %11     \n"
-            "vst1.u8    {d7}, [%4], %11     \n"
+                "vst1.u8    {d2}, [%3], %11     \n"
+                "vst1.u8    {d3}, [%4], %11     \n"
+                "vst1.u8    {d4}, [%3], %11     \n"
+                "vst1.u8    {d5}, [%4], %11     \n"
+                "vst1.u8    {d6}, [%3], %11     \n"
+                "vst1.u8    {d7}, [%4], %11     \n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst7),   // %3
-              "=r"(dst6)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst7),
-              "4"(dst6),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst7),   // %3
+                "=r"(dst6)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst7),
+                "4"(dst6),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)
@@ -5222,90 +5222,90 @@ static void kanna_rotate_8_c2(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d0-d1}, [%1], %10  \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d0-d1}, [%1], %10  \n"
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d2-d3}, [%2], %10  \n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d2-d3}, [%2], %10  \n"
 
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d4-d5}, [%1], %10  \n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d4-d5}, [%1], %10  \n"
 
-            "vtrn.u8    q0, q1              \n"// _src01t_r
+                "vtrn.u8    q0, q1              \n"// _src01t_r
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d6-d7}, [%2], %10  \n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d6-d7}, [%2], %10  \n"
 
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d16-d17}, [%1], %10\n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d16-d17}, [%1], %10\n"
 
-            "vtrn.u8    q2, q3              \n"// _src23t_r
+                "vtrn.u8    q2, q3              \n"// _src23t_r
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d18-d19}, [%2], %10\n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d18-d19}, [%2], %10\n"
 
-            "pld        [%1, #128]          \n"
-            "vld2.u8    {d20-d21}, [%1], %10\n"
+                "pld        [%1, #128]          \n"
+                "vld2.u8    {d20-d21}, [%1], %10\n"
 
-            "vtrn.u8    q8, q9              \n"// _src45t_r
+                "vtrn.u8    q8, q9              \n"// _src45t_r
 
-            "pld        [%2, #128]          \n"
-            "vld2.u8    {d22-d23}, [%2], %10\n"
+                "pld        [%2, #128]          \n"
+                "vld2.u8    {d22-d23}, [%2], %10\n"
 
-            "vtrn.u8    q10, q11            \n"// _src67t_r
+                "vtrn.u8    q10, q11            \n"// _src67t_r
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q0, q2              \n"// _src02tt_r
+                "vtrn.u16   q0, q2              \n"// _src02tt_r
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q1, q3              \n"// _src13tt_r
+                "vtrn.u16   q1, q3              \n"// _src13tt_r
 
-            "add        %1, #16             \n"// src0 += 16
+                "add        %1, #16             \n"// src0 += 16
 
-            "vtrn.u16   q8, q10             \n"// _src46tt_r
+                "vtrn.u16   q8, q10             \n"// _src46tt_r
 
-            "add        %2, #16             \n"// src1 += 16
+                "add        %2, #16             \n"// src1 += 16
 
-            "vtrn.u16   q9, q11             \n"// _src57tt_r
+                "vtrn.u16   q9, q11             \n"// _src57tt_r
 
-            "vtrn.u32   q0, q8              \n"// _src04ttt_r
+                "vtrn.u32   q0, q8              \n"// _src04ttt_r
 
-            "vtrn.u32   q1, q9              \n"// _src15ttt_r
-            "vst2.u8    {d0-d1}, [%3], %11  \n"
+                "vtrn.u32   q1, q9              \n"// _src15ttt_r
+                "vst2.u8    {d0-d1}, [%3], %11  \n"
 
-            "vtrn.u32   q2, q10             \n"// _src26ttt_r
-            "vst2.u8    {d2-d3}, [%4], %11  \n"
+                "vtrn.u32   q2, q10             \n"// _src26ttt_r
+                "vst2.u8    {d2-d3}, [%4], %11  \n"
 
-            "vtrn.u32   q3, q11             \n"// _src37ttt_r
-            "vst2.u8    {d4-d5}, [%3], %11  \n"
+                "vtrn.u32   q3, q11             \n"// _src37ttt_r
+                "vst2.u8    {d4-d5}, [%3], %11  \n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst2.u8    {d16-d17}, [%3], %11\n"
-            "vst2.u8    {d6-d7}, [%4], %11  \n"
-            "vst2.u8    {d18-d19}, [%4], %11\n"
-            "vst2.u8    {d20-d21}, [%3], %11\n"
-            "vst2.u8    {d22-d23}, [%4], %11\n"
+                "vst2.u8    {d16-d17}, [%3], %11\n"
+                "vst2.u8    {d6-d7}, [%4], %11  \n"
+                "vst2.u8    {d18-d19}, [%4], %11\n"
+                "vst2.u8    {d20-d21}, [%3], %11\n"
+                "vst2.u8    {d22-d23}, [%4], %11\n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst7),   // %3
-              "=r"(dst6)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst7),
-              "4"(dst6),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst7),   // %3
+                "=r"(dst6)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst7),
+                "4"(dst6),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)
@@ -5492,102 +5492,102 @@ static void kanna_rotate_8_c3(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d0-d2}, [%1], %10  \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d0-d2}, [%1], %10  \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d4-d6}, [%2], %10  \n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d4-d6}, [%2], %10  \n"
 
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d8-d10}, [%1], %10 \n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d8-d10}, [%1], %10 \n"
 
-            "vtrn.u8    q0, q2              \n"// _src01t_r
-            "vtrn.u8    d2, d6              \n"
+                "vtrn.u8    q0, q2              \n"// _src01t_r
+                "vtrn.u8    d2, d6              \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d12-d14}, [%2], %10\n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d12-d14}, [%2], %10\n"
 
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d16-d18}, [%1], %10\n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d16-d18}, [%1], %10\n"
 
-            "vtrn.u8    q4, q6              \n"// _src23t_r
-            "vtrn.u8    d10, d14            \n"
+                "vtrn.u8    q4, q6              \n"// _src23t_r
+                "vtrn.u8    d10, d14            \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d20-d22}, [%2], %10\n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d20-d22}, [%2], %10\n"
 
-            "pld        [%1, #192]          \n"
-            "vld3.u8    {d24-d26}, [%1], %10\n"
+                "pld        [%1, #192]          \n"
+                "vld3.u8    {d24-d26}, [%1], %10\n"
 
-            "vtrn.u8    q8, q10             \n"// _src45t_r
-            "vtrn.u8    d18, d22            \n"
+                "vtrn.u8    q8, q10             \n"// _src45t_r
+                "vtrn.u8    d18, d22            \n"
 
-            "pld        [%2, #192]          \n"
-            "vld3.u8    {d28-d30}, [%2], %10\n"
+                "pld        [%2, #192]          \n"
+                "vld3.u8    {d28-d30}, [%2], %10\n"
 
-            "vtrn.u8    q12, q14            \n"// _src67t_r
-            "vtrn.u8    d26, d30            \n"
+                "vtrn.u8    q12, q14            \n"// _src67t_r
+                "vtrn.u8    d26, d30            \n"
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q0, q4              \n"// _src02tt_r
-            "vtrn.u16   d2, d10             \n"
+                "vtrn.u16   q0, q4              \n"// _src02tt_r
+                "vtrn.u16   d2, d10             \n"
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q2, q6              \n"// _src13tt_r
-            "vtrn.u16   d6, d14             \n"
+                "vtrn.u16   q2, q6              \n"// _src13tt_r
+                "vtrn.u16   d6, d14             \n"
 
-            "add        %1, #24             \n"// src0 += 24
+                "add        %1, #24             \n"// src0 += 24
 
-            "vtrn.u16   q8, q12             \n"// _src46tt_r
-            "vtrn.u16   d18, d26            \n"
+                "vtrn.u16   q8, q12             \n"// _src46tt_r
+                "vtrn.u16   d18, d26            \n"
 
-            "add        %2, #24             \n"// src1 += 24
+                "add        %2, #24             \n"// src1 += 24
 
-            "vtrn.u16   q10, q14            \n"// _src57tt_r
-            "vtrn.u16   d22, d30            \n"
+                "vtrn.u16   q10, q14            \n"// _src57tt_r
+                "vtrn.u16   d22, d30            \n"
 
-            "vtrn.u32   q0, q8              \n"// _src04ttt_r
-            "vtrn.u32   d2, d18             \n"
+                "vtrn.u32   q0, q8              \n"// _src04ttt_r
+                "vtrn.u32   d2, d18             \n"
 
-            "vtrn.u32   q2, q10             \n"// _src15ttt_r
-            "vst3.u8    {d0-d2}, [%3], %11  \n"
-            "vtrn.u32   d6, d22             \n"
+                "vtrn.u32   q2, q10             \n"// _src15ttt_r
+                "vst3.u8    {d0-d2}, [%3], %11  \n"
+                "vtrn.u32   d6, d22             \n"
 
-            "vtrn.u32   q4, q12             \n"// _src26ttt_r
-            "vst3.u8    {d4-d6}, [%4], %11  \n"
-            "vtrn.u32   d10, d26            \n"
+                "vtrn.u32   q4, q12             \n"// _src26ttt_r
+                "vst3.u8    {d4-d6}, [%4], %11  \n"
+                "vtrn.u32   d10, d26            \n"
 
-            "vtrn.u32   q6, q14             \n"// _src37ttt_r
-            "vst3.u8    {d8-d10}, [%3], %11 \n"
-            "vtrn.u32   d14, d30            \n"
+                "vtrn.u32   q6, q14             \n"// _src37ttt_r
+                "vst3.u8    {d8-d10}, [%3], %11 \n"
+                "vtrn.u32   d14, d30            \n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst3.u8    {d16-d18}, [%3], %11\n"
-            "vst3.u8    {d12-d14}, [%4], %11\n"
-            "vst3.u8    {d20-d22}, [%4], %11\n"
-            "vst3.u8    {d24-d26}, [%3], %11\n"
-            "vst3.u8    {d28-d30}, [%4], %11\n"
+                "vst3.u8    {d16-d18}, [%3], %11\n"
+                "vst3.u8    {d12-d14}, [%4], %11\n"
+                "vst3.u8    {d20-d22}, [%4], %11\n"
+                "vst3.u8    {d24-d26}, [%3], %11\n"
+                "vst3.u8    {d28-d30}, [%4], %11\n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst7),   // %3
-              "=r"(dst6)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst7),
-              "4"(dst6),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst7),   // %3
+                "=r"(dst6)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst7),
+                "4"(dst6),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)
@@ -5807,102 +5807,102 @@ static void kanna_rotate_8_c4(const unsigned char* src, int srcw, int srch, int 
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d0-d3}, [%1], %10  \n"
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d0-d3}, [%1], %10  \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d4-d7}, [%2], %10  \n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d4-d7}, [%2], %10  \n"
 
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d8-d11}, [%1], %10 \n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d8-d11}, [%1], %10 \n"
 
-            "vtrn.u8    q0, q2              \n"// _src01t_r
-            "vtrn.u8    q1, q3              \n"
+                "vtrn.u8    q0, q2              \n"// _src01t_r
+                "vtrn.u8    q1, q3              \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d12-d15}, [%2], %10\n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d12-d15}, [%2], %10\n"
 
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d16-d19}, [%1], %10\n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d16-d19}, [%1], %10\n"
 
-            "vtrn.u8    q4, q6              \n"// _src23t_r
-            "vtrn.u8    q5, q7              \n"
+                "vtrn.u8    q4, q6              \n"// _src23t_r
+                "vtrn.u8    q5, q7              \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d20-d23}, [%2], %10\n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d20-d23}, [%2], %10\n"
 
-            "pld        [%1, #256]          \n"
-            "vld4.u8    {d24-d27}, [%1], %10\n"
+                "pld        [%1, #256]          \n"
+                "vld4.u8    {d24-d27}, [%1], %10\n"
 
-            "vtrn.u8    q8, q10             \n"// _src45t_r
-            "vtrn.u8    q9, q11             \n"
+                "vtrn.u8    q8, q10             \n"// _src45t_r
+                "vtrn.u8    q9, q11             \n"
 
-            "pld        [%2, #256]          \n"
-            "vld4.u8    {d28-d31}, [%2], %10\n"
+                "pld        [%2, #256]          \n"
+                "vld4.u8    {d28-d31}, [%2], %10\n"
 
-            "vtrn.u8    q12, q14            \n"// _src67t_r
-            "vtrn.u8    q13, q15            \n"
+                "vtrn.u8    q12, q14            \n"// _src67t_r
+                "vtrn.u8    q13, q15            \n"
 
-            "sub        %1, %1, %10, lsl #2 \n"// restore src0
+                "sub        %1, %1, %10, lsl #2 \n"// restore src0
 
-            "vtrn.u16   q0, q4              \n"// _src02tt_r
-            "vtrn.u16   q1, q5              \n"
+                "vtrn.u16   q0, q4              \n"// _src02tt_r
+                "vtrn.u16   q1, q5              \n"
 
-            "sub        %2, %2, %10, lsl #2 \n"// restore src1
+                "sub        %2, %2, %10, lsl #2 \n"// restore src1
 
-            "vtrn.u16   q2, q6              \n"// _src13tt_r
-            "vtrn.u16   q3, q7              \n"
+                "vtrn.u16   q2, q6              \n"// _src13tt_r
+                "vtrn.u16   q3, q7              \n"
 
-            "add        %1, #32             \n"// src0 += 32
+                "add        %1, #32             \n"// src0 += 32
 
-            "vtrn.u16   q8, q12             \n"// _src46tt_r
-            "vtrn.u16   q9, q13             \n"
+                "vtrn.u16   q8, q12             \n"// _src46tt_r
+                "vtrn.u16   q9, q13             \n"
 
-            "add        %2, #32             \n"// src1 += 32
+                "add        %2, #32             \n"// src1 += 32
 
-            "vtrn.u16   q10, q14            \n"// _src57tt_r
-            "vtrn.u16   q11, q15            \n"
+                "vtrn.u16   q10, q14            \n"// _src57tt_r
+                "vtrn.u16   q11, q15            \n"
 
-            "vtrn.u32   q0, q8              \n"// _src04ttt_r
-            "vtrn.u32   q1, q9              \n"
+                "vtrn.u32   q0, q8              \n"// _src04ttt_r
+                "vtrn.u32   q1, q9              \n"
 
-            "vtrn.u32   q2, q10             \n"// _src15ttt_r
-            "vst4.u8    {d0-d3}, [%3], %11  \n"
-            "vtrn.u32   q3, q11             \n"
+                "vtrn.u32   q2, q10             \n"// _src15ttt_r
+                "vst4.u8    {d0-d3}, [%3], %11  \n"
+                "vtrn.u32   q3, q11             \n"
 
-            "vtrn.u32   q4, q12             \n"// _src26ttt_r
-            "vst4.u8    {d4-d7}, [%4], %11  \n"
-            "vtrn.u32   q5, q13             \n"
+                "vtrn.u32   q4, q12             \n"// _src26ttt_r
+                "vst4.u8    {d4-d7}, [%4], %11  \n"
+                "vtrn.u32   q5, q13             \n"
 
-            "vtrn.u32   q6, q14             \n"// _src37ttt_r
-            "vst4.u8    {d8-d11}, [%3], %11 \n"
-            "vtrn.u32   q7, q15             \n"
+                "vtrn.u32   q6, q14             \n"// _src37ttt_r
+                "vst4.u8    {d8-d11}, [%3], %11 \n"
+                "vtrn.u32   q7, q15             \n"
 
-            "subs       %0, #1              \n"
+                "subs       %0, #1              \n"
 
-            "vst4.u8    {d16-d19}, [%3], %11\n"
-            "vst4.u8    {d12-d15}, [%4], %11\n"
-            "vst4.u8    {d20-d23}, [%4], %11\n"
-            "vst4.u8    {d24-d27}, [%3], %11\n"
-            "vst4.u8    {d28-d31}, [%4], %11\n"
+                "vst4.u8    {d16-d19}, [%3], %11\n"
+                "vst4.u8    {d12-d15}, [%4], %11\n"
+                "vst4.u8    {d20-d23}, [%4], %11\n"
+                "vst4.u8    {d24-d27}, [%3], %11\n"
+                "vst4.u8    {d28-d31}, [%4], %11\n"
 
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(src0),   // %1
-              "=r"(src1),   // %2
-              "=r"(dst7),   // %3
-              "=r"(dst6)    // %4
-            : "0"(nn),
-              "1"(src0),
-              "2"(src1),
-              "3"(dst7),
-              "4"(dst6),
-              "r"(src_step),// %10
-              "r"(dst_step) // %11
-            : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-        );
+                "bne        0b                  \n"
+                : "=r"(nn),     // %0
+                "=r"(src0),   // %1
+                "=r"(src1),   // %2
+                "=r"(dst7),   // %3
+                "=r"(dst6)    // %4
+                : "0"(nn),
+                "1"(src0),
+                "2"(src1),
+                "3"(dst7),
+                "4"(dst6),
+                "r"(src_step),// %10
+                "r"(dst_step) // %11
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
+            );
         }
 #endif // __aarch64__
         for (; remain>0; remain--)

@@ -141,8 +141,8 @@ int TanH_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
     constants[4].i = bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_tanh_pack8
-                             : elempack == 4 ? pipeline_tanh_pack4
-                             : pipeline_tanh;
+                               : elempack == 4 ? pipeline_tanh_pack4
+                               : pipeline_tanh;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
@@ -165,8 +165,8 @@ int TanH_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, co
     constants[4].i = 0;//bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_tanh_pack8
-                             : elempack == 4 ? pipeline_tanh_pack4
-                             : pipeline_tanh;
+                               : elempack == 4 ? pipeline_tanh_pack4
+                               : pipeline_tanh;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

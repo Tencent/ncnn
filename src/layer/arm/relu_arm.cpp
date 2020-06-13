@@ -118,7 +118,7 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                     : "=r"(ptr)     // %0
                     : "0"(ptr),
-                      "r"(size)     // %2
+                    "r"(size)     // %2
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16"
                 );
 #else // __aarch64__
@@ -184,7 +184,7 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                     : "=r"(ptr)     // %0
                     : "0"(ptr),
-                      "r"(size)     // %2
+                    "r"(size)     // %2
                     : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12"
                 );
 #endif // __aarch64__
@@ -244,21 +244,21 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #else
             if (nn > 0)
             {
-            asm volatile(
-                "veor       q1, q0, q0          \n"
-                "0:                             \n"
-                "pld        [%1, #128]          \n"
-                "vld1.f32   {d0-d1}, [%1 :128]  \n"
-                "vmax.f32   q0, q0, q1          \n"
-                "subs       %0, #1              \n"
-                "vst1.f32   {d0-d1}, [%1 :128]! \n"
-                "bne        0b                  \n"
-                : "=r"(nn),     // %0
-                  "=r"(ptr)     // %1
-                : "0"(nn),
-                  "1"(ptr)
-                : "cc", "memory", "q0", "q1"
-            );
+                asm volatile(
+                    "veor       q1, q0, q0          \n"
+                    "0:                             \n"
+                    "pld        [%1, #128]          \n"
+                    "vld1.f32   {d0-d1}, [%1 :128]  \n"
+                    "vmax.f32   q0, q0, q1          \n"
+                    "subs       %0, #1              \n"
+                    "vst1.f32   {d0-d1}, [%1 :128]! \n"
+                    "bne        0b                  \n"
+                    : "=r"(nn),     // %0
+                    "=r"(ptr)     // %1
+                    : "0"(nn),
+                    "1"(ptr)
+                    : "cc", "memory", "q0", "q1"
+                );
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
@@ -301,25 +301,25 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #else
             if (nn > 0)
             {
-            asm volatile(
-                "veor       q1, q0, q0          \n"
-                "vdup.f32   q2, %4              \n"
-                "0:                             \n"
-                "pld        [%1, #128]          \n"
-                "vld1.f32   {d0-d1}, [%1 :128]  \n"
-                "vcle.f32   q3, q0, q1          \n"
-                "vmul.f32   q4, q0, q2          \n"
-                "vbit.32    q0, q4, q3          \n"
-                "subs       %0, #1              \n"
-                "vst1.f32   {d0-d1}, [%1 :128]! \n"
-                "bne        0b                  \n"
-                : "=r"(nn),     // %0
-                  "=r"(ptr)     // %1
-                : "0"(nn),
-                  "1"(ptr),
-                  "r"(slope)    // %4
-                : "cc", "memory", "q0", "q1", "q2", "q3", "q4"
-            );
+                asm volatile(
+                    "veor       q1, q0, q0          \n"
+                    "vdup.f32   q2, %4              \n"
+                    "0:                             \n"
+                    "pld        [%1, #128]          \n"
+                    "vld1.f32   {d0-d1}, [%1 :128]  \n"
+                    "vcle.f32   q3, q0, q1          \n"
+                    "vmul.f32   q4, q0, q2          \n"
+                    "vbit.32    q0, q4, q3          \n"
+                    "subs       %0, #1              \n"
+                    "vst1.f32   {d0-d1}, [%1 :128]! \n"
+                    "bne        0b                  \n"
+                    : "=r"(nn),     // %0
+                    "=r"(ptr)     // %1
+                    : "0"(nn),
+                    "1"(ptr),
+                    "r"(slope)    // %4
+                    : "cc", "memory", "q0", "q1", "q2", "q3", "q4"
+                );
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
@@ -443,7 +443,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 
                     : "=r"(ptr)     // %0
                     : "0"(ptr),
-                      "r"(size)     // %2
+                    "r"(size)     // %2
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16"
                 );
 #else // __aarch64__
@@ -535,7 +535,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 
                     : "=r"(ptr)     // %0
                     : "0"(ptr),
-                      "r"(size)     // %2
+                    "r"(size)     // %2
                     : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12"
                 );
 #endif // __aarch64__
@@ -677,21 +677,21 @@ int ReLU_arm::forward_inplace_int8_neon(Mat& bottom_top_blob, const Option& opt)
 #else
             if (nn > 0)
             {
-            asm volatile(
-                "veor       q1, q0, q0          \n"
-                "0:                             \n"
-                "pld        [%1, #128]          \n"
-                "vld1.s8    {d0-d1}, [%1 :128]  \n"
-                "vmax.s8    q0, q0, q1          \n"
-                "subs       %0, #1              \n"
-                "vst1.s8    {d0-d1}, [%1 :128]! \n"
-                "bne        0b                  \n"
-                : "=r"(nn),     // %0
-                  "=r"(ptr)     // %1
-                : "0"(nn),
-                  "1"(ptr)
-                : "cc", "memory", "q0", "q1"
-            );
+                asm volatile(
+                    "veor       q1, q0, q0          \n"
+                    "0:                             \n"
+                    "pld        [%1, #128]          \n"
+                    "vld1.s8    {d0-d1}, [%1 :128]  \n"
+                    "vmax.s8    q0, q0, q1          \n"
+                    "subs       %0, #1              \n"
+                    "vst1.s8    {d0-d1}, [%1 :128]! \n"
+                    "bne        0b                  \n"
+                    : "=r"(nn),     // %0
+                    "=r"(ptr)     // %1
+                    : "0"(nn),
+                    "1"(ptr)
+                    : "cc", "memory", "q0", "q1"
+                );
             }
 #endif // __aarch64__
 #endif // __ARM_NEON

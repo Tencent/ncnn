@@ -31,8 +31,8 @@
 #include <msa.h>
 #include "mips_common.h"
 
-_MIPS_FLOAT_CONST(c_1  , 1.0f);
-_MIPS_FLOAT_CONST(c_n1 , -1.0f);
+_MIPS_FLOAT_CONST(c_1, 1.0f);
+_MIPS_FLOAT_CONST(c_n1, -1.0f);
 _MIPS_FLOAT_CONST(c_0p5, 0.5f);
 
 _MIPS_FLOAT_CONST(c_exp_hi, 88.3762626647949f);

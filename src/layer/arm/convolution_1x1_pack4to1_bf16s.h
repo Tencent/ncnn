@@ -221,9 +221,9 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                     "st1    {v3.8h}, [%1], #16          \n"
                     "st1    {v7.4h}, [%1], #8           \n"
                     : "=r"(img0),   // %0
-                      "=r"(tmpptr)  // %1
+                    "=r"(tmpptr)  // %1
                     : "0"(img0),
-                      "1"(tmpptr)
+                    "1"(tmpptr)
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"
                 );
                 img0 += bottom_blob.cstep * 4;
@@ -257,9 +257,9 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                     "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
                     "st1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
                     : "=r"(img0),   // %0
-                      "=r"(tmpptr)  // %1
+                    "=r"(tmpptr)  // %1
                     : "0"(img0),
-                      "1"(tmpptr)
+                    "1"(tmpptr)
                     : "memory", "v0", "v1", "v2", "v3"
                 );
 #else
@@ -278,9 +278,9 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                     "vst1.u16   {d3}, [%1 :64]!     \n"
                     "vst1.u16   {d7}, [%1 :64]!     \n"
                     : "=r"(img0),   // %0
-                      "=r"(tmpptr)  // %1
+                    "=r"(tmpptr)  // %1
                     : "0"(img0),
-                      "1"(tmpptr)
+                    "1"(tmpptr)
                     : "memory", "q0", "q1", "q2", "q3"
                 );
 #endif // __aarch64__
@@ -314,9 +314,9 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                     "ld4    {v0.4h, v1.4h, v2.4h, v3.4h}, [%0] \n"
                     "st1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n"
                     : "=r"(img0),   // %0
-                      "=r"(tmpptr)  // %1
+                    "=r"(tmpptr)  // %1
                     : "0"(img0),
-                      "1"(tmpptr)
+                    "1"(tmpptr)
                     : "memory", "v0", "v1"
                 );
 #else
@@ -325,9 +325,9 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                     "vld4.u16   {d0-d3}, [%0 :128]  \n"
                     "vst1.u16   {d0-d3}, [%1 :128]! \n"
                     : "=r"(img0),   // %0
-                      "=r"(tmpptr)  // %1
+                    "=r"(tmpptr)  // %1
                     : "0"(img0),
-                      "1"(tmpptr)
+                    "1"(tmpptr)
                     : "memory", "q0", "q1"
                 );
 #endif // __aarch64__
@@ -357,9 +357,9 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                     "ld1    {v0.4h}, [%0]           \n"
                     "st1    {v0.4h}, [%1], #8       \n"
                     : "=r"(img0),   // %0
-                      "=r"(tmpptr)  // %1
+                    "=r"(tmpptr)  // %1
                     : "0"(img0),
-                      "1"(tmpptr)
+                    "1"(tmpptr)
                     : "memory", "v0"
                 );
 #else
@@ -368,9 +368,9 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                     "vld1.u16   {d0}, [%0 :64]      \n"
                     "vst1.u16   {d0}, [%1 :64]!     \n"
                     : "=r"(img0),   // %0
-                      "=r"(tmpptr)  // %1
+                    "=r"(tmpptr)  // %1
                     : "0"(img0),
-                      "1"(tmpptr)
+                    "1"(tmpptr)
                     : "memory", "q0"
                 );
 #endif // __aarch64__
@@ -631,28 +631,28 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "st1    {v29.4h, v30.4h, v31.4h}, [%8], #24 \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(outptr1),    // %2
-                  "=r"(outptr2),    // %3
-                  "=r"(outptr3),    // %4
-                  "=r"(outptr4),    // %5
-                  "=r"(outptr5),    // %6
-                  "=r"(outptr6),    // %7
-                  "=r"(outptr7),    // %8
-                  "=r"(tmpptr),     // %9
-                  "=r"(kptr)        // %10
+                "=r"(outptr0),    // %1
+                "=r"(outptr1),    // %2
+                "=r"(outptr2),    // %3
+                "=r"(outptr3),    // %4
+                "=r"(outptr4),    // %5
+                "=r"(outptr5),    // %6
+                "=r"(outptr6),    // %7
+                "=r"(outptr7),    // %8
+                "=r"(tmpptr),     // %9
+                "=r"(kptr)        // %10
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(outptr1),
-                  "3"(outptr2),
-                  "4"(outptr3),
-                  "5"(outptr4),
-                  "6"(outptr5),
-                  "7"(outptr6),
-                  "8"(outptr7),
-                  "9"(tmpptr),
-                  "10"(kptr),
-                  "r"(biasptr)      // %22
+                "1"(outptr0),
+                "2"(outptr1),
+                "3"(outptr2),
+                "4"(outptr3),
+                "5"(outptr4),
+                "6"(outptr5),
+                "7"(outptr6),
+                "8"(outptr7),
+                "9"(tmpptr),
+                "10"(kptr),
+                "r"(biasptr)      // %22
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
             );
         }
@@ -818,28 +818,28 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "st1    {v30.4h, v31.4h}, [%8], #16 \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(outptr1),    // %2
-                  "=r"(outptr2),    // %3
-                  "=r"(outptr3),    // %4
-                  "=r"(outptr4),    // %5
-                  "=r"(outptr5),    // %6
-                  "=r"(outptr6),    // %7
-                  "=r"(outptr7),    // %8
-                  "=r"(tmpptr),     // %9
-                  "=r"(kptr)        // %10
+                "=r"(outptr0),    // %1
+                "=r"(outptr1),    // %2
+                "=r"(outptr2),    // %3
+                "=r"(outptr3),    // %4
+                "=r"(outptr4),    // %5
+                "=r"(outptr5),    // %6
+                "=r"(outptr6),    // %7
+                "=r"(outptr7),    // %8
+                "=r"(tmpptr),     // %9
+                "=r"(kptr)        // %10
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(outptr1),
-                  "3"(outptr2),
-                  "4"(outptr3),
-                  "5"(outptr4),
-                  "6"(outptr5),
-                  "7"(outptr6),
-                  "8"(outptr7),
-                  "9"(tmpptr),
-                  "10"(kptr),
-                  "r"(biasptr)      // %22
+                "1"(outptr0),
+                "2"(outptr1),
+                "3"(outptr2),
+                "4"(outptr3),
+                "5"(outptr4),
+                "6"(outptr5),
+                "7"(outptr6),
+                "8"(outptr7),
+                "9"(tmpptr),
+                "10"(kptr),
+                "r"(biasptr)      // %22
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
             );
         }
@@ -947,28 +947,28 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "st1    {v23.4h}, [%8], #8          \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(outptr1),    // %2
-                  "=r"(outptr2),    // %3
-                  "=r"(outptr3),    // %4
-                  "=r"(outptr4),    // %5
-                  "=r"(outptr5),    // %6
-                  "=r"(outptr6),    // %7
-                  "=r"(outptr7),    // %8
-                  "=r"(tmpptr),     // %9
-                  "=r"(kptr)        // %10
+                "=r"(outptr0),    // %1
+                "=r"(outptr1),    // %2
+                "=r"(outptr2),    // %3
+                "=r"(outptr3),    // %4
+                "=r"(outptr4),    // %5
+                "=r"(outptr5),    // %6
+                "=r"(outptr6),    // %7
+                "=r"(outptr7),    // %8
+                "=r"(tmpptr),     // %9
+                "=r"(kptr)        // %10
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(outptr1),
-                  "3"(outptr2),
-                  "4"(outptr3),
-                  "5"(outptr4),
-                  "6"(outptr5),
-                  "7"(outptr6),
-                  "8"(outptr7),
-                  "9"(tmpptr),
-                  "10"(kptr),
-                  "r"(biasptr)      // %22
+                "1"(outptr0),
+                "2"(outptr1),
+                "3"(outptr2),
+                "4"(outptr3),
+                "5"(outptr4),
+                "6"(outptr5),
+                "7"(outptr6),
+                "8"(outptr7),
+                "9"(tmpptr),
+                "10"(kptr),
+                "r"(biasptr)      // %22
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
             );
         }
@@ -1038,28 +1038,28 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "st1    {v17.h}[3], [%8], #2        \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(outptr1),    // %2
-                  "=r"(outptr2),    // %3
-                  "=r"(outptr3),    // %4
-                  "=r"(outptr4),    // %5
-                  "=r"(outptr5),    // %6
-                  "=r"(outptr6),    // %7
-                  "=r"(outptr7),    // %8
-                  "=r"(tmpptr),     // %9
-                  "=r"(kptr)        // %10
+                "=r"(outptr0),    // %1
+                "=r"(outptr1),    // %2
+                "=r"(outptr2),    // %3
+                "=r"(outptr3),    // %4
+                "=r"(outptr4),    // %5
+                "=r"(outptr5),    // %6
+                "=r"(outptr6),    // %7
+                "=r"(outptr7),    // %8
+                "=r"(tmpptr),     // %9
+                "=r"(kptr)        // %10
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(outptr1),
-                  "3"(outptr2),
-                  "4"(outptr3),
-                  "5"(outptr4),
-                  "6"(outptr5),
-                  "7"(outptr6),
-                  "8"(outptr7),
-                  "9"(tmpptr),
-                  "10"(kptr),
-                  "r"(biasptr)      // %22
+                "1"(outptr0),
+                "2"(outptr1),
+                "3"(outptr2),
+                "4"(outptr3),
+                "5"(outptr4),
+                "6"(outptr5),
+                "7"(outptr6),
+                "8"(outptr7),
+                "9"(tmpptr),
+                "10"(kptr),
+                "r"(biasptr)      // %22
                 : "cc", "memory", "v0", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19"
             );
         }
@@ -1219,20 +1219,20 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "st1    {v17.4h, v18.4h, v19.4h}, [%4], #24 \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(outptr1),    // %2
-                  "=r"(outptr2),    // %3
-                  "=r"(outptr3),    // %4
-                  "=r"(tmpptr),     // %5
-                  "=r"(kptr)        // %6
+                "=r"(outptr0),    // %1
+                "=r"(outptr1),    // %2
+                "=r"(outptr2),    // %3
+                "=r"(outptr3),    // %4
+                "=r"(tmpptr),     // %5
+                "=r"(kptr)        // %6
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(outptr1),
-                  "3"(outptr2),
-                  "4"(outptr3),
-                  "5"(tmpptr),
-                  "6"(kptr),
-                  "r"(biasptr)      // %14
+                "1"(outptr0),
+                "2"(outptr1),
+                "3"(outptr2),
+                "4"(outptr3),
+                "5"(tmpptr),
+                "6"(kptr),
+                "r"(biasptr)      // %14
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27"
             );
         }
@@ -1343,20 +1343,20 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "st1    {v14.4h, v15.4h}, [%4], #16 \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(outptr1),    // %2
-                  "=r"(outptr2),    // %3
-                  "=r"(outptr3),    // %4
-                  "=r"(tmpptr),     // %5
-                  "=r"(kptr)        // %6
+                "=r"(outptr0),    // %1
+                "=r"(outptr1),    // %2
+                "=r"(outptr2),    // %3
+                "=r"(outptr3),    // %4
+                "=r"(tmpptr),     // %5
+                "=r"(kptr)        // %6
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(outptr1),
-                  "3"(outptr2),
-                  "4"(outptr3),
-                  "5"(tmpptr),
-                  "6"(kptr),
-                  "r"(biasptr)      // %14
+                "1"(outptr0),
+                "2"(outptr1),
+                "3"(outptr2),
+                "4"(outptr3),
+                "5"(tmpptr),
+                "6"(kptr),
+                "r"(biasptr)      // %14
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19"
             );
 #else // __aarch64__
@@ -1453,20 +1453,20 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "vst1.u16   {d28-d29}, [%4 :64]! \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(outptr1),    // %2
-                  "=r"(outptr2),    // %3
-                  "=r"(outptr3),    // %4
-                  "=r"(tmpptr),     // %5
-                  "=r"(kptr)        // %6
+                "=r"(outptr0),    // %1
+                "=r"(outptr1),    // %2
+                "=r"(outptr2),    // %3
+                "=r"(outptr3),    // %4
+                "=r"(tmpptr),     // %5
+                "=r"(kptr)        // %6
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(outptr1),
-                  "3"(outptr2),
-                  "4"(outptr3),
-                  "5"(tmpptr),
-                  "6"(kptr),
-                  "r"(biasptr)      // %14
+                "1"(outptr0),
+                "2"(outptr1),
+                "3"(outptr2),
+                "4"(outptr3),
+                "5"(tmpptr),
+                "6"(kptr),
+                "r"(biasptr)      // %14
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
             );
 #endif // __aarch64__
@@ -1544,20 +1544,20 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "st1    {v11.4h}, [%4], #8          \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(outptr1),    // %2
-                  "=r"(outptr2),    // %3
-                  "=r"(outptr3),    // %4
-                  "=r"(tmpptr),     // %5
-                  "=r"(kptr)        // %6
+                "=r"(outptr0),    // %1
+                "=r"(outptr1),    // %2
+                "=r"(outptr2),    // %3
+                "=r"(outptr3),    // %4
+                "=r"(tmpptr),     // %5
+                "=r"(kptr)        // %6
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(outptr1),
-                  "3"(outptr2),
-                  "4"(outptr3),
-                  "5"(tmpptr),
-                  "6"(kptr),
-                  "r"(biasptr)      // %14
+                "1"(outptr0),
+                "2"(outptr1),
+                "3"(outptr2),
+                "4"(outptr3),
+                "5"(tmpptr),
+                "6"(kptr),
+                "r"(biasptr)      // %14
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
             );
 #else // __aarch64__
@@ -1621,20 +1621,20 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "vst1.u16   {d22}, [%4 :64]! \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(outptr1),    // %2
-                  "=r"(outptr2),    // %3
-                  "=r"(outptr3),    // %4
-                  "=r"(tmpptr),     // %5
-                  "=r"(kptr)        // %6
+                "=r"(outptr0),    // %1
+                "=r"(outptr1),    // %2
+                "=r"(outptr2),    // %3
+                "=r"(outptr3),    // %4
+                "=r"(tmpptr),     // %5
+                "=r"(kptr)        // %6
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(outptr1),
-                  "3"(outptr2),
-                  "4"(outptr3),
-                  "5"(tmpptr),
-                  "6"(kptr),
-                  "r"(biasptr)      // %14
+                "1"(outptr0),
+                "2"(outptr1),
+                "3"(outptr2),
+                "4"(outptr3),
+                "5"(tmpptr),
+                "6"(kptr),
+                "r"(biasptr)      // %14
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11"
             );
 #endif // __aarch64__
@@ -1695,20 +1695,20 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "st1    {v8.h}[3], [%4], #2         \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(outptr1),    // %2
-                  "=r"(outptr2),    // %3
-                  "=r"(outptr3),    // %4
-                  "=r"(tmpptr),     // %5
-                  "=r"(kptr)        // %6
+                "=r"(outptr0),    // %1
+                "=r"(outptr1),    // %2
+                "=r"(outptr2),    // %3
+                "=r"(outptr3),    // %4
+                "=r"(tmpptr),     // %5
+                "=r"(kptr)        // %6
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(outptr1),
-                  "3"(outptr2),
-                  "4"(outptr3),
-                  "5"(tmpptr),
-                  "6"(kptr),
-                  "r"(biasptr)      // %14
+                "1"(outptr0),
+                "2"(outptr1),
+                "3"(outptr2),
+                "4"(outptr3),
+                "5"(tmpptr),
+                "6"(kptr),
+                "r"(biasptr)      // %14
                 : "cc", "memory", "v0", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
             );
 #else // __aarch64__
@@ -1755,20 +1755,20 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "vst1.u16   {d16[3]}, [%4]! \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(outptr1),    // %2
-                  "=r"(outptr2),    // %3
-                  "=r"(outptr3),    // %4
-                  "=r"(tmpptr),     // %5
-                  "=r"(kptr)        // %6
+                "=r"(outptr0),    // %1
+                "=r"(outptr1),    // %2
+                "=r"(outptr2),    // %3
+                "=r"(outptr3),    // %4
+                "=r"(tmpptr),     // %5
+                "=r"(kptr)        // %6
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(outptr1),
-                  "3"(outptr2),
-                  "4"(outptr3),
-                  "5"(tmpptr),
-                  "6"(kptr),
-                  "r"(biasptr)      // %14
+                "1"(outptr0),
+                "2"(outptr1),
+                "3"(outptr2),
+                "4"(outptr3),
+                "5"(tmpptr),
+                "6"(kptr),
+                "r"(biasptr)      // %14
                 : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11"
             );
 #endif // __aarch64__
@@ -1863,14 +1863,14 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "st1    {v8.4h, v9.4h, v10.4h}, [%1], #24 \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(tmpptr),     // %2
-                  "=r"(kptr)        // %3
+                "=r"(outptr0),    // %1
+                "=r"(tmpptr),     // %2
+                "=r"(kptr)        // %3
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(tmpptr),
-                  "3"(kptr),
-                  "r"(bias0)        // %8
+                "1"(outptr0),
+                "2"(tmpptr),
+                "3"(kptr),
+                "r"(bias0)        // %8
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19"
             );
         }
@@ -1941,14 +1941,14 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "st1    {v8.4h, v9.4h}, [%1], #16   \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(tmpptr),     // %2
-                  "=r"(kptr)        // %3
+                "=r"(outptr0),    // %1
+                "=r"(tmpptr),     // %2
+                "=r"(kptr)        // %3
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(tmpptr),
-                  "3"(kptr),
-                  "r"(bias0)        // %8
+                "1"(outptr0),
+                "2"(tmpptr),
+                "3"(kptr),
+                "r"(bias0)        // %8
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
             );
 #else // __aarch64__
@@ -2005,14 +2005,14 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "vst1.u16   {d16-d17}, [%1 :64]! \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(tmpptr),     // %2
-                  "=r"(kptr)        // %3
+                "=r"(outptr0),    // %1
+                "=r"(tmpptr),     // %2
+                "=r"(kptr)        // %3
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(tmpptr),
-                  "3"(kptr),
-                  "r"(bias0)        // %8
+                "1"(outptr0),
+                "2"(tmpptr),
+                "3"(kptr),
+                "r"(bias0)        // %8
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
             );
 #endif // __aarch64__
@@ -2070,14 +2070,14 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "st1    {v8.4h}, [%1], #8           \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(tmpptr),     // %2
-                  "=r"(kptr)        // %3
+                "=r"(outptr0),    // %1
+                "=r"(tmpptr),     // %2
+                "=r"(kptr)        // %3
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(tmpptr),
-                  "3"(kptr),
-                  "r"(bias0)        // %8
+                "1"(outptr0),
+                "2"(tmpptr),
+                "3"(kptr),
+                "r"(bias0)        // %8
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11"
             );
 #else // __aarch64__
@@ -2121,14 +2121,14 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
                 "vst1.u16   {d16}, [%1]!    \n"
 
                 : "=r"(nn),         // %0
-                  "=r"(outptr0),    // %1
-                  "=r"(tmpptr),     // %2
-                  "=r"(kptr)        // %3
+                "=r"(outptr0),    // %1
+                "=r"(tmpptr),     // %2
+                "=r"(kptr)        // %3
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(tmpptr),
-                  "3"(kptr),
-                  "r"(bias0)        // %8
+                "1"(outptr0),
+                "2"(tmpptr),
+                "3"(kptr),
+                "r"(bias0)        // %8
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q8", "q9", "q10", "q11"
             );
 #endif // __aarch64__

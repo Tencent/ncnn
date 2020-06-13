@@ -170,7 +170,7 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         float center_x = offset * step_w;
         float center_y = offset * step_h + i * step_h;
-        if (center_mmdetection) 
+        if (center_mmdetection)
         {
             center_x = offset * (step_w - 1);
             center_y = offset * (step_h - 1) + i * step_h;

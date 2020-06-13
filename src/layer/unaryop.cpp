@@ -50,87 +50,121 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 
 template<typename T>
 struct unary_op_abs {
-    T operator() (const T& x) const { return static_cast<T>(fabs(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(fabs(x));
+    }
 };
 
 template<typename T>
 struct unary_op_neg {
-    T operator() (const T& x) const { return -x; }
+    T operator() (const T& x) const {
+        return -x;
+    }
 };
 
 template<typename T>
 struct unary_op_floor {
-    T operator() (const T& x) const { return static_cast<T>(floor(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(floor(x));
+    }
 };
 
 template<typename T>
 struct unary_op_ceil {
-    T operator() (const T& x) const { return static_cast<T>(ceil(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(ceil(x));
+    }
 };
 
 template<typename T>
 struct unary_op_square {
-    T operator() (const T& x) const { return x * x; }
+    T operator() (const T& x) const {
+        return x * x;
+    }
 };
 
 template<typename T>
 struct unary_op_sqrt {
-    T operator() (const T& x) const { return static_cast<T>(sqrt(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(sqrt(x));
+    }
 };
 
 template<typename T>
 struct unary_op_rsqrt {
-    T operator() (const T& x) const { return static_cast<T>(1.f / sqrt(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(1.f / sqrt(x));
+    }
 };
 
 template<typename T>
 struct unary_op_exp {
-    T operator() (const T& x) const { return static_cast<T>(exp(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(exp(x));
+    }
 };
 
 template<typename T>
 struct unary_op_log {
-    T operator() (const T& x) const { return static_cast<T>(log(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(log(x));
+    }
 };
 
 template<typename T>
 struct unary_op_sin {
-    T operator() (const T& x) const { return static_cast<T>(sin(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(sin(x));
+    }
 };
 
 template<typename T>
 struct unary_op_cos {
-    T operator() (const T& x) const { return static_cast<T>(cos(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(cos(x));
+    }
 };
 
 template<typename T>
 struct unary_op_tan {
-    T operator() (const T& x) const { return static_cast<T>(tan(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(tan(x));
+    }
 };
 
 template<typename T>
 struct unary_op_asin {
-    T operator() (const T& x) const { return static_cast<T>(asin(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(asin(x));
+    }
 };
 
 template<typename T>
 struct unary_op_acos {
-    T operator() (const T& x) const { return static_cast<T>(acos(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(acos(x));
+    }
 };
 
 template<typename T>
 struct unary_op_atan {
-    T operator() (const T& x) const { return static_cast<T>(atan(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(atan(x));
+    }
 };
 
 template<typename T>
 struct unary_op_reciprocal {
-    T operator() (const T& x) const { return 1.f / x; }
+    T operator() (const T& x) const {
+        return 1.f / x;
+    }
 };
 
 template<typename T>
 struct unary_op_tanh {
-    T operator() (const T& x) const { return static_cast<T>(tanh(x)); }
+    T operator() (const T& x) const {
+        return static_cast<T>(tanh(x));
+    }
 };
 
 int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const

@@ -169,9 +169,9 @@ static void convdw3x3s1_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, 
         float *outptr = out;
 
         const float bias0 = bias ? bias[p] : 0.f;
-        const float scale_dequant = scales_dequant[p];    
+        const float scale_dequant = scales_dequant[p];
 
-        out.fill(bias0);    
+        out.fill(bias0);
 
         const signed char *kernel0 = (const signed char *)kernel + p * 9;
 
@@ -241,7 +241,7 @@ static void convdw3x3s2_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, 
         out.fill(bias0);
 
         const signed char *kernel0 = (const signed char *)kernel + p * 9;
-        
+
         const signed char *img0 = bottom_blob.channel(p);
         const signed char *r0 = img0;
         const signed char *r1 = img0 + w;
@@ -302,8 +302,8 @@ static void convdw3x3s1_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, 
         signed char *outptr = out;
 
         const float bias0 = bias ? bias[p] : 0.f;
-        const float scale_requant_in = scales_requant[2*p];      
-        const float scale_requant_out = scales_requant[2*p+1];     
+        const float scale_requant_in = scales_requant[2*p];
+        const float scale_requant_out = scales_requant[2*p+1];
 
         const signed char *kernel0 = (const signed char *)kernel + p * 9;
 
@@ -368,8 +368,8 @@ static void convdw3x3s2_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, 
         signed char *outptr = out;
 
         const float bias0 = bias ? bias[p] : 0.f;
-        const float scale_requant_in = scales_requant[2*p];      
-        const float scale_requant_out = scales_requant[2*p+1]; 
+        const float scale_requant_in = scales_requant[2*p];
+        const float scale_requant_out = scales_requant[2*p+1];
 
         const signed char *kernel0 = (const signed char *)kernel + p * 9;
 

@@ -173,7 +173,9 @@ public:
 
     const GpuInfo& info;
 
-    VkDevice vkdevice() const { return device; }
+    VkDevice vkdevice() const {
+        return device;
+    }
 
 #if !NCNN_VULKAN_ONLINE_SPIRV
     VkShaderModule get_shader_module(int shader_type_index) const;

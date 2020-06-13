@@ -26,7 +26,7 @@ Yolov3DetectionOutput::Yolov3DetectionOutput()
 {
     one_blob_only = false;
     support_inplace = false;
-    
+
     //softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
 
     // set param
@@ -191,7 +191,7 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
         //printf("%d %d\n", net_w, net_h);
 
         //printf("%d %d %d\n", w, h, channels);
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < num_box; pp++)
         {
             int p = pp * channels_per_box;
@@ -239,7 +239,7 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
                     float confidence = box_score * class_score;
                     if (confidence >= confidence_threshold)
                     {
-                                            // region box
+                        // region box
                         float bbox_cx = (j + sigmoid(xptr[0])) / w;
                         float bbox_cy = (i + sigmoid(yptr[0])) / h;
                         float bbox_w = static_cast<float>(exp(wptr[0]) * bias_w / net_w);
@@ -249,7 +249,7 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
                         float bbox_ymin = bbox_cy - bbox_h * 0.5f;
                         float bbox_xmax = bbox_cx + bbox_w * 0.5f;
                         float bbox_ymax = bbox_cy + bbox_h * 0.5f;
-                        
+
                         BBoxRect c = { bbox_xmin, bbox_ymin, bbox_xmax, bbox_ymax, class_index };
                         all_box_bbox_rects[pp].push_back(c);
                         all_box_bbox_scores[pp].push_back(confidence);
@@ -277,7 +277,7 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
         }
 
     }
-    
+
 
     // global sort inplace
     qsort_descent_inplace(all_bbox_rects, all_bbox_scores);

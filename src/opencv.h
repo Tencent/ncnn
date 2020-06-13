@@ -65,7 +65,8 @@ template<typename _Tp> static inline Rect_<_Tp>& operator &= ( Rect_<_Tp>& a, co
     _Tp x1 = std::max(a.x, b.x), y1 = std::max(a.y, b.y);
     a.width = std::min(a.x + a.width, b.x + b.width) - x1;
     a.height = std::min(a.y + a.height, b.y + b.height) - y1;
-    a.x = x1; a.y = y1;
+    a.x = x1;
+    a.y = y1;
     if( a.width <= 0 || a.height <= 0 )
         a = Rect_<_Tp>();
     return a;
@@ -76,7 +77,8 @@ template<typename _Tp> static inline Rect_<_Tp>& operator |= ( Rect_<_Tp>& a, co
     _Tp x1 = std::min(a.x, b.x), y1 = std::min(a.y, b.y);
     a.width = std::max(a.x + a.width, b.x + b.width) - x1;
     a.height = std::max(a.y + a.height, b.y + b.height) - y1;
-    a.x = x1; a.y = y1;
+    a.x = x1;
+    a.y = y1;
     return a;
 }
 
@@ -213,15 +215,25 @@ struct Mat
         return m;
     }
 
-    bool empty() const { return data == 0 || total() == 0; }
+    bool empty() const {
+        return data == 0 || total() == 0;
+    }
 
-    int channels() const { return c; }
+    int channels() const {
+        return c;
+    }
 
-    size_t total() const { return cols * rows * c; }
+    size_t total() const {
+        return cols * rows * c;
+    }
 
-    const unsigned char* ptr(int y) const { return data + y * cols * c; }
+    const unsigned char* ptr(int y) const {
+        return data + y * cols * c;
+    }
 
-    unsigned char* ptr(int y) { return data + y * cols * c; }
+    unsigned char* ptr(int y) {
+        return data + y * cols * c;
+    }
 
     // roi
     Mat operator()( const Rect& roi ) const

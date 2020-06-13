@@ -32,7 +32,7 @@ public:
 
 public:
     float scale_in;	// bottom_blob_scale * weight_scale
-	float scale_out;// top_blob_scale / (bottom_blob_scale * weight_scale)
+    float scale_out;// top_blob_scale / (bottom_blob_scale * weight_scale)
     int bias_term;
     int bias_data_size;
 

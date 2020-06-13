@@ -197,7 +197,7 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             const unsigned short* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            
+
             int nn = size >> 3;
             int remain = size & 7;
             for (; nn>0; nn--)
@@ -229,7 +229,7 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 _mm256_storeu_si256((__m256i *) outptr,float2bfloat_avx(_mm256_loadu_ps(ptr),_mm256_loadu_ps(ptr+8)));
                 ptr += 16;
                 outptr += 16;
-            }            
+            }
             if(remain >= 8)
             {
                 remain -= 8;
@@ -245,8 +245,8 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             }
         }
     }
-   
-    
+
+
 
     return 0;
 #else //NCNN_AVX2

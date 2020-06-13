@@ -21,7 +21,7 @@ static inline signed char float2int8(float v)
 }
 
 static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, \
-            const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Option& opt)
+                                       const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -37,7 +37,7 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
     {
         signed char* ret = (signed char*)bottom_im2row;
         int retID = 0;
-    
+
         for (int i=0; i<outh; i++)
         {
             for (int j=0; j<outw; j++)
@@ -48,18 +48,18 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
                     for (int u=0; u<kernel_h; u++)
                     {
                         for (int v=0; v<kernel_w; v++)
-                        {    
+                        {
                             int row = u + i * stride_h;
                             int col = v + j * stride_w;
                             int index = row * w + col;
                             ret[retID] = input[index];
                             retID++;
                         }
-                    }                
+                    }
                 }
             }
         }
-    }    
+    }
 
     int kernel_size = kernel_w * kernel_h;
     int out_size = outw * outh;
@@ -116,7 +116,7 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
                 img0 += 1;
                 img1 += 1;
                 img2 += 1;
-                img3 += 1;                
+                img3 += 1;
             }
         }
 
@@ -144,7 +144,7 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
                 tmpptr += 1;
                 img0 += 1;
             }
-        }       
+        }
     }
 
     // kernel memory packed 4 x 4
@@ -155,7 +155,7 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
 
         nn_outch = outch >> 2;
         remain_outch_start = nn_outch << 2;
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp=0; pp<nn_outch; pp++)
         {
@@ -189,7 +189,7 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
             }
 
             for (; q<inch*kernel_size; q++)
-            { 
+            {
                 ktmp[0] = k0[0];
                 ktmp[1] = k1[0];
                 ktmp[2] = k2[0];
@@ -200,7 +200,7 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
                 k1 += 1;
                 k2 += 1;
                 k3 += 1;
-            }           
+            }
         }
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -226,7 +226,7 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
                 k0++;
             }
         }
-    }    
+    }
 
     // 4x4
     // sgemm(int M, int N, int K, float* A, float* B, float* C)
@@ -240,7 +240,7 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
 
         nn_outch = outch >> 2;
         remain_outch_start = nn_outch << 2;
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp=0; pp<nn_outch; pp++)
         {
@@ -256,12 +256,12 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
             {
                 signed char* vb = bottom_tm.channel(j/4);
                 signed char* va = kernel_tm.channel(i/4);
-                
+
                 int sum0[4] = {0};
                 int sum1[4] = {0};
                 int sum2[4] = {0};
                 int sum3[4] = {0};
-               
+
                 int k=0;
 
                 for (; k+1<K; k=k+2)
@@ -294,7 +294,7 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
                         sum2[n] += (int)va[2] * vb[n];
                         sum3[n] += (int)va[3] * vb[n];
                     }
-                    
+
                     va += 4;
                     vb += 4;
                 }
@@ -313,7 +313,7 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
             }
 
             for (; j<N; j++)
-            {                
+            {
                 int sum0 = 0;
                 int sum1 = 0;
                 int sum2 = 0;
@@ -352,7 +352,7 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
                     va += 4;
                     vb += 1;
                 }
-                
+
                 output0[0] = sum0;
                 output1[0] = sum1;
                 output2[0] = sum2;
@@ -456,7 +456,7 @@ static void conv_im2col_sgemm_int8_sse(const Mat &bottom_blob, Mat &top_blob, co
 }
 
 static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, \
-            const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Mat &_bias, std::vector<float> scale_dequant, const Option& opt)
+        const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Mat &_bias, std::vector<float> scale_dequant, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -473,7 +473,7 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
     {
         signed char* ret = (signed char*)bottom_im2row;
         int retID = 0;
-    
+
         for (int i=0; i<outh; i++)
         {
             for (int j=0; j<outw; j++)
@@ -484,18 +484,18 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
                     for (int u=0; u<kernel_h; u++)
                     {
                         for (int v=0; v<kernel_w; v++)
-                        {    
+                        {
                             int row = u + i * stride_h;
                             int col = v + j * stride_w;
                             int index = row * w + col;
                             ret[retID] = input[index];
                             retID++;
                         }
-                    }                
+                    }
                 }
             }
         }
-    }    
+    }
 
     int kernel_size = kernel_w * kernel_h;
     int out_size = outw * outh;
@@ -552,7 +552,7 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
                 img0 += 1;
                 img1 += 1;
                 img2 += 1;
-                img3 += 1;                
+                img3 += 1;
             }
         }
 
@@ -580,7 +580,7 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
                 tmpptr += 1;
                 img0 += 1;
             }
-        }       
+        }
     }
 
     // kernel memory packed 4 x 4
@@ -591,7 +591,7 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
 
         nn_outch = outch >> 2;
         remain_outch_start = nn_outch << 2;
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp=0; pp<nn_outch; pp++)
         {
@@ -625,7 +625,7 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
             }
 
             for (; q<inch*kernel_size; q++)
-            { 
+            {
                 ktmp[0] = k0[0];
                 ktmp[1] = k1[0];
                 ktmp[2] = k2[0];
@@ -636,7 +636,7 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
                 k1 += 1;
                 k2 += 1;
                 k3 += 1;
-            }           
+            }
         }
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -662,7 +662,7 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
                 k0++;
             }
         }
-    }    
+    }
 
     // 4x4
     // sgemm(int M, int N, int K, float* A, float* B, float* C)
@@ -676,7 +676,7 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
 
         nn_outch = outch >> 2;
         remain_outch_start = nn_outch << 2;
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp=0; pp<nn_outch; pp++)
         {
@@ -702,12 +702,12 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
             {
                 signed char* vb = bottom_tm.channel(j/4);
                 signed char* va = kernel_tm.channel(i/4);
-                
+
                 int sum0[4] = {0};
                 int sum1[4] = {0};
                 int sum2[4] = {0};
                 int sum3[4] = {0};
-               
+
                 int k=0;
 
                 for (; k+1<K; k=k+2)
@@ -740,7 +740,7 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
                         sum2[n] += (int)va[2] * vb[n];
                         sum3[n] += (int)va[3] * vb[n];
                     }
-                    
+
                     va += 4;
                     vb += 4;
                 }
@@ -759,7 +759,7 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
             }
 
             for (; j<N; j++)
-            {                
+            {
                 int sum0 = 0;
                 int sum1 = 0;
                 int sum2 = 0;
@@ -798,7 +798,7 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
                     va += 4;
                     vb += 1;
                 }
-                
+
                 output0[0] = (float)sum0 * scale_dequant0 + bias0;
                 output1[0] = (float)sum1 * scale_dequant1 + bias1;
                 output2[0] = (float)sum2 * scale_dequant2 + bias2;
@@ -817,7 +817,7 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
             float* output = top_blob.channel(i);
 
             const float bias0 = bias ? bias[i] : 0.f;
-            const float scale_dequant0 = scale_dequant[i];            
+            const float scale_dequant0 = scale_dequant[i];
 
             int j=0;
             for (; j+3<N; j=j+4)
@@ -905,7 +905,7 @@ static void conv_im2col_sgemm_int8_dequant_sse(const Mat &bottom_blob, Mat &top_
 }
 
 static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, \
-            const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Mat &_bias, std::vector<float> scale_requant, const Option& opt)
+        const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Mat &_bias, std::vector<float> scale_requant, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -922,7 +922,7 @@ static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_
     {
         signed char* ret = (signed char*)bottom_im2row;
         int retID = 0;
-    
+
         for (int i=0; i<outh; i++)
         {
             for (int j=0; j<outw; j++)
@@ -933,18 +933,18 @@ static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_
                     for (int u=0; u<kernel_h; u++)
                     {
                         for (int v=0; v<kernel_w; v++)
-                        {    
+                        {
                             int row = u + i * stride_h;
                             int col = v + j * stride_w;
                             int index = row * w + col;
                             ret[retID] = input[index];
                             retID++;
                         }
-                    }                
+                    }
                 }
             }
         }
-    }    
+    }
 
     int kernel_size = kernel_w * kernel_h;
     int out_size = outw * outh;
@@ -1001,7 +1001,7 @@ static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_
                 img0 += 1;
                 img1 += 1;
                 img2 += 1;
-                img3 += 1;                
+                img3 += 1;
             }
         }
 
@@ -1029,7 +1029,7 @@ static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_
                 tmpptr += 1;
                 img0 += 1;
             }
-        }       
+        }
     }
 
     // kernel memory packed 4 x 4
@@ -1040,7 +1040,7 @@ static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_
 
         nn_outch = outch >> 2;
         remain_outch_start = nn_outch << 2;
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp=0; pp<nn_outch; pp++)
         {
@@ -1074,7 +1074,7 @@ static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_
             }
 
             for (; q<inch*kernel_size; q++)
-            { 
+            {
                 ktmp[0] = k0[0];
                 ktmp[1] = k1[0];
                 ktmp[2] = k2[0];
@@ -1085,7 +1085,7 @@ static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_
                 k1 += 1;
                 k2 += 1;
                 k3 += 1;
-            }           
+            }
         }
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -1111,7 +1111,7 @@ static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_
                 k0++;
             }
         }
-    }    
+    }
 
     // 4x4
     // sgemm(int M, int N, int K, float* A, float* B, float* C)
@@ -1125,7 +1125,7 @@ static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_
 
         nn_outch = outch >> 2;
         remain_outch_start = nn_outch << 2;
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp=0; pp<nn_outch; pp++)
         {
@@ -1155,12 +1155,12 @@ static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_
             {
                 signed char* vb = bottom_tm.channel(j/4);
                 signed char* va = kernel_tm.channel(i/4);
-                
+
                 int sum0[4] = {0};
                 int sum1[4] = {0};
                 int sum2[4] = {0};
                 int sum3[4] = {0};
-               
+
                 int k=0;
 
                 for (; k+1<K; k=k+2)
@@ -1193,7 +1193,7 @@ static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_
                         sum2[n] += (int)va[2] * vb[n];
                         sum3[n] += (int)va[3] * vb[n];
                     }
-                    
+
                     va += 4;
                     vb += 4;
                 }
@@ -1212,7 +1212,7 @@ static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_
             }
 
             for (; j<N; j++)
-            {                
+            {
                 int sum0 = 0;
                 int sum1 = 0;
                 int sum2 = 0;
@@ -1251,7 +1251,7 @@ static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_
                     va += 4;
                     vb += 1;
                 }
-                
+
                 output0[0] = float2int8(((float)sum0 * scale_requant_in0 + bias0) * scale_requant_out0);
                 output1[0] = float2int8(((float)sum1 * scale_requant_in1 + bias1) * scale_requant_out1);
                 output2[0] = float2int8(((float)sum2 * scale_requant_in2 + bias2) * scale_requant_out2);
@@ -1272,7 +1272,7 @@ static void conv_im2col_sgemm_int8_requant_sse(const Mat &bottom_blob, Mat &top_
             const float bias0 = bias ? bias[i] : 0.f;
 
             const float scale_requant_in0  = scale_requant[2*i];
-            const float scale_requant_out0 = scale_requant[2*i+1];            
+            const float scale_requant_out0 = scale_requant[2*i+1];
 
             int j=0;
             for (; j+3<N; j=j+4)

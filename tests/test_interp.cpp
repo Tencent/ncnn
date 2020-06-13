@@ -47,16 +47,16 @@ static int test_interp_0()
     ncnn::Mat b = RandomMat(4, 7, 16);
 
     return 0
-        || test_interp(a, 1, 2.f, 2.f, 0, 0)
-        || test_interp(a, 1, 4.f, 0.5f, 0, 0)
-        || test_interp(a, 1, 1.f, 1.f, 10, 12)
-        || test_interp(a, 1, 1.f, 1.f, 2, 2)
+           || test_interp(a, 1, 2.f, 2.f, 0, 0)
+           || test_interp(a, 1, 4.f, 0.5f, 0, 0)
+           || test_interp(a, 1, 1.f, 1.f, 10, 12)
+           || test_interp(a, 1, 1.f, 1.f, 2, 2)
 
-        || test_interp(b, 1, 2.f, 2.f, 0, 0)
-        || test_interp(b, 1, 4.f, 0.5f, 0, 0)
-        || test_interp(b, 1, 1.f, 1.f, 10, 12)
-        || test_interp(b, 1, 1.f, 1.f, 2, 2)
-        ;
+           || test_interp(b, 1, 2.f, 2.f, 0, 0)
+           || test_interp(b, 1, 4.f, 0.5f, 0, 0)
+           || test_interp(b, 1, 1.f, 1.f, 10, 12)
+           || test_interp(b, 1, 1.f, 1.f, 2, 2)
+           ;
 }
 
 static int test_interp_1()
@@ -65,16 +65,16 @@ static int test_interp_1()
     ncnn::Mat b = RandomMat(4, 7, 16);
 
     return 0
-        || test_interp(a, 2, 2.f, 2.f, 0, 0)
-        || test_interp(a, 2, 4.f, 0.5f, 0, 0)
-        || test_interp(a, 2, 1.f, 1.f, 10, 12)
-        || test_interp(a, 2, 1.f, 1.f, 2, 2)
+           || test_interp(a, 2, 2.f, 2.f, 0, 0)
+           || test_interp(a, 2, 4.f, 0.5f, 0, 0)
+           || test_interp(a, 2, 1.f, 1.f, 10, 12)
+           || test_interp(a, 2, 1.f, 1.f, 2, 2)
 
-        || test_interp(b, 2, 2.f, 2.f, 0, 0)
-        || test_interp(b, 2, 4.f, 0.5f, 0, 0)
-        || test_interp(b, 2, 1.f, 1.f, 10, 12)
-        || test_interp(b, 2, 1.f, 1.f, 2, 2)
-        ;
+           || test_interp(b, 2, 2.f, 2.f, 0, 0)
+           || test_interp(b, 2, 4.f, 0.5f, 0, 0)
+           || test_interp(b, 2, 1.f, 1.f, 10, 12)
+           || test_interp(b, 2, 1.f, 1.f, 2, 2)
+           ;
 }
 
 static int test_interp_2()
@@ -83,16 +83,16 @@ static int test_interp_2()
     ncnn::Mat b = RandomMat(8, 9, 16);
 
     return 0
-        || test_interp(a, 3, 2.f, 2.f, 0, 0)
-        || test_interp(a, 3, 4.f, 0.5f, 0, 0)
-        || test_interp(a, 3, 1.f, 1.f, 10, 12)
-        || test_interp(a, 3, 1.f, 1.f, 2, 2)
+           || test_interp(a, 3, 2.f, 2.f, 0, 0)
+           || test_interp(a, 3, 4.f, 0.5f, 0, 0)
+           || test_interp(a, 3, 1.f, 1.f, 10, 12)
+           || test_interp(a, 3, 1.f, 1.f, 2, 2)
 
-        || test_interp(b, 3, 2.f, 2.f, 0, 0)
-        || test_interp(b, 3, 4.f, 0.5f, 0, 0)
-        || test_interp(b, 3, 1.f, 1.f, 10, 12)
-        || test_interp(b, 3, 1.f, 1.f, 2, 2)
-        ;
+           || test_interp(b, 3, 2.f, 2.f, 0, 0)
+           || test_interp(b, 3, 4.f, 0.5f, 0, 0)
+           || test_interp(b, 3, 1.f, 1.f, 10, 12)
+           || test_interp(b, 3, 1.f, 1.f, 2, 2)
+           ;
 }
 
 int main()
@@ -100,7 +100,7 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_interp_0()
-        || test_interp_1()
-        || test_interp_2();
+           || test_interp_0()
+           || test_interp_1()
+           || test_interp_2();
 }

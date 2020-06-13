@@ -118,7 +118,11 @@ static inline void fastFree(void* ptr)
 #  define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd((long volatile*)addr, delta)
 #else
 // thread-unsafe branch
-static inline int NCNN_XADD(int* addr, int delta) { int tmp = *addr; *addr += delta; return tmp; }
+static inline int NCNN_XADD(int* addr, int delta) {
+    int tmp = *addr;
+    *addr += delta;
+    return tmp;
+}
 #endif
 
 class Allocator
@@ -236,7 +240,9 @@ class VkAllocator
 {
 public:
     VkAllocator(const VulkanDevice* _vkdev);
-    virtual ~VkAllocator() { clear(); }
+    virtual ~VkAllocator() {
+        clear();
+    }
     virtual void clear() {}
 
     virtual VkBufferMemory* fastMalloc(size_t size) = 0;
@@ -349,7 +355,9 @@ public:
 public:
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
-    virtual VkImageMemory* fastMalloc(int /*dims*/, int /*w*/, int /*h*/, int /*c*/, size_t /*elemsize*/, int /*elempack*/) { return 0; }
+    virtual VkImageMemory* fastMalloc(int /*dims*/, int /*w*/, int /*h*/, int /*c*/, size_t /*elemsize*/, int /*elempack*/) {
+        return 0;
+    }
     virtual void fastFree(VkImageMemory* /*ptr*/) {}
 
 protected:
@@ -366,7 +374,9 @@ public:
 public:
     virtual VkImageMemory* fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
-    virtual VkBufferMemory* fastMalloc(size_t /*size*/) { return 0; }
+    virtual VkBufferMemory* fastMalloc(size_t /*size*/) {
+        return 0;
+    }
     virtual void fastFree(VkBufferMemory* /*ptr*/) {}
 
 public:

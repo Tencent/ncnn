@@ -99,8 +99,12 @@
 class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
-    virtual int scan(const char* format, void* p) const { return 0; }
-    virtual size_t read(void* /*buf*/, size_t size) const { return size; }
+    virtual int scan(const char* format, void* p) const {
+        return 0;
+    }
+    virtual size_t read(void* /*buf*/, size_t size) const {
+        return size;
+    }
 };
 
 class NetOptimize : public ncnn::Net
@@ -179,7 +183,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
 
     const size_t layer_count = layers.size();
     ncnn::Extractor ex = create_extractor();
-    
+
     ncnn::Mat input(w, h, c);
     if (ex.input(dataname, input) < 0)
     {
@@ -214,9 +218,9 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
 
             // randomize input and kernel
             gauss_random(bottom_blob);
-            
+
             // try every implementation
-            double min_cost = std::numeric_limits<double>::max(); 
+            double min_cost = std::numeric_limits<double>::max();
             int best_type = 0;
 
             // how much conv implementation type ncnn has ?
@@ -250,7 +254,7 @@ void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int
                 }
             }
             op->impl_type = best_type;
-            
+
             fprintf(stdout, TEXT_YELLOW "%d: %s use %s \n\n" CLR, i, layer->name.c_str(), IMPL_NAME[op->impl_type]);
         }
     }
@@ -261,15 +265,15 @@ int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn:
     // not baseline, then k_h == k_w and s_h == s_w
     // no dilation conv shall be allowed
     if (op->kernel_w != op->kernel_h ||
-        op->stride_w != op->stride_h ||
-        op->dilation_w != op->dilation_h ||
-        op->dilation_h != 1)
+            op->stride_w != op->stride_h ||
+            op->dilation_w != op->dilation_h ||
+            op->dilation_h != 1)
     {
         return -1;
     }
 
     // (kernel, stride) in {(1, 1), (1, 2), (2, 1), (3, 1), (3, 2), (4, 4), (5, 1), (5, 2), (7, 1), (7, 2)}
-    const int support_table[7][4] = 
+    const int support_table[7][4] =
     {
         {1, 1, 0, 0},
         {1, 0, 0, 0},
@@ -285,41 +289,41 @@ int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn:
     // if match prequisation
     switch(type)
     {
-        case 1:
-            // winograd
-            if (kernel != 3 || stride != 1){
-                return -1;
-            }
-            break;
-        case 2:
-            // pointwise
-            // input_h == 1, input_w == 1, dilation == 1, stride == 1
-            if (bottom.h != 1 || bottom.w != 1 || stride != 1)
-            {
-                return -1;
-            }
-            break;
-        case 3:
-            // im2col
-            break;
-        case 4:
-            // direct conv 
-            if (support_table[kernel-1][stride-1] == 0)
-            {
-                return -1;
-            }
-            break;
-        case 5:
-            // conv3x3s2
-            // kernel == 3 and stride == 2
-            if (kernel != 3 || stride != 2)
-            {
-                return -1;
-            }
-            break;
-        default:
-            fprintf(stderr, TEXT_RED "unrecognize convolution impl type: %d" CLR, type);
-            break;
+    case 1:
+        // winograd
+        if (kernel != 3 || stride != 1) {
+            return -1;
+        }
+        break;
+    case 2:
+        // pointwise
+        // input_h == 1, input_w == 1, dilation == 1, stride == 1
+        if (bottom.h != 1 || bottom.w != 1 || stride != 1)
+        {
+            return -1;
+        }
+        break;
+    case 3:
+        // im2col
+        break;
+    case 4:
+        // direct conv
+        if (support_table[kernel-1][stride-1] == 0)
+        {
+            return -1;
+        }
+        break;
+    case 5:
+        // conv3x3s2
+        // kernel == 3 and stride == 2
+        if (kernel != 3 || stride != 2)
+        {
+            return -1;
+        }
+        break;
+    default:
+        fprintf(stderr, TEXT_RED "unrecognize convolution impl type: %d" CLR, type);
+        break;
     }
 
     return 1;
@@ -1271,9 +1275,9 @@ int NetOptimize::fuse_memorydata_binaryop()
             int op_type = binaryop->op_type;
 
             if (op_type == ncnn::BinaryOp::Operation_ADD
-                || op_type == ncnn::BinaryOp::Operation_MUL
-                || op_type == ncnn::BinaryOp::Operation_MAX
-                || op_type == ncnn::BinaryOp::Operation_MIN)
+                    || op_type == ncnn::BinaryOp::Operation_MUL
+                    || op_type == ncnn::BinaryOp::Operation_MAX
+                    || op_type == ncnn::BinaryOp::Operation_MIN)
             {
                 memorydata_index = 0;
             }
@@ -1886,68 +1890,68 @@ int NetOptimize::replace_convolution_with_innerproduct_after_innerproduct()
     const size_t layer_count = layers.size();
     for (;;)
     {
-    bool replaced = false;
+        bool replaced = false;
 
-    for (int i=0; i<layer_count; i++)
-    {
-        if (layers[i]->type != "InnerProduct")
-            continue;
-
-        // InnerProduct - Convolution
-        int top_blob_index = layers[i]->tops[0];
-
-        int j = i + 1;
-        for (; j<layer_count; j++)
+        for (int i=0; i<layer_count; i++)
         {
-            if (layers[j]->type != "Convolution")
+            if (layers[i]->type != "InnerProduct")
                 continue;
 
-            if (layers[j]->bottoms.size() != 1)
+            // InnerProduct - Convolution
+            int top_blob_index = layers[i]->tops[0];
+
+            int j = i + 1;
+            for (; j<layer_count; j++)
+            {
+                if (layers[j]->type != "Convolution")
+                    continue;
+
+                if (layers[j]->bottoms.size() != 1)
+                    continue;
+
+                if (layers[j]->bottoms[0] == top_blob_index)
+                    break;
+            }
+
+            if (j == layer_count)
                 continue;
 
-            if (layers[j]->bottoms[0] == top_blob_index)
-                break;
+            ncnn::InnerProduct* innerproduct = (ncnn::InnerProduct*)layers[i];
+            ncnn::Convolution* convolution = (ncnn::Convolution*)layers[j];
+
+            fprintf(stderr, "replace_convolution_with_innerproduct_after_innerproduct %s %s\n", innerproduct->name.c_str(), convolution->name.c_str());
+
+            ncnn::InnerProduct* innerproduct2 = (ncnn::InnerProduct*)ncnn::create_layer("InnerProduct");
+
+            innerproduct2->type = "InnerProduct";
+            innerproduct2->name = convolution->name;
+            innerproduct2->bottoms = convolution->bottoms;
+            innerproduct2->tops = convolution->tops;
+
+            ncnn::ParamDict pd;
+            innerproduct2->load_param(pd);
+
+            innerproduct2->num_output = convolution->num_output;
+            innerproduct2->bias_term = convolution->bias_term;
+            innerproduct2->weight_data_size = convolution->weight_data_size;
+            innerproduct->int8_scale_term = convolution->int8_scale_term;
+
+            innerproduct2->weight_data = convolution->weight_data;
+            innerproduct2->bias_data = convolution->bias_data;
+            innerproduct->weight_data_int8_scales = convolution->weight_data_int8_scales;
+            innerproduct->bottom_blob_int8_scale = convolution->bottom_blob_int8_scale;
+
+            innerproduct2->activation_type = convolution->activation_type;
+            innerproduct2->activation_params = convolution->activation_params;
+
+            layers[j] = innerproduct2;
+            delete convolution;
+
+            replaced = true;
         }
 
-        if (j == layer_count)
-            continue;
-
-        ncnn::InnerProduct* innerproduct = (ncnn::InnerProduct*)layers[i];
-        ncnn::Convolution* convolution = (ncnn::Convolution*)layers[j];
-
-        fprintf(stderr, "replace_convolution_with_innerproduct_after_innerproduct %s %s\n", innerproduct->name.c_str(), convolution->name.c_str());
-
-        ncnn::InnerProduct* innerproduct2 = (ncnn::InnerProduct*)ncnn::create_layer("InnerProduct");
-
-        innerproduct2->type = "InnerProduct";
-        innerproduct2->name = convolution->name;
-        innerproduct2->bottoms = convolution->bottoms;
-        innerproduct2->tops = convolution->tops;
-
-        ncnn::ParamDict pd;
-        innerproduct2->load_param(pd);
-
-        innerproduct2->num_output = convolution->num_output;
-        innerproduct2->bias_term = convolution->bias_term;
-        innerproduct2->weight_data_size = convolution->weight_data_size;
-        innerproduct->int8_scale_term = convolution->int8_scale_term;
-
-        innerproduct2->weight_data = convolution->weight_data;
-        innerproduct2->bias_data = convolution->bias_data;
-        innerproduct->weight_data_int8_scales = convolution->weight_data_int8_scales;
-        innerproduct->bottom_blob_int8_scale = convolution->bottom_blob_int8_scale;
-
-        innerproduct2->activation_type = convolution->activation_type;
-        innerproduct2->activation_params = convolution->activation_params;
-
-        layers[j] = innerproduct2;
-        delete convolution;
-
-        replaced = true;
-    }
-
-    if (!replaced)
-        break;
+        if (!replaced)
+            break;
     }
 
     return 0;
@@ -2293,21 +2297,35 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", num_output)
             fprintf_param_value(" 1=%d", kernel_w)
-            { if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h); }
+            {
+                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
+            }
             fprintf_param_value(" 2=%d", dilation_w)
-            { if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h); }
+            {
+                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
+            }
             fprintf_param_value(" 3=%d", stride_w)
-            { if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h); }
+            {
+                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
+            }
             fprintf_param_value(" 4=%d", pad_left)
-            { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
-            { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
-            { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
+            {
+                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
+            }
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            {
+                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
+            }
             fprintf_param_value(" 18=%e", pad_value)
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 8=%d", int8_scale_term)
             fprintf_param_value(" 9=%d", activation_type)
-            { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
             fprintf_param_value(" 17=%d", impl_type)
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
@@ -2320,22 +2338,36 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", num_output)
             fprintf_param_value(" 1=%d", kernel_w)
-            { if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h); }
+            {
+                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
+            }
             fprintf_param_value(" 2=%d", dilation_w)
-            { if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h); }
+            {
+                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
+            }
             fprintf_param_value(" 3=%d", stride_w)
-            { if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h); }
+            {
+                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
+            }
             fprintf_param_value(" 4=%d", pad_left)
-            { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
-            { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
-            { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
+            {
+                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
+            }
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            {
+                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
+            }
             fprintf_param_value(" 18=%e", pad_value)
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 7=%d", group)
             fprintf_param_value(" 8=%d", int8_scale_term)
             fprintf_param_value(" 9=%d", activation_type)
-            { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
@@ -2354,9 +2386,15 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 6=%d", woffset2)
             fprintf_param_value(" 7=%d", hoffset2)
             fprintf_param_value(" 8=%d", coffset2)
-            { if (!op->starts.empty()) fprintf_param_int_array(9, op->starts, pp); }
-            { if (!op->ends.empty()) fprintf_param_int_array(10, op->ends, pp); }
-            { if (!op->axes.empty()) fprintf_param_int_array(11, op->axes, pp); }
+            {
+                if (!op->starts.empty()) fprintf_param_int_array(9, op->starts, pp);
+            }
+            {
+                if (!op->ends.empty()) fprintf_param_int_array(10, op->ends, pp);
+            }
+            {
+                if (!op->axes.empty()) fprintf_param_int_array(11, op->axes, pp);
+            }
         }
         else if (layer->type == "Deconvolution")
         {
@@ -2365,23 +2403,41 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", num_output)
             fprintf_param_value(" 1=%d", kernel_w)
-            { if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h); }
+            {
+                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
+            }
             fprintf_param_value(" 2=%d", dilation_w)
-            { if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h); }
+            {
+                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
+            }
             fprintf_param_value(" 3=%d", stride_w)
-            { if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h); }
+            {
+                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
+            }
             fprintf_param_value(" 4=%d", pad_left)
-            { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
-            { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
-            { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
+            {
+                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
+            }
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            {
+                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
+            }
             fprintf_param_value(" 18=%d", output_pad_right)
-            { if (op->output_pad_bottom != op->output_pad_right) fprintf(pp, " 19=%d", op->output_pad_bottom); }
+            {
+                if (op->output_pad_bottom != op->output_pad_right) fprintf(pp, " 19=%d", op->output_pad_bottom);
+            }
             fprintf_param_value(" 20=%d", output_w)
-            { if (op->output_h != op->output_w) fprintf(pp, " 21=%d", op->output_h); }
+            {
+                if (op->output_h != op->output_w) fprintf(pp, " 21=%d", op->output_h);
+            }
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 9=%d", activation_type)
-            { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
@@ -2393,24 +2449,42 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", num_output)
             fprintf_param_value(" 1=%d", kernel_w)
-            { if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h); }
+            {
+                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
+            }
             fprintf_param_value(" 2=%d", dilation_w)
-            { if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h); }
+            {
+                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
+            }
             fprintf_param_value(" 3=%d", stride_w)
-            { if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h); }
+            {
+                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
+            }
             fprintf_param_value(" 4=%d", pad_left)
-            { if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top); }
-            { if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right); }
-            { if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom); }
+            {
+                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
+            }
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            {
+                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
+            }
             fprintf_param_value(" 18=%d", output_pad_right)
-            { if (op->output_pad_bottom != op->output_pad_right) fprintf(pp, " 19=%d", op->output_pad_bottom); }
+            {
+                if (op->output_pad_bottom != op->output_pad_right) fprintf(pp, " 19=%d", op->output_pad_bottom);
+            }
             fprintf_param_value(" 20=%d", output_w)
-            { if (op->output_h != op->output_w) fprintf(pp, " 21=%d", op->output_h); }
+            {
+                if (op->output_h != op->output_w) fprintf(pp, " 21=%d", op->output_h);
+            }
             fprintf_param_value(" 5=%d", bias_term)
             fprintf_param_value(" 6=%d", weight_data_size)
             fprintf_param_value(" 7=%d", group)
             fprintf_param_value(" 9=%d", activation_type)
-            { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
@@ -2443,7 +2517,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Eltwise* op_default = (ncnn::Eltwise*)layer_default;
 
             fprintf_param_value(" 0=%d", op_type)
-            { if (!op->coeffs.empty()) fprintf_param_float_array(1, op->coeffs, pp); }
+            {
+                if (!op->coeffs.empty()) fprintf_param_float_array(1, op->coeffs, pp);
+            }
         }
         else if (layer->type == "ELU")
         {
@@ -2469,7 +2545,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", expand_w)
             fprintf_param_value(" 1=%d", expand_h)
             fprintf_param_value(" 2=%d", expand_c)
-            { if (!op->axes.empty()) fprintf_param_int_array(0, op->axes, pp); }
+            {
+                if (!op->axes.empty()) fprintf_param_int_array(0, op->axes, pp);
+            }
         }
         else if (layer->type == "HardSigmoid")
         {
@@ -2497,7 +2575,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%d", weight_data_size)
             fprintf_param_value(" 8=%d", int8_scale_term)
             fprintf_param_value(" 9=%d", activation_type)
-            { if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp); }
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
@@ -2632,13 +2712,23 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", pooling_type)
             fprintf_param_value(" 1=%d", kernel_w)
-            { if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h); }
+            {
+                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
+            }
             fprintf_param_value(" 2=%d", stride_w)
-            { if (op->stride_h != op->stride_w) fprintf(pp, " 12=%d", op->stride_h); }
+            {
+                if (op->stride_h != op->stride_w) fprintf(pp, " 12=%d", op->stride_h);
+            }
             fprintf_param_value(" 3=%d", pad_left)
-            { if (op->pad_top != op->pad_left) fprintf(pp, " 13=%d", op->pad_top); }
-            { if (op->pad_right != op->pad_left) fprintf(pp, " 14=%d", op->pad_right); }
-            { if (op->pad_bottom != op->pad_top) fprintf(pp, " 15=%d", op->pad_bottom); }
+            {
+                if (op->pad_top != op->pad_left) fprintf(pp, " 13=%d", op->pad_top);
+            }
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 14=%d", op->pad_right);
+            }
+            {
+                if (op->pad_bottom != op->pad_top) fprintf(pp, " 15=%d", op->pad_bottom);
+            }
             fprintf_param_value(" 4=%d", global_pooling)
             fprintf_param_value(" 5=%d", pad_mode)
         }
@@ -2665,9 +2755,15 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::PriorBox* op = (ncnn::PriorBox*)layer;
             ncnn::PriorBox* op_default = (ncnn::PriorBox*)layer_default;
 
-            { if (!op->min_sizes.empty()) fprintf_param_float_array(0, op->min_sizes, pp); }
-            { if (!op->max_sizes.empty()) fprintf_param_float_array(1, op->max_sizes, pp); }
-            { if (!op->aspect_ratios.empty()) fprintf_param_float_array(2, op->aspect_ratios, pp); }
+            {
+                if (!op->min_sizes.empty()) fprintf_param_float_array(0, op->min_sizes, pp);
+            }
+            {
+                if (!op->max_sizes.empty()) fprintf_param_float_array(1, op->max_sizes, pp);
+            }
+            {
+                if (!op->aspect_ratios.empty()) fprintf_param_float_array(2, op->aspect_ratios, pp);
+            }
             fprintf_param_value(" 3=%e", variances[0])
             fprintf_param_value(" 4=%e", variances[1])
             fprintf_param_value(" 5=%e", variances[2])
@@ -2717,7 +2813,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", operation)
             fprintf_param_value(" 1=%d", reduce_all)
             fprintf_param_value(" 2=%e", coeff)
-            { if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp); }
+            {
+                if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp);
+            }
             fprintf_param_value(" 4=%d", keepdims)
         }
         else if (layer->type == "ReLU")
@@ -2799,7 +2897,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Slice* op = (ncnn::Slice*)layer;
             ncnn::Slice* op_default = (ncnn::Slice*)layer_default;
 
-            { if (!op->slices.empty()) fprintf_param_int_array(0, op->slices, pp); }
+            {
+                if (!op->slices.empty()) fprintf_param_int_array(0, op->slices, pp);
+            }
             fprintf_param_value(" 1=%d", axis)
         }
         else if (layer->type == "Softmax")
@@ -2824,7 +2924,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", squeeze_w)
             fprintf_param_value(" 1=%d", squeeze_h)
             fprintf_param_value(" 2=%d", squeeze_c)
-            { if (!op->axes.empty()) fprintf_param_int_array(0, op->axes, pp); }
+            {
+                if (!op->axes.empty()) fprintf_param_int_array(0, op->axes, pp);
+            }
         }
         else if (layer->type == "Threshold")
         {
@@ -2849,7 +2951,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", num_box)
             fprintf_param_value(" 2=%e", confidence_threshold)
             fprintf_param_value(" 3=%e", nms_threshold)
-            { if (!op->biases.empty()) fprintf_param_float_array(4, op->biases, pp); }
+            {
+                if (!op->biases.empty()) fprintf_param_float_array(4, op->biases, pp);
+            }
         }
         else if (layer->type == "Yolov3DetectionOutput")
         {
@@ -2860,9 +2964,15 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", num_box)
             fprintf_param_value(" 2=%e", confidence_threshold)
             fprintf_param_value(" 3=%e", nms_threshold)
-            { if (!op->biases.empty()) fprintf_param_float_array(4, op->biases, pp); }
-            { if (!op->mask.empty()) fprintf_param_int_array(5, op->mask, pp); }
-            { if (!op->anchors_scale.empty()) fprintf_param_float_array(6, op->anchors_scale, pp); }
+            {
+                if (!op->biases.empty()) fprintf_param_float_array(4, op->biases, pp);
+            }
+            {
+                if (!op->mask.empty()) fprintf_param_int_array(5, op->mask, pp);
+            }
+            {
+                if (!op->anchors_scale.empty()) fprintf_param_float_array(6, op->anchors_scale, pp);
+            }
         }
 
 #undef fprintf_param_value

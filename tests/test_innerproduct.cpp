@@ -52,43 +52,43 @@ static int test_innerproduct(const ncnn::Mat& a, int outch, int bias)
 static int test_innerproduct_0()
 {
     return 0
-        || test_innerproduct(RandomMat(1, 3, 1), 1, 1)
-        || test_innerproduct(RandomMat(3, 2, 2), 2, 1)
-        || test_innerproduct(RandomMat(9, 3, 8), 7, 1)
-        || test_innerproduct(RandomMat(2, 2, 8), 8, 1)
-        || test_innerproduct(RandomMat(4, 3, 15), 8, 1)
-        || test_innerproduct(RandomMat(6, 2, 16), 16, 1)
-        || test_innerproduct(RandomMat(6, 2, 16), 7, 1)
-        || test_innerproduct(RandomMat(6, 2, 5), 16, 1)
-        ;
+           || test_innerproduct(RandomMat(1, 3, 1), 1, 1)
+           || test_innerproduct(RandomMat(3, 2, 2), 2, 1)
+           || test_innerproduct(RandomMat(9, 3, 8), 7, 1)
+           || test_innerproduct(RandomMat(2, 2, 8), 8, 1)
+           || test_innerproduct(RandomMat(4, 3, 15), 8, 1)
+           || test_innerproduct(RandomMat(6, 2, 16), 16, 1)
+           || test_innerproduct(RandomMat(6, 2, 16), 7, 1)
+           || test_innerproduct(RandomMat(6, 2, 5), 16, 1)
+           ;
 }
 
 static int test_innerproduct_1()
 {
     return 0
-        || test_innerproduct(RandomMat(1, 1), 1, 1)
-        || test_innerproduct(RandomMat(3, 2), 2, 1)
-        || test_innerproduct(RandomMat(9, 8), 7, 1)
-        || test_innerproduct(RandomMat(2, 8), 8, 1)
-        || test_innerproduct(RandomMat(4, 15), 8, 1)
-        || test_innerproduct(RandomMat(6, 16), 16, 1)
-        || test_innerproduct(RandomMat(6, 16), 7, 1)
-        || test_innerproduct(RandomMat(6, 5), 16, 1)
-        ;
+           || test_innerproduct(RandomMat(1, 1), 1, 1)
+           || test_innerproduct(RandomMat(3, 2), 2, 1)
+           || test_innerproduct(RandomMat(9, 8), 7, 1)
+           || test_innerproduct(RandomMat(2, 8), 8, 1)
+           || test_innerproduct(RandomMat(4, 15), 8, 1)
+           || test_innerproduct(RandomMat(6, 16), 16, 1)
+           || test_innerproduct(RandomMat(6, 16), 7, 1)
+           || test_innerproduct(RandomMat(6, 5), 16, 1)
+           ;
 }
 
 static int test_innerproduct_2()
 {
     return 0
-        || test_innerproduct(RandomMat(1), 1, 1)
-        || test_innerproduct(RandomMat(2), 2, 1)
-        || test_innerproduct(RandomMat(8), 7, 1)
-        || test_innerproduct(RandomMat(8), 8, 1)
-        || test_innerproduct(RandomMat(15), 8, 1)
-        || test_innerproduct(RandomMat(16), 16, 1)
-        || test_innerproduct(RandomMat(16), 7, 1)
-        || test_innerproduct(RandomMat(5), 16, 1)
-        ;
+           || test_innerproduct(RandomMat(1), 1, 1)
+           || test_innerproduct(RandomMat(2), 2, 1)
+           || test_innerproduct(RandomMat(8), 7, 1)
+           || test_innerproduct(RandomMat(8), 8, 1)
+           || test_innerproduct(RandomMat(15), 8, 1)
+           || test_innerproduct(RandomMat(16), 16, 1)
+           || test_innerproduct(RandomMat(16), 7, 1)
+           || test_innerproduct(RandomMat(5), 16, 1)
+           ;
 }
 
 static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
@@ -130,18 +130,18 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
 static int test_innerproduct_3()
 {
     return 0
-        || test_innerproduct_int8(RandomMat(1, 3, 1), 1, 1)
-        || test_innerproduct_int8(RandomMat(3, 2, 2), 2, 1)
-        || test_innerproduct_int8(RandomMat(5, 3, 3), 3, 1)
-        || test_innerproduct_int8(RandomMat(7, 2, 3), 12, 1)
-        || test_innerproduct_int8(RandomMat(9, 3, 4), 4, 1)
-        || test_innerproduct_int8(RandomMat(2, 2, 7), 7, 1)
-        || test_innerproduct_int8(RandomMat(4, 3, 8), 3, 1)
-        || test_innerproduct_int8(RandomMat(6, 2, 8), 8, 1)
-        || test_innerproduct_int8(RandomMat(8, 3, 15), 15, 1)
-        || test_innerproduct_int8(RandomMat(7, 2, 16), 4, 1)
-        || test_innerproduct_int8(RandomMat(6, 3, 16), 16, 1)
-        ;
+           || test_innerproduct_int8(RandomMat(1, 3, 1), 1, 1)
+           || test_innerproduct_int8(RandomMat(3, 2, 2), 2, 1)
+           || test_innerproduct_int8(RandomMat(5, 3, 3), 3, 1)
+           || test_innerproduct_int8(RandomMat(7, 2, 3), 12, 1)
+           || test_innerproduct_int8(RandomMat(9, 3, 4), 4, 1)
+           || test_innerproduct_int8(RandomMat(2, 2, 7), 7, 1)
+           || test_innerproduct_int8(RandomMat(4, 3, 8), 3, 1)
+           || test_innerproduct_int8(RandomMat(6, 2, 8), 8, 1)
+           || test_innerproduct_int8(RandomMat(8, 3, 15), 15, 1)
+           || test_innerproduct_int8(RandomMat(7, 2, 16), 4, 1)
+           || test_innerproduct_int8(RandomMat(6, 3, 16), 16, 1)
+           ;
 }
 
 int main()
@@ -149,9 +149,9 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_innerproduct_0()
-        || test_innerproduct_1()
-        || test_innerproduct_2()
-        || test_innerproduct_3()
-        ;
+           || test_innerproduct_0()
+           || test_innerproduct_1()
+           || test_innerproduct_2()
+           || test_innerproduct_3()
+           ;
 }

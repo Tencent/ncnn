@@ -32,7 +32,7 @@ Padding_vulkan::Padding_vulkan()
 
 int Padding_vulkan::create_pipeline(const Option& _opt)
 {
-    
+
     Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
@@ -46,15 +46,15 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
     if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
 
-    if (out_shape.dims != 0 && (front != 0 || behind != 0)){
+    if (out_shape.dims != 0 && (front != 0 || behind != 0)) {
         // calculate output elempack for channel padding
-        if (type == 0){
+        if (type == 0) {
             int outc = (out_shape.c*elempack) + front + behind;
             int offset_elempack = opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
             int channel_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
             out_elempack = std::min(offset_elempack,channel_elempack);
         } else {
-            out_elempack = 1;   
+            out_elempack = 1;
         }
         elempack = out_elempack;
     }
@@ -201,8 +201,8 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int out_elempack = elempack;
 
     //Check if channel padding is being applied.
-    if (front != 0 || behind != 0 ){
-        if (type == 0){
+    if (front != 0 || behind != 0 ) {
+        if (type == 0) {
             int offset_elempack = opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
             int channel_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
             out_elempack = std::min(offset_elempack,channel_elempack);
@@ -213,7 +213,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     }
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
-     if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
         if (out_elempack == 8) out_elemsize = 8*2u;
         if (out_elempack == 4) out_elemsize = 4*2u;
@@ -255,8 +255,8 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[12].i = front/out_elempack;
 
     const Pipeline* pipeline = out_elempack == 8 ? pipeline_padding_pack8
-                             : out_elempack == 4 ? pipeline_padding_pack4
-                             : pipeline_padding;
+                               : out_elempack == 4 ? pipeline_padding_pack4
+                               : pipeline_padding;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -304,8 +304,8 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     int out_elempack = elempack;
 
     //Check if channel padding is being applied.
-    if (_front != 0 || _behind != 0 ){
-        if (type == 0){
+    if (_front != 0 || _behind != 0 ) {
+        if (type == 0) {
             int offset_elempack = opt.use_shader_pack8 && _front % 8 == 0 ? 8 : _front % 4 == 0 ? 4 : 1;
             int channel_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
             out_elempack = std::min(offset_elempack,channel_elempack);
@@ -316,7 +316,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     }
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
-     if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
         if (out_elempack == 8) out_elemsize = 8*2u;
         if (out_elempack == 4) out_elemsize = 4*2u;
@@ -358,8 +358,8 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     constants[12].i = _front/out_elempack;
 
     const Pipeline* pipeline = out_elempack == 8 ? pipeline_padding_pack8
-                             : out_elempack == 4 ? pipeline_padding_pack4
-                             : pipeline_padding;
+                               : out_elempack == 4 ? pipeline_padding_pack4
+                               : pipeline_padding;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -388,8 +388,8 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     int out_elempack = elempack;
 
     //Check if channel padding is being applied.
-    if (front != 0 || behind != 0 ){
-        if (type == 0){
+    if (front != 0 || behind != 0 ) {
+        if (type == 0) {
             int offset_elempack = opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
             int channel_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
             out_elempack = std::min(offset_elempack,channel_elempack);
@@ -400,7 +400,7 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     }
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
-     if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
         if (out_elempack == 8) out_elemsize = 8*2u;
         if (out_elempack == 4) out_elemsize = 4*2u;
@@ -444,8 +444,8 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     constants[12].i = front/out_elempack;
 
     const Pipeline* pipeline = out_elempack == 8 ? pipeline_padding_pack8
-                             : out_elempack == 4 ? pipeline_padding_pack4
-                             : pipeline_padding;
+                               : out_elempack == 4 ? pipeline_padding_pack4
+                               : pipeline_padding;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -495,8 +495,8 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     int out_elempack = elempack;
 
     //Check if channel padding is being applied.
-    if (_front != 0 || _behind != 0 ){
-        if (type == 0){
+    if (_front != 0 || _behind != 0 ) {
+        if (type == 0) {
             int offset_elempack = opt.use_shader_pack8 && _front % 8 == 0 ? 8 : _front % 4 == 0 ? 4 : 1;
             int channel_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
             out_elempack = std::min(offset_elempack,channel_elempack);
@@ -507,13 +507,13 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     }
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
-     if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
         if (out_elempack == 8) out_elemsize = 8*2u;
         if (out_elempack == 4) out_elemsize = 4*2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
-    
+
     // unpacking
     VkImageMat bottom_blob_unpacked;
     if (elempack != out_elempack)
@@ -550,8 +550,8 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     constants[12].i = _front/out_elempack;
 
     const Pipeline* pipeline = out_elempack == 8 ? pipeline_padding_pack8
-                             : out_elempack == 4 ? pipeline_padding_pack4
-                             : pipeline_padding;
+                               : out_elempack == 4 ? pipeline_padding_pack4
+                               : pipeline_padding;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

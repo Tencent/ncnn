@@ -41,135 +41,135 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
     if (opt.use_packing_layout)
     {
 
-    if (elempack == 4)
-    {
-        if (dims == 1)
+        if (elempack == 4)
         {
-            int w = bottom_top_blob.w;
-
-            const float* scale = scale_blob;
-            if (bias_term)
+            if (dims == 1)
             {
-                const float* bias = bias_data;
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i=0; i<w; i++)
+                int w = bottom_top_blob.w;
+
+                const float* scale = scale_blob;
+                if (bias_term)
                 {
-                    float* ptr = (float*)bottom_top_blob + i * 4;
-
-                    float32x4_t _p = vld1q_f32(ptr);
-                    float32x4_t _s = vld1q_f32(scale + i * 4);
-                    float32x4_t _bias = vld1q_f32(bias + i * 4);
-                    _p = vmlaq_f32(_bias, _p, _s);
-                    vst1q_f32(ptr, _p);
-                }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i=0; i<w; i++)
-                {
-                    float* ptr = (float*)bottom_top_blob + i * 4;
-
-                    float32x4_t _p = vld1q_f32(ptr);
-                    float32x4_t _s = vld1q_f32(scale + i * 4);
-                    _p = vmulq_f32(_p, _s);
-                    vst1q_f32(ptr, _p);
-                }
-            }
-        }
-
-        if (dims == 2)
-        {
-            int w = bottom_top_blob.w;
-            int h = bottom_top_blob.h;
-
-            if (bias_term)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i=0; i<h; i++)
-                {
-                    float* ptr = bottom_top_blob.row(i);
-                    float32x4_t _s = vld1q_f32((const float*)scale_blob + i * 4);
-                    float32x4_t _bias = vld1q_f32((const float*)bias_data + i * 4);
-
-                    for (int j=0; j<w; j++)
+                    const float* bias = bias_data;
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int i=0; i<w; i++)
                     {
+                        float* ptr = (float*)bottom_top_blob + i * 4;
+
                         float32x4_t _p = vld1q_f32(ptr);
+                        float32x4_t _s = vld1q_f32(scale + i * 4);
+                        float32x4_t _bias = vld1q_f32(bias + i * 4);
                         _p = vmlaq_f32(_bias, _p, _s);
                         vst1q_f32(ptr, _p);
-
-                        ptr += 4;
                     }
                 }
-            }
-            else
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i=0; i<h; i++)
+                else
                 {
-                    float* ptr = bottom_top_blob.row(i);
-                    float32x4_t _s = vld1q_f32((const float*)scale_blob + i * 4);
-
-                    for (int j=0; j<w; j++)
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int i=0; i<w; i++)
                     {
+                        float* ptr = (float*)bottom_top_blob + i * 4;
+
                         float32x4_t _p = vld1q_f32(ptr);
+                        float32x4_t _s = vld1q_f32(scale + i * 4);
                         _p = vmulq_f32(_p, _s);
                         vst1q_f32(ptr, _p);
-
-                        ptr += 4;
                     }
                 }
             }
-        }
 
-        if (dims == 3)
-        {
-            int w = bottom_top_blob.w;
-            int h = bottom_top_blob.h;
-            int channels = bottom_top_blob.c;
-            int size = w * h;
-
-            if (bias_term)
+            if (dims == 2)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                int w = bottom_top_blob.w;
+                int h = bottom_top_blob.h;
+
+                if (bias_term)
                 {
-                    float* ptr = bottom_top_blob.channel(q);
-                    float32x4_t _s = vld1q_f32((const float*)scale_blob + q * 4);
-                    float32x4_t _bias = vld1q_f32((const float*)bias_data + q * 4);
-
-                    for (int i=0; i<size; i++)
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int i=0; i<h; i++)
                     {
-                        float32x4_t _p = vld1q_f32(ptr);
-                        _p = vmlaq_f32(_bias, _p, _s);
-                        vst1q_f32(ptr, _p);
+                        float* ptr = bottom_top_blob.row(i);
+                        float32x4_t _s = vld1q_f32((const float*)scale_blob + i * 4);
+                        float32x4_t _bias = vld1q_f32((const float*)bias_data + i * 4);
 
-                        ptr += 4;
+                        for (int j=0; j<w; j++)
+                        {
+                            float32x4_t _p = vld1q_f32(ptr);
+                            _p = vmlaq_f32(_bias, _p, _s);
+                            vst1q_f32(ptr, _p);
+
+                            ptr += 4;
+                        }
+                    }
+                }
+                else
+                {
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int i=0; i<h; i++)
+                    {
+                        float* ptr = bottom_top_blob.row(i);
+                        float32x4_t _s = vld1q_f32((const float*)scale_blob + i * 4);
+
+                        for (int j=0; j<w; j++)
+                        {
+                            float32x4_t _p = vld1q_f32(ptr);
+                            _p = vmulq_f32(_p, _s);
+                            vst1q_f32(ptr, _p);
+
+                            ptr += 4;
+                        }
                     }
                 }
             }
-            else
+
+            if (dims == 3)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                int w = bottom_top_blob.w;
+                int h = bottom_top_blob.h;
+                int channels = bottom_top_blob.c;
+                int size = w * h;
+
+                if (bias_term)
                 {
-                    float* ptr = bottom_top_blob.channel(q);
-                    float32x4_t _s = vld1q_f32((const float*)scale_blob + q * 4);
-
-                    for (int i=0; i<size; i++)
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q=0; q<channels; q++)
                     {
-                        float32x4_t _p = vld1q_f32(ptr);
-                        _p = vmulq_f32(_p, _s);
-                        vst1q_f32(ptr, _p);
+                        float* ptr = bottom_top_blob.channel(q);
+                        float32x4_t _s = vld1q_f32((const float*)scale_blob + q * 4);
+                        float32x4_t _bias = vld1q_f32((const float*)bias_data + q * 4);
 
-                        ptr += 4;
+                        for (int i=0; i<size; i++)
+                        {
+                            float32x4_t _p = vld1q_f32(ptr);
+                            _p = vmlaq_f32(_bias, _p, _s);
+                            vst1q_f32(ptr, _p);
+
+                            ptr += 4;
+                        }
+                    }
+                }
+                else
+                {
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q=0; q<channels; q++)
+                    {
+                        float* ptr = bottom_top_blob.channel(q);
+                        float32x4_t _s = vld1q_f32((const float*)scale_blob + q * 4);
+
+                        for (int i=0; i<size; i++)
+                        {
+                            float32x4_t _p = vld1q_f32(ptr);
+                            _p = vmulq_f32(_p, _s);
+                            vst1q_f32(ptr, _p);
+
+                            ptr += 4;
+                        }
                     }
                 }
             }
-        }
 
-        return 0;
-    }
+            return 0;
+        }
 
     } // opt.use_packing_layout
 #endif // __ARM_NEON

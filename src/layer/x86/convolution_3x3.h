@@ -231,7 +231,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
         //     {0.0f,  1.0f,  1.00f, 0.0f},
         //     {0.0f, -1.0f,  1.00f, 0.0f},
         //     {0.0f, -1.0f,  0.00f, 1.0f}
-        // };        
+        // };
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<inch; q++)
         {
@@ -262,7 +262,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     _w1 = _mm_add_ps(_d1, _d2);
                     _w2 = _mm_sub_ps(_d2, _d1);
                     _w3 = _mm_sub_ps(_d3, _d1);
-                                
+
                     // transpose d to d_t
                     _MM_TRANSPOSE4_PS(_w0, _w1, _w2, _w3);
 
@@ -291,22 +291,34 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     }
                     // w = B_t * d
                     for (int n = 0; n < 4; n++)
-                    {   
+                    {
                         w0[n] = d0[n] - d2[n];
                         w1[n] = d1[n] + d2[n];
                         w2[n] = d2[n] - d1[n];
                         w3[n] = d3[n] - d1[n];
-                    }                                
+                    }
                     // transpose d to d_t
                     {
-                        t0[0]=w0[0]; t1[0]=w0[1]; t2[0]=w0[2]; t3[0]=w0[3];
-                        t0[1]=w1[0]; t1[1]=w1[1]; t2[1]=w1[2]; t3[1]=w1[3];
-                        t0[2]=w2[0]; t1[2]=w2[1]; t2[2]=w2[2]; t3[2]=w2[3];
-                        t0[3]=w3[0]; t1[3]=w3[1]; t2[3]=w3[2]; t3[3]=w3[3];
+                        t0[0]=w0[0];
+                        t1[0]=w0[1];
+                        t2[0]=w0[2];
+                        t3[0]=w0[3];
+                        t0[1]=w1[0];
+                        t1[1]=w1[1];
+                        t2[1]=w1[2];
+                        t3[1]=w1[3];
+                        t0[2]=w2[0];
+                        t1[2]=w2[1];
+                        t2[2]=w2[2];
+                        t3[2]=w2[3];
+                        t0[3]=w3[0];
+                        t1[3]=w3[1];
+                        t2[3]=w3[2];
+                        t3[3]=w3[3];
                     }
                     // d = B_t * d_t
                     for (int n = 0; n < 4; n++)
-                    {   
+                    {
                         d0[n] = t0[n] - t2[n];
                         d1[n] = t1[n] + t2[n];
                         d2[n] = t2[n] - t1[n];
@@ -319,7 +331,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         out_tm0[n+ 4] = d1[n];
                         out_tm0[n+ 8] = d2[n];
                         out_tm0[n+12] = d3[n];
-                    }                  
+                    }
 #endif
                     r0 += 2;
                     r1 += 2;
@@ -342,7 +354,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
         int nColBlocks = h_tm/4; // may be the block num in Feathercnn
         int nRowBlocks = w_tm/4;
 
-        const int tiles = nColBlocks * nRowBlocks; 
+        const int tiles = nColBlocks * nRowBlocks;
 
         top_blob_tm.create(16, tiles, outch, 4u, opt.workspace_allocator);
 
@@ -386,7 +398,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                 int q = 0;
 
                 for (; q+3<inch; q+=4)
-                {    
+                {
                     const float* r0 = bottom_blob_tm.channel(q).row(i);
                     const float* r1 = bottom_blob_tm.channel(q+1).row(i);
                     const float* r2 = bottom_blob_tm.channel(q+2).row(i);
@@ -416,10 +428,10 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     _sum2n = _mm256_fmadd_ps(_r0n, _k2n, _sum2n);
                     _sum3 = _mm256_fmadd_ps(_r0, _k3, _sum3);
                     _sum3n = _mm256_fmadd_ps(_r0n, _k3n, _sum3n);
-                    
+
                     // k1
                     _r0 = _mm256_loadu_ps(r1);
-                    _r0n = _mm256_loadu_ps(r1+8);                    
+                    _r0n = _mm256_loadu_ps(r1+8);
                     _k0 = _mm256_loadu_ps(k0+16);
                     _k0n = _mm256_loadu_ps(k0+24);
                     _k1 = _mm256_loadu_ps(k1+16);
@@ -427,7 +439,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     _k2 = _mm256_loadu_ps(k2+16);
                     _k2n = _mm256_loadu_ps(k2+24);
                     _k3 = _mm256_loadu_ps(k3+16);
-                    _k3n = _mm256_loadu_ps(k3+24);           
+                    _k3n = _mm256_loadu_ps(k3+24);
                     _sum0 = _mm256_fmadd_ps(_r0, _k0, _sum0);
                     _sum0n = _mm256_fmadd_ps(_r0n, _k0n, _sum0n);
                     _sum1 = _mm256_fmadd_ps(_r0, _k1, _sum1);
@@ -436,9 +448,9 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     _sum2n = _mm256_fmadd_ps(_r0n, _k2n, _sum2n);
                     _sum3 = _mm256_fmadd_ps(_r0, _k3, _sum3);
                     _sum3n = _mm256_fmadd_ps(_r0n, _k3n, _sum3n);
-                    // k2   
+                    // k2
                     _r0 = _mm256_loadu_ps(r2);
-                    _r0n = _mm256_loadu_ps(r2+8);                     
+                    _r0n = _mm256_loadu_ps(r2+8);
                     _k0 = _mm256_loadu_ps(k0+32);
                     _k0n = _mm256_loadu_ps(k0+40);
                     _k1 = _mm256_loadu_ps(k1+32);
@@ -455,9 +467,9 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     _sum2n = _mm256_fmadd_ps(_r0n, _k2n, _sum2n);
                     _sum3 = _mm256_fmadd_ps(_r0, _k3, _sum3);
                     _sum3n = _mm256_fmadd_ps(_r0n, _k3n, _sum3n);
-                    // k3   
+                    // k3
                     _r0 = _mm256_loadu_ps(r3);
-                    _r0n = _mm256_loadu_ps(r3+8);                     
+                    _r0n = _mm256_loadu_ps(r3+8);
                     _k0 = _mm256_loadu_ps(k0+48);
                     _k0n = _mm256_loadu_ps(k0+56);
                     _k1 = _mm256_loadu_ps(k1+48);
@@ -495,7 +507,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     __m256 _k2n = _mm256_loadu_ps(k2+8);
                     __m256 _k3 = _mm256_loadu_ps(k3);
                     __m256 _k3n = _mm256_loadu_ps(k3+8);
-                                        
+
                     _sum0 = _mm256_fmadd_ps(_r0, _k0, _sum0);
                     _sum0n = _mm256_fmadd_ps(_r0n, _k0n, _sum0n);
                     _sum1 = _mm256_fmadd_ps(_r0, _k1, _sum1);
@@ -522,7 +534,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
 
                 int q = 0;
                 for (; q+3<inch; q+=4)
-                {   
+                {
                     const float* r0 = bottom_blob_tm.channel(q).row(i);
                     const float* r1 = bottom_blob_tm.channel(q+1).row(i);
                     const float* r2 = bottom_blob_tm.channel(q+2).row(i);
@@ -598,7 +610,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     output2_tm[n] = sum2[n];
                     output3_tm[n] = sum3[n];
                 }
-#endif                
+#endif
             }
         }
 
@@ -616,7 +628,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
 
                 int q = 0;
                 for (; q+3<inch; q+=4)
-                {   
+                {
                     const float* r0 = bottom_blob_tm.channel(q).row(i);
                     const float* r1 = bottom_blob_tm.channel(q+1).row(i);
                     const float* r2 = bottom_blob_tm.channel(q+2).row(i);
@@ -644,7 +656,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     for (int n=0; n<16; n++)
                     {
                         sum0[n] += r0[n] * k0[n];
-                    }             
+                    }
                 }
 
                 for (int n=0; n<16; n++)
@@ -672,7 +684,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
         // const float itm[2][4] = {
         //     {1.0f,  1.0f,  1.0f,  0.0f},
         //     {0.0f,  1.0f, -1.0f,  1.0f}
-        // }; 
+        // };
 
         int w_tm = outw / 2 * 4;
         int h_tm = outh / 2 * 4;
@@ -717,10 +729,14 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     }
                     // transpose w to w_t
                     {
-                        d0[0] = w0[0]; d0[1] = w1[0];
-                        d1[0] = w0[1]; d1[1] = w1[1];
-                        d2[0] = w0[2]; d2[1] = w1[2];
-                        d3[0] = w0[3]; d3[1] = w1[3];
+                        d0[0] = w0[0];
+                        d0[1] = w1[0];
+                        d1[0] = w0[1];
+                        d1[1] = w1[1];
+                        d2[0] = w0[2];
+                        d2[1] = w1[2];
+                        d3[0] = w0[3];
+                        d3[1] = w1[3];
                     }
                     // Y = A_T * w_t
                     for (int n = 0; n < 2; n++)
@@ -738,9 +754,9 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     outRow1 += 2;
                 }
             }
-        }        
+        }
     }
-    // END transform output 
+    // END transform output
 
     // cut result pad
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
@@ -921,10 +937,10 @@ static void conv3x3s1_winograd43_transform_kernel_sse(const Mat& kernel, std::ve
 
                 ktmp += 4;
                 kernel0 += 36;
-            }        
+            }
         }
         kernel_tm2.push_back(kernel_tm_test);
-    }    
+    }
 }
 
 static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, const std::vector<Mat> &kernel_tm_test, const Mat& _bias, const Option& opt)
@@ -938,7 +954,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
     int outch = top_blob.c;
 
     size_t elemsize = bottom_blob.elemsize;
-    const float* bias = _bias;    
+    const float* bias = _bias;
 
     // pad to 4n+2, winograd F(4,3)
     Mat bottom_blob_bordered = bottom_blob;
@@ -976,19 +992,19 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
         //     {0.0f, 4.0f,  0.0f,-5.0f, 0.0f, 1.0f}
         // };
 
-		// 0 =	4 * r00  - 5 * r02	+ r04
+        // 0 =	4 * r00  - 5 * r02	+ r04
         // 1 = -4 * (r01 + r02)  + r03 + r04
         // 2 =	4 * (r01 - r02)  - r03 + r04
         // 3 = -2 * r01 - r02 + 2 * r03 + r04
         // 4 =	2 * r01 - r02 - 2 * r03 + r04
-		// 5 =	4 * r01 - 5 * r03 + r05
+        // 5 =	4 * r01 - 5 * r03 + r05
 
-		// 0 =	4 * r00  - 5 * r02	+ r04
+        // 0 =	4 * r00  - 5 * r02	+ r04
         // 1 = -4 * (r01 + r02)  + r03 + r04
         // 2 =	4 * (r01 - r02)  - r03 + r04
         // 3 = -2 * r01 - r02 + 2 * r03 + r04
         // 4 =	2 * r01 - r02 - 2 * r03 + r04
-		// 5 =	4 * r01 - 5 * r03 + r05
+        // 5 =	4 * r01 - 5 * r03 + r05
 
 
 #if __AVX__
@@ -998,7 +1014,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
         __m256 _4_p = _mm256_set1_ps(4);
         __m256 _4_n = _mm256_set1_ps(-4);
         __m256 _5_n = _mm256_set1_ps(-5);
-#endif        
+#endif
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q=0; q<inch; q++)
@@ -1069,22 +1085,82 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     // transpose d to d_t
 #ifdef _WIN32
                     {
-                        _t0.m256_f32[0]=_w0.m256_f32[0]; _t1.m256_f32[0]=_w0.m256_f32[1]; _t2.m256_f32[0]=_w0.m256_f32[2]; _t3.m256_f32[0]=_w0.m256_f32[3]; _t4.m256_f32[0]=_w0.m256_f32[4]; _t5.m256_f32[0]=_w0.m256_f32[5];
-                        _t0.m256_f32[1]=_w1.m256_f32[0]; _t1.m256_f32[1]=_w1.m256_f32[1]; _t2.m256_f32[1]=_w1.m256_f32[2]; _t3.m256_f32[1]=_w1.m256_f32[3]; _t4.m256_f32[1]=_w1.m256_f32[4]; _t5.m256_f32[1]=_w1.m256_f32[5];
-                        _t0.m256_f32[2]=_w2.m256_f32[0]; _t1.m256_f32[2]=_w2.m256_f32[1]; _t2.m256_f32[2]=_w2.m256_f32[2]; _t3.m256_f32[2]=_w2.m256_f32[3]; _t4.m256_f32[2]=_w2.m256_f32[4]; _t5.m256_f32[2]=_w2.m256_f32[5];
-                        _t0.m256_f32[3]=_w3.m256_f32[0]; _t1.m256_f32[3]=_w3.m256_f32[1]; _t2.m256_f32[3]=_w3.m256_f32[2]; _t3.m256_f32[3]=_w3.m256_f32[3]; _t4.m256_f32[3]=_w3.m256_f32[4]; _t5.m256_f32[3]=_w3.m256_f32[5];
-                        _t0.m256_f32[4]=_w4.m256_f32[0]; _t1.m256_f32[4]=_w4.m256_f32[1]; _t2.m256_f32[4]=_w4.m256_f32[2]; _t3.m256_f32[4]=_w4.m256_f32[3]; _t4.m256_f32[4]=_w4.m256_f32[4]; _t5.m256_f32[4]=_w4.m256_f32[5];
-                        _t0.m256_f32[5]=_w5.m256_f32[0]; _t1.m256_f32[5]=_w5.m256_f32[1]; _t2.m256_f32[5]=_w5.m256_f32[2]; _t3.m256_f32[5]=_w5.m256_f32[3]; _t4.m256_f32[5]=_w5.m256_f32[4]; _t5.m256_f32[5]=_w5.m256_f32[5];
+                        _t0.m256_f32[0]=_w0.m256_f32[0];
+                        _t1.m256_f32[0]=_w0.m256_f32[1];
+                        _t2.m256_f32[0]=_w0.m256_f32[2];
+                        _t3.m256_f32[0]=_w0.m256_f32[3];
+                        _t4.m256_f32[0]=_w0.m256_f32[4];
+                        _t5.m256_f32[0]=_w0.m256_f32[5];
+                        _t0.m256_f32[1]=_w1.m256_f32[0];
+                        _t1.m256_f32[1]=_w1.m256_f32[1];
+                        _t2.m256_f32[1]=_w1.m256_f32[2];
+                        _t3.m256_f32[1]=_w1.m256_f32[3];
+                        _t4.m256_f32[1]=_w1.m256_f32[4];
+                        _t5.m256_f32[1]=_w1.m256_f32[5];
+                        _t0.m256_f32[2]=_w2.m256_f32[0];
+                        _t1.m256_f32[2]=_w2.m256_f32[1];
+                        _t2.m256_f32[2]=_w2.m256_f32[2];
+                        _t3.m256_f32[2]=_w2.m256_f32[3];
+                        _t4.m256_f32[2]=_w2.m256_f32[4];
+                        _t5.m256_f32[2]=_w2.m256_f32[5];
+                        _t0.m256_f32[3]=_w3.m256_f32[0];
+                        _t1.m256_f32[3]=_w3.m256_f32[1];
+                        _t2.m256_f32[3]=_w3.m256_f32[2];
+                        _t3.m256_f32[3]=_w3.m256_f32[3];
+                        _t4.m256_f32[3]=_w3.m256_f32[4];
+                        _t5.m256_f32[3]=_w3.m256_f32[5];
+                        _t0.m256_f32[4]=_w4.m256_f32[0];
+                        _t1.m256_f32[4]=_w4.m256_f32[1];
+                        _t2.m256_f32[4]=_w4.m256_f32[2];
+                        _t3.m256_f32[4]=_w4.m256_f32[3];
+                        _t4.m256_f32[4]=_w4.m256_f32[4];
+                        _t5.m256_f32[4]=_w4.m256_f32[5];
+                        _t0.m256_f32[5]=_w5.m256_f32[0];
+                        _t1.m256_f32[5]=_w5.m256_f32[1];
+                        _t2.m256_f32[5]=_w5.m256_f32[2];
+                        _t3.m256_f32[5]=_w5.m256_f32[3];
+                        _t4.m256_f32[5]=_w5.m256_f32[4];
+                        _t5.m256_f32[5]=_w5.m256_f32[5];
                     }
 #else
                     {
-                        _t0[0]=_w0[0]; _t1[0]=_w0[1]; _t2[0]=_w0[2]; _t3[0]=_w0[3]; _t4[0]=_w0[4]; _t5[0]=_w0[5];
-                        _t0[1]=_w1[0]; _t1[1]=_w1[1]; _t2[1]=_w1[2]; _t3[1]=_w1[3]; _t4[1]=_w1[4]; _t5[1]=_w1[5];
-                        _t0[2]=_w2[0]; _t1[2]=_w2[1]; _t2[2]=_w2[2]; _t3[2]=_w2[3]; _t4[2]=_w2[4]; _t5[2]=_w2[5];
-                        _t0[3]=_w3[0]; _t1[3]=_w3[1]; _t2[3]=_w3[2]; _t3[3]=_w3[3]; _t4[3]=_w3[4]; _t5[3]=_w3[5];
-                        _t0[4]=_w4[0]; _t1[4]=_w4[1]; _t2[4]=_w4[2]; _t3[4]=_w4[3]; _t4[4]=_w4[4]; _t5[4]=_w4[5];
-                        _t0[5]=_w5[0]; _t1[5]=_w5[1]; _t2[5]=_w5[2]; _t3[5]=_w5[3]; _t4[5]=_w5[4]; _t5[5]=_w5[5];
-                    } 
+                        _t0[0]=_w0[0];
+                        _t1[0]=_w0[1];
+                        _t2[0]=_w0[2];
+                        _t3[0]=_w0[3];
+                        _t4[0]=_w0[4];
+                        _t5[0]=_w0[5];
+                        _t0[1]=_w1[0];
+                        _t1[1]=_w1[1];
+                        _t2[1]=_w1[2];
+                        _t3[1]=_w1[3];
+                        _t4[1]=_w1[4];
+                        _t5[1]=_w1[5];
+                        _t0[2]=_w2[0];
+                        _t1[2]=_w2[1];
+                        _t2[2]=_w2[2];
+                        _t3[2]=_w2[3];
+                        _t4[2]=_w2[4];
+                        _t5[2]=_w2[5];
+                        _t0[3]=_w3[0];
+                        _t1[3]=_w3[1];
+                        _t2[3]=_w3[2];
+                        _t3[3]=_w3[3];
+                        _t4[3]=_w3[4];
+                        _t5[3]=_w3[5];
+                        _t0[4]=_w4[0];
+                        _t1[4]=_w4[1];
+                        _t2[4]=_w4[2];
+                        _t3[4]=_w4[3];
+                        _t4[4]=_w4[4];
+                        _t5[4]=_w4[5];
+                        _t0[5]=_w5[0];
+                        _t1[5]=_w5[1];
+                        _t2[5]=_w5[2];
+                        _t3[5]=_w5[3];
+                        _t4[5]=_w5[4];
+                        _t5[5]=_w5[5];
+                    }
 #endif
                     // d = B_t * d_t
                     _n0 = _mm256_mul_ps(_t0, _4_p);
@@ -1115,24 +1191,57 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     _n5 = _mm256_fmadd_ps(_t3, _5_n, _n5);
                     _n5 = _mm256_add_ps(_n5, _t5);
                     // save to out_tm
-                    float output_n0[8] = {0.f};_mm256_storeu_ps(output_n0, _n0); 
-                    float output_n1[8] = {0.f};_mm256_storeu_ps(output_n1, _n1); 
-                    float output_n2[8] = {0.f};_mm256_storeu_ps(output_n2, _n2); 
-                    float output_n3[8] = {0.f};_mm256_storeu_ps(output_n3, _n3); 
-                    float output_n4[8] = {0.f};_mm256_storeu_ps(output_n4, _n4); 
-                    float output_n5[8] = {0.f};_mm256_storeu_ps(output_n5, _n5); 
-					
-                    out_tm0[0]=output_n0[0];out_tm0[1]=output_n0[1];out_tm0[2]=output_n0[2];out_tm0[3]=output_n0[3];
-                    out_tm1[0]=output_n0[4];out_tm1[1]=output_n0[5];out_tm1[2]=output_n1[0];out_tm1[3]=output_n1[1];
-                    out_tm2[0]=output_n1[2];out_tm2[1]=output_n1[3];out_tm2[2]=output_n1[4];out_tm2[3]=output_n1[5];
+                    float output_n0[8] = {0.f};
+                    _mm256_storeu_ps(output_n0, _n0);
+                    float output_n1[8] = {0.f};
+                    _mm256_storeu_ps(output_n1, _n1);
+                    float output_n2[8] = {0.f};
+                    _mm256_storeu_ps(output_n2, _n2);
+                    float output_n3[8] = {0.f};
+                    _mm256_storeu_ps(output_n3, _n3);
+                    float output_n4[8] = {0.f};
+                    _mm256_storeu_ps(output_n4, _n4);
+                    float output_n5[8] = {0.f};
+                    _mm256_storeu_ps(output_n5, _n5);
 
-                    out_tm3[0]=output_n2[0];out_tm3[1]=output_n2[1];out_tm3[2]=output_n2[2];out_tm3[3]=output_n2[3];
-                    out_tm4[0]=output_n2[4];out_tm4[1]=output_n2[5];out_tm4[2]=output_n3[0];out_tm4[3]=output_n3[1];
-                    out_tm5[0]=output_n3[2];out_tm5[1]=output_n3[3];out_tm5[2]=output_n3[4];out_tm5[3]=output_n3[5];
+                    out_tm0[0]=output_n0[0];
+                    out_tm0[1]=output_n0[1];
+                    out_tm0[2]=output_n0[2];
+                    out_tm0[3]=output_n0[3];
+                    out_tm1[0]=output_n0[4];
+                    out_tm1[1]=output_n0[5];
+                    out_tm1[2]=output_n1[0];
+                    out_tm1[3]=output_n1[1];
+                    out_tm2[0]=output_n1[2];
+                    out_tm2[1]=output_n1[3];
+                    out_tm2[2]=output_n1[4];
+                    out_tm2[3]=output_n1[5];
 
-                    out_tm6[0]=output_n4[0];out_tm6[1]=output_n4[1];out_tm6[2]=output_n4[2];out_tm6[3]=output_n4[3];
-                    out_tm7[0]=output_n4[4];out_tm7[1]=output_n4[5];out_tm7[2]=output_n5[0];out_tm7[3]=output_n5[1];
-                    out_tm8[0]=output_n5[2];out_tm8[1]=output_n5[3];out_tm8[2]=output_n5[4];out_tm8[3]=output_n5[5];
+                    out_tm3[0]=output_n2[0];
+                    out_tm3[1]=output_n2[1];
+                    out_tm3[2]=output_n2[2];
+                    out_tm3[3]=output_n2[3];
+                    out_tm4[0]=output_n2[4];
+                    out_tm4[1]=output_n2[5];
+                    out_tm4[2]=output_n3[0];
+                    out_tm4[3]=output_n3[1];
+                    out_tm5[0]=output_n3[2];
+                    out_tm5[1]=output_n3[3];
+                    out_tm5[2]=output_n3[4];
+                    out_tm5[3]=output_n3[5];
+
+                    out_tm6[0]=output_n4[0];
+                    out_tm6[1]=output_n4[1];
+                    out_tm6[2]=output_n4[2];
+                    out_tm6[3]=output_n4[3];
+                    out_tm7[0]=output_n4[4];
+                    out_tm7[1]=output_n4[5];
+                    out_tm7[2]=output_n5[0];
+                    out_tm7[3]=output_n5[1];
+                    out_tm8[0]=output_n5[2];
+                    out_tm8[1]=output_n5[3];
+                    out_tm8[2]=output_n5[4];
+                    out_tm8[3]=output_n5[5];
 #else
                     float d0[6],d1[6],d2[6],d3[6],d4[6],d5[6];
                     float w0[6],w1[6],w2[6],w3[6],w4[6],w5[6];
@@ -1150,7 +1259,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     }
                     // w = B_t * d
                     for (int n = 0; n < 6; n++)
-                    {   
+                    {
                         w0[n] =  4*d0[n]          - 5*d2[n]           + d4[n];
                         w1[n] =          -4*d1[n] - 4*d2[n] +   d3[n] + d4[n];
                         w2[n] =           4*d1[n] - 4*d2[n] -   d3[n] + d4[n];
@@ -1160,16 +1269,46 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     }
                     // transpose d to d_t
                     {
-                        t0[0]=w0[0]; t1[0]=w0[1]; t2[0]=w0[2]; t3[0]=w0[3]; t4[0]=w0[4]; t5[0]=w0[5];
-                        t0[1]=w1[0]; t1[1]=w1[1]; t2[1]=w1[2]; t3[1]=w1[3]; t4[1]=w1[4]; t5[1]=w1[5];
-                        t0[2]=w2[0]; t1[2]=w2[1]; t2[2]=w2[2]; t3[2]=w2[3]; t4[2]=w2[4]; t5[2]=w2[5];
-                        t0[3]=w3[0]; t1[3]=w3[1]; t2[3]=w3[2]; t3[3]=w3[3]; t4[3]=w3[4]; t5[3]=w3[5];
-                        t0[4]=w4[0]; t1[4]=w4[1]; t2[4]=w4[2]; t3[4]=w4[3]; t4[4]=w4[4]; t5[4]=w4[5];
-                        t0[5]=w5[0]; t1[5]=w5[1]; t2[5]=w5[2]; t3[5]=w5[3]; t4[5]=w5[4]; t5[5]=w5[5];
+                        t0[0]=w0[0];
+                        t1[0]=w0[1];
+                        t2[0]=w0[2];
+                        t3[0]=w0[3];
+                        t4[0]=w0[4];
+                        t5[0]=w0[5];
+                        t0[1]=w1[0];
+                        t1[1]=w1[1];
+                        t2[1]=w1[2];
+                        t3[1]=w1[3];
+                        t4[1]=w1[4];
+                        t5[1]=w1[5];
+                        t0[2]=w2[0];
+                        t1[2]=w2[1];
+                        t2[2]=w2[2];
+                        t3[2]=w2[3];
+                        t4[2]=w2[4];
+                        t5[2]=w2[5];
+                        t0[3]=w3[0];
+                        t1[3]=w3[1];
+                        t2[3]=w3[2];
+                        t3[3]=w3[3];
+                        t4[3]=w3[4];
+                        t5[3]=w3[5];
+                        t0[4]=w4[0];
+                        t1[4]=w4[1];
+                        t2[4]=w4[2];
+                        t3[4]=w4[3];
+                        t4[4]=w4[4];
+                        t5[4]=w4[5];
+                        t0[5]=w5[0];
+                        t1[5]=w5[1];
+                        t2[5]=w5[2];
+                        t3[5]=w5[3];
+                        t4[5]=w5[4];
+                        t5[5]=w5[5];
                     }
                     // d = B_t * d_t
                     for (int n = 0; n < 6; n++)
-                    {   
+                    {
                         d0[n] =  4*t0[n]           - 5*t2[n]           + t4[n];
                         d1[n] =          - 4*t1[n] - 4*t2[n] +   t3[n] + t4[n];
                         d2[n] =            4*t1[n] - 4*t2[n] -   t3[n] + t4[n];
@@ -1179,17 +1318,44 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     }
                     // save to out_tm
                     {
-                        out_tm0[0]=d0[0];out_tm0[1]=d0[1];out_tm0[2]=d0[2];out_tm0[3]=d0[3];
-                        out_tm1[0]=d0[4];out_tm1[1]=d0[5];out_tm1[2]=d1[0];out_tm1[3]=d1[1];
-                        out_tm2[0]=d1[2];out_tm2[1]=d1[3];out_tm2[2]=d1[4];out_tm2[3]=d1[5];
+                        out_tm0[0]=d0[0];
+                        out_tm0[1]=d0[1];
+                        out_tm0[2]=d0[2];
+                        out_tm0[3]=d0[3];
+                        out_tm1[0]=d0[4];
+                        out_tm1[1]=d0[5];
+                        out_tm1[2]=d1[0];
+                        out_tm1[3]=d1[1];
+                        out_tm2[0]=d1[2];
+                        out_tm2[1]=d1[3];
+                        out_tm2[2]=d1[4];
+                        out_tm2[3]=d1[5];
 
-                        out_tm3[0]=d2[0];out_tm3[1]=d2[1];out_tm3[2]=d2[2];out_tm3[3]=d2[3];
-                        out_tm4[0]=d2[4];out_tm4[1]=d2[5];out_tm4[2]=d3[0];out_tm4[3]=d3[1];
-                        out_tm5[0]=d3[2];out_tm5[1]=d3[3];out_tm5[2]=d3[4];out_tm5[3]=d3[5];
+                        out_tm3[0]=d2[0];
+                        out_tm3[1]=d2[1];
+                        out_tm3[2]=d2[2];
+                        out_tm3[3]=d2[3];
+                        out_tm4[0]=d2[4];
+                        out_tm4[1]=d2[5];
+                        out_tm4[2]=d3[0];
+                        out_tm4[3]=d3[1];
+                        out_tm5[0]=d3[2];
+                        out_tm5[1]=d3[3];
+                        out_tm5[2]=d3[4];
+                        out_tm5[3]=d3[5];
 
-                        out_tm6[0]=d4[0];out_tm6[1]=d4[1];out_tm6[2]=d4[2];out_tm6[3]=d4[3];
-                        out_tm7[0]=d4[4];out_tm7[1]=d4[5];out_tm7[2]=d5[0];out_tm7[3]=d5[1];
-                        out_tm8[0]=d5[2];out_tm8[1]=d5[3];out_tm8[2]=d5[4];out_tm8[3]=d5[5];
+                        out_tm6[0]=d4[0];
+                        out_tm6[1]=d4[1];
+                        out_tm6[2]=d4[2];
+                        out_tm6[3]=d4[3];
+                        out_tm7[0]=d4[4];
+                        out_tm7[1]=d4[5];
+                        out_tm7[2]=d5[0];
+                        out_tm7[3]=d5[1];
+                        out_tm8[0]=d5[2];
+                        out_tm8[1]=d5[3];
+                        out_tm8[2]=d5[4];
+                        out_tm8[3]=d5[5];
                     }
 #endif // __AVX__
                     r0 += 4;
@@ -1213,7 +1379,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
         int nColBlocks = h_tm/6; // may be the block num in Feathercnn
         int nRowBlocks = w_tm/6;
 
-        const int tiles = nColBlocks * nRowBlocks; 
+        const int tiles = nColBlocks * nRowBlocks;
 
         top_blob_tm.create(36, tiles, outch, elemsize, opt.workspace_allocator);
 
@@ -1289,7 +1455,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         __m128 _k5 = _mm_loadu_ps(kptr+20);
                         __m128 _k6 = _mm_loadu_ps(kptr+24);
                         __m128 _k7 = _mm_loadu_ps(kptr+28);
-#if __AVX__                        
+#if __AVX__
                         _sum0 = _mm_fmadd_ps(_r0, _k0, _sum0);
                         _sum1 = _mm_fmadd_ps(_r0, _k1, _sum1);
                         _sum2 = _mm_fmadd_ps(_r0, _k2, _sum2);
@@ -1317,7 +1483,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         _k5 = _mm_loadu_ps(kptr+20);
                         _k6 = _mm_loadu_ps(kptr+24);
                         _k7 = _mm_loadu_ps(kptr+28);
-#if __AVX__                        
+#if __AVX__
                         _sum0 = _mm_fmadd_ps(_r1, _k0, _sum0);
                         _sum1 = _mm_fmadd_ps(_r1, _k1, _sum1);
                         _sum2 = _mm_fmadd_ps(_r1, _k2, _sum2);
@@ -1325,7 +1491,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         _sum4 = _mm_fmadd_ps(_r1, _k4, _sum4);
                         _sum5 = _mm_fmadd_ps(_r1, _k5, _sum5);
                         _sum6 = _mm_fmadd_ps(_r1, _k6, _sum6);
-                        _sum7 = _mm_fmadd_ps(_r1, _k7, _sum7); 
+                        _sum7 = _mm_fmadd_ps(_r1, _k7, _sum7);
 #else
                         _sum0 = _mm_add_ps(_sum0, _mm_mul_ps(_r1, _k0));
                         _sum1 = _mm_add_ps(_sum1, _mm_mul_ps(_r1, _k1));
@@ -1346,7 +1512,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         _k5 = _mm_loadu_ps(kptr+20);
                         _k6 = _mm_loadu_ps(kptr+24);
                         _k7 = _mm_loadu_ps(kptr+28);
-#if __AVX__                        
+#if __AVX__
                         _sum0 = _mm_fmadd_ps(_r2, _k0, _sum0);
                         _sum1 = _mm_fmadd_ps(_r2, _k1, _sum1);
                         _sum2 = _mm_fmadd_ps(_r2, _k2, _sum2);
@@ -1374,7 +1540,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         _k5 = _mm_loadu_ps(kptr+20);
                         _k6 = _mm_loadu_ps(kptr+24);
                         _k7 = _mm_loadu_ps(kptr+28);
-#if __AVX__                        
+#if __AVX__
                         _sum0 = _mm_fmadd_ps(_r3, _k0, _sum0);
                         _sum1 = _mm_fmadd_ps(_r3, _k1, _sum1);
                         _sum2 = _mm_fmadd_ps(_r3, _k2, _sum2);
@@ -1409,7 +1575,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         __m128 _k6 = _mm_loadu_ps(kptr+24);
                         __m128 _k7 = _mm_loadu_ps(kptr+28);
 
-#if __AVX__                        
+#if __AVX__
                         _sum0 = _mm_fmadd_ps(_r0, _k0, _sum0);
                         _sum1 = _mm_fmadd_ps(_r0, _k1, _sum1);
                         _sum2 = _mm_fmadd_ps(_r0, _k2, _sum2);
@@ -1531,7 +1697,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         __m128 _k1 = _mm_loadu_ps(kptr+4);
                         __m128 _k2 = _mm_loadu_ps(kptr+8);
                         __m128 _k3 = _mm_loadu_ps(kptr+12);
-#if __AVX__                        
+#if __AVX__
                         _sum0 = _mm_fmadd_ps(_r0, _k0, _sum0);
                         _sum1 = _mm_fmadd_ps(_r0, _k1, _sum1);
                         _sum2 = _mm_fmadd_ps(_r0, _k2, _sum2);
@@ -1557,7 +1723,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     float sum3[4] = {0};
 
                     for (int q=0; q<inch; q++)
-                    {   
+                    {
                         for (int n=0; n<4; n++)
                         {
                             sum0[n] += r0[n] * kptr[n];
@@ -1626,7 +1792,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             sum0[n] += (int)r0[n] * kptr[n];
                         }
-                        kptr += 4; 
+                        kptr += 4;
                         r0 += 4;
                     }
 
@@ -1671,7 +1837,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
 
     }
     bottom_blob_tm = Mat();
-    // END dot 
+    // END dot
 
     // BEGIN transform output
     Mat top_blob_bordered;
@@ -1696,7 +1862,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
         // 1 =		  r01 - r02 + 2 * (r03 - r04)
         // 2 =		  r01 + r02 + 4 * (r03 + r04)
         // 3 =		  r01 - r02 + 8 * (r03 - r04)  + r05
-        
+
 
         int w_tm = outw / 4 * 6;
         int h_tm = outh / 4 * 6;
@@ -1745,12 +1911,30 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     }
                     // transpose w to w_t
                     {
-                        d0[0] = w0[0]; d0[1] = w1[0]; d0[2] = w2[0]; d0[3] = w3[0];
-                        d1[0] = w0[1]; d1[1] = w1[1]; d1[2] = w2[1]; d1[3] = w3[1];
-                        d2[0] = w0[2]; d2[1] = w1[2]; d2[2] = w2[2]; d2[3] = w3[2];
-                        d3[0] = w0[3]; d3[1] = w1[3]; d3[2] = w2[3]; d3[3] = w3[3];
-                        d4[0] = w0[4]; d4[1] = w1[4]; d4[2] = w2[4]; d4[3] = w3[4];
-                        d5[0] = w0[5]; d5[1] = w1[5]; d5[2] = w2[5]; d5[3] = w3[5];
+                        d0[0] = w0[0];
+                        d0[1] = w1[0];
+                        d0[2] = w2[0];
+                        d0[3] = w3[0];
+                        d1[0] = w0[1];
+                        d1[1] = w1[1];
+                        d1[2] = w2[1];
+                        d1[3] = w3[1];
+                        d2[0] = w0[2];
+                        d2[1] = w1[2];
+                        d2[2] = w2[2];
+                        d2[3] = w3[2];
+                        d3[0] = w0[3];
+                        d3[1] = w1[3];
+                        d3[2] = w2[3];
+                        d3[3] = w3[3];
+                        d4[0] = w0[4];
+                        d4[1] = w1[4];
+                        d4[2] = w2[4];
+                        d4[3] = w3[4];
+                        d5[0] = w0[5];
+                        d5[1] = w1[5];
+                        d5[2] = w2[5];
+                        d5[3] = w3[5];
                     }
                     // Y = A_T * w_t
                     for (int n = 0; n < 4; n++)

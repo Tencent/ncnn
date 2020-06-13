@@ -474,8 +474,15 @@ public:
 };
 
 // type for vulkan specialization constant and push constant
-union vk_specialization_type { int i; float f; uint32_t u32; };
-union vk_constant_type { int i; float f; };
+union vk_specialization_type {
+    int i;
+    float f;
+    uint32_t u32;
+};
+union vk_constant_type {
+    int i;
+    float f;
+};
 #endif // NCNN_VULKAN
 
 // misc function
@@ -532,7 +539,10 @@ float float16_to_float32(unsigned short value);
 inline unsigned short float32_to_bfloat16(float value)
 {
     // 16 : 16
-    union { unsigned int u; float f; } tmp;
+    union {
+        unsigned int u;
+        float f;
+    } tmp;
     tmp.f = value;
     return tmp.u >> 16;
 }
@@ -540,7 +550,10 @@ inline unsigned short float32_to_bfloat16(float value)
 inline float bfloat16_to_float32(unsigned short value)
 {
     // 16 : 16
-    union { unsigned int u; float f; } tmp;
+    union {
+        unsigned int u;
+        float f;
+    } tmp;
     tmp.u = value << 16;
     return tmp.f;
 }
@@ -697,34 +710,34 @@ inline void Mat::fill(float _v)
 #if __aarch64__
     if (nn > 0)
     {
-    asm volatile (
-        "0:                             \n"
-        "subs       %w0, %w0, #1        \n"
-        "st1        {%4.4s}, [%1], #16  \n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(ptr)     // %1
-        : "0"(nn),
-          "1"(ptr),
-          "w"(_c)       // %4
-        : "cc", "memory"
-    );
+        asm volatile (
+            "0:                             \n"
+            "subs       %w0, %w0, #1        \n"
+            "st1        {%4.4s}, [%1], #16  \n"
+            "bne        0b                  \n"
+            : "=r"(nn),     // %0
+            "=r"(ptr)     // %1
+            : "0"(nn),
+            "1"(ptr),
+            "w"(_c)       // %4
+            : "cc", "memory"
+        );
     }
 #else
     if (nn > 0)
     {
-    asm volatile(
-        "0:                             \n"
-        "subs       %0, #1              \n"
-        "vst1.f32   {%e4-%f4}, [%1 :128]!\n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(ptr)     // %1
-        : "0"(nn),
-          "1"(ptr),
-          "w"(_c)       // %4
-        : "cc", "memory"
-    );
+        asm volatile(
+            "0:                             \n"
+            "subs       %0, #1              \n"
+            "vst1.f32   {%e4-%f4}, [%1 :128]!\n"
+            "bne        0b                  \n"
+            : "=r"(nn),     // %0
+            "=r"(ptr)     // %1
+            : "0"(nn),
+            "1"(ptr),
+            "w"(_c)       // %4
+            : "cc", "memory"
+        );
     }
 #endif // __aarch64__
 #endif // __ARM_NEON
@@ -751,34 +764,34 @@ inline void Mat::fill(int _v)
 #if __aarch64__
     if (nn > 0)
     {
-    asm volatile (
-        "0:                             \n"
-        "subs       %w0, %w0, #1        \n"
-        "st1        {%4.4s}, [%1], #16  \n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(ptr)     // %1
-        : "0"(nn),
-          "1"(ptr),
-          "w"(_c)       // %4
-        : "cc", "memory"
-    );
+        asm volatile (
+            "0:                             \n"
+            "subs       %w0, %w0, #1        \n"
+            "st1        {%4.4s}, [%1], #16  \n"
+            "bne        0b                  \n"
+            : "=r"(nn),     // %0
+            "=r"(ptr)     // %1
+            : "0"(nn),
+            "1"(ptr),
+            "w"(_c)       // %4
+            : "cc", "memory"
+        );
     }
 #else
     if (nn > 0)
     {
-    asm volatile(
-        "0:                             \n"
-        "subs       %0, #1              \n"
-        "vst1.s32   {%e4-%f4}, [%1 :128]!\n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(ptr)     // %1
-        : "0"(nn),
-          "1"(ptr),
-          "w"(_c)       // %4
-        : "cc", "memory"
-    );
+        asm volatile(
+            "0:                             \n"
+            "subs       %0, #1              \n"
+            "vst1.s32   {%e4-%f4}, [%1 :128]!\n"
+            "bne        0b                  \n"
+            : "=r"(nn),     // %0
+            "=r"(ptr)     // %1
+            : "0"(nn),
+            "1"(ptr),
+            "w"(_c)       // %4
+            : "cc", "memory"
+        );
     }
 #endif // __aarch64__
 #endif // __ARM_NEON

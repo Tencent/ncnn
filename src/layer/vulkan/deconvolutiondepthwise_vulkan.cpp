@@ -650,8 +650,8 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
         constants[9].i = top_blob_bordered.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_deconvolutiondepthwise_pack8
-                                 : elempack == 4 ? pipeline_deconvolutiondepthwise_pack4
-                                 : pipeline_deconvolutiondepthwise;
+                                   : elempack == 4 ? pipeline_deconvolutiondepthwise_pack4
+                                   : pipeline_deconvolutiondepthwise;
 
         // record
         cmd.record_pipeline(pipeline, bindings, constants, top_blob_bordered);
@@ -1015,8 +1015,8 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
         constants[9].i = 0;//top_blob_bordered.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_deconvolutiondepthwise_pack8
-                                 : elempack == 4 ? pipeline_deconvolutiondepthwise_pack4
-                                 : pipeline_deconvolutiondepthwise;
+                                   : elempack == 4 ? pipeline_deconvolutiondepthwise_pack4
+                                   : pipeline_deconvolutiondepthwise;
 
         // record
         cmd.record_pipeline(pipeline, bindings, constants, top_blob_bordered);

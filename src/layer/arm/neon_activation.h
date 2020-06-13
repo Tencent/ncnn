@@ -84,7 +84,7 @@ static inline float32x4_t activation_ps(float32x4_t _v, int activation_type, con
     }
     else if (activation_type == 5)
     {
-		_v = vmulq_f32(_v, tanh_ps(log_ps(vaddq_f32(exp_ps(_v), vdupq_n_f32(1.f)))));
+        _v = vmulq_f32(_v, tanh_ps(log_ps(vaddq_f32(exp_ps(_v), vdupq_n_f32(1.f)))));
     }
 
     return _v;

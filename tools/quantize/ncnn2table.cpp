@@ -562,7 +562,7 @@ static int post_training_quantize(const std::vector<std::string>& image_list, co
 
     FILE *fp = fopen(table_path.c_str(), "w");
 
-    // save quantization scale of weight 
+    // save quantization scale of weight
     printf("====> Quantize the parameters.\n");
     for (size_t i = 0; i < net.conv_names.size(); i++)
     {
@@ -813,7 +813,7 @@ int main(int argc, char** argv)
         "{size s         |   | the size of input image(using the resize the original image,default is w=224,h=224) }"
         "{swapRB c       |   | flag which indicates that swap first and last channels in 3-channel image is necessary }"
         "{thread t       | 4 | count of processing threads }"
-    ;
+        ;
 
     cv::CommandLineParser parser(argc, argv, key_map);
 

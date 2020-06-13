@@ -140,9 +140,9 @@ static void conv1x1s2_int8_sse(const Mat &bottom_blob, Mat &top_blob, const Mat 
                 {
                     //ToDo Neon
                     int sum0 = (int)*r0 * (int)kernel0[0] + (int)*r1 * (int)kernel0[1] +
-                            (int)*r2 * (int)kernel0[2] + (int)*r3 * (int)kernel0[3] +
-                            (int)*r4 * (int)kernel0[4] + (int)*r5 * (int)kernel0[5] +
-                            (int)*r6 * (int)kernel0[6] + (int)*r7 * (int)kernel0[7];
+                               (int)*r2 * (int)kernel0[2] + (int)*r3 * (int)kernel0[3] +
+                               (int)*r4 * (int)kernel0[4] + (int)*r5 * (int)kernel0[5] +
+                               (int)*r6 * (int)kernel0[6] + (int)*r7 * (int)kernel0[7];
 
                     *outptr0 += sum0;
 

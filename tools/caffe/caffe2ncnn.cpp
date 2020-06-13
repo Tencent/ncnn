@@ -58,7 +58,7 @@ static unsigned short float2half(float value)
 
     //     fprintf(stderr, "%d %d %d\n", sign, exponent, significand);
 
-        // 1 : 5 : 10
+    // 1 : 5 : 10
     unsigned short fp16;
     if (exponent == 0)
     {

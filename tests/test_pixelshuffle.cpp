@@ -40,14 +40,14 @@ static int test_pixelshuffle(const ncnn::Mat& a, int upscale_factor)
 static int test_pixelshuffle_0()
 {
     return 0
-        || test_pixelshuffle(RandomMat(3, 7, 1), 1)
-        || test_pixelshuffle(RandomMat(2, 3, 4), 2)
-        || test_pixelshuffle(RandomMat(3, 4, 12), 2)
-        || test_pixelshuffle(RandomMat(2, 2, 64), 4)
-        || test_pixelshuffle(RandomMat(4, 4, 32), 2)
-        || test_pixelshuffle(RandomMat(5, 5, 48), 2)
-        || test_pixelshuffle(RandomMat(3, 3, 90), 3)
-        ;
+           || test_pixelshuffle(RandomMat(3, 7, 1), 1)
+           || test_pixelshuffle(RandomMat(2, 3, 4), 2)
+           || test_pixelshuffle(RandomMat(3, 4, 12), 2)
+           || test_pixelshuffle(RandomMat(2, 2, 64), 4)
+           || test_pixelshuffle(RandomMat(4, 4, 32), 2)
+           || test_pixelshuffle(RandomMat(5, 5, 48), 2)
+           || test_pixelshuffle(RandomMat(3, 3, 90), 3)
+           ;
 }
 
 int main()

@@ -24,7 +24,7 @@ static inline signed char float2int8(float v)
 }
 
 #if __aarch64__
-#if 1 
+#if 1
 #include "gemm_symm_int8.h"
 static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch)
 {
@@ -46,10 +46,10 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
         int8_t *pReorder = bottom_tm;
         reorder_b(pData, pReorder, k, n, bottom_blob.cstep);
     }
-    
+
     // GEMM
     int32_t *pc = top_blob;
-    const int8_t *pa = kernel; 
+    const int8_t *pa = kernel;
     const int8_t *pb = bottom_tm;
     const size_t ldc = top_blob.cstep;
 
@@ -91,7 +91,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
         int8_t *pReorder = bottom_tm;
         reorder_b(pData, pReorder, k, n, bottom_blob.cstep);
     }
-    
+
     // GEMM
     int8_t *pc = top_blob;
     const int8_t *pa = kernel;
@@ -411,18 +411,18 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "st1      {v23.4s}, [%3]             \n"
 
                 : "=r"(outptr0), // %0
-                  "=r"(outptr1), // %1
-                  "=r"(outptr2), // %2
-                  "=r"(outptr3), // %3
-                  "=r"(tmpptr),  // %4
-                  "=r"(kptr)     // %5
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(tmpptr),  // %4
+                "=r"(kptr)     // %5
                 : "0"(outptr0),
-                  "1"(outptr1),
-                  "2"(outptr2),
-                  "3"(outptr3),
-                  "4"(tmpptr),
-                  "5"(kptr),
-                  "r"(inch)      // %12
+                "1"(outptr1),
+                "2"(outptr2),
+                "3"(outptr3),
+                "4"(tmpptr),
+                "5"(kptr),
+                "r"(inch)      // %12
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
             );
 #else
@@ -1066,24 +1066,24 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "st1    {v1.s}[1], [%3]              \n"
 
                 : "=r"(outptr0), // %0
-                  "=r"(outptr1), // %1
-                  "=r"(outptr2), // %2
-                  "=r"(outptr3), // %3
-                  "=r"(tmpptr),  // %4
-                  "=r"(kptr)     // %5
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(tmpptr),  // %4
+                "=r"(kptr)     // %5
                 : "0"(outptr0),
-                  "1"(outptr1),
-                  "2"(outptr2),
-                  "3"(outptr3),
-                  "4"(tmpptr),
-                  "5"(kptr),
-                  "r"(inch),        // %12
-                  "w"(_bias0),      // %13
-                  "w"(_bias1),      // %14
-                  "w"(_bias2),      // %15
-                  "w"(_bias3),      // %16
-                  "w"(_scale_in03), // %17
-                  "w"(_scale_out03) // %18
+                "1"(outptr1),
+                "2"(outptr2),
+                "3"(outptr3),
+                "4"(tmpptr),
+                "5"(kptr),
+                "r"(inch),        // %12
+                "w"(_bias0),      // %13
+                "w"(_bias1),      // %14
+                "w"(_bias2),      // %15
+                "w"(_bias3),      // %16
+                "w"(_scale_in03), // %17
+                "w"(_scale_out03) // %18
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
             );
 #else
@@ -1478,9 +1478,9 @@ static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& 
 {
     const signed char* kernel = _kernel;
 
-    kernel_tm.create(4*4, inch/4 + inch%4, outch/4 + outch%4, (size_t)1u);   
+    kernel_tm.create(4*4, inch/4 + inch%4, outch/4 + outch%4, (size_t)1u);
 
-    int p = 0;  
+    int p = 0;
     for (; p+3<outch; p+=4)
     {
         const signed char* kernel0 = kernel + (p+0)*inch;
@@ -1517,7 +1517,7 @@ static void conv1x1s1_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat& 
             ktmp++;
             kernel0++;
         }
-    }  
+    }
 }
 
 /*
@@ -1556,13 +1556,13 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                     "vld1.s8   {d0}, [%0]     \n"
                     "vst1.s8   {d0}, [%1]!    \n"
                     : "=r"(img0),   // %0
-                      "=r"(tmpptr)  // %1
+                    "=r"(tmpptr)  // %1
                     : "0"(img0),
-                      "1"(tmpptr)
+                    "1"(tmpptr)
                     : "memory", "d0"
-                );         
+                );
                 img0 += bottom_blob.cstep;
-#else                
+#else
                 tmpptr[0] = img0[0];
                 tmpptr[1] = img0[1];
                 tmpptr[2] = img0[2];
@@ -1599,8 +1599,8 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
                 tmpptr += 4;
                 img0 += bottom_blob.cstep;
-            }            
-        }        
+            }
+        }
 
         remain_size_start += nn_size << 2;
 
@@ -1619,13 +1619,13 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 img0 += bottom_blob.cstep;
             }
         }
-    }  
+    }
 
     // sgemm process
     int nn_outch = 0;
     int remain_outch_start = 0;
 
-    nn_outch = (outch - remain_outch_start) >> 2;  
+    nn_outch = (outch - remain_outch_start) >> 2;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp=0; pp<nn_outch; pp++)
@@ -1659,7 +1659,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "lsr         r4, %12, #2       \n"// r4 = nn = inch >> 2
                 "cmp         r4, #0            \n"
                 "beq         1f                \n"
-                
+
                 "0:                            \n"// for(; nn != 0; nn--)
                 "pld         [%4, #128]        \n"
                 "vld1.s8     {d4-d7}, [%4]!    \n"// tmpr a00-a07,a10-a17,a20-a27,a30-a37    a(inch)(data)
@@ -1697,7 +1697,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "vmlal.s16   q10, d8, d2[2]    \n"// sum2 += (a20-a27) * k22
                 "vmlal.s16   q11, d9, d2[2]    \n"
                 "vmlal.s16   q12, d8, d2[3]    \n"// sum3 += (a20-a27) * k32
-                "vmlal.s16   q13, d9, d2[3]    \n"  
+                "vmlal.s16   q13, d9, d2[3]    \n"
 
                 "vmlal.s16   q6, d10, d3[0]    \n"// sum0 += (a30-a37) * k03
                 "vmlal.s16   q7, d11, d3[0]    \n"
@@ -1706,11 +1706,11 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "vmlal.s16   q10, d10, d3[2]   \n"// sum2 += (a30-a37) * k23
                 "vmlal.s16   q11, d11, d3[2]   \n"
                 "vmlal.s16   q12, d10, d3[3]   \n"// sum3 += (a30-a37) * k33
-                "vmlal.s16   q13, d11, d3[3]   \n"                  
+                "vmlal.s16   q13, d11, d3[3]   \n"
 
                 "subs        r4, r4, #1        \n"
                 "bne         0b                \n"// end for
- 
+
                 "1:                            \n"
                 // remain loop
                 "and         r4, %12, #3       \n"// r4 = remain = inch & 3
@@ -1731,7 +1731,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "vmlal.s16   q10, d2, d0[2]    \n"// sum2 += (a00-a07) * k20
                 "vmlal.s16   q11, d3, d0[2]    \n"
                 "vmlal.s16   q12, d2, d0[3]    \n"// sum3 += (a00-a07) * k30
-                "vmlal.s16   q13, d3, d0[3]    \n"    
+                "vmlal.s16   q13, d3, d0[3]    \n"
 
                 "subs        r4, r4, #1        \n"
                 "bne         2b                \n"
@@ -1743,20 +1743,20 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "vst1.s32    {d24-d27}, [%3]!  \n"
 
                 : "=r"(outptr0), // %0
-                  "=r"(outptr1), // %1
-                  "=r"(outptr2), // %2
-                  "=r"(outptr3), // %3
-                  "=r"(tmpptr),  // %4
-                  "=r"(kptr)     // %5
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(tmpptr),  // %4
+                "=r"(kptr)     // %5
                 : "0"(outptr0),
-                  "1"(outptr1),
-                  "2"(outptr2),
-                  "3"(outptr3),
-                  "4"(tmpptr),
-                  "5"(kptr),
-                  "r"(inch)      // %12  
+                "1"(outptr1),
+                "2"(outptr2),
+                "3"(outptr3),
+                "4"(tmpptr),
+                "5"(kptr),
+                "r"(inch)      // %12
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-            );        
+            );
 #else
             int sum0_0 = 0;
             int sum0_1 = 0;
@@ -1877,7 +1877,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
             outptr2 += 8;
             outptr3 += 8;
 #endif // __ARM_NEON            
-        }    
+        }
 
         for (; i+3<size; i+=4)
         {
@@ -1895,7 +1895,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "lsr         r4, %12, #2       \n"// r4 = nn = inch >> 2
                 "cmp         r4, #0            \n"
                 "beq         1f                \n"
-                
+
                 "0:                            \n"// for(; nn != 0; nn--)
                 "pld         [%4, #128]        \n"
                 "vld1.s8     {d4-d5}, [%4]!    \n"// tmpr a00-a03,a10-a13,a20-a23,a30-a33    a(inch)(data)
@@ -1928,7 +1928,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
                 "subs        r4, r4, #1        \n"
                 "bne         0b                \n"// end for
- 
+
                 "1:                            \n"
                 // remain loop
                 "and         r4, %12, #3       \n"// r4 = remain = inch & 3
@@ -1958,20 +1958,20 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "vst1.s32    {d18-d19}, [%3]!  \n"
 
                 : "=r"(outptr0), // %0
-                  "=r"(outptr1), // %1
-                  "=r"(outptr2), // %2
-                  "=r"(outptr3), // %3
-                  "=r"(tmpptr),  // %4
-                  "=r"(kptr)     // %5
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(tmpptr),  // %4
+                "=r"(kptr)     // %5
                 : "0"(outptr0),
-                  "1"(outptr1),
-                  "2"(outptr2),
-                  "3"(outptr3),
-                  "4"(tmpptr),
-                  "5"(kptr),
-                  "r"(inch)      // %12  
+                "1"(outptr1),
+                "2"(outptr2),
+                "3"(outptr3),
+                "4"(tmpptr),
+                "5"(kptr),
+                "r"(inch)      // %12
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-            );        
+            );
 #else
             int sum0_0 = 0;
             int sum0_1 = 0;
@@ -2063,7 +2063,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "lsr         r4, %12, #2       \n"// r4 = nn = inch >> 2
                 "cmp         r4, #0            \n"
                 "beq         1f                \n"
-                
+
                 "0:                            \n"// for(; nn != 0; nn--)
                 "pld         [%4, #128]        \n"
                 "vld1.s8     {d4}, [%4]        \n"// tmpr a00,a10,a20,a30    a(inch)(data)
@@ -2085,7 +2085,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "vadd.s32    q6, q6, q7        \n"
                 "vadd.s32    q9, q9, q8        \n"
                 "vadd.s32    q10, q6, q9       \n"
- 
+
                 "1:                            \n"
                 // remain loop
                 "and         r4, %12, #3       \n"// r4 = remain = inch & 3
@@ -2112,20 +2112,20 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "vst1.s32    {d21[1]}, [%3]!   \n"
 
                 : "=r"(outptr0), // %0
-                  "=r"(outptr1), // %1
-                  "=r"(outptr2), // %2
-                  "=r"(outptr3), // %3
-                  "=r"(tmpptr),  // %4
-                  "=r"(kptr)     // %5
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(tmpptr),  // %4
+                "=r"(kptr)     // %5
                 : "0"(outptr0),
-                  "1"(outptr1),
-                  "2"(outptr2),
-                  "3"(outptr3),
-                  "4"(tmpptr),
-                  "5"(kptr),
-                  "r"(inch)      // %12  
+                "1"(outptr1),
+                "2"(outptr2),
+                "3"(outptr3),
+                "4"(tmpptr),
+                "5"(kptr),
+                "r"(inch)      // %12
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-            );       
+            );
 #else
             int sum0 = 0;
             int sum1 = 0;
@@ -2151,7 +2151,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
             outptr0++;
             outptr1++;
             outptr2++;
-            outptr3++;  
+            outptr3++;
 #endif // __ARM_NEON
         }
     }
@@ -2181,7 +2181,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "lsr         r4, %6, #2        \n"// r4 = nn = inch >> 2
                 "cmp         r4, #0            \n"
                 "beq         1f                \n"
-                
+
                 "0:                            \n"// for(; nn != 0; nn--)
                 "pld         [%1, #128]        \n"
                 "vld1.s8     {d4-d7}, [%1]!    \n"// tmpr a00-a07,a10-a17,a20-a27,a30-a37    a(inch)(data)
@@ -2205,7 +2205,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
                 "subs        r4, r4, #1        \n"
                 "bne         0b                \n"// end for
- 
+
                 "1:                            \n"
                 // remain loop
                 "and         r4, %6, #3        \n"// r4 = remain = inch & 3
@@ -2220,7 +2220,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "add         %2, #1            \n"
 
                 "vmlal.s16   q6, d2, d0[0]     \n"// (a00-a07) * k00
-                "vmlal.s16   q7, d3, d0[0]     \n"  
+                "vmlal.s16   q7, d3, d0[0]     \n"
 
                 "subs        r4, r4, #1        \n"
                 "bne         2b                \n"
@@ -2229,14 +2229,14 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "vst1.s32    {d12-d15}, [%0]!  \n"
 
                 : "=r"(outptr0), // %0
-                  "=r"(tmpptr),  // %1
-                  "=r"(kptr)     // %2
+                "=r"(tmpptr),  // %1
+                "=r"(kptr)     // %2
                 : "0"(outptr0),
-                  "1"(tmpptr),
-                  "2"(kptr),
-                  "r"(inch)      // %6  
+                "1"(tmpptr),
+                "2"(kptr),
+                "r"(inch)      // %6
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7"
-            );         
+            );
 #else
             int sum0 = 0;
             int sum1 = 0;
@@ -2273,11 +2273,11 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
             outptr0 += 8;
 #endif // __ARM_NEON
-        }   
+        }
 
         for (; i+3<size; i+=4)
         {
-            const signed char* tmpptr = tmp.channel(i/8 + (i%8)/4);   
+            const signed char* tmpptr = tmp.channel(i/8 + (i%8)/4);
             const signed char* kptr = kernel.channel(p/4 + p%4);
 
 #if __ARM_NEON
@@ -2288,7 +2288,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "lsr         r4, %6, #2        \n"// r4 = nn = inch >> 2
                 "cmp         r4, #0            \n"
                 "beq         1f                \n"
-                
+
                 "0:                            \n"// for(; nn != 0; nn--)
                 "pld         [%2, #128]        \n"
                 "vld1.s8     {d4-d5}, [%1]!    \n"// tmpr a00-a03,a10-a13,a20-a23,a30-a33    a(inch)(data)
@@ -2306,7 +2306,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
                 "subs        r4, r4, #1        \n"
                 "bne         0b                \n"// end for
- 
+
                 "1:                            \n"
                 // remain loop
                 "and         r4, %6, #3        \n"// r4 = remain = inch & 3
@@ -2330,14 +2330,14 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
                 "vst1.s32    {d12-d13}, [%0]!  \n"
 
                 : "=r"(outptr0), // %0
-                  "=r"(tmpptr),  // %1
-                  "=r"(kptr)     // %2
+                "=r"(tmpptr),  // %1
+                "=r"(kptr)     // %2
                 : "0"(outptr0),
-                  "1"(tmpptr),
-                  "2"(kptr),
-                  "r"(inch)      // %6  
+                "1"(tmpptr),
+                "2"(kptr),
+                "r"(inch)      // %6
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6"
-            );           
+            );
 #else
             int sum0 = 0;
             int sum1 = 0;
@@ -2366,12 +2366,12 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
         for (; i<size; i++)
         {
-            const signed char* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);   
+            const signed char* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);
             const signed char* kptr = kernel.channel(p/4 + p%4);
 
-            int q = 0;            
+            int q = 0;
             int sum0 = 0;
-            
+
             for (; q<inch; q++)
             {
                 sum0 += tmpptr[0] * kptr[0];
@@ -2383,7 +2383,7 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
 
             outptr0++;
         }
-    }      
+    }
 
 //     // NOTE sgemm int8
 //     for (; p<outch; p++)
@@ -2446,13 +2446,13 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                     "vld1.s8   {d0}, [%0]     \n"
                     "vst1.s8   {d0}, [%1]!    \n"
                     : "=r"(img0),   // %0
-                      "=r"(tmpptr)  // %1
+                    "=r"(tmpptr)  // %1
                     : "0"(img0),
-                      "1"(tmpptr)
+                    "1"(tmpptr)
                     : "memory", "d0"
-                );           
+                );
                 img0 += bottom_blob.cstep;
-#else                
+#else
                 tmpptr[0] = img0[0];
                 tmpptr[1] = img0[1];
                 tmpptr[2] = img0[2];
@@ -2489,8 +2489,8 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
 
                 tmpptr += 4;
                 img0 += bottom_blob.cstep;
-            }            
-        }        
+            }
+        }
 
         remain_size_start += nn_size << 2;
 
@@ -2509,13 +2509,13 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 img0 += bottom_blob.cstep;
             }
         }
-    }  
+    }
 
     // sgemm process
     int nn_outch = 0;
     int remain_outch_start = 0;
 
-    nn_outch = (outch - remain_outch_start) >> 2;  
+    nn_outch = (outch - remain_outch_start) >> 2;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp=0; pp<nn_outch; pp++)
@@ -2547,7 +2547,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
         _bias03[0] = bias0;
         _bias03[1] = bias1;
         _bias03[2] = bias2;
-        _bias03[3] = bias3;        
+        _bias03[3] = bias3;
 
         _scale_in03[0] = scale_requant_in0;
         _scale_in03[1] = scale_requant_in1;
@@ -2581,7 +2581,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "lsr         r4, %12, #2       \n"// r4 = nn = inch >> 2
                 "cmp         r4, #0            \n"
                 "beq         1f                \n"
-                
+
                 "0:                            \n"// for(; nn != 0; nn--)
                 "pld         [%4, #128]        \n"
                 "vld1.s8     {d28-d31}, [%4]!  \n"// tmpr a00-a07,a10-a17,a20-a27,a30-a37    a(inch)(data)
@@ -2619,7 +2619,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "vmlal.s16   q10, d8, d2[2]    \n"// sum2 += (a20-a27) * k22
                 "vmlal.s16   q11, d9, d2[2]    \n"
                 "vmlal.s16   q12, d8, d2[3]    \n"// sum3 += (a20-a27) * k32
-                "vmlal.s16   q13, d9, d2[3]    \n"  
+                "vmlal.s16   q13, d9, d2[3]    \n"
 
                 "vmlal.s16   q6, d10, d3[0]    \n"// sum0 += (a30-a37) * k03
                 "vmlal.s16   q7, d11, d3[0]    \n"
@@ -2632,7 +2632,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
 
                 "subs        r4, r4, #1        \n"
                 "bne         0b                \n"// end for
- 
+
                 "1:                            \n"
                 // remain loop
                 "and         r4, %12, #3       \n"// r4 = remain = inch & 3
@@ -2653,7 +2653,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "vmlal.s16   q10, d2, d0[2]    \n"// sum2 += (a00-a07) * k20
                 "vmlal.s16   q11, d3, d0[2]    \n"
                 "vmlal.s16   q12, d2, d0[3]    \n"// sum3 += (a00-a07) * k30
-                "vmlal.s16   q13, d3, d0[3]    \n"    
+                "vmlal.s16   q13, d3, d0[3]    \n"
 
                 "subs        r4, r4, #1        \n"
                 "bne         2b                \n"
@@ -2778,26 +2778,26 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "vst1.8     {d24}, [%3]!        \n"
 
                 : "=r"(outptr0), // %0
-                  "=r"(outptr1), // %1
-                  "=r"(outptr2), // %2
-                  "=r"(outptr3), // %3
-                  "=r"(tmpptr),  // %4
-                  "=r"(kptr)     // %5
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(tmpptr),  // %4
+                "=r"(kptr)     // %5
                 : "0"(outptr0),
-                  "1"(outptr1),
-                  "2"(outptr2),
-                  "3"(outptr3),
-                  "4"(tmpptr),
-                  "5"(kptr),
-                  "r"(inch),        // %12
-                  "r"(bias0),       // %13
-                  "r"(bias1),       // %14
-                  "r"(bias2),       // %15
-                  "r"(bias3),       // %16
-                  "w"(_scale_in03), // %17
-                  "w"(_scale_out03) // %18
-                : "cc", "memory", "r4", "q0", "q1", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13" ,"q14" ,"q15"
-            );       
+                "1"(outptr1),
+                "2"(outptr2),
+                "3"(outptr3),
+                "4"(tmpptr),
+                "5"(kptr),
+                "r"(inch),        // %12
+                "r"(bias0),       // %13
+                "r"(bias1),       // %14
+                "r"(bias2),       // %15
+                "r"(bias3),       // %16
+                "w"(_scale_in03), // %17
+                "w"(_scale_out03) // %18
+                : "cc", "memory", "r4", "q0", "q1", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13","q14","q15"
+            );
 #else
             int sum0_0 = 0;
             int sum0_1 = 0;
@@ -2918,7 +2918,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
             outptr2 += 8;
             outptr3 += 8;
 #endif // __ARM_NEON            
-        }    
+        }
 
         for (; i+3<size; i+=4)
         {
@@ -2936,7 +2936,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "lsr         r4, %12, #2        \n"// r4 = nn = inch >> 2
                 "cmp         r4, #0             \n"
                 "beq         1f                 \n"
-                
+
                 "0:                             \n"// for(; nn != 0; nn--)
                 "pld         [%4, #128]         \n"
                 "vld1.s8     {d28-d29}, [%4]!   \n"// tmpr a00-a03,a10-a13,a20-a23,a30-a33    a(inch)(data)
@@ -2969,7 +2969,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
 
                 "subs        r4, r4, #1         \n"
                 "bne         0b                 \n"// end for
- 
+
                 "1:                             \n"
                 // remain loop
                 "and         r4, %12, #3        \n"// r4 = remain = inch & 3
@@ -3058,29 +3058,29 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 // save top_s8
                 "vst1.s32     {d16[0]}, [%2]!   \n"
                 "vst1.s32     {d16[1]}, [%3]!   \n"
-              
+
 
                 : "=r"(outptr0), // %0
-                  "=r"(outptr1), // %1
-                  "=r"(outptr2), // %2
-                  "=r"(outptr3), // %3
-                  "=r"(tmpptr),  // %4
-                  "=r"(kptr)     // %5
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(tmpptr),  // %4
+                "=r"(kptr)     // %5
                 : "0"(outptr0),
-                  "1"(outptr1),
-                  "2"(outptr2),
-                  "3"(outptr3),
-                  "4"(tmpptr),
-                  "5"(kptr),
-                  "r"(inch),        // %12
-                  "r"(bias0),       // %13
-                  "r"(bias1),       // %14
-                  "r"(bias2),       // %15
-                  "r"(bias3),       // %16
-                  "w"(_scale_in03), // %17
-                  "w"(_scale_out03) // %18                  
+                "1"(outptr1),
+                "2"(outptr2),
+                "3"(outptr3),
+                "4"(tmpptr),
+                "5"(kptr),
+                "r"(inch),        // %12
+                "r"(bias0),       // %13
+                "r"(bias1),       // %14
+                "r"(bias2),       // %15
+                "r"(bias3),       // %16
+                "w"(_scale_in03), // %17
+                "w"(_scale_out03) // %18
                 : "cc", "memory", "r4", "q0", "q1", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-            );          
+            );
 #else
             int sum0_0 = 0;
             int sum0_1 = 0;
@@ -3172,7 +3172,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "lsr         r4, %12, #2       \n"// r4 = nn = inch >> 2
                 "cmp         r4, #0            \n"
                 "beq         1f                \n"
-                
+
                 "0:                            \n"// for(; nn != 0; nn--)
                 "pld         [%4, #128]        \n"
                 "vld1.s8     {d4}, [%4]        \n"// tmpr a00,a10,a20,a30    a(inch)(data)
@@ -3194,7 +3194,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "vadd.s32    q6, q6, q7        \n"
                 "vadd.s32    q9, q9, q8        \n"
                 "vadd.s32    q10, q6, q9       \n"
- 
+
                 "1:                            \n"
                 // remain loop
                 "and         r4, %12, #3       \n"// r4 = remain = inch & 3
@@ -3240,23 +3240,23 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "vst1.8     {d12[3]}, [%3]!    \n"
 
                 : "=r"(outptr0), // %0
-                  "=r"(outptr1), // %1
-                  "=r"(outptr2), // %2
-                  "=r"(outptr3), // %3
-                  "=r"(tmpptr),  // %4
-                  "=r"(kptr)     // %5
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(tmpptr),  // %4
+                "=r"(kptr)     // %5
                 : "0"(outptr0),
-                  "1"(outptr1),
-                  "2"(outptr2),
-                  "3"(outptr3),
-                  "4"(tmpptr),
-                  "5"(kptr),
-                  "r"(inch),        // %12
-                  "w"(_bias03),     // %13
-                  "w"(_scale_in03), // %14
-                  "w"(_scale_out03) // %15
+                "1"(outptr1),
+                "2"(outptr2),
+                "3"(outptr3),
+                "4"(tmpptr),
+                "5"(kptr),
+                "r"(inch),        // %12
+                "w"(_bias03),     // %13
+                "w"(_scale_in03), // %14
+                "w"(_scale_out03) // %15
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12"
-            );        
+            );
 #else
             int sum0 = 0;
             int sum1 = 0;
@@ -3282,7 +3282,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
             outptr0++;
             outptr1++;
             outptr2++;
-            outptr3++;  
+            outptr3++;
 #endif // __ARM_NEON
         }
     }
@@ -3321,7 +3321,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "lsr         r4, %6, #2        \n"// r4 = nn = inch >> 2
                 "cmp         r4, #0            \n"
                 "beq         1f                \n"
-                
+
                 "0:                            \n"// for(; nn != 0; nn--)
                 "pld         [%1, #128]        \n"
                 "vld1.s8     {d4-d7}, [%1]!    \n"// tmpr a00-a07,a10-a17,a20-a27,a30-a37    a(inch)(data)
@@ -3345,7 +3345,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
 
                 "subs        r4, r4, #1        \n"
                 "bne         0b                \n"// end for
- 
+
                 "1:                            \n"
                 // remain loop
                 "and         r4, %6, #3        \n"// r4 = remain = inch & 3
@@ -3360,7 +3360,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "add         %2, #1            \n"
 
                 "vmlal.s16   q6, d2, d0[0]     \n"// (a00-a07) * k00
-                "vmlal.s16   q7, d3, d0[0]     \n"  
+                "vmlal.s16   q7, d3, d0[0]     \n"
 
                 "subs        r4, r4, #1        \n"
                 "bne         2b                \n"
@@ -3368,14 +3368,14 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "3:                            \n"// store the result to memory
 
                 // top_s32 -> top_f32
-                "vcvt.f32.s32 q6, q6           \n"     
-                "vcvt.f32.s32 q7, q7           \n"           
+                "vcvt.f32.s32 q6, q6           \n"
+                "vcvt.f32.s32 q7, q7           \n"
                 // top_f32 = top_f32 * scale_in
-                "vmul.f32   q6, q6, %q8        \n"   
-                "vmul.f32   q7, q7, %q8        \n"               
+                "vmul.f32   q6, q6, %q8        \n"
+                "vmul.f32   q7, q7, %q8        \n"
                 // top_f32 = top_f32 + bias
-                "vadd.f32   q6, q6, %q7        \n" 
-                "vadd.f32   q7, q7, %q7        \n"               
+                "vadd.f32   q6, q6, %q7        \n"
+                "vadd.f32   q7, q7, %q7        \n"
                 // top_f32 = top_f32 * scale_out
                 "vmul.f32   q0, q6, %q9        \n"
                 "vmul.f32   q1, q7, %q9        \n"
@@ -3397,17 +3397,17 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "vst1.8     {d12}, [%0]!       \n"
 
                 : "=r"(outptr0), // %0
-                  "=r"(tmpptr),  // %1
-                  "=r"(kptr)     // %2
+                "=r"(tmpptr),  // %1
+                "=r"(kptr)     // %2
                 : "0"(outptr0),
-                  "1"(tmpptr),
-                  "2"(kptr),
-                  "r"(inch),      // %6  
-                  "w"(_bias0),    // %7
-                  "w"(_scale_in), // %8
-                  "w"(_scale_out) // %9                  
+                "1"(tmpptr),
+                "2"(kptr),
+                "r"(inch),      // %6
+                "w"(_bias0),    // %7
+                "w"(_scale_in), // %8
+                "w"(_scale_out) // %9
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7"
-            );           
+            );
 #else
             int sum0 = 0;
             int sum1 = 0;
@@ -3444,11 +3444,11 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
 
             outptr0 += 8;
 #endif // __ARM_NEON
-        }   
+        }
 
         for (; i+3<size; i+=4)
         {
-            const signed char* tmpptr = tmp.channel(i/8 + (i%8)/4);   
+            const signed char* tmpptr = tmp.channel(i/8 + (i%8)/4);
             const signed char* kptr = kernel.channel(p/4 + p%4);
 
 #if __ARM_NEON
@@ -3459,7 +3459,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "lsr         r4, %6, #2        \n"// r4 = nn = inch >> 2
                 "cmp         r4, #0            \n"
                 "beq         1f                \n"
-                
+
                 "0:                            \n"// for(; nn != 0; nn--)
                 "pld         [%2, #128]        \n"
                 "vld1.s8     {d4-d5}, [%1]!    \n"// tmpr a00-a03,a10-a13,a20-a23,a30-a33    a(inch)(data)
@@ -3477,7 +3477,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
 
                 "subs        r4, r4, #1        \n"
                 "bne         0b                \n"// end for
- 
+
                 "1:                            \n"
                 // remain loop
                 "and         r4, %6, #3        \n"// r4 = remain = inch & 3
@@ -3500,11 +3500,11 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "3:                            \n"// store the result to memory
 
                 // top_s32 -> top_f32
-                "vcvt.f32.s32 q6, q6           \n"               
+                "vcvt.f32.s32 q6, q6           \n"
                 // top_f32 = top_f32 * scale_in
-                "vmul.f32   q6, q6, %q8        \n"                
+                "vmul.f32   q6, q6, %q8        \n"
                 // top_f32 = top_f32 + bias
-                "vadd.f32   q6, q6, %q7        \n"             
+                "vadd.f32   q6, q6, %q7        \n"
                 // top_f32 = top_f32 * scale_out
                 "vmul.f32   q0, q6, %q9        \n"
                 // top_f32 -> top_s32
@@ -3520,17 +3520,17 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
                 "vst1.s32    {d12[0]}, [%0]!   \n"
 
                 : "=r"(outptr0), // %0
-                  "=r"(tmpptr),  // %1
-                  "=r"(kptr)     // %2
+                "=r"(tmpptr),  // %1
+                "=r"(kptr)     // %2
                 : "0"(outptr0),
-                  "1"(tmpptr),
-                  "2"(kptr),
-                  "r"(inch),      // %6  
-                  "w"(_bias0),    // %7
-                  "w"(_scale_in), // %8
-                  "w"(_scale_out) // %9                    
+                "1"(tmpptr),
+                "2"(kptr),
+                "r"(inch),      // %6
+                "w"(_bias0),    // %7
+                "w"(_scale_in), // %8
+                "w"(_scale_out) // %9
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6"
-            );          
+            );
 #else
             int sum0 = 0;
             int sum1 = 0;
@@ -3559,10 +3559,10 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat &bottom_blob, Mat &top_b
 
         for (; i<size; i++)
         {
-            const signed char* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);   
+            const signed char* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);
             const signed char* kptr = kernel.channel(p/4 + p%4);
 
-            int q = 0;            
+            int q = 0;
             int sum0 = 0;
 
             for (; q<inch; q++)

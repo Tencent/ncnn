@@ -149,8 +149,14 @@ static float vstr_to_float(const char vstr[16])
         }
 
         double scale = 1.0;
-        while (expon >=  8) { scale *= 1e8;  expon -=  8; }
-        while (expon >   0) { scale *= 10.0; expon -=  1; }
+        while (expon >=  8) {
+            scale *= 1e8;
+            expon -=  8;
+        }
+        while (expon >   0) {
+            scale *= 10.0;
+            expon -=  1;
+        }
 
         v = fact ? v * scale : v / scale;
     }

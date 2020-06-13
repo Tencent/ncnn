@@ -714,7 +714,7 @@ int Net::load_model(AAssetManager* mgr, const char* assetpath)
 int Net::fuse_network()
 {
     // set the int8 op fusion:requantize
-#if NCNN_STRING && NCNN_REQUANT    
+#if NCNN_STRING && NCNN_REQUANT
     // NCNN_LOGE("Test op fusion to int8 implement:");
     // parse the network whether is a quantization model
     bool net_quantized = false;
@@ -726,7 +726,7 @@ int Net::fuse_network()
             if (layer->type == "Convolution" && (((Convolution*)layer)->weight_data.elemsize != 1u))
                 continue;
             if (layer->type == "ConvolutionDepthWise" && (((ConvolutionDepthWise*)layer)->weight_data.elemsize != 1u))
-                continue;    
+                continue;
             net_quantized = true;
         }
     }
@@ -755,7 +755,7 @@ int Net::fuse_network()
                     if (layer_next->type == "Convolution" && ((Convolution*)layer_next)->weight_data.elemsize != 1u)
                         continue;
                     if (layer_next->type == "ConvolutionDepthWise" && ((ConvolutionDepthWise*)layer_next)->weight_data.elemsize != 1u)
-                        continue;    
+                        continue;
 
                     // NCNN_LOGE("%s, %s", layer->name.c_str(), layer_next->name.c_str());
                     if (layer->type == "Convolution" && layer_next->type == "Convolution")
@@ -778,7 +778,7 @@ int Net::fuse_network()
                         ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
                         ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next)->bottom_blob_int8_scales[0];
                     }
-                }                  
+                }
                 else if (layer_next->type == "ReLU")
                 {
                     int layer_next_2_index = blobs[layer_next->tops[0]].consumers[0];
@@ -789,7 +789,7 @@ int Net::fuse_network()
                         if (layer_next_2->type == "Convolution" && ((Convolution*)layer_next_2)->weight_data.elemsize != 1u)
                             continue;
                         if (layer_next_2->type == "ConvolutionDepthWise" && ((ConvolutionDepthWise*)layer_next_2)->weight_data.elemsize != 1u)
-                            continue;    
+                            continue;
 
 //                         NCNN_LOGE("%s, %s, %s", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
                         if (layer->type == "Convolution" && layer_next_2->type == "Convolution")
@@ -837,8 +837,8 @@ int Net::fuse_network()
                                 // NCNN_LOGE("%s, ", layer_next_3->name.c_str());
                                 if (layer_next_3->type == "Convolution")
                                 {
-                                    ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_3)->bottom_blob_int8_scale; 
-                                }    
+                                    ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_3)->bottom_blob_int8_scale;
+                                }
                             }
 
                             ((Convolution*)layer)->use_int8_requantize = true;
@@ -857,7 +857,7 @@ int Net::fuse_network()
                 else
                 {
                     // NCNN_LOGE("%s", layer->name.c_str());
-                }                  
+                }
             }
         }
     }

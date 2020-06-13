@@ -235,7 +235,7 @@ static uint32_t find_device_compute_queue(const std::vector<VkQueueFamilyPropert
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
         if ((queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
-            && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+                && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
         {
             return i;
         }
@@ -247,7 +247,7 @@ static uint32_t find_device_compute_queue(const std::vector<VkQueueFamilyPropert
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
         if ((queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
-            && (queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+                && (queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
         {
             return i;
         }
@@ -276,7 +276,7 @@ static uint32_t find_device_graphics_queue(const std::vector<VkQueueFamilyProper
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
         if ((queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-            && !(queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT))
+                && !(queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT))
         {
             return i;
         }
@@ -288,7 +288,7 @@ static uint32_t find_device_graphics_queue(const std::vector<VkQueueFamilyProper
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
         if ((queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-            && (queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT))
+                && (queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT))
         {
             return i;
         }
@@ -317,8 +317,8 @@ static uint32_t find_device_transfer_queue(const std::vector<VkQueueFamilyProper
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
         if ((queueFamilyProperty.queueFlags & VK_QUEUE_TRANSFER_BIT)
-            && !(queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
-            && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
+                && !(queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
+                && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
         {
             return i;
         }
@@ -616,9 +616,9 @@ int create_gpu_instance()
         }
 
         if (physicalDeviceProperties.vendorID == 0x13b5
-            && (physicalDeviceProperties.deviceID == 0x7500001
-            || physicalDeviceProperties.deviceID == 0x8602000
-            || physicalDeviceProperties.deviceID == 0x8800020))
+                && (physicalDeviceProperties.deviceID == 0x7500001
+                    || physicalDeviceProperties.deviceID == 0x8602000
+                    || physicalDeviceProperties.deviceID == 0x8800020))
         {
             // these arm mali midgard era driver cannot handle binding id alias
             gpu_info.bug_layout_binding_id_alias = true;
@@ -632,13 +632,13 @@ int create_gpu_instance()
 #endif
 
         if (physicalDeviceProperties.vendorID == 0x13b5
-            && (physicalDeviceProperties.deviceID == 0x7500001
-            || physicalDeviceProperties.deviceID == 0x8602000
-            || physicalDeviceProperties.deviceID == 0x8800020
-            || physicalDeviceProperties.deviceID == 0x70901010
-            || physicalDeviceProperties.deviceID == 0x74021000
-            || physicalDeviceProperties.deviceID == 0x60a00002
-            || physicalDeviceProperties.deviceID == 0x62210001))
+                && (physicalDeviceProperties.deviceID == 0x7500001
+                    || physicalDeviceProperties.deviceID == 0x8602000
+                    || physicalDeviceProperties.deviceID == 0x8800020
+                    || physicalDeviceProperties.deviceID == 0x70901010
+                    || physicalDeviceProperties.deviceID == 0x74021000
+                    || physicalDeviceProperties.deviceID == 0x60a00002
+                    || physicalDeviceProperties.deviceID == 0x62210001))
         {
             // NOTE rk3288/rk3399/t880/g51/g52/g71/g72
             // however, g76/g77 has explicit fp16 arithmetic
@@ -647,9 +647,9 @@ int create_gpu_instance()
         }
 
         if (physicalDeviceProperties.vendorID == 0x5143
-            && (physicalDeviceProperties.deviceID == 0x6030001
-            || physicalDeviceProperties.deviceID == 0x6040001
-            || physicalDeviceProperties.deviceID == 0x6050002))
+                && (physicalDeviceProperties.deviceID == 0x6030001
+                    || physicalDeviceProperties.deviceID == 0x6040001
+                    || physicalDeviceProperties.deviceID == 0x6050002))
         {
             // TODO enable devices other than qcom845/qcom855/qcom855plus/qcom865
             // qcom adreno driver accept spirv with fp16 arithmetic
@@ -907,16 +907,16 @@ int create_gpu_instance()
         }
 
         NCNN_LOGE("[%u %s]  queueC=%u[%u]  queueG=%u[%u]  queueT=%u[%u]", i, physicalDeviceProperties.deviceName,
-                gpu_info.compute_queue_family_index, gpu_info.compute_queue_count,
-                gpu_info.graphics_queue_family_index, gpu_info.graphics_queue_count,
-                gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count);
+                  gpu_info.compute_queue_family_index, gpu_info.compute_queue_count,
+                  gpu_info.graphics_queue_family_index, gpu_info.graphics_queue_count,
+                  gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count);
 
         NCNN_LOGE("[%u %s]  buglssc=%d  bugsbn1=%d  buglbia=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
-                gpu_info.bug_local_size_spec_const, gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_layout_binding_id_alias, gpu_info.bug_implicit_fp16_arithmetic);
+                  gpu_info.bug_local_size_spec_const, gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_layout_binding_id_alias, gpu_info.bug_implicit_fp16_arithmetic);
 
         NCNN_LOGE("[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d", i, physicalDeviceProperties.deviceName,
-                gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
-                gpu_info.support_int8_storage, gpu_info.support_int8_arithmetic);
+                  gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
+                  gpu_info.support_int8_storage, gpu_info.support_int8_arithmetic);
 
         gpu_info_index++;
     }
@@ -1104,27 +1104,27 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     deviceCreateInfo.flags = 0;
     if (info.compute_queue_family_index == info.graphics_queue_family_index && info.compute_queue_family_index == info.transfer_queue_family_index)
     {
-    deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
-    deviceCreateInfo.queueCreateInfoCount = 1;
+        deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
+        deviceCreateInfo.queueCreateInfoCount = 1;
     }
     else if (info.compute_queue_family_index == info.graphics_queue_family_index && info.compute_queue_family_index != info.transfer_queue_family_index)
     {
-    deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
-    deviceQueueCreateInfos[1] = deviceTransferQueueCreateInfo;
-    deviceCreateInfo.queueCreateInfoCount = 2;
+        deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
+        deviceQueueCreateInfos[1] = deviceTransferQueueCreateInfo;
+        deviceCreateInfo.queueCreateInfoCount = 2;
     }
     else if (info.compute_queue_family_index != info.graphics_queue_family_index && info.graphics_queue_family_index == info.transfer_queue_family_index)
     {
-    deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
-    deviceQueueCreateInfos[1] = deviceGraphicsQueueCreateInfo;
-    deviceCreateInfo.queueCreateInfoCount = 2;
+        deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
+        deviceQueueCreateInfos[1] = deviceGraphicsQueueCreateInfo;
+        deviceCreateInfo.queueCreateInfoCount = 2;
     }
     else // if (info.compute_queue_family_index != info.graphics_queue_family_index && info.graphics_queue_family_index != info.transfer_queue_family_index)
     {
-    deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
-    deviceQueueCreateInfos[1] = deviceGraphicsQueueCreateInfo;
-    deviceQueueCreateInfos[2] = deviceTransferQueueCreateInfo;
-    deviceCreateInfo.queueCreateInfoCount = 3;
+        deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
+        deviceQueueCreateInfos[1] = deviceGraphicsQueueCreateInfo;
+        deviceQueueCreateInfos[2] = deviceTransferQueueCreateInfo;
+        deviceCreateInfo.queueCreateInfoCount = 3;
     }
     deviceCreateInfo.pQueueCreateInfos = deviceQueueCreateInfos;
     deviceCreateInfo.enabledLayerCount = 0;
@@ -1399,8 +1399,8 @@ uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags requ
         {
             const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
             if ((memoryType.propertyFlags & required) == required
-                && (preferred && (memoryType.propertyFlags & preferred))
-                && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
+                    && (preferred && (memoryType.propertyFlags & preferred))
+                    && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
             {
                 return i;
             }
@@ -1415,7 +1415,7 @@ uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags requ
         {
             const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
             if ((memoryType.propertyFlags & required) == required
-                && (preferred && (memoryType.propertyFlags & preferred)))
+                    && (preferred && (memoryType.propertyFlags & preferred)))
             {
                 return i;
             }
@@ -1430,7 +1430,7 @@ uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags requ
         {
             const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
             if ((memoryType.propertyFlags & required) == required
-                && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
+                    && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
             {
                 return i;
             }
@@ -1472,8 +1472,8 @@ bool VulkanDevice::is_coherent(uint32_t memory_type_index) const
 VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
 {
     if (queue_family_index != info.compute_queue_family_index
-        && queue_family_index != info.graphics_queue_family_index
-        && queue_family_index != info.transfer_queue_family_index)
+            && queue_family_index != info.graphics_queue_family_index
+            && queue_family_index != info.transfer_queue_family_index)
     {
         NCNN_LOGE("invalid queue_family_index %u", queue_family_index);
         return 0;
@@ -1482,7 +1482,7 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
     MutexLockGuard lock(queue_lock);
 
     std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues
-                                 : queue_family_index == info.graphics_queue_family_index ? graphics_queues : transfer_queues;
+                                   : queue_family_index == info.graphics_queue_family_index ? graphics_queues : transfer_queues;
     for (int i=0; i<(int)queues.size(); i++)
     {
         VkQueue queue = queues[i];
@@ -1500,8 +1500,8 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
 void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) const
 {
     if (queue_family_index != info.compute_queue_family_index
-        && queue_family_index != info.graphics_queue_family_index
-        && queue_family_index != info.transfer_queue_family_index)
+            && queue_family_index != info.graphics_queue_family_index
+            && queue_family_index != info.transfer_queue_family_index)
     {
         NCNN_LOGE("invalid queue_family_index %u", queue_family_index);
         return;
@@ -1510,7 +1510,7 @@ void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) con
     MutexLockGuard lock(queue_lock);
 
     std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues
-                                 : queue_family_index == info.graphics_queue_family_index ? graphics_queues : transfer_queues;
+                                   : queue_family_index == info.graphics_queue_family_index ? graphics_queues : transfer_queues;
     for (int i=0; i<(int)queues.size(); i++)
     {
         if (!queues[i])
@@ -2144,58 +2144,58 @@ int VulkanDevice::create_utility_operator()
     // to buffer | image
     for (int i0=0; i0<2; i0++)
     {
-    for (int i1=0; i1<2; i1++)
-    {
-        opt.use_image_storage = (i0 == 1 || i1 == 1);
-        if (info.bug_layout_binding_id_alias && opt.use_image_storage)
-            continue;
-
-        // from fp32-b/i | fp16p-b/i | fp16s-b/i
-        // to fp32-b/i | fp16p-b/i | fp16s-b/i
-        for (int j0=0; j0<3; j0++)
+        for (int i1=0; i1<2; i1++)
         {
-        for (int j1=0; j1<3; j1++)
-        {
-            if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
+            opt.use_image_storage = (i0 == 1 || i1 == 1);
+            if (info.bug_layout_binding_id_alias && opt.use_image_storage)
+                continue;
+
+            // from fp32-b/i | fp16p-b/i | fp16s-b/i
+            // to fp32-b/i | fp16p-b/i | fp16s-b/i
+            for (int j0=0; j0<3; j0++)
             {
-                // no fp16p to/from fp16s conversion
-                continue;
-            }
+                for (int j1=0; j1<3; j1++)
+                {
+                    if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
+                    {
+                        // no fp16p to/from fp16s conversion
+                        continue;
+                    }
 
-            opt.use_fp16_packed = (j0 == 1 || j1 == 1);
-            opt.use_fp16_storage = (j0 == 2 || j1 == 2);
+                    opt.use_fp16_packed = (j0 == 1 || j1 == 1);
+                    opt.use_fp16_storage = (j0 == 2 || j1 == 2);
 
-            if (!info.support_fp16_packed && opt.use_fp16_packed)
-                continue;
+                    if (!info.support_fp16_packed && opt.use_fp16_packed)
+                        continue;
 
-            if (!info.support_fp16_storage && opt.use_fp16_storage)
-                continue;
+                    if (!info.support_fp16_storage && opt.use_fp16_storage)
+                        continue;
 
-            // to pack1 | pack4 | pack8
-            for (int k=0; k<3; k++)
-            {
-                // enable pack8 for pack8to1/pack8to4
-                opt.use_shader_pack8 = true;
+                    // to pack1 | pack4 | pack8
+                    for (int k=0; k<3; k++)
+                    {
+                        // enable pack8 for pack8to1/pack8to4
+                        opt.use_shader_pack8 = true;
 
-                ncnn::Packing_vulkan* uop = new ncnn::Packing_vulkan;
-                uop->vkdev = this;
+                        ncnn::Packing_vulkan* uop = new ncnn::Packing_vulkan;
+                        uop->vkdev = this;
 
-                ncnn::ParamDict pd;
-                pd.set(0, k == 0 ? 1 : k == 1 ? 4 : 8);// out_elempack
-                pd.set(2, j0 + 1);// cast_type_from  0=auto 1=fp32 2=fp16p 3=fp16s
-                pd.set(3, j1 + 1);// cast_type_to
-                pd.set(4, i0);// storage_type_from  0=buffer 1=image
-                pd.set(5, i1);// storage_type_to
+                        ncnn::ParamDict pd;
+                        pd.set(0, k == 0 ? 1 : k == 1 ? 4 : 8);// out_elempack
+                        pd.set(2, j0 + 1);// cast_type_from  0=auto 1=fp32 2=fp16p 3=fp16s
+                        pd.set(3, j1 + 1);// cast_type_to
+                        pd.set(4, i0);// storage_type_from  0=buffer 1=image
+                        pd.set(5, i1);// storage_type_to
 
-                uop->load_param(pd);
+                        uop->load_param(pd);
 
-                uop->create_pipeline(opt);
+                        uop->create_pipeline(opt);
 
-                uop_packing[i0][i1][j0][j1][k] = uop;
+                        uop_packing[i0][i1][j0][j1][k] = uop;
+                    }
+                }
             }
         }
-        }
-    }
     }
 
     return 0;
@@ -2209,50 +2209,50 @@ void VulkanDevice::destroy_utility_operator()
     // to buffer | image
     for (int i0=0; i0<2; i0++)
     {
-    for (int i1=0; i1<2; i1++)
-    {
-        opt.use_image_storage = (i0 == 1 || i1 == 1);
-        if (info.bug_layout_binding_id_alias && opt.use_image_storage)
-            continue;
-
-        // from fp32-b/i | fp16p-b/i | fp16s-b/i
-        // to fp32-b/i | fp16p-b/i | fp16s-b/i
-        for (int j0=0; j0<3; j0++)
+        for (int i1=0; i1<2; i1++)
         {
-        for (int j1=0; j1<3; j1++)
-        {
-            if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
+            opt.use_image_storage = (i0 == 1 || i1 == 1);
+            if (info.bug_layout_binding_id_alias && opt.use_image_storage)
+                continue;
+
+            // from fp32-b/i | fp16p-b/i | fp16s-b/i
+            // to fp32-b/i | fp16p-b/i | fp16s-b/i
+            for (int j0=0; j0<3; j0++)
             {
-                // no fp16p to/from fp16s conversion
-                continue;
-            }
+                for (int j1=0; j1<3; j1++)
+                {
+                    if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
+                    {
+                        // no fp16p to/from fp16s conversion
+                        continue;
+                    }
 
-            opt.use_fp16_packed = (j0 == 1 || j1 == 1);
-            opt.use_fp16_storage = (j0 == 2 || j1 == 2);
+                    opt.use_fp16_packed = (j0 == 1 || j1 == 1);
+                    opt.use_fp16_storage = (j0 == 2 || j1 == 2);
 
-            if (!info.support_fp16_packed && opt.use_fp16_packed)
-                continue;
+                    if (!info.support_fp16_packed && opt.use_fp16_packed)
+                        continue;
 
-            if (!info.support_fp16_storage && opt.use_fp16_storage)
-                continue;
+                    if (!info.support_fp16_storage && opt.use_fp16_storage)
+                        continue;
 
-            // to pack1 | pack4 | pack8
-            for (int k=0; k<3; k++)
-            {
-                // enable pack8 for pack8to1/pack8to4
-                opt.use_shader_pack8 = true;
+                    // to pack1 | pack4 | pack8
+                    for (int k=0; k<3; k++)
+                    {
+                        // enable pack8 for pack8to1/pack8to4
+                        opt.use_shader_pack8 = true;
 
-                ncnn::Layer* uop = uop_packing[i0][i1][j0][j1][k];
+                        ncnn::Layer* uop = uop_packing[i0][i1][j0][j1][k];
 
-                uop->destroy_pipeline(opt);
+                        uop->destroy_pipeline(opt);
 
-                delete uop;
+                        delete uop;
 
-                uop_packing[i0][i1][j0][j1][k] = 0;
+                        uop_packing[i0][i1][j0][j1][k] = 0;
+                    }
+                }
             }
         }
-        }
-    }
     }
 }
 
