@@ -143,6 +143,15 @@ typedef struct VkPhysicalDeviceFloat16Int8FeaturesKHR {
     VkBool32           shaderInt8;
 } VkPhysicalDeviceFloat16Int8FeaturesKHR;
 #endif // VK_HEADER_VERSION < 95
+#if VK_HEADER_VERSION < 97
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT (VkStructureType)1000237000
+typedef struct VkPhysicalDeviceMemoryBudgetPropertiesEXT {
+    VkStructureType    sType;
+    void*              pNext;
+    VkDeviceSize       heapBudget[VK_MAX_MEMORY_HEAPS];
+    VkDeviceSize       heapUsage[VK_MAX_MEMORY_HEAPS];
+} VkPhysicalDeviceMemoryBudgetPropertiesEXT;
+#endif // VK_HEADER_VERSION < 97
 
 static int init_instance_extension()
 {
@@ -557,8 +566,31 @@ int create_gpu_instance()
 //         NCNN_LOGE("[%u] deviceName = %s", i, physicalDeviceProperties.deviceName);
 //         NCNN_LOGE("[%u] pipelineCacheUUID = %u", i, physicalDeviceProperties.pipelineCacheUUID);
 
+        // mali
+        // t760 = 0x13b5 0x7500001
+        // t860 = 0x13b5 0x8602000
+        // t880 = 0x13b5 0x8800020
+        // g51  = 0x13b5 0x70901010
+        // g52  = 0x13b5 0x74021000
+        // g71  = 0x13b5 0x60a00002
+        // g72  = 0x13b5 0x62210001
+        // g76  = 0x13b5 0x72110000
+        // g77  = 0x13b5 0x90800011
+
+        // adreno
+        // 506 = 0x5143 0x5000600
+        // 510 = 0x5143 0x5010000
+        // 512 = 0x5143 0x5010200
+        // 530 = 0x5143 0x5030004
+        // 540 = 0x5143 0x5040001
+        // 616 = 0x5143 0x6010600
+        // 630 = 0x5143 0x6030001
+        // 640 = 0x5143 0x6040001
+        // 650 = 0x5143 0x6050002
+
         gpu_info.bug_local_size_spec_const = false;
         gpu_info.bug_storage_buffer_no_l1 = false;
+        gpu_info.bug_layout_binding_id_alias = false;
         gpu_info.bug_implicit_fp16_arithmetic = false;
 
         if (physicalDeviceProperties.vendorID == 0x13b5 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 66))
@@ -571,24 +603,55 @@ int create_gpu_instance()
         {
             // qcom adreno with old buggy driver
             gpu_info.bug_local_size_spec_const = true;
+
+            // old buggy driver cannot handle binding id alias
+            gpu_info.bug_layout_binding_id_alias = true;
         }
 
-        if (physicalDeviceProperties.vendorID == 0x5143)
+        if (physicalDeviceProperties.vendorID == 0x5143 && !(physicalDeviceProperties.deviceID == 0x6040001 || physicalDeviceProperties.deviceID == 0x6050002))
         {
+            // NOTE but qcom855/qcom855plus/qcom865 are known exceptions
             // qcom adreno storage buffer without L1 cache
             gpu_info.bug_storage_buffer_no_l1 = true;
         }
 
-        if (physicalDeviceProperties.vendorID == 0x13b5 && (physicalDeviceProperties.deviceID == 0x7500001 || physicalDeviceProperties.deviceID == 0x8602000))
+        if (physicalDeviceProperties.vendorID == 0x13b5
+            && (physicalDeviceProperties.deviceID == 0x7500001
+            || physicalDeviceProperties.deviceID == 0x8602000
+            || physicalDeviceProperties.deviceID == 0x8800020))
         {
-            // TODO enable devices other than rk3288/rk3399
+            // these arm mali midgard era driver cannot handle binding id alias
+            gpu_info.bug_layout_binding_id_alias = true;
+        }
+
+#if __APPLE__
+        {
+            // metal shader never accept binding id alias
+            gpu_info.bug_layout_binding_id_alias = true;
+        }
+#endif
+
+        if (physicalDeviceProperties.vendorID == 0x13b5
+            && (physicalDeviceProperties.deviceID == 0x7500001
+            || physicalDeviceProperties.deviceID == 0x8602000
+            || physicalDeviceProperties.deviceID == 0x8800020
+            || physicalDeviceProperties.deviceID == 0x70901010
+            || physicalDeviceProperties.deviceID == 0x74021000
+            || physicalDeviceProperties.deviceID == 0x60a00002
+            || physicalDeviceProperties.deviceID == 0x62210001))
+        {
+            // NOTE rk3288/rk3399/t880/g51/g52/g71/g72
+            // however, g76/g77 has explicit fp16 arithmetic
             // arm mali driver accept spirv with fp16 arithmetic
             gpu_info.bug_implicit_fp16_arithmetic = true;
         }
 
-        if (physicalDeviceProperties.vendorID == 0x5143 && (physicalDeviceProperties.deviceID == 0x6030001 || physicalDeviceProperties.deviceID == 0x6040001))
+        if (physicalDeviceProperties.vendorID == 0x5143
+            && (physicalDeviceProperties.deviceID == 0x6030001
+            || physicalDeviceProperties.deviceID == 0x6040001
+            || physicalDeviceProperties.deviceID == 0x6050002))
         {
-            // TODO enable devices other than qcom855/qcom855plus
+            // TODO enable devices other than qcom845/qcom855/qcom855plus/qcom865
             // qcom adreno driver accept spirv with fp16 arithmetic
             gpu_info.bug_implicit_fp16_arithmetic = true;
         }
@@ -848,8 +911,8 @@ int create_gpu_instance()
                 gpu_info.graphics_queue_family_index, gpu_info.graphics_queue_count,
                 gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count);
 
-        NCNN_LOGE("[%u %s]  buglssc=%d  bugsbn1=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
-                gpu_info.bug_local_size_spec_const, gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_implicit_fp16_arithmetic);
+        NCNN_LOGE("[%u %s]  buglssc=%d  bugsbn1=%d  buglbia=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
+                gpu_info.bug_local_size_spec_const, gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_layout_binding_id_alias, gpu_info.bug_implicit_fp16_arithmetic);
 
         NCNN_LOGE("[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d", i, physicalDeviceProperties.deviceName,
                 gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
@@ -1430,7 +1493,7 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
         }
     }
 
-    // out of hardware queue
+    NCNN_LOGE("out of hardware queue %u", queue_family_index);
     return 0;
 }
 
@@ -1474,7 +1537,7 @@ VkAllocator* VulkanDevice::acquire_blob_allocator() const
         }
     }
 
-    // out of blob allocator
+    NCNN_LOGE("out of blob allocator");
     return 0;
 }
 
@@ -1508,7 +1571,7 @@ VkAllocator* VulkanDevice::acquire_staging_allocator() const
         }
     }
 
-    // out of staging allocator
+    NCNN_LOGE("out of staging allocator");
     return 0;
 }
 
@@ -1627,9 +1690,29 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     Option opt = _opt;
     opt.use_image_storage = false;
 
-    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
+
+    int cast_type_from_index;
+    if (src.elemsize == src.elempack * 4u)
+    {
+        cast_type_from_index = 0;
+    }
+    else // if (src.elemsize == src.elempack * 2u)
+    {
+        if (cast_type_to_index != 0)
+        {
+            cast_type_from_index = cast_type_to_index;
+        }
+        else if (info.support_fp16_storage)
+        {
+            cast_type_from_index = 2;
+        }
+        else // if (info.support_fp16_packed)
+        {
+            cast_type_from_index = 1;
+        }
+    }
 
 //     NCNN_LOGE("convert_packing b2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
@@ -1639,9 +1722,35 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
 
 void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
+    if (info.bug_layout_binding_id_alias)
+    {
+        NCNN_LOGE("cannot convert_packing i2i");
+        return;
+    }
+
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
+
+    int cast_type_from_index;
+    if (src.elemsize == src.elempack * 4u)
+    {
+        cast_type_from_index = 0;
+    }
+    else // if (src.elemsize == src.elempack * 2u)
+    {
+        if (cast_type_to_index != 0)
+        {
+            cast_type_from_index = cast_type_to_index;
+        }
+        else if (info.support_fp16_storage)
+        {
+            cast_type_from_index = 2;
+        }
+        else // if (info.support_fp16_packed)
+        {
+            cast_type_from_index = 1;
+        }
+    }
 
 //     NCNN_LOGE("convert_packing i2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
@@ -1651,9 +1760,35 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int d
 
 void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
+    if (info.bug_layout_binding_id_alias)
+    {
+        NCNN_LOGE("cannot convert_packing b2i");
+        return;
+    }
+
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
+
+    int cast_type_from_index;
+    if (src.elemsize == src.elempack * 4u)
+    {
+        cast_type_from_index = 0;
+    }
+    else // if (src.elemsize == src.elempack * 2u)
+    {
+        if (cast_type_to_index != 0)
+        {
+            cast_type_from_index = cast_type_to_index;
+        }
+        else if (info.support_fp16_storage)
+        {
+            cast_type_from_index = 2;
+        }
+        else // if (info.support_fp16_packed)
+        {
+            cast_type_from_index = 1;
+        }
+    }
 
 //     NCNN_LOGE("convert_packing b2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
@@ -1663,9 +1798,35 @@ void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_el
 
 void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    int cast_type_from_index = src.elemsize == src.elempack * 4u ? 0 : opt.use_fp16_storage ? 2 : 1;
-    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed && dst_elempack % 4 == 0 ? 1 : 0;
+    if (info.bug_layout_binding_id_alias)
+    {
+        NCNN_LOGE("cannot convert_packing i2b");
+        return;
+    }
+
+    int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
+
+    int cast_type_from_index;
+    if (src.elemsize == src.elempack * 4u)
+    {
+        cast_type_from_index = 0;
+    }
+    else // if (src.elemsize == src.elempack * 2u)
+    {
+        if (cast_type_to_index != 0)
+        {
+            cast_type_from_index = cast_type_to_index;
+        }
+        else if (info.support_fp16_storage)
+        {
+            cast_type_from_index = 2;
+        }
+        else // if (info.support_fp16_packed)
+        {
+            cast_type_from_index = 1;
+        }
+    }
 
 //     NCNN_LOGE("convert_packing i2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
@@ -1986,10 +2147,8 @@ int VulkanDevice::create_utility_operator()
     for (int i1=0; i1<2; i1++)
     {
         opt.use_image_storage = (i0 == 1 || i1 == 1);
-#if __APPLE__
-        if (opt.use_image_storage)
+        if (info.bug_layout_binding_id_alias && opt.use_image_storage)
             continue;
-#endif
 
         // from fp32-b/i | fp16p-b/i | fp16s-b/i
         // to fp32-b/i | fp16p-b/i | fp16s-b/i
@@ -1997,6 +2156,12 @@ int VulkanDevice::create_utility_operator()
         {
         for (int j1=0; j1<3; j1++)
         {
+            if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
+            {
+                // no fp16p to/from fp16s conversion
+                continue;
+            }
+
             opt.use_fp16_packed = (j0 == 1 || j1 == 1);
             opt.use_fp16_storage = (j0 == 2 || j1 == 2);
 
@@ -2006,7 +2171,7 @@ int VulkanDevice::create_utility_operator()
             if (!info.support_fp16_storage && opt.use_fp16_storage)
                 continue;
 
-            // from pack1 | pack4 | pack8
+            // to pack1 | pack4 | pack8
             for (int k=0; k<3; k++)
             {
                 // enable pack8 for pack8to1/pack8to4
@@ -2047,10 +2212,8 @@ void VulkanDevice::destroy_utility_operator()
     for (int i1=0; i1<2; i1++)
     {
         opt.use_image_storage = (i0 == 1 || i1 == 1);
-#if __APPLE__
-        if (opt.use_image_storage)
+        if (info.bug_layout_binding_id_alias && opt.use_image_storage)
             continue;
-#endif
 
         // from fp32-b/i | fp16p-b/i | fp16s-b/i
         // to fp32-b/i | fp16p-b/i | fp16s-b/i
@@ -2058,6 +2221,12 @@ void VulkanDevice::destroy_utility_operator()
         {
         for (int j1=0; j1<3; j1++)
         {
+            if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
+            {
+                // no fp16p to/from fp16s conversion
+                continue;
+            }
+
             opt.use_fp16_packed = (j0 == 1 || j1 == 1);
             opt.use_fp16_storage = (j0 == 2 || j1 == 2);
 
@@ -2067,10 +2236,11 @@ void VulkanDevice::destroy_utility_operator()
             if (!info.support_fp16_storage && opt.use_fp16_storage)
                 continue;
 
-            // from pack1 | pack4 | pack8
+            // to pack1 | pack4 | pack8
             for (int k=0; k<3; k++)
             {
-                opt.use_shader_pack8 = (k == 2 || k == 2);
+                // enable pack8 for pack8to1/pack8to4
+                opt.use_shader_pack8 = true;
 
                 ncnn::Layer* uop = uop_packing[i0][i1][j0][j1][k];
 
@@ -2552,14 +2722,15 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
 
     custom_defines.push_back(std::make_pair("psc(x)", "(x==0?p.x:x)"));
 
-    if (opt.use_fp16_packed)
-    {
-        custom_defines.push_back(std::make_pair("NCNN_fp16_packed", "1"));
-    }
     if (opt.use_fp16_storage)
     {
         custom_defines.push_back(std::make_pair("NCNN_fp16_storage", "1"));
     }
+    else if (opt.use_fp16_packed)
+    {
+        custom_defines.push_back(std::make_pair("NCNN_fp16_packed", "1"));
+    }
+
     if (opt.use_fp16_arithmetic)
     {
         custom_defines.push_back(std::make_pair("NCNN_fp16_arithmetic", "1"));

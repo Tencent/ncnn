@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <math.h>
 #include "layer_shader_type.h"
+#include "platform.h"
 
 namespace ncnn {
 
@@ -31,6 +32,15 @@ PriorBox_vulkan::PriorBox_vulkan()
 
 int PriorBox_vulkan::create_pipeline(const Option& opt)
 {
+#if NCNN_VULKAN_ONLINE_SPIRV
+    if (opt.use_fp16_storage)
+    {
+        // TODO investigate why fp16s produce wrong output
+        support_vulkan = false;
+        return 0;
+    }
+#endif
+
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
 
     int elempack = 1;

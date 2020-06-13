@@ -78,7 +78,13 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
+    else if (activation_type == 5)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Mish);
 
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
     if (activation)
     {
         activation->create_pipeline(opt);

@@ -144,6 +144,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     else
         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
+    // gpu cast to fp16 on the fly (integrated gpu)
     vkdev->convert_packing(dst_staging, dst, dst_elempack, *this, opt);
 }
 
@@ -206,6 +207,7 @@ void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt
     else
         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
+    // gpu cast to fp16 on the fly (integrated gpu)
     vkdev->convert_packing(dst_staging, dst, dst_elempack, *this, opt);
 }
 
@@ -226,14 +228,21 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     else
         dst_elempack = 1;
 
-    VkMat dst_staging;
-    if (opt.blob_vkallocator->mappable)
+    // gpu cast to fp32 on the fly (integrated gpu)
+    Option opt_staging = opt;
+    if (vkdev->info.type != 0)
     {
-        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt);
+        opt_staging.use_fp16_packed = false;
+        opt_staging.use_fp16_storage = false;
+    }
+
+    VkMat dst_staging;
+    if (opt_staging.blob_vkallocator->mappable)
+    {
+        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
     else
     {
-        Option opt_staging = opt;
         opt_staging.blob_vkallocator = opt.staging_vkallocator;
         vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
@@ -310,7 +319,6 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
             if (dims == 3)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
 
-            download_post_mats_fp16.push_back(dst_fp16);
             download_post_mats.push_back(dst);
 
             record r;
@@ -348,14 +356,21 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
     else
         dst_elempack = 1;
 
-    VkMat dst_staging;
-    if (opt.blob_vkallocator->mappable)
+    // gpu cast to fp32 on the fly (integrated gpu)
+    Option opt_staging = opt;
+    if (vkdev->info.type != 0)
     {
-        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt);
+        opt_staging.use_fp16_packed = false;
+        opt_staging.use_fp16_storage = false;
+    }
+
+    VkMat dst_staging;
+    if (opt_staging.blob_vkallocator->mappable)
+    {
+        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
     else
     {
-        Option opt_staging = opt;
         opt_staging.blob_vkallocator = opt.staging_vkallocator;
         vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
@@ -432,7 +447,6 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
             if (dims == 3)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
 
-            download_post_mats_fp16.push_back(dst_fp16);
             download_post_mats.push_back(dst);
 
             record r;
@@ -2248,6 +2262,44 @@ int VkCompute::submit_and_wait()
 
 int VkCompute::reset()
 {
+    upload_staging_buffers.clear();
+    download_post_buffers.clear();
+    download_post_mats_fp16.clear();
+    download_post_mats.clear();
+
+    for (size_t i=0; i<image_blocks_to_destroy.size(); i++)
+    {
+        VkImageMemory* ptr = image_blocks_to_destroy[i];
+
+        int old_command_refcount = NCNN_XADD(&ptr->command_refcount, -1);
+        if (ptr->refcount == 0 && old_command_refcount == 1)
+        {
+            // no userspace reference and we are the last command reference
+            vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
+            vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+
+            delete ptr;
+        }
+        else
+        {
+            // reference exists in user code or other command
+        }
+    }
+    image_blocks_to_destroy.clear();
+
+    if (!vkdev->info.support_VK_KHR_push_descriptor)
+    {
+        for (size_t i=0; i<descriptorsets.size(); i++)
+        {
+            vkFreeDescriptorSets(vkdev->vkdevice(), descriptor_pools[i], 1, &descriptorsets[i]);
+            vkDestroyDescriptorPool(vkdev->vkdevice(), descriptor_pools[i], 0);
+        }
+        descriptor_pools.clear();
+        descriptorsets.clear();
+    }
+
+    delayed_records.clear();
+
     // reset command buffer and fence
     {
         VkResult ret = vkResetCommandBuffer(compute_command_buffer, 0);
@@ -2455,7 +2507,7 @@ VkTransfer::~VkTransfer()
     }
 }
 
-void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt)
+void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bool flatten)
 {
 //     NCNN_LOGE("record_upload src = %d | %d %d %d @ %d", src.dims, src.w, src.h, src.c, src.elempack);
 
@@ -2473,7 +2525,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt)
         }
     }
 
-    Mat src_flattened = src.reshape(src.w * src.h * src.c);
+    Mat src_flattened = flatten ? src.reshape(src.w * src.h * src.c) : src;
 
     // create dst
     dst.create_like(src_flattened, opt.blob_vkallocator);

@@ -29,7 +29,7 @@ $ mkdir -p build
 $ cd build
 
 # cmake option NCNN_VULKAN for enabling vulkan
-$ cmake -DNCNN_VULKAN=OFF ..
+$ cmake -DNCNN_VULKAN=ON ..
 
 $ make -j4
 ```
@@ -89,7 +89,7 @@ build ncnn library (replace <protobuf-root-dir> with your path)
 > cd build-vs2017
 
 # cmake option NCNN_VULKAN for enabling vulkan
-> cmake -G"NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%cd%/install -DProtobuf_INCLUDE_DIR=<protobuf-root-dir>/build-vs2017/install/include -DProtobuf_LIBRARIES=<protobuf-root-dir>/build-vs2017/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=<protobuf-root-dir>/build-vs2017/install/bin/protoc.exe -DNCNN_VULKAN=OFF ..
+> cmake -G"NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%cd%/install -DProtobuf_INCLUDE_DIR=<protobuf-root-dir>/build-vs2017/install/include -DProtobuf_LIBRARIES=<protobuf-root-dir>/build-vs2017/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=<protobuf-root-dir>/build-vs2017/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
 
 > nmake
 > nmake install
@@ -124,7 +124,7 @@ $ mkdir -p build
 $ cd build
 
 # cmake option NCNN_VULKAN for enabling vulkan
-$ cmake -DNCNN_VULKAN=OFF ..
+$ cmake -DNCNN_VULKAN=ON ..
 
 $ make -j4
 $ make install
@@ -243,7 +243,7 @@ you can use the pre-build ncnn-android-lib.zip from https://github.com/Tencent/n
 install android-ndk
 ```
 download android-ndk from http://developer.android.com/ndk/downloads/index.html
-$ unzip android-ndk-r18b-linux-x86_64.zip
+$ unzip android-ndk-r21d-linux-x86_64.zip
 $ export ANDROID_NDK=<your-ndk-root-path>
 ```
 (optional) drop debug compile flag to reduce binary size due to [android-ndk issue](https://github.com/android-ndk/ndk/issues/243)

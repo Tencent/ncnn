@@ -83,6 +83,7 @@ public:
     void fill(int v);
 #if __ARM_NEON
     void fill(float32x4_t _v);
+    void fill(uint16x4_t _v);
 #endif // __ARM_NEON
     template <typename T> void fill(T v);
     // deep copy
@@ -481,6 +482,8 @@ union vk_constant_type { int i; float f; };
 #if NCNN_PIXEL
 // convert yuv420sp(nv21) to rgb, the fast approximate version
 void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
+// convert yuv420sp(nv21) to rgb with half resize, the faster approximate version
+void yuv420sp2rgb_half(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
 // image pixel bilinear resize
 void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
@@ -793,6 +796,16 @@ inline void Mat::fill(float32x4_t _v)
     for (int i=0; i<size; i++)
     {
         vst1q_f32(ptr, _v);
+        ptr += 4;
+    }
+}
+inline void Mat::fill(uint16x4_t _v)
+{
+    int size = total();
+    unsigned short* ptr = (unsigned short*)data;
+    for (int i=0; i<size; i++)
+    {
+        vst1_u16(ptr, _v);
         ptr += 4;
     }
 }

@@ -44,6 +44,9 @@ static int test_cast_cpu(const ncnn::Mat& a, int type_from, int type_to)
     if (type_from == 2)
     {
         ncnn::cast_float32_to_float16(a, a_fp16, opt);
+    }else if (type_from == 4)
+    {
+        ncnn::cast_float32_to_bfloat16(a, a_fp16, opt);
     }
     else
     {
@@ -97,6 +100,9 @@ static int test_cast_cpu_packed(const ncnn::Mat& a, int type_from, int type_to)
     if (type_from == 2)
     {
         ncnn::cast_float32_to_float16(a, a_fp16, opt);
+    } else if (type_from == 4)
+    {
+        ncnn::cast_float32_to_bfloat16(a, a_fp16, opt);
     }
     else
     {
@@ -113,6 +119,9 @@ static int test_cast_cpu_packed(const ncnn::Mat& a, int type_from, int type_to)
     if (type_from == 2)
     {
         ncnn::cast_float32_to_float16(a4, a4_fp16, opt);
+    }else if (type_from == 4)
+    {
+        ncnn::cast_float32_to_bfloat16(a4, a4_fp16, opt);
     }
     else
     {
@@ -138,6 +147,8 @@ static int test_cast_cpu_packed(const ncnn::Mat& a, int type_from, int type_to)
 #if NCNN_VULKAN
 static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
 {
+    if (type_to == 4 || type_from == 4)
+        return 0;
     ncnn::ParamDict pd;
     pd.set(0, type_from);
     pd.set(1, type_to);
@@ -251,6 +262,8 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
 
 static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type_to)
 {
+    if (type_to == 4 || type_from == 4)
+        return 0;
     ncnn::ParamDict pd;
     pd.set(0, type_from);
     pd.set(1, type_to);
@@ -367,6 +380,8 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
 
 static int test_cast_gpu_image_fp16p(const ncnn::Mat& a, int type_from, int type_to)
 {
+    if (type_to == 4 || type_from == 4)
+        return 0;
     ncnn::ParamDict pd;
     pd.set(0, type_from);
     pd.set(1, type_to);
@@ -386,6 +401,9 @@ static int test_cast_gpu_image_fp16p(const ncnn::Mat& a, int type_from, int type
     opt.use_image_storage = true;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+
+    if (vkdev->info.bug_layout_binding_id_alias)
+        return 0;
 
     ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
     ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
@@ -480,6 +498,8 @@ static int test_cast_gpu_image_fp16p(const ncnn::Mat& a, int type_from, int type
 
 static int test_cast_gpu_image_fp16p_pack8(const ncnn::Mat& a, int type_from, int type_to)
 {
+    if (type_to == 4 || type_from == 4)
+        return 0;
     ncnn::ParamDict pd;
     pd.set(0, type_from);
     pd.set(1, type_to);
@@ -500,6 +520,9 @@ static int test_cast_gpu_image_fp16p_pack8(const ncnn::Mat& a, int type_from, in
     opt.use_image_storage = true;
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+
+    if (vkdev->info.bug_layout_binding_id_alias)
+        return 0;
 
     ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
     ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
@@ -616,6 +639,10 @@ static int test_cast_0()
         || test_cast(RandomMat(3, 5, 13), 1, 2)
         || test_cast(RandomMat(6, 7, 16), 2, 1)
         || test_cast(RandomMat(3, 5, 13), 2, 1)
+        || test_cast(RandomMat(6, 7, 16), 1, 4)
+        || test_cast(RandomMat(3, 5, 13), 1, 4)
+        || test_cast(RandomMat(6, 7, 16), 4, 1)
+        || test_cast(RandomMat(3, 5, 13), 4, 1)
         ;
 }
 
@@ -626,6 +653,10 @@ static int test_cast_1()
         || test_cast(RandomMat(7, 15), 1, 2)
         || test_cast(RandomMat(6, 16), 2, 1)
         || test_cast(RandomMat(7, 15), 2, 1)
+        || test_cast(RandomMat(6, 16), 1, 4)
+        || test_cast(RandomMat(7, 15), 1, 4)
+        || test_cast(RandomMat(6, 16), 4, 1)
+        || test_cast(RandomMat(7, 15), 4, 1)
         ;
 }
 
@@ -636,6 +667,10 @@ static int test_cast_2()
         || test_cast(RandomMat(127), 1, 2)
         || test_cast(RandomMat(128), 2, 1)
         || test_cast(RandomMat(127), 2, 1)
+        || test_cast(RandomMat(128), 1, 4)
+        || test_cast(RandomMat(127), 1, 4)
+        || test_cast(RandomMat(128), 4, 1)
+        || test_cast(RandomMat(127), 4, 1)
         ;
 }
 

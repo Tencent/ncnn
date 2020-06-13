@@ -2763,6 +2763,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", pooled_width)
             fprintf_param_value(" 1=%d", pooled_height)
             fprintf_param_value(" 2=%e", spatial_scale)
+            fprintf_param_value(" 3=%d", sampling_ratio)
+            fprintf_param_value(" 4=%d", aligned)
+            fprintf_param_value(" 5=%d", version)
         }
         else if (layer->type == "ROIPooling")
         {

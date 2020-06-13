@@ -154,9 +154,10 @@ int Net::load_param(const DataReader& dr)
         if (!vkdev->info.support_int8_storage) opt.use_int8_storage = false;
         if (!vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
 
-#if __APPLE__
-        opt.use_image_storage = false;
-#endif
+        // TODO give user a choice
+        if (vkdev->info.bug_storage_buffer_no_l1) opt.use_image_storage = true;
+
+        if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
     }
 #endif // NCNN_VULKAN
 
@@ -348,9 +349,10 @@ int Net::load_param_bin(const DataReader& dr)
         if (!vkdev->info.support_int8_storage) opt.use_int8_storage = false;
         if (!vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
 
-#if __APPLE__
-        opt.use_image_storage = false;
-#endif
+        // TODO give user a choice
+        if (vkdev->info.bug_storage_buffer_no_l1) opt.use_image_storage = true;
+
+        if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
     }
 #endif // NCNN_VULKAN
 
@@ -526,13 +528,16 @@ int Net::load_model(const DataReader& dr)
         }
 
         Option opt1 = opt;
-        if (!layer->support_image_storage)
+#if NCNN_VULKAN
+        if (opt.use_vulkan_compute)
         {
-            opt1.use_image_storage = false;
+            if (!layer->support_image_storage)
+            {
+                opt1.use_image_storage = false;
+            }
+            if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
         }
-#if __APPLE__
-        opt1.use_image_storage = false;
-#endif
+#endif // NCNN_VULKAN
 
         int cret = layer->create_pipeline(opt1);
         if (cret != 0)

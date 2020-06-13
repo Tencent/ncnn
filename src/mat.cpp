@@ -332,6 +332,11 @@ void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, i
 
 void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, const Option& opt)
 {
+    if (left + right > src.w || top + bottom > src.h)
+    {
+        NCNN_LOGE("copy_cut_border parameter error, top: %d, bottom: %d, left: %d, right: %d, src.w: %d, src.h: %d", top, bottom, left, right, src.w, src.h);
+        return;
+    }
     Layer* crop = create_layer(LayerType::Crop);
 
     ParamDict pd;

@@ -467,8 +467,6 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
 
 void Crop::resolve_crop_roi(const Mat& bottom_blob, const Mat& reference_blob, int& _woffset, int& _hoffset, int& _coffset, int& _outw, int& _outh, int& _outc) const
 {
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
 
@@ -502,9 +500,6 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, const Mat& reference_blob, i
 
 void Crop::resolve_crop_roi(const Mat& bottom_blob, const int* param_data, int& _woffset, int& _hoffset, int& _coffset, int& _outw, int& _outh, int& _outc) const
 {
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
 
     if (dims == 1)
