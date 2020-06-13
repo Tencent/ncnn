@@ -74,17 +74,21 @@ static int detect_posenet(const cv::Mat& bgr, std::vector<KeyPoint>& keypoints)
 
     // resolve point from heatmap
     keypoints.clear();
-    for (int p = 0; p < out.c; p++) {
+    for (int p = 0; p < out.c; p++)
+    {
         const ncnn::Mat m = out.channel(p);
 
         float max_prob = 0.f;
         int max_x = 0;
         int max_y = 0;
-        for (int y = 0; y < out.h; y++) {
+        for (int y = 0; y < out.h; y++)
+        {
             const float* ptr = m.row(y);
-            for (int x = 0; x < out.w; x++) {
+            for (int x = 0; x < out.w; x++)
+            {
                 float prob = ptr[x];
-                if (prob > max_prob) {
+                if (prob > max_prob)
+                {
                     max_prob = prob;
                     max_x = x;
                     max_y = y;
@@ -111,7 +115,8 @@ static void draw_pose(const cv::Mat& bgr, const std::vector<KeyPoint>& keypoints
         {0, 1}, {1, 3}, {0, 2}, {2, 4}, {5, 6}, {5, 7}, {7, 9}, {6, 8}, {8, 10}, {5, 11}, {6, 12}, {11, 12}, {11, 13}, {12, 14}, {13, 15}, {14, 16}
     };
 
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++)
+    {
         const KeyPoint& p1 = keypoints[joint_pairs[i][0]];
         const KeyPoint& p2 = keypoints[joint_pairs[i][1]];
 
@@ -122,7 +127,8 @@ static void draw_pose(const cv::Mat& bgr, const std::vector<KeyPoint>& keypoints
     }
 
     // draw joint
-    for (size_t i = 0; i < keypoints.size(); i++) {
+    for (size_t i = 0; i < keypoints.size(); i++)
+    {
         const KeyPoint& keypoint = keypoints[i];
 
         fprintf(stderr, "%.2f %.2f = %.5f\n", keypoint.p.x, keypoint.p.y, keypoint.prob);
@@ -142,7 +148,8 @@ int main(int argc, char** argv)
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, CV_LOAD_IMAGE_COLOR);
-    if (m.empty()) {
+    if (m.empty())
+    {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);
         return -1;
     }

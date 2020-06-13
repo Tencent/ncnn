@@ -47,7 +47,8 @@ int PSROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
     const Mat& roi_blob = bottom_blobs[1];
 
-    if (channels != output_dim * pooled_width * pooled_height) {
+    if (channels != output_dim * pooled_width * pooled_height)
+    {
         // input channel number does not match layer parameters
         return -1;
     }
@@ -72,11 +73,14 @@ int PSROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     float bin_size_h = roi_h / (float)pooled_height;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < output_dim; q++) {
+    for (int q = 0; q < output_dim; q++)
+    {
         float* outptr = top_blob.channel(q);
 
-        for (int ph = 0; ph < pooled_height; ph++) {
-            for (int pw = 0; pw < pooled_width; pw++) {
+        for (int ph = 0; ph < pooled_height; ph++)
+        {
+            for (int pw = 0; pw < pooled_width; pw++)
+            {
                 const float* ptr = bottom_blob.channel((q * pooled_height + ph) * pooled_width + pw);
 
                 int hstart = static_cast<int>(floor(roi_y1 + (float)(ph)*bin_size_h));
@@ -93,8 +97,10 @@ int PSROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 int area = (hend - hstart) * (wend - wstart);
 
                 float sum = 0.f;
-                for (int y = hstart; y < hend; y++) {
-                    for (int x = wstart; x < wend; x++) {
+                for (int y = hstart; y < hend; y++)
+                {
+                    for (int x = wstart; x < wend; x++)
+                    {
                         int index = y * w + x;
                         sum += ptr[index];
                     }

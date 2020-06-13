@@ -29,7 +29,8 @@ static int test_elu(const ncnn::Mat& a)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::ELU>("ELU", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_elu failed alpha=%f\n", alpha);
     }
 

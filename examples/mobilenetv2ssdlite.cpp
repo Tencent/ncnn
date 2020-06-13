@@ -74,7 +74,8 @@ static int detect_mobilenetv2(const cv::Mat& bgr, std::vector<Object>& objects)
 
     //     printf("%d %d %d\n", out.w, out.h, out.c);
     objects.clear();
-    for (int i = 0; i < out.h; i++) {
+    for (int i = 0; i < out.h; i++)
+    {
         const float* values = out.row(i);
 
         Object object;
@@ -103,7 +104,8 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
     cv::Mat image = bgr.clone();
 
-    for (size_t i = 0; i < objects.size(); i++) {
+    for (size_t i = 0; i < objects.size(); i++)
+    {
         const Object& obj = objects[i];
 
         fprintf(stderr, "%d = %.5f at %.2f %.2f %.2f x %.2f\n", obj.label, obj.prob,
@@ -137,7 +139,8 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
 int main(int argc, char** argv)
 {
-    if (argc != 2) {
+    if (argc != 2)
+    {
         fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
         return -1;
     }
@@ -145,7 +148,8 @@ int main(int argc, char** argv)
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, 1);
-    if (m.empty()) {
+    if (m.empty())
+    {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);
         return -1;
     }

@@ -28,7 +28,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     int remain_outch_start = nn_outch << 1;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_outch; pp++) {
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
         int p = pp * 2;
 
         Mat out0 = top_blob.channel(p);
@@ -43,7 +44,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
         const float* k0 = kernel + p * inch * 9;
         const float* k1 = kernel + (p + 1) * inch * 9;
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr0 = out0;
             float* outptr1 = out1;
             float* outptr0n = outptr0 + outw;
@@ -68,7 +70,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
             int i = 0;
 
-            for (; i + 1 < outh; i += 2) {
+            for (; i + 1 < outh; i += 2)
+            {
 #if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw & 3;
@@ -78,7 +81,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
 #if __ARM_NEON
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "prfm   pldl1keep, [%5, #256]       \n"
                         "ld1    {v8.4s, v9.4s}, [%5]        \n" // r0
@@ -220,7 +224,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         : "cc", "memory", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 }
 #else
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
 
                         "pld        [%5, #192]          \n"
@@ -364,7 +369,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
 #if __ARM_NEON
                     float32x4_t _r00 = vld1q_f32(r0);
                     float32x4_t _r10 = vld1q_f32(r1);
@@ -480,7 +486,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 outptr1n += outw;
             }
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
 #if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw & 3;
@@ -490,7 +497,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
 #if __ARM_NEON
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "0:                                 \n"
 
@@ -578,7 +586,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         : "cc", "memory", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 }
 #else
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "0:                             \n"
 
@@ -668,7 +677,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
 #if __ARM_NEON
                     float32x4_t _r00 = vld1q_f32(r0);
                     float32x4_t _r10 = vld1q_f32(r1);
@@ -739,7 +749,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = remain_outch_start; p < outch; p++) {
+    for (int p = remain_outch_start; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
@@ -748,7 +759,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
         const float* kernel0 = kernel + p * inch * 9;
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr = out;
             float* outptr2 = outptr + outw;
 
@@ -771,7 +783,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
             int i = 0;
 
-            for (; i + 1 < outh; i += 2) {
+            for (; i + 1 < outh; i += 2)
+            {
 #if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw & 3;
@@ -781,7 +794,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
 #if __ARM_NEON
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "prfm   pldl1keep, [%3, #256]       \n"
                         "ld1    {v9.4s, v10.4s}, [%3]       \n" // r0
@@ -887,7 +901,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         : "cc", "memory", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 }
 #else
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "pld        [%3, #192]          \n"
                         "vld1.f32   {d18-d20}, [%3 :64] \n" // r0
@@ -994,7 +1009,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
 #if __ARM_NEON
                     float32x4_t _r00 = vld1q_f32(r0);
                     float32x4_t _r10 = vld1q_f32(r1);
@@ -1068,7 +1084,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 outptr2 += outw;
             }
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
 #if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw & 3;
@@ -1078,7 +1095,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
 #if __ARM_NEON
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "prfm   pldl1keep, [%2, #256]       \n"
                         "ld1    {v8.4s, v9.4s}, [%2]        \n" // r0
@@ -1152,7 +1170,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         : "cc", "memory", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 }
 #else
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "pld        [%2, #192]          \n"
                         "vld1.f32   {d16-d18}, [%2]     \n" // r0
@@ -1227,7 +1246,8 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
 #if __ARM_NEON
                     float32x4_t _r00 = vld1q_f32(r0);
                     float32x4_t _r10 = vld1q_f32(r1);
@@ -1294,8 +1314,10 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
     };
 
     #pragma omp parallel for
-    for (int p = 0; p < outch; p++) {
-        for (int q = 0; q < inch; q++) {
+    for (int p = 0; p < outch; p++)
+    {
+        for (int q = 0; q < inch; q++)
+        {
             const float* kernel0 = (const float*)kernel + p * inch * 9 + q * 9;
             float* kernel_tm0 = kernel_tm.channel(p).row(q);
 
@@ -1306,17 +1328,20 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
 
             // h
             float tmp[8][3];
-            for (int i = 0; i < 8; i++) {
+            for (int i = 0; i < 8; i++)
+            {
                 tmp[i][0] = k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
                 tmp[i][1] = k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
                 tmp[i][2] = k2[0] * ktm[i][0] + k2[1] * ktm[i][1] + k2[2] * ktm[i][2];
             }
 
             // v
-            for (int j = 0; j < 8; j++) {
+            for (int j = 0; j < 8; j++)
+            {
                 float* tmpp = &tmp[j][0];
 
-                for (int i = 0; i < 8; i++) {
+                for (int i = 0; i < 8; i++)
+                {
                     kernel_tm0[j * 8 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
                 }
             }
@@ -1331,7 +1356,8 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
     Mat kernel_tm2(8 * 8 * inch * 4, 1, nn_outch + (outch % 4 + 3) / 4);
 
     #pragma omp parallel for
-    for (int pp = 0; pp < nn_outch; pp++) {
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
         int p = pp * 4;
 
         float* ktm2 = kernel_tm2.channel(pp);
@@ -1344,7 +1370,8 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
         int q = 0;
 
 #if __ARM_NEON && __aarch64__
-        for (; q + 3 < inch; q += 4) {
+        for (; q + 3 < inch; q += 4)
+        {
             const float* k00 = kernel0_tm.row(q);
             const float* k01 = kernel0_tm.row(q + 1);
             const float* k02 = kernel0_tm.row(q + 2);
@@ -1362,7 +1389,8 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
             const float* k32 = kernel3_tm.row(q + 2);
             const float* k33 = kernel3_tm.row(q + 3);
 
-            for (int r = 0; r < 16; r++) {
+            for (int r = 0; r < 16; r++)
+            {
                 // split into two asm blocks for gcc reject over 30 oprands :(
                 asm volatile(
                     "ld1    {v0.4s}, [%1], #16  \n"
@@ -1432,7 +1460,8 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
         }
 #endif // __ARM_NEON && __aarch64__
 
-        for (; q + 1 < inch; q += 2) {
+        for (; q + 1 < inch; q += 2)
+        {
             const float* k00 = kernel0_tm.row(q);
             const float* k01 = kernel0_tm.row(q + 1);
             const float* k10 = kernel1_tm.row(q);
@@ -1442,7 +1471,8 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
             const float* k30 = kernel3_tm.row(q);
             const float* k31 = kernel3_tm.row(q + 1);
 
-            for (int r = 0; r < 16; r++) {
+            for (int r = 0; r < 16; r++)
+            {
 #if __ARM_NEON
 #if __aarch64__
                 asm volatile(
@@ -1520,7 +1550,8 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
                     : "cc", "memory", "q0", "q1");
 #endif // __aarch64__
 #else
-                for (int m = 0; m < 4; m++) {
+                for (int m = 0; m < 4; m++)
+                {
                     ktm2[0 + m] = k00[m];
                     ktm2[4 + m] = k01[m];
                     ktm2[8 + m] = k10[m];
@@ -1544,13 +1575,15 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
             }
         }
 
-        for (; q < inch; q++) {
+        for (; q < inch; q++)
+        {
             const float* k00 = kernel0_tm.row(q);
             const float* k10 = kernel1_tm.row(q);
             const float* k20 = kernel2_tm.row(q);
             const float* k30 = kernel3_tm.row(q);
 
-            for (int r = 0; r < 16; r++) {
+            for (int r = 0; r < 16; r++)
+            {
 #if __ARM_NEON
 #if __aarch64__
                 asm volatile(
@@ -1596,7 +1629,8 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
                     : "cc", "memory", "q0", "q1");
 #endif // __aarch64__
 #else
-                for (int m = 0; m < 4; m++) {
+                for (int m = 0; m < 4; m++)
+                {
                     ktm2[0 + m] = k00[m];
                     ktm2[4 + m] = k10[m];
                     ktm2[8 + m] = k20[m];
@@ -1614,17 +1648,20 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
     }
 
     #pragma omp parallel for
-    for (int p = remain_outch_start; p < outch; p++) {
+    for (int p = remain_outch_start; p < outch; p++)
+    {
         float* ktm2 = (float*)kernel_tm2.channel(nn_outch) + 8 * 8 * inch * (p - remain_outch_start);
 
         const Mat kernel0_tm = kernel_tm.channel(p);
 
         int q = 0;
 
-        for (; q < inch; q++) {
+        for (; q < inch; q++)
+        {
             const float* k00 = kernel0_tm.row(q);
 
-            for (int r = 0; r < 16; r++) {
+            for (int r = 0; r < 16; r++)
+            {
 #if __ARM_NEON
 #if __aarch64__
                 asm volatile(
@@ -1646,7 +1683,8 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
                     : "cc", "memory", "q0");
 #endif // __aarch64__
 #else
-                for (int m = 0; m < 4; m++) {
+                for (int m = 0; m < 4; m++)
+                {
                     ktm2[m] = k00[m];
                 }
 
@@ -1676,8 +1714,10 @@ static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& 
     };
 
     #pragma omp parallel for
-    for (int p = 0; p < outch; p++) {
-        for (int q = 0; q < inch; q++) {
+    for (int p = 0; p < outch; p++)
+    {
+        for (int q = 0; q < inch; q++)
+        {
             const float* kernel0 = (const float*)kernel + p * inch * 9 + q * 9;
             float* kernel_tm0 = kernel_tm.channel(p).row(q);
 
@@ -1688,17 +1728,20 @@ static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& 
 
             // h
             float tmp[8][3];
-            for (int i = 0; i < 8; i++) {
+            for (int i = 0; i < 8; i++)
+            {
                 tmp[i][0] = k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
                 tmp[i][1] = k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
                 tmp[i][2] = k2[0] * ktm[i][0] + k2[1] * ktm[i][1] + k2[2] * ktm[i][2];
             }
 
             // v
-            for (int j = 0; j < 8; j++) {
+            for (int j = 0; j < 8; j++)
+            {
                 float* tmpp = &tmp[j][0];
 
-                for (int i = 0; i < 8; i++) {
+                for (int i = 0; i < 8; i++)
+                {
                     kernel_tm0[j * 8 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
                 }
             }
@@ -1717,7 +1760,8 @@ static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& 
 
     int p = 0;
 #if __aarch64__
-    for (; p + 7 < outch; p += 8) {
+    for (; p + 7 < outch; p += 8)
+    {
         const Mat kernel0_tm = kernel_tm.channel(p);
         const Mat kernel1_tm = kernel_tm.channel(p + 1);
         const Mat kernel2_tm = kernel_tm.channel(p + 2);
@@ -1729,10 +1773,12 @@ static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& 
 
         Mat ktm2 = kernel_tm2.channel(p / 8);
 
-        for (int r = 0; r < 64; r++) {
+        for (int r = 0; r < 64; r++)
+        {
             float* ktm2p = ktm2.row(r);
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
                 const float* ktm0_0 = kernel0_tm.row(q);
                 const float* ktm1_0 = kernel1_tm.row(q);
                 const float* ktm2_0 = kernel2_tm.row(q);
@@ -1756,7 +1802,8 @@ static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& 
         }
     }
 #endif // __aarch64__
-    for (; p + 3 < outch; p += 4) {
+    for (; p + 3 < outch; p += 4)
+    {
         const Mat kernel0_tm = kernel_tm.channel(p);
         const Mat kernel1_tm = kernel_tm.channel(p + 1);
         const Mat kernel2_tm = kernel_tm.channel(p + 2);
@@ -1768,10 +1815,12 @@ static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& 
         Mat ktm2 = kernel_tm2.channel(p / 4);
 #endif
 
-        for (int r = 0; r < 64; r++) {
+        for (int r = 0; r < 64; r++)
+        {
             float* ktm2p = ktm2.row(r);
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
                 const float* ktm0_0 = kernel0_tm.row(q);
                 const float* ktm1_0 = kernel1_tm.row(q);
                 const float* ktm2_0 = kernel2_tm.row(q);
@@ -1786,7 +1835,8 @@ static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& 
             }
         }
     }
-    for (; p < outch; p++) {
+    for (; p < outch; p++)
+    {
         const Mat kernel0_tm = kernel_tm.channel(p);
 
 #if __ARM_NEON && __aarch64__
@@ -1795,10 +1845,12 @@ static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& 
         Mat ktm2 = kernel_tm2.channel(p / 4 + p % 4);
 #endif
 
-        for (int r = 0; r < 64; r++) {
+        for (int r = 0; r < 64; r++)
+        {
             float* ktm2p = ktm2.row(r);
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
                 const float* ktm0_0 = kernel0_tm.row(q);
 
                 ktm2p[0] = ktm0_0[r];
@@ -5610,15 +5662,18 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 #endif // __ARM_NEON
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             const Mat img0 = bottom_blob_bordered.channel(q);
             Mat img0_tm = bottom_blob_tm.channel(q);
 
             float tmp[8][8];
 
             // tile
-            for (int i = 0; i < h_tm / 8; i++) {
-                for (int j = 0; j < w_tm / 8; j++) {
+            for (int i = 0; i < h_tm / 8; i++)
+            {
+                for (int j = 0; j < w_tm / 8; j++)
+                {
 #if __ARM_NEON
                     const float* r0 = img0.row(i * 6) + j * 6;
                     const float* r1 = r0 + w;
@@ -5629,7 +5684,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     // old gcc may fail to allocate register on debug build without -fomit-frame-pointer
                     // so, fallback to intrinsic version for armv7 debug build     --- nihui
 #if __aarch64__ || !defined(NDEBUG)
-                    for (int m = 0; m + 3 < 8; m += 4) {
+                    for (int m = 0; m + 3 < 8; m += 4)
+                    {
                         float32x4_t _r0_0123 = vld1q_f32(r0);
                         float32x4_t _r0_4567 = vld1q_f32(r0 + 4);
                         float32x4_t _r1_0123 = vld1q_f32(r1);
@@ -5726,7 +5782,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     float* r0_tm3_0 = img0_tm.row(i * w_tm / 8 + j + tiles * 6);
                     float* r0_tm3_4 = img0_tm.row(i * w_tm / 8 + j + tiles * 7);
 
-                    for (int m = 0; m + 3 < 8; m += 4) {
+                    for (int m = 0; m + 3 < 8; m += 4)
+                    {
                         float32x4_t _t0_0123 = vld1q_f32(t0);
                         float32x4_t _t0_4567 = vld1q_f32(t0 + 4);
                         float32x4_t _t1_0123 = vld1q_f32(t1);
@@ -6303,7 +6360,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 #else
                     const float* r0 = img0.row(i * 6) + j * 6;
 
-                    for (int m = 0; m < 8; m++) {
+                    for (int m = 0; m < 8; m++)
+                    {
                         tmp[0][m] = r0[0] - r0[6] + (r0[4] - r0[2]) * 5.25f;
                         tmp[7][m] = r0[7] - r0[1] + (r0[3] - r0[5]) * 5.25f;
 
@@ -6331,7 +6389,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     float* r0_tm_0 = img0_tm.row(i * w_tm / 8 + j);
                     float* r0_tm_4 = img0_tm.row(i * w_tm / 8 + j + tiles);
 
-                    for (int m = 0; m < 8; m++) {
+                    for (int m = 0; m < 8; m++)
+                    {
                         const float* tmp0 = tmp[m];
 
                         r0_tm_0[0] = tmp0[0] - tmp0[6] + (tmp0[4] - tmp0[2]) * 5.25f;
@@ -6379,7 +6438,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
         int remain_outch_start = nn_outch << 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int pp = 0; pp < nn_outch; pp++) {
+        for (int pp = 0; pp < nn_outch; pp++)
+        {
             int p = pp * 4;
 
             Mat out0_tm = top_blob_tm.channel(p);
@@ -6397,7 +6457,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
             int q = 0;
 
 #if __ARM_NEON && __aarch64__
-            for (; q + 3 < inch; q += 4) {
+            for (; q + 3 < inch; q += 4)
+            {
                 const float* r0 = bottom_blob_tm.channel(q);
                 const float* r1 = bottom_blob_tm.channel(q + 1);
                 const float* r2 = bottom_blob_tm.channel(q + 2);
@@ -6787,7 +6848,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
             }
 #endif // __ARM_NEON && __aarch64__
 
-            for (; q + 1 < inch; q += 2) {
+            for (; q + 1 < inch; q += 2)
+            {
                 const float* r0 = bottom_blob_tm.channel(q);
                 const float* r1 = bottom_blob_tm.channel(q + 1);
 
@@ -7329,9 +7391,12 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     : "cc", "memory", "r0", "r1", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13");
 #endif // __aarch64__
 #else
-                for (int r = 0; r < 16; r++) {
-                    for (int t = 0; t < tiles; t++) {
-                        for (int m = 0; m < 4; m++) {
+                for (int r = 0; r < 16; r++)
+                {
+                    for (int t = 0; t < tiles; t++)
+                    {
+                        for (int m = 0; m < 4; m++)
+                        {
                             output0_tm[m] += r0[m] * ktm[0 + m];
                             output0_tm[m] += r1[m] * ktm[4 + m];
                             output1_tm[m] += r0[m] * ktm[8 + m];
@@ -7355,7 +7420,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 #endif // __ARM_NEON
             }
 
-            for (; q < inch; q++) {
+            for (; q < inch; q++)
+            {
                 const float* r0 = bottom_blob_tm.channel(q);
 
                 float* output0_tm = out0_tm;
@@ -7510,9 +7576,12 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     : "cc", "memory", "r0", "r1", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13");
 #endif // __aarch64__
 #else
-                for (int r = 0; r < 16; r++) {
-                    for (int t = 0; t < tiles; t++) {
-                        for (int m = 0; m < 4; m++) {
+                for (int r = 0; r < 16; r++)
+                {
+                    for (int t = 0; t < tiles; t++)
+                    {
+                        for (int m = 0; m < 4; m++)
+                        {
                             output0_tm[m] += r0[m] * ktm[0 + m];
                             output1_tm[m] += r0[m] * ktm[4 + m];
                             output2_tm[m] += r0[m] * ktm[8 + m];
@@ -7533,7 +7602,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
         }
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = remain_outch_start; p < outch; p++) {
+        for (int p = remain_outch_start; p < outch; p++)
+        {
             Mat out0_tm = top_blob_tm.channel(p);
 
             const float* ktm = (const float*)kernel_tm.channel(nn_outch) + 8 * 8 * inch * (p - remain_outch_start);
@@ -7542,19 +7612,22 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 
             int q = 0;
 
-            for (; q < inch; q++) {
+            for (; q < inch; q++)
+            {
                 const float* r0 = bottom_blob_tm.channel(q);
 
                 float* output0_tm = out0_tm;
 
-                for (int r = 0; r < 16; r++) {
+                for (int r = 0; r < 16; r++)
+                {
 #if __ARM_NEON
                     float32x4_t _k00 = vld1q_f32(ktm);
                     ktm += 4;
 #endif // __ARM_NEON
 
                     // tile
-                    for (int i = 0; i < tiles; i++) {
+                    for (int i = 0; i < tiles; i++)
+                    {
 #if __ARM_NEON
 #if __aarch64__
                         asm volatile(
@@ -7592,7 +7665,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                             : "cc", "memory", "q8", "q9");
 #endif // __aarch64__
 #else
-                        for (int m = 0; m < 4; m++) {
+                        for (int m = 0; m < 4; m++)
+                        {
                             output0_tm[m] += r0[m] * ktm[m];
                         }
 
@@ -7641,7 +7715,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
         const int tiles = w_tm / 8 * h_tm / 8;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < outch; p++) {
+        for (int p = 0; p < outch; p++)
+        {
             const Mat out0_tm = top_blob_tm.channel(p);
             Mat out0 = top_blob_bordered.channel(p);
 
@@ -7653,8 +7728,10 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
             float tmp[6][8];
 
             // tile
-            for (int i = 0; i < outh / 6; i++) {
-                for (int j = 0; j < outw / 6; j++) {
+            for (int i = 0; i < outh / 6; i++)
+            {
+                for (int j = 0; j < outw / 6; j++)
+                {
 #if __ARM_NEON
                     const float* output0_tm0_0 = out0_tm.row(i * w_tm / 8 + j);
                     const float* output0_tm0_4 = out0_tm.row(i * w_tm / 8 + j + tiles);
@@ -7666,7 +7743,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     const float* output0_tm3_4 = out0_tm.row(i * w_tm / 8 + j + tiles * 7);
 
 #if __aarch64__
-                    for (int m = 0; m + 3 < 8; m += 4) {
+                    for (int m = 0; m + 3 < 8; m += 4)
+                    {
                         float32x4_t _output0_tm0_0123 = vld1q_f32(output0_tm0_0);
                         float32x4_t _output0_tm0_4567 = vld1q_f32(output0_tm0_4);
                         float32x4_t _output0_tm1_0123 = vld1q_f32(output0_tm1_0);
@@ -7746,7 +7824,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     float* output0 = out0.row(i * 6) + j * 6;
                     float* output1 = output0 + outw;
 
-                    for (int m = 0; m + 1 < 6; m += 2) {
+                    for (int m = 0; m + 1 < 6; m += 2)
+                    {
                         float32x4_t _t0_0123 = vld1q_f32(t0);
                         float32x4_t _t0_4567 = vld1q_f32(t0 + 4);
                         float32x4_t _t1_0123 = vld1q_f32(t1);
@@ -8181,7 +8260,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     const float* output0_tm_0 = out0_tm.row(i * w_tm / 8 + j);
                     const float* output0_tm_4 = out0_tm.row(i * w_tm / 8 + j + tiles);
 
-                    for (int m = 0; m < 8; m++) {
+                    for (int m = 0; m < 8; m++)
+                    {
                         float tmp024a = output0_tm_0[1] + output0_tm_0[2];
                         float tmp135a = output0_tm_0[1] - output0_tm_0[2];
 
@@ -8205,7 +8285,8 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
 
                     float* output0 = out0.row(i * 6) + j * 6;
 
-                    for (int m = 0; m < 6; m++) {
+                    for (int m = 0; m < 6; m++)
+                    {
                         const float* tmp0 = tmp[m];
 
                         float tmp024a = tmp0[1] + tmp0[2];
@@ -8310,15 +8391,18 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 #endif // __ARM_NEON
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             const Mat img0 = bottom_blob_bordered.channel(q);
             Mat img0_tm = bottom_blob_tm.channel(q);
 
             float tmp[8][8];
 
             // tile
-            for (int i = 0; i < h_tm / 8; i++) {
-                for (int j = 0; j < w_tm / 8; j++) {
+            for (int i = 0; i < h_tm / 8; i++)
+            {
+                for (int j = 0; j < w_tm / 8; j++)
+                {
 #if __ARM_NEON
                     const float* r0 = img0.row(i * 6) + j * 6;
                     const float* r1 = r0 + w;
@@ -8329,7 +8413,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     // old gcc may fail to allocate register on debug build without -fomit-frame-pointer
                     // so, fallback to intrinsic version for armv7 debug build     --- nihui
 #if __aarch64__ || !defined(NDEBUG)
-                    for (int m = 0; m + 3 < 8; m += 4) {
+                    for (int m = 0; m + 3 < 8; m += 4)
+                    {
                         float32x4_t _r0_0123 = vld1q_f32(r0);
                         float32x4_t _r0_4567 = vld1q_f32(r0 + 4);
                         float32x4_t _r1_0123 = vld1q_f32(r1);
@@ -8422,7 +8507,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     float* r0_tm2 = img0_tm.row(i * w_tm / 8 + j + tiles * 16);
                     float* r0_tm3 = img0_tm.row(i * w_tm / 8 + j + tiles * 24);
 
-                    for (int m = 0; m + 3 < 8; m += 4) {
+                    for (int m = 0; m + 3 < 8; m += 4)
+                    {
                         float32x4_t _t0_0123 = vld1q_f32(t0);
                         float32x4_t _t0_4567 = vld1q_f32(t0 + 4);
                         float32x4_t _t1_0123 = vld1q_f32(t1);
@@ -9043,7 +9129,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 #else
                     const float* r0 = img0.row(i * 6) + j * 6;
 
-                    for (int m = 0; m < 8; m++) {
+                    for (int m = 0; m < 8; m++)
+                    {
                         tmp[0][m] = r0[0] - r0[6] + (r0[4] - r0[2]) * 5.25f;
                         tmp[7][m] = r0[7] - r0[1] + (r0[3] - r0[5]) * 5.25f;
 
@@ -9077,7 +9164,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     float* r0_tm_6 = img0_tm.row(i * w_tm / 8 + j + tiles * 6);
                     float* r0_tm_7 = img0_tm.row(i * w_tm / 8 + j + tiles * 7);
 
-                    for (int m = 0; m < 8; m++) {
+                    for (int m = 0; m < 8; m++)
+                    {
                         const float* tmp0 = tmp[m];
 
                         r0_tm_0[0] = tmp0[0] - tmp0[6] + (tmp0[4] - tmp0[2]) * 5.25f;
@@ -9131,19 +9219,22 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
         Mat bottom_blob_tm2(8 * inch, tiles / 8 + (tiles % 8) / 4 + tiles % 4, 64, 4u, opt.workspace_allocator);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int r = 0; r < 64; r++) {
+        for (int r = 0; r < 64; r++)
+        {
             Mat tm2 = bottom_blob_tm2.channel(r);
 
             // tile
             int i = 0;
-            for (; i + 7 < tiles; i += 8) {
+            for (; i + 7 < tiles; i += 8)
+            {
                 float* tm2p = tm2.row(i / 8);
 
                 const float* r0 = bottom_blob_tm;
 
                 r0 += r * tiles + i;
 
-                for (int q = 0; q < inch; q++) {
+                for (int q = 0; q < inch; q++)
+                {
 #if __ARM_NEON
                     float32x4_t _r0 = vld1q_f32(r0);
                     float32x4_t _r0n = vld1q_f32(r0 + 4);
@@ -9164,14 +9255,16 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     tm2p += 8;
                 }
             }
-            for (; i + 3 < tiles; i += 4) {
+            for (; i + 3 < tiles; i += 4)
+            {
                 float* tm2p = tm2.row(i / 8 + (i % 8) / 4);
 
                 const float* r0 = bottom_blob_tm;
 
                 r0 += r * tiles + i;
 
-                for (int q = 0; q < inch; q++) {
+                for (int q = 0; q < inch; q++)
+                {
 #if __ARM_NEON
                     float32x4_t _r0 = vld1q_f32(r0);
                     vst1q_f32(tm2p, _r0);
@@ -9186,14 +9279,16 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     tm2p += 4;
                 }
             }
-            for (; i < tiles; i++) {
+            for (; i < tiles; i++)
+            {
                 float* tm2p = tm2.row(i / 8 + (i % 8) / 4 + i % 4);
 
                 const float* r0 = bottom_blob_tm;
 
                 r0 += r * tiles + i;
 
-                for (int q = 0; q < inch; q++) {
+                for (int q = 0; q < inch; q++)
+                {
                     tm2p[0] = r0[0];
 
                     r0 += bottom_blob_tm.cstep;
@@ -9215,7 +9310,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
         remain_outch_start = nn_outch << 3;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int pp = 0; pp < nn_outch; pp++) {
+        for (int pp = 0; pp < nn_outch; pp++)
+        {
             int p = pp * 8;
 
             const Mat kernel_tm0 = kernel_tm.channel(p / 8);
@@ -9238,12 +9334,14 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
             float* output6_tm = out6_tm;
             float* output7_tm = out7_tm;
 
-            for (int r = 0; r < 64; r++) {
+            for (int r = 0; r < 64; r++)
+            {
                 const Mat bb2 = bottom_blob_tm2.channel(r);
 
                 // tile
                 int i = 0;
-                for (; i + 7 < tiles; i += 8) {
+                for (; i + 7 < tiles; i += 8)
+                {
                     const float* bb2p0 = bb2.row(i / 8);
 
                     const float* ktm0 = kernel_tm0.row(r);
@@ -9432,7 +9530,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "r"(inch) // %20
                         : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
-                for (; i + 3 < tiles; i += 4) {
+                for (; i + 3 < tiles; i += 4)
+                {
                     const float* bb2p0 = bb2.row(i / 8 + (i % 8) / 4);
 
                     const float* ktm0 = kernel_tm0.row(r);
@@ -9566,7 +9665,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "r"(inch) // %20
                         : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
                 }
-                for (; i < tiles; i++) {
+                for (; i < tiles; i++)
+                {
                     const float* bb2p0 = bb2.row(i / 8 + (i % 8) / 4 + i % 4);
 
                     const float* ktm0 = kernel_tm0.row(r);
@@ -9575,7 +9675,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     float32x4_t _sum4567 = vdupq_n_f32(0.f);
 
                     int q = 0;
-                    for (; q + 3 < inch; q += 4) {
+                    for (; q + 3 < inch; q += 4)
+                    {
                         //                         asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
                         float32x4_t _bb2p0 = vld1q_f32(bb2p0);
                         bb2p0 += 4;
@@ -9605,7 +9706,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         _sum4567 = vmlaq_laneq_f32(_sum4567, _ktm7, _bb2p0, 3);
                     }
 
-                    for (; q < inch; q++) {
+                    for (; q < inch; q++)
+                    {
                         float32x4_t _bb2p0 = vld1q_dup_f32(bb2p0);
                         float32x4_t _ktm0123 = vld1q_f32(ktm0 + 0);
                         float32x4_t _ktm4567 = vld1q_f32(ktm0 + 4);
@@ -9651,7 +9753,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
         nn_outch = (outch - remain_outch_start) >> 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int pp = 0; pp < nn_outch; pp++) {
+        for (int pp = 0; pp < nn_outch; pp++)
+        {
             int p = remain_outch_start + pp * 4;
 
 #if __ARM_NEON && __aarch64__
@@ -9670,12 +9773,14 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
             float* output2_tm = out2_tm;
             float* output3_tm = out3_tm;
 
-            for (int r = 0; r < 64; r++) {
+            for (int r = 0; r < 64; r++)
+            {
                 const Mat bb2 = bottom_blob_tm2.channel(r);
 
                 // tile
                 int i = 0;
-                for (; i + 7 < tiles; i += 8) {
+                for (; i + 7 < tiles; i += 8)
+                {
                     const float* bb2p0 = bb2.row(i / 8);
 
                     const float* ktm0 = kernel_tm0.row(r);
@@ -9955,7 +10060,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     float sum3_6 = 0.f;
                     float sum3_7 = 0.f;
 
-                    for (int q = 0; q < inch; q++) {
+                    for (int q = 0; q < inch; q++)
+                    {
                         sum0_0 += bb2p0[0] * ktm0[0];
                         sum0_1 += bb2p0[1] * ktm0[0];
                         sum0_2 += bb2p0[2] * ktm0[0];
@@ -10038,7 +10144,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     output3_tm += 8;
 #endif // __ARM_NEON
                 }
-                for (; i + 3 < tiles; i += 4) {
+                for (; i + 3 < tiles; i += 4)
+                {
                     const float* bb2p0 = bb2.row(i / 8 + (i % 8) / 4);
 
                     const float* ktm0 = kernel_tm0.row(r);
@@ -10245,7 +10352,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     float sum3_2 = 0.f;
                     float sum3_3 = 0.f;
 
-                    for (int q = 0; q < inch; q++) {
+                    for (int q = 0; q < inch; q++)
+                    {
                         sum0_0 += bb2p0[0] * ktm0[0];
                         sum0_1 += bb2p0[1] * ktm0[0];
                         sum0_2 += bb2p0[2] * ktm0[0];
@@ -10296,7 +10404,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     output3_tm += 4;
 #endif // __ARM_NEON
                 }
-                for (; i < tiles; i++) {
+                for (; i < tiles; i++)
+                {
                     const float* bb2p0 = bb2.row(i / 8 + (i % 8) / 4 + i % 4);
 
                     const float* ktm0 = kernel_tm0.row(r);
@@ -10305,7 +10414,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     float32x4_t _sum0123 = vdupq_n_f32(0.f);
 
                     int q = 0;
-                    for (; q + 3 < inch; q += 4) {
+                    for (; q + 3 < inch; q += 4)
+                    {
                         //                         asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
                         float32x4_t _bb2p0 = vld1q_f32(bb2p0);
                         bb2p0 += 4;
@@ -10330,7 +10440,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 #endif // __aarch64__
                     }
 
-                    for (; q < inch; q++) {
+                    for (; q < inch; q++)
+                    {
                         float32x4_t _bb2p0 = vld1q_dup_f32(bb2p0);
                         float32x4_t _ktm0 = vld1q_f32(ktm0);
 
@@ -10350,7 +10461,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     float sum2 = 0.f;
                     float sum3 = 0.f;
 
-                    for (int q = 0; q < inch; q++) {
+                    for (int q = 0; q < inch; q++)
+                    {
                         sum0 += bb2p0[0] * ktm0[0];
                         sum1 += bb2p0[0] * ktm0[1];
                         sum2 += bb2p0[0] * ktm0[2];
@@ -10377,7 +10489,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
         remain_outch_start += nn_outch << 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = remain_outch_start; p < outch; p++) {
+        for (int p = remain_outch_start; p < outch; p++)
+        {
 #if __ARM_NEON && __aarch64__
             const Mat kernel_tm0 = kernel_tm.channel(p / 8 + (p % 8) / 4 + p % 4);
 #else
@@ -10388,12 +10501,14 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 
             float* output0_tm = out0_tm;
 
-            for (int r = 0; r < 64; r++) {
+            for (int r = 0; r < 64; r++)
+            {
                 const Mat bb2 = bottom_blob_tm2.channel(r);
 
                 // tile
                 int i = 0;
-                for (; i + 7 < tiles; i += 8) {
+                for (; i + 7 < tiles; i += 8)
+                {
                     const float* bb2p0 = bb2.row(i / 8);
 
                     const float* ktm0 = kernel_tm0.row(r);
@@ -10549,7 +10664,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     float sum6 = 0.f;
                     float sum7 = 0.f;
 
-                    for (int q = 0; q < inch; q++) {
+                    for (int q = 0; q < inch; q++)
+                    {
                         sum0 += bb2p0[0] * ktm0[0];
                         sum1 += bb2p0[1] * ktm0[0];
                         sum2 += bb2p0[2] * ktm0[0];
@@ -10575,7 +10691,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     output0_tm += 8;
 #endif // __ARM_NEON
                 }
-                for (; i + 3 < tiles; i += 4) {
+                for (; i + 3 < tiles; i += 4)
+                {
                     const float* bb2p0 = bb2.row(i / 8 + (i % 8) / 4);
 
                     const float* ktm0 = kernel_tm0.row(r);
@@ -10705,7 +10822,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     float sum2 = 0.f;
                     float sum3 = 0.f;
 
-                    for (int q = 0; q < inch; q++) {
+                    for (int q = 0; q < inch; q++)
+                    {
                         sum0 += bb2p0[0] * ktm0[0];
                         sum1 += bb2p0[1] * ktm0[0];
                         sum2 += bb2p0[2] * ktm0[0];
@@ -10723,7 +10841,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     output0_tm += 4;
 #endif // __ARM_NEON
                 }
-                for (; i < tiles; i++) {
+                for (; i < tiles; i++)
+                {
                     const float* bb2p0 = bb2.row(i / 8 + (i % 8) / 4 + i % 4);
 
                     const float* ktm0 = kernel_tm0.row(r);
@@ -10731,7 +10850,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     int q = 0;
 #if __ARM_NEON
                     float32x4_t _sum0 = vdupq_n_f32(0.f);
-                    for (; q + 3 < inch; q += 4) {
+                    for (; q + 3 < inch; q += 4)
+                    {
                         //                         asm volatile("prfm pldl1keep, [%0, #128] \n" : :"r"(bb2p0) :);
                         float32x4_t _bb2p0 = vld1q_f32(bb2p0);
                         bb2p0 += 4;
@@ -10751,7 +10871,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 #else
                     float sum0 = 0.f;
 #endif
-                    for (; q < inch; q++) {
+                    for (; q < inch; q++)
+                    {
                         sum0 += bb2p0[0] * ktm0[0];
 
                         bb2p0 += 1;
@@ -10770,10 +10891,12 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 
     // BEGIN transform output
     Mat top_blob_bordered;
-    if (outw == top_blob.w && outh == top_blob.h) {
+    if (outw == top_blob.w && outh == top_blob.h)
+    {
         top_blob_bordered = top_blob;
     }
-    else {
+    else
+    {
         top_blob_bordered.create(outw, outh, outch, 4u, opt.workspace_allocator);
     }
     {
@@ -10803,7 +10926,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
         const int tiles = w_tm / 8 * h_tm / 8;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < outch; p++) {
+        for (int p = 0; p < outch; p++)
+        {
             const Mat out0_tm = top_blob_tm.channel(p);
             Mat out0 = top_blob_bordered.channel(p);
 
@@ -10815,8 +10939,10 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
             float tmp[6][8];
 
             // tile
-            for (int i = 0; i < outh / 6; i++) {
-                for (int j = 0; j < outw / 6; j++) {
+            for (int i = 0; i < outh / 6; i++)
+            {
+                for (int j = 0; j < outw / 6; j++)
+                {
 #if __ARM_NEON
 #if __aarch64__
                     const float* output0_tm0 = out0_tm.row(i * w_tm / 8 + j);
@@ -10824,7 +10950,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     const float* output0_tm2 = out0_tm.row(i * w_tm / 8 + j + tiles * 16);
                     const float* output0_tm3 = out0_tm.row(i * w_tm / 8 + j + tiles * 24);
 
-                    for (int m = 0; m + 3 < 8; m += 4) {
+                    for (int m = 0; m + 3 < 8; m += 4)
+                    {
                         float32x4_t _output0_tm_00;
                         float32x4_t _output0_tm_11;
                         float32x4_t _output0_tm_22;
@@ -10953,7 +11080,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     float* output0 = out0.row(i * 6) + j * 6;
                     float* output1 = output0 + outw;
 
-                    for (int m = 0; m + 1 < 6; m += 2) {
+                    for (int m = 0; m + 1 < 6; m += 2)
+                    {
                         float32x4_t _t0_0123 = vld1q_f32(t0);
                         float32x4_t _t0_4567 = vld1q_f32(t0 + 4);
                         float32x4_t _t1_0123 = vld1q_f32(t1);
@@ -11482,7 +11610,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     const float* output0_tm_6 = out0_tm.row(i * w_tm / 8 + j + tiles * 6);
                     const float* output0_tm_7 = out0_tm.row(i * w_tm / 8 + j + tiles * 7);
 
-                    for (int m = 0; m < 8; m++) {
+                    for (int m = 0; m < 8; m++)
+                    {
                         float tmp024a = output0_tm_1[0] + output0_tm_2[0];
                         float tmp135a = output0_tm_1[0] - output0_tm_2[0];
 
@@ -11512,7 +11641,8 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 
                     float* output0 = out0.row(i * 6) + j * 6;
 
-                    for (int m = 0; m < 6; m++) {
+                    for (int m = 0; m < 6; m++)
+                    {
                         const float* tmp0 = tmp[m];
 
                         float tmp024a = tmp0[1] + tmp0[2];
@@ -11564,7 +11694,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     int remain_outch_start = nn_outch << 1;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_outch; pp++) {
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
         int p = pp * 2;
 
         Mat out0 = top_blob.channel(p);
@@ -11579,7 +11710,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
         const float* k0 = kernel + p * inch * 9;
         const float* k1 = kernel + (p + 1) * inch * 9;
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr0 = out0;
             float* outptr1 = out1;
 
@@ -11601,7 +11733,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
 #if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw & 3;
@@ -11611,7 +11744,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
 #if __ARM_NEON
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "prfm   pldl1keep, [%3, #256]       \n"
                         "ld2    {v8.4s, v9.4s}, [%3], #32   \n" // v8 v9 = r0
@@ -11709,7 +11843,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         : "cc", "memory", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 }
 #else
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "pld        [%3, #256]          \n"
                         "vld2.f32   {d16-d19}, [%3]!    \n" // q8 q9 = r0
@@ -11808,7 +11943,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
 #if __ARM_NEON
                     float32x4_t _r00 = vld1q_f32(r0);
                     float32x4_t _r10 = vld1q_f32(r1);
@@ -11880,7 +12016,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = remain_outch_start; p < outch; p++) {
+    for (int p = remain_outch_start; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
@@ -11889,7 +12026,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
         const float* kernel0 = kernel + p * inch * 9;
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
@@ -11910,7 +12048,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
 #if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw & 3;
@@ -11920,7 +12059,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
 #if __ARM_NEON
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "prfm       pldl1keep, [%2, #256]          \n"
                         "ld2        {v2.4s, v3.4s}, [%2], #32      \n"
@@ -11988,7 +12128,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 }
 #else
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "pld        [%2, #256]          \n"
                         "vld2.f32   {d4-d7}, [%2]!      \n"
@@ -12057,7 +12198,8 @@ static void conv3x3s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
 #if __ARM_NEON
                     float32x4_t _r00 = vld1q_f32(r0);
                     float32x4_t _r10 = vld1q_f32(r1);
@@ -12116,7 +12258,8 @@ static void conv3x3s2_transform_kernel_neon(const Mat& _kernel, Mat& kernel_tm, 
     const float* kernel = _kernel;
 
     int p = 0;
-    for (; p + 7 < outch; p += 8) {
+    for (; p + 7 < outch; p += 8)
+    {
         const float* k0 = kernel + (p + 0) * inch * 9;
         const float* k1 = kernel + (p + 1) * inch * 9;
         const float* k2 = kernel + (p + 2) * inch * 9;
@@ -12128,8 +12271,10 @@ static void conv3x3s2_transform_kernel_neon(const Mat& _kernel, Mat& kernel_tm, 
 
         float* ktmp = kernel_tm.channel(p / 8);
 
-        for (int q = 0; q < inch; q++) {
-            for (int k = 0; k < 9; k++) {
+        for (int q = 0; q < inch; q++)
+        {
+            for (int k = 0; k < 9; k++)
+            {
                 ktmp[0] = k0[k];
                 ktmp[1] = k1[k];
                 ktmp[2] = k2[k];
@@ -12151,13 +12296,16 @@ static void conv3x3s2_transform_kernel_neon(const Mat& _kernel, Mat& kernel_tm, 
             k7 += 9;
         }
     }
-    for (; p < outch; p++) {
+    for (; p < outch; p++)
+    {
         const float* k0 = kernel + (p + 0) * inch * 9;
 
         float* ktmp = kernel_tm.channel(p / 8 + p % 8);
 
-        for (int q = 0; q < inch; q++) {
-            for (int k = 0; k < 9; k++) {
+        for (int q = 0; q < inch; q++)
+        {
+            for (int k = 0; k < 9; k++)
+            {
                 ktmp[k] = k0[k];
             }
             ktmp += 9;
@@ -12185,7 +12333,8 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
     int remain_outch_start = nn_outch << 3;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_outch; pp++) {
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
         int p = pp * 8;
 
         Mat out0 = top_blob.channel(p + 0);
@@ -12217,7 +12366,8 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
 
         const float* ktmp = _kernel.channel(p / 8);
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr0 = out0;
             float* outptr1 = out1;
             float* outptr2 = out2;
@@ -12235,7 +12385,8 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
 #if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw & 3;
@@ -12245,7 +12396,8 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
 
 #if __ARM_NEON
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "0:                                 \n"
 
@@ -12452,7 +12604,8 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 }
 #else  // __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "0:                             \n"
 
@@ -12660,7 +12813,8 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
 #if __ARM_NEON
 #if __aarch64__
                     asm volatile(
@@ -13010,7 +13164,8 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = remain_outch_start; p < outch; p++) {
+    for (int p = remain_outch_start; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
@@ -13019,7 +13174,8 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
 
         const float* ktmp = _kernel.channel(p / 8 + p % 8);
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
@@ -13040,7 +13196,8 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
 #if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw & 3;
@@ -13050,7 +13207,8 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
 
 #if __ARM_NEON
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "prfm       pldl1keep, [%2, #256]          \n"
                         "ld2        {v2.4s, v3.4s}, [%2], #32      \n"
@@ -13118,7 +13276,8 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 }
 #else
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "pld        [%2, #256]          \n"
                         "vld2.f32   {d4-d7}, [%2]!      \n"
@@ -13187,7 +13346,8 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
 #if __ARM_NEON
                     float32x4_t _r00 = vld1q_f32(r0);
                     float32x4_t _r10 = vld1q_f32(r1);

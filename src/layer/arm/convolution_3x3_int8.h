@@ -29,8 +29,10 @@ static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, s
     };
 
     #pragma omp parallel for
-    for (int p = 0; p < outch; p++) {
-        for (int q = 0; q < inch; q++) {
+    for (int p = 0; p < outch; p++)
+    {
+        for (int q = 0; q < inch; q++)
+        {
             const signed char* kernel0 = (const signed char*)kernel + p * inch * 9 + q * 9;
             short* kernel_tm0 = kernel_tm.channel(p).row<short>(q);
 
@@ -41,28 +43,33 @@ static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, s
 
             // h
             short tmp[4][3];
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 4; i++)
+            {
                 tmp[i][0] = (short)k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
                 tmp[i][1] = (short)k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
                 tmp[i][2] = (short)k2[0] * ktm[i][0] + k2[1] * ktm[i][1] + k2[2] * ktm[i][2];
             }
 
             // U
-            for (int j = 0; j < 4; j++) {
+            for (int j = 0; j < 4; j++)
+            {
                 short* tmpp = &tmp[j][0];
 
-                for (int i = 0; i < 4; i++) {
+                for (int i = 0; i < 4; i++)
+                {
                     kernel_tm0[j * 4 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
                 }
             }
         }
     }
 
-    for (int r = 0; r < 4; r++) {
+    for (int r = 0; r < 4; r++)
+    {
         Mat kernel_tm_test(4 * 8, inch, outch / 8 + (outch % 8) / 4 + outch % 4, 2u);
 
         int p = 0;
-        for (; p + 7 < outch; p += 8) {
+        for (; p + 7 < outch; p += 8)
+        {
             const short* kernel0 = (const short*)kernel_tm + (p + 0) * inch * 16;
             const short* kernel1 = (const short*)kernel_tm + (p + 1) * inch * 16;
             const short* kernel2 = (const short*)kernel_tm + (p + 2) * inch * 16;
@@ -74,7 +81,8 @@ static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, s
 
             short* ktmp = kernel_tm_test.channel(p / 8);
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
                 ktmp[0] = kernel0[r * 4 + 0];
                 ktmp[1] = kernel0[r * 4 + 1];
                 ktmp[2] = kernel0[r * 4 + 2];
@@ -127,7 +135,8 @@ static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, s
             }
         }
 
-        for (; p + 3 < outch; p += 4) {
+        for (; p + 3 < outch; p += 4)
+        {
             const short* kernel0 = (const short*)kernel_tm + (p + 0) * inch * 16;
             const short* kernel1 = (const short*)kernel_tm + (p + 1) * inch * 16;
             const short* kernel2 = (const short*)kernel_tm + (p + 2) * inch * 16;
@@ -135,7 +144,8 @@ static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, s
 
             short* ktmp = kernel_tm_test.channel(p / 8 + (p % 8) / 4);
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
                 ktmp[0] = kernel0[r * 4 + 0];
                 ktmp[1] = kernel0[r * 4 + 1];
                 ktmp[2] = kernel0[r * 4 + 2];
@@ -164,12 +174,14 @@ static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, s
             }
         }
 
-        for (; p < outch; p++) {
+        for (; p < outch; p++)
+        {
             const short* kernel0 = (const short*)kernel_tm + p * inch * 16;
 
             short* ktmp = kernel_tm_test.channel(p / 8 + (p % 8) / 4 + p % 4);
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
                 ktmp[0] = kernel0[r * 4 + 0];
                 ktmp[1] = kernel0[r * 4 + 1];
                 ktmp[2] = kernel0[r * 4 + 2];
@@ -227,16 +239,19 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
         // };
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             const signed char* img = bottom_blob_bordered.channel(q);
 
-            for (int j = 0; j < nColBlocks; j++) {
+            for (int j = 0; j < nColBlocks; j++)
+            {
                 const signed char* r0 = img + w * j * 2;
                 const signed char* r1 = r0 + w;
                 const signed char* r2 = r1 + w;
                 const signed char* r3 = r2 + w;
 
-                for (int i = 0; i < nRowBlocks; i++) {
+                for (int i = 0; i < nRowBlocks; i++)
+                {
                     short* out_tm0 = bottom_blob_tm.channel(tiles * 0 + j * nRowBlocks + i).row<short>(q);
                     short* out_tm1 = bottom_blob_tm.channel(tiles * 1 + j * nRowBlocks + i).row<short>(q);
                     short* out_tm2 = bottom_blob_tm.channel(tiles * 2 + j * nRowBlocks + i).row<short>(q);
@@ -349,14 +364,16 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     short w0[4], w1[4], w2[4], w3[4];
                     short t0[4], t1[4], t2[4], t3[4];
                     // load
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         d0[n] = r0[n];
                         d1[n] = r1[n];
                         d2[n] = r2[n];
                         d3[n] = r3[n];
                     }
                     // w = B_t * d
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         w0[n] = d0[n] - d2[n];
                         w1[n] = d1[n] + d2[n];
                         w2[n] = d2[n] - d1[n];
@@ -382,14 +399,16 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         t3[3] = w3[3];
                     }
                     // U = B_t * d_t
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         d0[n] = t0[n] - t2[n];
                         d1[n] = t1[n] + t2[n];
                         d2[n] = t2[n] - t1[n];
                         d3[n] = t3[n] - t1[n];
                     }
                     // save to out_tm
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         out_tm0[n] = d0[n];
                         out_tm1[n] = d1[n];
                         out_tm2[n] = d2[n];
@@ -420,14 +439,16 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
         top_blob_tm.create(16, tiles, outch, 4u, opt.workspace_allocator);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int r = 0; r < 4; r++) {
+        for (int r = 0; r < 4; r++)
+        {
             int nn_outch = 0;
             int remain_outch_start = 0;
 
             nn_outch = outch >> 3;
             remain_outch_start = nn_outch << 3;
 
-            for (int pp = 0; pp < nn_outch; pp++) {
+            for (int pp = 0; pp < nn_outch; pp++)
+            {
                 int p = pp * 8;
 
                 int* output0_tm = top_blob_tm.channel(p);
@@ -448,7 +469,8 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                 output6_tm = output6_tm + r * 4;
                 output7_tm = output7_tm + r * 4;
 
-                for (int i = 0; i < tiles; i++) {
+                for (int i = 0; i < tiles; i++)
+                {
                     const short* kptr = kernel_tm_test[r].channel(p / 8);
                     const short* r0 = bottom_blob_tm.channel(tiles * r + i);
 #if __ARM_NEON
@@ -600,8 +622,10 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     int sum6[4] = {0};
                     int sum7[4] = {0};
 
-                    for (int q = 0; q < inch; q++) {
-                        for (int n = 0; n < 4; n++) {
+                    for (int q = 0; q < inch; q++)
+                    {
+                        for (int n = 0; n < 4; n++)
+                        {
                             sum0[n] += (int)r0[n] * kptr[n];
                             sum1[n] += (int)r0[n] * kptr[n + 4];
                             sum2[n] += (int)r0[n] * kptr[n + 8];
@@ -615,7 +639,8 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         r0 += 4;
                     }
 
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         output0_tm[n] = sum0[n];
                         output1_tm[n] = sum1[n];
                         output2_tm[n] = sum2[n];
@@ -639,7 +664,8 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
             nn_outch = (outch - remain_outch_start) >> 2;
 
-            for (int pp = 0; pp < nn_outch; pp++) {
+            for (int pp = 0; pp < nn_outch; pp++)
+            {
                 int p = remain_outch_start + pp * 4;
 
                 int* output0_tm = top_blob_tm.channel(p);
@@ -652,7 +678,8 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                 output2_tm = output2_tm + r * 4;
                 output3_tm = output3_tm + r * 4;
 
-                for (int i = 0; i < tiles; i++) {
+                for (int i = 0; i < tiles; i++)
+                {
                     const short* kptr = kernel_tm_test[r].channel(p / 8 + (p % 8) / 4);
                     const short* r0 = bottom_blob_tm.channel(tiles * r + i);
 #if __ARM_NEON
@@ -752,8 +779,10 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     int sum2[4] = {0};
                     int sum3[4] = {0};
 
-                    for (int q = 0; q < inch; q++) {
-                        for (int n = 0; n < 4; n++) {
+                    for (int q = 0; q < inch; q++)
+                    {
+                        for (int n = 0; n < 4; n++)
+                        {
                             sum0[n] += (int)r0[n] * kptr[n];
                             sum1[n] += (int)r0[n] * kptr[n + 4];
                             sum2[n] += (int)r0[n] * kptr[n + 8];
@@ -763,7 +792,8 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         r0 += 4;
                     }
 
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         output0_tm[n] = sum0[n];
                         output1_tm[n] = sum1[n];
                         output2_tm[n] = sum2[n];
@@ -779,12 +809,14 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
             remain_outch_start += nn_outch << 2;
 
-            for (int p = remain_outch_start; p < outch; p++) {
+            for (int p = remain_outch_start; p < outch; p++)
+            {
                 int* output0_tm = top_blob_tm.channel(p);
 
                 output0_tm = output0_tm + r * 4;
 
-                for (int i = 0; i < tiles; i++) {
+                for (int i = 0; i < tiles; i++)
+                {
                     const short* kptr = kernel_tm_test[r].channel(p / 8 + (p % 8) / 4 + p % 4);
                     const short* r0 = bottom_blob_tm.channel(tiles * r + i);
 #if __ARM_NEON
@@ -847,15 +879,18 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
 #else
                     int sum0[4] = {0};
 
-                    for (int q = 0; q < inch; q++) {
-                        for (int n = 0; n < 4; n++) {
+                    for (int q = 0; q < inch; q++)
+                    {
+                        for (int n = 0; n < 4; n++)
+                        {
                             sum0[n] += (int)r0[n] * kptr[n];
                         }
                         kptr += 4;
                         r0 += 4;
                     }
 
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         output0_tm[n] = sum0[n];
                     }
 #endif
@@ -888,13 +923,16 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
 #endif
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < outch; p++) {
+        for (int p = 0; p < outch; p++)
+        {
             int* out_tile = top_blob_tm.channel(p);
             int* outRow0 = top_blob_bordered.channel(p);
             int* outRow1 = outRow0 + outw;
 
-            for (int j = 0; j < nColBlocks; j++) {
-                for (int i = 0; i < nRowBlocks; i++) {
+            for (int j = 0; j < nColBlocks; j++)
+            {
+                for (int i = 0; i < nRowBlocks; i++)
+                {
 #if __ARM_NEON
 #if __aarch64__
                     asm volatile(
@@ -967,14 +1005,16 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     int d0[2], d1[2], d2[2], d3[2];
                     int o0[2], o1[2];
                     // load
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         s0[n] = out_tile[n];
                         s1[n] = out_tile[n + 4];
                         s2[n] = out_tile[n + 8];
                         s3[n] = out_tile[n + 12];
                     }
                     // w = A_T * W
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         w0[n] = s0[n] + s1[n] + s2[n];
                         w1[n] = s1[n] - s2[n] + s3[n];
                     }
@@ -990,7 +1030,8 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         d3[1] = w1[3];
                     }
                     // Y = A_T * w_t
-                    for (int n = 0; n < 2; n++) {
+                    for (int n = 0; n < 2; n++)
+                    {
                         o0[n] = d0[n] + d1[n] + d2[n];
                         o1[n] = d1[n] - d2[n] + d3[n];
                     }
@@ -1041,8 +1082,10 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
     };
 
     #pragma omp parallel for
-    for (int p = 0; p < outch; p++) {
-        for (int q = 0; q < inch; q++) {
+    for (int p = 0; p < outch; p++)
+    {
+        for (int q = 0; q < inch; q++)
+        {
             const signed char* kernel0 = (const signed char*)kernel + p * inch * 9 + q * 9;
             short* kernel_tm0 = kernel_tm.channel(p).row<short>(q);
 
@@ -1053,28 +1096,33 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
 
             // h
             short tmp[6][3];
-            for (int i = 0; i < 6; i++) {
+            for (int i = 0; i < 6; i++)
+            {
                 tmp[i][0] = k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
                 tmp[i][1] = k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
                 tmp[i][2] = k2[0] * ktm[i][0] + k2[1] * ktm[i][1] + k2[2] * ktm[i][2];
             }
 
             // U
-            for (int j = 0; j < 6; j++) {
+            for (int j = 0; j < 6; j++)
+            {
                 short* tmpp = &tmp[j][0];
 
-                for (int i = 0; i < 6; i++) {
+                for (int i = 0; i < 6; i++)
+                {
                     kernel_tm0[j * 6 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
                 }
             }
         }
     }
 
-    for (int r = 0; r < 9; r++) {
+    for (int r = 0; r < 9; r++)
+    {
         Mat kernel_tm_test(4 * 8, inch, outch / 8 + (outch % 8) / 4 + outch % 4, 2u);
 
         int p = 0;
-        for (; p + 7 < outch; p += 8) {
+        for (; p + 7 < outch; p += 8)
+        {
             const short* kernel0 = (const short*)kernel_tm.channel(p);
             const short* kernel1 = (const short*)kernel_tm.channel(p + 1);
             const short* kernel2 = (const short*)kernel_tm.channel(p + 2);
@@ -1086,7 +1134,8 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
 
             short* ktmp = kernel_tm_test.channel(p / 8);
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
                 ktmp[0] = kernel0[r * 4 + 0];
                 ktmp[1] = kernel0[r * 4 + 1];
                 ktmp[2] = kernel0[r * 4 + 2];
@@ -1139,7 +1188,8 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
             }
         }
 
-        for (; p + 3 < outch; p += 4) {
+        for (; p + 3 < outch; p += 4)
+        {
             const short* kernel0 = (const short*)kernel_tm.channel(p);
             const short* kernel1 = (const short*)kernel_tm.channel(p + 1);
             const short* kernel2 = (const short*)kernel_tm.channel(p + 2);
@@ -1147,7 +1197,8 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
 
             short* ktmp = kernel_tm_test.channel(p / 8 + (p % 8) / 4);
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
                 ktmp[0] = kernel0[r * 4 + 0];
                 ktmp[1] = kernel0[r * 4 + 1];
                 ktmp[2] = kernel0[r * 4 + 2];
@@ -1176,12 +1227,14 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
             }
         }
 
-        for (; p < outch; p++) {
+        for (; p < outch; p++)
+        {
             const short* kernel0 = (const short*)kernel_tm.channel(p);
 
             short* ktmp = kernel_tm_test.channel(p / 8 + (p % 8) / 4 + p % 4);
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
                 ktmp[0] = kernel0[r * 4 + 0];
                 ktmp[1] = kernel0[r * 4 + 1];
                 ktmp[2] = kernel0[r * 4 + 2];
@@ -1249,10 +1302,12 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
         // 5 =	4 * r01 - 5 * r03 + r05
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             const signed char* img = bottom_blob_bordered.channel(q);
 
-            for (int j = 0; j < nColBlocks; j++) {
+            for (int j = 0; j < nColBlocks; j++)
+            {
                 const signed char* r0 = img + w * j * 4;
                 const signed char* r1 = r0 + w;
                 const signed char* r2 = r1 + w;
@@ -1260,7 +1315,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                 const signed char* r4 = r3 + w;
                 const signed char* r5 = r4 + w;
 
-                for (int i = 0; i < nRowBlocks; i++) {
+                for (int i = 0; i < nRowBlocks; i++)
+                {
                     short* out_tm0 = bottom_blob_tm.channel(tiles * 0 + j * nRowBlocks + i).row<short>(q);
                     short* out_tm1 = bottom_blob_tm.channel(tiles * 1 + j * nRowBlocks + i).row<short>(q);
                     short* out_tm2 = bottom_blob_tm.channel(tiles * 2 + j * nRowBlocks + i).row<short>(q);
@@ -1436,7 +1492,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     short t0[6], t1[6], t2[6], t3[6], t4[6], t5[6];
 
                     // load
-                    for (int n = 0; n < 6; n++) {
+                    for (int n = 0; n < 6; n++)
+                    {
                         d0[n] = r0[n];
                         d1[n] = r1[n];
                         d2[n] = r2[n];
@@ -1445,7 +1502,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         d5[n] = r5[n];
                     }
                     // w = B_t * d
-                    for (int n = 0; n < 6; n++) {
+                    for (int n = 0; n < 6; n++)
+                    {
                         w0[n] = 4 * d0[n] - 5 * d2[n] + d4[n];
                         w1[n] = -4 * d1[n] - 4 * d2[n] + d3[n] + d4[n];
                         w2[n] = 4 * d1[n] - 4 * d2[n] - d3[n] + d4[n];
@@ -1493,7 +1551,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         t5[5] = w5[5];
                     }
                     // d = B_t * d_t
-                    for (int n = 0; n < 6; n++) {
+                    for (int n = 0; n < 6; n++)
+                    {
                         d0[n] = 4 * t0[n] - 5 * t2[n] + t4[n];
                         d1[n] = -4 * t1[n] - 4 * t2[n] + t3[n] + t4[n];
                         d2[n] = 4 * t1[n] - 4 * t2[n] - t3[n] + t4[n];
@@ -1569,14 +1628,16 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
         top_blob_tm.create(36, tiles, outch, 4u, opt.workspace_allocator);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int r = 0; r < 9; r++) {
+        for (int r = 0; r < 9; r++)
+        {
             int nn_outch = 0;
             int remain_outch_start = 0;
 
             nn_outch = outch >> 3;
             remain_outch_start = nn_outch << 3;
 
-            for (int pp = 0; pp < nn_outch; pp++) {
+            for (int pp = 0; pp < nn_outch; pp++)
+            {
                 int p = pp * 8;
 
                 int* output0_tm = top_blob_tm.channel(p);
@@ -1597,7 +1658,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                 output6_tm = output6_tm + r * 4;
                 output7_tm = output7_tm + r * 4;
 
-                for (int i = 0; i < tiles; i++) {
+                for (int i = 0; i < tiles; i++)
+                {
                     const short* kptr = kernel_tm_test[r].channel(p / 8);
                     const short* r0 = bottom_blob_tm.channel(tiles * r + i);
 #if __ARM_NEON
@@ -1749,8 +1811,10 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     int sum6[4] = {0};
                     int sum7[4] = {0};
 
-                    for (int q = 0; q < inch; q++) {
-                        for (int n = 0; n < 4; n++) {
+                    for (int q = 0; q < inch; q++)
+                    {
+                        for (int n = 0; n < 4; n++)
+                        {
                             sum0[n] += (int)r0[n] * kptr[n];
                             sum1[n] += (int)r0[n] * kptr[n + 4];
                             sum2[n] += (int)r0[n] * kptr[n + 8];
@@ -1764,7 +1828,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         r0 += 4;
                     }
 
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         output0_tm[n] = sum0[n];
                         output1_tm[n] = sum1[n];
                         output2_tm[n] = sum2[n];
@@ -1788,7 +1853,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
             nn_outch = (outch - remain_outch_start) >> 2;
 
-            for (int pp = 0; pp < nn_outch; pp++) {
+            for (int pp = 0; pp < nn_outch; pp++)
+            {
                 int p = remain_outch_start + pp * 4;
 
                 int* output0_tm = top_blob_tm.channel(p);
@@ -1801,7 +1867,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                 output2_tm = output2_tm + r * 4;
                 output3_tm = output3_tm + r * 4;
 
-                for (int i = 0; i < tiles; i++) {
+                for (int i = 0; i < tiles; i++)
+                {
                     const short* kptr = kernel_tm_test[r].channel(p / 8 + (p % 8) / 4);
                     const short* r0 = bottom_blob_tm.channel(tiles * r + i);
 #if __ARM_NEON
@@ -1901,8 +1968,10 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     int sum2[4] = {0};
                     int sum3[4] = {0};
 
-                    for (int q = 0; q < inch; q++) {
-                        for (int n = 0; n < 4; n++) {
+                    for (int q = 0; q < inch; q++)
+                    {
+                        for (int n = 0; n < 4; n++)
+                        {
                             sum0[n] += (int)r0[n] * kptr[n];
                             sum1[n] += (int)r0[n] * kptr[n + 4];
                             sum2[n] += (int)r0[n] * kptr[n + 8];
@@ -1912,7 +1981,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         r0 += 4;
                     }
 
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         output0_tm[n] = sum0[n];
                         output1_tm[n] = sum1[n];
                         output2_tm[n] = sum2[n];
@@ -1928,12 +1998,14 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
 
             remain_outch_start += nn_outch << 2;
 
-            for (int p = remain_outch_start; p < outch; p++) {
+            for (int p = remain_outch_start; p < outch; p++)
+            {
                 int* output0_tm = top_blob_tm.channel(p);
 
                 output0_tm = output0_tm + r * 4;
 
-                for (int i = 0; i < tiles; i++) {
+                for (int i = 0; i < tiles; i++)
+                {
                     const short* kptr = kernel_tm_test[r].channel(p / 8 + (p % 8) / 4 + p % 4);
                     const short* r0 = bottom_blob_tm.channel(tiles * r + i);
 #if __ARM_NEON
@@ -1995,15 +2067,18 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
 #else  // __ARM_NEON
                     int sum0[4] = {0};
 
-                    for (int q = 0; q < inch; q++) {
-                        for (int n = 0; n < 4; n++) {
+                    for (int q = 0; q < inch; q++)
+                    {
+                        for (int n = 0; n < 4; n++)
+                        {
                             sum0[n] += (int)r0[n] * kptr[n];
                         }
                         kptr += 4;
                         r0 += 4;
                     }
 
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         output0_tm[n] = sum0[n];
                     }
 #endif // __ARM_NEON
@@ -2068,15 +2143,18 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
         int nRowBlocks = w_tm / 6;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < outch; p++) {
+        for (int p = 0; p < outch; p++)
+        {
             int* out_tile = top_blob_tm.channel(p);
             int* outRow0 = top_blob_bordered.channel(p);
             int* outRow1 = outRow0 + outw;
             int* outRow2 = outRow0 + outw * 2;
             int* outRow3 = outRow0 + outw * 3;
 
-            for (int j = 0; j < nColBlocks; j++) {
-                for (int i = 0; i < nRowBlocks; i++) {
+            for (int j = 0; j < nColBlocks; j++)
+            {
+                for (int i = 0; i < nRowBlocks; i++)
+                {
 #if __ARM_NEON
                     int32x4_t _s0, _s1, _s2, _s3, _s4, _s5;
                     int32x2_t _s0n, _s1n, _s2n, _s3n, _s4n, _s5n;
@@ -2222,7 +2300,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                     int o0[4], o1[4], o2[4], o3[4];
 
                     // load
-                    for (int n = 0; n < 6; n++) {
+                    for (int n = 0; n < 6; n++)
+                    {
                         s0[n] = out_tile[n];
                         s1[n] = out_tile[n + 6];
                         s2[n] = out_tile[n + 12];
@@ -2231,13 +2310,15 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         s5[n] = out_tile[n + 30];
                     }
                     // w = A_T * W
-                    for (int n = 0; n < 5; n++) {
+                    for (int n = 0; n < 5; n++)
+                    {
                         w0[n] = s0[n] + s1[n] + s2[n] + s3[n] + s4[n];
                         w1[n] = s1[n] - s2[n] + 2 * s3[n] - 2 * s4[n];
                         w2[n] = s1[n] + s2[n] + 4 * s3[n] + 4 * s4[n];
                         w3[n] = s1[n] - s2[n] + 8 * s3[n] - 8 * s4[n] + 4 * s5[n];
                     }
-                    for (int n = 5; n < 6; n++) {
+                    for (int n = 5; n < 6; n++)
+                    {
                         w0[n] = 4 * (s0[n] + s1[n] + s2[n] + s3[n] + s4[n]);
                         w1[n] = 4 * (s1[n] - s2[n] + 2 * s3[n] - 2 * s4[n]);
                         w2[n] = 4 * (s1[n] + s2[n] + 4 * s3[n] + 4 * s4[n]);
@@ -2271,14 +2352,16 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         d5[3] = w3[5];
                     }
                     // Y = A_T * w_t
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         o0[n] = d0[n] + d1[n] + d2[n] + d3[n] + d4[n];
                         o1[n] = d1[n] - d2[n] + 2 * d3[n] - 2 * d4[n];
                         o2[n] = d1[n] + d2[n] + 4 * d3[n] + 4 * d4[n];
                         o3[n] = d1[n] - d2[n] + 8 * d3[n] - 8 * d4[n] + d5[n];
                     }
                     // save to top blob tm
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         outRow0[n] = o0[n] / 576;
                         outRow1[n] = o1[n] / 576;
                         outRow2[n] = o2[n] / 576;
@@ -2361,10 +2444,12 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
         // 5 =	4 * r01 - 5 * r03 + r05
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             const signed char* img = bottom_blob_bordered.channel(q);
 
-            for (int j = 0; j < nColBlocks; j++) {
+            for (int j = 0; j < nColBlocks; j++)
+            {
                 const signed char* r0 = img + w * j * 4;
                 const signed char* r1 = r0 + w;
                 const signed char* r2 = r1 + w;
@@ -2372,7 +2457,8 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                 const signed char* r4 = r3 + w;
                 const signed char* r5 = r4 + w;
 
-                for (int i = 0; i < nRowBlocks; i++) {
+                for (int i = 0; i < nRowBlocks; i++)
+                {
                     short* out_tm0 = bottom_blob_tm.channel(tiles * 0 + j * nRowBlocks + i).row<short>(q);
                     short* out_tm1 = bottom_blob_tm.channel(tiles * 1 + j * nRowBlocks + i).row<short>(q);
                     short* out_tm2 = bottom_blob_tm.channel(tiles * 2 + j * nRowBlocks + i).row<short>(q);
@@ -2548,7 +2634,8 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                     short t0[6], t1[6], t2[6], t3[6], t4[6], t5[6];
 
                     // load
-                    for (int n = 0; n < 6; n++) {
+                    for (int n = 0; n < 6; n++)
+                    {
                         d0[n] = r0[n];
                         d1[n] = r1[n];
                         d2[n] = r2[n];
@@ -2557,7 +2644,8 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                         d5[n] = r5[n];
                     }
                     // w = B_t * d
-                    for (int n = 0; n < 6; n++) {
+                    for (int n = 0; n < 6; n++)
+                    {
                         w0[n] = 4 * d0[n] - 5 * d2[n] + d4[n];
                         w1[n] = -4 * d1[n] - 4 * d2[n] + d3[n] + d4[n];
                         w2[n] = 4 * d1[n] - 4 * d2[n] - d3[n] + d4[n];
@@ -2605,7 +2693,8 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                         t5[5] = w5[5];
                     }
                     // d = B_t * d_t
-                    for (int n = 0; n < 6; n++) {
+                    for (int n = 0; n < 6; n++)
+                    {
                         d0[n] = 4 * t0[n] - 5 * t2[n] + t4[n];
                         d1[n] = -4 * t1[n] - 4 * t2[n] + t3[n] + t4[n];
                         d2[n] = 4 * t1[n] - 4 * t2[n] - t3[n] + t4[n];
@@ -2681,14 +2770,16 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
         top_blob_tm.create(36, tiles, outch, 4u, opt.workspace_allocator);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int r = 0; r < 9; r++) {
+        for (int r = 0; r < 9; r++)
+        {
             int nn_outch = 0;
             int remain_outch_start = 0;
 
             nn_outch = outch >> 3;
             remain_outch_start = nn_outch << 3;
 
-            for (int pp = 0; pp < nn_outch; pp++) {
+            for (int pp = 0; pp < nn_outch; pp++)
+            {
                 int p = pp * 8;
 
                 int* output0_tm = top_blob_tm.channel(p);
@@ -2709,7 +2800,8 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                 output6_tm = output6_tm + r * 4;
                 output7_tm = output7_tm + r * 4;
 
-                for (int i = 0; i < tiles; i++) {
+                for (int i = 0; i < tiles; i++)
+                {
                     const short* kptr = kernel_tm_test[r].channel(p / 8);
                     const short* r0 = bottom_blob_tm.channel(tiles * r + i);
 #if __ARM_NEON
@@ -2861,8 +2953,10 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                     int sum6[4] = {0};
                     int sum7[4] = {0};
 
-                    for (int q = 0; q < inch; q++) {
-                        for (int n = 0; n < 4; n++) {
+                    for (int q = 0; q < inch; q++)
+                    {
+                        for (int n = 0; n < 4; n++)
+                        {
                             sum0[n] += (int)r0[n] * kptr[n];
                             sum1[n] += (int)r0[n] * kptr[n + 4];
                             sum2[n] += (int)r0[n] * kptr[n + 8];
@@ -2876,7 +2970,8 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                         r0 += 4;
                     }
 
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         output0_tm[n] = sum0[n];
                         output1_tm[n] = sum1[n];
                         output2_tm[n] = sum2[n];
@@ -2900,7 +2995,8 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
 
             nn_outch = (outch - remain_outch_start) >> 2;
 
-            for (int pp = 0; pp < nn_outch; pp++) {
+            for (int pp = 0; pp < nn_outch; pp++)
+            {
                 int p = remain_outch_start + pp * 4;
 
                 int* output0_tm = top_blob_tm.channel(p);
@@ -2913,7 +3009,8 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                 output2_tm = output2_tm + r * 4;
                 output3_tm = output3_tm + r * 4;
 
-                for (int i = 0; i < tiles; i++) {
+                for (int i = 0; i < tiles; i++)
+                {
                     const short* kptr = kernel_tm_test[r].channel(p / 8 + (p % 8) / 4);
                     const short* r0 = bottom_blob_tm.channel(tiles * r + i);
 #if __ARM_NEON
@@ -3013,8 +3110,10 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                     int sum2[4] = {0};
                     int sum3[4] = {0};
 
-                    for (int q = 0; q < inch; q++) {
-                        for (int n = 0; n < 4; n++) {
+                    for (int q = 0; q < inch; q++)
+                    {
+                        for (int n = 0; n < 4; n++)
+                        {
                             sum0[n] += (int)r0[n] * kptr[n];
                             sum1[n] += (int)r0[n] * kptr[n + 4];
                             sum2[n] += (int)r0[n] * kptr[n + 8];
@@ -3024,7 +3123,8 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                         r0 += 4;
                     }
 
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         output0_tm[n] = sum0[n];
                         output1_tm[n] = sum1[n];
                         output2_tm[n] = sum2[n];
@@ -3040,12 +3140,14 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
 
             remain_outch_start += nn_outch << 2;
 
-            for (int p = remain_outch_start; p < outch; p++) {
+            for (int p = remain_outch_start; p < outch; p++)
+            {
                 int* output0_tm = top_blob_tm.channel(p);
 
                 output0_tm = output0_tm + r * 4;
 
-                for (int i = 0; i < tiles; i++) {
+                for (int i = 0; i < tiles; i++)
+                {
                     const short* kptr = kernel_tm_test[r].channel(p / 8 + (p % 8) / 4 + p % 4);
                     const short* r0 = bottom_blob_tm.channel(tiles * r + i);
 #if __ARM_NEON
@@ -3107,15 +3209,18 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
 #else  // __ARM_NEON
                     int sum0[4] = {0};
 
-                    for (int q = 0; q < inch; q++) {
-                        for (int n = 0; n < 4; n++) {
+                    for (int q = 0; q < inch; q++)
+                    {
+                        for (int n = 0; n < 4; n++)
+                        {
                             sum0[n] += (int)r0[n] * kptr[n];
                         }
                         kptr += 4;
                         r0 += 4;
                     }
 
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         output0_tm[n] = sum0[n];
                     }
 #endif // __ARM_NEON
@@ -3180,7 +3285,8 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
         int nRowBlocks = w_tm / 6;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < outch; p++) {
+        for (int p = 0; p < outch; p++)
+        {
             int* out_tile = top_blob_tm.channel(p);
             float* outRow0 = top_blob_bordered.channel(p);
             float* outRow1 = outRow0 + outw;
@@ -3193,8 +3299,10 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
 
             const float scale0 = scale_dequant0 / 576.0;
 
-            for (int j = 0; j < nColBlocks; j++) {
-                for (int i = 0; i < nRowBlocks; i++) {
+            for (int j = 0; j < nColBlocks; j++)
+            {
+                for (int i = 0; i < nRowBlocks; i++)
+                {
 #if __ARM_NEON
                     int32x4_t _s0, _s1, _s2, _s3, _s4, _s5;
                     int32x2_t _s0n, _s1n, _s2n, _s3n, _s4n, _s5n;
@@ -3336,7 +3444,8 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                     int o0[4], o1[4], o2[4], o3[4];
 
                     // load
-                    for (int n = 0; n < 6; n++) {
+                    for (int n = 0; n < 6; n++)
+                    {
                         s0[n] = out_tile[n];
                         s1[n] = out_tile[n + 6];
                         s2[n] = out_tile[n + 12];
@@ -3345,13 +3454,15 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                         s5[n] = out_tile[n + 30];
                     }
                     // w = A_T * W
-                    for (int n = 0; n < 5; n++) {
+                    for (int n = 0; n < 5; n++)
+                    {
                         w0[n] = s0[n] + s1[n] + s2[n] + s3[n] + s4[n];
                         w1[n] = s1[n] - s2[n] + 2 * s3[n] - 2 * s4[n];
                         w2[n] = s1[n] + s2[n] + 4 * s3[n] + 4 * s4[n];
                         w3[n] = s1[n] - s2[n] + 8 * s3[n] - 8 * s4[n] + 4 * s5[n];
                     }
-                    for (int n = 5; n < 6; n++) {
+                    for (int n = 5; n < 6; n++)
+                    {
                         w0[n] = 4 * (s0[n] + s1[n] + s2[n] + s3[n] + s4[n]);
                         w1[n] = 4 * (s1[n] - s2[n] + 2 * s3[n] - 2 * s4[n]);
                         w2[n] = 4 * (s1[n] + s2[n] + 4 * s3[n] + 4 * s4[n]);
@@ -3385,14 +3496,16 @@ static void conv3x3s1_winograd43_dequant_int8_neon(const Mat& bottom_blob, Mat& 
                         d5[3] = w3[5];
                     }
                     // Y = A_T * w_t
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         o0[n] = d0[n] + d1[n] + d2[n] + d3[n] + d4[n];
                         o1[n] = d1[n] - d2[n] + 2 * d3[n] - 2 * d4[n];
                         o2[n] = d1[n] + d2[n] + 4 * d3[n] + 4 * d4[n];
                         o3[n] = d1[n] - d2[n] + 8 * d3[n] - 8 * d4[n] + d5[n];
                     }
                     // save to top blob tm
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         outRow0[n] = (float)o0[n] * scale0 + bias0;
                         outRow1[n] = (float)o1[n] * scale0 + bias0;
                         outRow2[n] = (float)o2[n] * scale0 + bias0;
@@ -3427,7 +3540,8 @@ static void conv3x3s2_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel
     const signed char* kernel = _kernel;
 
     int p = 0;
-    for (; p + 7 < outch; p += 8) {
+    for (; p + 7 < outch; p += 8)
+    {
         const signed char* k0 = kernel + (p + 0) * inch * 9;
         const signed char* k1 = kernel + (p + 1) * inch * 9;
         const signed char* k2 = kernel + (p + 2) * inch * 9;
@@ -3439,8 +3553,10 @@ static void conv3x3s2_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel
 
         signed char* ktmp = kernel_tm.channel(p / 8);
 
-        for (int q = 0; q < inch; q++) {
-            for (int k = 0; k < 9; k++) {
+        for (int q = 0; q < inch; q++)
+        {
+            for (int k = 0; k < 9; k++)
+            {
                 ktmp[0] = k0[k];
                 ktmp[1] = k1[k];
                 ktmp[2] = k2[k];
@@ -3462,13 +3578,16 @@ static void conv3x3s2_transform_kernel_int8_neon(const Mat& _kernel, Mat& kernel
             k7 += 9;
         }
     }
-    for (; p < outch; p++) {
+    for (; p < outch; p++)
+    {
         const signed char* k0 = kernel + (p + 0) * inch * 9;
 
         signed char* ktmp = kernel_tm.channel(p / 8 + p % 8);
 
-        for (int q = 0; q < inch; q++) {
-            for (int k = 0; k < 9; k++) {
+        for (int q = 0; q < inch; q++)
+        {
+            for (int k = 0; k < 9; k++)
+            {
                 ktmp[k] = k0[k];
             }
             ktmp += 9;
@@ -3493,7 +3612,8 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
     int remain_outch_start = nn_outch << 3;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_outch; pp++) {
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
         int p = pp * 8;
 
         Mat out0 = top_blob.channel(p + 0);
@@ -3516,7 +3636,8 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
 
         const signed char* ktmp = _kernel.channel(p / 8);
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             int* outptr0 = out0;
             int* outptr1 = out1;
             int* outptr2 = out2;
@@ -3534,7 +3655,8 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
 #if __ARM_NEON
 #if __aarch64__
                 int nn = outw >> 3;
@@ -3549,7 +3671,8 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
 
 #if __ARM_NEON
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "0:                                   \n"
 
@@ -3800,7 +3923,8 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
                 }
 #else  // __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "0:                             \n"
                         "pld        [%1, #128]          \n"
@@ -3999,7 +4123,8 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
 #if __ARM_NEON
 #if __aarch64__
                     int8x8_t _r0_s8 = vld1_s8(r0); // (a00 a01 a02 ....)
@@ -4331,14 +4456,16 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = remain_outch_start; p < outch; p++) {
+    for (int p = remain_outch_start; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         out.fill(0);
 
         const signed char* ktmp = _kernel.channel(p / 8 + p % 8);
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             int* outptr = out;
 
             const signed char* img0 = bottom_blob.channel(q);
@@ -4349,7 +4476,8 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
 #if __ARM_NEON
                 int nn = outw >> 3;
                 int remain = outw & 7;
@@ -4359,7 +4487,8 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
 
 #if __ARM_NEON
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "0:                                   \n"
 
@@ -4435,7 +4564,8 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19");
                 }
 #else
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "vld1.s8    {d0-d1}, [%5]       \n" // d0(k0 - k7) d1(k8 ...)
                         "vmovl.s8   q1, d1              \n" // d2(k8 ...)
@@ -4510,7 +4640,8 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                if (remain > 0) {
+                if (remain > 0)
+                {
 #if __ARM_NEON
                     int8x8_t _k01234567s8 = vld1_s8(ktmp);
                     int8x8_t _k8xxxxxxxs8 = vld1_s8(ktmp + 8);
@@ -4520,7 +4651,8 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
                     int16x8_t _k3456_s16 = vmovl_s8(_k34567xxxs8);
                     int16x8_t _k678x_s16 = vmovl_s8(_k678xxxxxs8);
 #endif
-                    for (; remain > 0; remain--) {
+                    for (; remain > 0; remain--)
+                    {
 #if __ARM_NEON
                         int8x8_t _r00s8 = vld1_s8(r0);
                         int8x8_t _r10s8 = vld1_s8(r1);

@@ -25,14 +25,16 @@ static void conv5x5s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
 
         out.fill(bias0);
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr = out;
             float* outptr2 = outptr + outw;
 
@@ -55,10 +57,12 @@ static void conv5x5s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
 
             int i = 0;
 
-            for (; i + 1 < outh; i += 2) {
+            for (; i + 1 < outh; i += 2)
+            {
                 int remain = outw;
 
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
                     float sum = 0;
                     float sum2 = 0;
 
@@ -146,10 +150,12 @@ static void conv5x5s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
                 outptr2 += outw;
             }
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int remain = outw;
 
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
                     float sum = 0;
 
                     sum += r0[0] * k0[0];

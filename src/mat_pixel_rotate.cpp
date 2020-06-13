@@ -36,12 +36,14 @@ static void kanna_rotate_1_c1(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst1 = dst + stride;
 
     int y = 0;
-    for (; y + 1 < srch; y += 2) {
+    for (; y + 1 < srch; y += 2)
+    {
 #if __ARM_NEON
         int nn = srcw >> 5;
         int remain = srcw - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src0 = vld1q_u8(src0);
             uint8x16_t _src0n = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src0);
@@ -58,7 +60,8 @@ static void kanna_rotate_1_c1(const unsigned char* src, int srcw, int srch, int 
             dst1 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -86,7 +89,8 @@ static void kanna_rotate_1_c1(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
             *dst1++ = *src1++;
         }
@@ -97,12 +101,14 @@ static void kanna_rotate_1_c1(const unsigned char* src, int srcw, int srch, int 
         dst1 += wgap + stride;
     }
 
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         int nn = srcw >> 5;
         int remain = srcw - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src = vld1q_u8(src0);
             uint8x16_t _src2 = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src);
@@ -112,7 +118,8 @@ static void kanna_rotate_1_c1(const unsigned char* src, int srcw, int srch, int 
             dst0 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -133,7 +140,8 @@ static void kanna_rotate_1_c1(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
         }
 
@@ -155,12 +163,14 @@ static void kanna_rotate_1_c2(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst1 = dst + stride;
 
     int y = 0;
-    for (; y + 1 < srch; y += 2) {
+    for (; y + 1 < srch; y += 2)
+    {
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src0 = vld1q_u8(src0);
             uint8x16_t _src0n = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src0);
@@ -177,7 +187,8 @@ static void kanna_rotate_1_c2(const unsigned char* src, int srcw, int srch, int 
             dst1 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -205,7 +216,8 @@ static void kanna_rotate_1_c2(const unsigned char* src, int srcw, int srch, int 
         int remain = size;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
             *dst1++ = *src1++;
         }
@@ -216,12 +228,14 @@ static void kanna_rotate_1_c2(const unsigned char* src, int srcw, int srch, int 
         dst1 += wgap + stride;
     }
 
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src = vld1q_u8(src0);
             uint8x16_t _src2 = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src);
@@ -231,7 +245,8 @@ static void kanna_rotate_1_c2(const unsigned char* src, int srcw, int srch, int 
             dst0 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -252,7 +267,8 @@ static void kanna_rotate_1_c2(const unsigned char* src, int srcw, int srch, int 
         int remain = size;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
         }
 
@@ -274,12 +290,14 @@ static void kanna_rotate_1_c3(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst1 = dst + stride;
 
     int y = 0;
-    for (; y + 1 < srch; y += 2) {
+    for (; y + 1 < srch; y += 2)
+    {
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src0 = vld1q_u8(src0);
             uint8x16_t _src0n = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src0);
@@ -296,7 +314,8 @@ static void kanna_rotate_1_c3(const unsigned char* src, int srcw, int srch, int 
             dst1 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -324,7 +343,8 @@ static void kanna_rotate_1_c3(const unsigned char* src, int srcw, int srch, int 
         int remain = size;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
             *dst1++ = *src1++;
         }
@@ -335,12 +355,14 @@ static void kanna_rotate_1_c3(const unsigned char* src, int srcw, int srch, int 
         dst1 += wgap + stride;
     }
 
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src = vld1q_u8(src0);
             uint8x16_t _src2 = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src);
@@ -350,7 +372,8 @@ static void kanna_rotate_1_c3(const unsigned char* src, int srcw, int srch, int 
             dst0 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -371,7 +394,8 @@ static void kanna_rotate_1_c3(const unsigned char* src, int srcw, int srch, int 
         int remain = size;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
         }
 
@@ -393,12 +417,14 @@ static void kanna_rotate_1_c4(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst1 = dst + stride;
 
     int y = 0;
-    for (; y + 1 < srch; y += 2) {
+    for (; y + 1 < srch; y += 2)
+    {
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src0 = vld1q_u8(src0);
             uint8x16_t _src0n = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src0);
@@ -415,7 +441,8 @@ static void kanna_rotate_1_c4(const unsigned char* src, int srcw, int srch, int 
             dst1 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -443,7 +470,8 @@ static void kanna_rotate_1_c4(const unsigned char* src, int srcw, int srch, int 
         int remain = size;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
             *dst1++ = *src1++;
         }
@@ -454,12 +482,14 @@ static void kanna_rotate_1_c4(const unsigned char* src, int srcw, int srch, int 
         dst1 += wgap + stride;
     }
 
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src = vld1q_u8(src0);
             uint8x16_t _src2 = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src);
@@ -469,7 +499,8 @@ static void kanna_rotate_1_c4(const unsigned char* src, int srcw, int srch, int 
             dst0 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -490,7 +521,8 @@ static void kanna_rotate_1_c4(const unsigned char* src, int srcw, int srch, int 
         int remain = size;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
         }
 
@@ -508,7 +540,8 @@ static void kanna_rotate_2_c1(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst0 = dst + w - 1;
 
     int y = 0;
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         dst0 -= 15;
 
@@ -516,7 +549,8 @@ static void kanna_rotate_2_c1(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 4);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8_t _src = vld1_u8(src0);
             uint8x8_t _src2 = vld1_u8(src0 + 8);
 
@@ -530,7 +564,8 @@ static void kanna_rotate_2_c1(const unsigned char* src, int srcw, int srch, int 
             dst0 -= 16;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "mov        r4, #-16            \n"
                 "0:                             \n"
@@ -556,7 +591,8 @@ static void kanna_rotate_2_c1(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0 = *src0;
 
             src0 += 1;
@@ -577,7 +613,8 @@ static void kanna_rotate_2_c2(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst0 = dst + w * 2 - 2;
 
     int y = 0;
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         dst0 -= 7 * 2;
 
@@ -585,7 +622,8 @@ static void kanna_rotate_2_c2(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 4);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x2_t _src = vld2_u8(src0);
             uint8x8x2_t _src2 = vld2_u8(src0 + 8 * 2);
 
@@ -602,7 +640,8 @@ static void kanna_rotate_2_c2(const unsigned char* src, int srcw, int srch, int 
             dst0 -= 16 * 2;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "mov        r4, #-16            \n"
                 "0:                             \n"
@@ -633,7 +672,8 @@ static void kanna_rotate_2_c2(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
 
@@ -655,7 +695,8 @@ static void kanna_rotate_2_c3(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst0 = dst + w * 3 - 3;
 
     int y = 0;
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         dst0 -= 7 * 3;
 
@@ -663,7 +704,8 @@ static void kanna_rotate_2_c3(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 4);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x3_t _src = vld3_u8(src0);
             uint8x8x3_t _src2 = vld3_u8(src0 + 8 * 3);
 
@@ -682,7 +724,8 @@ static void kanna_rotate_2_c3(const unsigned char* src, int srcw, int srch, int 
             dst0 -= 16 * 3;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "mov        r4, #-24            \n"
                 "0:                             \n"
@@ -715,7 +758,8 @@ static void kanna_rotate_2_c3(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
             dst0[2] = src0[2];
@@ -738,7 +782,8 @@ static void kanna_rotate_2_c4(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst0 = dst + w * 4 - 4;
 
     int y = 0;
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         dst0 -= 7 * 4;
 
@@ -746,7 +791,8 @@ static void kanna_rotate_2_c4(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 4);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x4_t _src = vld4_u8(src0);
             uint8x8x4_t _src2 = vld4_u8(src0 + 8 * 4);
 
@@ -767,7 +813,8 @@ static void kanna_rotate_2_c4(const unsigned char* src, int srcw, int srch, int 
             dst0 -= 16 * 4;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "mov        r4, #-32            \n"
                 "0:                             \n"
@@ -802,7 +849,8 @@ static void kanna_rotate_2_c4(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
             dst0[2] = src0[2];
@@ -829,7 +877,8 @@ static void kanna_rotate_3_c1(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst0 = dstend - 1;
 
     int y = 0;
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         dst0 -= 15;
 
@@ -837,7 +886,8 @@ static void kanna_rotate_3_c1(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 4);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8_t _src = vld1_u8(src0);
             uint8x8_t _src2 = vld1_u8(src0 + 8);
 
@@ -851,7 +901,8 @@ static void kanna_rotate_3_c1(const unsigned char* src, int srcw, int srch, int 
             dst0 -= 16;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "mov        r4, #-16            \n"
                 "0:                             \n"
@@ -877,7 +928,8 @@ static void kanna_rotate_3_c1(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0 = *src0;
 
             src0 += 1;
@@ -901,7 +953,8 @@ static void kanna_rotate_3_c2(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst0 = dstend - 2;
 
     int y = 0;
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         dst0 -= 7 * 2;
 
@@ -909,7 +962,8 @@ static void kanna_rotate_3_c2(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 4);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x2_t _src = vld2_u8(src0);
             uint8x8x2_t _src2 = vld2_u8(src0 + 8 * 2);
 
@@ -926,7 +980,8 @@ static void kanna_rotate_3_c2(const unsigned char* src, int srcw, int srch, int 
             dst0 -= 16 * 2;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "mov        r4, #-16            \n"
                 "0:                             \n"
@@ -957,7 +1012,8 @@ static void kanna_rotate_3_c2(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
 
@@ -982,7 +1038,8 @@ static void kanna_rotate_3_c3(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst0 = dstend - 3;
 
     int y = 0;
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         dst0 -= 7 * 3;
 
@@ -990,7 +1047,8 @@ static void kanna_rotate_3_c3(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 4);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x3_t _src = vld3_u8(src0);
             uint8x8x3_t _src2 = vld3_u8(src0 + 8 * 3);
 
@@ -1009,7 +1067,8 @@ static void kanna_rotate_3_c3(const unsigned char* src, int srcw, int srch, int 
             dst0 -= 16 * 3;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "mov        r4, #-24            \n"
                 "0:                             \n"
@@ -1042,7 +1101,8 @@ static void kanna_rotate_3_c3(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
             dst0[2] = src0[2];
@@ -1068,7 +1128,8 @@ static void kanna_rotate_3_c4(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst0 = dstend - 4;
 
     int y = 0;
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         dst0 -= 7 * 4;
 
@@ -1076,7 +1137,8 @@ static void kanna_rotate_3_c4(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 4);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x4_t _src = vld4_u8(src0);
             uint8x8x4_t _src2 = vld4_u8(src0 + 8 * 4);
 
@@ -1097,7 +1159,8 @@ static void kanna_rotate_3_c4(const unsigned char* src, int srcw, int srch, int 
             dst0 -= 16 * 4;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "mov        r4, #-32            \n"
                 "0:                             \n"
@@ -1132,7 +1195,8 @@ static void kanna_rotate_3_c4(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
             dst0[2] = src0[2];
@@ -1161,12 +1225,14 @@ static void kanna_rotate_4_c1(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst1 = dstend - stride;
 
     int y = 0;
-    for (; y + 1 < srch; y += 2) {
+    for (; y + 1 < srch; y += 2)
+    {
 #if __ARM_NEON
         int nn = srcw >> 5;
         int remain = srcw - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src0 = vld1q_u8(src0);
             uint8x16_t _src0n = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src0);
@@ -1183,7 +1249,8 @@ static void kanna_rotate_4_c1(const unsigned char* src, int srcw, int srch, int 
             dst1 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -1211,7 +1278,8 @@ static void kanna_rotate_4_c1(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
             *dst1++ = *src1++;
         }
@@ -1222,12 +1290,14 @@ static void kanna_rotate_4_c1(const unsigned char* src, int srcw, int srch, int 
         dst1 -= wgap + stride;
     }
 
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         int nn = srcw >> 5;
         int remain = srcw - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src = vld1q_u8(src0);
             uint8x16_t _src2 = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src);
@@ -1237,7 +1307,8 @@ static void kanna_rotate_4_c1(const unsigned char* src, int srcw, int srch, int 
             dst0 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -1258,7 +1329,8 @@ static void kanna_rotate_4_c1(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
         }
 
@@ -1283,12 +1355,14 @@ static void kanna_rotate_4_c2(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst1 = dstend - stride;
 
     int y = 0;
-    for (; y + 1 < srch; y += 2) {
+    for (; y + 1 < srch; y += 2)
+    {
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src0 = vld1q_u8(src0);
             uint8x16_t _src0n = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src0);
@@ -1305,7 +1379,8 @@ static void kanna_rotate_4_c2(const unsigned char* src, int srcw, int srch, int 
             dst1 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -1333,7 +1408,8 @@ static void kanna_rotate_4_c2(const unsigned char* src, int srcw, int srch, int 
         int remain = size;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
             *dst1++ = *src1++;
         }
@@ -1344,12 +1420,14 @@ static void kanna_rotate_4_c2(const unsigned char* src, int srcw, int srch, int 
         dst1 -= wgap + stride;
     }
 
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src = vld1q_u8(src0);
             uint8x16_t _src2 = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src);
@@ -1359,7 +1437,8 @@ static void kanna_rotate_4_c2(const unsigned char* src, int srcw, int srch, int 
             dst0 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -1380,7 +1459,8 @@ static void kanna_rotate_4_c2(const unsigned char* src, int srcw, int srch, int 
         int remain = size;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
         }
 
@@ -1405,12 +1485,14 @@ static void kanna_rotate_4_c3(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst1 = dstend - stride;
 
     int y = 0;
-    for (; y + 1 < srch; y += 2) {
+    for (; y + 1 < srch; y += 2)
+    {
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src0 = vld1q_u8(src0);
             uint8x16_t _src0n = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src0);
@@ -1427,7 +1509,8 @@ static void kanna_rotate_4_c3(const unsigned char* src, int srcw, int srch, int 
             dst1 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -1455,7 +1538,8 @@ static void kanna_rotate_4_c3(const unsigned char* src, int srcw, int srch, int 
         int remain = size;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
             *dst1++ = *src1++;
         }
@@ -1466,12 +1550,14 @@ static void kanna_rotate_4_c3(const unsigned char* src, int srcw, int srch, int 
         dst1 -= wgap + stride;
     }
 
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src = vld1q_u8(src0);
             uint8x16_t _src2 = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src);
@@ -1481,7 +1567,8 @@ static void kanna_rotate_4_c3(const unsigned char* src, int srcw, int srch, int 
             dst0 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -1502,7 +1589,8 @@ static void kanna_rotate_4_c3(const unsigned char* src, int srcw, int srch, int 
         int remain = size;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
         }
 
@@ -1527,12 +1615,14 @@ static void kanna_rotate_4_c4(const unsigned char* src, int srcw, int srch, int 
     unsigned char* dst1 = dstend - stride;
 
     int y = 0;
-    for (; y + 1 < srch; y += 2) {
+    for (; y + 1 < srch; y += 2)
+    {
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src0 = vld1q_u8(src0);
             uint8x16_t _src0n = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src0);
@@ -1549,7 +1639,8 @@ static void kanna_rotate_4_c4(const unsigned char* src, int srcw, int srch, int 
             dst1 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -1577,7 +1668,8 @@ static void kanna_rotate_4_c4(const unsigned char* src, int srcw, int srch, int 
         int remain = size;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
             *dst1++ = *src1++;
         }
@@ -1588,12 +1680,14 @@ static void kanna_rotate_4_c4(const unsigned char* src, int srcw, int srch, int 
         dst1 -= wgap + stride;
     }
 
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
 #if __ARM_NEON
         int nn = size >> 5;
         int remain = size - (nn << 5);
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _src = vld1q_u8(src0);
             uint8x16_t _src2 = vld1q_u8(src0 + 16);
             vst1q_u8(dst0, _src);
@@ -1603,7 +1697,8 @@ static void kanna_rotate_4_c4(const unsigned char* src, int srcw, int srch, int 
             dst0 += 32;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -1624,7 +1719,8 @@ static void kanna_rotate_4_c4(const unsigned char* src, int srcw, int srch, int 
         int remain = size;
 #endif // __ARM_NEON
 
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *dst0++ = *src0++;
         }
 
@@ -1641,7 +1737,8 @@ static void kanna_rotate_5_c1(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst0 = dst + y;
@@ -1654,7 +1751,8 @@ static void kanna_rotate_5_c1(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8_t _src0 = vld1_u8(src0);
             uint8x8_t _src1 = vld1_u8(src1);
 
@@ -1707,7 +1805,8 @@ static void kanna_rotate_5_c1(const unsigned char* src, int srcw, int srch, int 
             dst1 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #64]           \n"
@@ -1785,7 +1884,8 @@ static void kanna_rotate_5_c1(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst0[0] = src0[0];
             dst0[1] = src1[0];
             dst0[2] = src0[0 + src_step];
@@ -1804,11 +1904,13 @@ static void kanna_rotate_5_c1(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dst + y;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             *dst0 = *src0;
 
             src0 += 1;
@@ -1827,7 +1929,8 @@ static void kanna_rotate_5_c2(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst0 = dst + y * 2;
@@ -1840,7 +1943,8 @@ static void kanna_rotate_5_c2(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x2_t _src0 = vld2_u8(src0);
             uint8x8x2_t _src1 = vld2_u8(src1);
 
@@ -1926,7 +2030,8 @@ static void kanna_rotate_5_c2(const unsigned char* src, int srcw, int srch, int 
             dst1 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #128]          \n"
@@ -2012,7 +2117,8 @@ static void kanna_rotate_5_c2(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
             dst0[2] = src1[0];
@@ -2039,11 +2145,13 @@ static void kanna_rotate_5_c2(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dst + y * 2;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
 
@@ -2063,7 +2171,8 @@ static void kanna_rotate_5_c3(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst0 = dst + y * 3;
@@ -2076,7 +2185,8 @@ static void kanna_rotate_5_c3(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x3_t _src0 = vld3_u8(src0);
             uint8x8x3_t _src1 = vld3_u8(src1);
 
@@ -2186,7 +2296,8 @@ static void kanna_rotate_5_c3(const unsigned char* src, int srcw, int srch, int 
             dst1 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #192]          \n"
@@ -2284,7 +2395,8 @@ static void kanna_rotate_5_c3(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
             dst0[2] = src0[2];
@@ -2319,11 +2431,13 @@ static void kanna_rotate_5_c3(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dst + y * 3;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
             dst0[2] = src0[2];
@@ -2344,7 +2458,8 @@ static void kanna_rotate_5_c4(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst0 = dst + y * 4;
@@ -2357,7 +2472,8 @@ static void kanna_rotate_5_c4(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x4_t _src0 = vld4_u8(src0);
             uint8x8x4_t _src1 = vld4_u8(src1);
 
@@ -2491,7 +2607,8 @@ static void kanna_rotate_5_c4(const unsigned char* src, int srcw, int srch, int 
             dst1 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -2589,7 +2706,8 @@ static void kanna_rotate_5_c4(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
             dst0[2] = src0[2];
@@ -2632,11 +2750,13 @@ static void kanna_rotate_5_c4(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dst + y * 4;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
             dst0[2] = src0[2];
@@ -2661,7 +2781,8 @@ static void kanna_rotate_6_c1(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst0 = dstend - y - 8;
@@ -2674,7 +2795,8 @@ static void kanna_rotate_6_c1(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8_t _src0 = vld1_u8(src0);
             uint8x8_t _src1 = vld1_u8(src1);
 
@@ -2727,7 +2849,8 @@ static void kanna_rotate_6_c1(const unsigned char* src, int srcw, int srch, int 
             dst1 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #64]           \n"
@@ -2805,7 +2928,8 @@ static void kanna_rotate_6_c1(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst0[0] = src1[0 + 3 * src_step];
             dst0[1] = src0[0 + 3 * src_step];
             dst0[2] = src1[0 + 2 * src_step];
@@ -2824,11 +2948,13 @@ static void kanna_rotate_6_c1(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dstend - y - 1;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             *dst0 = *src0;
 
             src0 += 1;
@@ -2850,7 +2976,8 @@ static void kanna_rotate_6_c2(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst0 = dstend - y * 2 - 8 * 2;
@@ -2863,7 +2990,8 @@ static void kanna_rotate_6_c2(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x2_t _src0 = vld2_u8(src0);
             uint8x8x2_t _src1 = vld2_u8(src1);
 
@@ -2949,7 +3077,8 @@ static void kanna_rotate_6_c2(const unsigned char* src, int srcw, int srch, int 
             dst1 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #128]          \n"
@@ -3035,7 +3164,8 @@ static void kanna_rotate_6_c2(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst0[0] = src1[0 + 3 * src_step];
             dst0[1] = src1[1 + 3 * src_step];
             dst0[2] = src0[0 + 3 * src_step];
@@ -3062,11 +3192,13 @@ static void kanna_rotate_6_c2(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dstend - y * 2 - 2;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
 
@@ -3089,7 +3221,8 @@ static void kanna_rotate_6_c3(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst0 = dstend - y * 3 - 8 * 3;
@@ -3102,7 +3235,8 @@ static void kanna_rotate_6_c3(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x3_t _src0 = vld3_u8(src0);
             uint8x8x3_t _src1 = vld3_u8(src1);
 
@@ -3212,7 +3346,8 @@ static void kanna_rotate_6_c3(const unsigned char* src, int srcw, int srch, int 
             dst1 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #192]          \n"
@@ -3310,7 +3445,8 @@ static void kanna_rotate_6_c3(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst0[0] = src1[0 + 3 * src_step];
             dst0[1] = src1[1 + 3 * src_step];
             dst0[2] = src1[2 + 3 * src_step];
@@ -3345,11 +3481,13 @@ static void kanna_rotate_6_c3(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dstend - y * 3 - 3;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
             dst0[2] = src0[2];
@@ -3373,7 +3511,8 @@ static void kanna_rotate_6_c4(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst0 = dstend - y * 4 - 8 * 4;
@@ -3386,7 +3525,8 @@ static void kanna_rotate_6_c4(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x4_t _src0 = vld4_u8(src0);
             uint8x8x4_t _src1 = vld4_u8(src1);
 
@@ -3520,7 +3660,8 @@ static void kanna_rotate_6_c4(const unsigned char* src, int srcw, int srch, int 
             dst1 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -3618,7 +3759,8 @@ static void kanna_rotate_6_c4(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst0[0] = src1[0 + 3 * src_step];
             dst0[1] = src1[1 + 3 * src_step];
             dst0[2] = src1[2 + 3 * src_step];
@@ -3661,11 +3803,13 @@ static void kanna_rotate_6_c4(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dstend - y * 4 - 4;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
             dst0[2] = src0[2];
@@ -3690,7 +3834,8 @@ static void kanna_rotate_7_c1(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst6 = dstend - y - 8 - stride;
@@ -3703,7 +3848,8 @@ static void kanna_rotate_7_c1(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8_t _src0 = vld1_u8(src0);
             uint8x8_t _src1 = vld1_u8(src1);
 
@@ -3756,7 +3902,8 @@ static void kanna_rotate_7_c1(const unsigned char* src, int srcw, int srch, int 
             dst6 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #64]           \n"
@@ -3834,7 +3981,8 @@ static void kanna_rotate_7_c1(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst7[0] = src1[0 + 3 * src_step];
             dst7[1] = src0[0 + 3 * src_step];
             dst7[2] = src1[0 + 2 * src_step];
@@ -3853,11 +4001,13 @@ static void kanna_rotate_7_c1(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dstend - y - 1;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             *dst0 = *src0;
 
             src0 += 1;
@@ -3879,7 +4029,8 @@ static void kanna_rotate_7_c2(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst6 = dstend - y * 2 - 8 * 2 - stride;
@@ -3892,7 +4043,8 @@ static void kanna_rotate_7_c2(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x2_t _src0 = vld2_u8(src0);
             uint8x8x2_t _src1 = vld2_u8(src1);
 
@@ -3978,7 +4130,8 @@ static void kanna_rotate_7_c2(const unsigned char* src, int srcw, int srch, int 
             dst6 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #128]          \n"
@@ -4064,7 +4217,8 @@ static void kanna_rotate_7_c2(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst7[0] = src1[0 + 3 * src_step];
             dst7[1] = src1[1 + 3 * src_step];
             dst7[2] = src0[0 + 3 * src_step];
@@ -4091,11 +4245,13 @@ static void kanna_rotate_7_c2(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dstend - y * 2 - 2;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
 
@@ -4118,7 +4274,8 @@ static void kanna_rotate_7_c3(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst6 = dstend - y * 3 - 8 * 3 - stride;
@@ -4131,7 +4288,8 @@ static void kanna_rotate_7_c3(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x3_t _src0 = vld3_u8(src0);
             uint8x8x3_t _src1 = vld3_u8(src1);
 
@@ -4241,7 +4399,8 @@ static void kanna_rotate_7_c3(const unsigned char* src, int srcw, int srch, int 
             dst6 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #192]          \n"
@@ -4339,7 +4498,8 @@ static void kanna_rotate_7_c3(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst7[0] = src1[0 + 3 * src_step];
             dst7[1] = src1[1 + 3 * src_step];
             dst7[2] = src1[2 + 3 * src_step];
@@ -4374,11 +4534,13 @@ static void kanna_rotate_7_c3(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dstend - y * 3 - 3;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
             dst0[2] = src0[2];
@@ -4402,7 +4564,8 @@ static void kanna_rotate_7_c4(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst6 = dstend - y * 4 - 8 * 4 - stride;
@@ -4415,7 +4578,8 @@ static void kanna_rotate_7_c4(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x4_t _src0 = vld4_u8(src0);
             uint8x8x4_t _src1 = vld4_u8(src1);
 
@@ -4549,7 +4713,8 @@ static void kanna_rotate_7_c4(const unsigned char* src, int srcw, int srch, int 
             dst6 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -4647,7 +4812,8 @@ static void kanna_rotate_7_c4(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst7[0] = src1[0 + 3 * src_step];
             dst7[1] = src1[1 + 3 * src_step];
             dst7[2] = src1[2 + 3 * src_step];
@@ -4690,11 +4856,13 @@ static void kanna_rotate_7_c4(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dstend - y * 4 - 4;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
             dst0[2] = src0[2];
@@ -4719,7 +4887,8 @@ static void kanna_rotate_8_c1(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst7 = dstend + y;
@@ -4732,7 +4901,8 @@ static void kanna_rotate_8_c1(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8_t _src0 = vld1_u8(src0);
             uint8x8_t _src1 = vld1_u8(src1);
 
@@ -4785,7 +4955,8 @@ static void kanna_rotate_8_c1(const unsigned char* src, int srcw, int srch, int 
             dst6 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #64]           \n"
@@ -4863,7 +5034,8 @@ static void kanna_rotate_8_c1(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst7[0] = src0[0];
             dst7[1] = src1[0];
             dst7[2] = src0[0 + src_step];
@@ -4882,11 +5054,13 @@ static void kanna_rotate_8_c1(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dstend + y;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             *dst0 = *src0;
 
             src0 += 1;
@@ -4908,7 +5082,8 @@ static void kanna_rotate_8_c2(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst7 = dstend + y * 2;
@@ -4921,7 +5096,8 @@ static void kanna_rotate_8_c2(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x2_t _src0 = vld2_u8(src0);
             uint8x8x2_t _src1 = vld2_u8(src1);
 
@@ -5007,7 +5183,8 @@ static void kanna_rotate_8_c2(const unsigned char* src, int srcw, int srch, int 
             dst6 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #128]          \n"
@@ -5093,7 +5270,8 @@ static void kanna_rotate_8_c2(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst7[0] = src0[0];
             dst7[1] = src0[1];
             dst7[2] = src1[0];
@@ -5120,11 +5298,13 @@ static void kanna_rotate_8_c2(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dstend + y * 2;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
 
@@ -5147,7 +5327,8 @@ static void kanna_rotate_8_c3(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst7 = dstend + y * 3;
@@ -5160,7 +5341,8 @@ static void kanna_rotate_8_c3(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x3_t _src0 = vld3_u8(src0);
             uint8x8x3_t _src1 = vld3_u8(src1);
 
@@ -5270,7 +5452,8 @@ static void kanna_rotate_8_c3(const unsigned char* src, int srcw, int srch, int 
             dst6 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #192]          \n"
@@ -5368,7 +5551,8 @@ static void kanna_rotate_8_c3(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst7[0] = src0[0];
             dst7[1] = src0[1];
             dst7[2] = src0[2];
@@ -5403,11 +5587,13 @@ static void kanna_rotate_8_c3(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dstend + y * 3;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
             dst0[2] = src0[2];
@@ -5431,7 +5617,8 @@ static void kanna_rotate_8_c4(const unsigned char* src, int srcw, int srch, int 
 
     int y = 0;
 #if __ARM_NEON
-    for (; y + 7 < srch; y += 8) {
+    for (; y + 7 < srch; y += 8)
+    {
         const unsigned char* src1 = src0 + srcstride;
 
         unsigned char* dst7 = dstend + y * 4;
@@ -5444,7 +5631,8 @@ static void kanna_rotate_8_c4(const unsigned char* src, int srcw, int srch, int 
         int remain = srcw - (nn << 3);
 
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x4_t _src0 = vld4_u8(src0);
             uint8x8x4_t _src1 = vld4_u8(src1);
 
@@ -5578,7 +5766,8 @@ static void kanna_rotate_8_c4(const unsigned char* src, int srcw, int srch, int 
             dst6 += 4 * dst_step;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -5676,7 +5865,8 @@ static void kanna_rotate_8_c4(const unsigned char* src, int srcw, int srch, int 
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
         }
 #endif // __aarch64__
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             dst7[0] = src0[0];
             dst7[1] = src0[1];
             dst7[2] = src0[2];
@@ -5719,11 +5909,13 @@ static void kanna_rotate_8_c4(const unsigned char* src, int srcw, int srch, int 
         src0 += srcwgap + 7 * srcstride;
     }
 #endif // __ARM_NEON
-    for (; y < srch; y++) {
+    for (; y < srch; y++)
+    {
         unsigned char* dst0 = dstend + y * 4;
 
         int x = 0;
-        for (; x < srcw; x++) {
+        for (; x < srcw; x++)
+        {
             dst0[0] = src0[0];
             dst0[1] = src0[1];
             dst0[2] = src0[2];
@@ -5762,7 +5954,8 @@ void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, int srcstride
     // assert srcw == w && srch == h for type 1234
     // assert srcw == h && srch == w for type 5678
 
-    switch (type) {
+    switch (type)
+    {
     case 1:
         kanna_rotate_1_c1(src, srcw, srch, srcstride, dst, w, h, stride);
         break;
@@ -5798,7 +5991,8 @@ void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, int srcstride
     // assert srcw == w && srch == h for type 1234
     // assert srcw == h && srch == w for type 5678
 
-    switch (type) {
+    switch (type)
+    {
     case 1:
         kanna_rotate_1_c2(src, srcw, srch, srcstride, dst, w, h, stride);
         break;
@@ -5834,7 +6028,8 @@ void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, int srcstride
     // assert srcw == w && srch == h for type 1234
     // assert srcw == h && srch == w for type 5678
 
-    switch (type) {
+    switch (type)
+    {
     case 1:
         kanna_rotate_1_c3(src, srcw, srch, srcstride, dst, w, h, stride);
         break;
@@ -5870,7 +6065,8 @@ void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, int srcstride
     // assert srcw == w && srch == h for type 1234
     // assert srcw == h && srch == w for type 5678
 
-    switch (type) {
+    switch (type)
+    {
     case 1:
         kanna_rotate_1_c4(src, srcw, srch, srcstride, dst, w, h, stride);
         break;

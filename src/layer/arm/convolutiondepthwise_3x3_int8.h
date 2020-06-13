@@ -29,7 +29,8 @@ static void convdw3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
     int outch = top_blob.c;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         const signed char* kernel = (const signed char*)_kernel + p * 9;
@@ -56,7 +57,8 @@ static void convdw3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
         int16x4_t _k8xxx = vget_low_s16(_kn_s16);
 #endif // __ARM_NEON
 
-        for (; i + 1 < outh; i += 2) {
+        for (; i + 1 < outh; i += 2)
+        {
 #if __ARM_NEON
             int nn = outw >> 3;
             int remain = outw & 7;
@@ -66,7 +68,8 @@ static void convdw3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "0:                                   \n"
                     "ld1    {v4.8b, v5.8b}, [%3]          \n"
@@ -182,7 +185,8 @@ static void convdw3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
                     : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
 #else
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "0:                              \n"
                     // r0
@@ -307,7 +311,8 @@ static void convdw3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 // TODO NEON
                 int sum0 = 0;
                 int sum0n = 0;
@@ -352,7 +357,8 @@ static void convdw3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
             outptr0n += outw;
         }
 
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
 #if __ARM_NEON
             int nn = outw >> 3;
             int remain = outw & 7;
@@ -362,7 +368,8 @@ static void convdw3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "0:                                   \n"
                     "ld1    {v4.8b, v5.8b}, [%2]          \n"
@@ -440,7 +447,8 @@ static void convdw3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
                     : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25");
             }
 #else
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "0:                              \n"
                     // r0
@@ -525,7 +533,8 @@ static void convdw3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 int sum = 0;
 
                 sum += (int)r0[0] * kernel[0];
@@ -564,7 +573,8 @@ static void convdw3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
     const int tailstep = w - 2 * outw + w;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         const signed char* kernel = (const signed char*)_kernel + p * 9;
@@ -587,7 +597,8 @@ static void convdw3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
         int16x4_t _k4567 = vget_high_s16(_k_s16);
         int16x4_t _k8xxx = vget_low_s16(_kn_s16);
 #endif // __ARM_NEON
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
 #if __ARM_NEON
             int nn = outw >> 3;
             int remain = outw & 7;
@@ -597,7 +608,8 @@ static void convdw3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "0:                                   \n"
                     "ld2    {v4.8b, v5.8b}, [%2], #16     \n"
@@ -672,7 +684,8 @@ static void convdw3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
                     : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25");
             }
 #else
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "0:                              \n"
                     // r0
@@ -751,7 +764,8 @@ static void convdw3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const M
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 int sum = 0;
 
                 sum += (int)r0[0] * kernel[0];
@@ -790,7 +804,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
@@ -821,7 +836,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
         int16x4_t _k8xxx = vget_low_s16(_kn_s16);
 #endif // __ARM_NEON
 
-        for (; i + 1 < outh; i += 2) {
+        for (; i + 1 < outh; i += 2)
+        {
 #if __ARM_NEON
             int nn = outw >> 3;
             int remain = outw & 7;
@@ -831,7 +847,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "0:                                   \n"
                     "ld1    {v4.8b, v5.8b}, [%3]          \n"
@@ -989,7 +1006,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
 #else
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "0:                              \n"
                     // r0
@@ -1176,7 +1194,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 // TODO NEON
                 int sum0 = 0;
                 int sum0n = 0;
@@ -1221,7 +1240,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
             outptr0n += outw;
         }
 
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
 #if __ARM_NEON
             int nn = outw >> 3;
             int remain = outw & 7;
@@ -1231,7 +1251,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "dup    v26.4s, %w13                  \n"
                     "dup    v27.4s, %w14                  \n"
@@ -1337,7 +1358,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
 #else
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "0:                              \n"
                     // r0
@@ -1456,7 +1478,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 int sum = 0;
 
                 sum += (int)r0[0] * kernel[0];
@@ -1497,7 +1520,8 @@ static void convdw3x3s2_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
     const int tailstep = w - 2 * outw + w;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
@@ -1524,7 +1548,8 @@ static void convdw3x3s2_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
         int16x4_t _k4567 = vget_high_s16(_k_s16);
         int16x4_t _k8xxx = vget_low_s16(_kn_s16);
 #endif // __ARM_NEON
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
 #if __ARM_NEON
             int nn = outw >> 3;
             int remain = outw & 7;
@@ -1534,7 +1559,8 @@ static void convdw3x3s2_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "dup    v26.4s, %w13                  \n"
                     "dup    v27.4s, %w14                  \n"
@@ -1636,7 +1662,8 @@ static void convdw3x3s2_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
 #else
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "0:                              \n"
                     // r0
@@ -1749,7 +1776,8 @@ static void convdw3x3s2_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 int sum = 0;
 
                 sum += (int)r0[0] * kernel[0];

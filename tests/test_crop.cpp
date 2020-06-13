@@ -36,7 +36,8 @@ static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int coffset, 
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Crop>("Crop", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_crop failed a.dims=%d a=(%d %d %d) woffset=%d hoffset=%d coffset=%d outw=%d outh=%d outc=%d woffset2=%d hoffset2=%d coffset2=%d\n", a.dims, a.w, a.h, a.c, woffset, hoffset, coffset, outw, outh, outc, woffset2, hoffset2, coffset2);
     }
 
@@ -75,7 +76,8 @@ static void print_int_array(const ncnn::Mat& a)
     const int* pa = a;
 
     fprintf(stderr, "[");
-    for (int i = 0; i < a.w; i++) {
+    for (int i = 0; i < a.w; i++)
+    {
         fprintf(stderr, " %d", pa[i]);
     }
     fprintf(stderr, " ]");
@@ -96,7 +98,8 @@ static int test_crop(const ncnn::Mat& a, const ncnn::Mat& starts, const ncnn::Ma
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Crop>("Crop", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_crop failed a.dims=%d a=(%d %d %d)", a.dims, a.w, a.h, a.c);
         fprintf(stderr, " starts=");
         print_int_array(starts);

@@ -46,7 +46,8 @@ static int test_deconvolutiondepthwise(int w, int h, int c, int outch, int kerne
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::DeconvolutionDepthWise>("DeconvolutionDepthWise", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_deconvolutiondepthwise failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params[0], activation_params[1]);
     }
 
@@ -74,7 +75,8 @@ static int test_deconvolutiondepthwise_0()
         {7, 2, 1, 3},
     };
 
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++)
+    {
         int ret = 0
                   || test_deconvolutiondepthwise(9, 7, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 1)
                   || test_deconvolutiondepthwise(9, 7, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 1)

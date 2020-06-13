@@ -204,7 +204,8 @@ struct Mat
         cols = _cols;
         c = flags;
 
-        if (total() > 0) {
+        if (total() > 0)
+        {
             // refcount address must be aligned, so we expand totalsize here
             size_t totalsize = (total() + 3) >> 2 << 2;
             data = (unsigned char*)ncnn::fastMalloc(totalsize + (int)sizeof(*refcount));
@@ -234,7 +235,8 @@ struct Mat
 
         Mat m(rows, cols, c);
 
-        if (total() > 0) {
+        if (total() > 0)
+        {
             memcpy(m.data, data, total());
         }
 
@@ -275,7 +277,8 @@ struct Mat
         Mat m(roi.height, roi.width, c);
 
         int sy = roi.y;
-        for (int y = 0; y < roi.height; y++) {
+        for (int y = 0; y < roi.height; y++)
+        {
             const unsigned char* sptr = ptr(sy) + roi.x * c;
             unsigned char* dptr = m.ptr(y);
             memcpy(dptr, sptr, roi.width * c);

@@ -42,7 +42,8 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 {
     int elempack = bottom_blob.elempack;
 
-    if (elempack == out_elempack) {
+    if (elempack == out_elempack)
+    {
         top_blob = bottom_blob;
         return 0;
     }
@@ -53,24 +54,30 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
 
-    if (!use_padding) {
+    if (!use_padding)
+    {
         // identity if use_padding not allowed
-        if (dims == 1 && w * elempack % out_elempack != 0) {
+        if (dims == 1 && w * elempack % out_elempack != 0)
+        {
             top_blob = bottom_blob;
             return 0;
         }
-        if (dims == 2 && h * elempack % out_elempack != 0) {
+        if (dims == 2 && h * elempack % out_elempack != 0)
+        {
             top_blob = bottom_blob;
             return 0;
         }
-        if (dims == 3 && channels * elempack % out_elempack != 0) {
+        if (dims == 3 && channels * elempack % out_elempack != 0)
+        {
             top_blob = bottom_blob;
             return 0;
         }
     }
 
-    if (dims == 1) {
-        if (out_elempack == 1) {
+    if (dims == 1)
+    {
+        if (out_elempack == 1)
+        {
             top_blob = bottom_blob;
             top_blob.w = w * elempack;
             top_blob.cstep = w * elempack;
@@ -91,7 +98,8 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         return 0;
     }
 
-    if (dims == 2) {
+    if (dims == 2)
+    {
         int outh = (h * elempack + out_elempack - 1) / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
         size_t lane_size = out_elemsize / out_elempack;
@@ -101,13 +109,16 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             return -100;
 
         #pragma omp parallel for
-        for (int i = 0; i < outh; i++) {
+        for (int i = 0; i < outh; i++)
+        {
             unsigned char* outptr = (unsigned char*)top_blob + i * w * out_elemsize;
 
-            for (int j = 0; j < w; j++) {
+            for (int j = 0; j < w; j++)
+            {
                 unsigned char* out_elem_ptr = outptr + j * out_elemsize;
 
-                for (int k = 0; k < out_elempack; k++) {
+                for (int k = 0; k < out_elempack; k++)
+                {
                     int srcy = (i * out_elempack + k) / elempack;
                     if (srcy >= h)
                         break;
@@ -125,7 +136,8 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         return 0;
     }
 
-    if (dims == 3) {
+    if (dims == 3)
+    {
         int outc = (channels * elempack + out_elempack - 1) / out_elempack;
         size_t out_elemsize = elemsize / elempack * out_elempack;
         size_t lane_size = out_elemsize / out_elempack;
@@ -135,16 +147,20 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             return -100;
 
         #pragma omp parallel for
-        for (int q = 0; q < outc; q++) {
+        for (int q = 0; q < outc; q++)
+        {
             Mat out = top_blob.channel(q);
 
-            for (int i = 0; i < h; i++) {
+            for (int i = 0; i < h; i++)
+            {
                 unsigned char* outptr = (unsigned char*)out + i * w * out_elemsize;
 
-                for (int j = 0; j < w; j++) {
+                for (int j = 0; j < w; j++)
+                {
                     unsigned char* out_elem_ptr = outptr + j * out_elemsize;
 
-                    for (int k = 0; k < out_elempack; k++) {
+                    for (int k = 0; k < out_elempack; k++)
+                    {
                         int srcq = (q * out_elempack + k) / elempack;
                         if (srcq >= channels)
                             break;

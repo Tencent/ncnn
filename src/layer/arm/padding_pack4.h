@@ -350,58 +350,70 @@ static void padding_replicate_pack4_neon(const Mat& src, Mat& dst, int top, int 
     float* outptr = dst;
 
     // fill top
-    for (int y = 0; y < top; y++) {
+    for (int y = 0; y < top; y++)
+    {
         const float* ptr0 = ptr;
         float32x4_t _p = vld1q_f32(ptr0);
-        for (int x = 0; x < left; x++) {
+        for (int x = 0; x < left; x++)
+        {
             vst1q_f32(outptr, _p);
             outptr += 4;
         }
-        for (int x = 0; x < src.w; x++) {
+        for (int x = 0; x < src.w; x++)
+        {
             _p = vld1q_f32(ptr0);
             vst1q_f32(outptr, _p);
             ptr0 += 4;
             outptr += 4;
         }
-        for (int x = 0; x < right; x++) {
+        for (int x = 0; x < right; x++)
+        {
             vst1q_f32(outptr, _p);
             outptr += 4;
         }
     }
     // fill center
-    for (int y = 0; y < src.h; y++) {
+    for (int y = 0; y < src.h; y++)
+    {
         float32x4_t _p = vld1q_f32(ptr);
-        for (int x = 0; x < left; x++) {
+        for (int x = 0; x < left; x++)
+        {
             vst1q_f32(outptr, _p);
             outptr += 4;
         }
-        for (int x = 0; x < src.w; x++) {
+        for (int x = 0; x < src.w; x++)
+        {
             _p = vld1q_f32(ptr);
             vst1q_f32(outptr, _p);
             ptr += 4;
             outptr += 4;
         }
-        for (int x = 0; x < right; x++) {
+        for (int x = 0; x < right; x++)
+        {
             vst1q_f32(outptr, _p);
             outptr += 4;
         }
     }
     // fill bottom
     ptr -= src.w * 4;
-    for (int y = 0; y < bottom; y++) {
+    for (int y = 0; y < bottom; y++)
+    {
         const float* ptr0 = ptr;
         float32x4_t _p = vld1q_f32(ptr0);
-        for (int x = 0; x < left; x++) {
+        for (int x = 0; x < left; x++)
+        {
             vst1q_f32(outptr, _p);
             outptr += 4;
         }
-        for (int x = 0; x < src.w; x++) {
+        for (int x = 0; x < src.w; x++)
+        {
             _p = vld1q_f32(ptr0);
             vst1q_f32(outptr, _p);
             ptr0 += 4;
             outptr += 4;
         }
-        for (int x = 0; x < right; x++) {
+        for (int x = 0; x < right; x++)
+        {
             vst1q_f32(outptr, _p);
             outptr += 4;
         }
@@ -415,20 +427,24 @@ static void padding_reflect_pack4_neon(const Mat& src, Mat& dst, int top, int bo
 
     // fill top
     ptr += top * src.w * 4;
-    for (int y = 0; y < top; y++) {
+    for (int y = 0; y < top; y++)
+    {
         const float* ptr0 = ptr;
-        for (int x = 0; x < left; x++) {
+        for (int x = 0; x < left; x++)
+        {
             float32x4_t _p = vld1q_f32(ptr0 + (left - x) * 4);
             vst1q_f32(outptr, _p);
             outptr += 4;
         }
-        for (int x = 0; x < src.w; x++) {
+        for (int x = 0; x < src.w; x++)
+        {
             float32x4_t _p = vld1q_f32(ptr0);
             vst1q_f32(outptr, _p);
             ptr0 += 4;
             outptr += 4;
         }
-        for (int x = 0; x < right; x++) {
+        for (int x = 0; x < right; x++)
+        {
             float32x4_t _p = vld1q_f32(ptr0 - 8 - x * 4);
             vst1q_f32(outptr, _p);
             outptr += 4;
@@ -436,19 +452,23 @@ static void padding_reflect_pack4_neon(const Mat& src, Mat& dst, int top, int bo
         ptr -= src.w * 4;
     }
     // fill center
-    for (int y = 0; y < src.h; y++) {
-        for (int x = 0; x < left; x++) {
+    for (int y = 0; y < src.h; y++)
+    {
+        for (int x = 0; x < left; x++)
+        {
             float32x4_t _p = vld1q_f32(ptr + (left - x) * 4);
             vst1q_f32(outptr, _p);
             outptr += 4;
         }
-        for (int x = 0; x < src.w; x++) {
+        for (int x = 0; x < src.w; x++)
+        {
             float32x4_t _p = vld1q_f32(ptr);
             vst1q_f32(outptr, _p);
             ptr += 4;
             outptr += 4;
         }
-        for (int x = 0; x < right; x++) {
+        for (int x = 0; x < right; x++)
+        {
             float32x4_t _p = vld1q_f32(ptr - 8 - x * 4);
             vst1q_f32(outptr, _p);
             outptr += 4;
@@ -456,20 +476,24 @@ static void padding_reflect_pack4_neon(const Mat& src, Mat& dst, int top, int bo
     }
     // fill bottom
     ptr -= 2 * src.w * 4;
-    for (int y = 0; y < bottom; y++) {
+    for (int y = 0; y < bottom; y++)
+    {
         const float* ptr0 = ptr;
-        for (int x = 0; x < left; x++) {
+        for (int x = 0; x < left; x++)
+        {
             float32x4_t _p = vld1q_f32(ptr0 + (left - x) * 4);
             vst1q_f32(outptr, _p);
             outptr += 4;
         }
-        for (int x = 0; x < src.w; x++) {
+        for (int x = 0; x < src.w; x++)
+        {
             float32x4_t _p = vld1q_f32(ptr0);
             vst1q_f32(outptr, _p);
             ptr0 += 4;
             outptr += 4;
         }
-        for (int x = 0; x < right; x++) {
+        for (int x = 0; x < right; x++)
+        {
             float32x4_t _p = vld1q_f32(ptr0 - 8 - x * 4);
             vst1q_f32(outptr, _p);
             outptr += 4;

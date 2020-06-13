@@ -26,13 +26,15 @@ static void conv7x7s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out0 = top_blob.channel(p);
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + p * 4) : vdupq_n_f32(0.f);
         out0.fill(_bias0);
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr0 = out0.row(0);
 
             const Mat img0 = bottom_blob.channel(q);
@@ -49,10 +51,12 @@ static void conv7x7s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int j = 0;
 #if __aarch64__
-                for (; j + 7 < outw; j += 8) {
+                for (; j + 7 < outw; j += 8)
+                {
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
@@ -614,7 +618,8 @@ static void conv7x7s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30");
                 }
 #endif // __aarch64__
-                for (; j + 3 < outw; j += 4) {
+                for (; j + 3 < outw; j += 4)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
@@ -1272,7 +1277,8 @@ static void conv7x7s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
                         : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j + 1 < outw; j += 2) {
+                for (; j + 1 < outw; j += 2)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #256]       \n"
@@ -1727,7 +1733,8 @@ static void conv7x7s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
                         : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j < outw; j++) {
+                for (; j < outw; j++)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #128]       \n"

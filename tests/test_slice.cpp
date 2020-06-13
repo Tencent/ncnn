@@ -47,7 +47,8 @@ static void print_int_array(const ncnn::Mat& a)
     const int* pa = a;
 
     fprintf(stderr, "[");
-    for (int i = 0; i < a.w; i++) {
+    for (int i = 0; i < a.w; i++)
+    {
         fprintf(stderr, " %d", pa[i]);
     }
     fprintf(stderr, " ]");
@@ -70,7 +71,8 @@ static int test_slice(const ncnn::Mat& a, const ncnn::Mat& slices, int axis)
     a0[0] = a;
 
     int ret = test_layer<ncnn::Slice>("Slice", pd, weights, opt, a0, slices.w);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_slice failed a.dims=%d a=(%d %d %d)", a.dims, a.w, a.h, a.c);
         fprintf(stderr, " slices=");
         print_int_array(slices);

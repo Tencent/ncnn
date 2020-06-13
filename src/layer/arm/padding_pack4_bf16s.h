@@ -340,58 +340,70 @@ static void padding_replicate_pack4_bf16_neon(const Mat& src, Mat& dst, int top,
     unsigned short* outptr = dst;
 
     // fill top
-    for (int y = 0; y < top; y++) {
+    for (int y = 0; y < top; y++)
+    {
         const unsigned short* ptr0 = ptr;
         uint16x4_t _p = vld1_u16(ptr0);
-        for (int x = 0; x < left; x++) {
+        for (int x = 0; x < left; x++)
+        {
             vst1_u16(outptr, _p);
             outptr += 4;
         }
-        for (int x = 0; x < src.w; x++) {
+        for (int x = 0; x < src.w; x++)
+        {
             _p = vld1_u16(ptr0);
             vst1_u16(outptr, _p);
             ptr0 += 4;
             outptr += 4;
         }
-        for (int x = 0; x < right; x++) {
+        for (int x = 0; x < right; x++)
+        {
             vst1_u16(outptr, _p);
             outptr += 4;
         }
     }
     // fill center
-    for (int y = 0; y < src.h; y++) {
+    for (int y = 0; y < src.h; y++)
+    {
         uint16x4_t _p = vld1_u16(ptr);
-        for (int x = 0; x < left; x++) {
+        for (int x = 0; x < left; x++)
+        {
             vst1_u16(outptr, _p);
             outptr += 4;
         }
-        for (int x = 0; x < src.w; x++) {
+        for (int x = 0; x < src.w; x++)
+        {
             _p = vld1_u16(ptr);
             vst1_u16(outptr, _p);
             ptr += 4;
             outptr += 4;
         }
-        for (int x = 0; x < right; x++) {
+        for (int x = 0; x < right; x++)
+        {
             vst1_u16(outptr, _p);
             outptr += 4;
         }
     }
     // fill bottom
     ptr -= src.w * 4;
-    for (int y = 0; y < bottom; y++) {
+    for (int y = 0; y < bottom; y++)
+    {
         const unsigned short* ptr0 = ptr;
         uint16x4_t _p = vld1_u16(ptr0);
-        for (int x = 0; x < left; x++) {
+        for (int x = 0; x < left; x++)
+        {
             vst1_u16(outptr, _p);
             outptr += 4;
         }
-        for (int x = 0; x < src.w; x++) {
+        for (int x = 0; x < src.w; x++)
+        {
             _p = vld1_u16(ptr0);
             vst1_u16(outptr, _p);
             ptr0 += 4;
             outptr += 4;
         }
-        for (int x = 0; x < right; x++) {
+        for (int x = 0; x < right; x++)
+        {
             vst1_u16(outptr, _p);
             outptr += 4;
         }
@@ -405,20 +417,24 @@ static void padding_reflect_pack4_bf16_neon(const Mat& src, Mat& dst, int top, i
 
     // fill top
     ptr += top * src.w * 4;
-    for (int y = 0; y < top; y++) {
+    for (int y = 0; y < top; y++)
+    {
         const unsigned short* ptr0 = ptr;
-        for (int x = 0; x < left; x++) {
+        for (int x = 0; x < left; x++)
+        {
             uint16x4_t _p = vld1_u16(ptr0 + (left - x) * 4);
             vst1_u16(outptr, _p);
             outptr += 4;
         }
-        for (int x = 0; x < src.w; x++) {
+        for (int x = 0; x < src.w; x++)
+        {
             uint16x4_t _p = vld1_u16(ptr0);
             vst1_u16(outptr, _p);
             ptr0 += 4;
             outptr += 4;
         }
-        for (int x = 0; x < right; x++) {
+        for (int x = 0; x < right; x++)
+        {
             uint16x4_t _p = vld1_u16(ptr0 - 8 - x * 4);
             vst1_u16(outptr, _p);
             outptr += 4;
@@ -426,19 +442,23 @@ static void padding_reflect_pack4_bf16_neon(const Mat& src, Mat& dst, int top, i
         ptr -= src.w * 4;
     }
     // fill center
-    for (int y = 0; y < src.h; y++) {
-        for (int x = 0; x < left; x++) {
+    for (int y = 0; y < src.h; y++)
+    {
+        for (int x = 0; x < left; x++)
+        {
             uint16x4_t _p = vld1_u16(ptr + (left - x) * 4);
             vst1_u16(outptr, _p);
             outptr += 4;
         }
-        for (int x = 0; x < src.w; x++) {
+        for (int x = 0; x < src.w; x++)
+        {
             uint16x4_t _p = vld1_u16(ptr);
             vst1_u16(outptr, _p);
             ptr += 4;
             outptr += 4;
         }
-        for (int x = 0; x < right; x++) {
+        for (int x = 0; x < right; x++)
+        {
             uint16x4_t _p = vld1_u16(ptr - 8 - x * 4);
             vst1_u16(outptr, _p);
             outptr += 4;
@@ -446,20 +466,24 @@ static void padding_reflect_pack4_bf16_neon(const Mat& src, Mat& dst, int top, i
     }
     // fill bottom
     ptr -= 2 * src.w * 4;
-    for (int y = 0; y < bottom; y++) {
+    for (int y = 0; y < bottom; y++)
+    {
         const unsigned short* ptr0 = ptr;
-        for (int x = 0; x < left; x++) {
+        for (int x = 0; x < left; x++)
+        {
             uint16x4_t _p = vld1_u16(ptr0 + (left - x) * 4);
             vst1_u16(outptr, _p);
             outptr += 4;
         }
-        for (int x = 0; x < src.w; x++) {
+        for (int x = 0; x < src.w; x++)
+        {
             uint16x4_t _p = vld1_u16(ptr0);
             vst1_u16(outptr, _p);
             ptr0 += 4;
             outptr += 4;
         }
-        for (int x = 0; x < right; x++) {
+        for (int x = 0; x < right; x++)
+        {
             uint16x4_t _p = vld1_u16(ptr0 - 8 - x * 4);
             vst1_u16(outptr, _p);
             outptr += 4;

@@ -36,7 +36,8 @@ static int test_normalize(const ncnn::Mat& a, int across_spatial, int across_cha
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Normalize>("Normalize", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_normalize failed a.dims=%d a=(%d %d %d) across_spatial=%d across_channel=%d channel_shared=%d eps=%f eps_mode=%d\n", a.dims, a.w, a.h, a.c, across_spatial, across_channel, channel_shared, eps, eps_mode);
     }
 

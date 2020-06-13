@@ -26,14 +26,16 @@ static void conv3x3s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
 
         out.fill(bias0);
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr = out;
             float* outptr2 = outptr + outw;
 
@@ -52,10 +54,12 @@ static void conv3x3s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
 
             int i = 0;
 
-            for (; i + 1 < outh; i += 2) {
+            for (; i + 1 < outh; i += 2)
+            {
                 int remain = outw;
 
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
                     float sum = 0;
                     float sum2 = 0;
 
@@ -99,10 +103,12 @@ static void conv3x3s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
                 outptr2 += outw;
             }
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int remain = outw;
 
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
                     float sum = 0;
 
                     sum += r0[0] * k0[0];
@@ -144,8 +150,10 @@ static void conv3x3s1_winograd23_transform_kernel_sse(const Mat& kernel, Mat& ke
     };
 
     #pragma omp parallel for
-    for (int p = 0; p < outch; p++) {
-        for (int q = 0; q < inch; q++) {
+    for (int p = 0; p < outch; p++)
+    {
+        for (int q = 0; q < inch; q++)
+        {
             const float* kernel0 = (const float*)kernel + p * inch * 9 + q * 9;
             float* kernel_tm0 = kernel_tm.channel(p).row(q);
 
@@ -156,17 +164,20 @@ static void conv3x3s1_winograd23_transform_kernel_sse(const Mat& kernel, Mat& ke
 
             // h
             float tmp[4][3];
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 4; i++)
+            {
                 tmp[i][0] = k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
                 tmp[i][1] = k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
                 tmp[i][2] = k2[0] * ktm[i][0] + k2[1] * ktm[i][1] + k2[2] * ktm[i][2];
             }
 
             // U
-            for (int j = 0; j < 4; j++) {
+            for (int j = 0; j < 4; j++)
+            {
                 float* tmpp = &tmp[j][0];
 
-                for (int i = 0; i < 4; i++) {
+                for (int i = 0; i < 4; i++)
+                {
                     kernel_tm0[j * 4 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
                 }
             }
@@ -219,17 +230,20 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
         //     {0.0f, -1.0f,  0.00f, 1.0f}
         // };
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             const float* img = bottom_blob_bordered.channel(q);
             float* out_tm0 = bottom_blob_tm.channel(q);
 
-            for (int j = 0; j < nColBlocks; j++) {
+            for (int j = 0; j < nColBlocks; j++)
+            {
                 const float* r0 = img + w * j * 2;
                 const float* r1 = r0 + w;
                 const float* r2 = r1 + w;
                 const float* r3 = r2 + w;
 
-                for (int i = 0; i < nRowBlocks; i++) {
+                for (int i = 0; i < nRowBlocks; i++)
+                {
 #if __AVX__
                     __m128 _d0, _d1, _d2, _d3;
                     __m128 _w0, _w1, _w2, _w3;
@@ -265,14 +279,16 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     float w0[4], w1[4], w2[4], w3[4];
                     float t0[4], t1[4], t2[4], t3[4];
                     // load
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         d0[n] = r0[n];
                         d1[n] = r1[n];
                         d2[n] = r2[n];
                         d3[n] = r3[n];
                     }
                     // w = B_t * d
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         w0[n] = d0[n] - d2[n];
                         w1[n] = d1[n] + d2[n];
                         w2[n] = d2[n] - d1[n];
@@ -298,14 +314,16 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         t3[3] = w3[3];
                     }
                     // d = B_t * d_t
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         d0[n] = t0[n] - t2[n];
                         d1[n] = t1[n] + t2[n];
                         d2[n] = t2[n] - t1[n];
                         d3[n] = t3[n] - t1[n];
                     }
                     // save to out_tm
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         out_tm0[n] = d0[n];
                         out_tm0[n + 4] = d1[n];
                         out_tm0[n + 8] = d2[n];
@@ -341,7 +359,8 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
         int remain_outch_start = nn_outch << 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int pp = 0; pp < nn_outch; pp++) {
+        for (int pp = 0; pp < nn_outch; pp++)
+        {
             int p = pp * 4;
 
             Mat out0_tm = top_blob_tm.channel(p);
@@ -354,7 +373,8 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
             const Mat kernel2_tm = kernel_tm.channel(p + 2);
             const Mat kernel3_tm = kernel_tm.channel(p + 3);
 
-            for (int i = 0; i < tiles; i++) {
+            for (int i = 0; i < tiles; i++)
+            {
                 float* output0_tm = out0_tm.row(i);
                 float* output1_tm = out1_tm.row(i);
                 float* output2_tm = out2_tm.row(i);
@@ -374,7 +394,8 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
 
                 int q = 0;
 
-                for (; q + 3 < inch; q += 4) {
+                for (; q + 3 < inch; q += 4)
+                {
                     const float* r0 = bottom_blob_tm.channel(q).row(i);
                     const float* r1 = bottom_blob_tm.channel(q + 1).row(i);
                     const float* r2 = bottom_blob_tm.channel(q + 2).row(i);
@@ -464,7 +485,8 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     _sum3n = _mm256_fmadd_ps(_r0n, _k3n, _sum3n);
                 }
 
-                for (; q < inch; q++) {
+                for (; q < inch; q++)
+                {
                     const float* r0 = bottom_blob_tm.channel(q).row(i);
 
                     const float* k0 = kernel0_tm.row(q);
@@ -508,7 +530,8 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                 float sum3[16] = {0.0f};
 
                 int q = 0;
-                for (; q + 3 < inch; q += 4) {
+                for (; q + 3 < inch; q += 4)
+                {
                     const float* r0 = bottom_blob_tm.channel(q).row(i);
                     const float* r1 = bottom_blob_tm.channel(q + 1).row(i);
                     const float* r2 = bottom_blob_tm.channel(q + 2).row(i);
@@ -519,7 +542,8 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     const float* k2 = kernel2_tm.row(q);
                     const float* k3 = kernel3_tm.row(q);
 
-                    for (int n = 0; n < 16; n++) {
+                    for (int n = 0; n < 16; n++)
+                    {
                         sum0[n] += r0[n] * k0[n];
                         k0 += 16;
                         sum0[n] += r1[n] * k0[n];
@@ -558,7 +582,8 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     }
                 }
 
-                for (; q < inch; q++) {
+                for (; q < inch; q++)
+                {
                     const float* r0 = bottom_blob_tm.channel(q).row(i);
 
                     const float* k0 = kernel0_tm.row(q);
@@ -566,7 +591,8 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     const float* k2 = kernel2_tm.row(q);
                     const float* k3 = kernel3_tm.row(q);
 
-                    for (int n = 0; n < 16; n++) {
+                    for (int n = 0; n < 16; n++)
+                    {
                         sum0[n] += r0[n] * k0[n];
                         sum1[n] += r0[n] * k1[n];
                         sum2[n] += r0[n] * k2[n];
@@ -574,7 +600,8 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     }
                 }
 
-                for (int n = 0; n < 16; n++) {
+                for (int n = 0; n < 16; n++)
+                {
                     output0_tm[n] = sum0[n];
                     output1_tm[n] = sum1[n];
                     output2_tm[n] = sum2[n];
@@ -585,17 +612,20 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
         }
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = remain_outch_start; p < outch; p++) {
+        for (int p = remain_outch_start; p < outch; p++)
+        {
             Mat out0_tm = top_blob_tm.channel(p);
             const Mat kernel0_tm = kernel_tm.channel(p);
 
-            for (int i = 0; i < tiles; i++) {
+            for (int i = 0; i < tiles; i++)
+            {
                 float* output0_tm = out0_tm.row(i);
 
                 float sum0[16] = {0.0f};
 
                 int q = 0;
-                for (; q + 3 < inch; q += 4) {
+                for (; q + 3 < inch; q += 4)
+                {
                     const float* r0 = bottom_blob_tm.channel(q).row(i);
                     const float* r1 = bottom_blob_tm.channel(q + 1).row(i);
                     const float* r2 = bottom_blob_tm.channel(q + 2).row(i);
@@ -606,7 +636,8 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     const float* k2 = kernel0_tm.row(q + 2);
                     const float* k3 = kernel0_tm.row(q + 3);
 
-                    for (int n = 0; n < 16; n++) {
+                    for (int n = 0; n < 16; n++)
+                    {
                         sum0[n] += r0[n] * k0[n];
                         sum0[n] += r1[n] * k1[n];
                         sum0[n] += r2[n] * k2[n];
@@ -614,16 +645,19 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     }
                 }
 
-                for (; q < inch; q++) {
+                for (; q < inch; q++)
+                {
                     const float* r0 = bottom_blob_tm.channel(q).row(i);
                     const float* k0 = kernel0_tm.row(q);
 
-                    for (int n = 0; n < 16; n++) {
+                    for (int n = 0; n < 16; n++)
+                    {
                         sum0[n] += r0[n] * k0[n];
                     }
                 }
 
-                for (int n = 0; n < 16; n++) {
+                for (int n = 0; n < 16; n++)
+                {
                     output0_tm[n] = sum0[n];
                 }
             }
@@ -634,10 +668,12 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
 
     // BEGIN transform output
     Mat top_blob_bordered;
-    if (outw == top_blob.w && outh == top_blob.h) {
+    if (outw == top_blob.w && outh == top_blob.h)
+    {
         top_blob_bordered = top_blob;
     }
-    else {
+    else
+    {
         top_blob_bordered.create(outw, outh, outch, 4u, opt.workspace_allocator);
     }
     {
@@ -654,17 +690,20 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
         int nRowBlocks = w_tm / 4;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < outch; p++) {
+        for (int p = 0; p < outch; p++)
+        {
             Mat out_tm = top_blob_tm.channel(p);
             Mat out = top_blob_bordered.channel(p);
 
             const float bias0 = bias ? bias[p] : 0.f;
 
-            for (int j = 0; j < nColBlocks; j++) {
+            for (int j = 0; j < nColBlocks; j++)
+            {
                 float* outRow0 = out.row(j * 2);
                 float* outRow1 = out.row(j * 2 + 1);
 
-                for (int i = 0; i < nRowBlocks; i++) {
+                for (int i = 0; i < nRowBlocks; i++)
+                {
                     float* out_tile = out_tm.row(j * nRowBlocks + i);
 
                     float s0[4], s1[4], s2[4], s3[4];
@@ -672,14 +711,16 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     float d0[2], d1[2], d2[2], d3[2];
                     float o0[2], o1[2];
                     // load
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         s0[n] = out_tile[n];
                         s1[n] = out_tile[n + 4];
                         s2[n] = out_tile[n + 8];
                         s3[n] = out_tile[n + 12];
                     }
                     // w = A_T * W
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         w0[n] = s0[n] + s1[n] + s2[n];
                         w1[n] = s1[n] - s2[n] + s3[n];
                     }
@@ -695,7 +736,8 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         d3[1] = w1[3];
                     }
                     // Y = A_T * w_t
-                    for (int n = 0; n < 2; n++) {
+                    for (int n = 0; n < 2; n++)
+                    {
                         o0[n] = d0[n] + d1[n] + d2[n] + bias0;
                         o1[n] = d1[n] - d2[n] + d3[n] + bias0;
                     }
@@ -732,8 +774,10 @@ static void conv3x3s1_winograd43_transform_kernel_sse(const Mat& kernel, std::ve
     };
 
     #pragma omp parallel for
-    for (int p = 0; p < outch; p++) {
-        for (int q = 0; q < inch; q++) {
+    for (int p = 0; p < outch; p++)
+    {
+        for (int q = 0; q < inch; q++)
+        {
             const float* kernel0 = (const float*)kernel + p * inch * 9 + q * 9;
             float* kernel_tm0 = kernel_tm.channel(p).row(q);
 
@@ -744,28 +788,33 @@ static void conv3x3s1_winograd43_transform_kernel_sse(const Mat& kernel, std::ve
 
             // h
             float tmp[6][3];
-            for (int i = 0; i < 6; i++) {
+            for (int i = 0; i < 6; i++)
+            {
                 tmp[i][0] = k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
                 tmp[i][1] = k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
                 tmp[i][2] = k2[0] * ktm[i][0] + k2[1] * ktm[i][1] + k2[2] * ktm[i][2];
             }
 
             // U
-            for (int j = 0; j < 6; j++) {
+            for (int j = 0; j < 6; j++)
+            {
                 float* tmpp = &tmp[j][0];
 
-                for (int i = 0; i < 6; i++) {
+                for (int i = 0; i < 6; i++)
+                {
                     kernel_tm0[j * 6 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
                 }
             }
         }
     }
 
-    for (int r = 0; r < 9; r++) {
+    for (int r = 0; r < 9; r++)
+    {
         Mat kernel_tm_test(4 * 8, inch, outch / 8 + (outch % 8) / 4 + outch % 4);
 
         int p = 0;
-        for (; p + 7 < outch; p += 8) {
+        for (; p + 7 < outch; p += 8)
+        {
             const float* kernel0 = (const float*)kernel_tm.channel(p);
             const float* kernel1 = (const float*)kernel_tm.channel(p + 1);
             const float* kernel2 = (const float*)kernel_tm.channel(p + 2);
@@ -777,7 +826,8 @@ static void conv3x3s1_winograd43_transform_kernel_sse(const Mat& kernel, std::ve
 
             float* ktmp = kernel_tm_test.channel(p / 8);
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
                 ktmp[0] = kernel0[r * 4 + 0];
                 ktmp[1] = kernel0[r * 4 + 1];
                 ktmp[2] = kernel0[r * 4 + 2];
@@ -830,7 +880,8 @@ static void conv3x3s1_winograd43_transform_kernel_sse(const Mat& kernel, std::ve
             }
         }
 
-        for (; p + 3 < outch; p += 4) {
+        for (; p + 3 < outch; p += 4)
+        {
             const float* kernel0 = (const float*)kernel_tm.channel(p);
             const float* kernel1 = (const float*)kernel_tm.channel(p + 1);
             const float* kernel2 = (const float*)kernel_tm.channel(p + 2);
@@ -838,7 +889,8 @@ static void conv3x3s1_winograd43_transform_kernel_sse(const Mat& kernel, std::ve
 
             float* ktmp = kernel_tm_test.channel(p / 8 + (p % 8) / 4);
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
                 ktmp[0] = kernel0[r * 4 + 0];
                 ktmp[1] = kernel0[r * 4 + 1];
                 ktmp[2] = kernel0[r * 4 + 2];
@@ -867,12 +919,14 @@ static void conv3x3s1_winograd43_transform_kernel_sse(const Mat& kernel, std::ve
             }
         }
 
-        for (; p < outch; p++) {
+        for (; p < outch; p++)
+        {
             const float* kernel0 = (const float*)kernel_tm.channel(p);
 
             float* ktmp = kernel_tm_test.channel(p / 8 + (p % 8) / 4 + p % 4);
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
                 ktmp[0] = kernel0[r * 4 + 0];
                 ktmp[1] = kernel0[r * 4 + 1];
                 ktmp[2] = kernel0[r * 4 + 2];
@@ -959,10 +1013,12 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
 #endif
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             const float* img = bottom_blob_bordered.channel(q);
 
-            for (int j = 0; j < nColBlocks; j++) {
+            for (int j = 0; j < nColBlocks; j++)
+            {
                 const float* r0 = img + w * j * 4;
                 const float* r1 = r0 + w;
                 const float* r2 = r1 + w;
@@ -970,7 +1026,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                 const float* r4 = r3 + w;
                 const float* r5 = r4 + w;
 
-                for (int i = 0; i < nRowBlocks; i++) {
+                for (int i = 0; i < nRowBlocks; i++)
+                {
                     float* out_tm0 = bottom_blob_tm.channel(tiles * 0 + j * nRowBlocks + i).row(q);
                     float* out_tm1 = bottom_blob_tm.channel(tiles * 1 + j * nRowBlocks + i).row(q);
                     float* out_tm2 = bottom_blob_tm.channel(tiles * 2 + j * nRowBlocks + i).row(q);
@@ -1187,7 +1244,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     float t0[6], t1[6], t2[6], t3[6], t4[6], t5[6];
 
                     // load
-                    for (int n = 0; n < 6; n++) {
+                    for (int n = 0; n < 6; n++)
+                    {
                         d0[n] = r0[n];
                         d1[n] = r1[n];
                         d2[n] = r2[n];
@@ -1196,7 +1254,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         d5[n] = r5[n];
                     }
                     // w = B_t * d
-                    for (int n = 0; n < 6; n++) {
+                    for (int n = 0; n < 6; n++)
+                    {
                         w0[n] = 4 * d0[n] - 5 * d2[n] + d4[n];
                         w1[n] = -4 * d1[n] - 4 * d2[n] + d3[n] + d4[n];
                         w2[n] = 4 * d1[n] - 4 * d2[n] - d3[n] + d4[n];
@@ -1244,7 +1303,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         t5[5] = w5[5];
                     }
                     // d = B_t * d_t
-                    for (int n = 0; n < 6; n++) {
+                    for (int n = 0; n < 6; n++)
+                    {
                         d0[n] = 4 * t0[n] - 5 * t2[n] + t4[n];
                         d1[n] = -4 * t1[n] - 4 * t2[n] + t3[n] + t4[n];
                         d2[n] = 4 * t1[n] - 4 * t2[n] - t3[n] + t4[n];
@@ -1320,14 +1380,16 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
         top_blob_tm.create(36, tiles, outch, elemsize, opt.workspace_allocator);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int r = 0; r < 9; r++) {
+        for (int r = 0; r < 9; r++)
+        {
             int nn_outch = 0;
             int remain_outch_start = 0;
 
             nn_outch = outch >> 3;
             remain_outch_start = nn_outch << 3;
 
-            for (int pp = 0; pp < nn_outch; pp++) {
+            for (int pp = 0; pp < nn_outch; pp++)
+            {
                 int p = pp * 8;
 
                 float* output0_tm = top_blob_tm.channel(p);
@@ -1348,7 +1410,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                 output6_tm = output6_tm + r * 4;
                 output7_tm = output7_tm + r * 4;
 
-                for (int i = 0; i < tiles; i++) {
+                for (int i = 0; i < tiles; i++)
+                {
                     const float* kptr = kernel_tm_test[r].channel(p / 8);
                     const float* r0 = bottom_blob_tm.channel(tiles * r + i);
 #if __AVX__ || __SSE__
@@ -1373,7 +1436,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     __m128 _sum7 = _mm_set1_ps(0.f);
 #endif
                     int q = 0;
-                    for (; q + 3 < inch; q = q + 4) {
+                    for (; q + 3 < inch; q = q + 4)
+                    {
                         __m128 _r0 = _mm_loadu_ps(r0);
                         __m128 _r1 = _mm_loadu_ps(r0 + 4);
                         __m128 _r2 = _mm_loadu_ps(r0 + 8);
@@ -1495,7 +1559,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         r0 += 16;
                     }
 
-                    for (; q < inch; q++) {
+                    for (; q < inch; q++)
+                    {
                         __m128 _r0 = _mm_loadu_ps(r0);
                         __m128 _k0 = _mm_loadu_ps(kptr);
                         __m128 _k1 = _mm_loadu_ps(kptr + 4);
@@ -1548,8 +1613,10 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     float sum6[4] = {0};
                     float sum7[4] = {0};
 
-                    for (int q = 0; q < inch; q++) {
-                        for (int n = 0; n < 4; n++) {
+                    for (int q = 0; q < inch; q++)
+                    {
+                        for (int n = 0; n < 4; n++)
+                        {
                             sum0[n] += r0[n] * kptr[n];
                             sum1[n] += r0[n] * kptr[n + 4];
                             sum2[n] += r0[n] * kptr[n + 8];
@@ -1563,7 +1630,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         r0 += 4;
                     }
 
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         output0_tm[n] = sum0[n];
                         output1_tm[n] = sum1[n];
                         output2_tm[n] = sum2[n];
@@ -1587,7 +1655,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
 
             nn_outch = (outch - remain_outch_start) >> 2;
 
-            for (int pp = 0; pp < nn_outch; pp++) {
+            for (int pp = 0; pp < nn_outch; pp++)
+            {
                 int p = remain_outch_start + pp * 4;
 
                 float* output0_tm = top_blob_tm.channel(p);
@@ -1600,7 +1669,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                 output2_tm = output2_tm + r * 4;
                 output3_tm = output3_tm + r * 4;
 
-                for (int i = 0; i < tiles; i++) {
+                for (int i = 0; i < tiles; i++)
+                {
                     const float* kptr = kernel_tm_test[r].channel(p / 8 + (p % 8) / 4);
                     const float* r0 = bottom_blob_tm.channel(tiles * r + i);
 #if __AVX__ || __SSE__
@@ -1616,7 +1686,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     __m128 _sum2 = _mm_set1_ps(0.f);
                     __m128 _sum3 = _mm_set1_ps(0.f);
 #endif
-                    for (int q = 0; q < inch; q++) {
+                    for (int q = 0; q < inch; q++)
+                    {
                         __m128 _r0 = _mm_loadu_ps(r0);
                         __m128 _k0 = _mm_loadu_ps(kptr);
                         __m128 _k1 = _mm_loadu_ps(kptr + 4);
@@ -1647,8 +1718,10 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     float sum2[4] = {0};
                     float sum3[4] = {0};
 
-                    for (int q = 0; q < inch; q++) {
-                        for (int n = 0; n < 4; n++) {
+                    for (int q = 0; q < inch; q++)
+                    {
+                        for (int n = 0; n < 4; n++)
+                        {
                             sum0[n] += r0[n] * kptr[n];
                             sum1[n] += r0[n] * kptr[n + 4];
                             sum2[n] += r0[n] * kptr[n + 8];
@@ -1658,7 +1731,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         r0 += 4;
                     }
 
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         output0_tm[n] = sum0[n];
                         output1_tm[n] = sum1[n];
                         output2_tm[n] = sum2[n];
@@ -1674,12 +1748,14 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
 
             remain_outch_start += nn_outch << 2;
 
-            for (int p = remain_outch_start; p < outch; p++) {
+            for (int p = remain_outch_start; p < outch; p++)
+            {
                 float* output0_tm = top_blob_tm.channel(p);
 
                 output0_tm = output0_tm + r * 4;
 
-                for (int i = 0; i < tiles; i++) {
+                for (int i = 0; i < tiles; i++)
+                {
                     const float* kptr = kernel_tm_test[r].channel(p / 8 + (p % 8) / 4 + p % 4);
                     const float* r0 = bottom_blob_tm.channel(tiles * r + i);
 #if __AVX__ || __SSE__
@@ -1690,7 +1766,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     __m128 _sum0 = _mm_set1_ps(0.f);
 #endif
 
-                    for (int q = 0; q < inch; q++) {
+                    for (int q = 0; q < inch; q++)
+                    {
                         __m128 _r0 = _mm_loadu_ps(r0);
                         __m128 _k0 = _mm_loadu_ps(kptr);
 #if __AVX__
@@ -1705,15 +1782,18 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
 #else
                     float sum0[4] = {0};
 
-                    for (int q = 0; q < inch; q++) {
-                        for (int n = 0; n < 4; n++) {
+                    for (int q = 0; q < inch; q++)
+                    {
+                        for (int n = 0; n < 4; n++)
+                        {
                             sum0[n] += (int)r0[n] * kptr[n];
                         }
                         kptr += 4;
                         r0 += 4;
                     }
 
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         output0_tm[n] = sum0[n];
                     }
 #endif // __AVX__ || __SSE__
@@ -1756,10 +1836,12 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
 
     // BEGIN transform output
     Mat top_blob_bordered;
-    if (outw == top_blob.w && outh == top_blob.h) {
+    if (outw == top_blob.w && outh == top_blob.h)
+    {
         top_blob_bordered = top_blob;
     }
-    else {
+    else
+    {
         top_blob_bordered.create(outw, outh, outch, elemsize, opt.workspace_allocator);
     }
     {
@@ -1783,7 +1865,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
         int nRowBlocks = w_tm / 6;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < outch; p++) {
+        for (int p = 0; p < outch; p++)
+        {
             float* out_tile = top_blob_tm.channel(p);
             float* outRow0 = top_blob_bordered.channel(p);
             float* outRow1 = outRow0 + outw;
@@ -1792,8 +1875,10 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
 
             const float bias0 = bias ? bias[p] : 0.f;
 
-            for (int j = 0; j < nColBlocks; j++) {
-                for (int i = 0; i < nRowBlocks; i++) {
+            for (int j = 0; j < nColBlocks; j++)
+            {
+                for (int i = 0; i < nRowBlocks; i++)
+                {
                     // TODO AVX2
                     float s0[6], s1[6], s2[6], s3[6], s4[6], s5[6];
                     float w0[6], w1[6], w2[6], w3[6];
@@ -1801,7 +1886,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     float o0[4], o1[4], o2[4], o3[4];
 
                     // load
-                    for (int n = 0; n < 6; n++) {
+                    for (int n = 0; n < 6; n++)
+                    {
                         s0[n] = out_tile[n];
                         s1[n] = out_tile[n + 6];
                         s2[n] = out_tile[n + 12];
@@ -1810,7 +1896,8 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         s5[n] = out_tile[n + 30];
                     }
                     // w = A_T * W
-                    for (int n = 0; n < 6; n++) {
+                    for (int n = 0; n < 6; n++)
+                    {
                         w0[n] = s0[n] + s1[n] + s2[n] + s3[n] + s4[n];
                         w1[n] = s1[n] - s2[n] + 2 * s3[n] - 2 * s4[n];
                         w2[n] = s1[n] + s2[n] + 4 * s3[n] + 4 * s4[n];
@@ -1844,14 +1931,16 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         d5[3] = w3[5];
                     }
                     // Y = A_T * w_t
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         o0[n] = d0[n] + d1[n] + d2[n] + d3[n] + d4[n];
                         o1[n] = d1[n] - d2[n] + 2 * d3[n] - 2 * d4[n];
                         o2[n] = d1[n] + d2[n] + 4 * d3[n] + 4 * d4[n];
                         o3[n] = d1[n] - d2[n] + 8 * d3[n] - 8 * d4[n] + d5[n];
                     }
                     // save to top blob tm
-                    for (int n = 0; n < 4; n++) {
+                    for (int n = 0; n < 4; n++)
+                    {
                         outRow0[n] = o0[n] + bias0;
                         outRow1[n] = o1[n] + bias0;
                         outRow2[n] = o2[n] + bias0;
@@ -1894,14 +1983,16 @@ static void conv3x3s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
 
         out.fill(bias0);
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr = out;
 
             const float* img = bottom_blob.channel(q);
@@ -1915,10 +2006,12 @@ static void conv3x3s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
             const float* k1 = kernel0 + 3;
             const float* k2 = kernel0 + 6;
 
-            for (int i = 0; i < outh; i++) {
+            for (int i = 0; i < outh; i++)
+            {
                 int remain = outw;
 
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
                     float sum = 0;
 
                     sum += r0[0] * k0[0];

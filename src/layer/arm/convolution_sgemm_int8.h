@@ -43,13 +43,18 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
         signed char* ret = (signed char*)bottom_im2col;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < inch; p++) {
+        for (int p = 0; p < inch; p++)
+        {
             const signed char* input = bottom_blob.channel(p);
             int retID = stride * p;
-            for (int u = 0; u < kernel_h; u++) {
-                for (int v = 0; v < kernel_w; v++) {
-                    for (int i = 0; i < outh; i++) {
-                        for (int j = 0; j < outw; j++) {
+            for (int u = 0; u < kernel_h; u++)
+            {
+                for (int v = 0; v < kernel_w; v++)
+                {
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
                             int row = u + i * stride_h;
                             int col = v + j * stride_w;
                             int index = row * w + col;
@@ -94,7 +99,8 @@ static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat
     nn_outch = outch >> 2;
     remain_outch_start = nn_outch << 2;
 
-    for (int pp = 0; pp < nn_outch; pp++) {
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
         int p = pp * 4;
 
         const signed char* k0 = kernel + (p + 0) * inch * kernel_size;
@@ -105,7 +111,8 @@ static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat
         signed char* ktmp = kernel_tm.channel(p / 4);
 
         int q = 0;
-        for (; q + 1 < inch * kernel_size; q += 2) {
+        for (; q + 1 < inch * kernel_size; q += 2)
+        {
             ktmp[0] = k0[0];
             ktmp[1] = k0[1];
             ktmp[2] = k1[0];
@@ -123,7 +130,8 @@ static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat
             k3 += 2;
         }
 
-        for (; q < inch * kernel_size; q++) {
+        for (; q < inch * kernel_size; q++)
+        {
             ktmp[0] = k0[0];
             ktmp[1] = k1[0];
             ktmp[2] = k2[0];
@@ -137,20 +145,23 @@ static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat
         }
     }
 
-    for (int p = remain_outch_start; p < outch; p++) {
+    for (int p = remain_outch_start; p < outch; p++)
+    {
         const signed char* k0 = kernel + (p + 0) * inch * kernel_size;
 
         signed char* ktmp = kernel_tm.channel(p / 4 + p % 4);
 
         int q = 0;
-        for (; q + 1 < inch * kernel_size; q = q + 2) {
+        for (; q + 1 < inch * kernel_size; q = q + 2)
+        {
             ktmp[0] = k0[0];
             ktmp[1] = k0[1];
             ktmp += 2;
             k0 += 2;
         }
 
-        for (; q < inch * kernel_size; q++) {
+        for (; q < inch * kernel_size; q++)
+        {
             ktmp[0] = k0[0];
             ktmp++;
             k0++;
@@ -175,14 +186,19 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
         signed char* ret = (signed char*)bottom_im2row;
 
         // #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < outh; i++) {
+        for (int i = 0; i < outh; i++)
+        {
             int retID = out_stride * i;
-            for (int j = 0; j < outw; j++) {
-                for (int p = 0; p < inch; p++) {
+            for (int j = 0; j < outw; j++)
+            {
+                for (int p = 0; p < inch; p++)
+                {
                     const signed char* input = bottom_blob.channel(p);
 
-                    for (int u = 0; u < kernel_h; u++) {
-                        for (int v = 0; v < kernel_w; v++) {
+                    for (int u = 0; u < kernel_h; u++)
+                    {
+                        for (int v = 0; v < kernel_w; v++)
+                        {
                             int row = u + i * stride_h;
                             int col = v + j * stride_w;
                             int index = row * w + col;
@@ -209,7 +225,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
         int remain_size_start = nn_size << 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ii = 0; ii < nn_size; ii++) {
+        for (int ii = 0; ii < nn_size; ii++)
+        {
             int i = ii * 4;
 
             const signed char* img0 = bottom_im2row.row<signed char>(i);
@@ -220,7 +237,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
             signed char* tmpptr = bottom_tm.channel(i / 4);
 
             int q = 0;
-            for (; q + 1 < inch * kernel_size; q = q + 2) {
+            for (; q + 1 < inch * kernel_size; q = q + 2)
+            {
                 tmpptr[0] = img0[0];
                 tmpptr[1] = img0[1];
                 tmpptr[2] = img1[0];
@@ -237,7 +255,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                 img3 += 2;
             }
 
-            for (; q < inch * kernel_size; q++) {
+            for (; q < inch * kernel_size; q++)
+            {
                 tmpptr[0] = img0[0];
                 tmpptr[1] = img1[0];
                 tmpptr[2] = img2[0];
@@ -252,13 +271,15 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
         }
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = remain_size_start; i < out_size; i++) {
+        for (int i = remain_size_start; i < out_size; i++)
+        {
             const signed char* img0 = bottom_im2row.row<signed char>(i);
 
             signed char* tmpptr = bottom_tm.channel(i / 4 + i % 4);
 
             int q = 0;
-            for (; q + 1 < inch * kernel_size; q = q + 2) {
+            for (; q + 1 < inch * kernel_size; q = q + 2)
+            {
                 tmpptr[0] = img0[0];
                 tmpptr[1] = img0[1];
 
@@ -266,7 +287,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                 img0 += 2;
             }
 
-            for (; q < inch * kernel_size; q++) {
+            for (; q < inch * kernel_size; q++)
+            {
                 tmpptr[0] = img0[0];
 
                 tmpptr += 1;
@@ -289,7 +311,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
         remain_outch_start = nn_outch << 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int pp = 0; pp < nn_outch; pp++) {
+        for (int pp = 0; pp < nn_outch; pp++)
+        {
             int i = pp * 4;
 
             int* output0 = top_blob.channel(i);
@@ -298,7 +321,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
             int* output3 = top_blob.channel(i + 3);
 
             int j = 0;
-            for (; j + 3 < N; j = j + 4) {
+            for (; j + 3 < N; j = j + 4)
+            {
                 const signed char* vb = bottom_tm.channel(j / 4);
                 const signed char* va = kernel_tm.channel(i / 4);
 
@@ -453,8 +477,10 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
 
                 int k = 0;
 
-                for (; k + 1 < K; k = k + 2) {
-                    for (int n = 0; n < 4; n++) {
+                for (; k + 1 < K; k = k + 2)
+                {
+                    for (int n = 0; n < 4; n++)
+                    {
                         sum0[n] += (int)va[0] * vb[2 * n]; // k0
                         sum0[n] += (int)va[1] * vb[2 * n + 1];
 
@@ -472,8 +498,10 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                     vb += 8;
                 }
 
-                for (; k < K; k++) {
-                    for (int n = 0; n < 4; n++) {
+                for (; k < K; k++)
+                {
+                    for (int n = 0; n < 4; n++)
+                    {
                         sum0[n] += (int)va[0] * vb[n];
                         sum1[n] += (int)va[1] * vb[n];
                         sum2[n] += (int)va[2] * vb[n];
@@ -484,7 +512,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                     vb += 4;
                 }
 
-                for (int n = 0; n < 4; n++) {
+                for (int n = 0; n < 4; n++)
+                {
                     output0[n] = sum0[n];
                     output1[n] = sum1[n];
                     output2[n] = sum2[n];
@@ -497,7 +526,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                 output3 += 4;
             }
 
-            for (; j < N; j++) {
+            for (; j < N; j++)
+            {
                 const signed char* vb = bottom_tm.channel(j / 4 + j % 4);
                 const signed char* va = kernel_tm.channel(i / 4);
 
@@ -568,7 +598,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
 
                 int k = 0;
 
-                for (; k + 1 < K; k = k + 2) {
+                for (; k + 1 < K; k = k + 2)
+                {
                     sum0 += (int)va[0] * vb[0];
                     sum0 += (int)va[1] * vb[1];
 
@@ -585,7 +616,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                     vb += 2;
                 }
 
-                for (; k < K; k++) {
+                for (; k < K; k++)
+                {
                     sum0 += (int)va[0] * vb[0];
                     sum1 += (int)va[1] * vb[0];
                     sum2 += (int)va[2] * vb[0];
@@ -608,11 +640,13 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
         }
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = remain_outch_start; i < outch; i++) {
+        for (int i = remain_outch_start; i < outch; i++)
+        {
             int* output = top_blob.channel(i);
 
             int j = 0;
-            for (; j + 3 < N; j = j + 4) {
+            for (; j + 3 < N; j = j + 4)
+            {
                 const signed char* vb = bottom_tm.channel(j / 4);
                 const signed char* va = kernel_tm.channel(i / 4 + i % 4);
 
@@ -620,7 +654,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                 int32x4_t _sum = vdupq_n_s32(0);
 
                 int k = 0;
-                for (; k + 1 < K; k = k + 2) {
+                for (; k + 1 < K; k = k + 2)
+                {
                     int8x8_t _r0 = vld1_s8(vb); // i0[0-1], i1[0-1], i2[0-1], i3[0-1]
                     int8x8_t _k = vld1_s8(va);  // k0[0-1]
 
@@ -638,7 +673,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                     vb += 8;
                 }
 
-                for (; k < K; k++) {
+                for (; k < K; k++)
+                {
                     int8x8_t _r0 = vld1_s8(vb); // i0[0], i1[0], i2[0], i3[0]
                     int8x8_t _k = vld1_s8(va);  // k[0][0]
 
@@ -655,8 +691,10 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
 #else
                 int sum[4] = {0};
                 int k = 0;
-                for (; k + 1 < K; k = k + 2) {
-                    for (int n = 0; n < 4; n++) {
+                for (; k + 1 < K; k = k + 2)
+                {
+                    for (int n = 0; n < 4; n++)
+                    {
                         sum[n] += (int)va[0] * vb[2 * n];
                         sum[n] += (int)va[1] * vb[2 * n + 1];
                     }
@@ -664,28 +702,33 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                     vb += 8;
                 }
 
-                for (; k < K; k++) {
-                    for (int n = 0; n < 4; n++) {
+                for (; k < K; k++)
+                {
+                    for (int n = 0; n < 4; n++)
+                    {
                         sum[n] += (int)va[0] * vb[n];
                     }
                     va += 1;
                     vb += 4;
                 }
 
-                for (int n = 0; n < 4; n++) {
+                for (int n = 0; n < 4; n++)
+                {
                     output[n] = sum[n];
                 }
 #endif
                 output += 4;
             }
 
-            for (; j < N; j++) {
+            for (; j < N; j++)
+            {
                 int sum = 0;
 
                 const signed char* vb = bottom_tm.channel(j / 4 + j % 4);
                 const signed char* va = kernel_tm.channel(i / 4 + i % 4);
 
-                for (int k = 0; k < K; k++) {
+                for (int k = 0; k < K; k++)
+                {
                     sum += (int)va[0] * vb[0];
 
                     va += 1;
@@ -746,7 +789,8 @@ static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat
     nn_outch = outch >> 3;
     remain_outch_start = nn_outch << 3;
 
-    for (int pp = 0; pp < nn_outch; pp++) {
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
         int p = pp * 8;
 
         const signed char* k0 = kernel + (p + 0) * inch * kernel_size;
@@ -760,7 +804,8 @@ static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat
 
         signed char* ktmp = kernel_tm.channel(p / 8);
 
-        for (int q = 0; q < inch * kernel_size; q++) {
+        for (int q = 0; q < inch * kernel_size; q++)
+        {
             ktmp[0] = k0[0];
             ktmp[1] = k1[0];
             ktmp[2] = k2[0];
@@ -785,7 +830,8 @@ static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat
 
     nn_outch = (outch - remain_outch_start) >> 2;
 
-    for (int pp = 0; pp < nn_outch; pp++) {
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
         int p = remain_outch_start + pp * 4;
 
         const signed char* k0 = kernel + (p + 0) * inch * kernel_size;
@@ -799,7 +845,8 @@ static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat
         signed char* ktmp = kernel_tm.channel(p / 4);
 #endif // __ARM_NEON && __aarch64__
 
-        for (int q = 0; q < inch * kernel_size; q++) {
+        for (int q = 0; q < inch * kernel_size; q++)
+        {
             ktmp[0] = k0[0];
             ktmp[1] = k1[0];
             ktmp[2] = k2[0];
@@ -815,7 +862,8 @@ static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat
 
     remain_outch_start += nn_outch << 2;
 
-    for (int p = remain_outch_start; p < outch; p++) {
+    for (int p = remain_outch_start; p < outch; p++)
+    {
         const signed char* k0 = kernel + (p + 0) * inch * kernel_size;
 
 #if __ARM_NEON && __aarch64__
@@ -824,7 +872,8 @@ static void conv_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kernel, Mat
         signed char* ktmp = kernel_tm.channel(p / 4 + p % 4);
 #endif // __ARM_NEON && __aarch64__
 
-        for (int q = 0; q < inch * kernel_size; q++) {
+        for (int q = 0; q < inch * kernel_size; q++)
+        {
             ktmp[0] = k0[0];
             ktmp++;
             k0++;
@@ -849,13 +898,18 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
         signed char* ret = (signed char*)bottom_im2col;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < inch; p++) {
+        for (int p = 0; p < inch; p++)
+        {
             const signed char* input = bottom_blob.channel(p);
             int retID = stride * p;
-            for (int u = 0; u < kernel_h; u++) {
-                for (int v = 0; v < kernel_w; v++) {
-                    for (int i = 0; i < outh; i++) {
-                        for (int j = 0; j < outw; j++) {
+            for (int u = 0; u < kernel_h; u++)
+            {
+                for (int v = 0; v < kernel_w; v++)
+                {
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
                             int row = u + i * stride_h;
                             int col = v + j * stride_w;
                             int index = row * w + col;
@@ -878,7 +932,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
         int remain_size_start = nn_size << 3;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ii = 0; ii < nn_size; ii++) {
+        for (int ii = 0; ii < nn_size; ii++)
+        {
             int i = ii * 8;
 
             const signed char* img0 = bottom_im2col.channel(0);
@@ -886,7 +941,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
 
             signed char* tmpptr = bottom_tm.channel(i / 8);
 
-            for (int q = 0; q < inch * kernel_size; q++) {
+            for (int q = 0; q < inch * kernel_size; q++)
+            {
 #if __ARM_NEON
 #if __aarch64__
                 asm volatile(
@@ -925,13 +981,15 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
         }
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = remain_size_start; i < out_size; i++) {
+        for (int i = remain_size_start; i < out_size; i++)
+        {
             const signed char* img0 = bottom_im2col.channel(0);
             img0 += i;
 
             signed char* tmpptr = bottom_tm.channel(i / 8 + i % 8);
 
-            for (int q = 0; q < inch * kernel_size; q++) {
+            for (int q = 0; q < inch * kernel_size; q++)
+            {
                 tmpptr[0] = img0[0];
 
                 tmpptr += 1;
@@ -954,7 +1012,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
         remain_outch_start = nn_outch << 3;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int pp = 0; pp < nn_outch; pp++) {
+        for (int pp = 0; pp < nn_outch; pp++)
+        {
             int i = pp * 8;
 
             int* output0 = top_blob.channel(i);
@@ -967,7 +1026,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
             int* output7 = top_blob.channel(i + 7);
 
             int j = 0;
-            for (; j + 7 < N; j = j + 8) {
+            for (; j + 7 < N; j = j + 8)
+            {
                 signed char* vb = bottom_tm.channel(j / 8);
                 const signed char* va = kernel_tm.channel(i / 8);
 #if __aarch64__
@@ -1166,8 +1226,10 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                 int sum7[8] = {0};
 
                 int k = 0;
-                for (; k + 7 < L; k = k + 8) {
-                    for (int n = 0; n < 8; n++) {
+                for (; k + 7 < L; k = k + 8)
+                {
+                    for (int n = 0; n < 8; n++)
+                    {
                         sum0[n] += (int)va[0] * vb[n];
                         sum1[n] += (int)va[1] * vb[n];
                         sum2[n] += (int)va[2] * vb[n];
@@ -1253,8 +1315,10 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                     vb += 64;
                 }
 
-                for (; k < L; k++) {
-                    for (int n = 0; n < 8; n++) {
+                for (; k < L; k++)
+                {
+                    for (int n = 0; n < 8; n++)
+                    {
                         sum0[n] += (int)va[0] * vb[n];
                         sum1[n] += (int)va[1] * vb[n];
                         sum2[n] += (int)va[2] * vb[n];
@@ -1269,7 +1333,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                     vb += 8;
                 }
 
-                for (int n = 0; n < 8; n++) {
+                for (int n = 0; n < 8; n++)
+                {
                     output0[n] = sum0[n];
                     output1[n] = sum1[n];
                     output2[n] = sum2[n];
@@ -1290,7 +1355,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                 output7 += 8;
             }
 
-            for (; j < N; j++) {
+            for (; j < N; j++)
+            {
                 signed char* vb = bottom_tm.channel(j / 8 + j % 8);
                 const signed char* va = kernel_tm.channel(i / 8);
 
@@ -1416,7 +1482,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                 int sum6 = 0;
                 int sum7 = 0;
 
-                for (int k = 0; k < L; k++) {
+                for (int k = 0; k < L; k++)
+                {
                     sum0 += (int)va[0] * vb[0];
                     sum1 += (int)va[1] * vb[0];
                     sum2 += (int)va[2] * vb[0];
@@ -1454,7 +1521,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
         nn_outch = (outch - remain_outch_start) >> 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int pp = 0; pp < nn_outch; pp++) {
+        for (int pp = 0; pp < nn_outch; pp++)
+        {
             int i = remain_outch_start + pp * 4;
 
             int* output0 = top_blob.channel(i);
@@ -1463,7 +1531,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
             int* output3 = top_blob.channel(i + 3);
 
             int j = 0;
-            for (; j + 7 < N; j = j + 8) {
+            for (; j + 7 < N; j = j + 8)
+            {
                 signed char* vb = bottom_tm.channel(j / 8);
 #if __ARM_NEON && __aarch64__
                 const signed char* va = kernel_tm.channel(i / 8 + (i % 8) / 4);
@@ -1765,8 +1834,10 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                 int sum3[8] = {0};
 
                 int k = 0;
-                for (; k + 7 < L; k = k + 8) {
-                    for (int n = 0; n < 8; n++) {
+                for (; k + 7 < L; k = k + 8)
+                {
+                    for (int n = 0; n < 8; n++)
+                    {
                         sum0[n] += (int)va[0] * vb[n];
                         sum1[n] += (int)va[1] * vb[n];
                         sum2[n] += (int)va[2] * vb[n];
@@ -1820,8 +1891,10 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                     vb += 64;
                 }
 
-                for (; k < L; k++) {
-                    for (int n = 0; n < 8; n++) {
+                for (; k < L; k++)
+                {
+                    for (int n = 0; n < 8; n++)
+                    {
                         sum0[n] += (int)va[0] * vb[n];
                         sum1[n] += (int)va[1] * vb[n];
                         sum2[n] += (int)va[2] * vb[n];
@@ -1832,7 +1905,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                     vb += 8;
                 }
 
-                for (int n = 0; n < 8; n++) {
+                for (int n = 0; n < 8; n++)
+                {
                     output0[n] = sum0[n];
                     output1[n] = sum1[n];
                     output2[n] = sum2[n];
@@ -1845,7 +1919,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                 output3 += 8;
             }
 
-            for (; j < N; j++) {
+            for (; j < N; j++)
+            {
                 signed char* vb = bottom_tm.channel(j / 8 + j % 8);
 #if __ARM_NEON && __aarch64__
                 const signed char* va = kernel_tm.channel(i / 8 + (i % 8) / 4);
@@ -2034,7 +2109,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                 int sum2 = 0;
                 int sum3 = 0;
 
-                for (int k = 0; k < L; k++) {
+                for (int k = 0; k < L; k++)
+                {
                     sum0 += (int)va[0] * vb[0];
                     sum1 += (int)va[1] * vb[0];
                     sum2 += (int)va[2] * vb[0];
@@ -2059,11 +2135,13 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
         remain_outch_start += nn_outch << 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = remain_outch_start; i < outch; i++) {
+        for (int i = remain_outch_start; i < outch; i++)
+        {
             int* output = top_blob.channel(i);
 
             int j = 0;
-            for (; j + 7 < N; j = j + 8) {
+            for (; j + 7 < N; j = j + 8)
+            {
                 signed char* vb = bottom_tm.channel(j / 8);
 #if __ARM_NEON && __aarch64__
                 const signed char* va = kernel_tm.channel(i / 8 + (i % 8) / 4 + i % 4);
@@ -2237,8 +2315,10 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                 int sum[8] = {0};
 
                 int k = 0;
-                for (; k + 7 < L; k = k + 8) {
-                    for (int n = 0; n < 8; n++) {
+                for (; k + 7 < L; k = k + 8)
+                {
+                    for (int n = 0; n < 8; n++)
+                    {
                         sum[n] += (int)va[0] * vb[n];
                         sum[n] += (int)va[1] * vb[n + 8];
                         sum[n] += (int)va[2] * vb[n + 16];
@@ -2253,8 +2333,10 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                     vb += 64;
                 }
 
-                for (; k < L; k++) {
-                    for (int n = 0; n < 8; n++) {
+                for (; k < L; k++)
+                {
+                    for (int n = 0; n < 8; n++)
+                    {
                         sum[n] += (int)va[0] * vb[n];
                     }
 
@@ -2262,14 +2344,16 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                     vb += 8;
                 }
 
-                for (int n = 0; n < 8; n++) {
+                for (int n = 0; n < 8; n++)
+                {
                     output[n] = sum[n];
                 }
 #endif // __ARM_NEON
                 output += 8;
             }
 
-            for (; j < N; j++) {
+            for (; j < N; j++)
+            {
                 int sum = 0;
 
                 signed char* vb = bottom_tm.channel(j / 8 + j % 8);
@@ -2279,7 +2363,8 @@ static void conv_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                 const signed char* va = kernel_tm.channel(i / 4 + i % 4);
 #endif // __ARM_NEON && __aarch64__
 
-                for (int k = 0; k < L; k++) {
+                for (int k = 0; k < L; k++)
+                {
                     sum += (int)va[0] * vb[0];
 
                     va += 1;

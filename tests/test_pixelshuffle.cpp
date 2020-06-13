@@ -28,7 +28,8 @@ static int test_pixelshuffle(const ncnn::Mat& a, int upscale_factor)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::PixelShuffle>("PixelShuffle", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_pixelshuffle failed a.dims=%d a=(%d %d %d) upscale_factor=%d\n", a.dims, a.w, a.h, a.c, upscale_factor);
     }
 

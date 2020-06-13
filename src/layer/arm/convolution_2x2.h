@@ -25,7 +25,8 @@ static void conv2x2s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
@@ -34,7 +35,8 @@ static void conv2x2s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
         int q = 0;
 
-        for (; q + 1 < inch; q += 2) {
+        for (; q + 1 < inch; q += 2)
+        {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
@@ -54,7 +56,8 @@ static void conv2x2s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             float32x4_t _k1 = vld1q_f32(kernel1);
 #endif // __ARM_NEON
 
-            for (int i = 0; i < outh; i++) {
+            for (int i = 0; i < outh; i++)
+            {
 #if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw & 3;
@@ -64,7 +67,8 @@ static void conv2x2s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
 #if __ARM_NEON
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "prfm       pldl1keep, [%1, #128]          \n"
                         "ld1        {v0.4s}, [%1], #16             \n"
@@ -141,7 +145,8 @@ static void conv2x2s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 }
 #else
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "pld        [%1, #128]          \n"
                         "vld1.f32   {d0-d1}, [%1]!      \n"
@@ -223,7 +228,8 @@ static void conv2x2s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 #endif // __aarch64__
 #endif // __ARM_NEON
 
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
 #if __ARM_NEON
                     float32x2_t _r00 = vld1_f32(r00);
                     float32x2_t _r01 = vld1_f32(r01);
@@ -268,7 +274,8 @@ static void conv2x2s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             }
         }
 
-        for (; q < inch; q++) {
+        for (; q < inch; q++)
+        {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
@@ -285,7 +292,8 @@ static void conv2x2s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             float32x4_t _k3 = vdupq_n_f32(kernel0[3]);
 #endif // __ARM_NEON
 
-            for (int i = 0; i < outh; i++) {
+            for (int i = 0; i < outh; i++)
+            {
 #if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw & 3;
@@ -295,7 +303,8 @@ static void conv2x2s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
 #if __ARM_NEON
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "prfm       pldl1keep, [%1, #128]          \n"
                         "ld1        {v0.4s}, [%1], #16             \n"
@@ -345,7 +354,8 @@ static void conv2x2s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9", "v10", "v11");
                 }
 #else
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "pld        [%1, #128]          \n"
                         "vld1.f32   {d0-d1}, [%1]!      \n"
@@ -401,7 +411,8 @@ static void conv2x2s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 float32x4_t _k0123 = vld1q_f32(kernel0);
 #endif
 
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
 #if __ARM_NEON
                     float32x2_t _r0 = vld1_f32(r0);
                     float32x2_t _r1 = vld1_f32(r1);

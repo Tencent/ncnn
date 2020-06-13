@@ -66,7 +66,8 @@ void ParamDict::set(int id, const Mat& v)
 
 void ParamDict::clear()
 {
-    for (int i = 0; i < NCNN_MAX_PARAM_COUNT; i++) {
+    for (int i = 0; i < NCNN_MAX_PARAM_COUNT; i++)
+    {
         params[i].type = 0;
         params[i].v = Mat();
     }
@@ -76,7 +77,8 @@ void ParamDict::clear()
 static bool vstr_is_float(const char vstr[16])
 {
     // look ahead for determine isfloat
-    for (int j = 0; j < 16; j++) {
+    for (int j = 0; j < 16; j++)
+    {
         if (vstr[j] == '\0')
             break;
 
@@ -95,13 +97,15 @@ static float vstr_to_float(const char vstr[16])
 
     // sign
     bool sign = *p != '-';
-    if (*p == '+' || *p == '-') {
+    if (*p == '+' || *p == '-')
+    {
         p++;
     }
 
     // digits before decimal point or exponent
     unsigned int v1 = 0;
-    while (isdigit(*p)) {
+    while (isdigit(*p))
+    {
         v1 = v1 * 10 + (*p - '0');
         p++;
     }
@@ -109,13 +113,15 @@ static float vstr_to_float(const char vstr[16])
     v = (double)v1;
 
     // digits after decimal point
-    if (*p == '.') {
+    if (*p == '.')
+    {
         p++;
 
         unsigned int pow10 = 1;
         unsigned int v2 = 0;
 
-        while (isdigit(*p)) {
+        while (isdigit(*p))
+        {
             v2 = v2 * 10 + (*p - '0');
             pow10 *= 10;
             p++;
@@ -125,28 +131,33 @@ static float vstr_to_float(const char vstr[16])
     }
 
     // exponent
-    if (*p == 'e' || *p == 'E') {
+    if (*p == 'e' || *p == 'E')
+    {
         p++;
 
         // sign of exponent
         bool fact = *p != '-';
-        if (*p == '+' || *p == '-') {
+        if (*p == '+' || *p == '-')
+        {
             p++;
         }
 
         // digits of exponent
         unsigned int expon = 0;
-        while (isdigit(*p)) {
+        while (isdigit(*p))
+        {
             expon = expon * 10 + (*p - '0');
             p++;
         }
 
         double scale = 1.0;
-        while (expon >= 8) {
+        while (expon >= 8)
+        {
             scale *= 1e8;
             expon -= 8;
         }
-        while (expon > 0) {
+        while (expon > 0)
+        {
             scale *= 10.0;
             expon -= 1;
         }
@@ -166,40 +177,49 @@ int ParamDict::load_param(const DataReader& dr)
 
     // parse each key=value pair
     int id = 0;
-    while (dr.scan("%d=", &id) == 1) {
+    while (dr.scan("%d=", &id) == 1)
+    {
         bool is_array = id <= -23300;
-        if (is_array) {
+        if (is_array)
+        {
             id = -id - 23300;
         }
 
-        if (is_array) {
+        if (is_array)
+        {
             int len = 0;
             int nscan = dr.scan("%d", &len);
-            if (nscan != 1) {
+            if (nscan != 1)
+            {
                 NCNN_LOGE("ParamDict read array length failed");
                 return -1;
             }
 
             params[id].v.create(len);
 
-            for (int j = 0; j < len; j++) {
+            for (int j = 0; j < len; j++)
+            {
                 char vstr[16];
                 nscan = dr.scan(",%15[^,\n ]", vstr);
-                if (nscan != 1) {
+                if (nscan != 1)
+                {
                     NCNN_LOGE("ParamDict read array element failed");
                     return -1;
                 }
 
                 bool is_float = vstr_is_float(vstr);
 
-                if (is_float) {
+                if (is_float)
+                {
                     float* ptr = params[id].v;
                     ptr[j] = vstr_to_float(vstr);
                 }
-                else {
+                else
+                {
                     int* ptr = params[id].v;
                     nscan = sscanf(vstr, "%d", &ptr[j]);
-                    if (nscan != 1) {
+                    if (nscan != 1)
+                    {
                         NCNN_LOGE("ParamDict parse array element failed");
                         return -1;
                     }
@@ -208,22 +228,27 @@ int ParamDict::load_param(const DataReader& dr)
                 params[id].type = is_float ? 6 : 5;
             }
         }
-        else {
+        else
+        {
             char vstr[16];
             int nscan = dr.scan("%15s", vstr);
-            if (nscan != 1) {
+            if (nscan != 1)
+            {
                 NCNN_LOGE("ParamDict read value failed");
                 return -1;
             }
 
             bool is_float = vstr_is_float(vstr);
 
-            if (is_float) {
+            if (is_float)
+            {
                 params[id].f = vstr_to_float(vstr);
             }
-            else {
+            else
+            {
                 nscan = sscanf(vstr, "%d", &params[id].i);
-                if (nscan != 1) {
+                if (nscan != 1)
+                {
                     NCNN_LOGE("ParamDict parse value failed");
                     return -1;
                 }
@@ -257,21 +282,26 @@ int ParamDict::load_param_bin(const DataReader& dr)
     int id = 0;
     size_t nread;
     nread = dr.read(&id, sizeof(int));
-    if (nread != sizeof(int)) {
+    if (nread != sizeof(int))
+    {
         NCNN_LOGE("ParamDict read id failed %zd", nread);
         return -1;
     }
 
-    while (id != -233) {
+    while (id != -233)
+    {
         bool is_array = id <= -23300;
-        if (is_array) {
+        if (is_array)
+        {
             id = -id - 23300;
         }
 
-        if (is_array) {
+        if (is_array)
+        {
             int len = 0;
             nread = dr.read(&len, sizeof(int));
-            if (nread != sizeof(int)) {
+            if (nread != sizeof(int))
+            {
                 NCNN_LOGE("ParamDict read array length failed %zd", nread);
                 return -1;
             }
@@ -280,16 +310,19 @@ int ParamDict::load_param_bin(const DataReader& dr)
 
             float* ptr = params[id].v;
             nread = dr.read(ptr, sizeof(float) * len);
-            if (nread != sizeof(float) * len) {
+            if (nread != sizeof(float) * len)
+            {
                 NCNN_LOGE("ParamDict read array element failed %zd", nread);
                 return -1;
             }
 
             params[id].type = 4;
         }
-        else {
+        else
+        {
             nread = dr.read(&params[id].f, sizeof(float));
-            if (nread != sizeof(float)) {
+            if (nread != sizeof(float))
+            {
                 NCNN_LOGE("ParamDict read value failed %zd", nread);
                 return -1;
             }
@@ -298,7 +331,8 @@ int ParamDict::load_param_bin(const DataReader& dr)
         }
 
         nread = dr.read(&id, sizeof(int));
-        if (nread != sizeof(int)) {
+        if (nread != sizeof(int))
+        {
             NCNN_LOGE("ParamDict read EOP failed %zd", nread);
             return -1;
         }

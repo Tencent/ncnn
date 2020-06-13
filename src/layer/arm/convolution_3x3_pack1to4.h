@@ -29,7 +29,8 @@ static void conv3x3s1_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
     remain_outch_start = nn_outch << 1;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_outch; pp++) {
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
         int p = pp * 2;
 
         Mat out0 = top_blob.channel(p);
@@ -43,7 +44,8 @@ static void conv3x3s1_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
         const float* k0 = kernel.channel(p);
         const float* k1 = kernel.channel(p + 1);
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr0 = out0;
             float* outptr1 = out1;
 
@@ -75,10 +77,12 @@ static void conv3x3s1_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int j = 0;
 
-                for (; j + 3 < outw; j += 4) {
+                for (; j + 3 < outw; j += 4)
+                {
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0] \n"
@@ -215,7 +219,8 @@ static void conv3x3s1_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
                         "w"(_k22_1)  // %27
                         : "memory", "v0", "v1", "v2", "v3", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
-                for (; j + 1 < outw; j += 2) {
+                for (; j + 1 < outw; j += 2)
+                {
                     asm volatile(
                         "prfm   pldl1keep, [%0, #256]       \n"
                         "ld1    {v24.4s, v25.4s}, [%0]      \n"
@@ -315,7 +320,8 @@ static void conv3x3s1_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
                         "w"(_k22_1)  // %27
                         : "memory", "v0", "v1", "v24", "v25", "v26", "v27");
                 }
-                for (; j < outw; j++) {
+                for (; j < outw; j++)
+                {
                     float32x4_t _sum00 = vld1q_f32(outptr0);
                     float32x4_t _sum10 = vld1q_f32(outptr1);
 
@@ -365,7 +371,8 @@ static void conv3x3s1_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
 #endif // __ARM_NEON && __aarch64__
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = remain_outch_start; p < outch; p++) {
+    for (int p = remain_outch_start; p < outch; p++)
+    {
         Mat out0 = top_blob.channel(p);
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + p * 4) : vdupq_n_f32(0.f);
@@ -373,7 +380,8 @@ static void conv3x3s1_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
 
         const float* k0 = kernel.channel(p);
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr0 = out0.row(0);
 
             const Mat img0 = bottom_blob.channel(q);
@@ -394,11 +402,13 @@ static void conv3x3s1_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int j = 0;
 
 #if __aarch64__
-                for (; j + 7 < outw; j += 8) {
+                for (; j + 7 < outw; j += 8)
+                {
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
@@ -527,7 +537,8 @@ static void conv3x3s1_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
                         : "memory", "v0", "v1", "v2", "v4", "v5", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
 #endif // __aarch64__
-                for (; j + 3 < outw; j += 4) {
+                for (; j + 3 < outw; j += 4)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
@@ -700,7 +711,8 @@ static void conv3x3s1_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
                         : "memory", "q0", "q1", "q2", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j + 1 < outw; j += 2) {
+                for (; j + 1 < outw; j += 2)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #256]       \n"
@@ -835,7 +847,8 @@ static void conv3x3s1_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
                         : "memory", "q0", "q1", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j < outw; j++) {
+                for (; j < outw; j++)
+                {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
 
                     float32x4_t _r0 = vld1q_f32(r0);
@@ -902,7 +915,8 @@ static void conv3x3s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
     remain_outch_start = nn_outch << 1;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_outch; pp++) {
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
         int p = pp * 2;
 
         Mat out0 = top_blob.channel(p);
@@ -916,7 +930,8 @@ static void conv3x3s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
         const float* k0 = kernel.channel(p);
         const float* k1 = kernel.channel(p + 1);
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr0 = out0;
             float* outptr1 = out1;
 
@@ -948,11 +963,13 @@ static void conv3x3s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int nn = outw >> 2;
                 int remain = outw & 3;
 
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "0:                                 \n"
 
@@ -1100,7 +1117,8 @@ static void conv3x3s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13");
                 }
 
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
                     float32x4_t _sum1 = vld1q_f32(outptr1);
 
@@ -1150,7 +1168,8 @@ static void conv3x3s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
 #endif // __ARM_NEON && __aarch64__
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = remain_outch_start; p < outch; p++) {
+    for (int p = remain_outch_start; p < outch; p++)
+    {
         Mat out0 = top_blob.channel(p);
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + p * 4) : vdupq_n_f32(0.f);
@@ -1158,7 +1177,8 @@ static void conv3x3s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
 
         const float* k0 = kernel.channel(p);
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr0 = out0;
 
             const Mat img0 = bottom_blob.channel(q);
@@ -1179,12 +1199,14 @@ static void conv3x3s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int nn = outw >> 2;
                 int remain = outw & 3;
 
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "0:                                 \n"
 
@@ -1279,7 +1301,8 @@ static void conv3x3s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9");
                 }
 #else  // __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "0:                             \n"
 
@@ -1377,7 +1400,8 @@ static void conv3x3s2_pack1to4_neon(const Mat& bottom_blob, Mat& top_blob, const
                 }
 #endif // __aarch64__
 
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
 
                     float32x4_t _r0 = vld1q_f32(r0);

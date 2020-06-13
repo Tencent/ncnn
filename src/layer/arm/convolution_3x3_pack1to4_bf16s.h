@@ -35,7 +35,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
     remain_outch_start = nn_outch << 1;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_outch; pp++) {
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
         int p = pp * 2;
 
         Mat out0 = top_blob_fp32.channel(get_omp_thread_num());
@@ -45,10 +46,12 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
         {
             float* ptr = (float*)out0;
 
-            for (int i = 0; i < outh; i++) {
+            for (int i = 0; i < outh; i++)
+            {
                 int j = 0;
 
-                for (; j + 3 < outw; j += 4) {
+                for (; j + 3 < outw; j += 4)
+                {
                     vst1q_f32(ptr, _bias0);
                     vst1q_f32(ptr + 4, _bias0);
                     vst1q_f32(ptr + 8, _bias0);
@@ -59,14 +62,16 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                     vst1q_f32(ptr + 28, _bias1);
                     ptr += 32;
                 }
-                for (; j + 1 < outw; j += 2) {
+                for (; j + 1 < outw; j += 2)
+                {
                     vst1q_f32(ptr, _bias0);
                     vst1q_f32(ptr + 4, _bias0);
                     vst1q_f32(ptr + 8, _bias1);
                     vst1q_f32(ptr + 12, _bias1);
                     ptr += 16;
                 }
-                for (; j < outw; j++) {
+                for (; j < outw; j++)
+                {
                     vst1q_f32(ptr, _bias0);
                     vst1q_f32(ptr + 4, _bias1);
                     ptr += 8;
@@ -78,7 +83,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
         const unsigned short* k1 = kernel.channel(p + 1);
 
         int q = 0;
-        for (; q < inch - 1; q++) {
+        for (; q < inch - 1; q++)
+        {
             float* outptr0 = out0;
 
             const Mat img0 = bottom_blob.channel(q);
@@ -109,10 +115,12 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int j = 0;
 
-                for (; j + 3 < outw; j += 4) {
+                for (; j + 3 < outw; j += 4)
+                {
                     asm volatile(
                         "prfm   pldl1keep, [%1, #64]        \n"
                         "ld1    {v0.4h}, [%1], #8           \n"
@@ -255,7 +263,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "w"(_k22_1)  // %25
                         : "memory", "v0", "v1", "v2", "v3", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
-                for (; j + 1 < outw; j += 2) {
+                for (; j + 1 < outw; j += 2)
+                {
                     asm volatile(
                         "prfm   pldl1keep, [%1, #64]        \n"
                         "ld1    {v0.4h}, [%1]               \n"
@@ -356,7 +365,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "w"(_k22_1)  // %25
                         : "memory", "v0", "v1", "v24", "v25", "v26", "v27");
                 }
-                for (; j < outw; j++) {
+                for (; j < outw; j++)
+                {
                     float32x4_t _sum00 = vld1q_f32(outptr0);
                     float32x4_t _sum10 = vld1q_f32(outptr0 + 4);
 
@@ -401,7 +411,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             k0 += 9 * 4;
             k1 += 9 * 4;
         }
-        for (; q < inch; q++) {
+        for (; q < inch; q++)
+        {
             unsigned short* outptr0_bf16 = top_blob.channel(p);
             unsigned short* outptr1_bf16 = top_blob.channel(p + 1);
 
@@ -435,10 +446,12 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int j = 0;
 
-                for (; j + 3 < outw; j += 4) {
+                for (; j + 3 < outw; j += 4)
+                {
                     asm volatile(
                         "prfm   pldl1keep, [%3, #64]        \n"
                         "ld1    {v0.4h}, [%3], #8           \n"
@@ -592,7 +605,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "w"(_k22_1)  // %29
                         : "memory", "v0", "v1", "v2", "v3", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
-                for (; j + 1 < outw; j += 2) {
+                for (; j + 1 < outw; j += 2)
+                {
                     asm volatile(
                         "prfm   pldl1keep, [%3, #64]        \n"
                         "ld1    {v0.4h}, [%3]               \n"
@@ -703,7 +717,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "w"(_k22_1)  // %29
                         : "memory", "v0", "v1", "v24", "v25", "v26", "v27");
                 }
-                for (; j < outw; j++) {
+                for (; j < outw; j++)
+                {
                     float32x4_t _sum00 = vld1q_f32(outptr0);
                     float32x4_t _sum10 = vld1q_f32(outptr0 + 4);
 
@@ -754,7 +769,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 #endif // __ARM_NEON && __aarch64__
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = remain_outch_start; p < outch; p++) {
+    for (int p = remain_outch_start; p < outch; p++)
+    {
         Mat out0 = top_blob_fp32.channel(get_omp_thread_num());
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + p * 4) : vdupq_n_f32(0.f);
@@ -763,7 +779,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
         const unsigned short* k0 = kernel.channel(p);
 
         int q = 0;
-        for (; q < inch - 1; q++) {
+        for (; q < inch - 1; q++)
+        {
             float* outptr0 = out0.row(0);
 
             const Mat img0 = bottom_blob.channel(q);
@@ -784,11 +801,13 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int j = 0;
 
 #if __aarch64__
-                for (; j + 7 < outw; j += 8) {
+                for (; j + 7 < outw; j += 8)
+                {
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
@@ -926,7 +945,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         : "memory", "v0", "v1", "v2", "v4", "v5", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
 #endif // __aarch64__
-                for (; j + 3 < outw; j += 4) {
+                for (; j + 3 < outw; j += 4)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%1, #64]        \n"
@@ -1124,7 +1144,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         : "memory", "q0", "q1", "q2", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j + 1 < outw; j += 2) {
+                for (; j + 1 < outw; j += 2)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%1, #64]        \n"
@@ -1280,7 +1301,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         : "memory", "q0", "q1", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j < outw; j++) {
+                for (; j < outw; j++)
+                {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
 
                     float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
@@ -1324,7 +1346,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
             k0 += 9 * 4;
         }
-        for (; q < inch; q++) {
+        for (; q < inch; q++)
+        {
             unsigned short* outptr0_bf16 = top_blob.channel(p);
 
             const float* outptr0 = out0.row(0);
@@ -1347,11 +1370,13 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int j = 0;
 
 #if __aarch64__
-                for (; j + 7 < outw; j += 8) {
+                for (; j + 7 < outw; j += 8)
+                {
                     asm volatile(
                         "prfm   pldl1keep, [%1, #512]       \n"
                         "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%1], #64 \n"
@@ -1498,7 +1523,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         : "memory", "v0", "v1", "v2", "v4", "v5", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
 #endif // __aarch64__
-                for (; j + 3 < outw; j += 4) {
+                for (; j + 3 < outw; j += 4)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%2, #64]        \n"
@@ -1710,7 +1736,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         : "memory", "q0", "q1", "q2", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j + 1 < outw; j += 2) {
+                for (; j + 1 < outw; j += 2)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%2, #64]        \n"
@@ -1876,7 +1903,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         : "memory", "q0", "q1", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j < outw; j++) {
+                for (; j < outw; j++)
+                {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
 
                     float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
@@ -1950,7 +1978,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
     remain_outch_start = nn_outch << 1;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_outch; pp++) {
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
         int p = pp * 2;
 
         Mat out0 = top_blob_fp32.channel(get_omp_thread_num());
@@ -1960,10 +1989,12 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
         {
             float* ptr = (float*)out0;
 
-            for (int i = 0; i < outh; i++) {
+            for (int i = 0; i < outh; i++)
+            {
                 int j = 0;
 
-                for (; j + 3 < outw; j += 4) {
+                for (; j + 3 < outw; j += 4)
+                {
                     vst1q_f32(ptr, _bias0);
                     vst1q_f32(ptr + 4, _bias0);
                     vst1q_f32(ptr + 8, _bias0);
@@ -1974,14 +2005,16 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                     vst1q_f32(ptr + 28, _bias1);
                     ptr += 32;
                 }
-                for (; j + 1 < outw; j += 2) {
+                for (; j + 1 < outw; j += 2)
+                {
                     vst1q_f32(ptr, _bias0);
                     vst1q_f32(ptr + 4, _bias0);
                     vst1q_f32(ptr + 8, _bias1);
                     vst1q_f32(ptr + 12, _bias1);
                     ptr += 16;
                 }
-                for (; j < outw; j++) {
+                for (; j < outw; j++)
+                {
                     vst1q_f32(ptr, _bias0);
                     vst1q_f32(ptr + 4, _bias1);
                     ptr += 8;
@@ -1993,7 +2026,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
         const unsigned short* k1 = kernel.channel(p + 1);
 
         int q = 0;
-        for (; q < inch - 1; q++) {
+        for (; q < inch - 1; q++)
+        {
             float* outptr0 = out0;
 
             const Mat img0 = bottom_blob.channel(q);
@@ -2024,10 +2058,12 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int j = 0;
 
-                for (; j + 3 < outw; j += 4) {
+                for (; j + 3 < outw; j += 4)
+                {
                     asm volatile(
                         // r0
                         "prfm   pldl1keep, [%1, #128]       \n"
@@ -2189,7 +2225,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "w"(_k22_1)  // %25
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13");
                 }
-                for (; j + 1 < outw; j += 2) {
+                for (; j + 1 < outw; j += 2)
+                {
                     asm volatile(
                         // r0
                         "prfm   pldl1keep, [%1, #64]        \n"
@@ -2299,7 +2336,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "w"(_k22_1)  // %25
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13");
                 }
-                for (; j < outw; j++) {
+                for (; j < outw; j++)
+                {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
                     float32x4_t _sum1 = vld1q_f32(outptr0 + 4);
 
@@ -2344,7 +2382,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             k0 += 9 * 4;
             k1 += 9 * 4;
         }
-        for (; q < inch; q++) {
+        for (; q < inch; q++)
+        {
             unsigned short* outptr0_bf16 = top_blob.channel(p);
             unsigned short* outptr1_bf16 = top_blob.channel(p + 1);
 
@@ -2378,10 +2417,12 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int j = 0;
 
-                for (; j + 3 < outw; j += 4) {
+                for (; j + 3 < outw; j += 4)
+                {
                     asm volatile(
                         // r0
                         "prfm   pldl1keep, [%3, #128]       \n"
@@ -2555,7 +2596,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "w"(_k22_1)  // %29
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13");
                 }
-                for (; j + 1 < outw; j += 2) {
+                for (; j + 1 < outw; j += 2)
+                {
                     asm volatile(
                         // r0
                         "prfm   pldl1keep, [%3, #64]        \n"
@@ -2675,7 +2717,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "w"(_k22_1)  // %29
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13");
                 }
-                for (; j < outw; j++) {
+                for (; j < outw; j++)
+                {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
                     float32x4_t _sum1 = vld1q_f32(outptr0 + 4);
 
@@ -2726,7 +2769,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 #endif // __ARM_NEON && __aarch64__
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = remain_outch_start; p < outch; p++) {
+    for (int p = remain_outch_start; p < outch; p++)
+    {
         Mat out0 = top_blob_fp32.channel(get_omp_thread_num());
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + p * 4) : vdupq_n_f32(0.f);
@@ -2735,7 +2779,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
         const unsigned short* k0 = kernel.channel(p);
 
         int q = 0;
-        for (; q < inch - 1; q++) {
+        for (; q < inch - 1; q++)
+        {
             float* outptr0 = out0;
 
             const Mat img0 = bottom_blob.channel(q);
@@ -2756,10 +2801,12 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int j = 0;
 
-                for (; j + 3 < outw; j += 4) {
+                for (; j + 3 < outw; j += 4)
+                {
 #if __aarch64__
                     asm volatile(
                         // r0
@@ -2974,7 +3021,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6");
 #endif // __aarch64__
                 }
-                for (; j + 1 < outw; j += 2) {
+                for (; j + 1 < outw; j += 2)
+                {
 #if __aarch64__
                     asm volatile(
                         // r0
@@ -3147,7 +3195,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6");
 #endif // __aarch64__
                 }
-                for (; j < outw; j++) {
+                for (; j < outw; j++)
+                {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
 
                     float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
@@ -3191,7 +3240,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
             k0 += 9 * 4;
         }
-        for (; q < inch; q++) {
+        for (; q < inch; q++)
+        {
             unsigned short* outptr0_bf16 = top_blob.channel(p);
 
             const float* outptr0 = out0;
@@ -3214,10 +3264,12 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int j = 0;
 
-                for (; j + 3 < outw; j += 4) {
+                for (; j + 3 < outw; j += 4)
+                {
 #if __aarch64__
                     asm volatile(
                         // r0
@@ -3446,7 +3498,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6");
 #endif // __aarch64__
                 }
-                for (; j + 1 < outw; j += 2) {
+                for (; j + 1 < outw; j += 2)
+                {
 #if __aarch64__
                     asm volatile(
                         // r0
@@ -3629,7 +3682,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6");
 #endif // __aarch64__
                 }
-                for (; j < outw; j++) {
+                for (; j < outw; j++)
+                {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
 
                     float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));

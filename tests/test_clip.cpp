@@ -29,7 +29,8 @@ static int test_clip(const ncnn::Mat& a, float min, float max)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Clip>("Clip", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_clip failed min=%f max=%f\n", min, max);
     }
 

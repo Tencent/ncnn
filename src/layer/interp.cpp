@@ -34,7 +34,8 @@ int Interp::load_param(const ParamDict& pd)
     output_height = pd.get(3, 0);
     output_width = pd.get(4, 0);
 
-    if (resize_type < 0 || resize_type > 3) {
+    if (resize_type < 0 || resize_type > 3)
+    {
         NCNN_LOGE("unsupported resize type %d", resize_type);
         return -1;
     }
@@ -46,16 +47,19 @@ static void linear_coeffs(int w, int outw, int* xofs, float* alpha)
 {
     double scale = (double)w / outw;
 
-    for (int dx = 0; dx < outw; dx++) {
+    for (int dx = 0; dx < outw; dx++)
+    {
         float fx = (float)((dx + 0.5) * scale - 0.5);
         int sx = static_cast<int>(floor(fx));
         fx -= sx;
 
-        if (sx < 0) {
+        if (sx < 0)
+        {
             sx = 0;
             fx = 0.f;
         }
-        if (sx >= w - 1) {
+        if (sx >= w - 1)
+        {
             sx = w - 2;
             fx = 1.f;
         }
@@ -80,13 +84,16 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
 
     int prev_sy1 = -2;
 
-    for (int dy = 0; dy < h; dy++) {
+    for (int dy = 0; dy < h; dy++)
+    {
         int sy = yofs[dy];
 
-        if (sy == prev_sy1) {
+        if (sy == prev_sy1)
+        {
             // reuse all rows
         }
-        else if (sy == prev_sy1 + 1) {
+        else if (sy == prev_sy1 + 1)
+        {
             // hresize one row
             float* rows0_old = rows0;
             rows0 = rows1;
@@ -95,7 +102,8 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
 
             const float* alphap = alpha;
             float* rows1p = rows1;
-            for (int dx = 0; dx < w; dx++) {
+            for (int dx = 0; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 const float* S1p = S1 + sx;
 
@@ -106,7 +114,8 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
                 alphap += 2;
             }
         }
-        else {
+        else
+        {
             // hresize two rows
             const float* S0 = src.row(sy);
             const float* S1 = src.row(sy + 1);
@@ -114,7 +123,8 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             const float* alphap = alpha;
             float* rows0p = rows0;
             float* rows1p = rows1;
-            for (int dx = 0; dx < w; dx++) {
+            for (int dx = 0; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 const float* S0p = S0 + sx;
                 const float* S1p = S1 + sx;
@@ -137,7 +147,8 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
         float* rows0p = rows0;
         float* rows1p = rows1;
         float* Dp = dst.row(dy);
-        for (int dx = 0; dx < w; dx++) {
+        for (int dx = 0; dx < w; dx++)
+        {
             //             D[x] = rows0[x]*b0 + rows1[x]*b1;
             *Dp++ = *rows0p++ * b0 + *rows1p++ * b1;
         }
@@ -165,35 +176,40 @@ static void cubic_coeffs(int w, int outw, int* xofs, float* alpha)
 {
     double scale = (double)w / outw;
 
-    for (int dx = 0; dx < outw; dx++) {
+    for (int dx = 0; dx < outw; dx++)
+    {
         float fx = (float)((dx + 0.5) * scale - 0.5);
         int sx = static_cast<int>(floor(fx));
         fx -= sx;
 
         interpolate_cubic(fx, alpha + dx * 4);
 
-        if (sx <= -1) {
+        if (sx <= -1)
+        {
             sx = 1;
             alpha[dx * 4 + 0] = 1.f - alpha[dx * 4 + 3];
             alpha[dx * 4 + 1] = alpha[dx * 4 + 3];
             alpha[dx * 4 + 2] = 0.f;
             alpha[dx * 4 + 3] = 0.f;
         }
-        if (sx == 0) {
+        if (sx == 0)
+        {
             sx = 1;
             alpha[dx * 4 + 0] = alpha[dx * 4 + 0] + alpha[dx * 4 + 1];
             alpha[dx * 4 + 1] = alpha[dx * 4 + 2];
             alpha[dx * 4 + 2] = alpha[dx * 4 + 3];
             alpha[dx * 4 + 3] = 0.f;
         }
-        if (sx == w - 2) {
+        if (sx == w - 2)
+        {
             sx = w - 3;
             alpha[dx * 4 + 3] = alpha[dx * 4 + 2] + alpha[dx * 4 + 3];
             alpha[dx * 4 + 2] = alpha[dx * 4 + 1];
             alpha[dx * 4 + 1] = alpha[dx * 4 + 0];
             alpha[dx * 4 + 0] = 0.f;
         }
-        if (sx >= w - 1) {
+        if (sx >= w - 1)
+        {
             sx = w - 3;
             alpha[dx * 4 + 3] = 1.f - alpha[dx * 4 + 0];
             alpha[dx * 4 + 2] = alpha[dx * 4 + 0];
@@ -222,13 +238,16 @@ static void resize_bicubic_image(const Mat& src, Mat& dst, float* alpha, int* xo
 
     int prev_sy1 = -3;
 
-    for (int dy = 0; dy < h; dy++) {
+    for (int dy = 0; dy < h; dy++)
+    {
         int sy = yofs[dy];
 
-        if (sy == prev_sy1) {
+        if (sy == prev_sy1)
+        {
             // reuse all rows
         }
-        else if (sy == prev_sy1 + 1) {
+        else if (sy == prev_sy1 + 1)
+        {
             // hresize one row
             float* rows0_old = rows0;
             rows0 = rows1;
@@ -239,7 +258,8 @@ static void resize_bicubic_image(const Mat& src, Mat& dst, float* alpha, int* xo
 
             const float* alphap = alpha;
             float* rows3p = rows3;
-            for (int dx = 0; dx < w; dx++) {
+            for (int dx = 0; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 const float* S3p = S3 + sx;
 
@@ -252,7 +272,8 @@ static void resize_bicubic_image(const Mat& src, Mat& dst, float* alpha, int* xo
                 alphap += 4;
             }
         }
-        else if (sy == prev_sy1 + 2) {
+        else if (sy == prev_sy1 + 2)
+        {
             // hresize two rows
             float* rows0_old = rows0;
             float* rows1_old = rows1;
@@ -266,7 +287,8 @@ static void resize_bicubic_image(const Mat& src, Mat& dst, float* alpha, int* xo
             const float* alphap = alpha;
             float* rows2p = rows2;
             float* rows3p = rows3;
-            for (int dx = 0; dx < w; dx++) {
+            for (int dx = 0; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 const float* S2p = S2 + sx;
                 const float* S3p = S3 + sx;
@@ -281,7 +303,8 @@ static void resize_bicubic_image(const Mat& src, Mat& dst, float* alpha, int* xo
                 alphap += 4;
             }
         }
-        else if (sy == prev_sy1 + 3) {
+        else if (sy == prev_sy1 + 3)
+        {
             // hresize three rows
             float* rows0_old = rows0;
             float* rows1_old = rows1;
@@ -298,7 +321,8 @@ static void resize_bicubic_image(const Mat& src, Mat& dst, float* alpha, int* xo
             float* rows1p = rows1;
             float* rows2p = rows2;
             float* rows3p = rows3;
-            for (int dx = 0; dx < w; dx++) {
+            for (int dx = 0; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 const float* S1p = S1 + sx;
                 const float* S2p = S2 + sx;
@@ -315,7 +339,8 @@ static void resize_bicubic_image(const Mat& src, Mat& dst, float* alpha, int* xo
                 alphap += 4;
             }
         }
-        else {
+        else
+        {
             // hresize four rows
             const float* S0 = src.row(sy - 1);
             const float* S1 = src.row(sy);
@@ -327,7 +352,8 @@ static void resize_bicubic_image(const Mat& src, Mat& dst, float* alpha, int* xo
             float* rows1p = rows1;
             float* rows2p = rows2;
             float* rows3p = rows3;
-            for (int dx = 0; dx < w; dx++) {
+            for (int dx = 0; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 const float* S0p = S0 + sx;
                 const float* S1p = S1 + sx;
@@ -360,7 +386,8 @@ static void resize_bicubic_image(const Mat& src, Mat& dst, float* alpha, int* xo
         float* rows2p = rows2;
         float* rows3p = rows3;
         float* Dp = dst.row(dy);
-        for (int dx = 0; dx < w; dx++) {
+        for (int dx = 0; dx < w; dx++)
+        {
             //             D[x] = rows0[x]*b0 + rows1[x]*b1 + rows2[x]*b2 + rows3[x]*b3;
             *Dp++ = *rows0p++ * b0 + *rows1p++ * b1 + *rows2p++ * b2 + *rows3p++ * b3;
         }
@@ -378,16 +405,19 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
 
     int outh = output_height;
     int outw = output_width;
-    if (bottom_blob.dims == 1) {
+    if (bottom_blob.dims == 1)
+    {
         h = 1;
         w = 1;
         channels = bottom_blob.w;
     }
-    if (outh == 0 || outw == 0) {
+    if (outh == 0 || outw == 0)
+    {
         outh = static_cast<int>(h * height_scale);
         outw = static_cast<int>(w * width_scale);
     }
-    if (outh == h && outw == w) {
+    if (outh == h && outw == w)
+    {
         top_blob = bottom_blob;
         return 0;
     }
@@ -396,9 +426,11 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
     if (top_blob.empty())
         return -100;
 
-    if (bottom_blob.dims == 1) {
+    if (bottom_blob.dims == 1)
+    {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             Mat top_blob_c = top_blob.channel(q);
             const float* ptr = ((const float*)bottom_blob.data + q);
             top_blob_c.fill(*ptr);
@@ -412,12 +444,15 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
         const float ws = output_width ? w / (float)output_width : 1.f / width_scale;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
-            for (int y = 0; y < outh; y++) {
+            for (int y = 0; y < outh; y++)
+            {
                 int in_y = std::min((int)(y * hs), (h - 1));
-                for (int x = 0; x < outw; x++) {
+                for (int x = 0; x < outw; x++)
+                {
                     int in_x = std::min((int)(x * ws), (w - 1));
                     *outptr++ = ptr[in_y * w + in_x];
                 }
@@ -439,7 +474,8 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
         linear_coeffs(h, outh, yofs, beta);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; ++q) {
+        for (int q = 0; q < channels; ++q)
+        {
             const Mat src = bottom_blob.channel(q);
             Mat dst = top_blob.channel(q);
 
@@ -463,7 +499,8 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
         cubic_coeffs(h, outh, yofs, beta);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             const Mat src = bottom_blob.channel(q);
             Mat dst = top_blob.channel(q);
 

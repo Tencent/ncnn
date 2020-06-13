@@ -32,7 +32,8 @@ static int from_rgb(const unsigned char* rgb, int w, int h, int stride, Mat& m, 
         return -100;
 
     const int wgap = stride - w * 3;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
@@ -41,7 +42,8 @@ static int from_rgb(const unsigned char* rgb, int w, int h, int stride, Mat& m, 
     float* ptr1 = m.channel(1);
     float* ptr2 = m.channel(2);
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #if __ARM_NEON
         int nn = w >> 3;
         int remain = w - (nn << 3);
@@ -51,7 +53,8 @@ static int from_rgb(const unsigned char* rgb, int w, int h, int stride, Mat& m, 
 
 #if __ARM_NEON
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x3_t _rgb = vld3_u8(rgb);
             uint16x8_t _r16 = vmovl_u8(_rgb.val[0]);
             uint16x8_t _g16 = vmovl_u8(_rgb.val[1]);
@@ -77,7 +80,8 @@ static int from_rgb(const unsigned char* rgb, int w, int h, int stride, Mat& m, 
             ptr2 += 8;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -116,7 +120,8 @@ static int from_rgb(const unsigned char* rgb, int w, int h, int stride, Mat& m, 
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr0 = rgb[0];
             *ptr1 = rgb[1];
             *ptr2 = rgb[2];
@@ -139,7 +144,8 @@ static void to_rgb(const Mat& m, unsigned char* rgb, int stride)
     int h = m.h;
 
     const int wgap = stride - w * 3;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
@@ -148,7 +154,8 @@ static void to_rgb(const Mat& m, unsigned char* rgb, int stride)
     const float* ptr1 = m.channel(1);
     const float* ptr2 = m.channel(2);
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
 #if __ARM_NEON
@@ -159,7 +166,8 @@ static void to_rgb(const Mat& m, unsigned char* rgb, int stride)
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             float32x4_t _rlow = vld1q_f32(ptr0);
             float32x4_t _rhigh = vld1q_f32(ptr0 + 4);
             float32x4_t _glow = vld1q_f32(ptr1);
@@ -184,7 +192,8 @@ static void to_rgb(const Mat& m, unsigned char* rgb, int stride)
             ptr2 += 8;
         }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             rgb[0] = SATURATE_CAST_UCHAR(*ptr0);
             rgb[1] = SATURATE_CAST_UCHAR(*ptr1);
             rgb[2] = SATURATE_CAST_UCHAR(*ptr2);
@@ -207,14 +216,16 @@ static int from_gray(const unsigned char* gray, int w, int h, int stride, Mat& m
         return -100;
 
     const int wgap = stride - w;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
 
     float* ptr = m;
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #if __ARM_NEON
         int nn = w >> 4;
         int remain = w - (nn << 4);
@@ -224,7 +235,8 @@ static int from_gray(const unsigned char* gray, int w, int h, int stride, Mat& m
 
 #if __ARM_NEON
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _gray = vld1q_u8(gray);
             uint16x8_t _gray16_0 = vmovl_u8(vget_low_u8(_gray));
             uint16x8_t _gray16_1 = vmovl_u8(vget_high_u8(_gray));
@@ -243,7 +255,8 @@ static int from_gray(const unsigned char* gray, int w, int h, int stride, Mat& m
             ptr += 16;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #128]          \n"
@@ -272,7 +285,8 @@ static int from_gray(const unsigned char* gray, int w, int h, int stride, Mat& m
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr = *gray;
 
             gray++;
@@ -291,14 +305,16 @@ static void to_gray(const Mat& m, unsigned char* gray, int stride)
     int h = m.h;
 
     const int wgap = stride - w;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
 
     const float* ptr = m;
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
 #if __ARM_NEON
@@ -309,7 +325,8 @@ static void to_gray(const Mat& m, unsigned char* gray, int stride)
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             float32x4_t _glow = vld1q_f32(ptr);
             float32x4_t _ghigh = vld1q_f32(ptr + 4);
 
@@ -323,7 +340,8 @@ static void to_gray(const Mat& m, unsigned char* gray, int stride)
             ptr += 8;
         }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *gray = SATURATE_CAST_UCHAR(*ptr);
 
             gray++;
@@ -342,7 +360,8 @@ static int from_rgba(const unsigned char* rgba, int w, int h, int stride, Mat& m
         return -100;
 
     const int wgap = stride - w * 4;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
@@ -352,7 +371,8 @@ static int from_rgba(const unsigned char* rgba, int w, int h, int stride, Mat& m
     float* ptr2 = m.channel(2);
     float* ptr3 = m.channel(3);
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #if __ARM_NEON
         int nn = w >> 3;
         int remain = w - (nn << 3);
@@ -362,7 +382,8 @@ static int from_rgba(const unsigned char* rgba, int w, int h, int stride, Mat& m
 
 #if __ARM_NEON
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x4_t _rgba = vld4_u8(rgba);
             int16x8_t _r16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[0]));
             int16x8_t _g16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[1]));
@@ -394,7 +415,8 @@ static int from_rgba(const unsigned char* rgba, int w, int h, int stride, Mat& m
             ptr3 += 8;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -441,7 +463,8 @@ static int from_rgba(const unsigned char* rgba, int w, int h, int stride, Mat& m
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr0 = rgba[0];
             *ptr1 = rgba[1];
             *ptr2 = rgba[2];
@@ -466,7 +489,8 @@ static void to_rgba(const Mat& m, unsigned char* rgba, int stride)
     int h = m.h;
 
     const int wgap = stride - w * 4;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
@@ -476,7 +500,8 @@ static void to_rgba(const Mat& m, unsigned char* rgba, int stride)
     const float* ptr2 = m.channel(2);
     const float* ptr3 = m.channel(3);
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
 #if __ARM_NEON
@@ -487,7 +512,8 @@ static void to_rgba(const Mat& m, unsigned char* rgba, int stride)
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             float32x4_t _rlow = vld1q_f32(ptr0);
             float32x4_t _rhigh = vld1q_f32(ptr0 + 4);
             float32x4_t _glow = vld1q_f32(ptr1);
@@ -517,7 +543,8 @@ static void to_rgba(const Mat& m, unsigned char* rgba, int stride)
             ptr3 += 8;
         }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             rgba[0] = SATURATE_CAST_UCHAR(*ptr0);
             rgba[1] = SATURATE_CAST_UCHAR(*ptr1);
             rgba[2] = SATURATE_CAST_UCHAR(*ptr2);
@@ -542,7 +569,8 @@ static int from_rgb2bgr(const unsigned char* rgb, int w, int h, int stride, Mat&
         return -100;
 
     const int wgap = stride - w * 3;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
@@ -551,7 +579,8 @@ static int from_rgb2bgr(const unsigned char* rgb, int w, int h, int stride, Mat&
     float* ptr1 = m.channel(1);
     float* ptr2 = m.channel(2);
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #if __ARM_NEON
         int nn = w >> 3;
         int remain = w - (nn << 3);
@@ -561,7 +590,8 @@ static int from_rgb2bgr(const unsigned char* rgb, int w, int h, int stride, Mat&
 
 #if __ARM_NEON
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x3_t _rgb = vld3_u8(rgb);
             uint16x8_t _r16 = vmovl_u8(_rgb.val[0]);
             uint16x8_t _g16 = vmovl_u8(_rgb.val[1]);
@@ -587,7 +617,8 @@ static int from_rgb2bgr(const unsigned char* rgb, int w, int h, int stride, Mat&
             ptr2 += 8;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -626,7 +657,8 @@ static int from_rgb2bgr(const unsigned char* rgb, int w, int h, int stride, Mat&
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr0 = rgb[2];
             *ptr1 = rgb[1];
             *ptr2 = rgb[0];
@@ -649,7 +681,8 @@ static void to_bgr2rgb(const Mat& m, unsigned char* rgb, int stride)
     int h = m.h;
 
     const int wgap = stride - w * 3;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
@@ -658,7 +691,8 @@ static void to_bgr2rgb(const Mat& m, unsigned char* rgb, int stride)
     const float* ptr1 = m.channel(1);
     const float* ptr2 = m.channel(2);
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
 #if __ARM_NEON
@@ -669,7 +703,8 @@ static void to_bgr2rgb(const Mat& m, unsigned char* rgb, int stride)
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             float32x4_t _rlow = vld1q_f32(ptr2);
             float32x4_t _rhigh = vld1q_f32(ptr2 + 4);
             float32x4_t _glow = vld1q_f32(ptr1);
@@ -694,7 +729,8 @@ static void to_bgr2rgb(const Mat& m, unsigned char* rgb, int stride)
             ptr2 += 8;
         }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             rgb[2] = SATURATE_CAST_UCHAR(*ptr0);
             rgb[1] = SATURATE_CAST_UCHAR(*ptr1);
             rgb[0] = SATURATE_CAST_UCHAR(*ptr2);
@@ -723,14 +759,16 @@ static int from_rgb2gray(const unsigned char* rgb, int w, int h, int stride, Mat
         return -100;
 
     const int wgap = stride - w * 3;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
 
     float* ptr = m;
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #if __ARM_NEON
         int nn = w >> 3;
         int remain = w - (nn << 3);
@@ -743,7 +781,8 @@ static int from_rgb2gray(const unsigned char* rgb, int w, int h, int stride, Mat
         uint8x8_t _R2Y = vdup_n_u8(R2Y);
         uint8x8_t _G2Y = vdup_n_u8(G2Y);
         uint8x8_t _B2Y = vdup_n_u8(B2Y);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x3_t _rgb = vld3_u8(rgb);
 
             uint16x8_t _y16 = vmull_u8(_rgb.val[0], _R2Y);
@@ -761,7 +800,8 @@ static int from_rgb2gray(const unsigned char* rgb, int w, int h, int stride, Mat
             ptr += 8;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "vdup.u8    d16, %6             \n"
                 "vdup.u8    d17, %7             \n"
@@ -793,7 +833,8 @@ static int from_rgb2gray(const unsigned char* rgb, int w, int h, int stride, Mat
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr = static_cast<float>((rgb[0] * R2Y + rgb[1] * G2Y + rgb[2] * B2Y) >> Y_shift);
 
             rgb += 3;
@@ -827,7 +868,8 @@ static void to_rgb2rgba(const Mat& m, unsigned char* rgba, int stride)
     int h = m.h;
 
     const int wgap = stride - w * 4;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
@@ -836,7 +878,8 @@ static void to_rgb2rgba(const Mat& m, unsigned char* rgba, int stride)
     const float* ptr1 = m.channel(1);
     const float* ptr2 = m.channel(2);
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
 #if __ARM_NEON
@@ -848,7 +891,8 @@ static void to_rgb2rgba(const Mat& m, unsigned char* rgba, int stride)
 
 #if __ARM_NEON
         uint8x8_t _a = vdup_n_u8(255);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             float32x4_t _rlow = vld1q_f32(ptr0);
             float32x4_t _rhigh = vld1q_f32(ptr0 + 4);
             float32x4_t _glow = vld1q_f32(ptr1);
@@ -874,7 +918,8 @@ static void to_rgb2rgba(const Mat& m, unsigned char* rgba, int stride)
             ptr2 += 8;
         }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             rgba[0] = SATURATE_CAST_UCHAR(*ptr0);
             rgba[1] = SATURATE_CAST_UCHAR(*ptr1);
             rgba[2] = SATURATE_CAST_UCHAR(*ptr2);
@@ -904,14 +949,16 @@ static int from_bgr2gray(const unsigned char* bgr, int w, int h, int stride, Mat
         return -100;
 
     const int wgap = stride - w * 3;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
 
     float* ptr = m;
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #if __ARM_NEON
         int nn = w >> 3;
         int remain = w - (nn << 3);
@@ -924,7 +971,8 @@ static int from_bgr2gray(const unsigned char* bgr, int w, int h, int stride, Mat
         uint8x8_t _R2Y = vdup_n_u8(R2Y);
         uint8x8_t _G2Y = vdup_n_u8(G2Y);
         uint8x8_t _B2Y = vdup_n_u8(B2Y);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x3_t _rgb = vld3_u8(bgr);
 
             uint16x8_t _y16 = vmull_u8(_rgb.val[2], _R2Y);
@@ -942,7 +990,8 @@ static int from_bgr2gray(const unsigned char* bgr, int w, int h, int stride, Mat
             ptr += 8;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "vdup.u8    d16, %6             \n"
                 "vdup.u8    d17, %7             \n"
@@ -974,7 +1023,8 @@ static int from_bgr2gray(const unsigned char* bgr, int w, int h, int stride, Mat
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr = static_cast<float>((bgr[2] * R2Y + bgr[1] * G2Y + bgr[0] * B2Y) >> Y_shift);
 
             bgr += 3;
@@ -1008,7 +1058,8 @@ static void to_bgr2rgba(const Mat& m, unsigned char* rgba, int stride)
     int h = m.h;
 
     const int wgap = stride - w * 4;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
@@ -1017,7 +1068,8 @@ static void to_bgr2rgba(const Mat& m, unsigned char* rgba, int stride)
     const float* ptr1 = m.channel(1);
     const float* ptr2 = m.channel(2);
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
 #if __ARM_NEON
@@ -1029,7 +1081,8 @@ static void to_bgr2rgba(const Mat& m, unsigned char* rgba, int stride)
 
 #if __ARM_NEON
         uint8x8_t _a = vdup_n_u8(255);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             float32x4_t _rlow = vld1q_f32(ptr2);
             float32x4_t _rhigh = vld1q_f32(ptr2 + 4);
             float32x4_t _glow = vld1q_f32(ptr1);
@@ -1055,7 +1108,8 @@ static void to_bgr2rgba(const Mat& m, unsigned char* rgba, int stride)
             ptr2 += 8;
         }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             rgba[0] = SATURATE_CAST_UCHAR(*ptr2);
             rgba[1] = SATURATE_CAST_UCHAR(*ptr1);
             rgba[2] = SATURATE_CAST_UCHAR(*ptr0);
@@ -1079,7 +1133,8 @@ static int from_gray2rgb(const unsigned char* gray, int w, int h, int stride, Ma
         return -100;
 
     const int wgap = stride - w;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
@@ -1088,7 +1143,8 @@ static int from_gray2rgb(const unsigned char* gray, int w, int h, int stride, Ma
     float* ptr1 = m.channel(1);
     float* ptr2 = m.channel(2);
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #if __ARM_NEON
         int nn = w >> 4;
         int remain = w - (nn << 4);
@@ -1098,7 +1154,8 @@ static int from_gray2rgb(const unsigned char* gray, int w, int h, int stride, Ma
 
 #if __ARM_NEON
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x16_t _gray = vld1q_u8(gray);
             uint16x8_t _gray16_0 = vmovl_u8(vget_low_u8(_gray));
             uint16x8_t _gray16_1 = vmovl_u8(vget_high_u8(_gray));
@@ -1129,7 +1186,8 @@ static int from_gray2rgb(const unsigned char* gray, int w, int h, int stride, Ma
             ptr2 += 16;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #128]          \n"
@@ -1166,7 +1224,8 @@ static int from_gray2rgb(const unsigned char* gray, int w, int h, int stride, Ma
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr0 = *gray;
             *ptr1 = *gray;
             *ptr2 = *gray;
@@ -1204,14 +1263,16 @@ static void to_gray2rgba(const Mat& m, unsigned char* rgba, int stride)
     int h = m.h;
 
     const int wgap = stride - w * 4;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
 
     const float* ptr = m;
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
 #if __ARM_NEON
@@ -1223,7 +1284,8 @@ static void to_gray2rgba(const Mat& m, unsigned char* rgba, int stride)
 
 #if __ARM_NEON
         uint8x8_t _a = vdup_n_u8(255);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             float32x4_t _glow = vld1q_f32(ptr);
             float32x4_t _ghigh = vld1q_f32(ptr + 4);
 
@@ -1243,7 +1305,8 @@ static void to_gray2rgba(const Mat& m, unsigned char* rgba, int stride)
             ptr += 8;
         }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             unsigned char gray = SATURATE_CAST_UCHAR(*ptr);
             rgba[0] = gray;
             rgba[1] = gray;
@@ -1266,7 +1329,8 @@ static int from_rgba2rgb(const unsigned char* rgba, int w, int h, int stride, Ma
         return -100;
 
     const int wgap = stride - w * 4;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
@@ -1275,7 +1339,8 @@ static int from_rgba2rgb(const unsigned char* rgba, int w, int h, int stride, Ma
     float* ptr1 = m.channel(1);
     float* ptr2 = m.channel(2);
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #if __ARM_NEON
         int nn = w >> 3;
         int remain = w - (nn << 3);
@@ -1285,7 +1350,8 @@ static int from_rgba2rgb(const unsigned char* rgba, int w, int h, int stride, Ma
 
 #if __ARM_NEON
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x4_t _rgba = vld4_u8(rgba);
             int16x8_t _r16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[0]));
             int16x8_t _g16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[1]));
@@ -1311,7 +1377,8 @@ static int from_rgba2rgb(const unsigned char* rgba, int w, int h, int stride, Ma
             ptr2 += 8;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -1350,7 +1417,8 @@ static int from_rgba2rgb(const unsigned char* rgba, int w, int h, int stride, Ma
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr0 = rgba[0];
             *ptr1 = rgba[1];
             *ptr2 = rgba[2];
@@ -1374,7 +1442,8 @@ static int from_rgba2bgr(const unsigned char* rgba, int w, int h, int stride, Ma
         return -100;
 
     const int wgap = stride - w * 4;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
@@ -1383,7 +1452,8 @@ static int from_rgba2bgr(const unsigned char* rgba, int w, int h, int stride, Ma
     float* ptr1 = m.channel(1);
     float* ptr2 = m.channel(2);
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #if __ARM_NEON
         int nn = w >> 3;
         int remain = w - (nn << 3);
@@ -1393,7 +1463,8 @@ static int from_rgba2bgr(const unsigned char* rgba, int w, int h, int stride, Ma
 
 #if __ARM_NEON
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x4_t _rgba = vld4_u8(rgba);
             int16x8_t _r16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[0]));
             int16x8_t _g16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[1]));
@@ -1419,7 +1490,8 @@ static int from_rgba2bgr(const unsigned char* rgba, int w, int h, int stride, Ma
             ptr2 += 8;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -1458,7 +1530,8 @@ static int from_rgba2bgr(const unsigned char* rgba, int w, int h, int stride, Ma
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr0 = rgba[2];
             *ptr1 = rgba[1];
             *ptr2 = rgba[0];
@@ -1488,14 +1561,16 @@ static int from_rgba2gray(const unsigned char* rgba, int w, int h, int stride, M
         return -100;
 
     const int wgap = stride - w * 4;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
 
     float* ptr = m;
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #if __ARM_NEON
         int nn = w >> 3;
         int remain = w - (nn << 3);
@@ -1508,7 +1583,8 @@ static int from_rgba2gray(const unsigned char* rgba, int w, int h, int stride, M
         uint8x8_t _R2Y = vdup_n_u8(R2Y);
         uint8x8_t _G2Y = vdup_n_u8(G2Y);
         uint8x8_t _B2Y = vdup_n_u8(B2Y);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x4_t _rgba = vld4_u8(rgba);
 
             uint16x8_t _y16 = vmull_u8(_rgba.val[0], _R2Y);
@@ -1526,7 +1602,8 @@ static int from_rgba2gray(const unsigned char* rgba, int w, int h, int stride, M
             ptr += 8;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "vdup.u8    d16, %6             \n"
                 "vdup.u8    d17, %7             \n"
@@ -1558,7 +1635,8 @@ static int from_rgba2gray(const unsigned char* rgba, int w, int h, int stride, M
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr = static_cast<float>((rgba[0] * R2Y + rgba[1] * G2Y + rgba[2] * B2Y) >> Y_shift);
 
             rgba += 4;
@@ -1578,7 +1656,8 @@ static int from_rgba2bgra(const unsigned char* rgba, int w, int h, int stride, M
         return -100;
 
     const int wgap = stride - w * 4;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
@@ -1588,7 +1667,8 @@ static int from_rgba2bgra(const unsigned char* rgba, int w, int h, int stride, M
     float* ptr2 = m.channel(2);
     float* ptr3 = m.channel(3);
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #if __ARM_NEON
         int nn = w >> 3;
         int remain = w - (nn << 3);
@@ -1598,7 +1678,8 @@ static int from_rgba2bgra(const unsigned char* rgba, int w, int h, int stride, M
 
 #if __ARM_NEON
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x4_t _rgba = vld4_u8(rgba);
             int16x8_t _r16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[0]));
             int16x8_t _g16 = vreinterpretq_s16_u16(vmovl_u8(_rgba.val[1]));
@@ -1630,7 +1711,8 @@ static int from_rgba2bgra(const unsigned char* rgba, int w, int h, int stride, M
             ptr3 += 8;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #256]          \n"
@@ -1677,7 +1759,8 @@ static int from_rgba2bgra(const unsigned char* rgba, int w, int h, int stride, M
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr0 = rgba[2];
             *ptr1 = rgba[1];
             *ptr2 = rgba[0];
@@ -1702,7 +1785,8 @@ static void to_rgba2bgra(const Mat& m, unsigned char* bgra, int stride)
     int h = m.h;
 
     const int wgap = stride - w * 4;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
@@ -1712,7 +1796,8 @@ static void to_rgba2bgra(const Mat& m, unsigned char* bgra, int stride)
     const float* ptr2 = m.channel(2);
     const float* ptr3 = m.channel(3);
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
 
 #if __ARM_NEON
@@ -1723,7 +1808,8 @@ static void to_rgba2bgra(const Mat& m, unsigned char* bgra, int stride)
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             float32x4_t _rlow = vld1q_f32(ptr0);
             float32x4_t _rhigh = vld1q_f32(ptr0 + 4);
             float32x4_t _glow = vld1q_f32(ptr1);
@@ -1753,7 +1839,8 @@ static void to_rgba2bgra(const Mat& m, unsigned char* bgra, int stride)
             ptr3 += 8;
         }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             bgra[0] = SATURATE_CAST_UCHAR(*ptr2);
             bgra[1] = SATURATE_CAST_UCHAR(*ptr1);
             bgra[2] = SATURATE_CAST_UCHAR(*ptr0);
@@ -1784,14 +1871,16 @@ static int from_bgra2gray(const unsigned char* bgra, int w, int h, int stride, M
         return -100;
 
     const int wgap = stride - w * 4;
-    if (wgap == 0) {
+    if (wgap == 0)
+    {
         w = w * h;
         h = 1;
     }
 
     float* ptr = m;
 
-    for (int y = 0; y < h; y++) {
+    for (int y = 0; y < h; y++)
+    {
 #if __ARM_NEON
         int nn = w >> 3;
         int remain = w - (nn << 3);
@@ -1804,7 +1893,8 @@ static int from_bgra2gray(const unsigned char* bgra, int w, int h, int stride, M
         uint8x8_t _R2Y = vdup_n_u8(R2Y);
         uint8x8_t _G2Y = vdup_n_u8(G2Y);
         uint8x8_t _B2Y = vdup_n_u8(B2Y);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             uint8x8x4_t _bgra = vld4_u8(bgra);
 
             uint16x8_t _y16 = vmull_u8(_bgra.val[2], _R2Y);
@@ -1822,7 +1912,8 @@ static int from_bgra2gray(const unsigned char* bgra, int w, int h, int stride, M
             ptr += 8;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "vdup.u8    d16, %6             \n"
                 "vdup.u8    d17, %7             \n"
@@ -1854,7 +1945,8 @@ static int from_bgra2gray(const unsigned char* bgra, int w, int h, int stride, M
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr = static_cast<float>((bgra[2] * R2Y + bgra[1] * G2Y + bgra[0] * B2Y) >> Y_shift);
 
             bgra += 4;
@@ -1880,7 +1972,8 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
     int8x8_t _v113 = vdup_n_s8(113);
 #endif // __ARM_NEON
 
-    for (int y = 0; y < h; y += 2) {
+    for (int y = 0; y < h; y += 2)
+    {
         const unsigned char* yptr0 = yptr;
         const unsigned char* yptr1 = yptr + w;
         unsigned char* rgb0 = rgb;
@@ -1895,7 +1988,8 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
 
 #if __ARM_NEON
 #if __aarch64__
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             int16x8_t _yy0 = vreinterpretq_s16_u16(vshll_n_u8(vld1_u8(yptr0), 6));
             int16x8_t _yy1 = vreinterpretq_s16_u16(vshll_n_u8(vld1_u8(yptr1), 6));
 
@@ -1934,7 +2028,8 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
             rgb1 += 24;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "pld        [%3, #128]          \n"
                 "vld1.u8    {d2}, [%3]!         \n"
@@ -1997,7 +2092,8 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
 #endif // __ARM_NEON
 
 #define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
-        for (; remain > 0; remain -= 2) {
+        for (; remain > 0; remain -= 2)
+        {
             // R = 1.164 * yy + 1.596 * vv
             // G = 1.164 * yy - 0.813 * vv - 0.391 * uu
             // B = 1.164 * yy              + 2.018 * uu
@@ -2076,9 +2172,11 @@ void yuv420sp2rgb_half(const unsigned char* yuv, int w, int h, unsigned char* rg
     const int tailstep = w / 2;
 #endif
 
-    for (int i = 0; i < hstep; ++i) {
+    for (int i = 0; i < hstep; ++i)
+    {
 #if __ARM_NEON
-        for (int j = 0; j < wstep; ++j) {
+        for (int j = 0; j < wstep; ++j)
+        {
             uint8x16_t y0 = vld1q_u8(py0);
             uint8x16_t y1 = vld1q_u8(py1);
 
@@ -2126,7 +2224,8 @@ void yuv420sp2rgb_half(const unsigned char* yuv, int w, int h, unsigned char* rg
         }
 #endif
 
-        for (int idx = 0; idx < tailstep; ++idx) {
+        for (int idx = 0; idx < tailstep; ++idx)
+        {
             int y = (static_cast<int>(py0[0]) + py0[1] + py1[2] + py1[1]) << 4;
             int v = static_cast<int>(puv[0]) - 128;
             int u = static_cast<int>(puv[1]) - 128;
@@ -2156,13 +2255,16 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, Alloca
 {
     int type_from = type & PIXEL_FORMAT_MASK;
 
-    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR) {
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
         return Mat::from_pixels(pixels, type, w, h, w * 3, allocator);
     }
-    else if (type_from == PIXEL_GRAY) {
+    else if (type_from == PIXEL_GRAY)
+    {
         return Mat::from_pixels(pixels, type, w, h, w * 1, allocator);
     }
-    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA) {
+    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
+    {
         return Mat::from_pixels(pixels, type, w, h, w * 4, allocator);
     }
 
@@ -2174,8 +2276,10 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, int st
 {
     Mat m;
 
-    if (type & PIXEL_CONVERT_MASK) {
-        switch (type) {
+    if (type & PIXEL_CONVERT_MASK)
+    {
+        switch (type)
+        {
         case PIXEL_RGB2BGR:
         case PIXEL_BGR2RGB:
             from_rgb2bgr(pixels, w, h, stride, m, allocator);
@@ -2225,7 +2329,8 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, int st
             break;
         }
     }
-    else {
+    else
+    {
         if (type == PIXEL_RGB || type == PIXEL_BGR)
             from_rgb(pixels, w, h, stride, m, allocator);
 
@@ -2243,13 +2348,16 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
 {
     int type_from = type & PIXEL_FORMAT_MASK;
 
-    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR) {
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
         return Mat::from_pixels_resize(pixels, type, w, h, w * 3, target_width, target_height, allocator);
     }
-    else if (type_from == PIXEL_GRAY) {
+    else if (type_from == PIXEL_GRAY)
+    {
         return Mat::from_pixels_resize(pixels, type, w, h, w * 1, target_width, target_height, allocator);
     }
-    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA) {
+    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
+    {
         return Mat::from_pixels_resize(pixels, type, w, h, w * 4, target_width, target_height, allocator);
     }
 
@@ -2264,19 +2372,22 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
 
     int type_from = type & PIXEL_FORMAT_MASK;
 
-    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR) {
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
         Mat dst(target_width, target_height, (size_t)3u, 3);
         resize_bilinear_c3(pixels, w, h, stride, dst, target_width, target_height, target_width * 3);
 
         return Mat::from_pixels(dst, type, target_width, target_height, allocator);
     }
-    else if (type_from == PIXEL_GRAY) {
+    else if (type_from == PIXEL_GRAY)
+    {
         Mat dst(target_width, target_height, (size_t)1u, 1);
         resize_bilinear_c1(pixels, w, h, stride, dst, target_width, target_height, target_width * 1);
 
         return Mat::from_pixels(dst, type, target_width, target_height, allocator);
     }
-    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA) {
+    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
+    {
         Mat dst(target_width, target_height, (size_t)4u, 4);
         resize_bilinear_c4(pixels, w, h, stride, dst, target_width, target_height, target_width * 4);
 
@@ -2291,21 +2402,26 @@ void Mat::to_pixels(unsigned char* pixels, int type) const
 {
     int type_to = (type & PIXEL_CONVERT_MASK) ? (type >> PIXEL_CONVERT_SHIFT) : (type & PIXEL_FORMAT_MASK);
 
-    if (type_to == PIXEL_RGB || type_to == PIXEL_BGR) {
+    if (type_to == PIXEL_RGB || type_to == PIXEL_BGR)
+    {
         to_pixels(pixels, type, w * 3);
     }
-    else if (type_to == PIXEL_GRAY) {
+    else if (type_to == PIXEL_GRAY)
+    {
         to_pixels(pixels, type, w * 1);
     }
-    else if (type_to == PIXEL_RGBA || type_to == PIXEL_BGRA) {
+    else if (type_to == PIXEL_RGBA || type_to == PIXEL_BGRA)
+    {
         to_pixels(pixels, type, w * 4);
     }
 }
 
 void Mat::to_pixels(unsigned char* pixels, int type, int stride) const
 {
-    if (type & PIXEL_CONVERT_MASK) {
-        switch (type) {
+    if (type & PIXEL_CONVERT_MASK)
+    {
+        switch (type)
+        {
         case PIXEL_RGB2BGR:
         case PIXEL_BGR2RGB:
             to_bgr2rgb(*this, pixels, stride);
@@ -2331,7 +2447,8 @@ void Mat::to_pixels(unsigned char* pixels, int type, int stride) const
             break;
         }
     }
-    else {
+    else
+    {
         if (type == PIXEL_RGB || type == PIXEL_BGR)
             to_rgb(*this, pixels, stride);
 
@@ -2347,13 +2464,16 @@ void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, in
 {
     int type_to = (type & PIXEL_CONVERT_MASK) ? (type >> PIXEL_CONVERT_SHIFT) : (type & PIXEL_FORMAT_MASK);
 
-    if (type_to == PIXEL_RGB || type_to == PIXEL_BGR) {
+    if (type_to == PIXEL_RGB || type_to == PIXEL_BGR)
+    {
         to_pixels_resize(pixels, type, target_width, target_height, target_width * 3);
     }
-    else if (type_to == PIXEL_GRAY) {
+    else if (type_to == PIXEL_GRAY)
+    {
         to_pixels_resize(pixels, type, target_width, target_height, target_width * 1);
     }
-    else if (type_to == PIXEL_RGBA || type_to == PIXEL_BGRA) {
+    else if (type_to == PIXEL_RGBA || type_to == PIXEL_BGRA)
+    {
         to_pixels_resize(pixels, type, target_width, target_height, target_width * 4);
     }
 }
@@ -2365,21 +2485,24 @@ void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, in
 
     int type_to = (type & PIXEL_CONVERT_MASK) ? (type >> PIXEL_CONVERT_SHIFT) : (type & PIXEL_FORMAT_MASK);
 
-    if (type_to == PIXEL_RGB || type_to == PIXEL_BGR) {
+    if (type_to == PIXEL_RGB || type_to == PIXEL_BGR)
+    {
         Mat src(w, h, (size_t)3u, 3);
 
         to_pixels(src, type);
 
         resize_bilinear_c3(src, w, h, w * 3, pixels, target_width, target_height, target_stride);
     }
-    else if (type_to == PIXEL_GRAY) {
+    else if (type_to == PIXEL_GRAY)
+    {
         Mat src(w, h, (size_t)1u, 1);
 
         to_pixels(src, type);
 
         resize_bilinear_c1(src, w, h, w * 1, pixels, target_width, target_height, target_stride);
     }
-    else if (type_to == PIXEL_RGBA || type_to == PIXEL_BGRA) {
+    else if (type_to == PIXEL_RGBA || type_to == PIXEL_BGRA)
+    {
         Mat src(w, h, (size_t)4u, 4);
 
         to_pixels(src, type);

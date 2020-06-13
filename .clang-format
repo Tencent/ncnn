@@ -1,5 +1,7 @@
 # find src/ tools/ tests/ examples/ benchmark/ -type f -name '*.c' -o -name '*.cpp' -o -name '*.h' | xargs -i clang-format -i {}
 
+# need clang-format >= 10.0
+
 AccessModifierOffset: -4
 AlignAfterOpenBracket: Align
 AlignConsecutiveAssignments: false
@@ -12,7 +14,7 @@ AlignTrailingComments: true
 AllowAllArgumentsOnNextLine: true
 AllowAllConstructorInitializersOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
-# AllowShortBlocksOnASingleLine: Always
+AllowShortBlocksOnASingleLine: Always
 AllowShortCaseLabelsOnASingleLine: true
 # AllowShortEnumsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: None
@@ -27,7 +29,7 @@ BinPackParameters: true
 BraceWrapping:
   AfterCaseLabel: true
   AfterClass: true
-#  AfterControlStatement: Always
+  AfterControlStatement: Always
   AfterEnum: true
   AfterFunction: true
   AfterNamespace: false
@@ -57,7 +59,7 @@ ConstructorInitializerAllOnOneLineOrOnePerLine: true
 ConstructorInitializerIndentWidth: 4
 ContinuationIndentWidth: 4
 Cpp11BracedListStyle: true
-# DeriveLineEnding: false
+DeriveLineEnding: false
 DerivePointerAlignment: false
 # DisableFormat:
 # ExperimentalAutoDetectBinPacking:
@@ -70,7 +72,7 @@ IncludeBlocks: Regroup
 # IndentCaseBlocks: false
 IndentCaseLabels: false
 # IndentExternBlock: NoIndent
-# IndentGotoLabels: false
+IndentGotoLabels: false
 IndentPPDirectives: None
 IndentWidth: 4
 # IndentWrappedFunctionNames: 4
@@ -101,7 +103,7 @@ NamespaceIndentation: None
 PointerAlignment: Left
 # RawStringFormats:
 ReflowComments: false
-SortIncludes: false
+SortIncludes: true
 SortUsingDeclarations: true
 SpaceAfterCStyleCast: false
 SpaceAfterLogicalNot: false
@@ -112,19 +114,19 @@ SpaceBeforeCtorInitializerColon: true
 SpaceBeforeInheritanceColon: true
 SpaceBeforeParens: ControlStatements
 SpaceBeforeRangeBasedForLoopColon: true
-# SpaceBeforeSquareBrackets: false
-# SpaceInEmptyBlock: false
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: false
 SpaceInEmptyParentheses: false
 SpacesBeforeTrailingComments: 1
 SpacesInAngles: false
 SpacesInCStyleCastParentheses: false
-# SpacesInConditionalStatement: false
+SpacesInConditionalStatement: false
 SpacesInContainerLiterals: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
-Standard: Cpp03
+Standard: c++03
 #StatementMacros:
 TabWidth: 4
 # TypenameMacros:
-# UseCRLF: false
+UseCRLF: false
 UseTab: Never

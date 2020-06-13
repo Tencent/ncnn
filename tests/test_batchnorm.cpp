@@ -36,7 +36,8 @@ static int test_batchnorm(const ncnn::Mat& a, int channels, float eps)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::BatchNorm>("BatchNorm", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_batchnorm failed a.dims=%d a=(%d %d %d) channels=%d eps=%f\n", a.dims, a.w, a.h, a.c, channels, eps);
     }
 

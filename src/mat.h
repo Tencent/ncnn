@@ -717,7 +717,8 @@ inline void Mat::fill(float _v)
 #if __ARM_NEON
     float32x4_t _c = vdupq_n_f32(_v);
 #if __aarch64__
-    if (nn > 0) {
+    if (nn > 0)
+    {
         asm volatile(
             "0:                             \n"
             "subs       %w0, %w0, #1        \n"
@@ -731,7 +732,8 @@ inline void Mat::fill(float _v)
             : "cc", "memory");
     }
 #else
-    if (nn > 0) {
+    if (nn > 0)
+    {
         asm volatile(
             "0:                             \n"
             "subs       %0, #1              \n"
@@ -746,7 +748,8 @@ inline void Mat::fill(float _v)
     }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain > 0; remain--) {
+    for (; remain > 0; remain--)
+    {
         *ptr++ = _v;
     }
 }
@@ -766,7 +769,8 @@ inline void Mat::fill(int _v)
 #if __ARM_NEON
     int32x4_t _c = vdupq_n_s32(_v);
 #if __aarch64__
-    if (nn > 0) {
+    if (nn > 0)
+    {
         asm volatile(
             "0:                             \n"
             "subs       %w0, %w0, #1        \n"
@@ -780,7 +784,8 @@ inline void Mat::fill(int _v)
             : "cc", "memory");
     }
 #else
-    if (nn > 0) {
+    if (nn > 0)
+    {
         asm volatile(
             "0:                             \n"
             "subs       %0, #1              \n"
@@ -795,7 +800,8 @@ inline void Mat::fill(int _v)
     }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain > 0; remain--) {
+    for (; remain > 0; remain--)
+    {
         *ptr++ = _v;
     }
 }
@@ -805,7 +811,8 @@ inline void Mat::fill(float32x4_t _v)
 {
     int size = total();
     float* ptr = (float*)data;
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++)
+    {
         vst1q_f32(ptr, _v);
         ptr += 4;
     }
@@ -814,7 +821,8 @@ inline void Mat::fill(uint16x4_t _v)
 {
     int size = total();
     unsigned short* ptr = (unsigned short*)data;
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++)
+    {
         vst1_u16(ptr, _v);
         ptr += 4;
     }
@@ -826,7 +834,8 @@ inline void Mat::fill(T _v)
 {
     int size = total();
     T* ptr = (T*)data;
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++)
+    {
         ptr[i] = _v;
     }
 }
@@ -844,7 +853,8 @@ inline Mat Mat::clone(Allocator* allocator) const
     else if (dims == 3)
         m.create(w, h, c, elemsize, elempack, allocator);
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         memcpy(m.data, data, total() * elemsize);
     }
 
@@ -856,12 +866,14 @@ inline Mat Mat::reshape(int _w, Allocator* _allocator) const
     if (w * h * c != _w)
         return Mat();
 
-    if (dims == 3 && cstep != (size_t)w * h) {
+    if (dims == 3 && cstep != (size_t)w * h)
+    {
         Mat m;
         m.create(_w, elemsize, elempack, _allocator);
 
         // flatten
-        for (int i = 0; i < c; i++) {
+        for (int i = 0; i < c; i++)
+        {
             const void* ptr = (unsigned char*)data + i * cstep * elemsize;
             void* mptr = (unsigned char*)m.data + i * w * h * elemsize;
             memcpy(mptr, ptr, w * h * elemsize);
@@ -887,12 +899,14 @@ inline Mat Mat::reshape(int _w, int _h, Allocator* _allocator) const
     if (w * h * c != _w * _h)
         return Mat();
 
-    if (dims == 3 && cstep != (size_t)w * h) {
+    if (dims == 3 && cstep != (size_t)w * h)
+    {
         Mat m;
         m.create(_w, _h, elemsize, elempack, _allocator);
 
         // flatten
-        for (int i = 0; i < c; i++) {
+        for (int i = 0; i < c; i++)
+        {
             const void* ptr = (unsigned char*)data + i * cstep * elemsize;
             void* mptr = (unsigned char*)m.data + i * w * h * elemsize;
             memcpy(mptr, ptr, w * h * elemsize);
@@ -918,13 +932,16 @@ inline Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
     if (w * h * c != _w * _h * _c)
         return Mat();
 
-    if (dims < 3) {
-        if ((size_t)_w * _h != alignSize(_w * _h * elemsize, 16) / elemsize) {
+    if (dims < 3)
+    {
+        if ((size_t)_w * _h != alignSize(_w * _h * elemsize, 16) / elemsize)
+        {
             Mat m;
             m.create(_w, _h, _c, elemsize, elempack, _allocator);
 
             // align channel
-            for (int i = 0; i < _c; i++) {
+            for (int i = 0; i < _c; i++)
+            {
                 const void* ptr = (unsigned char*)data + i * _w * _h * elemsize;
                 void* mptr = (unsigned char*)m.data + i * m.cstep * m.elemsize;
                 memcpy(mptr, ptr, _w * _h * elemsize);
@@ -933,7 +950,8 @@ inline Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
             return m;
         }
     }
-    else if (c != _c) {
+    else if (c != _c)
+    {
         // flatten and then align
         Mat tmp = reshape(_w * _h * _c, _allocator);
         return tmp.reshape(_w, _h, _c, _allocator);
@@ -969,7 +987,8 @@ inline void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
 
     cstep = w;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
@@ -998,7 +1017,8 @@ inline void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
 
     cstep = w * h;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
@@ -1027,7 +1047,8 @@ inline void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _al
 
     cstep = alignSize(w * h * elemsize, 16) / elemsize;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
@@ -1056,7 +1077,8 @@ inline void Mat::create(int _w, size_t _elemsize, int _elempack, Allocator* _all
 
     cstep = w;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
@@ -1085,7 +1107,8 @@ inline void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocat
 
     cstep = w * h;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
@@ -1114,7 +1137,8 @@ inline void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack,
 
     cstep = alignSize(w * h * elemsize, 16) / elemsize;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
@@ -1168,7 +1192,8 @@ inline void Mat::addref()
 
 inline void Mat::release()
 {
-    if (refcount && NCNN_XADD(refcount, -1) == 1) {
+    if (refcount && NCNN_XADD(refcount, -1) == 1)
+    {
         if (allocator)
             allocator->fastFree(data);
         else
@@ -1433,7 +1458,8 @@ inline void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
 
     cstep = w;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         size_t totalsize = alignSize(total() * elemsize, 4);
 
         data = allocator->fastMalloc(totalsize);
@@ -1461,7 +1487,8 @@ inline void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _alloca
 
     cstep = w * h;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         size_t totalsize = alignSize(total() * elemsize, 4);
 
         data = allocator->fastMalloc(totalsize);
@@ -1489,7 +1516,8 @@ inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator*
 
     cstep = alignSize(w * h * elemsize, 16) / elemsize;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         size_t totalsize = alignSize(total() * elemsize, 4);
 
         data = allocator->fastMalloc(totalsize);
@@ -1517,7 +1545,8 @@ inline void VkMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* 
 
     cstep = w;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         size_t totalsize = alignSize(total() * elemsize, 4);
 
         data = allocator->fastMalloc(totalsize);
@@ -1545,7 +1574,8 @@ inline void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAll
 
     cstep = w * h;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         size_t totalsize = alignSize(total() * elemsize, 4);
 
         data = allocator->fastMalloc(totalsize);
@@ -1573,7 +1603,8 @@ inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempac
 
     cstep = alignSize(w * h * elemsize, 16) / elemsize;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         size_t totalsize = alignSize(total() * elemsize, 4);
 
         data = allocator->fastMalloc(totalsize);
@@ -1649,8 +1680,10 @@ inline void VkMat::addref()
 
 inline void VkMat::release()
 {
-    if (refcount && NCNN_XADD(refcount, -1) == 1) {
-        if (allocator && data) {
+    if (refcount && NCNN_XADD(refcount, -1) == 1)
+    {
+        if (allocator && data)
+        {
             allocator->fastFree(data);
         }
     }
@@ -1830,7 +1863,8 @@ inline void VkImageMat::create(int _w, size_t _elemsize, VkAllocator* _allocator
     h = 1;
     c = 1;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
         if (!data)
             return;
@@ -1856,7 +1890,8 @@ inline void VkImageMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _a
     h = _h;
     c = 1;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
         if (!data)
             return;
@@ -1882,7 +1917,8 @@ inline void VkImageMat::create(int _w, int _h, int _c, size_t _elemsize, VkAlloc
     h = _h;
     c = _c;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
         if (!data)
             return;
@@ -1908,7 +1944,8 @@ inline void VkImageMat::create(int _w, size_t _elemsize, int _elempack, VkAlloca
     h = 1;
     c = 1;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
         if (!data)
             return;
@@ -1934,7 +1971,8 @@ inline void VkImageMat::create(int _w, int _h, size_t _elemsize, int _elempack, 
     h = _h;
     c = 1;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
         if (!data)
             return;
@@ -1960,7 +1998,8 @@ inline void VkImageMat::create(int _w, int _h, int _c, size_t _elemsize, int _el
     h = _h;
     c = _c;
 
-    if (total() > 0) {
+    if (total() > 0)
+    {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
         if (!data)
             return;
@@ -2036,8 +2075,10 @@ inline void VkImageMat::addref()
 
 inline void VkImageMat::release()
 {
-    if (refcount && NCNN_XADD(refcount, -1) == 1) {
-        if (allocator && data) {
+    if (refcount && NCNN_XADD(refcount, -1) == 1)
+    {
+        if (allocator && data)
+        {
             allocator->fastFree(data);
         }
     }

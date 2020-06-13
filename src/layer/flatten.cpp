@@ -39,7 +39,8 @@ int Flatten::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         return -100;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++) {
+    for (int q = 0; q < channels; q++)
+    {
         const unsigned char* ptr = bottom_blob.channel(q);
         unsigned char* outptr = (unsigned char*)top_blob + size * elemsize * q;
 

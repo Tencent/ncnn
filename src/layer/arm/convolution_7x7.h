@@ -25,14 +25,16 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
 
         out.fill(bias0);
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
@@ -57,7 +59,8 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
 #if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw - (nn << 2);
@@ -82,7 +85,8 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 float32x4_t _k42434445 = vld1q_f32(k6);
                 float32x4_t _k46474849 = vld1q_f32(k6 + 4);
 #ifdef __clang__ // __ARM_NEON && __aarch64__ && __clang__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         // v0:  input / final output
                         // v1 v2 v3: = ri0 ri4 ri0n , i <-  1-7
@@ -253,7 +257,8 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 }
 #else  // __ARM_NEON && __aarch64__ defined, but __clang__ not defined \
 // When compiled with gcc, gcc does not accept over 30 operands
-                for (; nn > 0; nn--) {
+                for (; nn > 0; nn--)
+                {
                     float32x4_t _sum = vld1q_f32(outptr);
 
                     float32x4_t _r00 = vld1q_f32(r0);             // 0 1 2 3
@@ -388,7 +393,8 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 }
 #endif // __clang__
 #else  //__aarch32__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "0:                             \n"
 
@@ -606,7 +612,8 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 #endif // __aarch64__
 #endif // __ARM_NEON
 
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
                     float sum = 0;
 
                     sum += r0[0] * k0[0];
@@ -704,14 +711,16 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
 
         out.fill(bias0);
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
@@ -736,7 +745,8 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
             int i = 0;
 
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
 #if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw - (nn << 2);
@@ -761,7 +771,8 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 float32x4_t _k42434445 = vld1q_f32(k6);
                 float32x4_t _k46474849 = vld1q_f32(k6 + 4);
 #ifdef __clang__ // __ARM_NEON && __aarch64__ && __clang__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         // v0:  input / final output
                         // v1 v2: = _ri0/_ri1  first
@@ -939,7 +950,8 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 }
 #else  // __ARM_NEON && __aarch64__ defined, but __clang__ not defined \
 // When compiled with gcc, gcc does not accept over 30 operands
-                for (; nn > 0; nn--) {
+                for (; nn > 0; nn--)
+                {
                     float32x4_t _sum = vld1q_f32(outptr);
 
                     float32x4x2_t _r00_02461357 = vld2q_f32(r0);
@@ -1095,7 +1107,8 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 }
 #endif // __clang__
 #else
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "0:                             \n"
 
@@ -1297,7 +1310,8 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 #endif // __aarch64__
 #endif // __ARM_NEON
 
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
                     float sum = 0;
 
                     sum += r0[0] * k0[0];

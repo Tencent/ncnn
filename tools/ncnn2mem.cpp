@@ -26,8 +26,10 @@ static std::vector<std::string> blob_names;
 
 static int find_blob_index_by_name(const char* name)
 {
-    for (std::size_t i = 0; i < blob_names.size(); i++) {
-        if (blob_names[i] == name) {
+    for (std::size_t i = 0; i < blob_names.size(); i++)
+    {
+        if (blob_names[i] == name)
+        {
             return static_cast<int>(i);
         }
     }
@@ -38,8 +40,10 @@ static int find_blob_index_by_name(const char* name)
 
 static void sanitize_name(char* name)
 {
-    for (std::size_t i = 0; i < strlen(name); i++) {
-        if (!isalnum(name[i])) {
+    for (std::size_t i = 0; i < strlen(name); i++)
+    {
+        if (!isalnum(name[i]))
+        {
             name[i] = '_';
         }
     }
@@ -59,7 +63,8 @@ static std::string path_to_varname(const char* path)
 static bool vstr_is_float(const char vstr[16])
 {
     // look ahead for determine isfloat
-    for (int j = 0; j < 16; j++) {
+    for (int j = 0; j < 16; j++)
+    {
         if (vstr[j] == '\0')
             break;
 
@@ -74,7 +79,8 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
 {
     FILE* fp = fopen(parampath, "rb");
 
-    if (!fp) {
+    if (!fp)
+    {
         fprintf(stderr, "fopen %s failed\n", parampath);
         return -1;
     }
@@ -93,7 +99,8 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
     int nscan = 0;
     int magic = 0;
     nscan = fscanf(fp, "%d", &magic);
-    if (nscan != 1) {
+    if (nscan != 1)
+    {
         fprintf(stderr, "read magic failed %d\n", nscan);
         return -1;
     }
@@ -102,7 +109,8 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
     int layer_count = 0;
     int blob_count = 0;
     nscan = fscanf(fp, "%d %d", &layer_count, &blob_count);
-    if (nscan != 2) {
+    if (nscan != 2)
+    {
         fprintf(stderr, "read layer_count and blob_count failed %d\n", nscan);
         return -1;
     }
@@ -113,13 +121,15 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
     blob_names.resize(blob_count);
 
     int blob_index = 0;
-    for (int i = 0; i < layer_count; i++) {
+    for (int i = 0; i < layer_count; i++)
+    {
         char layer_type[33];
         char layer_name[257];
         int bottom_count = 0;
         int top_count = 0;
         nscan = fscanf(fp, "%32s %256s %d %d", layer_type, layer_name, &bottom_count, &top_count);
-        if (nscan != 4) {
+        if (nscan != 4)
+        {
             fprintf(stderr, "read layer params failed %d\n", nscan);
             return -1;
         }
@@ -135,10 +145,12 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
         fprintf(ip, "const int LAYER_%s = %d;\n", layer_name, i);
 
         //         layer->bottoms.resize(bottom_count);
-        for (int j = 0; j < bottom_count; j++) {
+        for (int j = 0; j < bottom_count; j++)
+        {
             char bottom_name[257];
             nscan = fscanf(fp, "%256s", bottom_name);
-            if (nscan != 1) {
+            if (nscan != 1)
+            {
                 fprintf(stderr, "read bottom_name failed %d\n", nscan);
                 return -1;
             }
@@ -151,10 +163,12 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
         }
 
         //         layer->tops.resize(top_count);
-        for (int j = 0; j < top_count; j++) {
+        for (int j = 0; j < top_count; j++)
+        {
             char blob_name[257];
             nscan = fscanf(fp, "%256s", blob_name);
-            if (nscan != 1) {
+            if (nscan != 1)
+            {
                 fprintf(stderr, "read blob_name failed %d\n", nscan);
                 return -1;
             }
@@ -173,58 +187,69 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
         // dump layer specific params
         // parse each key=value pair
         int id = 0;
-        while (fscanf(fp, "%d=", &id) == 1) {
+        while (fscanf(fp, "%d=", &id) == 1)
+        {
             fwrite(&id, sizeof(int), 1, mp);
 
             bool is_array = id <= -23300;
 
-            if (is_array) {
+            if (is_array)
+            {
                 int len = 0;
                 nscan = fscanf(fp, "%d", &len);
-                if (nscan != 1) {
+                if (nscan != 1)
+                {
                     fprintf(stderr, "read array length failed %d\n", nscan);
                     return -1;
                 }
                 fwrite(&len, sizeof(int), 1, mp);
 
-                for (int j = 0; j < len; j++) {
+                for (int j = 0; j < len; j++)
+                {
                     char vstr[16];
                     nscan = fscanf(fp, ",%15[^,\n ]", vstr);
-                    if (nscan != 1) {
+                    if (nscan != 1)
+                    {
                         fprintf(stderr, "read array element failed %d\n", nscan);
                         return -1;
                     }
 
                     bool is_float = vstr_is_float(vstr);
 
-                    if (is_float) {
+                    if (is_float)
+                    {
                         float vf;
                         sscanf(vstr, "%f", &vf);
                         fwrite(&vf, sizeof(float), 1, mp);
                     }
-                    else {
+                    else
+                    {
                         int v;
                         sscanf(vstr, "%d", &v);
                         fwrite(&v, sizeof(int), 1, mp);
                     }
                 }
             }
-            else {
+            else
+            {
                 char vstr[16];
                 nscan = fscanf(fp, "%15s", vstr);
-                if (nscan != 1) {
+                if (nscan != 1)
+                {
                     fprintf(stderr, "read value failed %d\n", nscan);
                     return -1;
                 }
 
                 bool is_float = vstr_is_float(vstr);
 
-                if (is_float) {
+                if (is_float)
+                {
                     float vf;
                     sscanf(vstr, "%f", &vf);
                     fwrite(&vf, sizeof(float), 1, mp);
                 }
-                else {
+                else
+                {
                     int v;
                     sscanf(vstr, "%d", &v);
                     fwrite(&v, sizeof(int), 1, mp);
@@ -260,7 +285,8 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
 
     FILE* mp = fopen(parambinpath, "rb");
 
-    if (!mp) {
+    if (!mp)
+    {
         fprintf(stderr, "fopen %s failed\n", parambinpath);
         return -1;
     }
@@ -272,14 +298,16 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
     fprintf(cppfp, "static const unsigned char %s[] = {\n", param_var.c_str());
 
     int i = 0;
-    while (!feof(mp)) {
+    while (!feof(mp))
+    {
         int c = fgetc(mp);
         if (c == EOF)
             break;
         fprintf(cppfp, "0x%02x,", c);
 
         i++;
-        if (i % 16 == 0) {
+        if (i % 16 == 0)
+        {
             fprintf(cppfp, "\n");
         }
     }
@@ -293,7 +321,8 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
 
     FILE* bp = fopen(modelpath, "rb");
 
-    if (!bp) {
+    if (!bp)
+    {
         fprintf(stderr, "fopen %s failed\n", modelpath);
         return -1;
     }
@@ -302,14 +331,16 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
     fprintf(cppfp, "static const unsigned char %s[] = {\n", model_var.c_str());
 
     i = 0;
-    while (!feof(bp)) {
+    while (!feof(bp))
+    {
         int c = fgetc(bp);
         if (c == EOF)
             break;
         fprintf(cppfp, "0x%02x,", c);
 
         i++;
-        if (i % 16 == 0) {
+        if (i % 16 == 0)
+        {
             fprintf(cppfp, "\n");
         }
     }
@@ -327,7 +358,8 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
 
 int main(int argc, char** argv)
 {
-    if (argc != 5) {
+    if (argc != 5)
+    {
         fprintf(stderr, "Usage: %s [ncnnproto] [ncnnbin] [idcpppath] [memcpppath]\n", argv[0]);
         return -1;
     }

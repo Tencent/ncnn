@@ -30,7 +30,8 @@ static int test_noop(const ncnn::Mat& a)
     as[0] = a;
 
     int ret = test_layer<ncnn::Noop>("Noop", pd, weights, opt, as, 1);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_noop failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
     }
 

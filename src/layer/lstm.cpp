@@ -83,7 +83,8 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
     cell.fill(0.f);
 
     // unroll
-    for (int t = 0; t < T; t++) {
+    for (int t = 0; t < T; t++)
+    {
         // clip hidden by continuation indicator
         // h_cont_{t-1} = cont_t * h_{t-1}
         // h_cont_{t-1} = h_{t-1} if cont_t == 1
@@ -95,7 +96,8 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         int ti = reverse ? T - 1 - t : t;
 
         const float* x = bottom_blob.row(ti);
-        for (int q = 0; q < num_output; q++) {
+        for (int q = 0; q < num_output; q++)
+        {
             const float* bias_c_I = bias_c.row(0);
             const float* bias_c_F = bias_c.row(1);
             const float* bias_c_O = bias_c.row(2);
@@ -119,7 +121,8 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             float O = bias_c_O[q];
             float G = bias_c_G[q];
 
-            for (int i = 0; i < size; i++) {
+            for (int i = 0; i < size; i++)
+            {
                 float xi = x[i];
 
                 I += weight_xc_I[i] * xi;
@@ -128,7 +131,8 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
                 G += weight_xc_G[i] * xi;
             }
 
-            for (int i = 0; i < num_output; i++) {
+            for (int i = 0; i < num_output; i++)
+            {
                 float h_cont = cont ? hidden[i] : 0.f;
 
                 I += weight_hc_I[i] * h_cont;
@@ -151,7 +155,8 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         // c_t := f_t .* c_{t-1} + i_t .* g_t
         // h_t := o_t .* tanh[c_t]
         float* output_data = top_blob.row(ti);
-        for (int q = 0; q < num_output; q++) {
+        for (int q = 0; q < num_output; q++)
+        {
             const float* gates_data = gates.row(q);
 
             float I = gates_data[0];
@@ -188,19 +193,22 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         return -100;
 
     // forward
-    if (direction == 0) {
+    if (direction == 0)
+    {
         int ret = lstm(bottom_blob, top_blob, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), opt);
         if (ret != 0)
             return ret;
     }
 
-    if (direction == 1) {
+    if (direction == 1)
+    {
         int ret = lstm(bottom_blob, top_blob, 1, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), opt);
         if (ret != 0)
             return ret;
     }
 
-    if (direction == 2) {
+    if (direction == 2)
+    {
         Mat top_blob_forward(num_output, T, 4u, opt.workspace_allocator);
         if (top_blob_forward.empty())
             return -100;
@@ -218,7 +226,8 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
             return ret1;
 
         // concat w
-        for (int i = 0; i < T; i++) {
+        for (int i = 0; i < T; i++)
+        {
             const float* pf = top_blob_forward.row(i);
             const float* pr = top_blob_reverse.row(i);
             float* ptr = top_blob.row(i);

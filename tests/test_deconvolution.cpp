@@ -45,7 +45,8 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Deconvolution>("Deconvolution", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
     }
 
@@ -73,7 +74,8 @@ static int test_deconvolution_0()
         {7, 2, 1, 3},
     };
 
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++)
+    {
         int ret = 0
                   || test_deconvolution(9, 7, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
                   || test_deconvolution(9, 7, 4, 13, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0)

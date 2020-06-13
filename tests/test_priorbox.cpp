@@ -57,7 +57,8 @@ static int test_priorbox_caffe()
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::PriorBox>("PriorBox", pd, weights, opt, as, 1);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_priorbox_caffe failed\n");
     }
 
@@ -108,7 +109,8 @@ static int test_priorbox_mxnet()
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::PriorBox>("PriorBox", pd, weights, opt, as, 1);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_priorbox_mxnet failed\n");
     }
 

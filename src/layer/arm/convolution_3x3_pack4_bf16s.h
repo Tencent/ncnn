@@ -77,18 +77,22 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
         // 6 = (r06 + (r02 - r04 * 1.25) * 4) - (r01 * 2 - r03 * 2.5 + r05 * 0.5)
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             const Mat img0 = bottom_blob_bordered.channel(q);
             Mat img0_tm = bottom_blob_tm.channel(q);
 
             float tmp[8][8][4];
 
             // tile
-            for (int i = 0; i < h_tm / 8; i++) {
-                for (int j = 0; j < w_tm / 8; j++) {
+            for (int i = 0; i < h_tm / 8; i++)
+            {
+                for (int j = 0; j < w_tm / 8; j++)
+                {
                     const unsigned short* r0 = img0.row<const unsigned short>(i * 6) + (j * 6) * 4;
 
-                    for (int m = 0; m < 8; m++) {
+                    for (int m = 0; m < 8; m++)
+                    {
                         float32x4_t _r00 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
                         float32x4_t _r01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 4), 16));
                         float32x4_t _r02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 8), 16));
@@ -160,7 +164,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                     float* r0_tm_6 = r0_tm_0 + tiles * 24;
                     float* r0_tm_7 = r0_tm_0 + tiles * 28;
 
-                    for (int m = 0; m < 8; m++) {
+                    for (int m = 0; m < 8; m++)
+                    {
                         float32x4_t _tmp00 = vld1q_f32(tmp[m][0]);
                         float32x4_t _tmp01 = vld1q_f32(tmp[m][1]);
                         float32x4_t _tmp02 = vld1q_f32(tmp[m][2]);
@@ -271,20 +276,23 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
 #endif
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int r = 0; r < 64; r++) {
+        for (int r = 0; r < 64; r++)
+        {
             Mat tm2 = bottom_blob_tm2.channel(r);
 
             // tile
             int i = 0;
 #if __aarch64__
-            for (; i + 11 < tiles; i += 12) {
+            for (; i + 11 < tiles; i += 12)
+            {
                 float* tm2p = tm2.row(i / 12);
 
                 const float* r0 = bottom_blob_tm;
 
                 r0 += (r * tiles + i) * 4;
 
-                for (int q = 0; q < inch; q++) {
+                for (int q = 0; q < inch; q++)
+                {
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
@@ -314,7 +322,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                 }
             }
 #endif
-            for (; i + 7 < tiles; i += 8) {
+            for (; i + 7 < tiles; i += 8)
+            {
 #if __aarch64__
                 float* tm2p = tm2.row(i / 12 + (i % 12) / 8);
 #else
@@ -325,7 +334,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
 
                 r0 += (r * tiles + i) * 4;
 
-                for (int q = 0; q < inch; q++) {
+                for (int q = 0; q < inch; q++)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
@@ -373,7 +383,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                     r0 += bottom_blob_tm.cstep * 4;
                 }
             }
-            for (; i + 3 < tiles; i += 4) {
+            for (; i + 3 < tiles; i += 4)
+            {
 #if __aarch64__
                 float* tm2p = tm2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
 #else
@@ -384,7 +395,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
 
                 r0 += (r * tiles + i) * 4;
 
-                for (int q = 0; q < inch; q++) {
+                for (int q = 0; q < inch; q++)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
@@ -409,7 +421,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                     r0 += bottom_blob_tm.cstep * 4;
                 }
             }
-            for (; i + 1 < tiles; i += 2) {
+            for (; i + 1 < tiles; i += 2)
+            {
 #if __aarch64__
                 float* tm2p = tm2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
 #else
@@ -420,7 +433,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
 
                 r0 += (r * tiles + i) * 4;
 
-                for (int q = 0; q < inch; q++) {
+                for (int q = 0; q < inch; q++)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #256]       \n"
@@ -445,7 +459,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                     r0 += bottom_blob_tm.cstep * 4;
                 }
             }
-            for (; i < tiles; i++) {
+            for (; i < tiles; i++)
+            {
 #if __aarch64__
                 float* tm2p = tm2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
 #else
@@ -456,7 +471,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
 
                 r0 += (r * tiles + i) * 4;
 
-                for (int q = 0; q < inch; q++) {
+                for (int q = 0; q < inch; q++)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #128]       \n"
@@ -496,7 +512,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
         remain_outch_start = nn_outch << 1;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int pp = 0; pp < nn_outch; pp++) {
+        for (int pp = 0; pp < nn_outch; pp++)
+        {
             int p = pp * 2;
 
             float* output0_tm = top_blob_tm.channel(p);
@@ -504,11 +521,13 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
 
             const Mat kernel01_tm = kernel_tm.channel(pp);
 
-            for (int r = 0; r < 64; r++) {
+            for (int r = 0; r < 64; r++)
+            {
                 const Mat bb2 = bottom_blob_tm2.channel(r);
 
                 int i = 0;
-                for (; i + 11 < tiles; i += 12) {
+                for (; i + 11 < tiles; i += 12)
+                {
                     const float* r0 = bb2.row(i / 12);
 
                     const float* k01 = kernel01_tm.row(r);
@@ -689,7 +708,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                         "4"(k01)
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
-                for (; i + 7 < tiles; i += 8) {
+                for (; i + 7 < tiles; i += 8)
+                {
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8);
 
                     const float* k01 = kernel01_tm.row(r);
@@ -821,7 +841,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                         "4"(k01)
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
-                for (; i + 3 < tiles; i += 4) {
+                for (; i + 3 < tiles; i += 4)
+                {
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
 
                     const float* k01 = kernel01_tm.row(r);
@@ -908,7 +929,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                         "4"(k01)
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
                 }
-                for (; i + 1 < tiles; i += 2) {
+                for (; i + 1 < tiles; i += 2)
+                {
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
 
                     const float* k01 = kernel01_tm.row(r);
@@ -971,7 +993,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                         "4"(k01)
                         : "cc", "memory", "v0", "v1", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19");
                 }
-                for (; i < tiles; i++) {
+                for (; i < tiles; i++)
+                {
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
 
                     const float* k01 = kernel01_tm.row(r);
@@ -1029,7 +1052,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
 #endif // __ARM_NEON && __aarch64__
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = remain_outch_start; p < outch; p++) {
+        for (int p = remain_outch_start; p < outch; p++)
+        {
             float* output0_tm = top_blob_tm.channel(p);
 
 #if __aarch64__
@@ -1038,12 +1062,14 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
             const Mat kernel0_tm = kernel_tm.channel(p);
 #endif
 
-            for (int r = 0; r < 64; r++) {
+            for (int r = 0; r < 64; r++)
+            {
                 const Mat bb2 = bottom_blob_tm2.channel(r);
 
                 int i = 0;
 #if __aarch64__
-                for (; i + 11 < tiles; i += 12) {
+                for (; i + 11 < tiles; i += 12)
+                {
                     const float* r0 = bb2.row(i / 12);
 
                     const float* k0 = kernel0_tm.row(r);
@@ -1149,7 +1175,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27");
                 }
 #endif
-                for (; i + 7 < tiles; i += 8) {
+                for (; i + 7 < tiles; i += 8)
+                {
 #if __aarch64__
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8);
 #else
@@ -1311,7 +1338,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                         : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif
                 }
-                for (; i + 3 < tiles; i += 4) {
+                for (; i + 3 < tiles; i += 4)
+                {
 #if __aarch64__
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
 #else
@@ -1424,7 +1452,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                         : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11");
 #endif
                 }
-                for (; i + 1 < tiles; i += 2) {
+                for (; i + 1 < tiles; i += 2)
+                {
 #if __aarch64__
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
 #else
@@ -1517,7 +1546,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                         : "cc", "memory", "q0", "q1", "q4", "q5", "q6", "q7", "q8", "q9");
 #endif
                 }
-                for (; i < tiles; i++) {
+                for (; i < tiles; i++)
+                {
 #if __aarch64__
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
 #else
@@ -1604,10 +1634,12 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
 
     // BEGIN transform output
     Mat top_blob_bordered;
-    if (outw == top_blob.w && outh == top_blob.h) {
+    if (outw == top_blob.w && outh == top_blob.h)
+    {
         top_blob_bordered = top_blob;
     }
-    else {
+    else
+    {
         top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
     }
     {
@@ -1632,7 +1664,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
         const int tiles = w_tm / 8 * h_tm / 8;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < outch; p++) {
+        for (int p = 0; p < outch; p++)
+        {
             const Mat out0_tm = top_blob_tm.channel(p);
             Mat out0 = top_blob_bordered.channel(p);
 
@@ -1642,8 +1675,10 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
             float tmp[6][8][4];
 
             // tile
-            for (int i = 0; i < outh / 6; i++) {
-                for (int j = 0; j < outw / 6; j++) {
+            for (int i = 0; i < outh / 6; i++)
+            {
+                for (int j = 0; j < outw / 6; j++)
+                {
                     //                     top_blob_tm.create(tiles, 64, outch, elemsize, elempack);
 
                     const float* output0_tm_0 = (const float*)out0_tm + (i * w_tm / 8 + j) * 4;
@@ -1658,7 +1693,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                     unsigned short* output0 = out0.row<unsigned short>(i * 6) + (j * 6) * 4;
 
                     // TODO neon optimize
-                    for (int m = 0; m < 8; m++) {
+                    for (int m = 0; m < 8; m++)
+                    {
                         float32x4_t _out0tm0 = vld1q_f32(output0_tm_0);
                         float32x4_t _out0tm1 = vld1q_f32(output0_tm_1);
                         float32x4_t _out0tm2 = vld1q_f32(output0_tm_2);
@@ -1718,7 +1754,8 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                         output0_tm_7 += tiles * 32;
                     }
 
-                    for (int m = 0; m < 6; m++) {
+                    for (int m = 0; m < 6; m++)
+                    {
                         float32x4_t _tmp00 = vld1q_f32(tmp[m][0]);
                         float32x4_t _tmp01 = vld1q_f32(tmp[m][1]);
                         float32x4_t _tmp02 = vld1q_f32(tmp[m][2]);
@@ -1795,14 +1832,16 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out0 = top_blob_fp32.channel(get_omp_thread_num());
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + p * 4) : vdupq_n_f32(0.f);
         out0.fill(_bias0);
 
         int q = 0;
-        for (; q < inch - 1; q++) {
+        for (; q < inch - 1; q++)
+        {
             float* outptr0 = out0.row(0);
 
             const Mat img0 = bottom_blob.channel(q);
@@ -1836,9 +1875,11 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 #endif // __aarch64__
 
             int i = 0;
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int j = 0;
-                for (; j + 3 < outw; j += 4) {
+                for (; j + 3 < outw; j += 4)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
@@ -2453,7 +2494,8 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
                         : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j + 1 < outw; j += 2) {
+                for (; j + 1 < outw; j += 2)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #256]       \n"
@@ -2891,7 +2933,8 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
                         : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j < outw; j++) {
+                for (; j < outw; j++)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #128]       \n"
@@ -3258,7 +3301,8 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
                 r2 += tailstep;
             }
         }
-        for (; q < inch; q++) {
+        for (; q < inch; q++)
+        {
             unsigned short* outptr0_bf16 = top_blob.channel(p);
 
             const float* outptr0 = out0.row(0);
@@ -3294,9 +3338,11 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 #endif // __aarch64__
 
             int i = 0;
-            for (; i < outh; i++) {
+            for (; i < outh; i++)
+            {
                 int j = 0;
-                for (; j + 3 < outw; j += 4) {
+                for (; j + 3 < outw; j += 4)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%1, #512]       \n"
@@ -3925,7 +3971,8 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
                         : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j + 1 < outw; j += 2) {
+                for (; j + 1 < outw; j += 2)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%1, #256]       \n"
@@ -4382,7 +4429,8 @@ static void conv3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
                         : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j < outw; j++) {
+                for (; j < outw; j++)
+                {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%1, #128]       \n"

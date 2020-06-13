@@ -53,13 +53,16 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage) {
+    if (opt.use_fp16_storage)
+    {
         elemsize = elempack * 2u;
     }
-    else if (opt.use_fp16_packed) {
+    else if (opt.use_fp16_packed)
+    {
         elemsize = elempack == 1 ? 4u : elempack * 2u;
     }
-    else {
+    else
+    {
         elemsize = elempack * 4u;
     }
 
@@ -73,19 +76,24 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
     {
         workspace_shape_packed = Mat(1, (void*)0, elemsize, elempack);
     }
-    else if (shape.dims == 2 && axis == 0) {
+    else if (shape.dims == 2 && axis == 0)
+    {
         workspace_shape_packed = Mat(shape.w, (void*)0, elemsize, elempack);
     }
-    else if (shape.dims == 2 && axis == 1) {
+    else if (shape.dims == 2 && axis == 1)
+    {
         workspace_shape_packed = Mat(shape.h / elempack, (void*)0, elemsize, elempack);
     }
-    else if (shape.dims == 3 && axis == 0) {
+    else if (shape.dims == 3 && axis == 0)
+    {
         workspace_shape_packed = Mat(shape.w, shape.h, (void*)0, elemsize, elempack);
     }
-    else if (shape.dims == 3 && axis == 1) {
+    else if (shape.dims == 3 && axis == 1)
+    {
         workspace_shape_packed = Mat(shape.w, shape.c / elempack, (void*)0, elemsize, elempack);
     }
-    else if (shape.dims == 3 && axis == 2) {
+    else if (shape.dims == 3 && axis == 2)
+    {
         workspace_shape_packed = Mat(shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
     }
 
@@ -104,17 +112,20 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
 
     {
         Mat local_size_xyz;
-        if (workspace_shape_packed.dims == 1) {
+        if (workspace_shape_packed.dims == 1)
+        {
             local_size_xyz.w = std::min(64, workspace_shape_packed.w);
             local_size_xyz.h = 1;
             local_size_xyz.c = 1;
         }
-        if (workspace_shape_packed.dims == 2) {
+        if (workspace_shape_packed.dims == 2)
+        {
             local_size_xyz.w = std::min(8, workspace_shape_packed.w);
             local_size_xyz.h = std::min(8, workspace_shape_packed.h);
             local_size_xyz.c = 1;
         }
-        if (workspace_shape_packed.dims != 0) {
+        if (workspace_shape_packed.dims != 0)
+        {
             local_size_xyz.w = std::min(4, workspace_shape_packed.w);
             local_size_xyz.h = std::min(4, workspace_shape_packed.h);
             local_size_xyz.c = std::min(4, workspace_shape_packed.c);
@@ -145,7 +156,8 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack8
-        if (opt.use_shader_pack8) {
+        if (opt.use_shader_pack8)
+        {
             pipeline_softmax_reduce_max_pack8 = new Pipeline(vkdev);
             pipeline_softmax_reduce_sum_pack8 = new Pipeline(vkdev);
 
@@ -159,17 +171,20 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
 
     {
         Mat local_size_xyz;
-        if (shape_packed.dims == 1) {
+        if (shape_packed.dims == 1)
+        {
             local_size_xyz.w = std::min(64, shape_packed.w);
             local_size_xyz.h = 1;
             local_size_xyz.c = 1;
         }
-        if (shape_packed.dims == 2) {
+        if (shape_packed.dims == 2)
+        {
             local_size_xyz.w = std::min(8, shape_packed.w);
             local_size_xyz.h = std::min(8, shape_packed.h);
             local_size_xyz.c = 1;
         }
-        if (shape_packed.dims == 3) {
+        if (shape_packed.dims == 3)
+        {
             local_size_xyz.w = std::min(4, shape_packed.w);
             local_size_xyz.h = std::min(4, shape_packed.h);
             local_size_xyz.c = std::min(4, shape_packed.c);
@@ -200,7 +215,8 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack8
-        if (opt.use_shader_pack8) {
+        if (opt.use_shader_pack8)
+        {
             pipeline_softmax_exp_sub_max_pack8 = new Pipeline(vkdev);
             pipeline_softmax_div_sum_pack8 = new Pipeline(vkdev);
 
@@ -273,23 +289,28 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
         max_workspace.create(1, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(1, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 2 && axis == 0) {
+    else if (dims == 2 && axis == 0)
+    {
         max_workspace.create(w, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(w, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 2 && axis == 1) {
+    else if (dims == 2 && axis == 1)
+    {
         max_workspace.create(h, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(h, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 3 && axis == 0) {
+    else if (dims == 3 && axis == 0)
+    {
         max_workspace.create(w, h, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(w, h, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 3 && axis == 1) {
+    else if (dims == 3 && axis == 1)
+    {
         max_workspace.create(w, channels, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(w, channels, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 3 && axis == 2) {
+    else if (dims == 3 && axis == 2)
+    {
         max_workspace.create(h, channels, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(h, channels, elemsize, elempack, opt.workspace_vkallocator);
     }
@@ -414,23 +435,28 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
         max_workspace.create(1, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(1, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 2 && axis == 0) {
+    else if (dims == 2 && axis == 0)
+    {
         max_workspace.create(w, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(w, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 2 && axis == 1) {
+    else if (dims == 2 && axis == 1)
+    {
         max_workspace.create(h, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(h, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 3 && axis == 0) {
+    else if (dims == 3 && axis == 0)
+    {
         max_workspace.create(w, h, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(w, h, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 3 && axis == 1) {
+    else if (dims == 3 && axis == 1)
+    {
         max_workspace.create(w, channels, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(w, channels, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 3 && axis == 2) {
+    else if (dims == 3 && axis == 2)
+    {
         max_workspace.create(h, channels, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(h, channels, elemsize, elempack, opt.workspace_vkallocator);
     }

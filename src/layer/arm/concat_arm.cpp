@@ -36,7 +36,8 @@ Concat_arm::Concat_arm()
 int Concat_arm::create_pipeline(const Option& opt)
 {
 #if __ARM_NEON
-    if (opt.use_packing_layout) {
+    if (opt.use_packing_layout)
+    {
         {
             packing_pack4 = ncnn::create_layer(ncnn::LayerType::Packing);
 
@@ -56,8 +57,10 @@ int Concat_arm::create_pipeline(const Option& opt)
 int Concat_arm::destroy_pipeline(const Option& opt)
 {
 #if __ARM_NEON
-    if (opt.use_packing_layout) {
-        if (packing_pack4) {
+    if (opt.use_packing_layout)
+    {
+        if (packing_pack4)
+        {
             packing_pack4->destroy_pipeline(opt);
             delete packing_pack4;
             packing_pack4 = 0;
@@ -76,7 +79,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     int dims = bottom_blobs[0].dims;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout) {
+    if (opt.use_packing_layout)
+    {
         if (dims == 1) // axis == 0
         {
             // concat vector
@@ -84,7 +88,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             size_t elemsize = bottom_blobs[0].elemsize;
             int elempack = bottom_blobs[0].elempack;
             int top_w = 0;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
                 top_w += bottom_blob.w * bottom_blob.elempack;
             }
@@ -98,7 +103,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 return -100;
 
             float* outptr = top_blob;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
 
                 const float* ptr = bottom_blob;
@@ -110,7 +116,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             return 0;
         }
 
-        if (dims == 2 && axis == 0) {
+        if (dims == 2 && axis == 0)
+        {
             // concat image
             int w = bottom_blobs[0].w;
 
@@ -118,7 +125,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             size_t elemsize = bottom_blobs[0].elemsize;
             int elempack = bottom_blobs[0].elempack;
             int top_h = 0;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
                 elemsize = std::min(elemsize, bottom_blob.elemsize);
                 elempack = std::min(elempack, bottom_blob.elempack);
@@ -134,18 +142,22 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 return -100;
 
             Mat top_blob_unpacked = top_blob;
-            if (elempack == 1 && out_elempack == 4) {
+            if (elempack == 1 && out_elempack == 4)
+            {
                 top_blob_unpacked.create(w, top_h / elempack, elemsize, elempack, opt.workspace_allocator);
                 if (top_blob_unpacked.empty())
                     return -100;
             }
 
             float* outptr = top_blob_unpacked;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
 
-                if (bottom_blob.elempack == 4 && elempack == 1) {
-                    for (int i = 0; i < bottom_blob.h; i++) {
+                if (bottom_blob.elempack == 4 && elempack == 1)
+                {
+                    for (int i = 0; i < bottom_blob.h; i++)
+                    {
                         const float* r0 = bottom_blob.row(i);
 
                         float* outptr0 = outptr;
@@ -153,7 +165,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         float* outptr2 = outptr + w * 2;
                         float* outptr3 = outptr + w * 3;
 
-                        for (int j = 0; j < w; j++) {
+                        for (int j = 0; j < w; j++)
+                        {
                             *outptr0++ = r0[0];
                             *outptr1++ = r0[1];
                             *outptr2++ = r0[2];
@@ -177,14 +190,16 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             }
 
             // packing
-            if (elempack == 1 && out_elempack == 4) {
+            if (elempack == 1 && out_elempack == 4)
+            {
                 packing_pack4->forward(top_blob_unpacked, top_blob, opt);
             }
 
             return 0;
         }
 
-        if (dims == 2 && axis == 1) {
+        if (dims == 2 && axis == 1)
+        {
             // interleave image row
             int h = bottom_blobs[0].h;
             size_t elemsize = bottom_blobs[0].elemsize;
@@ -192,7 +207,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
             // total width
             int top_w = 0;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
                 top_w += bottom_blob.w;
             }
@@ -203,9 +219,11 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++) {
+            for (int i = 0; i < h; i++)
+            {
                 float* outptr = top_blob.row(i);
-                for (size_t b = 0; b < bottom_blobs.size(); b++) {
+                for (size_t b = 0; b < bottom_blobs.size(); b++)
+                {
                     const Mat& bottom_blob = bottom_blobs[b];
 
                     const float* ptr = bottom_blob.row(i);
@@ -218,7 +236,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             return 0;
         }
 
-        if (dims == 3 && axis == 0) {
+        if (dims == 3 && axis == 0)
+        {
             // concat dim
             int w = bottom_blobs[0].w;
             int h = bottom_blobs[0].h;
@@ -227,7 +246,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             size_t elemsize = bottom_blobs[0].elemsize;
             int elempack = bottom_blobs[0].elempack;
             int top_channels = 0;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
                 elemsize = std::min(elemsize, bottom_blob.elemsize);
                 elempack = std::min(elempack, bottom_blob.elempack);
@@ -243,20 +263,24 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 return -100;
 
             Mat top_blob_unpacked = top_blob;
-            if (elempack == 1 && out_elempack == 4) {
+            if (elempack == 1 && out_elempack == 4)
+            {
                 top_blob_unpacked.create(w, h, top_channels / elempack, elemsize, elempack, opt.workspace_allocator);
                 if (top_blob_unpacked.empty())
                     return -100;
             }
 
             int p = 0;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
 
-                if (bottom_blob.elempack == 4 && elempack == 1) {
+                if (bottom_blob.elempack == 4 && elempack == 1)
+                {
                     int size = bottom_blob.w * bottom_blob.h;
 
-                    for (int q = 0; q < bottom_blob.c; q++) {
+                    for (int q = 0; q < bottom_blob.c; q++)
+                    {
                         const float* r0 = bottom_blob.channel(q);
 
                         float* outptr0 = top_blob_unpacked.channel(p);
@@ -264,7 +288,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         float* outptr2 = top_blob_unpacked.channel(p + 2);
                         float* outptr3 = top_blob_unpacked.channel(p + 3);
 
-                        for (int i = 0; i < size; i++) {
+                        for (int i = 0; i < size; i++)
+                        {
                             *outptr0++ = r0[0];
                             *outptr1++ = r0[1];
                             *outptr2++ = r0[2];
@@ -289,14 +314,16 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             }
 
             // packing
-            if (elempack == 1 && out_elempack == 4) {
+            if (elempack == 1 && out_elempack == 4)
+            {
                 packing_pack4->forward(top_blob_unpacked, top_blob, opt);
             }
 
             return 0;
         }
 
-        if (dims == 3 && axis == 1) {
+        if (dims == 3 && axis == 1)
+        {
             // interleave dim height
             int w = bottom_blobs[0].w;
             int channels = bottom_blobs[0].c;
@@ -305,7 +332,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
             // total height
             int top_h = 0;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
                 top_h += bottom_blob.h;
             }
@@ -316,10 +344,12 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 float* outptr = top_blob.channel(q);
 
-                for (size_t b = 0; b < bottom_blobs.size(); b++) {
+                for (size_t b = 0; b < bottom_blobs.size(); b++)
+                {
                     const Mat& bottom_blob = bottom_blobs[b];
 
                     int size = bottom_blob.w * bottom_blob.h;
@@ -334,7 +364,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             return 0;
         }
 
-        if (dims == 3 && axis == 2) {
+        if (dims == 3 && axis == 2)
+        {
             // interleave dim width
             int h = bottom_blobs[0].h;
             int channels = bottom_blobs[0].c;
@@ -343,7 +374,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
             // total height
             int top_w = 0;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
                 top_w += bottom_blob.w;
             }
@@ -354,11 +386,14 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 float* outptr = top_blob.channel(q);
 
-                for (int i = 0; i < h; i++) {
-                    for (size_t b = 0; b < bottom_blobs.size(); b++) {
+                for (int i = 0; i < h; i++)
+                {
+                    for (size_t b = 0; b < bottom_blobs.size(); b++)
+                    {
                         const Mat& bottom_blob = bottom_blobs[b];
 
                         const float* ptr = bottom_blob.channel(q).row(i);
@@ -383,7 +418,8 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
     int dims = bottom_blobs[0].dims;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout) {
+    if (opt.use_packing_layout)
+    {
         if (dims == 1) // axis == 0
         {
             // concat vector
@@ -391,7 +427,8 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
             size_t elemsize = bottom_blobs[0].elemsize;
             int elempack = bottom_blobs[0].elempack;
             int top_w = 0;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
                 top_w += bottom_blob.w * bottom_blob.elempack;
             }
@@ -405,7 +442,8 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
                 return -100;
 
             unsigned short* outptr = top_blob;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
 
                 const unsigned short* ptr = bottom_blob;
@@ -417,7 +455,8 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
             return 0;
         }
 
-        if (dims == 2 && axis == 0) {
+        if (dims == 2 && axis == 0)
+        {
             // concat image
             int w = bottom_blobs[0].w;
 
@@ -425,7 +464,8 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
             size_t elemsize = bottom_blobs[0].elemsize;
             int elempack = bottom_blobs[0].elempack;
             int top_h = 0;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
                 elemsize = std::min(elemsize, bottom_blob.elemsize);
                 elempack = std::min(elempack, bottom_blob.elempack);
@@ -441,18 +481,22 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
                 return -100;
 
             Mat top_blob_unpacked = top_blob;
-            if (elempack == 1 && out_elempack == 4) {
+            if (elempack == 1 && out_elempack == 4)
+            {
                 top_blob_unpacked.create(w, top_h / elempack, elemsize, elempack, opt.workspace_allocator);
                 if (top_blob_unpacked.empty())
                     return -100;
             }
 
             unsigned short* outptr = top_blob_unpacked;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
 
-                if (bottom_blob.elempack == 4 && elempack == 1) {
-                    for (int i = 0; i < bottom_blob.h; i++) {
+                if (bottom_blob.elempack == 4 && elempack == 1)
+                {
+                    for (int i = 0; i < bottom_blob.h; i++)
+                    {
                         const unsigned short* r0 = bottom_blob.row<const unsigned short>(i);
 
                         unsigned short* outptr0 = outptr;
@@ -460,7 +504,8 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
                         unsigned short* outptr2 = outptr + w * 2;
                         unsigned short* outptr3 = outptr + w * 3;
 
-                        for (int j = 0; j < w; j++) {
+                        for (int j = 0; j < w; j++)
+                        {
                             *outptr0++ = r0[0];
                             *outptr1++ = r0[1];
                             *outptr2++ = r0[2];
@@ -484,14 +529,16 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
             }
 
             // packing
-            if (elempack == 1 && out_elempack == 4) {
+            if (elempack == 1 && out_elempack == 4)
+            {
                 packing_pack4->forward(top_blob_unpacked, top_blob, opt);
             }
 
             return 0;
         }
 
-        if (dims == 2 && axis == 1) {
+        if (dims == 2 && axis == 1)
+        {
             // interleave image row
             int h = bottom_blobs[0].h;
             size_t elemsize = bottom_blobs[0].elemsize;
@@ -499,7 +546,8 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
 
             // total width
             int top_w = 0;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
                 top_w += bottom_blob.w;
             }
@@ -510,9 +558,11 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++) {
+            for (int i = 0; i < h; i++)
+            {
                 unsigned short* outptr = top_blob.row<unsigned short>(i);
-                for (size_t b = 0; b < bottom_blobs.size(); b++) {
+                for (size_t b = 0; b < bottom_blobs.size(); b++)
+                {
                     const Mat& bottom_blob = bottom_blobs[b];
 
                     const unsigned short* ptr = bottom_blob.row<unsigned short>(i);
@@ -525,7 +575,8 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
             return 0;
         }
 
-        if (dims == 3 && axis == 0) {
+        if (dims == 3 && axis == 0)
+        {
             // concat dim
             int w = bottom_blobs[0].w;
             int h = bottom_blobs[0].h;
@@ -534,7 +585,8 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
             size_t elemsize = bottom_blobs[0].elemsize;
             int elempack = bottom_blobs[0].elempack;
             int top_channels = 0;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
                 elemsize = std::min(elemsize, bottom_blob.elemsize);
                 elempack = std::min(elempack, bottom_blob.elempack);
@@ -550,20 +602,24 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
                 return -100;
 
             Mat top_blob_unpacked = top_blob;
-            if (elempack == 1 && out_elempack == 4) {
+            if (elempack == 1 && out_elempack == 4)
+            {
                 top_blob_unpacked.create(w, h, top_channels / elempack, elemsize, elempack, opt.workspace_allocator);
                 if (top_blob_unpacked.empty())
                     return -100;
             }
 
             int p = 0;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
 
-                if (bottom_blob.elempack == 4 && elempack == 1) {
+                if (bottom_blob.elempack == 4 && elempack == 1)
+                {
                     int size = bottom_blob.w * bottom_blob.h;
 
-                    for (int q = 0; q < bottom_blob.c; q++) {
+                    for (int q = 0; q < bottom_blob.c; q++)
+                    {
                         const unsigned short* r0 = bottom_blob.channel(q);
 
                         unsigned short* outptr0 = top_blob_unpacked.channel(p);
@@ -571,7 +627,8 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
                         unsigned short* outptr2 = top_blob_unpacked.channel(p + 2);
                         unsigned short* outptr3 = top_blob_unpacked.channel(p + 3);
 
-                        for (int i = 0; i < size; i++) {
+                        for (int i = 0; i < size; i++)
+                        {
                             *outptr0++ = r0[0];
                             *outptr1++ = r0[1];
                             *outptr2++ = r0[2];
@@ -596,14 +653,16 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
             }
 
             // packing
-            if (elempack == 1 && out_elempack == 4) {
+            if (elempack == 1 && out_elempack == 4)
+            {
                 packing_pack4->forward(top_blob_unpacked, top_blob, opt);
             }
 
             return 0;
         }
 
-        if (dims == 3 && axis == 1) {
+        if (dims == 3 && axis == 1)
+        {
             // interleave dim height
             int w = bottom_blobs[0].w;
             int channels = bottom_blobs[0].c;
@@ -612,7 +671,8 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
 
             // total height
             int top_h = 0;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
                 top_h += bottom_blob.h;
             }
@@ -623,10 +683,12 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 unsigned short* outptr = top_blob.channel(q);
 
-                for (size_t b = 0; b < bottom_blobs.size(); b++) {
+                for (size_t b = 0; b < bottom_blobs.size(); b++)
+                {
                     const Mat& bottom_blob = bottom_blobs[b];
 
                     int size = bottom_blob.w * bottom_blob.h;
@@ -641,7 +703,8 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
             return 0;
         }
 
-        if (dims == 3 && axis == 2) {
+        if (dims == 3 && axis == 2)
+        {
             // interleave dim width
             int h = bottom_blobs[0].h;
             int channels = bottom_blobs[0].c;
@@ -650,7 +713,8 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
 
             // total height
             int top_w = 0;
-            for (size_t b = 0; b < bottom_blobs.size(); b++) {
+            for (size_t b = 0; b < bottom_blobs.size(); b++)
+            {
                 const Mat& bottom_blob = bottom_blobs[b];
                 top_w += bottom_blob.w;
             }
@@ -661,11 +725,14 @@ int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 unsigned short* outptr = top_blob.channel(q);
 
-                for (int i = 0; i < h; i++) {
-                    for (size_t b = 0; b < bottom_blobs.size(); b++) {
+                for (int i = 0; i < h; i++)
+                {
+                    for (size_t b = 0; b < bottom_blobs.size(); b++)
+                    {
                         const Mat& bottom_blob = bottom_blobs[b];
 
                         const unsigned short* ptr = bottom_blob.channel(q).row<const unsigned short>(i);

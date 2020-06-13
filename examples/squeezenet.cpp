@@ -49,7 +49,8 @@ static int detect_squeezenet(const cv::Mat& bgr, std::vector<float>& cls_scores)
     ex.extract("prob", out);
 
     cls_scores.resize(out.w);
-    for (int j = 0; j < out.w; j++) {
+    for (int j = 0; j < out.w; j++)
+    {
         cls_scores[j] = out[j];
     }
 
@@ -62,7 +63,8 @@ static int print_topk(const std::vector<float>& cls_scores, int topk)
     int size = cls_scores.size();
     std::vector<std::pair<float, int> > vec;
     vec.resize(size);
-    for (int i = 0; i < size; i++) {
+    for (int i = 0; i < size; i++)
+    {
         vec[i] = std::make_pair(cls_scores[i], i);
     }
 
@@ -70,7 +72,8 @@ static int print_topk(const std::vector<float>& cls_scores, int topk)
                       std::greater<std::pair<float, int> >());
 
     // print topk and score
-    for (int i = 0; i < topk; i++) {
+    for (int i = 0; i < topk; i++)
+    {
         float score = vec[i].first;
         int index = vec[i].second;
         fprintf(stderr, "%d = %f\n", index, score);
@@ -81,7 +84,8 @@ static int print_topk(const std::vector<float>& cls_scores, int topk)
 
 int main(int argc, char** argv)
 {
-    if (argc != 2) {
+    if (argc != 2)
+    {
         fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
         return -1;
     }
@@ -89,7 +93,8 @@ int main(int argc, char** argv)
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, 1);
-    if (m.empty()) {
+    if (m.empty())
+    {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);
         return -1;
     }

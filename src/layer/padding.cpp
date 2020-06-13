@@ -36,10 +36,12 @@ int Padding::load_param(const ParamDict& pd)
     front = pd.get(7, 0);
     behind = pd.get(8, 0);
 
-    if (top == -233 && bottom == -233 && left == -233 && right == -233) {
+    if (top == -233 && bottom == -233 && left == -233 && right == -233)
+    {
         one_blob_only = false;
     }
-    if (top == -234 && bottom == -234 && left == -234 && right == -234) {
+    if (top == -234 && bottom == -234 && left == -234 && right == -234)
+    {
         one_blob_only = false;
     }
 
@@ -48,7 +50,8 @@ int Padding::load_param(const ParamDict& pd)
 
 int Padding::load_model(const ModelBin& mb)
 {
-    if (per_channel_pad_data_size) {
+    if (per_channel_pad_data_size)
+    {
         per_channel_pad_data = mb.load(per_channel_pad_data_size, 1);
     }
 
@@ -64,85 +67,109 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
     const T* ptr = src;
     T* outptr = dst;
 
-    if (type == 0) {
+    if (type == 0)
+    {
         int y = 0;
         // fill top
-        for (; y < top; y++) {
+        for (; y < top; y++)
+        {
             int x = 0;
-            for (; x < w; x++) {
+            for (; x < w; x++)
+            {
                 outptr[x] = v;
             }
             outptr += w;
         }
         // fill center
-        for (; y < (top + src.h); y++) {
+        for (; y < (top + src.h); y++)
+        {
             int x = 0;
-            for (; x < left; x++) {
+            for (; x < left; x++)
+            {
                 outptr[x] = v;
             }
-            if (src.w < 12) {
-                for (; x < (left + src.w); x++) {
+            if (src.w < 12)
+            {
+                for (; x < (left + src.w); x++)
+                {
                     outptr[x] = ptr[x - left];
                 }
             }
-            else {
+            else
+            {
                 memcpy(outptr + left, ptr, src.w * sizeof(T));
                 x += src.w;
             }
-            for (; x < w; x++) {
+            for (; x < w; x++)
+            {
                 outptr[x] = v;
             }
             ptr += src.w;
             outptr += w;
         }
         // fill bottom
-        for (; y < h; y++) {
+        for (; y < h; y++)
+        {
             int x = 0;
-            for (; x < w; x++) {
+            for (; x < w; x++)
+            {
                 outptr[x] = v;
             }
             outptr += w;
         }
     }
 
-    if (type == 1) {
+    if (type == 1)
+    {
         int y = 0;
         // fill top
-        for (; y < top; y++) {
+        for (; y < top; y++)
+        {
             int x = 0;
-            for (; x < left; x++) {
+            for (; x < left; x++)
+            {
                 outptr[x] = ptr[0];
             }
-            if (src.w < 12) {
-                for (; x < (left + src.w); x++) {
+            if (src.w < 12)
+            {
+                for (; x < (left + src.w); x++)
+                {
                     outptr[x] = ptr[x - left];
                 }
             }
-            else {
+            else
+            {
                 memcpy(outptr + left, ptr, src.w * sizeof(T));
                 x += src.w;
             }
-            for (; x < w; x++) {
+            for (; x < w; x++)
+            {
                 outptr[x] = ptr[src.w - 1];
             }
             outptr += w;
         }
         // fill center
-        for (; y < (top + src.h); y++) {
+        for (; y < (top + src.h); y++)
+        {
             int x = 0;
-            for (; x < left; x++) {
+            for (; x < left; x++)
+            {
                 outptr[x] = ptr[0];
             }
-            if (src.w < 12) {
-                for (; x < (left + src.w); x++) {
+            if (src.w < 12)
+            {
+                for (; x < (left + src.w); x++)
+                {
                     outptr[x] = ptr[x - left];
                 }
             }
-            else {
+            else
+            {
                 memcpy(outptr + left, ptr, src.w * sizeof(T));
                 x += src.w;
             }
-            for (; x < w; x++) {
+            for (; x < w; x++)
+            {
                 outptr[x] = ptr[src.w - 1];
             }
             ptr += src.w;
@@ -150,67 +177,86 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
         }
         // fill bottom
         ptr -= src.w;
-        for (; y < h; y++) {
+        for (; y < h; y++)
+        {
             int x = 0;
-            for (; x < left; x++) {
+            for (; x < left; x++)
+            {
                 outptr[x] = ptr[0];
             }
-            if (src.w < 12) {
-                for (; x < (left + src.w); x++) {
+            if (src.w < 12)
+            {
+                for (; x < (left + src.w); x++)
+                {
                     outptr[x] = ptr[x - left];
                 }
             }
-            else {
+            else
+            {
                 memcpy(outptr + left, ptr, src.w * sizeof(T));
                 x += src.w;
             }
-            for (; x < w; x++) {
+            for (; x < w; x++)
+            {
                 outptr[x] = ptr[src.w - 1];
             }
             outptr += w;
         }
     }
 
-    if (type == 2) {
+    if (type == 2)
+    {
         int y = 0;
         // fill top
         ptr += top * src.w;
-        for (; y < top; y++) {
+        for (; y < top; y++)
+        {
             int x = 0;
-            for (; x < left; x++) {
+            for (; x < left; x++)
+            {
                 outptr[x] = ptr[left - x];
             }
-            if (src.w < 12) {
-                for (; x < (left + src.w); x++) {
+            if (src.w < 12)
+            {
+                for (; x < (left + src.w); x++)
+                {
                     outptr[x] = ptr[x - left];
                 }
             }
-            else {
+            else
+            {
                 memcpy(outptr + left, ptr, src.w * sizeof(T));
                 x += src.w;
             }
-            for (; x < w; x++) {
+            for (; x < w; x++)
+            {
                 outptr[x] = ptr[src.w - (x - left - src.w) - 2];
             }
             outptr += w;
             ptr -= src.w;
         }
         // fill center
-        for (; y < (top + src.h); y++) {
+        for (; y < (top + src.h); y++)
+        {
             int x = 0;
-            for (; x < left; x++) {
+            for (; x < left; x++)
+            {
                 outptr[x] = ptr[left - x];
             }
-            if (src.w < 12) {
-                for (; x < (left + src.w); x++) {
+            if (src.w < 12)
+            {
+                for (; x < (left + src.w); x++)
+                {
                     outptr[x] = ptr[x - left];
                 }
             }
-            else {
+            else
+            {
                 memcpy(outptr + left, ptr, src.w * sizeof(T));
                 x += src.w;
             }
-            for (; x < w; x++) {
+            for (; x < w; x++)
+            {
                 outptr[x] = ptr[src.w - (x - left - src.w) - 2];
             }
             ptr += src.w;
@@ -218,21 +264,27 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
         }
         // fill bottom
         ptr -= 2 * src.w;
-        for (; y < h; y++) {
+        for (; y < h; y++)
+        {
             int x = 0;
-            for (; x < left; x++) {
+            for (; x < left; x++)
+            {
                 outptr[x] = ptr[left - x];
             }
-            if (src.w < 12) {
-                for (; x < (left + src.w); x++) {
+            if (src.w < 12)
+            {
+                for (; x < (left + src.w); x++)
+                {
                     outptr[x] = ptr[x - left];
                 }
             }
-            else {
+            else
+            {
                 memcpy(outptr + left, ptr, src.w * sizeof(T));
                 x += src.w;
             }
-            for (; x < w; x++) {
+            for (; x < w; x++)
+            {
                 outptr[x] = ptr[src.w - (x - left - src.w) - 2];
             }
             outptr += w;
@@ -243,7 +295,8 @@ static void copy_make_border_image(const Mat& src, Mat& dst, int top, int left, 
 
 int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (top == 0 && bottom == 0 && left == 0 && right == 0 && front == 0 && behind == 0) {
+    if (top == 0 && bottom == 0 && left == 0 && right == 0 && front == 0 && behind == 0)
+    {
         top_blob = bottom_blob;
         return 0;
     }
@@ -256,7 +309,8 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     int outw = w + left + right;
 
-    if (dims == 1) {
+    if (dims == 1)
+    {
         top_blob.create(outw, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
@@ -273,7 +327,8 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     int outh = h + top + bottom;
 
-    if (dims == 2) {
+    if (dims == 2)
+    {
         top_blob.create(outw, outh, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
@@ -290,37 +345,46 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     int outc = channels + front + behind;
 
-    if (dims == 3) {
+    if (dims == 3)
+    {
         top_blob.create(outw, outh, outc, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < outc; q++) {
+        for (int q = 0; q < outc; q++)
+        {
             Mat borderm = top_blob.channel(q);
 
             float pad_value = per_channel_pad_data_size ? per_channel_pad_data[q] : value;
 
             //Channel padding
-            if (((q < front) || (q >= (channels + front))) && type == 0) {
-                if (elemsize == 1) {
+            if (((q < front) || (q >= (channels + front))) && type == 0)
+            {
+                if (elemsize == 1)
+                {
                     borderm.fill(static_cast<signed char>(pad_value));
                 }
-                if (elemsize == 2) {
+                if (elemsize == 2)
+                {
                     borderm.fill(float32_to_bfloat16(pad_value));
                 }
-                if (elemsize == 4) {
+                if (elemsize == 4)
+                {
                     borderm.fill(pad_value);
                 }
             }
-            else {
+            else
+            {
                 int q_ = q - front;
 
-                if (type == 1) {
+                if (type == 1)
+                {
                     q_ = q_ <= 0 ? 0 : q_;
                     q_ = q_ >= channels - 1 ? channels - 1 : q_;
                 }
-                if (type == 2) {
+                if (type == 2)
+                {
                     q_ = abs(q_);
                     q_ = (channels - 1) - abs(q_ - (channels - 1));
                 }
@@ -362,7 +426,8 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         _front = param_data[4];
         _behind = param_data[5];
     }
-    if (_top == 0 && _bottom == 0 && _left == 0 && _right == 0 && _front == 0 && _behind == 0) {
+    if (_top == 0 && _bottom == 0 && _left == 0 && _right == 0 && _front == 0 && _behind == 0)
+    {
         top_blob = bottom_blob;
         return 0;
     }
@@ -375,7 +440,8 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
     int outw = w + _left + _right;
 
-    if (dims == 1) {
+    if (dims == 1)
+    {
         top_blob.create(outw, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
@@ -392,7 +458,8 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
     int outh = h + _top + _bottom;
 
-    if (dims == 2) {
+    if (dims == 2)
+    {
         top_blob.create(outw, outh, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
@@ -409,36 +476,45 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
     int outc = channels + _front + _behind;
 
-    if (dims == 3) {
+    if (dims == 3)
+    {
         top_blob.create(outw, outh, outc, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < outc; q++) {
+        for (int q = 0; q < outc; q++)
+        {
             Mat borderm = top_blob.channel(q);
 
             float pad_value = per_channel_pad_data_size ? per_channel_pad_data[q] : value;
             //Channel padding
-            if (((q < _front) || (q >= (channels + _front))) && type == 0) {
-                if (elemsize == 1) {
+            if (((q < _front) || (q >= (channels + _front))) && type == 0)
+            {
+                if (elemsize == 1)
+                {
                     borderm.fill(static_cast<signed char>(pad_value));
                 }
-                if (elemsize == 2) {
+                if (elemsize == 2)
+                {
                     borderm.fill(float32_to_bfloat16(pad_value));
                 }
-                if (elemsize == 4) {
+                if (elemsize == 4)
+                {
                     borderm.fill(pad_value);
                 }
             }
-            else {
+            else
+            {
                 int q_ = q - _front;
                 //Clamp channel
-                if (type == 1) {
+                if (type == 1)
+                {
                     q_ = q_ <= 0 ? 0 : q_;
                     q_ = q_ >= channels - 1 ? channels - 1 : q_;
                 }
-                if (type == 2) {
+                if (type == 2)
+                {
                     q_ = abs(q_);
                     q_ = (channels - 1) - abs(q_ - (channels - 1));
                 }

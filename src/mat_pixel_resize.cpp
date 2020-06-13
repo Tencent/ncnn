@@ -69,16 +69,19 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
 
 #define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), SHRT_MIN), SHRT_MAX);
 
-    for (int dx = 0; dx < w; dx++) {
+    for (int dx = 0; dx < w; dx++)
+    {
         fx = (float)((dx + 0.5) * scale_x - 0.5);
         sx = static_cast<int>(floor(fx));
         fx -= sx;
 
-        if (sx < 0) {
+        if (sx < 0)
+        {
             sx = 0;
             fx = 0.f;
         }
-        if (sx >= srcw - 1) {
+        if (sx >= srcw - 1)
+        {
             sx = srcw - 2;
             fx = 1.f;
         }
@@ -92,16 +95,19 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
         ialpha[dx * 2 + 1] = SATURATE_CAST_SHORT(a1);
     }
 
-    for (int dy = 0; dy < h; dy++) {
+    for (int dy = 0; dy < h; dy++)
+    {
         fy = (float)((dy + 0.5) * scale_y - 0.5);
         sy = static_cast<int>(floor(fy));
         fy -= sy;
 
-        if (sy < 0) {
+        if (sy < 0)
+        {
             sy = 0;
             fy = 0.f;
         }
-        if (sy >= srch - 1) {
+        if (sy >= srch - 1)
+        {
             sy = srch - 2;
             fy = 1.f;
         }
@@ -125,13 +131,16 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
 
     int prev_sy1 = -2;
 
-    for (int dy = 0; dy < h; dy++) {
+    for (int dy = 0; dy < h; dy++)
+    {
         int sy = yofs[dy];
 
-        if (sy == prev_sy1) {
+        if (sy == prev_sy1)
+        {
             // reuse all rows
         }
-        else if (sy == prev_sy1 + 1) {
+        else if (sy == prev_sy1 + 1)
+        {
             // hresize one row
             short* rows0_old = rows0;
             rows0 = rows1;
@@ -140,7 +149,8 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
 
             const short* ialphap = ialpha;
             short* rows1p = rows1;
-            for (int dx = 0; dx < w; dx++) {
+            for (int dx = 0; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 short a0 = ialphap[0];
                 short a1 = ialphap[1];
@@ -151,7 +161,8 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
                 ialphap += 2;
             }
         }
-        else {
+        else
+        {
             // hresize two rows
             const unsigned char* S0 = src + srcstride * (sy);
             const unsigned char* S1 = src + srcstride * (sy + 1);
@@ -159,7 +170,8 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
             const short* ialphap = ialpha;
             short* rows0p = rows0;
             short* rows1p = rows1;
-            for (int dx = 0; dx < w; dx++) {
+            for (int dx = 0; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 short a0 = ialphap[0];
                 short a1 = ialphap[1];
@@ -195,7 +207,8 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
         int16x4_t _b0 = vdup_n_s16(b0);
         int16x4_t _b1 = vdup_n_s16(b1);
         int32x4_t _v2 = vdupq_n_s32(2);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             int16x4_t _rows0p_sr4 = vld1_s16(rows0p);
             int16x4_t _rows1p_sr4 = vld1_s16(rows1p);
             int16x4_t _rows0p_1_sr4 = vld1_s16(rows0p + 4);
@@ -226,7 +239,8 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
             rows1p += 8;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "vdup.s16   d16, %8         \n"
                 "mov        r4, #2          \n"
@@ -273,7 +287,8 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain; --remain) {
+        for (; remain; --remain)
+        {
             //             D[x] = (rows0[x]*b0 + rows1[x]*b1) >> INTER_RESIZE_COEF_BITS;
             *Dp++ = (unsigned char)(((short)((b0 * (short)(*rows0p++)) >> 16) + (short)((b1 * (short)(*rows1p++)) >> 16) + 2) >> 2);
         }
@@ -308,16 +323,19 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
 
 #define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), SHRT_MIN), SHRT_MAX);
 
-    for (int dx = 0; dx < w; dx++) {
+    for (int dx = 0; dx < w; dx++)
+    {
         fx = (float)((dx + 0.5) * scale_x - 0.5);
         sx = static_cast<int>(floor(fx));
         fx -= sx;
 
-        if (sx < 0) {
+        if (sx < 0)
+        {
             sx = 0;
             fx = 0.f;
         }
-        if (sx >= srcw - 1) {
+        if (sx >= srcw - 1)
+        {
             sx = srcw - 2;
             fx = 1.f;
         }
@@ -331,16 +349,19 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
         ialpha[dx * 2 + 1] = SATURATE_CAST_SHORT(a1);
     }
 
-    for (int dy = 0; dy < h; dy++) {
+    for (int dy = 0; dy < h; dy++)
+    {
         fy = (float)((dy + 0.5) * scale_y - 0.5);
         sy = static_cast<int>(floor(fy));
         fy -= sy;
 
-        if (sy < 0) {
+        if (sy < 0)
+        {
             sy = 0;
             fy = 0.f;
         }
-        if (sy >= srch - 1) {
+        if (sy >= srch - 1)
+        {
             sy = srch - 2;
             fy = 1.f;
         }
@@ -364,13 +385,16 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
 
     int prev_sy1 = -2;
 
-    for (int dy = 0; dy < h; dy++) {
+    for (int dy = 0; dy < h; dy++)
+    {
         int sy = yofs[dy];
 
-        if (sy == prev_sy1) {
+        if (sy == prev_sy1)
+        {
             // reuse all rows
         }
-        else if (sy == prev_sy1 + 1) {
+        else if (sy == prev_sy1 + 1)
+        {
             // hresize one row
             short* rows0_old = rows0;
             rows0 = rows1;
@@ -379,7 +403,8 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
 
             const short* ialphap = ialpha;
             short* rows1p = rows1;
-            for (int dx = 0; dx < w; dx++) {
+            for (int dx = 0; dx < w; dx++)
+            {
                 int sx = xofs[dx];
 
                 const unsigned char* S1p = S1 + sx;
@@ -412,7 +437,8 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
                 rows1p += 2;
             }
         }
-        else {
+        else
+        {
             // hresize two rows
             const unsigned char* S0 = src + srcstride * (sy);
             const unsigned char* S1 = src + srcstride * (sy + 1);
@@ -420,7 +446,8 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
             const short* ialphap = ialpha;
             short* rows0p = rows0;
             short* rows1p = rows1;
-            for (int dx = 0; dx < w; dx++) {
+            for (int dx = 0; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 short a0 = ialphap[0];
                 short a1 = ialphap[1];
@@ -489,7 +516,8 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
         int16x4_t _b0 = vdup_n_s16(b0);
         int16x4_t _b1 = vdup_n_s16(b1);
         int32x4_t _v2 = vdupq_n_s32(2);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             int16x4_t _rows0p_sr4 = vld1_s16(rows0p);
             int16x4_t _rows1p_sr4 = vld1_s16(rows1p);
             int16x4_t _rows0p_1_sr4 = vld1_s16(rows0p + 4);
@@ -520,7 +548,8 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
             rows1p += 8;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "vdup.s16   d16, %8         \n"
                 "mov        r4, #2          \n"
@@ -567,7 +596,8 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain; --remain) {
+        for (; remain; --remain)
+        {
             //             D[x] = (rows0[x]*b0 + rows1[x]*b1) >> INTER_RESIZE_COEF_BITS;
             *Dp++ = (unsigned char)(((short)((b0 * (short)(*rows0p++)) >> 16) + (short)((b1 * (short)(*rows1p++)) >> 16) + 2) >> 2);
         }
@@ -602,16 +632,19 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
 
 #define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), SHRT_MIN), SHRT_MAX);
 
-    for (int dx = 0; dx < w; dx++) {
+    for (int dx = 0; dx < w; dx++)
+    {
         fx = (float)((dx + 0.5) * scale_x - 0.5);
         sx = static_cast<int>(floor(fx));
         fx -= sx;
 
-        if (sx < 0) {
+        if (sx < 0)
+        {
             sx = 0;
             fx = 0.f;
         }
-        if (sx >= srcw - 1) {
+        if (sx >= srcw - 1)
+        {
             sx = srcw - 2;
             fx = 1.f;
         }
@@ -625,16 +658,19 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
         ialpha[dx * 2 + 1] = SATURATE_CAST_SHORT(a1);
     }
 
-    for (int dy = 0; dy < h; dy++) {
+    for (int dy = 0; dy < h; dy++)
+    {
         fy = (float)((dy + 0.5) * scale_y - 0.5);
         sy = static_cast<int>(floor(fy));
         fy -= sy;
 
-        if (sy < 0) {
+        if (sy < 0)
+        {
             sy = 0;
             fy = 0.f;
         }
-        if (sy >= srch - 1) {
+        if (sy >= srch - 1)
+        {
             sy = srch - 2;
             fy = 1.f;
         }
@@ -658,13 +694,16 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
 
     int prev_sy1 = -2;
 
-    for (int dy = 0; dy < h; dy++) {
+    for (int dy = 0; dy < h; dy++)
+    {
         int sy = yofs[dy];
 
-        if (sy == prev_sy1) {
+        if (sy == prev_sy1)
+        {
             // reuse all rows
         }
-        else if (sy == prev_sy1 + 1) {
+        else if (sy == prev_sy1 + 1)
+        {
             // hresize one row
             short* rows0_old = rows0;
             rows0 = rows1;
@@ -673,7 +712,8 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
 
             const short* ialphap = ialpha;
             short* rows1p = rows1;
-            for (int dx = 0; dx < w; dx++) {
+            for (int dx = 0; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 short a0 = ialphap[0];
                 short a1 = ialphap[1];
@@ -708,7 +748,8 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
                 rows1p += 3;
             }
         }
-        else {
+        else
+        {
             // hresize two rows
             const unsigned char* S0 = src + srcstride * (sy);
             const unsigned char* S1 = src + srcstride * (sy + 1);
@@ -716,7 +757,8 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
             const short* ialphap = ialpha;
             short* rows0p = rows0;
             short* rows1p = rows1;
-            for (int dx = 0; dx < w; dx++) {
+            for (int dx = 0; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 short a0 = ialphap[0];
                 short a1 = ialphap[1];
@@ -794,7 +836,8 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
         int16x4_t _b0 = vdup_n_s16(b0);
         int16x4_t _b1 = vdup_n_s16(b1);
         int32x4_t _v2 = vdupq_n_s32(2);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             int16x4_t _rows0p_sr4 = vld1_s16(rows0p);
             int16x4_t _rows1p_sr4 = vld1_s16(rows1p);
             int16x4_t _rows0p_1_sr4 = vld1_s16(rows0p + 4);
@@ -825,7 +868,8 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
             rows1p += 8;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "vdup.s16   d16, %8         \n"
                 "mov        r4, #2          \n"
@@ -872,7 +916,8 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain; --remain) {
+        for (; remain; --remain)
+        {
             //             D[x] = (rows0[x]*b0 + rows1[x]*b1) >> INTER_RESIZE_COEF_BITS;
             *Dp++ = (unsigned char)(((short)((b0 * (short)(*rows0p++)) >> 16) + (short)((b1 * (short)(*rows1p++)) >> 16) + 2) >> 2);
         }
@@ -907,16 +952,19 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
 
 #define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), SHRT_MIN), SHRT_MAX);
 
-    for (int dx = 0; dx < w; dx++) {
+    for (int dx = 0; dx < w; dx++)
+    {
         fx = (float)((dx + 0.5) * scale_x - 0.5);
         sx = static_cast<int>(floor(fx));
         fx -= sx;
 
-        if (sx < 0) {
+        if (sx < 0)
+        {
             sx = 0;
             fx = 0.f;
         }
-        if (sx >= srcw - 1) {
+        if (sx >= srcw - 1)
+        {
             sx = srcw - 2;
             fx = 1.f;
         }
@@ -930,16 +978,19 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
         ialpha[dx * 2 + 1] = SATURATE_CAST_SHORT(a1);
     }
 
-    for (int dy = 0; dy < h; dy++) {
+    for (int dy = 0; dy < h; dy++)
+    {
         fy = (float)((dy + 0.5) * scale_y - 0.5);
         sy = static_cast<int>(floor(fy));
         fy -= sy;
 
-        if (sy < 0) {
+        if (sy < 0)
+        {
             sy = 0;
             fy = 0.f;
         }
-        if (sy >= srch - 1) {
+        if (sy >= srch - 1)
+        {
             sy = srch - 2;
             fy = 1.f;
         }
@@ -963,13 +1014,16 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
 
     int prev_sy1 = -2;
 
-    for (int dy = 0; dy < h; dy++) {
+    for (int dy = 0; dy < h; dy++)
+    {
         int sy = yofs[dy];
 
-        if (sy == prev_sy1) {
+        if (sy == prev_sy1)
+        {
             // reuse all rows
         }
-        else if (sy == prev_sy1 + 4) {
+        else if (sy == prev_sy1 + 4)
+        {
             // hresize one row
             short* rows0_old = rows0;
             rows0 = rows1;
@@ -978,7 +1032,8 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
 
             const short* ialphap = ialpha;
             short* rows1p = rows1;
-            for (int dx = 0; dx < w; dx++) {
+            for (int dx = 0; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 short a0 = ialphap[0];
                 short a1 = ialphap[1];
@@ -1006,7 +1061,8 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
                 rows1p += 4;
             }
         }
-        else {
+        else
+        {
             // hresize two rows
             const unsigned char* S0 = src + srcstride * (sy);
             const unsigned char* S1 = src + srcstride * (sy + 1);
@@ -1014,7 +1070,8 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
             const short* ialphap = ialpha;
             short* rows0p = rows0;
             short* rows1p = rows1;
-            for (int dx = 0; dx < w; dx++) {
+            for (int dx = 0; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 short a0 = ialphap[0];
                 short a1 = ialphap[1];
@@ -1079,7 +1136,8 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
         int16x4_t _b0 = vdup_n_s16(b0);
         int16x4_t _b1 = vdup_n_s16(b1);
         int32x4_t _v2 = vdupq_n_s32(2);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             int16x4_t _rows0p_sr4 = vld1_s16(rows0p);
             int16x4_t _rows1p_sr4 = vld1_s16(rows1p);
             int16x4_t _rows0p_1_sr4 = vld1_s16(rows0p + 4);
@@ -1110,7 +1168,8 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
             rows1p += 8;
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "vdup.s16   d16, %8         \n"
                 "mov        r4, #2          \n"
@@ -1157,7 +1216,8 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain; --remain) {
+        for (; remain; --remain)
+        {
             //             D[x] = (rows0[x]*b0 + rows1[x]*b1) >> INTER_RESIZE_COEF_BITS;
             *Dp++ = (unsigned char)(((short)((b0 * (short)(*rows0p++)) >> 16) + (short)((b1 * (short)(*rows1p++)) >> 16) + 2) >> 2);
         }

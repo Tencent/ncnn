@@ -44,8 +44,10 @@
 static void print_int8_matrix(char* name, const int8_t* a, int m, int k, int ldx)
 {
     fprintf(stdout, "------------- %s \n", name);
-    for (int i = 0; i < m; ++i) {
-        for (int j = 0; j < k; ++j) {
+    for (int i = 0; i < m; ++i)
+    {
+        for (int j = 0; j < k; ++j)
+        {
             fprintf(stdout, "%d \t", a[i * ldx + j]);
         }
         fprintf(stdout, "\n\n");
@@ -55,8 +57,10 @@ static void print_int8_matrix(char* name, const int8_t* a, int m, int k, int ldx
 static void print_int32_matrix(char* name, const int32_t* a, int m, int k, int ldx)
 {
     fprintf(stdout, "------------- %s \n", name);
-    for (int i = 0; i < m; ++i) {
-        for (int j = 0; j < k; ++j) {
+    for (int i = 0; i < m; ++i)
+    {
+        for (int j = 0; j < k; ++j)
+        {
             fprintf(stdout, "%d \t", a[i * ldx + j]);
         }
         fprintf(stdout, "\n\n");
@@ -66,7 +70,8 @@ static void print_int32_matrix(char* name, const int32_t* a, int m, int k, int l
 static void print_fp32_vec(char* name, const float* a, int len)
 {
     fprintf(stdout, "------------- %s \n", name);
-    for (int i = 0; i < len; ++i) {
+    for (int i = 0; i < len; ++i)
+    {
         fprintf(stdout, "%f \t", a[i]);
     }
     fprintf(stdout, "\n\n");
@@ -80,7 +85,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
     int8_t* origin = sb;
 #endif
     int i = 0;
-    for (; i + 3 < n; i += 4) {
+    for (; i + 3 < n; i += 4)
+    {
         const int8_t* p0 = b + i;
         const int8_t* p1 = b + 1 * ldx + i;
         const int8_t* p2 = b + 2 * ldx + i;
@@ -92,7 +98,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
         const int8_t* p7 = b + 7 * ldx + i;
 
         int j = 0;
-        for (; j + 7 < k; j += 8) {
+        for (; j + 7 < k; j += 8)
+        {
             sb[0] = p0[0];
             sb[1] = p1[0];
             sb[2] = p2[0];
@@ -139,7 +146,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p6 += 8 * ldx;
             p7 += 8 * ldx;
         }
-        if (j + 3 < k) {
+        if (j + 3 < k)
+        {
             j += 4;
 
             sb[0] = p0[0];
@@ -168,7 +176,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p2 += 4 * ldx;
             p3 += 4 * ldx;
         }
-        if (j + 1 < k) {
+        if (j + 1 < k)
+        {
             j += 2;
 
             sb[0] = p0[0];
@@ -184,7 +193,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p0 += 2 * ldx;
             p1 += 2 * ldx;
         }
-        if (j < k) {
+        if (j < k)
+        {
             sb[0] = p0[0];
             sb[1] = p0[1];
             sb[2] = p0[2];
@@ -194,7 +204,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p0 += ldx;
         }
     }
-    if (i + 1 < n) {
+    if (i + 1 < n)
+    {
         const int8_t* p0 = b + i;
         const int8_t* p1 = b + 1 * ldx + i;
         const int8_t* p2 = b + 2 * ldx + i;
@@ -206,7 +217,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
         const int8_t* p7 = b + 7 * ldx + i;
 
         int j = 0;
-        for (; j + 7 < k; j += 8) {
+        for (; j + 7 < k; j += 8)
+        {
             sb[0] = p0[0];
             sb[1] = p1[0];
             sb[2] = p2[0];
@@ -235,7 +247,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p6 += 8 * ldx;
             p7 += 8 * ldx;
         }
-        if (j + 3 < k) {
+        if (j + 3 < k)
+        {
             j += 4;
 
             sb[0] = p0[0];
@@ -254,7 +267,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p2 += 4 * ldx;
             p3 += 4 * ldx;
         }
-        if (j + 1 < k) {
+        if (j + 1 < k)
+        {
             j += 2;
 
             sb[0] = p0[0];
@@ -266,7 +280,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p0 += 2 * ldx;
             p1 += 2 * ldx;
         }
-        if (j < k) {
+        if (j < k)
+        {
             sb[0] = p0[0];
             sb[1] = p0[1];
 
@@ -275,7 +290,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
         }
         i += 2;
     }
-    if (i < n) {
+    if (i < n)
+    {
         const int8_t* p0 = b + i;
         const int8_t* p1 = b + 1 * ldx + i;
         const int8_t* p2 = b + 2 * ldx + i;
@@ -286,7 +302,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
         const int8_t* p7 = b + 7 * ldx + i;
 
         int j = 0;
-        for (; j + 7 < k; j += 8) {
+        for (; j + 7 < k; j += 8)
+        {
             sb[0] = p0[0];
             sb[1] = p1[0];
             sb[2] = p2[0];
@@ -306,7 +323,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p6 += 8 * ldx;
             p7 += 8 * ldx;
         }
-        if (j + 3 < k) {
+        if (j + 3 < k)
+        {
             j += 4;
 
             sb[0] = p0[0];
@@ -320,7 +338,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p2 += 4 * ldx;
             p3 += 4 * ldx;
         }
-        if (j + 1 < k) {
+        if (j + 1 < k)
+        {
             j += 2;
 
             sb[0] = p0[0];
@@ -330,7 +349,8 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p0 += 2 * ldx;
             p1 += 2 * ldx;
         }
-        if (j < k) {
+        if (j < k)
+        {
             sb[0] = p0[0];
 
             sb += 1;
@@ -349,14 +369,16 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx)
     int8_t* origin = sa;
 #endif
     int i = 0;
-    for (; i + 3 < m; i += 4) {
+    for (; i + 3 < m; i += 4)
+    {
         int8_t* p0 = a;
         int8_t* p1 = a + ldx;
         int8_t* p2 = a + 2 * ldx;
         int8_t* p3 = a + 3 * ldx;
 
         int j = 0;
-        for (; j + 7 < k; j += 8) {
+        for (; j + 7 < k; j += 8)
+        {
             asm volatile(
                 "ld1 {v0.8b}, [%0], #8  \n"
                 "ld1 {v1.8b}, [%1], #8  \n"
@@ -376,7 +398,8 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx)
                 : "cc", "memory", "v0", "v1", "v2", "v3");
         }
 
-        if (j + 3 < k) {
+        if (j + 3 < k)
+        {
             j += 4;
             asm volatile(
                 "ld1 {v0.8b}, [%0]  \n"
@@ -404,7 +427,8 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx)
                 : "cc", "memory", "v0", "v1", "v2", "v3");
         }
 
-        if (j + 1 < k) {
+        if (j + 1 < k)
+        {
             j += 2;
             asm volatile(
                 "ld1 {v0.8b}, [%0]  \n"
@@ -432,7 +456,8 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx)
                 : "cc", "memory", "v0", "v1", "v2", "v3");
         }
 
-        if (j < k) {
+        if (j < k)
+        {
             *sa++ = *p0;
             *sa++ = *p1;
             *sa++ = *p2;
@@ -442,13 +467,15 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx)
         a += 4 * ldx;
     }
 
-    if (i + 1 < m) {
+    if (i + 1 < m)
+    {
         i += 2;
         int8_t* p0 = a;
         int8_t* p1 = a + ldx;
 
         int j = 0;
-        for (; j + 7 < k; j += 8) {
+        for (; j + 7 < k; j += 8)
+        {
             asm volatile(
                 "ld1 {v0.8b}, [%0], #8  \n"
                 "ld1 {v1.8b}, [%1], #8  \n"
@@ -462,7 +489,8 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx)
                 : "cc", "memory", "v0", "v1");
         }
 
-        if (j + 3 < k) {
+        if (j + 3 < k)
+        {
             j += 4;
             asm volatile(
                 "ld1 {v0.8b}, [%0]  \n"
@@ -480,7 +508,8 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx)
                 : "cc", "memory", "v0", "v1");
         }
 
-        if (j + 1 < k) {
+        if (j + 1 < k)
+        {
             j += 2;
             sa[0] = p0[0];
             sa[1] = p0[1];
@@ -491,7 +520,8 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx)
             p1 += 2;
         }
 
-        if (j < k) {
+        if (j < k)
+        {
             sa[0] = p0[0];
             sa[1] = p1[0];
             sa += 2;
@@ -500,7 +530,8 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx)
         a += 2 * ldx;
     }
 
-    if (i < m) {
+    if (i < m)
+    {
         memcpy(sa, a, sizeof(int8_t) * ldx);
     }
 #if PRINT_MATRIX
@@ -517,7 +548,8 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
     DECOMPOSE_K
     DECOMPOSE_N
 
-    if (n4 > 0) {
+    if (n4 > 0)
+    {
         asm volatile(
             "9:                               \n"
             "    eor v8.16b, v8.16b, v8.16b   \n"
@@ -694,7 +726,8 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
             : "cc", "memory", "x8", "w19", "w24", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
     }
 
-    if (n2 > 0) {
+    if (n2 > 0)
+    {
         asm volatile(
             "9:                  \n"
             "    eor v8.16b, v8.16b, v8.16b   \n"
@@ -853,7 +886,8 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
             : "cc", "memory", "x8", "w19", "w24", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
     }
 
-    if (n1 > 0) {
+    if (n1 > 0)
+    {
         asm volatile(
             "9:                    \n"
             "    eor v8.16b, v8.16b, v8.16b   \n"
@@ -1006,11 +1040,13 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
 void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc, float* scales, float* bias)
 {
     void *pc0, *pc1;
-    if (scales == 0) {
+    if (scales == 0)
+    {
         pc0 = (int32_t*)dst;
         pc1 = ((int32_t*)pc0) + ldc;
     }
-    else {
+    else
+    {
         pc0 = dst;
         pc1 = ((int8_t*)pc0) + ldc;
     }
@@ -1020,7 +1056,8 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
     DECOMPOSE_K
     DECOMPOSE_N
 
-    if (n4 > 0) {
+    if (n4 > 0)
+    {
         asm volatile(
             "9:                        \n"
             "    eor v8.16b, v8.16b, v8.16b     \n"
@@ -1285,7 +1322,8 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
             : "cc", "memory", "x8", "w17", "x12", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
     }
 
-    if (n2 > 0) {
+    if (n2 > 0)
+    {
         asm volatile(
             "eor v8.16b, v8.16b, v8.16b     \n"
             "eor v9.16b, v9.16b, v9.16b     \n"
@@ -1497,7 +1535,8 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
             : "cc", "memory", "x8", "x12", "w17", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
     }
 
-    if (n1 > 0) {
+    if (n1 > 0)
+    {
         asm volatile(
             "eor v8.16b, v8.16b, v8.16b     \n"
             "eor v9.16b, v9.16b, v9.16b     \n"
@@ -1686,13 +1725,15 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
 void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc, float* scales, float* bias)
 {
     void *pc0, *pc1, *pc2, *pc3;
-    if (scales == 0) {
+    if (scales == 0)
+    {
         pc0 = (int32_t*)dst;
         pc1 = ((int32_t*)pc0) + ldc;
         pc2 = ((int32_t*)pc1) + ldc;
         pc3 = ((int32_t*)pc2) + ldc;
     }
-    else {
+    else
+    {
         pc0 = dst;
         pc1 = ((int8_t*)pc0) + ldc;
         pc2 = ((int8_t*)pc1) + ldc;
@@ -1704,7 +1745,8 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
     DECOMPOSE_K
     DECOMPOSE_N
 
-    if (n4 > 0) {
+    if (n4 > 0)
+    {
         asm volatile(
             "8:                             \n"
             "   eor v8.8b, v8.8b, v8.8b    \n"
@@ -2081,7 +2123,8 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
             : "cc", "memory", "x8", "w20", "x14", "x15", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
     }
 
-    if (n2 > 0) {
+    if (n2 > 0)
+    {
         asm volatile(
             "    eor v8.8b, v8.8b, v8.8b    \n"
             "    eor v9.8b, v9.8b, v9.8b    \n"
@@ -2382,7 +2425,8 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
             : "cc", "memory", "x8", "w20", "x14", "x15", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
     }
 
-    if (n1 > 0) {
+    if (n1 > 0)
+    {
         asm volatile(
             "    eor v8.8b, v8.8b, v8.8b    \n"
             "    eor v9.8b, v9.8b, v9.8b    \n"
@@ -2628,21 +2672,24 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
     int8_t* pa = (int8_t*)sa;
     int8_t* pb = (int8_t*)sb;
     const int nn = (m >> 2) << 2;
-    if (scales == 0) {
+    if (scales == 0)
+    {
         int32_t* pc = (int32_t*)dst;
 #if PRINT_MATRIX
         int32_t* origin = pc;
 #endif
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < nn; i += 4) {
+        for (int i = 0; i < nn; i += 4)
+        {
             int8kernel_m4((void*)(pc + i * ldc), pa + i * k, pb, m, k, n, ldc, 0, 0);
         }
 
         pa += nn * k;
         pc += nn * ldc;
 
-        switch (m - nn) {
+        switch (m - nn)
+        {
         case 3:
             int8kernel_m2((void*)pc, pa, pb, m, k, n, ldc, 0, 0);
             pc += 2 * ldc;
@@ -2663,14 +2710,16 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
         print_int32_matrix("pc", origin, m, n, ldc);
 #endif
     }
-    else {
+    else
+    {
         int8_t* pc = (int8_t*)dst;
 
 #if PRINT_MATRIX
         print_fp32_vec("scales", scales, m);
 #endif
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < nn; i += 4) {
+        for (int i = 0; i < nn; i += 4)
+        {
             int8kernel_m4((void*)(pc + i * ldc), pa + i * k, pb, m, k, n, ldc, scales + i, (bias == 0) ? 0 : bias + i);
         }
 
@@ -2680,7 +2729,8 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
         scales += nn;
         bias = (bias == 0) ? 0 : bias + nn;
 
-        switch (m - nn) {
+        switch (m - nn)
+        {
         case 3:
             int8kernel_m2((void*)pc, pa, pb, m, k, n, ldc, scales, bias);
             pc += 2 * ldc;

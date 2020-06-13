@@ -57,19 +57,22 @@ int Interp_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    if (dims == 1) {
+    if (dims == 1)
+    {
         return Interp::forward(bottom_blob, top_blob, opt);
     }
 
     int outh = output_height;
     int outw = output_width;
 
-    if (outh == 0 || outw == 0) {
+    if (outh == 0 || outw == 0)
+    {
         outh = h * height_scale;
         outw = w * width_scale;
     }
 
-    if (outh == h && outw == w) {
+    if (outh == h && outw == w)
+    {
         top_blob = bottom_blob;
         return 0;
     }
@@ -79,23 +82,27 @@ int Interp_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
         return -100;
 
 #if __ARM_NEON
-    if (elempack == 4) {
+    if (elempack == 4)
+    {
         if (resize_type == 1) // nearest
         {
             const float hs = output_height ? h / (float)output_height : 1.f / height_scale;
             const float ws = output_width ? w / (float)output_width : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const Mat src = bottom_blob.channel(q);
                 Mat dst = top_blob.channel(q);
 
-                for (int y = 0; y < outh; y++) {
+                for (int y = 0; y < outh; y++)
+                {
                     int in_y = std::min((int)(y * hs), (h - 1));
 
                     const float* ptr = src.row(in_y);
                     float* outptr = dst.row(y);
-                    for (int x = 0; x < outw; x++) {
+                    for (int x = 0; x < outw; x++)
+                    {
                         int in_x = std::min((int)(x * ws), (w - 1));
 
                         float32x4_t _p = vld1q_f32(ptr + in_x * 4);
@@ -121,7 +128,8 @@ int Interp_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             linear_coeffs(h, outh, yofs, beta);
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const Mat src = bottom_blob.channel(q);
                 Mat dst = top_blob.channel(q);
 
@@ -145,7 +153,8 @@ int Interp_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             cubic_coeffs(h, outh, yofs, beta);
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const Mat src = bottom_blob.channel(q);
                 Mat dst = top_blob.channel(q);
 
@@ -165,16 +174,19 @@ int Interp_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
         const float ws = output_width ? w / (float)output_width : 1.f / width_scale;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             const Mat src = bottom_blob.channel(q);
             Mat dst = top_blob.channel(q);
 
-            for (int y = 0; y < outh; y++) {
+            for (int y = 0; y < outh; y++)
+            {
                 int in_y = std::min((int)(y * hs), (h - 1));
 
                 const float* ptr = src.row(in_y);
                 float* outptr = dst.row(y);
-                for (int x = 0; x < outw; x++) {
+                for (int x = 0; x < outw; x++)
+                {
                     int in_x = std::min((int)(x * ws), (w - 1));
                     *outptr++ = ptr[in_x];
                 }
@@ -196,7 +208,8 @@ int Interp_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
         linear_coeffs(h, outh, yofs, beta);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             const Mat src = bottom_blob.channel(q);
             Mat dst = top_blob.channel(q);
 
@@ -220,7 +233,8 @@ int Interp_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
         cubic_coeffs(h, outh, yofs, beta);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             const Mat src = bottom_blob.channel(q);
             Mat dst = top_blob.channel(q);
 
@@ -242,19 +256,22 @@ int Interp_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Optio
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    if (dims == 1) {
+    if (dims == 1)
+    {
         return Interp::forward(bottom_blob, top_blob, opt);
     }
 
     int outh = output_height;
     int outw = output_width;
 
-    if (outh == 0 || outw == 0) {
+    if (outh == 0 || outw == 0)
+    {
         outh = h * height_scale;
         outw = w * width_scale;
     }
 
-    if (outh == h && outw == w) {
+    if (outh == h && outw == w)
+    {
         top_blob = bottom_blob;
         return 0;
     }
@@ -264,23 +281,27 @@ int Interp_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Optio
         return -100;
 
 #if __ARM_NEON
-    if (elempack == 4) {
+    if (elempack == 4)
+    {
         if (resize_type == 1) // nearest
         {
             const float hs = output_height ? h / (float)output_height : 1.f / height_scale;
             const float ws = output_width ? w / (float)output_width : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const Mat src = bottom_blob.channel(q);
                 Mat dst = top_blob.channel(q);
 
-                for (int y = 0; y < outh; y++) {
+                for (int y = 0; y < outh; y++)
+                {
                     int in_y = std::min((int)(y * hs), (h - 1));
 
                     const unsigned short* ptr = src.row<const unsigned short>(in_y);
                     unsigned short* outptr = dst.row<unsigned short>(y);
-                    for (int x = 0; x < outw; x++) {
+                    for (int x = 0; x < outw; x++)
+                    {
                         int in_x = std::min((int)(x * ws), (w - 1));
 
                         uint16x4_t _p = vld1_u16(ptr + in_x * 4);
@@ -306,7 +327,8 @@ int Interp_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Optio
             linear_coeffs(h, outh, yofs, beta);
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const Mat src = bottom_blob.channel(q);
                 Mat dst = top_blob.channel(q);
 
@@ -330,7 +352,8 @@ int Interp_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Optio
             cubic_coeffs(h, outh, yofs, beta);
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const Mat src = bottom_blob.channel(q);
                 Mat dst = top_blob.channel(q);
 
@@ -350,16 +373,19 @@ int Interp_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Optio
         const float ws = output_width ? w / (float)output_width : 1.f / width_scale;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             const Mat src = bottom_blob.channel(q);
             Mat dst = top_blob.channel(q);
 
-            for (int y = 0; y < outh; y++) {
+            for (int y = 0; y < outh; y++)
+            {
                 int in_y = std::min((int)(y * hs), (h - 1));
 
                 const unsigned short* ptr = src.row<const unsigned short>(in_y);
                 unsigned short* outptr = dst.row<unsigned short>(y);
-                for (int x = 0; x < outw; x++) {
+                for (int x = 0; x < outw; x++)
+                {
                     int in_x = std::min((int)(x * ws), (w - 1));
                     *outptr++ = ptr[in_x];
                 }
@@ -381,7 +407,8 @@ int Interp_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Optio
         linear_coeffs(h, outh, yofs, beta);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             const Mat src = bottom_blob.channel(q);
             Mat dst = top_blob.channel(q);
 
@@ -405,7 +432,8 @@ int Interp_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Optio
         cubic_coeffs(h, outh, yofs, beta);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             const Mat src = bottom_blob.channel(q);
             Mat dst = top_blob.channel(q);
 

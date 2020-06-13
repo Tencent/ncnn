@@ -29,7 +29,8 @@ static int test_softmax(const ncnn::Mat& a, int axis)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Softmax>("Softmax", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_softmax failed a.dims=%d a=(%d %d %d) axis=%d\n", a.dims, a.w, a.h, a.c, axis);
     }
 

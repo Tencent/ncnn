@@ -46,10 +46,13 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (elempack == 4) {
-        if (slope == 0.f) {
+    if (elempack == 4)
+    {
+        if (slope == 0.f)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 float* ptr = bottom_top_blob.channel(q);
 
 #if __aarch64__
@@ -185,14 +188,17 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __aarch64__
             }
         }
-        else {
+        else
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 float* ptr = bottom_top_blob.channel(q);
 
                 float32x4_t _zero = vdupq_n_f32(0.f);
                 float32x4_t _slope = vdupq_n_f32(slope);
-                for (int i = 0; i < size; i++) {
+                for (int i = 0; i < size; i++)
+                {
                     float32x4_t _p = vld1q_f32(ptr);
                     uint32x4_t _lemask = vcleq_f32(_p, _zero);
                     float32x4_t _ps = vmulq_f32(_p, _slope);
@@ -208,9 +214,11 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
 #endif // __ARM_NEON
 
-    if (slope == 0.f) {
+    if (slope == 0.f)
+    {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             float* ptr = bottom_top_blob.channel(q);
 
 #if __ARM_NEON
@@ -223,7 +231,8 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __ARM_NEON
 #if __aarch64__
             float32x4_t _zero = vdupq_n_f32(0.f);
-            for (; nn > 0; nn--) {
+            for (; nn > 0; nn--)
+            {
                 float32x4_t _p = vld1q_f32(ptr);
                 _p = vmaxq_f32(_p, _zero);
                 vst1q_f32(ptr, _p);
@@ -231,7 +240,8 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 ptr += 4;
             }
 #else
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "veor       q1, q0, q0          \n"
                     "0:                             \n"
@@ -249,16 +259,19 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 *ptr = std::max(*ptr, 0.f);
 
                 ptr++;
             }
         }
     }
-    else {
+    else
+    {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             float* ptr = bottom_top_blob.channel(q);
 
 #if __ARM_NEON
@@ -272,7 +285,8 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __aarch64__
             float32x4_t _zero = vdupq_n_f32(0.f);
             float32x4_t _slope = vdupq_n_f32(slope);
-            for (; nn > 0; nn--) {
+            for (; nn > 0; nn--)
+            {
                 float32x4_t _p = vld1q_f32(ptr);
                 uint32x4_t _lemask = vcleq_f32(_p, _zero);
                 float32x4_t _ps = vmulq_f32(_p, _slope);
@@ -282,7 +296,8 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 ptr += 4;
             }
 #else
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "veor       q1, q0, q0          \n"
                     "vdup.f32   q2, %4              \n"
@@ -304,7 +319,8 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 if (*ptr < 0)
                     *ptr *= slope;
 
@@ -325,10 +341,13 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (elempack == 4) {
-        if (slope == 0.f) {
+    if (elempack == 4)
+    {
+        if (slope == 0.f)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 unsigned short* ptr = bottom_top_blob.channel(q);
 
 #if __aarch64__
@@ -526,14 +545,17 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                 //                 }
             }
         }
-        else {
+        else
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 unsigned short* ptr = bottom_top_blob.channel(q);
 
                 float32x4_t _zero = vdupq_n_f32(0.f);
                 float32x4_t _slope = vdupq_n_f32(slope);
-                for (int i = 0; i < size; i++) {
+                for (int i = 0; i < size; i++)
+                {
                     float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                     uint32x4_t _lemask = vcleq_f32(_p, _zero);
                     float32x4_t _ps = vmulq_f32(_p, _slope);
@@ -549,15 +571,18 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
     }
 #endif // __ARM_NEON
 
-    if (slope == 0.f) {
+    if (slope == 0.f)
+    {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             unsigned short* ptr = bottom_top_blob.channel(q);
 
             int i = 0;
 #if __ARM_NEON
             float32x4_t _zero = vdupq_n_f32(0.f);
-            for (; i + 3 < size; i += 4) {
+            for (; i + 3 < size; i += 4)
+            {
                 float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                 _p = vmaxq_f32(_p, _zero);
                 vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
@@ -565,7 +590,8 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                 ptr += 4;
             }
 #endif // __ARM_NEON
-            for (; i < size; i++) {
+            for (; i < size; i++)
+            {
                 float v = bfloat16_to_float32(ptr[0]);
                 if (v < 0.f)
                     ptr[0] = float32_to_bfloat16(0.f);
@@ -574,16 +600,19 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
             }
         }
     }
-    else {
+    else
+    {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             unsigned short* ptr = bottom_top_blob.channel(q);
 
             int i = 0;
 #if __ARM_NEON
             float32x4_t _zero = vdupq_n_f32(0.f);
             float32x4_t _slope = vdupq_n_f32(slope);
-            for (; i + 3 < size; i += 4) {
+            for (; i + 3 < size; i += 4)
+            {
                 float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                 uint32x4_t _lemask = vcleq_f32(_p, _zero);
                 float32x4_t _ps = vmulq_f32(_p, _slope);
@@ -593,7 +622,8 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                 ptr += 4;
             }
 #endif // __ARM_NEON
-            for (; i < size; i++) {
+            for (; i < size; i++)
+            {
                 float v = bfloat16_to_float32(ptr[0]);
                 if (v < 0.f)
                     ptr[0] = float32_to_bfloat16(v * slope);
@@ -613,9 +643,11 @@ int ReLU_arm::forward_inplace_int8_neon(Mat& bottom_top_blob, const Option& opt)
     int channels = bottom_top_blob.c;
     int size = w * h;
 
-    if (slope == 0.f) {
+    if (slope == 0.f)
+    {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             signed char* ptr = bottom_top_blob.channel(q);
 
 #if __ARM_NEON
@@ -628,7 +660,8 @@ int ReLU_arm::forward_inplace_int8_neon(Mat& bottom_top_blob, const Option& opt)
 #if __ARM_NEON
 #if __aarch64__
             int8x16_t _zero = vdupq_n_s8(0);
-            for (; nn > 0; nn--) {
+            for (; nn > 0; nn--)
+            {
                 int8x16_t _p = vld1q_s8(ptr);
                 _p = vmaxq_s8(_p, _zero);
                 vst1q_s8(ptr, _p);
@@ -636,7 +669,8 @@ int ReLU_arm::forward_inplace_int8_neon(Mat& bottom_top_blob, const Option& opt)
                 ptr += 16;
             }
 #else
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "veor       q1, q0, q0          \n"
                     "0:                             \n"
@@ -654,7 +688,8 @@ int ReLU_arm::forward_inplace_int8_neon(Mat& bottom_top_blob, const Option& opt)
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 if (*ptr < 0)
                     *ptr = 0;
 
@@ -662,7 +697,8 @@ int ReLU_arm::forward_inplace_int8_neon(Mat& bottom_top_blob, const Option& opt)
             }
         }
     }
-    else {
+    else
+    {
         // TODO
         // #pragma omp parallel for num_threads(opt.num_threads)
         // for (int q=0; q<channels; q++)

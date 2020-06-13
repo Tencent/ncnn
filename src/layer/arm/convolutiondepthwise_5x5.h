@@ -25,7 +25,8 @@ static void convdw5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int g = 0; g < group; g++) {
+    for (int g = 0; g < group; g++)
+    {
         Mat out = top_blob.channel(g);
 
         const float bias0 = bias ? bias[g] : 0.f;
@@ -64,7 +65,8 @@ static void convdw5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
 
         int i = 0;
 
-        for (; i + 1 < outh; i += 2) {
+        for (; i + 1 < outh; i += 2)
+        {
 #if __ARM_NEON
 #if __aarch64__
             int nn = outw >> 3;
@@ -79,7 +81,8 @@ static void convdw5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     // r1
                     "prfm   pldl1keep, [%4, #384]           \n"
@@ -386,7 +389,8 @@ static void convdw5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                     : "cc", "memory", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26");
             }
 
-            if (remain >= 4) {
+            if (remain >= 4)
+            {
                 remain -= 4;
                 asm volatile(
                     // r1
@@ -575,7 +579,8 @@ static void convdw5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                     : "cc", "memory", "v8", "v9", "v10", "v11", "v12", "v13", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
             }
 #else
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     // r1
                     "pld        [%4, #256]          \n"
@@ -776,7 +781,8 @@ static void convdw5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 float sum = bias0;
                 float sum2 = bias0;
 #if __ARM_NEON
@@ -918,7 +924,8 @@ static void convdw5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
             outptr2 += outw;
         }
 
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
 #if __ARM_NEON
 #if __aarch64__
             int nn = outw >> 3;
@@ -933,7 +940,8 @@ static void convdw5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     // v10 v11
                     // r0
@@ -1164,7 +1172,8 @@ static void convdw5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                     : "cc", "memory", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v16", "v17", "v18", "v19", "v20", "v21", "v22");
             }
 
-            if (remain >= 4) {
+            if (remain >= 4)
+            {
                 remain -= 4;
                 asm volatile(
                     // r0
@@ -1306,7 +1315,8 @@ static void convdw5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                     : "cc", "memory", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v16", "v17", "v18", "v19", "v20");
             }
 #else
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     // r0
                     "pld        [%2, #256]          \n"
@@ -1461,7 +1471,8 @@ static void convdw5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
 #if __ARM_NEON
 #if __aarch64__
                 // TODO neon assembly optimize
@@ -1662,7 +1673,8 @@ static void convdw5x5s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int g = 0; g < group; g++) {
+    for (int g = 0; g < group; g++)
+    {
         Mat out = top_blob.channel(g);
 
         const float bias0 = bias ? bias[g] : 0.f;
@@ -1702,7 +1714,8 @@ static void convdw5x5s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
         // NOTE unroll outh 2 results somewhat speed drop :| (about -4%)
         // so we do not implement it here
 
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
 #if __ARM_NEON
 #if __aarch64__
             int nn = outw >> 3;
@@ -1717,7 +1730,8 @@ static void convdw5x5s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     // r0
                     "prfm   pldl1keep, [%2, #256]           \n"
@@ -1977,7 +1991,8 @@ static void convdw5x5s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                     : "cc", "memory", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27");
             }
 #else
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     // r0
                     "pld        [%2, #256]          \n"
@@ -2152,7 +2167,8 @@ static void convdw5x5s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 float sum = bias0;
 #if __ARM_NEON
                 // TODO neon assembly optimize

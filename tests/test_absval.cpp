@@ -27,7 +27,8 @@ static int test_absval(const ncnn::Mat& a)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::AbsVal>("AbsVal", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_absval failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
     }
 

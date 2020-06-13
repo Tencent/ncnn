@@ -38,7 +38,8 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     if (opt.use_bf16_storage)
         return forward_bf16s(bottom_blob, top_blob, opt);
 
-    if (group == 1) {
+    if (group == 1)
+    {
         top_blob = bottom_blob;
         return 0;
     }
@@ -46,29 +47,35 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     int elempack = bottom_blob.elempack;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout) {
+    if (opt.use_packing_layout)
+    {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
         int channels = bottom_blob.c;
         int size = w * h;
         size_t elemsize = bottom_blob.elemsize;
 
-        if (elempack == 4) {
-            if (group <= 4 && channels % group == 0) {
+        if (elempack == 4)
+        {
+            if (group <= 4 && channels % group == 0)
+            {
                 top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
                 if (top_blob.empty())
                     return -100;
 
                 int channels_per_group = channels / group;
 
-                if (group == 2) {
-                    for (int q = 0; q < channels_per_group; q++) {
+                if (group == 2)
+                {
+                    for (int q = 0; q < channels_per_group; q++)
+                    {
                         const float* ptr0 = bottom_blob.channel(q);
                         const float* ptr1 = bottom_blob.channel(channels_per_group + q);
                         float* outptr0 = top_blob.channel(q * 2);
                         float* outptr1 = top_blob.channel(q * 2 + 1);
 
-                        for (int i = 0; i < size; i++) {
+                        for (int i = 0; i < size; i++)
+                        {
                             float32x4_t _p0 = vld1q_f32(ptr0);
                             float32x4_t _p1 = vld1q_f32(ptr1);
 
@@ -84,8 +91,10 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                         }
                     }
                 }
-                else if (group == 3) {
-                    for (int q = 0; q < channels_per_group; q++) {
+                else if (group == 3)
+                {
+                    for (int q = 0; q < channels_per_group; q++)
+                    {
                         const float* ptr0 = bottom_blob.channel(q);
                         const float* ptr1 = bottom_blob.channel(channels_per_group + q);
                         const float* ptr2 = bottom_blob.channel(channels_per_group * 2 + q);
@@ -93,7 +102,8 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                         float* outptr1 = top_blob.channel(q * 3 + 1);
                         float* outptr2 = top_blob.channel(q * 3 + 2);
 
-                        for (int i = 0; i < size; i++) {
+                        for (int i = 0; i < size; i++)
+                        {
                             float32x4_t _p0 = vld1q_f32(ptr0);
                             float32x4_t _p1 = vld1q_f32(ptr1);
                             float32x4_t _p2 = vld1q_f32(ptr2);
@@ -133,7 +143,8 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                 }
                 else // group == 4
                 {
-                    for (int q = 0; q < channels_per_group; q++) {
+                    for (int q = 0; q < channels_per_group; q++)
+                    {
                         const float* ptr0 = bottom_blob.channel(q);
                         const float* ptr1 = bottom_blob.channel(channels_per_group + q);
                         const float* ptr2 = bottom_blob.channel(channels_per_group * 2 + q);
@@ -143,7 +154,8 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                         float* outptr2 = top_blob.channel(q * 4 + 2);
                         float* outptr3 = top_blob.channel(q * 4 + 3);
 
-                        for (int i = 0; i < size; i++) {
+                        for (int i = 0; i < size; i++)
+                        {
                             float32x4_t _p0 = vld1q_f32(ptr0);
                             float32x4_t _p1 = vld1q_f32(ptr1);
                             float32x4_t _p2 = vld1q_f32(ptr2);
@@ -174,7 +186,8 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     }
                 }
             }
-            else {
+            else
+            {
                 // slow path for too large group or shuffle inside elempack
                 Option opt_pack = opt;
                 opt_pack.blob_allocator = opt.workspace_allocator;
@@ -201,7 +214,8 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
 int ShuffleChannel_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (group == 1) {
+    if (group == 1)
+    {
         top_blob = bottom_blob;
         return 0;
     }
@@ -209,29 +223,35 @@ int ShuffleChannel_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
     int elempack = bottom_blob.elempack;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout) {
+    if (opt.use_packing_layout)
+    {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
         int channels = bottom_blob.c;
         int size = w * h;
         size_t elemsize = bottom_blob.elemsize;
 
-        if (elempack == 4) {
-            if (group <= 4 && channels % group == 0) {
+        if (elempack == 4)
+        {
+            if (group <= 4 && channels % group == 0)
+            {
                 top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
                 if (top_blob.empty())
                     return -100;
 
                 int channels_per_group = channels / group;
 
-                if (group == 2) {
-                    for (int q = 0; q < channels_per_group; q++) {
+                if (group == 2)
+                {
+                    for (int q = 0; q < channels_per_group; q++)
+                    {
                         const unsigned short* ptr0 = bottom_blob.channel(q);
                         const unsigned short* ptr1 = bottom_blob.channel(channels_per_group + q);
                         unsigned short* outptr0 = top_blob.channel(q * 2);
                         unsigned short* outptr1 = top_blob.channel(q * 2 + 1);
 
-                        for (int i = 0; i < size; i++) {
+                        for (int i = 0; i < size; i++)
+                        {
                             uint16x4_t _p0 = vld1_u16(ptr0);
                             uint16x4_t _p1 = vld1_u16(ptr1);
 
@@ -247,8 +267,10 @@ int ShuffleChannel_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
                         }
                     }
                 }
-                else if (group == 3) {
-                    for (int q = 0; q < channels_per_group; q++) {
+                else if (group == 3)
+                {
+                    for (int q = 0; q < channels_per_group; q++)
+                    {
                         const unsigned short* ptr0 = bottom_blob.channel(q);
                         const unsigned short* ptr1 = bottom_blob.channel(channels_per_group + q);
                         const unsigned short* ptr2 = bottom_blob.channel(channels_per_group * 2 + q);
@@ -256,7 +278,8 @@ int ShuffleChannel_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
                         unsigned short* outptr1 = top_blob.channel(q * 3 + 1);
                         unsigned short* outptr2 = top_blob.channel(q * 3 + 2);
 
-                        for (int i = 0; i < size; i++) {
+                        for (int i = 0; i < size; i++)
+                        {
                             uint16x4_t _p0 = vld1_u16(ptr0);
                             uint16x4_t _p1 = vld1_u16(ptr1);
                             uint16x4_t _p2 = vld1_u16(ptr2);
@@ -297,7 +320,8 @@ int ShuffleChannel_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
                 }
                 else // group == 4
                 {
-                    for (int q = 0; q < channels_per_group; q++) {
+                    for (int q = 0; q < channels_per_group; q++)
+                    {
                         const unsigned short* ptr0 = bottom_blob.channel(q);
                         const unsigned short* ptr1 = bottom_blob.channel(channels_per_group + q);
                         const unsigned short* ptr2 = bottom_blob.channel(channels_per_group * 2 + q);
@@ -307,7 +331,8 @@ int ShuffleChannel_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
                         unsigned short* outptr2 = top_blob.channel(q * 4 + 2);
                         unsigned short* outptr3 = top_blob.channel(q * 4 + 3);
 
-                        for (int i = 0; i < size; i++) {
+                        for (int i = 0; i < size; i++)
+                        {
                             uint16x4_t _p0 = vld1_u16(ptr0);
                             uint16x4_t _p1 = vld1_u16(ptr1);
                             uint16x4_t _p2 = vld1_u16(ptr2);
@@ -340,7 +365,8 @@ int ShuffleChannel_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
                     }
                 }
             }
-            else {
+            else
+            {
                 // slow path for too large group or shuffle inside elempack
                 Option opt_pack = opt;
                 opt_pack.blob_allocator = opt.workspace_allocator;

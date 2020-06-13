@@ -30,7 +30,8 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b)
     ncnn::Mat a = _a;
     ncnn::Mat b = _b;
     int op_type = get_op_type();
-    if (op_type == 6) {
+    if (op_type == 6)
+    {
         // value must be positive for pow
         Randomize(a, 0.001f, 2.f);
         Randomize(b, 0.001f, 2.f);
@@ -53,7 +54,8 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b)
     ab[1] = b;
 
     int ret = test_layer<ncnn::BinaryOp>("BinaryOp", pd, weights, opt, ab);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d) b.dims=%d b=(%d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.c, b.dims, b.w, b.h, b.c, op_type);
     }
 
@@ -64,7 +66,8 @@ static int test_binaryop(const ncnn::Mat& _a, float b)
 {
     ncnn::Mat a = _a;
     int op_type = get_op_type();
-    if (op_type == 6) {
+    if (op_type == 6)
+    {
         // value must be positive for pow
         Randomize(a, 0.001f, 2.f);
         b = RandomFloat(0.001f, 2.f);
@@ -88,7 +91,8 @@ static int test_binaryop(const ncnn::Mat& _a, float b)
     opt.use_int8_arithmetic = false;
 
     int ret = test_layer<ncnn::BinaryOp>("BinaryOp", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d) b=%f op_type=%d\n", a.dims, a.w, a.h, a.c, b, op_type);
     }
 

@@ -66,7 +66,8 @@ static int detect_peleenet(const cv::Mat& bgr, std::vector<Object>& objects, ncn
 
     //     printf("%d %d %d\n", out.w, out.h, out.c);
     objects.clear();
-    for (int i = 0; i < out.h; i++) {
+    for (int i = 0; i < out.h; i++)
+    {
         const float* values = out.row(i);
 
         Object object;
@@ -98,7 +99,8 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects,
     const int color[] = {128, 255, 128, 244, 35, 232};
     const int color_count = sizeof(color) / sizeof(int);
 
-    for (size_t i = 0; i < objects.size(); i++) {
+    for (size_t i = 0; i < objects.size(); i++)
+    {
         const Object& obj = objects[i];
 
         fprintf(stderr, "%d = %.5f at %.2f %.2f %.2f x %.2f\n", obj.label, obj.prob,
@@ -131,23 +133,29 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects,
     int img_index2 = 0;
     float threshold = 0.45;
     const float* ptr2 = map;
-    for (int i = 0; i < height; i++) {
+    for (int i = 0; i < height; i++)
+    {
         unsigned char* ptr1 = image.ptr<unsigned char>(i);
         int img_index1 = 0;
-        for (int j = 0; j < width; j++) {
+        for (int j = 0; j < width; j++)
+        {
             float maxima = threshold;
             int index = -1;
-            for (int c = 0; c < size; c++) {
+            for (int c = 0; c < size; c++)
+            {
                 //const float* ptr3 = map.channel(c);
                 const float* ptr3 = ptr2 + c * width * height;
-                if (ptr3[img_index2] > maxima) {
+                if (ptr3[img_index2] > maxima)
+                {
                     maxima = ptr3[img_index2];
                     index = c;
                 }
             }
-            if (index > -1) {
+            if (index > -1)
+            {
                 int color_index = (index)*3;
-                if (color_index < color_count) {
+                if (color_index < color_count)
+                {
                     int b = color[color_index];
                     int g = color[color_index + 1];
                     int r = color[color_index + 2];
@@ -166,7 +174,8 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects,
 
 int main(int argc, char** argv)
 {
-    if (argc != 2) {
+    if (argc != 2)
+    {
         fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
         return -1;
     }
@@ -174,7 +183,8 @@ int main(int argc, char** argv)
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, 1);
-    if (m.empty()) {
+    if (m.empty())
+    {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);
         return -1;
     }

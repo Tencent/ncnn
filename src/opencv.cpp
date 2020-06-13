@@ -34,14 +34,18 @@ Mat imread(const std::string& path, int flags)
     char magic[3];
     int w, h;
     int nscan = fscanf(fp, "%2s\n%d %d\n255\n", magic, &w, &h);
-    if (nscan == 3 && magic[0] == 'P' && (magic[1] == '5' || magic[1] == '6')) {
-        if (magic[1] == '5') {
+    if (nscan == 3 && magic[0] == 'P' && (magic[1] == '5' || magic[1] == '6'))
+    {
+        if (magic[1] == '5')
+        {
             m.create(h, w, CV_8UC1);
         }
-        else if (magic[1] == '6') {
+        else if (magic[1] == '6')
+        {
             m.create(h, w, CV_8UC3);
         }
-        if (m.empty()) {
+        if (m.empty())
+        {
             fclose(fp);
             return Mat();
         }
@@ -61,10 +65,12 @@ void imwrite(const std::string& path, const Mat& m)
     if (!fp)
         return;
 
-    if (m.channels() == 1) {
+    if (m.channels() == 1)
+    {
         fprintf(fp, "P5\n%d %d\n255\n", m.cols, m.rows);
     }
-    else if (m.channels() == 3) {
+    else if (m.channels() == 3)
+    {
         fprintf(fp, "P6\n%d %d\n255\n", m.cols, m.rows);
     }
 
@@ -82,7 +88,8 @@ void resize(const Mat& src, Mat& dst, const Size& size, float sw, float sh, int 
     int w = size.width;
     int h = size.height;
 
-    if (w == 0 || h == 0) {
+    if (w == 0 || h == 0)
+    {
         w = srcw * sw;
         h = srch * sh;
     }
@@ -90,7 +97,8 @@ void resize(const Mat& src, Mat& dst, const Size& size, float sw, float sh, int 
     if (w == 0 || h == 0)
         return;
 
-    if (w == srcw && h == srch) {
+    if (w == srcw && h == srch)
+    {
         dst = src.clone();
         return;
     }

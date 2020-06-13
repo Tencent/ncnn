@@ -46,7 +46,8 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
     }
 
@@ -74,7 +75,8 @@ static int test_convolution_0()
         {7, 2, 1, -233},
     };
 
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++)
+    {
         int ret = 0
                   || test_convolution(9, 7, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
                   || test_convolution(9, 7, 4, 13, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0)
@@ -115,12 +117,14 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
 
     std::vector<ncnn::Mat> weights(bias ? 4 : 3);
     weights[0] = RandomMat(outch * c * kernel * kernel);
-    if (bias) {
+    if (bias)
+    {
         weights[1] = RandomMat(outch);
         weights[2] = RandomMat(outch);
         weights[3] = RandomMat(1);
     }
-    else {
+    else
+    {
         weights[1] = RandomMat(outch);
         weights[2] = RandomMat(1);
     }
@@ -131,7 +135,8 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     opt.use_int8_inference = true;
 
     int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, opt, a, 0.001f, requant ? set_param : 0);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant);
     }
 
@@ -166,7 +171,8 @@ static int test_convolution_1()
         {7, 2, 2, 3},
         {7, 2, 3, 3},
     };
-    for (int i = 0; i < 24; i++) {
+    for (int i = 0; i < 24; i++)
+    {
         int ret = 0
                   || test_convolution_int8(9, 7, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
                   || test_convolution_int8(9, 7, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
@@ -180,7 +186,8 @@ static int test_convolution_1()
         if (ret != 0)
             return -1;
     }
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < 20; i++)
+    {
         int ret = 0
                   || test_convolution_int8(9, 7, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, true)
                   || test_convolution_int8(9, 7, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, true)

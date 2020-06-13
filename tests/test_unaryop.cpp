@@ -29,11 +29,13 @@ static int test_unaryop(const ncnn::Mat& _a)
 {
     ncnn::Mat a = _a;
     int op_type = get_op_type();
-    if (op_type == 5 || op_type == 6 || op_type == 8) {
+    if (op_type == 5 || op_type == 6 || op_type == 8)
+    {
         // value must be positive for sqrt rsqrt log
         Randomize(a, 0.001f, 2.f);
     }
-    if (op_type == 11 || op_type == 12 || op_type == 13) {
+    if (op_type == 11 || op_type == 12 || op_type == 13)
+    {
         // smaller range for tan asin acos
         Randomize(a, -1.f, 1.f);
     }
@@ -49,7 +51,8 @@ static int test_unaryop(const ncnn::Mat& _a)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::UnaryOp>("UnaryOp", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_unaryop failed a.dims=%d a=(%d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.c, op_type);
     }
 

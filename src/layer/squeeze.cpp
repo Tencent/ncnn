@@ -45,34 +45,43 @@ int Squeeze::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     bool _squeeze_h = false;
     bool _squeeze_c = false;
 
-    if (axes.empty()) {
+    if (axes.empty())
+    {
         _squeeze_w = w == 1 && squeeze_w;
         _squeeze_h = h == 1 && squeeze_h;
         _squeeze_c = channels == 1 && squeeze_c;
     }
-    else {
+    else
+    {
         const int* axes_ptr = axes;
-        for (int i = 0; i < axes.w; i++) {
+        for (int i = 0; i < axes.w; i++)
+        {
             int axis = axes_ptr[i];
             if (axis < 0)
                 axis = dims + 1 + axis; // +1 for N-dim
 
-            if (dims == 1 && axis == 1) {
+            if (dims == 1 && axis == 1)
+            {
                 _squeeze_w = w == 1;
             }
-            if (dims == 2 && axis == 1) {
+            if (dims == 2 && axis == 1)
+            {
                 _squeeze_h = h == 1;
             }
-            if (dims == 2 && axis == 2) {
+            if (dims == 2 && axis == 2)
+            {
                 _squeeze_w = w == 1;
             }
-            if (dims == 3 && axis == 1) {
+            if (dims == 3 && axis == 1)
+            {
                 _squeeze_c = channels == 1;
             }
-            if (dims == 3 && axis == 2) {
+            if (dims == 3 && axis == 2)
+            {
                 _squeeze_h = h == 1;
             }
-            if (dims == 3 && axis == 3) {
+            if (dims == 3 && axis == 3)
+            {
                 _squeeze_w = w == 1;
             }
         }
@@ -80,44 +89,58 @@ int Squeeze::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     top_blob = bottom_blob;
 
-    if (dims == 1) {
-        if (_squeeze_w) {
+    if (dims == 1)
+    {
+        if (_squeeze_w)
+        {
             top_blob = bottom_blob.reshape(1, opt.blob_allocator);
         }
     }
 
-    if (dims == 2) {
-        if (_squeeze_w && _squeeze_h) {
+    if (dims == 2)
+    {
+        if (_squeeze_w && _squeeze_h)
+        {
             top_blob = bottom_blob.reshape(1, opt.blob_allocator);
         }
-        else if (_squeeze_w) {
+        else if (_squeeze_w)
+        {
             top_blob = bottom_blob.reshape(h, opt.blob_allocator);
         }
-        else if (_squeeze_h) {
+        else if (_squeeze_h)
+        {
             top_blob = bottom_blob.reshape(w, opt.blob_allocator);
         }
     }
 
-    if (dims == 3) {
-        if (_squeeze_w && _squeeze_h && _squeeze_c) {
+    if (dims == 3)
+    {
+        if (_squeeze_w && _squeeze_h && _squeeze_c)
+        {
             top_blob = bottom_blob.reshape(1, opt.blob_allocator);
         }
-        else if (_squeeze_w && _squeeze_h) {
+        else if (_squeeze_w && _squeeze_h)
+        {
             top_blob = bottom_blob.reshape(channels, opt.blob_allocator);
         }
-        else if (_squeeze_h && _squeeze_c) {
+        else if (_squeeze_h && _squeeze_c)
+        {
             top_blob = bottom_blob.reshape(w, opt.blob_allocator);
         }
-        else if (_squeeze_w && _squeeze_c) {
+        else if (_squeeze_w && _squeeze_c)
+        {
             top_blob = bottom_blob.reshape(h, opt.blob_allocator);
         }
-        else if (_squeeze_w) {
+        else if (_squeeze_w)
+        {
             top_blob = bottom_blob.reshape(h, channels, opt.blob_allocator);
         }
-        else if (_squeeze_h) {
+        else if (_squeeze_h)
+        {
             top_blob = bottom_blob.reshape(w, channels, opt.blob_allocator);
         }
-        else if (_squeeze_c) {
+        else if (_squeeze_c)
+        {
             top_blob = bottom_blob.reshape(w, h, opt.blob_allocator);
         }
     }

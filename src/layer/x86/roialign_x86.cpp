@@ -53,17 +53,22 @@ void detectron2_pre_calc_for_bilinear_interpolate(
     std::vector<PreCalc<T> >& pre_calc)
 {
     int pre_calc_index = 0;
-    for (int ph = 0; ph < pooled_height; ph++) {
-        for (int pw = 0; pw < pooled_width; pw++) {
-            for (int iy = 0; iy < iy_upper; iy++) {
+    for (int ph = 0; ph < pooled_height; ph++)
+    {
+        for (int pw = 0; pw < pooled_width; pw++)
+        {
+            for (int iy = 0; iy < iy_upper; iy++)
+            {
                 const T yy = roi_start_h + ph * bin_size_h + static_cast<T>(iy + .5f) * bin_size_h / static_cast<T>(roi_bin_grid_h); // e.g., 0.5, 1.5
-                for (int ix = 0; ix < ix_upper; ix++) {
+                for (int ix = 0; ix < ix_upper; ix++)
+                {
                     const T xx = roi_start_w + pw * bin_size_w + static_cast<T>(ix + .5f) * bin_size_w / static_cast<T>(roi_bin_grid_w);
 
                     T x = xx;
                     T y = yy;
                     // deal with: inverse elements are out of feature map boundary
-                    if (y < -1.0 || y > height || x < -1.0 || x > width) {
+                    if (y < -1.0 || y > height || x < -1.0 || x > width)
+                    {
                         // empty
                         PreCalc<T> pc;
                         pc.pos1 = 0;
@@ -78,10 +83,12 @@ void detectron2_pre_calc_for_bilinear_interpolate(
                         continue;
                     }
 
-                    if (y <= 0) {
+                    if (y <= 0)
+                    {
                         y = 0;
                     }
-                    if (x <= 0) {
+                    if (x <= 0)
+                    {
                         x = 0;
                     }
 
@@ -90,19 +97,23 @@ void detectron2_pre_calc_for_bilinear_interpolate(
                     int y_high;
                     int x_high;
 
-                    if (y_low >= height - 1) {
+                    if (y_low >= height - 1)
+                    {
                         y_high = y_low = height - 1;
                         y = (T)y_low;
                     }
-                    else {
+                    else
+                    {
                         y_high = y_low + 1;
                     }
 
-                    if (x_low >= width - 1) {
+                    if (x_low >= width - 1)
+                    {
                         x_high = x_low = width - 1;
                         x = (T)x_low;
                     }
-                    else {
+                    else
+                    {
                         x_high = x_low + 1;
                     }
 
@@ -142,8 +153,10 @@ void original_pre_calc_for_bilinear_interpolate(
     std::vector<PreCalc<T> >& pre_calc)
 {
     int pre_calc_index = 0;
-    for (int ph = 0; ph < pooled_height; ph++) {
-        for (int pw = 0; pw < pooled_width; pw++) {
+    for (int ph = 0; ph < pooled_height; ph++)
+    {
+        for (int pw = 0; pw < pooled_width; pw++)
+        {
             float hstart = roi_start_h + ph * bin_size_h;
             float wstart = roi_start_w + pw * bin_size_w;
             float hend = roi_start_h + (ph + 1) * bin_size_h;
@@ -156,10 +169,12 @@ void original_pre_calc_for_bilinear_interpolate(
             int bin_grid_h = sampling_ratio > 0 ? sampling_ratio : ceil(hend - hstart);
             int bin_grid_w = sampling_ratio > 0 ? sampling_ratio : ceil(wend - wstart);
 
-            for (int by = 0; by < bin_grid_h; by++) {
+            for (int by = 0; by < bin_grid_h; by++)
+            {
                 float y = hstart + (by + 0.5f) * bin_size_h / (float)bin_grid_h;
 
-                for (int bx = 0; bx < bin_grid_w; bx++) {
+                for (int bx = 0; bx < bin_grid_w; bx++)
+                {
                     float x = wstart + (bx + 0.5f) * bin_size_w / (float)bin_grid_w;
                     int x0 = x;
                     int x1 = x0 + 1;
@@ -171,12 +186,14 @@ void original_pre_calc_for_bilinear_interpolate(
                     float b0 = y1 - y;
                     float b1 = y - y0;
 
-                    if (x1 >= width) {
+                    if (x1 >= width)
+                    {
                         x1 = width - 1;
                         a0 = 1.f;
                         a1 = 0.f;
                     }
-                    if (y1 >= height) {
+                    if (y1 >= height)
+                    {
                         y1 = height - 1;
                         b0 = 1.f;
                         b1 = 0.f;
@@ -224,7 +241,8 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     float roi_start_h = roi_ptr[1] * spatial_scale;
     float roi_end_w = roi_ptr[2] * spatial_scale;
     float roi_end_h = roi_ptr[3] * spatial_scale;
-    if (aligned) {
+    if (aligned)
+    {
         roi_start_w -= 0.5f;
         roi_start_h -= 0.5f;
         roi_end_w -= 0.5f;
@@ -234,7 +252,8 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     float roi_width = roi_end_w - roi_start_w;
     float roi_height = roi_end_h - roi_start_h;
 
-    if (!aligned) {
+    if (!aligned)
+    {
         roi_width = std::max(roi_width, 1.f);
         roi_height = std::max(roi_height, 1.f);
     }
@@ -242,7 +261,8 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     float bin_size_w = (float)roi_width / (float)pooled_width;
     float bin_size_h = (float)roi_height / (float)pooled_height;
 
-    if (version == 0) {
+    if (version == 0)
+    {
         // original version
         int roi_bin_grid_h = sampling_ratio > 0 ? sampling_ratio : ceil(roi_height / pooled_height);
         int roi_bin_grid_w = sampling_ratio > 0 ? sampling_ratio : ceil(roi_width / pooled_width);
@@ -261,13 +281,16 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             pre_calc);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
             int pre_calc_index = 0;
 
-            for (int ph = 0; ph < pooled_height; ph++) {
-                for (int pw = 0; pw < pooled_width; pw++) {
+            for (int ph = 0; ph < pooled_height; ph++)
+            {
+                for (int pw = 0; pw < pooled_width; pw++)
+                {
                     // Compute pooling region for this output unit:
                     //  start (included) = ph * roi_height / pooled_height
                     //  end (excluded) = (ph + 1) * roi_height / pooled_height
@@ -288,8 +311,10 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                     int area = bin_grid_h * bin_grid_w;
 
                     float sum = 0.f;
-                    for (int by = 0; by < bin_grid_h; by++) {
-                        for (int bx = 0; bx < bin_grid_w; bx++) {
+                    for (int by = 0; by < bin_grid_h; by++)
+                    {
+                        for (int bx = 0; bx < bin_grid_w; bx++)
+                        {
                             PreCalc<float>& pc = pre_calc[pre_calc_index++];
                             // bilinear interpolate at (x,y)
                             sum += pc.w1 * ptr[pc.pos1] + pc.w2 * ptr[pc.pos2] + pc.w3 * ptr[pc.pos3] + pc.w4 * ptr[pc.pos4];
@@ -302,7 +327,8 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             }
         }
     }
-    else if (version == 1) {
+    else if (version == 1)
+    {
         // the version in detectron 2
         int roi_bin_grid_h = sampling_ratio > 0 ? sampling_ratio : ceil(roi_height / pooled_height);
         int roi_bin_grid_w = sampling_ratio > 0 ? sampling_ratio : ceil(roi_width / pooled_width);
@@ -327,16 +353,21 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             pre_calc);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
             int pre_calc_index = 0;
 
-            for (int ph = 0; ph < pooled_height; ph++) {
-                for (int pw = 0; pw < pooled_width; pw++) {
+            for (int ph = 0; ph < pooled_height; ph++)
+            {
+                for (int pw = 0; pw < pooled_width; pw++)
+                {
                     float output_val = 0.f;
-                    for (int iy = 0; iy < roi_bin_grid_h; iy++) {
-                        for (int ix = 0; ix < roi_bin_grid_w; ix++) {
+                    for (int iy = 0; iy < roi_bin_grid_h; iy++)
+                    {
+                        for (int ix = 0; ix < roi_bin_grid_w; ix++)
+                        {
                             PreCalc<float>& pc = pre_calc[pre_calc_index++];
 
                             output_val += pc.w1 * ptr[pc.pos1] + pc.w2 * ptr[pc.pos2] + pc.w3 * ptr[pc.pos3] + pc.w4 * ptr[pc.pos4];

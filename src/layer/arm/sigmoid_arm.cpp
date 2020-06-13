@@ -47,13 +47,16 @@ int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (elempack == 4) {
+    if (elempack == 4)
+    {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             float* ptr = bottom_top_blob.channel(q);
 
             float32x4_t _one = vdupq_n_f32(1.f);
-            for (int i = 0; i < size; i++) {
+            for (int i = 0; i < size; i++)
+            {
                 float32x4_t _p = vld1q_f32(ptr);
                 _p = vnegq_f32(_p);
                 _p = exp_ps(_p);
@@ -72,7 +75,8 @@ int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++) {
+    for (int q = 0; q < channels; q++)
+    {
         float* ptr = bottom_top_blob.channel(q);
 
 #if __ARM_NEON
@@ -84,7 +88,8 @@ int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
 #if __ARM_NEON
         float32x4_t _one = vdupq_n_f32(1.f);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             float32x4_t _p = vld1q_f32(ptr);
             _p = vnegq_f32(_p);
             _p = exp_ps(_p);
@@ -97,7 +102,8 @@ int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             ptr += 4;
         }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr = 1.f / (1.f + exp(-*ptr));
 
             ptr++;
@@ -116,13 +122,16 @@ int Sigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (elempack == 4) {
+    if (elempack == 4)
+    {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             unsigned short* ptr = bottom_top_blob.channel(q);
 
             float32x4_t _one = vdupq_n_f32(1.f);
-            for (int i = 0; i < size; i++) {
+            for (int i = 0; i < size; i++)
+            {
                 float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                 _p = vnegq_f32(_p);
                 _p = exp_ps(_p);
@@ -141,7 +150,8 @@ int Sigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++) {
+    for (int q = 0; q < channels; q++)
+    {
         unsigned short* ptr = bottom_top_blob.channel(q);
 
 #if __ARM_NEON
@@ -153,7 +163,8 @@ int Sigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 
 #if __ARM_NEON
         float32x4_t _one = vdupq_n_f32(1.f);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
             _p = vnegq_f32(_p);
             _p = exp_ps(_p);
@@ -166,7 +177,8 @@ int Sigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
             ptr += 4;
         }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             float v = bfloat16_to_float32(*ptr);
             v = 1.f / (1.f + exp(-v));
             *ptr = float32_to_bfloat16(v);

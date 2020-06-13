@@ -23,7 +23,8 @@ static void pooling3x3s2_max_neon(const Mat& bottom_blob, Mat& top_blob, const O
     const int tailstep = w - 2 * outw + w;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < inch; q++) {
+    for (int q = 0; q < inch; q++)
+    {
         const float* img0 = bottom_blob.channel(q);
         float* outptr = top_blob.channel(q);
 
@@ -31,7 +32,8 @@ static void pooling3x3s2_max_neon(const Mat& bottom_blob, Mat& top_blob, const O
         const float* r1 = img0 + w;
         const float* r2 = img0 + w * 2;
 
-        for (int i = 0; i < outh; i++) {
+        for (int i = 0; i < outh; i++)
+        {
 #if __ARM_NEON
             int nn = outw >> 2;
             int remain = outw - (nn << 2);
@@ -41,7 +43,8 @@ static void pooling3x3s2_max_neon(const Mat& bottom_blob, Mat& top_blob, const O
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "prfm       pldl1keep, [%1, #256]       \n"
                     "ld2        {v0.4s, v1.4s}, [%1], #32   \n"
@@ -103,7 +106,8 @@ static void pooling3x3s2_max_neon(const Mat& bottom_blob, Mat& top_blob, const O
                     : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14");
             }
 #else
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "pld        [%1, #256]          \n"
                     "vld2.f32   {d0-d3}, [%1]!      \n" // q0 = 0 2 4 6  q1 = 1 3 5 7
@@ -165,7 +169,8 @@ static void pooling3x3s2_max_neon(const Mat& bottom_blob, Mat& top_blob, const O
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 float max0 = std::max(std::max(r0[0], r0[1]), r0[2]);
                 float max1 = std::max(std::max(r1[0], r1[1]), r1[2]);
                 float max2 = std::max(std::max(r2[0], r2[1]), r2[2]);

@@ -38,7 +38,8 @@ Slice_arm::Slice_arm()
 int Slice_arm::create_pipeline(const Option& opt)
 {
 #if __ARM_NEON
-    if (opt.use_packing_layout) {
+    if (opt.use_packing_layout)
+    {
         {
             packing_pack1 = ncnn::create_layer(ncnn::LayerType::Packing);
 
@@ -58,8 +59,10 @@ int Slice_arm::create_pipeline(const Option& opt)
 int Slice_arm::destroy_pipeline(const Option& opt)
 {
 #if __ARM_NEON
-    if (opt.use_packing_layout) {
-        if (packing_pack1) {
+    if (opt.use_packing_layout)
+    {
+        if (packing_pack1)
+        {
             packing_pack1->destroy_pipeline(opt);
             delete packing_pack1;
             packing_pack1 = 0;
@@ -82,15 +85,18 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     const int* slices_ptr = slices;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout) {
+    if (opt.use_packing_layout)
+    {
         if (dims == 1) // axis == 0
         {
             // slice vector
             int w = bottom_blob.w * elempack;
             int q = 0;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 int slice = slices_ptr[i];
-                if (slice == -233) {
+                if (slice == -233)
+                {
                     slice = (w - q) / (top_blobs.size() - i);
                 }
 
@@ -112,15 +118,18 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             return 0;
         }
 
-        if (dims == 2 && axis == 0) {
+        if (dims == 2 && axis == 0)
+        {
             // slice image height
             int w = bottom_blob.w;
             int h = bottom_blob.h * elempack;
 
             int q = 0;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 int slice = slices_ptr[i];
-                if (slice == -233) {
+                if (slice == -233)
+                {
                     slice = (h - q) / (top_blobs.size() - i);
                 }
 
@@ -137,22 +146,27 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 
             size_t out_elemsize = top_blobs[0].elemsize;
             int out_elempack = top_blobs[0].elempack;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 out_elemsize = std::min(out_elemsize, top_blobs[i].elemsize);
                 out_elempack = std::min(out_elempack, top_blobs[i].elempack);
             }
 
             Mat bottom_blob_unpacked = bottom_blob;
-            if (elempack == 4 && out_elempack == 1) {
+            if (elempack == 4 && out_elempack == 1)
+            {
                 packing_pack1->forward(bottom_blob, bottom_blob_unpacked, opt);
             }
 
             const float* ptr = bottom_blob_unpacked;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 Mat& top_blob = top_blobs[i];
 
-                if (out_elempack == 1 && top_blob.elempack == 4) {
-                    for (int j = 0; j < top_blob.h; j++) {
+                if (out_elempack == 1 && top_blob.elempack == 4)
+                {
+                    for (int j = 0; j < top_blob.h; j++)
+                    {
                         const float* r0 = ptr;
                         const float* r1 = ptr + w;
                         const float* r2 = ptr + w * 2;
@@ -160,7 +174,8 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 
                         float* outptr0 = top_blob.row(j);
 
-                        for (int j = 0; j < w; j++) {
+                        for (int j = 0; j < w; j++)
+                        {
                             outptr0[0] = *r0++;
                             outptr0[1] = *r1++;
                             outptr0[2] = *r2++;
@@ -186,15 +201,18 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             return 0;
         }
 
-        if (dims == 2 && axis == 1) {
+        if (dims == 2 && axis == 1)
+        {
             // slice image width
             int w = bottom_blob.w;
             int h = bottom_blob.h;
 
             int q = 0;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 int slice = slices_ptr[i];
-                if (slice == -233) {
+                if (slice == -233)
+                {
                     slice = (w - q) / (top_blobs.size() - i);
                 }
 
@@ -207,9 +225,11 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             }
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int j = 0; j < h; j++) {
+            for (int j = 0; j < h; j++)
+            {
                 const float* ptr = bottom_blob.row(j);
-                for (size_t i = 0; i < top_blobs.size(); i++) {
+                for (size_t i = 0; i < top_blobs.size(); i++)
+                {
                     Mat& top_blob = top_blobs[i];
 
                     float* outptr = top_blob.row(j);
@@ -222,16 +242,19 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             return 0;
         }
 
-        if (dims == 3 && axis == 0) {
+        if (dims == 3 && axis == 0)
+        {
             // slice dim channel
             int w = bottom_blob.w;
             int h = bottom_blob.h;
             int channels = bottom_blob.c * elempack;
 
             int q = 0;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 int slice = slices_ptr[i];
-                if (slice == -233) {
+                if (slice == -233)
+                {
                     slice = (channels - q) / (top_blobs.size() - i);
                 }
 
@@ -248,24 +271,29 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 
             size_t out_elemsize = top_blobs[0].elemsize;
             int out_elempack = top_blobs[0].elempack;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 out_elemsize = std::min(out_elemsize, top_blobs[i].elemsize);
                 out_elempack = std::min(out_elempack, top_blobs[i].elempack);
             }
 
             Mat bottom_blob_unpacked = bottom_blob;
-            if (elempack == 4 && out_elempack == 1) {
+            if (elempack == 4 && out_elempack == 1)
+            {
                 packing_pack1->forward(bottom_blob, bottom_blob_unpacked, opt);
             }
 
             int p = 0;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 Mat& top_blob = top_blobs[i];
 
-                if (out_elempack == 1 && top_blob.elempack == 4) {
+                if (out_elempack == 1 && top_blob.elempack == 4)
+                {
                     int size = top_blob.w * top_blob.h;
 
-                    for (int q = 0; q < top_blob.c; q++) {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
                         const float* r0 = bottom_blob_unpacked.channel(p);
                         const float* r1 = bottom_blob_unpacked.channel(p + 1);
                         const float* r2 = bottom_blob_unpacked.channel(p + 2);
@@ -273,7 +301,8 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 
                         float* outptr0 = top_blob.channel(q);
 
-                        for (int j = 0; j < size; j++) {
+                        for (int j = 0; j < size; j++)
+                        {
                             outptr0[0] = *r0++;
                             outptr0[1] = *r1++;
                             outptr0[2] = *r2++;
@@ -300,16 +329,19 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             return 0;
         }
 
-        if (dims == 3 && axis == 1) {
+        if (dims == 3 && axis == 1)
+        {
             // slice dim height
             int w = bottom_blob.w;
             int h = bottom_blob.h;
             int channels = bottom_blob.c;
 
             int q = 0;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 int slice = slices_ptr[i];
-                if (slice == -233) {
+                if (slice == -233)
+                {
                     slice = (h - q) / (top_blobs.size() - i);
                 }
 
@@ -322,10 +354,12 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             }
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < channels; p++) {
+            for (int p = 0; p < channels; p++)
+            {
                 const float* ptr = bottom_blob.channel(p);
 
-                for (size_t i = 0; i < top_blobs.size(); i++) {
+                for (size_t i = 0; i < top_blobs.size(); i++)
+                {
                     Mat& top_blob = top_blobs[i];
 
                     int size = top_blob.w * top_blob.h;
@@ -340,16 +374,19 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             return 0;
         }
 
-        if (dims == 3 && axis == 2) {
+        if (dims == 3 && axis == 2)
+        {
             // slice dim width
             int w = bottom_blob.w;
             int h = bottom_blob.h;
             int channels = bottom_blob.c;
 
             int q = 0;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 int slice = slices_ptr[i];
-                if (slice == -233) {
+                if (slice == -233)
+                {
                     slice = (w - q) / (top_blobs.size() - i);
                 }
 
@@ -362,11 +399,14 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             }
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < channels; p++) {
+            for (int p = 0; p < channels; p++)
+            {
                 const float* ptr = bottom_blob.channel(p);
 
-                for (int j = 0; j < h; j++) {
-                    for (size_t i = 0; i < top_blobs.size(); i++) {
+                for (int j = 0; j < h; j++)
+                {
+                    for (size_t i = 0; i < top_blobs.size(); i++)
+                    {
                         Mat& top_blob = top_blobs[i];
 
                         float* outptr = top_blob.channel(p).row(j);
@@ -395,15 +435,18 @@ int Slice_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
     const int* slices_ptr = slices;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout) {
+    if (opt.use_packing_layout)
+    {
         if (dims == 1) // axis == 0
         {
             // slice vector
             int w = bottom_blob.w * elempack;
             int q = 0;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 int slice = slices_ptr[i];
-                if (slice == -233) {
+                if (slice == -233)
+                {
                     slice = (w - q) / (top_blobs.size() - i);
                 }
 
@@ -425,15 +468,18 @@ int Slice_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
             return 0;
         }
 
-        if (dims == 2 && axis == 0) {
+        if (dims == 2 && axis == 0)
+        {
             // slice image height
             int w = bottom_blob.w;
             int h = bottom_blob.h * elempack;
 
             int q = 0;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 int slice = slices_ptr[i];
-                if (slice == -233) {
+                if (slice == -233)
+                {
                     slice = (h - q) / (top_blobs.size() - i);
                 }
 
@@ -450,22 +496,27 @@ int Slice_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
 
             size_t out_elemsize = top_blobs[0].elemsize;
             int out_elempack = top_blobs[0].elempack;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 out_elemsize = std::min(out_elemsize, top_blobs[i].elemsize);
                 out_elempack = std::min(out_elempack, top_blobs[i].elempack);
             }
 
             Mat bottom_blob_unpacked = bottom_blob;
-            if (elempack == 4 && out_elempack == 1) {
+            if (elempack == 4 && out_elempack == 1)
+            {
                 packing_pack1->forward(bottom_blob, bottom_blob_unpacked, opt);
             }
 
             const unsigned short* ptr = bottom_blob_unpacked;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 Mat& top_blob = top_blobs[i];
 
-                if (out_elempack == 1 && top_blob.elempack == 4) {
-                    for (int j = 0; j < top_blob.h; j++) {
+                if (out_elempack == 1 && top_blob.elempack == 4)
+                {
+                    for (int j = 0; j < top_blob.h; j++)
+                    {
                         const unsigned short* r0 = ptr;
                         const unsigned short* r1 = ptr + w;
                         const unsigned short* r2 = ptr + w * 2;
@@ -473,7 +524,8 @@ int Slice_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
 
                         unsigned short* outptr0 = top_blob.row<unsigned short>(j);
 
-                        for (int j = 0; j < w; j++) {
+                        for (int j = 0; j < w; j++)
+                        {
                             outptr0[0] = *r0++;
                             outptr0[1] = *r1++;
                             outptr0[2] = *r2++;
@@ -499,15 +551,18 @@ int Slice_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
             return 0;
         }
 
-        if (dims == 2 && axis == 1) {
+        if (dims == 2 && axis == 1)
+        {
             // slice image width
             int w = bottom_blob.w;
             int h = bottom_blob.h;
 
             int q = 0;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 int slice = slices_ptr[i];
-                if (slice == -233) {
+                if (slice == -233)
+                {
                     slice = (w - q) / (top_blobs.size() - i);
                 }
 
@@ -520,9 +575,11 @@ int Slice_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
             }
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int j = 0; j < h; j++) {
+            for (int j = 0; j < h; j++)
+            {
                 const unsigned short* ptr = bottom_blob.row<const unsigned short>(j);
-                for (size_t i = 0; i < top_blobs.size(); i++) {
+                for (size_t i = 0; i < top_blobs.size(); i++)
+                {
                     Mat& top_blob = top_blobs[i];
 
                     unsigned short* outptr = top_blob.row<unsigned short>(j);
@@ -535,16 +592,19 @@ int Slice_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
             return 0;
         }
 
-        if (dims == 3 && axis == 0) {
+        if (dims == 3 && axis == 0)
+        {
             // slice dim channel
             int w = bottom_blob.w;
             int h = bottom_blob.h;
             int channels = bottom_blob.c * elempack;
 
             int q = 0;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 int slice = slices_ptr[i];
-                if (slice == -233) {
+                if (slice == -233)
+                {
                     slice = (channels - q) / (top_blobs.size() - i);
                 }
 
@@ -561,24 +621,29 @@ int Slice_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
 
             size_t out_elemsize = top_blobs[0].elemsize;
             int out_elempack = top_blobs[0].elempack;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 out_elemsize = std::min(out_elemsize, top_blobs[i].elemsize);
                 out_elempack = std::min(out_elempack, top_blobs[i].elempack);
             }
 
             Mat bottom_blob_unpacked = bottom_blob;
-            if (elempack == 4 && out_elempack == 1) {
+            if (elempack == 4 && out_elempack == 1)
+            {
                 packing_pack1->forward(bottom_blob, bottom_blob_unpacked, opt);
             }
 
             int p = 0;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 Mat& top_blob = top_blobs[i];
 
-                if (out_elempack == 1 && top_blob.elempack == 4) {
+                if (out_elempack == 1 && top_blob.elempack == 4)
+                {
                     int size = top_blob.w * top_blob.h;
 
-                    for (int q = 0; q < top_blob.c; q++) {
+                    for (int q = 0; q < top_blob.c; q++)
+                    {
                         const unsigned short* r0 = bottom_blob_unpacked.channel(p);
                         const unsigned short* r1 = bottom_blob_unpacked.channel(p + 1);
                         const unsigned short* r2 = bottom_blob_unpacked.channel(p + 2);
@@ -586,7 +651,8 @@ int Slice_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
 
                         unsigned short* outptr0 = top_blob.channel(q);
 
-                        for (int j = 0; j < size; j++) {
+                        for (int j = 0; j < size; j++)
+                        {
                             outptr0[0] = *r0++;
                             outptr0[1] = *r1++;
                             outptr0[2] = *r2++;
@@ -613,16 +679,19 @@ int Slice_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
             return 0;
         }
 
-        if (dims == 3 && axis == 1) {
+        if (dims == 3 && axis == 1)
+        {
             // slice dim height
             int w = bottom_blob.w;
             int h = bottom_blob.h;
             int channels = bottom_blob.c;
 
             int q = 0;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 int slice = slices_ptr[i];
-                if (slice == -233) {
+                if (slice == -233)
+                {
                     slice = (h - q) / (top_blobs.size() - i);
                 }
 
@@ -635,10 +704,12 @@ int Slice_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
             }
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < channels; p++) {
+            for (int p = 0; p < channels; p++)
+            {
                 const unsigned short* ptr = bottom_blob.channel(p);
 
-                for (size_t i = 0; i < top_blobs.size(); i++) {
+                for (size_t i = 0; i < top_blobs.size(); i++)
+                {
                     Mat& top_blob = top_blobs[i];
 
                     int size = top_blob.w * top_blob.h;
@@ -653,16 +724,19 @@ int Slice_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
             return 0;
         }
 
-        if (dims == 3 && axis == 2) {
+        if (dims == 3 && axis == 2)
+        {
             // slice dim width
             int w = bottom_blob.w;
             int h = bottom_blob.h;
             int channels = bottom_blob.c;
 
             int q = 0;
-            for (size_t i = 0; i < top_blobs.size(); i++) {
+            for (size_t i = 0; i < top_blobs.size(); i++)
+            {
                 int slice = slices_ptr[i];
-                if (slice == -233) {
+                if (slice == -233)
+                {
                     slice = (w - q) / (top_blobs.size() - i);
                 }
 
@@ -675,11 +749,14 @@ int Slice_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
             }
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < channels; p++) {
+            for (int p = 0; p < channels; p++)
+            {
                 const unsigned short* ptr = bottom_blob.channel(p);
 
-                for (int j = 0; j < h; j++) {
-                    for (size_t i = 0; i < top_blobs.size(); i++) {
+                for (int j = 0; j < h; j++)
+                {
+                    for (size_t i = 0; i < top_blobs.size(); i++)
+                    {
                         Mat& top_blob = top_blobs[i];
 
                         unsigned short* outptr = top_blob.channel(p).row<unsigned short>(j);

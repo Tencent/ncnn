@@ -57,7 +57,8 @@ static float RandomFloat(float a = -2.f, float b = 2.f)
 
 static void Randomize(ncnn::Mat& m, float a = -2.f, float b = 2.f)
 {
-    for (size_t i = 0; i < m.total(); i++) {
+    for (size_t i = 0; i < m.total(); i++)
+    {
         m[i] = RandomFloat(a, b);
     }
 }
@@ -99,7 +100,8 @@ static bool NearlyEqual(float a, float b, float epsilon)
 static int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001)
 {
 #define CHECK_MEMBER(m)                                                                 \
-    if (a.m != b.m) {                                                                   \
+    if (a.m != b.m)                                                                     \
+    {                                                                                   \
         fprintf(stderr, #m " not match    expect %d but got %d\n", (int)a.m, (int)b.m); \
         return -1;                                                                      \
     }
@@ -113,14 +115,18 @@ static int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001
 
 #undef CHECK_MEMBER
 
-    for (int q = 0; q < a.c; q++) {
+    for (int q = 0; q < a.c; q++)
+    {
         const ncnn::Mat ma = a.channel(q);
         const ncnn::Mat mb = b.channel(q);
-        for (int i = 0; i < a.h; i++) {
+        for (int i = 0; i < a.h; i++)
+        {
             const float* pa = ma.row(i);
             const float* pb = mb.row(i);
-            for (int j = 0; j < a.w; j++) {
-                if (!NearlyEqual(pa[j], pb[j], epsilon)) {
+            for (int j = 0; j < a.w; j++)
+            {
+                if (!NearlyEqual(pa[j], pb[j], epsilon))
+                {
                     fprintf(stderr, "value not match  at c:%d h:%d w:%d    expect %f but got %f\n", q, i, j, pa[j], pb[j]);
                     return -1;
                 }
@@ -133,35 +139,41 @@ static int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001
 
 static int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001)
 {
-    if (a.elempack != 1) {
+    if (a.elempack != 1)
+    {
         ncnn::Mat a1;
         ncnn::convert_packing(a, a1, 1);
         return CompareMat(a1, b, epsilon);
     }
 
-    if (b.elempack != 1) {
+    if (b.elempack != 1)
+    {
         ncnn::Mat b1;
         ncnn::convert_packing(b, b1, 1);
         return CompareMat(a, b1, epsilon);
     }
 
-    if (a.elemsize == 2u) {
+    if (a.elemsize == 2u)
+    {
         ncnn::Mat a32;
         cast_float16_to_float32(a, a32);
         return CompareMat(a32, b, epsilon);
     }
-    if (a.elemsize == 1u) {
+    if (a.elemsize == 1u)
+    {
         ncnn::Mat a32;
         cast_int8_to_float32(a, a32);
         return CompareMat(a32, b, epsilon);
     }
 
-    if (b.elemsize == 2u) {
+    if (b.elemsize == 2u)
+    {
         ncnn::Mat b32;
         cast_float16_to_float32(b, b32);
         return CompareMat(a, b32, epsilon);
     }
-    if (b.elemsize == 1u) {
+    if (b.elemsize == 1u)
+    {
         ncnn::Mat b32;
         cast_int8_to_float32(b, b32);
         return CompareMat(a, b32, epsilon);
@@ -172,13 +184,16 @@ static int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.
 
 static int CompareMat(const std::vector<ncnn::Mat>& a, const std::vector<ncnn::Mat>& b, float epsilon = 0.001)
 {
-    if (a.size() != b.size()) {
+    if (a.size() != b.size())
+    {
         fprintf(stderr, "output blob count not match %zu %zu\n", a.size(), b.size());
         return -1;
     }
 
-    for (size_t i = 0; i < a.size(); i++) {
-        if (CompareMat(a[i], b[i], epsilon)) {
+    for (size_t i = 0; i < a.size(); i++)
+    {
+        if (CompareMat(a[i], b[i], epsilon))
+        {
             fprintf(stderr, "output blob %zu not match\n", i);
             return -1;
         }
@@ -192,7 +207,8 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 {
     ncnn::Layer* op = ncnn::create_layer(typeindex);
 
-    if (func) {
+    if (func)
+    {
         (*func)((T*)op);
     }
 
@@ -230,14 +246,16 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     op->vkdev = vkdev;
 #endif // NCNN_VULKAN
 
-    if (!top_shapes.empty()) {
+    if (!top_shapes.empty())
+    {
         op->bottom_shapes = a;
         op->top_shapes = top_shapes;
     }
 
     op->load_param(pd);
 
-    if (op->one_blob_only && a.size() != 1) {
+    if (op->one_blob_only && a.size() != 1)
+    {
         fprintf(stderr, "layer with one_blob_only but consume multiple inputs\n");
         delete op;
         return -1;
@@ -250,7 +268,8 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     op->create_pipeline(opt);
 
 #if NCNN_VULKAN
-    if (opt.use_vulkan_compute) {
+    if (opt.use_vulkan_compute)
+    {
         ncnn::VkTransfer cmd(vkdev);
 
         ncnn::Option opt_upload = opt;
@@ -265,50 +284,63 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 #endif // NCNN_VULKAN
 
     std::vector<ncnn::Mat> b(top_blob_count);
-    if (op->support_inplace) {
-        for (size_t i = 0; i < a.size(); i++) {
+    if (op->support_inplace)
+    {
+        for (size_t i = 0; i < a.size(); i++)
+        {
             b[i] = a[i].clone();
         }
 
         ((T*)op)->T::forward_inplace(b, opt);
     }
-    else {
+    else
+    {
         ((T*)op)->T::forward(a, b, opt);
     }
 
     std::vector<ncnn::Mat> c(top_blob_count);
     {
         std::vector<ncnn::Mat> a4(a.size());
-        if (opt.use_packing_layout) {
-            for (size_t i = 0; i < a.size(); i++) {
+        if (opt.use_packing_layout)
+        {
+            for (size_t i = 0; i < a.size(); i++)
+            {
                 ncnn::convert_packing(a[i], a4[i], 4, opt);
             }
         }
-        else {
+        else
+        {
             a4 = a;
         }
 
-        if (opt.use_bf16_storage) {
-            for (size_t i = 0; i < a4.size(); i++) {
+        if (opt.use_bf16_storage)
+        {
+            for (size_t i = 0; i < a4.size(); i++)
+            {
                 ncnn::Mat a_bf16;
                 ncnn::cast_float32_to_bfloat16(a4[i], a_bf16, opt);
                 a4[i] = a_bf16;
             }
         }
 
-        if (op->support_inplace) {
-            for (size_t i = 0; i < a4.size(); i++) {
+        if (op->support_inplace)
+        {
+            for (size_t i = 0; i < a4.size(); i++)
+            {
                 c[i] = a4[i].clone();
             }
 
             op->forward_inplace(c, opt);
         }
-        else {
+        else
+        {
             op->forward(a4, c, opt);
         }
 
-        if (opt.use_bf16_storage) {
-            for (size_t i = 0; i < c.size(); i++) {
+        if (opt.use_bf16_storage)
+        {
+            for (size_t i = 0; i < c.size(); i++)
+            {
                 ncnn::Mat c_fp32;
                 ncnn::cast_bfloat16_to_float32(c[i], c_fp32, opt);
                 c[i] = c_fp32;
@@ -318,51 +350,62 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 
 #if NCNN_VULKAN
     std::vector<ncnn::Mat> d(top_blob_count);
-    if (opt.use_vulkan_compute) {
+    if (opt.use_vulkan_compute)
+    {
         // forward
         ncnn::VkCompute cmd(vkdev);
 
-        if (opt.use_image_storage) {
+        if (opt.use_image_storage)
+        {
             // upload
             std::vector<ncnn::VkImageMat> a_gpu(a.size());
-            for (size_t i = 0; i < a_gpu.size(); i++) {
+            for (size_t i = 0; i < a_gpu.size(); i++)
+            {
                 cmd.record_upload(a[i], a_gpu[i], opt);
             }
 
             std::vector<ncnn::VkImageMat> d_gpu(top_blob_count);
-            if (op->support_inplace) {
+            if (op->support_inplace)
+            {
                 op->forward_inplace(a_gpu, cmd, opt);
 
                 d_gpu = a_gpu;
             }
-            else {
+            else
+            {
                 op->forward(a_gpu, d_gpu, cmd, opt);
             }
 
             // download
-            for (size_t i = 0; i < d_gpu.size(); i++) {
+            for (size_t i = 0; i < d_gpu.size(); i++)
+            {
                 cmd.record_download(d_gpu[i], d[i], opt);
             }
         }
-        else {
+        else
+        {
             // upload
             std::vector<ncnn::VkMat> a_gpu(a.size());
-            for (size_t i = 0; i < a_gpu.size(); i++) {
+            for (size_t i = 0; i < a_gpu.size(); i++)
+            {
                 cmd.record_upload(a[i], a_gpu[i], opt);
             }
 
             std::vector<ncnn::VkMat> d_gpu(top_blob_count);
-            if (op->support_inplace) {
+            if (op->support_inplace)
+            {
                 op->forward_inplace(a_gpu, cmd, opt);
 
                 d_gpu = a_gpu;
             }
-            else {
+            else
+            {
                 op->forward(a_gpu, d_gpu, cmd, opt);
             }
 
             // download
-            for (size_t i = 0; i < d_gpu.size(); i++) {
+            for (size_t i = 0; i < d_gpu.size(); i++)
+            {
                 cmd.record_download(d_gpu[i], d[i], opt);
             }
         }
@@ -382,21 +425,25 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     g_weight_staging_vkallocator.clear();
 #endif // NCNN_VULKAN
 
-    if (CompareMat(b, c, epsilon) != 0) {
+    if (CompareMat(b, c, epsilon) != 0)
+    {
         fprintf(stderr, "test_layer failed cpu\n");
         return -1;
     }
 
 #if NCNN_VULKAN
-    if (opt.use_vulkan_compute && CompareMat(b, d, epsilon) != 0) {
+    if (opt.use_vulkan_compute && CompareMat(b, d, epsilon) != 0)
+    {
         fprintf(stderr, "test_layer failed gpu\n");
         return -1;
     }
 #endif // NCNN_VULKAN
 
-    if (top_shapes.empty()) {
+    if (top_shapes.empty())
+    {
         int ret = test_layer<T>(typeindex, pd, weights, opt, a, top_blob_count, b, epsilon, func);
-        if (ret != 0) {
+        if (ret != 0)
+        {
             fprintf(stderr, "test_layer failed gpu with shape hint\n");
         }
         return ret;
@@ -411,7 +458,8 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     ncnn::Layer* op = ncnn::create_layer(typeindex);
     ncnn::Option opt = _opt;
 
-    if (func) {
+    if (func)
+    {
         (*func)((T*)op);
     }
 
@@ -447,7 +495,8 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     op->vkdev = vkdev;
 #endif // NCNN_VULKAN
 
-    if (top_shape.dims) {
+    if (top_shape.dims)
+    {
         op->bottom_shapes.resize(1);
         op->top_shapes.resize(1);
         op->bottom_shapes[0] = a;
@@ -463,7 +512,8 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     op->create_pipeline(opt);
 
 #if NCNN_VULKAN
-    if (opt.use_vulkan_compute) {
+    if (opt.use_vulkan_compute)
+    {
         ncnn::VkTransfer cmd(vkdev);
 
         ncnn::Option opt_upload = opt;
@@ -478,39 +528,47 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 #endif // NCNN_VULKAN
 
     ncnn::Mat b;
-    if (op->support_inplace) {
+    if (op->support_inplace)
+    {
         b = a.clone();
         ((T*)op)->T::forward_inplace(b, opt);
     }
-    else {
+    else
+    {
         ((T*)op)->T::forward(a, b, opt);
     }
 
     ncnn::Mat c;
     {
         ncnn::Mat a4;
-        if (opt.use_packing_layout) {
+        if (opt.use_packing_layout)
+        {
             ncnn::convert_packing(a, a4, 4, opt);
         }
-        else {
+        else
+        {
             a4 = a;
         }
 
-        if (opt.use_bf16_storage) {
+        if (opt.use_bf16_storage)
+        {
             ncnn::Mat a_bf16;
             ncnn::cast_float32_to_bfloat16(a4, a_bf16, opt);
             a4 = a_bf16;
         }
 
-        if (op->support_inplace) {
+        if (op->support_inplace)
+        {
             c = a4.clone();
             op->forward_inplace(c, opt);
         }
-        else {
+        else
+        {
             op->forward(a4, c, opt);
         }
 
-        if (opt.use_bf16_storage) {
+        if (opt.use_bf16_storage)
+        {
             ncnn::Mat c_fp32;
             ncnn::cast_bfloat16_to_float32(c, c_fp32, opt);
             c = c_fp32;
@@ -519,40 +577,47 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 
 #if NCNN_VULKAN
     ncnn::Mat d;
-    if (opt.use_vulkan_compute) {
+    if (opt.use_vulkan_compute)
+    {
         // forward
         ncnn::VkCompute cmd(vkdev);
 
-        if (opt.use_image_storage) {
+        if (opt.use_image_storage)
+        {
             // upload
             ncnn::VkImageMat a_gpu;
             cmd.record_upload(a, a_gpu, opt);
 
             ncnn::VkImageMat d_gpu;
-            if (op->support_inplace) {
+            if (op->support_inplace)
+            {
                 op->forward_inplace(a_gpu, cmd, opt);
 
                 d_gpu = a_gpu;
             }
-            else {
+            else
+            {
                 op->forward(a_gpu, d_gpu, cmd, opt);
             }
 
             // download
             cmd.record_download(d_gpu, d, opt);
         }
-        else {
+        else
+        {
             // upload
             ncnn::VkMat a_gpu;
             cmd.record_upload(a, a_gpu, opt);
 
             ncnn::VkMat d_gpu;
-            if (op->support_inplace) {
+            if (op->support_inplace)
+            {
                 op->forward_inplace(a_gpu, cmd, opt);
 
                 d_gpu = a_gpu;
             }
-            else {
+            else
+            {
                 op->forward(a_gpu, d_gpu, cmd, opt);
             }
 
@@ -575,21 +640,25 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     g_weight_staging_vkallocator.clear();
 #endif // NCNN_VULKAN
 
-    if (CompareMat(b, c, epsilon) != 0) {
+    if (CompareMat(b, c, epsilon) != 0)
+    {
         fprintf(stderr, "test_layer failed cpu\n");
         return -1;
     }
 
 #if NCNN_VULKAN
-    if (opt.use_vulkan_compute && CompareMat(b, d, epsilon) != 0) {
+    if (opt.use_vulkan_compute && CompareMat(b, d, epsilon) != 0)
+    {
         fprintf(stderr, "test_layer failed gpu\n");
         return -1;
     }
 #endif // NCNN_VULKAN
 
-    if (top_shape.dims == 0) {
+    if (top_shape.dims == 0)
+    {
         int ret = test_layer<T>(typeindex, pd, weights, opt, a, b, epsilon, func);
-        if (ret != 0) {
+        if (ret != 0)
+        {
             fprintf(stderr, "test_layer failed gpu with shape hint\n");
         }
         return ret;
@@ -622,44 +691,52 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = true;
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++)
+    {
         const ncnn::Option& opt = opts[i];
 
         // fp16 representation
         std::vector<ncnn::Mat> a_fp16;
         std::vector<ncnn::Mat> weights_fp16;
         float epsilon_fp16;
-        if (opt.use_bf16_storage) {
+        if (opt.use_bf16_storage)
+        {
             a_fp16.resize(a.size());
-            for (size_t j = 0; j < a.size(); j++) {
+            for (size_t j = 0; j < a.size(); j++)
+            {
                 ncnn::Mat tmp;
                 ncnn::cast_float32_to_bfloat16(a[j], tmp, opt);
                 ncnn::cast_bfloat16_to_float32(tmp, a_fp16[j], opt);
             }
             weights_fp16.resize(weights.size());
-            for (size_t j = 0; j < weights.size(); j++) {
+            for (size_t j = 0; j < weights.size(); j++)
+            {
                 ncnn::Mat tmp;
                 ncnn::cast_float32_to_bfloat16(weights[j], tmp, opt);
                 ncnn::cast_bfloat16_to_float32(tmp, weights_fp16[j], opt);
             }
             epsilon_fp16 = epsilon * 100; // 0.1
         }
-        else if (opt.use_fp16_packed || opt.use_fp16_storage) {
+        else if (opt.use_fp16_packed || opt.use_fp16_storage)
+        {
             a_fp16.resize(a.size());
-            for (size_t j = 0; j < a.size(); j++) {
+            for (size_t j = 0; j < a.size(); j++)
+            {
                 ncnn::Mat tmp;
                 ncnn::cast_float32_to_float16(a[j], tmp, opt);
                 ncnn::cast_float16_to_float32(tmp, a_fp16[j], opt);
             }
             weights_fp16.resize(weights.size());
-            for (size_t j = 0; j < weights.size(); j++) {
+            for (size_t j = 0; j < weights.size(); j++)
+            {
                 ncnn::Mat tmp;
                 ncnn::cast_float32_to_float16(weights[j], tmp, opt);
                 ncnn::cast_float16_to_float32(tmp, weights_fp16[j], opt);
             }
             epsilon_fp16 = epsilon * 100; // 0.1
         }
-        else {
+        else
+        {
             a_fp16 = a;
             weights_fp16 = weights;
             epsilon_fp16 = epsilon;
@@ -667,7 +744,8 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 
         std::vector<ncnn::Mat> top_shapes;
         int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_blob_count, top_shapes, epsilon_fp16, func);
-        if (ret != 0) {
+        if (ret != 0)
+        {
             fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
             return ret;
         }
@@ -700,42 +778,48 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = true;
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 3; i++)
+    {
         const ncnn::Option& opt = opts[i];
 
         // fp16 representation
         ncnn::Mat a_fp16;
         std::vector<ncnn::Mat> weights_fp16;
         float epsilon_fp16;
-        if (opt.use_bf16_storage) {
+        if (opt.use_bf16_storage)
+        {
             {
                 ncnn::Mat tmp;
                 ncnn::cast_float32_to_bfloat16(a, tmp, opt);
                 ncnn::cast_bfloat16_to_float32(tmp, a_fp16, opt);
             }
             weights_fp16.resize(weights.size());
-            for (size_t j = 0; j < weights.size(); j++) {
+            for (size_t j = 0; j < weights.size(); j++)
+            {
                 ncnn::Mat tmp;
                 ncnn::cast_float32_to_bfloat16(weights[j], tmp, opt);
                 ncnn::cast_bfloat16_to_float32(tmp, weights_fp16[j], opt);
             }
             epsilon_fp16 = epsilon * 100; // 0.1
         }
-        else if (opt.use_fp16_packed || opt.use_fp16_storage) {
+        else if (opt.use_fp16_packed || opt.use_fp16_storage)
+        {
             {
                 ncnn::Mat tmp;
                 ncnn::cast_float32_to_float16(a, tmp, opt);
                 ncnn::cast_float16_to_float32(tmp, a_fp16, opt);
             }
             weights_fp16.resize(weights.size());
-            for (size_t j = 0; j < weights.size(); j++) {
+            for (size_t j = 0; j < weights.size(); j++)
+            {
                 ncnn::Mat tmp;
                 ncnn::cast_float32_to_float16(weights[j], tmp, opt);
                 ncnn::cast_float16_to_float32(tmp, weights_fp16[j], opt);
             }
             epsilon_fp16 = epsilon * 100; // 0.1
         }
-        else {
+        else
+        {
             a_fp16 = a;
             weights_fp16 = weights;
             epsilon_fp16 = epsilon;
@@ -743,7 +827,8 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 
         ncnn::Mat top_shape;
         int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_shape, epsilon_fp16, func);
-        if (ret != 0) {
+        if (ret != 0)
+        {
             fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
             return ret;
         }

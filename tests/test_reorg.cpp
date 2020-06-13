@@ -28,7 +28,8 @@ static int test_reorg(const ncnn::Mat& a, int stride)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Reorg>("Reorg", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_reorg failed a.dims=%d a=(%d %d %d) stride=%d\n", a.dims, a.w, a.h, a.c, stride);
     }
 

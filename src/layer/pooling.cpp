@@ -58,33 +58,40 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     size_t elemsize = bottom_blob.elemsize;
 
     //     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
-    if (global_pooling) {
+    if (global_pooling)
+    {
         top_blob.create(channels, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         int size = w * h;
 
-        if (pooling_type == PoolMethod_MAX) {
+        if (pooling_type == PoolMethod_MAX)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const float* ptr = bottom_blob.channel(q);
 
                 float max = ptr[0];
-                for (int i = 0; i < size; i++) {
+                for (int i = 0; i < size; i++)
+                {
                     max = std::max(max, ptr[i]);
                 }
 
                 top_blob[q] = max;
             }
         }
-        else if (pooling_type == PoolMethod_AVE) {
+        else if (pooling_type == PoolMethod_AVE)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const float* ptr = bottom_blob.channel(q);
 
                 float sum = 0.f;
-                for (int i = 0; i < size; i++) {
+                for (int i = 0; i < size; i++)
+                {
                     sum += ptr[i];
                 }
 
@@ -119,8 +126,10 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         int p1 = 0;
         int p2 = 0;
         int gap = w - kernel_w;
-        for (int i = 0; i < kernel_h; i++) {
-            for (int j = 0; j < kernel_w; j++) {
+        for (int i = 0; i < kernel_h; i++)
+        {
+            for (int j = 0; j < kernel_w; j++)
+            {
                 space_ofs[p1] = p2;
                 p1++;
                 p2++;
@@ -129,19 +138,24 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         }
     }
 
-    if (pooling_type == PoolMethod_MAX) {
+    if (pooling_type == PoolMethod_MAX)
+    {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             const Mat m = bottom_blob_bordered.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int i = 0; i < outh; i++) {
-                for (int j = 0; j < outw; j++) {
+            for (int i = 0; i < outh; i++)
+            {
+                for (int j = 0; j < outw; j++)
+                {
                     const float* sptr = m.row(i * stride_h) + j * stride_w;
 
                     float max = sptr[0];
 
-                    for (int k = 0; k < maxk; k++) {
+                    for (int k = 0; k < maxk; k++)
+                    {
                         float val = sptr[space_ofs[k]];
                         max = std::max(max, val);
                     }
@@ -153,8 +167,10 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             }
         }
     }
-    else if (pooling_type == PoolMethod_AVE) {
-        if (avgpool_count_include_pad == 0) {
+    else if (pooling_type == PoolMethod_AVE)
+    {
+        if (avgpool_count_include_pad == 0)
+        {
             int wtailpad = 0;
             int htailpad = 0;
 
@@ -165,20 +181,24 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             }
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const Mat m = bottom_blob_bordered.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int i = 0; i < outh; i++) {
+                for (int i = 0; i < outh; i++)
+                {
                     int sy0 = i * stride_h;
 
-                    for (int j = 0; j < outw; j++) {
+                    for (int j = 0; j < outw; j++)
+                    {
                         int sx0 = j * stride_w;
 
                         float sum = 0;
                         int area = 0;
 
-                        for (int ki = 0; ki < kernel_h; ki++) {
+                        for (int ki = 0; ki < kernel_h; ki++)
+                        {
                             int sy = sy0 + ki;
 
                             if (sy < pad_top)
@@ -187,7 +207,8 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                             if (sy >= h - pad_bottom - htailpad)
                                 break;
 
-                            for (int kj = 0; kj < kernel_w; kj++) {
+                            for (int kj = 0; kj < kernel_w; kj++)
+                            {
                                 int sx = sx0 + kj;
 
                                 if (sx < pad_left)
@@ -212,17 +233,21 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         else // if (avgpool_count_include_pad == 1)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const Mat m = bottom_blob_bordered.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int i = 0; i < outh; i++) {
-                    for (int j = 0; j < outw; j++) {
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
                         const float* sptr = m.row(i * stride_h) + j * stride_w;
 
                         float sum = 0;
 
-                        for (int k = 0; k < maxk; k++) {
+                        for (int k = 0; k < maxk; k++)
+                        {
                             float val = sptr[space_ofs[k]];
                             sum += val;
                         }
@@ -247,10 +272,12 @@ void Pooling::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, co
     bottom_blob_bordered = bottom_blob;
 
     float pad_value = 0.f;
-    if (pooling_type == PoolMethod_MAX) {
+    if (pooling_type == PoolMethod_MAX)
+    {
         pad_value = bottom_blob.elemsize == 1 ? -128.f : -FLT_MAX;
     }
-    else if (pooling_type == PoolMethod_AVE) {
+    else if (pooling_type == PoolMethod_AVE)
+    {
         pad_value = 0.f;
     }
 
@@ -281,7 +308,8 @@ void Pooling::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, co
     {
         int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
         int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
-        if (wpad > 0 || hpad > 0) {
+        if (wpad > 0 || hpad > 0)
+        {
             Option opt_b = opt;
             opt_b.blob_allocator = opt.workspace_allocator;
             copy_make_border(bottom_blob, bottom_blob_bordered, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, BORDER_CONSTANT, pad_value, opt_b);
@@ -291,7 +319,8 @@ void Pooling::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, co
     {
         int wpad = kernel_w + (w - 1) / stride_w * stride_w - w;
         int hpad = kernel_h + (h - 1) / stride_h * stride_h - h;
-        if (wpad > 0 || hpad > 0) {
+        if (wpad > 0 || hpad > 0)
+        {
             Option opt_b = opt;
             opt_b.blob_allocator = opt.workspace_allocator;
             copy_make_border(bottom_blob, bottom_blob_bordered, hpad - hpad / 2, hpad / 2, wpad - wpad / 2, wpad / 2, BORDER_CONSTANT, pad_value, opt_b);

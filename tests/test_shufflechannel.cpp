@@ -30,7 +30,8 @@ static int test_shufflechannel(int w, int h, int c, int group)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::ShuffleChannel>("ShuffleChannel", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_shufflechannel failed w=%d h=%d c=%d group=%d\n", w, h, c, group);
     }
 

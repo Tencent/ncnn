@@ -23,65 +23,80 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 {
     int dims = bottom_top_blob.dims;
 
-    if (dims == 1) {
+    if (dims == 1)
+    {
         int w = bottom_top_blob.w;
 
         int* intptr = bottom_top_blob;
         float* ptr = bottom_top_blob;
 
-        if (bias_term) {
+        if (bias_term)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < w; i++) {
+            for (int i = 0; i < w; i++)
+            {
                 ptr[i] = intptr[i] * scale + bias_data[i];
             }
         }
-        else {
+        else
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < w; i++) {
+            for (int i = 0; i < w; i++)
+            {
                 ptr[i] = intptr[i] * scale;
             }
         }
     }
 
-    if (dims == 2) {
+    if (dims == 2)
+    {
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-        if (bias_term) {
+        if (bias_term)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++) {
+            for (int i = 0; i < h; i++)
+            {
                 const int* intptr = bottom_top_blob.row<const int>(i);
                 float* ptr = bottom_top_blob.row(i);
 
                 float bias = bias_data_size > 1 ? bias_data[i] : bias_data[0];
 
-                for (int j = 0; j < w; j++) {
+                for (int j = 0; j < w; j++)
+                {
                     ptr[j] = intptr[j] * scale + bias;
                 }
             }
         }
-        else {
+        else
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++) {
+            for (int i = 0; i < h; i++)
+            {
                 const int* intptr = bottom_top_blob.row<const int>(i);
                 float* ptr = bottom_top_blob.row(i);
 
-                for (int j = 0; j < w; j++) {
+                for (int j = 0; j < w; j++)
+                {
                     ptr[j] = intptr[j] * scale;
                 }
             }
         }
     }
 
-    if (dims == 3) {
+    if (dims == 3)
+    {
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
         int channels = bottom_top_blob.c;
         int size = w * h;
 
-        if (bias_term) {
+        if (bias_term)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 int* intptr = bottom_top_blob.channel(q);
                 float* ptr = bottom_top_blob.channel(q);
 
@@ -96,7 +111,8 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 
 #if __ARM_NEON
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "dup    v2.4s, %w6                   \n" // scale
                         "dup    v3.4s, %w7                   \n" // bias
@@ -127,7 +143,8 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6");
                 }
 #else
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "pld        [%1, #256]          \n"
                         "vld1.s32   {d0-d3}, [%1]!      \n" //q0-q1 data
@@ -164,7 +181,8 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
                     *ptr = *intptr * scale + bias;
 
                     intptr++;
@@ -172,9 +190,11 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                 }
             }
         }
-        else {
+        else
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 int* intptr = bottom_top_blob.channel(q);
                 float* ptr = bottom_top_blob.channel(q);
 
@@ -187,7 +207,8 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 
 #if __ARM_NEON
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "dup    v2.4s, %w6                   \n" // scale
                         "0:                                  \n"
@@ -213,7 +234,8 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6");
                 }
 #else
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "pld        [%1, #256]          \n"
                         "vld1.s32   {d0-d3}, [%1]!      \n" //q0-q1 data
@@ -245,7 +267,8 @@ int Dequantize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
                     *ptr = *intptr * scale;
 
                     intptr++;

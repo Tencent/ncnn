@@ -51,7 +51,8 @@ static int test_packing_cpu(const ncnn::Mat& a, int in_elempack, int out_elempac
 
     delete op;
 
-    if (CompareMat(b, c, 0.001) != 0) {
+    if (CompareMat(b, c, 0.001) != 0)
+    {
         fprintf(stderr, "test_packing_cpu failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
         return -1;
     }
@@ -140,7 +141,8 @@ static int test_packing_gpu_buffer(const ncnn::Mat& a, int in_elempack, int out_
     vkdev->reclaim_blob_allocator(blob_vkallocator);
     vkdev->reclaim_staging_allocator(staging_vkallocator);
 
-    if (CompareMat(b, d, 0.001) != 0) {
+    if (CompareMat(b, d, 0.001) != 0)
+    {
         fprintf(stderr, "test_packing_gpu_buffer failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
         return -1;
     }
@@ -229,7 +231,8 @@ static int test_packing_gpu_image(const ncnn::Mat& a, int in_elempack, int out_e
     vkdev->reclaim_blob_allocator(blob_vkallocator);
     vkdev->reclaim_staging_allocator(staging_vkallocator);
 
-    if (CompareMat(b, d, 0.001) != 0) {
+    if (CompareMat(b, d, 0.001) != 0)
+    {
         fprintf(stderr, "test_packing_gpu_image failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
         return -1;
     }
@@ -318,7 +321,8 @@ static int test_packing_gpu_buffer2image(const ncnn::Mat& a, int in_elempack, in
     vkdev->reclaim_blob_allocator(blob_vkallocator);
     vkdev->reclaim_staging_allocator(staging_vkallocator);
 
-    if (CompareMat(b, d, 0.001) != 0) {
+    if (CompareMat(b, d, 0.001) != 0)
+    {
         fprintf(stderr, "test_packing_gpu_buffer2image failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
         return -1;
     }
@@ -407,7 +411,8 @@ static int test_packing_gpu_image2buffer(const ncnn::Mat& a, int in_elempack, in
     vkdev->reclaim_blob_allocator(blob_vkallocator);
     vkdev->reclaim_staging_allocator(staging_vkallocator);
 
-    if (CompareMat(b, d, 0.001) != 0) {
+    if (CompareMat(b, d, 0.001) != 0)
+    {
         fprintf(stderr, "test_packing_gpu_image2buffer failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
         return -1;
     }

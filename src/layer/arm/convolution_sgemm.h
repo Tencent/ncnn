@@ -31,7 +31,8 @@ static void conv_im2col_sgemm_transform_kernel_neon(const Mat& _kernel, Mat& ker
     nn_outch = outch >> 3;
     remain_outch_start = nn_outch << 3;
 
-    for (int pp = 0; pp < nn_outch; pp++) {
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
         int p = pp * 8;
 
         const float* k0 = kernel + (p + 0) * inch * kernel_size;
@@ -45,7 +46,8 @@ static void conv_im2col_sgemm_transform_kernel_neon(const Mat& _kernel, Mat& ker
 
         float* ktmp = kernel_tm.channel(p / 8);
 
-        for (int q = 0; q < inch * kernel_size; q++) {
+        for (int q = 0; q < inch * kernel_size; q++)
+        {
             ktmp[0] = k0[0];
             ktmp[1] = k1[0];
             ktmp[2] = k2[0];
@@ -70,7 +72,8 @@ static void conv_im2col_sgemm_transform_kernel_neon(const Mat& _kernel, Mat& ker
 
     nn_outch = (outch - remain_outch_start) >> 2;
 
-    for (int pp = 0; pp < nn_outch; pp++) {
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
         int p = remain_outch_start + pp * 4;
 
         const float* k0 = kernel + (p + 0) * inch * kernel_size;
@@ -84,7 +87,8 @@ static void conv_im2col_sgemm_transform_kernel_neon(const Mat& _kernel, Mat& ker
         float* ktmp = kernel_tm.channel(p / 4);
 #endif // __ARM_NEON && __aarch64__
 
-        for (int q = 0; q < inch * kernel_size; q++) {
+        for (int q = 0; q < inch * kernel_size; q++)
+        {
             ktmp[0] = k0[0];
             ktmp[1] = k1[0];
             ktmp[2] = k2[0];
@@ -100,7 +104,8 @@ static void conv_im2col_sgemm_transform_kernel_neon(const Mat& _kernel, Mat& ker
 
     remain_outch_start += nn_outch << 2;
 
-    for (int p = remain_outch_start; p < outch; p++) {
+    for (int p = remain_outch_start; p < outch; p++)
+    {
         const float* k0 = kernel + (p + 0) * inch * kernel_size;
 
 #if __ARM_NEON && __aarch64__
@@ -109,7 +114,8 @@ static void conv_im2col_sgemm_transform_kernel_neon(const Mat& _kernel, Mat& ker
         float* ktmp = kernel_tm.channel(p / 4 + p % 4);
 #endif // __ARM_NEON && __aarch64__
 
-        for (int q = 0; q < inch * kernel_size; q++) {
+        for (int q = 0; q < inch * kernel_size; q++)
+        {
             ktmp[0] = k0[0];
             ktmp++;
             k0++;
@@ -137,13 +143,18 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
         float* ret = (float*)bottom_im2col;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < inch; p++) {
+        for (int p = 0; p < inch; p++)
+        {
             const float* input = bottom_blob.channel(p);
             int retID = stride * p;
-            for (int u = 0; u < kernel_h; u++) {
-                for (int v = 0; v < kernel_w; v++) {
-                    for (int i = 0; i < outh; i++) {
-                        for (int j = 0; j < outw; j++) {
+            for (int u = 0; u < kernel_h; u++)
+            {
+                for (int v = 0; v < kernel_w; v++)
+                {
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
                             int row = u + i * stride_h;
                             int col = v + j * stride_w;
                             int index = row * w + col;
@@ -166,7 +177,8 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
         int remain_size_start = nn_size << 3;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ii = 0; ii < nn_size; ii++) {
+        for (int ii = 0; ii < nn_size; ii++)
+        {
             int i = ii * 8;
 
             const float* img0 = bottom_im2col.channel(0);
@@ -174,7 +186,8 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
 
             float* tmpptr = bottom_tm.channel(i / 8);
 
-            for (int q = 0; q < inch * kernel_size; q++) {
+            for (int q = 0; q < inch * kernel_size; q++)
+            {
 #if __ARM_NEON
 #if __aarch64__
                 asm volatile(
@@ -213,13 +226,15 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
         }
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = remain_size_start; i < out_size; i++) {
+        for (int i = remain_size_start; i < out_size; i++)
+        {
             const float* img0 = bottom_im2col.channel(0);
             img0 += i;
 
             float* tmpptr = bottom_tm.channel(i / 8 + i % 8);
 
-            for (int q = 0; q < inch * kernel_size; q++) {
+            for (int q = 0; q < inch * kernel_size; q++)
+            {
                 tmpptr[0] = img0[0];
 
                 tmpptr += 1;
@@ -242,7 +257,8 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
         remain_outch_start = nn_outch << 3;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int pp = 0; pp < nn_outch; pp++) {
+        for (int pp = 0; pp < nn_outch; pp++)
+        {
             int i = pp * 8;
 
             float* output0 = top_blob.channel(i);
@@ -258,7 +274,8 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
             const float* biasptr = bias ? bias + i : zeros;
 
             int j = 0;
-            for (; j + 7 < N; j = j + 8) {
+            for (; j + 7 < N; j = j + 8)
+            {
                 const float* vb = bottom_tm.channel(j / 8);
                 const float* va = kernel_tm.channel(i / 8);
 #if __ARM_NEON
@@ -448,8 +465,10 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 float sum7[8] = {0};
 
                 int k = 0;
-                for (; k + 7 < L; k = k + 8) {
-                    for (int n = 0; n < 8; n++) {
+                for (; k + 7 < L; k = k + 8)
+                {
+                    for (int n = 0; n < 8; n++)
+                    {
                         sum0[n] += va[0] * vb[n];
                         sum1[n] += va[1] * vb[n];
                         sum2[n] += va[2] * vb[n];
@@ -535,8 +554,10 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     vb += 64;
                 }
 
-                for (; k < L; k++) {
-                    for (int n = 0; n < 8; n++) {
+                for (; k < L; k++)
+                {
+                    for (int n = 0; n < 8; n++)
+                    {
                         sum0[n] += va[0] * vb[n];
                         sum1[n] += va[1] * vb[n];
                         sum2[n] += va[2] * vb[n];
@@ -551,7 +572,8 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     vb += 8;
                 }
 
-                for (int n = 0; n < 8; n++) {
+                for (int n = 0; n < 8; n++)
+                {
                     output0[n] = sum0[n] + biasptr[0];
                     output1[n] = sum1[n] + biasptr[1];
                     output2[n] = sum2[n] + biasptr[2];
@@ -572,7 +594,8 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 output7 += 8;
             }
 
-            for (; j < N; j++) {
+            for (; j < N; j++)
+            {
                 const float* vb = bottom_tm.channel(j / 8 + j % 8);
                 const float* va = kernel_tm.channel(i / 8);
 
@@ -689,7 +712,8 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 float sum6 = biasptr[6];
                 float sum7 = biasptr[7];
 
-                for (int k = 0; k < L; k++) {
+                for (int k = 0; k < L; k++)
+                {
                     sum0 += va[0] * vb[0];
                     sum1 += va[1] * vb[0];
                     sum2 += va[2] * vb[0];
@@ -727,7 +751,8 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
         nn_outch = (outch - remain_outch_start) >> 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int pp = 0; pp < nn_outch; pp++) {
+        for (int pp = 0; pp < nn_outch; pp++)
+        {
             int i = remain_outch_start + pp * 4;
 
             float* output0 = top_blob.channel(i);
@@ -739,7 +764,8 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
             const float* biasptr = bias ? bias + i : zeros;
 
             int j = 0;
-            for (; j + 7 < N; j = j + 8) {
+            for (; j + 7 < N; j = j + 8)
+            {
                 const float* vb = bottom_tm.channel(j / 8);
 #if __ARM_NEON && __aarch64__
                 const float* va = kernel_tm.channel(i / 8 + (i % 8) / 4);
@@ -980,8 +1006,10 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 float sum3[8] = {0};
 
                 int k = 0;
-                for (; k + 7 < L; k = k + 8) {
-                    for (int n = 0; n < 8; n++) {
+                for (; k + 7 < L; k = k + 8)
+                {
+                    for (int n = 0; n < 8; n++)
+                    {
                         sum0[n] += va[0] * vb[n];
                         sum1[n] += va[1] * vb[n];
                         sum2[n] += va[2] * vb[n];
@@ -1035,8 +1063,10 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     vb += 64;
                 }
 
-                for (; k < L; k++) {
-                    for (int n = 0; n < 8; n++) {
+                for (; k < L; k++)
+                {
+                    for (int n = 0; n < 8; n++)
+                    {
                         sum0[n] += va[0] * vb[n];
                         sum1[n] += va[1] * vb[n];
                         sum2[n] += va[2] * vb[n];
@@ -1047,7 +1077,8 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     vb += 8;
                 }
 
-                for (int n = 0; n < 8; n++) {
+                for (int n = 0; n < 8; n++)
+                {
                     output0[n] = sum0[n] + biasptr[0];
                     output1[n] = sum1[n] + biasptr[1];
                     output2[n] = sum2[n] + biasptr[2];
@@ -1060,7 +1091,8 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 output3 += 8;
             }
 
-            for (; j < N; j++) {
+            for (; j < N; j++)
+            {
                 float* vb = bottom_tm.channel(j / 8 + j % 8);
 #if __ARM_NEON && __aarch64__
                 const float* va = kernel_tm.channel(i / 8 + (i % 8) / 4);
@@ -1222,7 +1254,8 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 float sum2 = biasptr[2];
                 float sum3 = biasptr[3];
 
-                for (int k = 0; k < L; k++) {
+                for (int k = 0; k < L; k++)
+                {
                     sum0 += va[0] * vb[0];
                     sum1 += va[1] * vb[0];
                     sum2 += va[2] * vb[0];
@@ -1247,13 +1280,15 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
         remain_outch_start += nn_outch << 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = remain_outch_start; i < outch; i++) {
+        for (int i = remain_outch_start; i < outch; i++)
+        {
             float* output = top_blob.channel(i);
 
             const float bias0 = bias ? bias[i] : 0.f;
 
             int j = 0;
-            for (; j + 7 < N; j = j + 8) {
+            for (; j + 7 < N; j = j + 8)
+            {
                 const float* vb = bottom_tm.channel(j / 8);
 #if __ARM_NEON && __aarch64__
                 const float* va = kernel_tm.channel(i / 8 + (i % 8) / 4 + i % 4);
@@ -1397,8 +1432,10 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 float sum[8] = {0};
 
                 int k = 0;
-                for (; k + 7 < L; k = k + 8) {
-                    for (int n = 0; n < 8; n++) {
+                for (; k + 7 < L; k = k + 8)
+                {
+                    for (int n = 0; n < 8; n++)
+                    {
                         sum[n] += va[0] * vb[n];
                         sum[n] += va[1] * vb[n + 8];
                         sum[n] += va[2] * vb[n + 16];
@@ -1413,8 +1450,10 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     vb += 64;
                 }
 
-                for (; k < L; k++) {
-                    for (int n = 0; n < 8; n++) {
+                for (; k < L; k++)
+                {
+                    for (int n = 0; n < 8; n++)
+                    {
                         sum[n] += va[0] * vb[n];
                     }
 
@@ -1422,14 +1461,16 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     vb += 8;
                 }
 
-                for (int n = 0; n < 8; n++) {
+                for (int n = 0; n < 8; n++)
+                {
                     output[n] = sum[n] + bias0;
                 }
 #endif // __ARM_NEON
                 output += 8;
             }
 
-            for (; j < N; j++) {
+            for (; j < N; j++)
+            {
                 const float* vb = bottom_tm.channel(j / 8 + j % 8);
 #if __ARM_NEON && __aarch64__
                 const float* va = kernel_tm.channel(i / 8 + (i % 8) / 4 + i % 4);
@@ -1441,7 +1482,8 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
 #if __ARM_NEON
                 float32x4_t _sum0 = vdupq_n_f32(0.f);
 
-                for (; k + 3 < L; k += 4) {
+                for (; k + 3 < L; k += 4)
+                {
                     float32x4_t _p0 = vld1q_f32(vb);
                     vb += 4;
 
@@ -1464,7 +1506,8 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
 #else
                 float sum0 = bias0;
 #endif // __ARM_NEON
-                for (; k < L; k++) {
+                for (; k < L; k++)
+                {
                     sum0 += va[0] * vb[0];
 
                     va += 1;

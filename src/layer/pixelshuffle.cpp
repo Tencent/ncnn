@@ -47,16 +47,21 @@ int PixelShuffle::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         return -100;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outc; p++) {
+    for (int p = 0; p < outc; p++)
+    {
         Mat m = top_blob.channel(p);
 
-        for (int sh = 0; sh < upscale_factor; sh++) {
-            for (int sw = 0; sw < upscale_factor; sw++) {
+        for (int sh = 0; sh < upscale_factor; sh++)
+        {
+            for (int sw = 0; sw < upscale_factor; sw++)
+            {
                 const float* sptr = bottom_blob.channel(p * upscale_factor * upscale_factor + sh * upscale_factor + sw);
 
-                for (int i = 0; i < h; i++) {
+                for (int i = 0; i < h; i++)
+                {
                     float* outptr = m.row(i * upscale_factor + sh) + sw;
-                    for (int j = 0; j < w; j++) {
+                    for (int j = 0; j < w; j++)
+                    {
                         outptr[0] = sptr[0];
 
                         sptr++;

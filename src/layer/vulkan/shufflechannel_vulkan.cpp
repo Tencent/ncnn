@@ -49,15 +49,18 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage) {
+    if (opt.use_fp16_storage)
+    {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
     }
-    else if (opt.use_fp16_packed) {
+    else if (opt.use_fp16_packed)
+    {
         elemsize = elempack == 1 ? 4u : elempack * 2u;
         out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
     }
-    else {
+    else
+    {
         elemsize = elempack * 4u;
         out_elemsize = out_elempack * 4u;
     }
@@ -87,28 +90,32 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
     specializations[2 + 9].i = out_shape_packed.cstep;
 
     Mat local_size_xyz;
-    if (out_shape_packed.dims != 0) {
+    if (out_shape_packed.dims != 0)
+    {
         local_size_xyz.w = std::min(4, out_shape_packed.w);
         local_size_xyz.h = std::min(4, out_shape_packed.h);
         local_size_xyz.c = std::min(4, out_shape_packed.c);
     }
 
     // pack1
-    if (shape.dims == 0 || elempack == 1) {
+    if (shape.dims == 0 || elempack == 1)
+    {
         pipeline_shufflechannel = new Pipeline(vkdev);
         pipeline_shufflechannel->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_shufflechannel->create(LayerShaderType::shufflechannel, opt, specializations);
     }
 
     // pack4
-    if (shape.dims == 0 || elempack == 4) {
+    if (shape.dims == 0 || elempack == 4)
+    {
         pipeline_shufflechannel_pack4 = new Pipeline(vkdev);
         pipeline_shufflechannel_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_shufflechannel_pack4->create(LayerShaderType::shufflechannel_pack4, opt, specializations);
     }
 
     // pack8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8) {
+    if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
+    {
         pipeline_shufflechannel_pack8 = new Pipeline(vkdev);
         pipeline_shufflechannel_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_shufflechannel_pack8->create(LayerShaderType::shufflechannel_pack8, opt, specializations);

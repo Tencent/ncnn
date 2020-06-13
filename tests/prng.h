@@ -41,16 +41,19 @@ static inline uint64_t prng_rand(struct prng_rand_t* state)
     uint_fast16_t i;
     uint_fast16_t r, new_rands = 0;
 
-    if (!state->c) { // Randomness exhausted, run forward to refill
+    if (!state->c)
+    {   // Randomness exhausted, run forward to refill
         new_rands += RAND_REFILL_COUNT + 1;
         state->c = RAND_EXHAUST_LIMIT - 1;
     }
-    else {
+    else
+    {
         new_rands = 1;
         state->c--;
     }
 
-    for (r = 0; r < new_rands; r++) {
+    for (r = 0; r < new_rands; r++)
+    {
         i = state->i;
         state->s[i & RAND_SMASK] = state->s[(i + RAND_SSIZE - LAG1) & RAND_SMASK]
                                    + state->s[(i + RAND_SSIZE - LAG2) & RAND_SMASK];
@@ -67,14 +70,16 @@ static inline void prng_srand(uint64_t seed, struct prng_rand_t* state)
     state->i = 0;
 
     state->s[0] = seed;
-    for (i = 1; i < RAND_SSIZE; i++) {
+    for (i = 1; i < RAND_SSIZE; i++)
+    {
         // Arbitrary magic, mostly to eliminate the effect of low-value seeds.
         // Probably could be better, but the run-up obviates any real need to.
         state->s[i] = i * (UINT64_C(2147483647)) + seed;
     }
 
     // Run forward 10,000 numbers
-    for (i = 0; i < 10000; i++) {
+    for (i = 0; i < 10000; i++)
+    {
         prng_rand(state);
     }
 }

@@ -1,7 +1,7 @@
 # astyle -n -r "benchmark/*.h,*.cpp" "src/*.h,*.cpp" "tests/*.h,*.cpp" "tools/*.h,*.cpp" "examples/*.h,*.cpp"
 
 # brace style
---style=stroustrup
+--style=allman
 
 # tab
 --attach-namespaces

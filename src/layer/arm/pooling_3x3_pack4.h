@@ -23,7 +23,8 @@ static void pooling3x3s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
     const int tailstep = (w - 2 * outw + w) * 4;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < inch; q++) {
+    for (int q = 0; q < inch; q++)
+    {
         const Mat img0 = bottom_blob.channel(q);
         float* outptr = top_blob.channel(q);
 
@@ -31,10 +32,12 @@ static void pooling3x3s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
         const float* r1 = img0.row(1);
         const float* r2 = img0.row(2);
 
-        for (int i = 0; i < outh; i++) {
+        for (int i = 0; i < outh; i++)
+        {
             int j = 0;
 
-            for (; j + 3 < outw; j += 4) {
+            for (; j + 3 < outw; j += 4)
+            {
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%1, #512]   \n"
@@ -192,7 +195,8 @@ static void pooling3x3s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
                     : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
             }
-            for (; j + 1 < outw; j += 2) {
+            for (; j + 1 < outw; j += 2)
+            {
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%1, #512]   \n"
@@ -295,7 +299,8 @@ static void pooling3x3s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
                     : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
             }
-            for (; j < outw; j++) {
+            for (; j < outw; j++)
+            {
                 float32x4_t _r00 = vld1q_f32(r0);
                 float32x4_t _r01 = vld1q_f32(r0 + 4);
                 float32x4_t _r02 = vld1q_f32(r0 + 8);

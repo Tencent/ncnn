@@ -48,7 +48,8 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     Mat shape_flatten;
-    if (shape.dims != 0) {
+    if (shape.dims != 0)
+    {
         shape_flatten = Mat(shape.w * shape.h * shape.c, (void*)0);
     }
 
@@ -59,15 +60,18 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage) {
+    if (opt.use_fp16_storage)
+    {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
     }
-    else if (opt.use_fp16_packed) {
+    else if (opt.use_fp16_packed)
+    {
         elemsize = elempack == 1 ? 4u : elempack * 2u;
         out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
     }
-    else {
+    else
+    {
         elemsize = elempack * 4u;
         out_elemsize = out_elempack * 4u;
     }
@@ -79,14 +83,16 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
     if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     // check blob shape
-    if (!vkdev->shape_support_image_storage(shape_flatten_packed) || !vkdev->shape_support_image_storage(out_shape_packed)) {
+    if (!vkdev->shape_support_image_storage(shape_flatten_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
+    {
         support_image_storage = false;
         opt.use_image_storage = false;
     }
 
     // check weight shape
     Mat weight_data_packed(num_input / elempack, num_output / out_elempack, (void*)0, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
-    if (!vkdev->shape_support_image_storage(weight_data_packed)) {
+    if (!vkdev->shape_support_image_storage(weight_data_packed))
+    {
         support_image_storage = false;
         opt.use_image_storage = false;
     }
@@ -124,70 +130,80 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
     specializations[4 + 9].i = out_shape_packed.cstep;
 
     Mat local_size_xyz(std::min(64, num_output / out_elempack), 1, 1, (void*)0);
-    if (out_shape_packed.dims != 0) {
+    if (out_shape_packed.dims != 0)
+    {
         local_size_xyz.w = std::min(64, out_shape_packed.w);
         local_size_xyz.h = 1;
         local_size_xyz.c = 1;
     }
 
     // pack1
-    if (elempack == 1 && out_elempack == 1) {
+    if (elempack == 1 && out_elempack == 1)
+    {
         pipeline_innerproduct = new Pipeline(vkdev);
         pipeline_innerproduct->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct->create(LayerShaderType::innerproduct, opt, specializations);
     }
 
     // pack4
-    if (elempack == 4 && out_elempack == 4) {
+    if (elempack == 4 && out_elempack == 4)
+    {
         pipeline_innerproduct_pack4 = new Pipeline(vkdev);
         pipeline_innerproduct_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack4->create(LayerShaderType::innerproduct_pack4, opt, specializations);
     }
 
     // pack1to4
-    if (elempack == 1 && out_elempack == 4) {
+    if (elempack == 1 && out_elempack == 4)
+    {
         pipeline_innerproduct_pack1to4 = new Pipeline(vkdev);
         pipeline_innerproduct_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack1to4->create(LayerShaderType::innerproduct_pack1to4, opt, specializations);
     }
 
     // pack4to1
-    if (elempack == 4 && out_elempack == 1) {
+    if (elempack == 4 && out_elempack == 1)
+    {
         pipeline_innerproduct_pack4to1 = new Pipeline(vkdev);
         pipeline_innerproduct_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack4to1->create(LayerShaderType::innerproduct_pack4to1, opt, specializations);
     }
 
     // pack8
-    if (elempack == 8 && out_elempack == 8) {
+    if (elempack == 8 && out_elempack == 8)
+    {
         pipeline_innerproduct_pack8 = new Pipeline(vkdev);
         pipeline_innerproduct_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack8->create(LayerShaderType::innerproduct_pack8, opt, specializations);
     }
 
     // pack1to8
-    if (elempack == 1 && out_elempack == 8) {
+    if (elempack == 1 && out_elempack == 8)
+    {
         pipeline_innerproduct_pack1to8 = new Pipeline(vkdev);
         pipeline_innerproduct_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack1to8->create(LayerShaderType::innerproduct_pack1to8, opt, specializations);
     }
 
     // pack4to8
-    if (elempack == 4 && out_elempack == 8) {
+    if (elempack == 4 && out_elempack == 8)
+    {
         pipeline_innerproduct_pack4to8 = new Pipeline(vkdev);
         pipeline_innerproduct_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack4to8->create(LayerShaderType::innerproduct_pack4to8, opt, specializations);
     }
 
     // pack8to4
-    if (elempack == 8 && out_elempack == 4) {
+    if (elempack == 8 && out_elempack == 4)
+    {
         pipeline_innerproduct_pack8to4 = new Pipeline(vkdev);
         pipeline_innerproduct_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack8to4->create(LayerShaderType::innerproduct_pack8to4, opt, specializations);
     }
 
     // pack8to1
-    if (elempack == 8 && out_elempack == 1) {
+    if (elempack == 8 && out_elempack == 1)
+    {
         pipeline_innerproduct_pack8to1 = new Pipeline(vkdev);
         pipeline_innerproduct_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_innerproduct_pack8to1->create(LayerShaderType::innerproduct_pack8to1, opt, specializations);
@@ -198,7 +214,8 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
 
 int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
 {
-    if (flatten) {
+    if (flatten)
+    {
         flatten->destroy_pipeline(opt);
         delete flatten;
         flatten = 0;
@@ -249,15 +266,19 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
         weight_data_packed.create(num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
 
-        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack) {
+        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+        {
             float* g00 = weight_data_packed.row(q / out_elempack);
 
-            for (int p = 0; p + (elempack - 1) < num_input; p += elempack) {
-                for (int i = 0; i < out_elempack; i++) {
+            for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+            {
+                for (int i = 0; i < out_elempack; i++)
+                {
                     const float* k0 = weight_data_r2.row(q + i);
                     k0 += p;
 
-                    for (int j = 0; j < elempack; j++) {
+                    for (int j = 0; j < elempack; j++)
+                    {
                         g00[0] = k0[j];
 
                         g00++;
@@ -267,21 +288,26 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         }
     }
 
-    if (support_image_storage && opt.use_image_storage) {
+    if (support_image_storage && opt.use_image_storage)
+    {
         cmd.record_upload(weight_data_packed, weight_data_gpu_image, opt);
     }
-    else {
+    else
+    {
         cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
     }
 
-    if (bias_term) {
+    if (bias_term)
+    {
         Mat bias_data_packed;
         convert_packing(bias_data, bias_data_packed, out_elempack);
 
-        if (support_image_storage && opt.use_image_storage) {
+        if (support_image_storage && opt.use_image_storage)
+        {
             cmd.record_upload(bias_data_packed, bias_data_gpu_image, opt);
         }
-        else {
+        else
+        {
             cmd.record_upload(bias_data_packed, bias_data_gpu, opt);
         }
     }
@@ -306,7 +332,8 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    if (opt.use_fp16_packed && !opt.use_fp16_storage) {
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    {
         if (out_elempack == 8) out_elemsize = 8 * 2u;
         if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
@@ -335,31 +362,40 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     constants[9].i = top_blob.cstep;
 
     const Pipeline* pipeline = 0;
-    if (elempack == 1 && out_elempack == 1) {
+    if (elempack == 1 && out_elempack == 1)
+    {
         pipeline = pipeline_innerproduct;
     }
-    else if (elempack == 4 && out_elempack == 4) {
+    else if (elempack == 4 && out_elempack == 4)
+    {
         pipeline = pipeline_innerproduct_pack4;
     }
-    else if (elempack == 1 && out_elempack == 4) {
+    else if (elempack == 1 && out_elempack == 4)
+    {
         pipeline = pipeline_innerproduct_pack1to4;
     }
-    else if (elempack == 4 && out_elempack == 1) {
+    else if (elempack == 4 && out_elempack == 1)
+    {
         pipeline = pipeline_innerproduct_pack4to1;
     }
-    else if (elempack == 8 && out_elempack == 8) {
+    else if (elempack == 8 && out_elempack == 8)
+    {
         pipeline = pipeline_innerproduct_pack8;
     }
-    else if (elempack == 1 && out_elempack == 8) {
+    else if (elempack == 1 && out_elempack == 8)
+    {
         pipeline = pipeline_innerproduct_pack1to8;
     }
-    else if (elempack == 4 && out_elempack == 8) {
+    else if (elempack == 4 && out_elempack == 8)
+    {
         pipeline = pipeline_innerproduct_pack4to8;
     }
-    else if (elempack == 8 && out_elempack == 4) {
+    else if (elempack == 8 && out_elempack == 4)
+    {
         pipeline = pipeline_innerproduct_pack8to4;
     }
-    else if (elempack == 8 && out_elempack == 1) {
+    else if (elempack == 8 && out_elempack == 1)
+    {
         pipeline = pipeline_innerproduct_pack8to1;
     }
 
@@ -385,7 +421,8 @@ int InnerProduct_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    if (opt.use_fp16_packed && !opt.use_fp16_storage) {
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    {
         if (out_elempack == 8) out_elemsize = 8 * 2u;
         if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
@@ -414,31 +451,40 @@ int InnerProduct_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_
     constants[9].i = 0; //top_blob.cstep;
 
     const Pipeline* pipeline = 0;
-    if (elempack == 1 && out_elempack == 1) {
+    if (elempack == 1 && out_elempack == 1)
+    {
         pipeline = pipeline_innerproduct;
     }
-    else if (elempack == 4 && out_elempack == 4) {
+    else if (elempack == 4 && out_elempack == 4)
+    {
         pipeline = pipeline_innerproduct_pack4;
     }
-    else if (elempack == 1 && out_elempack == 4) {
+    else if (elempack == 1 && out_elempack == 4)
+    {
         pipeline = pipeline_innerproduct_pack1to4;
     }
-    else if (elempack == 4 && out_elempack == 1) {
+    else if (elempack == 4 && out_elempack == 1)
+    {
         pipeline = pipeline_innerproduct_pack4to1;
     }
-    else if (elempack == 8 && out_elempack == 8) {
+    else if (elempack == 8 && out_elempack == 8)
+    {
         pipeline = pipeline_innerproduct_pack8;
     }
-    else if (elempack == 1 && out_elempack == 8) {
+    else if (elempack == 1 && out_elempack == 8)
+    {
         pipeline = pipeline_innerproduct_pack1to8;
     }
-    else if (elempack == 4 && out_elempack == 8) {
+    else if (elempack == 4 && out_elempack == 8)
+    {
         pipeline = pipeline_innerproduct_pack4to8;
     }
-    else if (elempack == 8 && out_elempack == 4) {
+    else if (elempack == 8 && out_elempack == 4)
+    {
         pipeline = pipeline_innerproduct_pack8to4;
     }
-    else if (elempack == 8 && out_elempack == 1) {
+    else if (elempack == 8 && out_elempack == 1)
+    {
         pipeline = pipeline_innerproduct_pack8to1;
     }
 

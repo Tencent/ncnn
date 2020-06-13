@@ -38,13 +38,17 @@ int AbsVal_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout) {
-        if (elempack == 4) {
+    if (opt.use_packing_layout)
+    {
+        if (elempack == 4)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 float* ptr = bottom_top_blob.channel(q);
 
-                for (int i = 0; i < size; i++) {
+                for (int i = 0; i < size; i++)
+                {
                     float32x4_t _p = vld1q_f32(ptr);
                     _p = vabsq_f32(_p);
                     vst1q_f32(ptr, _p);
@@ -60,7 +64,8 @@ int AbsVal_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++) {
+    for (int q = 0; q < channels; q++)
+    {
         float* ptr = bottom_top_blob.channel(q);
 
 #if __ARM_NEON
@@ -72,7 +77,8 @@ int AbsVal_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
 #if __ARM_NEON
 #if __aarch64__
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                               \n"
                 "prfm       pldl1keep, [%1, #128] \n"
@@ -88,7 +94,8 @@ int AbsVal_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 : "cc", "memory", "v0");
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "0:                             \n"
                 "vld1.f32   {d0-d1}, [%1]       \n"
@@ -104,7 +111,8 @@ int AbsVal_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr = *ptr > 0 ? *ptr : -*ptr;
 
             ptr++;

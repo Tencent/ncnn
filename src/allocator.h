@@ -81,7 +81,8 @@ static inline void* fastMalloc(size_t size)
 
 static inline void fastFree(void* ptr)
 {
-    if (ptr) {
+    if (ptr)
+    {
 #if _MSC_VER
         _aligned_free(ptr);
 #elif _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)

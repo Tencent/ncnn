@@ -38,13 +38,15 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     int dims = bottom_blob.dims;
 
-    if (dims == 1) {
+    if (dims == 1)
+    {
         top_blob = bottom_blob;
         return 0;
     }
 
 #if __ARM_NEON
-    if (opt.use_packing_layout) {
+    if (opt.use_packing_layout)
+    {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
         int channels = bottom_blob.c;
@@ -57,7 +59,8 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         int out_elempack = total % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        if (dims == 2 && elempack == 1) {
+        if (dims == 2 && elempack == 1)
+        {
             top_blob = bottom_blob;
             top_blob.dims = 1;
             top_blob.w = total / out_elempack;
@@ -72,9 +75,11 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (top_blob.empty())
             return -100;
 
-        if (dims == 2 && elempack == 4) {
+        if (dims == 2 && elempack == 4)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++) {
+            for (int i = 0; i < h; i++)
+            {
                 const float* ptr = bottom_blob.row(i);
                 float* outptr0 = (float*)top_blob + w * i * 4;
                 float* outptr1 = (float*)top_blob + w * (i * 4 + 1);
@@ -82,7 +87,8 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 float* outptr3 = (float*)top_blob + w * (i * 4 + 3);
 
                 int j = 0;
-                for (; j + 3 < w; j += 4) {
+                for (; j + 3 < w; j += 4)
+                {
                     float32x4x4_t _v4 = vld4q_f32(ptr);
                     vst1q_f32(outptr0, _v4.val[0]);
                     vst1q_f32(outptr1, _v4.val[1]);
@@ -95,7 +101,8 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     outptr2 += 4;
                     outptr3 += 4;
                 }
-                for (; j < w; j++) {
+                for (; j < w; j++)
+                {
                     *outptr0++ = ptr[0];
                     *outptr1++ = ptr[1];
                     *outptr2++ = ptr[2];
@@ -108,9 +115,11 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             return 0;
         }
 
-        if (dims == 3 && elempack == 4) {
+        if (dims == 3 && elempack == 4)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const float* ptr = bottom_blob.channel(q);
                 float* outptr0 = (float*)top_blob + size * q * 4;
                 float* outptr1 = (float*)top_blob + size * (q * 4 + 1);
@@ -118,7 +127,8 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 float* outptr3 = (float*)top_blob + size * (q * 4 + 3);
 
                 int i = 0;
-                for (; i + 3 < size; i += 4) {
+                for (; i + 3 < size; i += 4)
+                {
                     float32x4x4_t _v4 = vld4q_f32(ptr);
                     vst1q_f32(outptr0, _v4.val[0]);
                     vst1q_f32(outptr1, _v4.val[1]);
@@ -131,7 +141,8 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     outptr2 += 4;
                     outptr3 += 4;
                 }
-                for (; i < size; i++) {
+                for (; i < size; i++)
+                {
                     *outptr0++ = ptr[0];
                     *outptr1++ = ptr[1];
                     *outptr2++ = ptr[2];
@@ -144,20 +155,24 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             return 0;
         }
 
-        if (dims == 3 && elempack == 1 && out_elempack == 4) {
+        if (dims == 3 && elempack == 1 && out_elempack == 4)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const float* ptr = bottom_blob.channel(q);
                 float* outptr = (float*)top_blob + size * q;
 
                 int i = 0;
-                for (; i + 3 < size; i += 4) {
+                for (; i + 3 < size; i += 4)
+                {
                     float32x4_t _v = vld1q_f32(ptr);
                     vst1q_f32(outptr, _v);
                     ptr += 4;
                     outptr += 4;
                 }
-                for (; i < size; i++) {
+                for (; i < size; i++)
+                {
                     *outptr++ = *ptr++;
                 }
             }
@@ -175,13 +190,15 @@ int Flatten_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 {
     int dims = bottom_blob.dims;
 
-    if (dims == 1) {
+    if (dims == 1)
+    {
         top_blob = bottom_blob;
         return 0;
     }
 
 #if __ARM_NEON
-    if (opt.use_packing_layout) {
+    if (opt.use_packing_layout)
+    {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
         int channels = bottom_blob.c;
@@ -194,7 +211,8 @@ int Flatten_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
         int out_elempack = total % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        if (dims == 2 && elempack == 1) {
+        if (dims == 2 && elempack == 1)
+        {
             top_blob = bottom_blob;
             top_blob.dims = 1;
             top_blob.w = total / out_elempack;
@@ -209,9 +227,11 @@ int Flatten_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
         if (top_blob.empty())
             return -100;
 
-        if (dims == 2 && elempack == 4) {
+        if (dims == 2 && elempack == 4)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++) {
+            for (int i = 0; i < h; i++)
+            {
                 const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
                 unsigned short* outptr0 = (unsigned short*)top_blob + w * i * 4;
                 unsigned short* outptr1 = (unsigned short*)top_blob + w * (i * 4 + 1);
@@ -219,7 +239,8 @@ int Flatten_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                 unsigned short* outptr3 = (unsigned short*)top_blob + w * (i * 4 + 3);
 
                 int j = 0;
-                for (; j + 3 < w; j += 4) {
+                for (; j + 3 < w; j += 4)
+                {
                     uint16x4x4_t _v4 = vld4_u16(ptr);
                     vst1_u16(outptr0, _v4.val[0]);
                     vst1_u16(outptr1, _v4.val[1]);
@@ -232,7 +253,8 @@ int Flatten_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                     outptr2 += 4;
                     outptr3 += 4;
                 }
-                for (; j < w; j++) {
+                for (; j < w; j++)
+                {
                     *outptr0++ = ptr[0];
                     *outptr1++ = ptr[1];
                     *outptr2++ = ptr[2];
@@ -245,9 +267,11 @@ int Flatten_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
             return 0;
         }
 
-        if (dims == 3 && elempack == 4) {
+        if (dims == 3 && elempack == 4)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const unsigned short* ptr = bottom_blob.channel(q);
                 unsigned short* outptr0 = (unsigned short*)top_blob + size * q * 4;
                 unsigned short* outptr1 = (unsigned short*)top_blob + size * (q * 4 + 1);
@@ -255,7 +279,8 @@ int Flatten_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                 unsigned short* outptr3 = (unsigned short*)top_blob + size * (q * 4 + 3);
 
                 int i = 0;
-                for (; i + 3 < size; i += 4) {
+                for (; i + 3 < size; i += 4)
+                {
                     uint16x4x4_t _v4 = vld4_u16(ptr);
                     vst1_u16(outptr0, _v4.val[0]);
                     vst1_u16(outptr1, _v4.val[1]);
@@ -268,7 +293,8 @@ int Flatten_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                     outptr2 += 4;
                     outptr3 += 4;
                 }
-                for (; i < size; i++) {
+                for (; i < size; i++)
+                {
                     *outptr0++ = ptr[0];
                     *outptr1++ = ptr[1];
                     *outptr2++ = ptr[2];
@@ -281,20 +307,24 @@ int Flatten_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
             return 0;
         }
 
-        if (dims == 3 && elempack == 1 && out_elempack == 4) {
+        if (dims == 3 && elempack == 1 && out_elempack == 4)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const unsigned short* ptr = bottom_blob.channel(q);
                 unsigned short* outptr = (unsigned short*)top_blob + size * q;
 
                 int i = 0;
-                for (; i + 3 < size; i += 4) {
+                for (; i + 3 < size; i += 4)
+                {
                     uint16x4_t _v = vld1_u16(ptr);
                     vst1_u16(outptr, _v);
                     ptr += 4;
                     outptr += 4;
                 }
-                for (; i < size; i++) {
+                for (; i < size; i++)
+                {
                     *outptr++ = *ptr++;
                 }
             }

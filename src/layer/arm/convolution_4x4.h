@@ -27,14 +27,16 @@ static void conv4x4s4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
 
         out.fill(bias0);
 
-        for (int q = 0; q < inch; q++) {
+        for (int q = 0; q < inch; q++)
+        {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
@@ -58,7 +60,8 @@ static void conv4x4s4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             const float* k3 = kernel0 + 12;
 #endif // __ARM_NEON
 
-            for (int i = 0; i < outh; i++) {
+            for (int i = 0; i < outh; i++)
+            {
 #if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw - (nn << 2);
@@ -68,7 +71,8 @@ static void conv4x4s4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
 #if __ARM_NEON
 #if __aarch64__
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
                         "prfm       pldl1keep, [%1, #128]          \n"
                         "0:                                        \n"
@@ -169,7 +173,8 @@ static void conv4x4s4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         : "cc", "memory", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 }
 #else
-                if (nn > 0) {
+                if (nn > 0)
+                {
                     asm volatile(
 
                         "pld        [%1, #128]          \n"
@@ -276,7 +281,8 @@ static void conv4x4s4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
 #if __ARM_NEON
 #if __aarch64__
                     float sum = 0.f;

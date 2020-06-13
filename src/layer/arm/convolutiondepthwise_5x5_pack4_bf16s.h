@@ -24,7 +24,8 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int g = 0; g < group; g++) {
+    for (int g = 0; g < group; g++)
+    {
         Mat out = top_blob.channel(g);
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + g * 4) : vdupq_n_f32(0.f);
@@ -60,13 +61,15 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
         uint16x4_t _k44 = vld1_u16(kptr + 96);
 #else  // __aarch64__
         float bias0_data[4];
-        if (bias) {
+        if (bias)
+        {
             bias0_data[0] = bias[g * 4 + 0];
             bias0_data[1] = bias[g * 4 + 1];
             bias0_data[2] = bias[g * 4 + 2];
             bias0_data[3] = bias[g * 4 + 3];
         }
-        else {
+        else
+        {
             bias0_data[0] = 0.f;
             bias0_data[1] = 0.f;
             bias0_data[2] = 0.f;
@@ -77,10 +80,12 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
 
         int i = 0;
 #if __aarch64__
-        for (; i + 1 < outh; i += 2) {
+        for (; i + 1 < outh; i += 2)
+        {
             int j = 0;
 
-            for (; j + 3 < outw; j += 4) {
+            for (; j + 3 < outw; j += 4)
+            {
                 asm volatile(
                     "prfm   pldl1keep, [%3, #256]       \n"
                     "ld1    {v16.4h, v17.4h, v18.4h, v19.4h}, [%3], #32 \n" // r10 r11 r12 r13
@@ -552,7 +557,8 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "w"(_bias0)   // %29
                     : "memory", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
-            for (; j + 1 < outw; j += 2) {
+            for (; j + 1 < outw; j += 2)
+            {
                 asm volatile(
                     "prfm   pldl1keep, [%3, #128]       \n"
                     "ld1    {v16.4h, v17.4h}, [%3], #16 \n" // r10 r11
@@ -829,7 +835,8 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "w"(_bias0)   // %29
                     : "memory", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
-            for (; j < outw; j++) {
+            for (; j < outw; j++)
+            {
                 asm volatile(
                     "prfm   pldl1keep, [%3, #64]        \n"
                     "ld1    {v16.4h}, [%3], #8          \n" // r10
@@ -1069,10 +1076,12 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
             outptr1 += outw * 4;
         }
 #endif // __aarch64__
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
             int j = 0;
 
-            for (; j + 3 < outw; j += 4) {
+            for (; j + 3 < outw; j += 4)
+            {
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%1, #256]       \n"
@@ -1640,7 +1649,8 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
             }
-            for (; j + 1 < outw; j += 2) {
+            for (; j + 1 < outw; j += 2)
+            {
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%1, #128]       \n"
@@ -2016,7 +2026,8 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
             }
-            for (; j < outw; j++) {
+            for (; j < outw; j++)
+            {
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%1, #64]        \n"
@@ -2361,7 +2372,8 @@ static void convdw5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int g = 0; g < group; g++) {
+    for (int g = 0; g < group; g++)
+    {
         Mat out = top_blob.channel(g);
 
 #if __aarch64__
@@ -2397,13 +2409,15 @@ static void convdw5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
         uint16x4_t _k44 = vld1_u16(kptr + 96);
 #else  // __aarch64__
         float bias0_data[4];
-        if (bias) {
+        if (bias)
+        {
             bias0_data[0] = bias[g * 4 + 0];
             bias0_data[1] = bias[g * 4 + 1];
             bias0_data[2] = bias[g * 4 + 2];
             bias0_data[3] = bias[g * 4 + 3];
         }
-        else {
+        else
+        {
             bias0_data[0] = 0.f;
             bias0_data[1] = 0.f;
             bias0_data[2] = 0.f;
@@ -2414,10 +2428,12 @@ static void convdw5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
 
         int i = 0;
 
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
             int j = 0;
 
-            for (; j + 3 < outw; j += 4) {
+            for (; j + 3 < outw; j += 4)
+            {
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%1, #256]       \n"
@@ -3044,7 +3060,8 @@ static void convdw5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
             }
-            for (; j + 1 < outw; j += 2) {
+            for (; j + 1 < outw; j += 2)
+            {
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%1, #256]       \n"
@@ -3443,7 +3460,8 @@ static void convdw5x5s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
             }
-            for (; j < outw; j++) {
+            for (; j < outw; j++)
+            {
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%1, #128]       \n"

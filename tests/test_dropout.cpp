@@ -28,7 +28,8 @@ static int test_dropout(const ncnn::Mat& a, float scale)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Dropout>("Dropout", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_dropout failed a.dims=%d a=(%d %d %d) scale=%f\n", a.dims, a.w, a.h, a.c, scale);
     }
 

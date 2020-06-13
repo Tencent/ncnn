@@ -25,13 +25,16 @@ static void resize_bilinear_image_bf16s(const Mat& src, Mat& dst, float* alpha, 
 
     int prev_sy1 = -2;
 
-    for (int dy = 0; dy < h; dy++) {
+    for (int dy = 0; dy < h; dy++)
+    {
         int sy = yofs[dy];
 
-        if (sy == prev_sy1) {
+        if (sy == prev_sy1)
+        {
             // reuse all rows
         }
-        else if (sy == prev_sy1 + 1) {
+        else if (sy == prev_sy1 + 1)
+        {
             // hresize one row
             float* rows0_old = rows0;
             rows0 = rows1;
@@ -41,7 +44,8 @@ static void resize_bilinear_image_bf16s(const Mat& src, Mat& dst, float* alpha, 
             const float* alphap = alpha;
             float* rows1p = rows1;
             int dx = 0;
-            for (; dx < w; dx++) {
+            for (; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 const unsigned short* S1p = S1 + sx;
 
@@ -52,7 +56,8 @@ static void resize_bilinear_image_bf16s(const Mat& src, Mat& dst, float* alpha, 
                 alphap += 2;
             }
         }
-        else {
+        else
+        {
             // hresize two rows
             const unsigned short* S0 = src.row<const unsigned short>(sy);
             const unsigned short* S1 = src.row<const unsigned short>(sy + 1);
@@ -61,7 +66,8 @@ static void resize_bilinear_image_bf16s(const Mat& src, Mat& dst, float* alpha, 
             float* rows0p = rows0;
             float* rows1p = rows1;
             int dx = 0;
-            for (; dx < w; dx++) {
+            for (; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 const unsigned short* S0p = S0 + sx;
                 const unsigned short* S1p = S1 + sx;
@@ -95,7 +101,8 @@ static void resize_bilinear_image_bf16s(const Mat& src, Mat& dst, float* alpha, 
 #if __ARM_NEON
         float32x4_t _b0 = vdupq_n_f32(b0);
         float32x4_t _b1 = vdupq_n_f32(b1);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             float32x4_t _rows0 = vld1q_f32(rows0p);
             float32x4_t _rows1 = vld1q_f32(rows1p);
 
@@ -117,7 +124,8 @@ static void resize_bilinear_image_bf16s(const Mat& src, Mat& dst, float* alpha, 
             rows1p += 8;
         }
 #endif // __ARM_NEON
-        for (; remain; --remain) {
+        for (; remain; --remain)
+        {
             //             D[x] = rows0[x]*b0 + rows1[x]*b1;
             *Dp++ = float32_to_bfloat16(*rows0p++ * b0 + *rows1p++ * b1);
         }

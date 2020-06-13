@@ -33,7 +33,8 @@ int SELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     float alphaxlambda = alpha * lambda;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++) {
+    for (int q = 0; q < channels; q++)
+    {
         float* ptr = bottom_top_blob.channel(q);
 #if __ARM_NEON
         int nn = size >> 2;
@@ -47,7 +48,8 @@ int SELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float32x4_t _zero = vdupq_n_f32(0.f);
         float32x4_t _alphaxlambda = vdupq_n_f32(alphaxlambda);
         float32x4_t _lambda = vdupq_n_f32(lambda);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             float32x4_t _p = vld1q_f32(ptr);
             uint32x4_t _lemask = vcleq_f32(_p, _zero);
 
@@ -63,7 +65,8 @@ int SELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             ptr += 4;
         }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             if (*ptr < 0.f)
                 *ptr = (exp(*ptr) - 1.f) * alphaxlambda;
             else

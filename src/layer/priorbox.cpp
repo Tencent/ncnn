@@ -54,7 +54,8 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     int w = bottom_blobs[0].w;
     int h = bottom_blobs[0].h;
 
-    if (bottom_blobs.size() == 1 && image_width == -233 && image_height == -233 && max_sizes.empty()) {
+    if (bottom_blobs.size() == 1 && image_width == -233 && image_height == -233 && max_sizes.empty())
+    {
         // mxnet style _contrib_MultiBoxPrior
         float step_w = step_width;
         float step_h = step_height;
@@ -74,15 +75,18 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < h; i++) {
+        for (int i = 0; i < h; i++)
+        {
             float* box = (float*)top_blob + i * w * num_prior * 4;
 
             float center_x = offset * step_w;
             float center_y = offset * step_h + i * step_h;
 
-            for (int j = 0; j < w; j++) {
+            for (int j = 0; j < w; j++)
+            {
                 // ratio = 1, various sizes
-                for (int k = 0; k < num_sizes; k++) {
+                for (int k = 0; k < num_sizes; k++)
+                {
                     float size = min_sizes[k];
                     float cw = size * h / w / 2;
                     float ch = size / 2;
@@ -96,7 +100,8 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                 // various ratios, size = min_size = size[0]
                 float size = min_sizes[0];
-                for (int p = 1; p < num_ratios; p++) {
+                for (int p = 1; p < num_ratios; p++)
+                {
                     float ratio = static_cast<float>(sqrt(aspect_ratios[p]));
                     float cw = size * h / w * ratio / 2;
                     float ch = size / ratio / 2;
@@ -112,9 +117,11 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             }
         }
 
-        if (clip) {
+        if (clip)
+        {
             float* box = top_blob;
-            for (int i = 0; i < top_blob.w; i++) {
+            for (int i = 0; i < top_blob.w; i++)
+            {
                 box[i] = std::min(std::max(box[i], 0.f), 1.f);
             }
         }
@@ -131,12 +138,14 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     float step_w = step_width;
     float step_h = step_height;
-    if (step_w == -233) {
+    if (step_w == -233)
+    {
         step_w = (float)image_w / w;
         if (step_mmdetection)
             step_w = static_cast<float>(ceil((float)image_w / w));
     }
-    if (step_h == -233) {
+    if (step_h == -233)
+    {
         step_h = (float)image_h / h;
         if (step_mmdetection)
             step_h = static_cast<float>(ceil((float)image_h / h));
@@ -156,21 +165,25 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         return -100;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < h; i++) {
+    for (int i = 0; i < h; i++)
+    {
         float* box = (float*)top_blob + i * w * num_prior * 4;
 
         float center_x = offset * step_w;
         float center_y = offset * step_h + i * step_h;
-        if (center_mmdetection) {
+        if (center_mmdetection)
+        {
             center_x = offset * (step_w - 1);
             center_y = offset * (step_h - 1) + i * step_h;
         }
 
-        for (int j = 0; j < w; j++) {
+        for (int j = 0; j < w; j++)
+        {
             float box_w;
             float box_h;
 
-            for (int k = 0; k < num_min_size; k++) {
+            for (int k = 0; k < num_min_size; k++)
+            {
                 float min_size = min_sizes[k];
 
                 // min size box
@@ -183,7 +196,8 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                 box += 4;
 
-                if (num_max_size > 0) {
+                if (num_max_size > 0)
+                {
                     float max_size = max_sizes[k];
 
                     // max size box
@@ -198,7 +212,8 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 }
 
                 // all aspect_ratios
-                for (int p = 0; p < num_aspect_ratio; p++) {
+                for (int p = 0; p < num_aspect_ratio; p++)
+                {
                     float ar = aspect_ratios[p];
 
                     box_w = static_cast<float>(min_size * sqrt(ar));
@@ -211,7 +226,8 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
                     box += 4;
 
-                    if (flip) {
+                    if (flip)
+                    {
                         box[0] = (center_x - box_h * 0.5f) / image_w;
                         box[1] = (center_y - box_w * 0.5f) / image_h;
                         box[2] = (center_x + box_h * 0.5f) / image_w;
@@ -226,16 +242,19 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         }
     }
 
-    if (clip) {
+    if (clip)
+    {
         float* box = top_blob;
-        for (int i = 0; i < top_blob.w; i++) {
+        for (int i = 0; i < top_blob.w; i++)
+        {
             box[i] = std::min(std::max(box[i], 0.f), 1.f);
         }
     }
 
     // set variance
     float* var = top_blob.row(1);
-    for (int i = 0; i < top_blob.w / 4; i++) {
+    for (int i = 0; i < top_blob.w / 4; i++)
+    {
         var[0] = variances[0];
         var[1] = variances[1];
         var[2] = variances[2];

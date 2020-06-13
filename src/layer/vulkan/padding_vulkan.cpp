@@ -47,15 +47,18 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
     if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
 
-    if (out_shape.dims != 0 && (front != 0 || behind != 0)) {
+    if (out_shape.dims != 0 && (front != 0 || behind != 0))
+    {
         // calculate output elempack for channel padding
-        if (type == 0) {
+        if (type == 0)
+        {
             int outc = (out_shape.c * elempack) + front + behind;
             int offset_elempack = opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
             int channel_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
             out_elempack = std::min(offset_elempack, channel_elempack);
         }
-        else {
+        else
+        {
             out_elempack = 1;
         }
         elempack = out_elempack;
@@ -63,15 +66,18 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage) {
+    if (opt.use_fp16_storage)
+    {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
     }
-    else if (opt.use_fp16_packed) {
+    else if (opt.use_fp16_packed)
+    {
         elemsize = elempack == 1 ? 4u : elempack * 2u;
         out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
     }
-    else {
+    else
+    {
         elemsize = elempack * 4u;
         out_elemsize = out_elempack * 4u;
     }
@@ -87,7 +93,8 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     // check blob shape
-    if (!vkdev->shape_support_image_storage(shape_packed) || !vkdev->shape_support_image_storage(out_shape_packed)) {
+    if (!vkdev->shape_support_image_storage(shape_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
+    {
         support_image_storage = false;
         opt.use_image_storage = false;
     }
@@ -108,28 +115,32 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     specializations[3 + 9].i = out_shape_packed.cstep;
 
     Mat local_size_xyz;
-    if (out_shape_packed.dims != 0) {
+    if (out_shape_packed.dims != 0)
+    {
         local_size_xyz.w = std::min(4, out_shape_packed.w);
         local_size_xyz.h = std::min(4, out_shape_packed.h);
         local_size_xyz.c = std::min(4, out_shape_packed.c);
     }
 
     // pack1
-    if (shape.dims == 0 || elempack == 1) {
+    if (shape.dims == 0 || elempack == 1)
+    {
         pipeline_padding = new Pipeline(vkdev);
         pipeline_padding->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding->create(LayerShaderType::padding, opt, specializations);
     }
 
     // pack4
-    if (shape.dims == 0 || elempack == 4) {
+    if (shape.dims == 0 || elempack == 4)
+    {
         pipeline_padding_pack4 = new Pipeline(vkdev);
         pipeline_padding_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding_pack4->create(LayerShaderType::padding_pack4, opt, specializations);
     }
 
     // pack8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8) {
+    if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
+    {
         pipeline_padding_pack8 = new Pipeline(vkdev);
         pipeline_padding_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_padding_pack8->create(LayerShaderType::padding_pack8, opt, specializations);
@@ -162,10 +173,12 @@ int Padding_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     Mat per_channel_pad_data_packed;
     convert_packing(per_channel_pad_data, per_channel_pad_data_packed, elempack);
 
-    if (support_image_storage && opt.use_image_storage) {
+    if (support_image_storage && opt.use_image_storage)
+    {
         cmd.record_upload(per_channel_pad_data_packed, per_channel_pad_data_gpu_image, opt);
     }
-    else {
+    else
+    {
         cmd.record_upload(per_channel_pad_data_packed, per_channel_pad_data_gpu, opt);
     }
 
@@ -174,7 +187,8 @@ int Padding_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    if (top == 0 && bottom == 0 && left == 0 && right == 0 && front == 0 && behind == 0) {
+    if (top == 0 && bottom == 0 && left == 0 && right == 0 && front == 0 && behind == 0)
+    {
         top_blob = bottom_blob;
         return 0;
     }
@@ -192,32 +206,38 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int out_elempack = elempack;
 
     //Check if channel padding is being applied.
-    if (front != 0 || behind != 0) {
-        if (type == 0) {
+    if (front != 0 || behind != 0)
+    {
+        if (type == 0)
+        {
             int offset_elempack = opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
             int channel_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
             out_elempack = std::min(offset_elempack, channel_elempack);
         }
-        else {
+        else
+        {
             //Reflective padding and edge padding only supports channel padding in elempack 1
             out_elempack = 1;
         }
     }
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
-    if (opt.use_fp16_packed && !opt.use_fp16_storage) {
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    {
         if (out_elempack == 8) out_elemsize = 8 * 2u;
         if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
     // unpacking
     VkMat bottom_blob_unpacked;
-    if (elempack != out_elempack) {
+    if (elempack != out_elempack)
+    {
         Option opt_unpack = opt;
         opt_unpack.blob_vkallocator = opt.workspace_vkallocator;
         vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, cmd, opt_unpack);
     }
-    else {
+    else
+    {
         bottom_blob_unpacked = bottom_blob;
     }
 
@@ -277,7 +297,8 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         _behind = param_data[5];
     }
 
-    if (_top == 0 && _bottom == 0 && _left == 0 && _right == 0 && _front == 0 && _behind == 0) {
+    if (_top == 0 && _bottom == 0 && _left == 0 && _right == 0 && _front == 0 && _behind == 0)
+    {
         top_blob = bottom_blob;
         return 0;
     }
@@ -293,32 +314,38 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     int out_elempack = elempack;
 
     //Check if channel padding is being applied.
-    if (_front != 0 || _behind != 0) {
-        if (type == 0) {
+    if (_front != 0 || _behind != 0)
+    {
+        if (type == 0)
+        {
             int offset_elempack = opt.use_shader_pack8 && _front % 8 == 0 ? 8 : _front % 4 == 0 ? 4 : 1;
             int channel_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
             out_elempack = std::min(offset_elempack, channel_elempack);
         }
-        else {
+        else
+        {
             //Reflective padding and edge padding only supports channel padding in elempack 1
             out_elempack = 1;
         }
     }
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
-    if (opt.use_fp16_packed && !opt.use_fp16_storage) {
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    {
         if (out_elempack == 8) out_elemsize = 8 * 2u;
         if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
     // unpacking
     VkMat bottom_blob_unpacked;
-    if (elempack != out_elempack) {
+    if (elempack != out_elempack)
+    {
         Option opt_unpack = opt;
         opt_unpack.blob_vkallocator = opt.workspace_vkallocator;
         vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, cmd, opt_unpack);
     }
-    else {
+    else
+    {
         bottom_blob_unpacked = bottom_blob;
     }
 
@@ -357,7 +384,8 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
 int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
-    if (top == 0 && bottom == 0 && left == 0 && right == 0 && front == 0 && behind == 0) {
+    if (top == 0 && bottom == 0 && left == 0 && right == 0 && front == 0 && behind == 0)
+    {
         top_blob = bottom_blob;
         return 0;
     }
@@ -375,20 +403,24 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     int out_elempack = elempack;
 
     //Check if channel padding is being applied.
-    if (front != 0 || behind != 0) {
-        if (type == 0) {
+    if (front != 0 || behind != 0)
+    {
+        if (type == 0)
+        {
             int offset_elempack = opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
             int channel_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
             out_elempack = std::min(offset_elempack, channel_elempack);
         }
-        else {
+        else
+        {
             //Reflective padding and edge padding only supports channel padding in elempack 1
             out_elempack = 1;
         }
     }
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
-    if (opt.use_fp16_packed && !opt.use_fp16_storage) {
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    {
         if (out_elempack == 8) out_elemsize = 8 * 2u;
         if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
@@ -396,12 +428,14 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
 
     // unpacking
     VkImageMat bottom_blob_unpacked;
-    if (elempack != out_elempack) {
+    if (elempack != out_elempack)
+    {
         Option opt_unpack = opt;
         opt_unpack.blob_vkallocator = opt.workspace_vkallocator;
         vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, cmd, opt_unpack);
     }
-    else {
+    else
+    {
         bottom_blob_unpacked = bottom_blob;
     }
 
@@ -462,7 +496,8 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
         _behind = param_data[5];
     }
 
-    if (_top == 0 && _bottom == 0 && _left == 0 && _right == 0 && _front == 0 && _behind == 0) {
+    if (_top == 0 && _bottom == 0 && _left == 0 && _right == 0 && _front == 0 && _behind == 0)
+    {
         top_blob = bottom_blob;
         return 0;
     }
@@ -478,20 +513,24 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     int out_elempack = elempack;
 
     //Check if channel padding is being applied.
-    if (_front != 0 || _behind != 0) {
-        if (type == 0) {
+    if (_front != 0 || _behind != 0)
+    {
+        if (type == 0)
+        {
             int offset_elempack = opt.use_shader_pack8 && _front % 8 == 0 ? 8 : _front % 4 == 0 ? 4 : 1;
             int channel_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
             out_elempack = std::min(offset_elempack, channel_elempack);
         }
-        else {
+        else
+        {
             //Reflective padding and edge padding only supports channel padding in elempack 1
             out_elempack = 1;
         }
     }
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
-    if (opt.use_fp16_packed && !opt.use_fp16_storage) {
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    {
         if (out_elempack == 8) out_elemsize = 8 * 2u;
         if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
@@ -499,12 +538,14 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
 
     // unpacking
     VkImageMat bottom_blob_unpacked;
-    if (elempack != out_elempack) {
+    if (elempack != out_elempack)
+    {
         Option opt_unpack = opt;
         opt_unpack.blob_vkallocator = opt.workspace_vkallocator;
         vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, out_elempack, cmd, opt_unpack);
     }
-    else {
+    else
+    {
         bottom_blob_unpacked = bottom_blob;
     }
 

@@ -76,7 +76,8 @@ int Layer::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
         return -1;
 
     top_blobs = bottom_blobs;
-    for (int i = 0; i < (int)top_blobs.size(); i++) {
+    for (int i = 0; i < (int)top_blobs.size(); i++)
+    {
         top_blobs[i] = bottom_blobs[i].clone(opt.blob_allocator);
         if (top_blobs[i].empty())
             return -100;
@@ -119,7 +120,8 @@ int Layer::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& t
         return -1;
 
     top_blobs.resize(bottom_blobs.size());
-    for (int i = 0; i < (int)top_blobs.size(); i++) {
+    for (int i = 0; i < (int)top_blobs.size(); i++)
+    {
         cmd.record_clone(bottom_blobs[i], top_blobs[i], opt);
     }
 
@@ -142,7 +144,8 @@ int Layer::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkIm
         return -1;
 
     top_blobs.resize(bottom_blobs.size());
-    for (int i = 0; i < (int)top_blobs.size(); i++) {
+    for (int i = 0; i < (int)top_blobs.size(); i++)
+    {
         cmd.record_clone(bottom_blobs[i], top_blobs[i], opt);
     }
 
@@ -189,7 +192,8 @@ static const int layer_registry_entry_count = sizeof(layer_registry) / sizeof(la
 #if NCNN_STRING
 int layer_to_index(const char* type)
 {
-    for (int i = 0; i < layer_registry_entry_count; i++) {
+    for (int i = 0; i < layer_registry_entry_count; i++)
+    {
         if (strcmp(type, layer_registry[i].name) == 0)
             return i;
     }

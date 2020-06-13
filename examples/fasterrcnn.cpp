@@ -29,14 +29,16 @@ static void qsort_descent_inplace(std::vector<Object>& objects, int left, int ri
     int j = right;
     float p = objects[(left + right) / 2].prob;
 
-    while (i <= j) {
+    while (i <= j)
+    {
         while (objects[i].prob > p)
             i++;
 
         while (objects[j].prob < p)
             j--;
 
-        if (i <= j) {
+        if (i <= j)
+        {
             // swap
             std::swap(objects[i], objects[j]);
 
@@ -73,15 +75,18 @@ static void nms_sorted_bboxes(const std::vector<Object>& objects, std::vector<in
     const int n = objects.size();
 
     std::vector<float> areas(n);
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
+    {
         areas[i] = objects[i].rect.area();
     }
 
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
+    {
         const Object& a = objects[i];
 
         int keep = 1;
-        for (int j = 0; j < (int)picked.size(); j++) {
+        for (int j = 0; j < (int)picked.size(); j++)
+        {
             const Object& b = objects[picked[j]];
 
             // intersection over union
@@ -127,12 +132,14 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
     int w = bgr.cols;
     int h = bgr.rows;
     float scale = 1.f;
-    if (w < h) {
+    if (w < h)
+    {
         scale = (float)target_size / w;
         w = target_size;
         h = h * scale;
     }
-    else {
+    else
+    {
         scale = (float)target_size / h;
         h = target_size;
         w = w * scale;
@@ -161,7 +168,8 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // step2, extract bbox and score for each roi
     std::vector<std::vector<Object> > class_candidates;
-    for (int i = 0; i < rois.c; i++) {
+    for (int i = 0; i < rois.c; i++)
+    {
         ncnn::Extractor ex2 = fasterrcnn.create_extractor();
 
         ncnn::Mat roi = rois.channel(i); // get single roi
@@ -179,9 +187,11 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
         // find class id with highest score
         int label = 0;
         float score = 0.f;
-        for (int i = 0; i < num_class; i++) {
+        for (int i = 0; i < num_class; i++)
+        {
             float class_score = cls_prob[i];
-            if (class_score > score) {
+            if (class_score > score)
+            {
                 label = i;
                 score = class_score;
             }
@@ -239,7 +249,8 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // post process
     objects.clear();
-    for (int i = 0; i < (int)class_candidates.size(); i++) {
+    for (int i = 0; i < (int)class_candidates.size(); i++)
+    {
         std::vector<Object>& candidates = class_candidates[i];
 
         qsort_descent_inplace(candidates);
@@ -247,7 +258,8 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
         std::vector<int> picked;
         nms_sorted_bboxes(candidates, picked, nms_threshold);
 
-        for (int j = 0; j < (int)picked.size(); j++) {
+        for (int j = 0; j < (int)picked.size(); j++)
+        {
             int z = picked[j];
             objects.push_back(candidates[z]);
         }
@@ -255,7 +267,8 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
 
     qsort_descent_inplace(objects);
 
-    if (max_per_image > 0 && max_per_image < objects.size()) {
+    if (max_per_image > 0 && max_per_image < objects.size())
+    {
         objects.resize(max_per_image);
     }
 
@@ -274,7 +287,8 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
     cv::Mat image = bgr.clone();
 
-    for (size_t i = 0; i < objects.size(); i++) {
+    for (size_t i = 0; i < objects.size(); i++)
+    {
         const Object& obj = objects[i];
 
         fprintf(stderr, "%d = %.5f at %.2f %.2f %.2f x %.2f\n", obj.label, obj.prob,
@@ -308,7 +322,8 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
 int main(int argc, char** argv)
 {
-    if (argc != 2) {
+    if (argc != 2)
+    {
         fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
         return -1;
     }
@@ -316,7 +331,8 @@ int main(int argc, char** argv)
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, 1);
-    if (m.empty()) {
+    if (m.empty())
+    {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);
         return -1;
     }

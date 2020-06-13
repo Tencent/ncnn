@@ -25,7 +25,8 @@ static void conv1x1s1_sgemm_transform_kernel_pack4_neon(const Mat& kernel, Mat& 
 
     int q = 0;
 #if __aarch64__
-    for (; q + 7 < outch; q += 8) {
+    for (; q + 7 < outch; q += 8)
+    {
         const float* k0 = (const float*)kernel + (q + 0) * inch;
         const float* k1 = (const float*)kernel + (q + 1) * inch;
         const float* k2 = (const float*)kernel + (q + 2) * inch;
@@ -37,7 +38,8 @@ static void conv1x1s1_sgemm_transform_kernel_pack4_neon(const Mat& kernel, Mat& 
 
         float* g0 = kernel_tm_pack4.channel(q / 8);
 
-        for (int p = 0; p + 3 < inch; p += 4) {
+        for (int p = 0; p + 3 < inch; p += 4)
+        {
             g0[0] = k0[0];
             g0[1] = k1[0];
             g0[2] = k2[0];
@@ -90,7 +92,8 @@ static void conv1x1s1_sgemm_transform_kernel_pack4_neon(const Mat& kernel, Mat& 
         }
     }
 #endif // __aarch64__
-    for (; q + 3 < outch; q += 4) {
+    for (; q + 3 < outch; q += 4)
+    {
         const float* k0 = (const float*)kernel + (q + 0) * inch;
         const float* k1 = (const float*)kernel + (q + 1) * inch;
         const float* k2 = (const float*)kernel + (q + 2) * inch;
@@ -102,7 +105,8 @@ static void conv1x1s1_sgemm_transform_kernel_pack4_neon(const Mat& kernel, Mat& 
         float* g0 = kernel_tm_pack4.channel(q / 4);
 #endif
 
-        for (int p = 0; p + 3 < inch; p += 4) {
+        for (int p = 0; p + 3 < inch; p += 4)
+        {
             g0[0] = k0[0];
             g0[1] = k1[0];
             g0[2] = k2[0];
@@ -161,7 +165,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         remain_size_start = nn_size * 12;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ii = 0; ii < nn_size; ii++) {
+        for (int ii = 0; ii < nn_size; ii++)
+        {
             int i = ii * 12;
 
             const float* img0 = bottom_blob.channel(0);
@@ -169,7 +174,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
 
             float* tmpptr = tmp.channel(i / 12);
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]       \n"
                     "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
@@ -204,7 +210,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         nn_size = (size - remain_size_start) >> 3;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ii = 0; ii < nn_size; ii++) {
+        for (int ii = 0; ii < nn_size; ii++)
+        {
             int i = remain_size_start + ii * 8;
 
             const float* img0 = bottom_blob.channel(0);
@@ -216,7 +223,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
             float* tmpptr = tmp.channel(i / 8);
 #endif
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]       \n"
@@ -269,7 +277,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         nn_size = (size - remain_size_start) >> 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ii = 0; ii < nn_size; ii++) {
+        for (int ii = 0; ii < nn_size; ii++)
+        {
             int i = remain_size_start + ii * 4;
 
             const float* img0 = bottom_blob.channel(0);
@@ -281,7 +290,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
             float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
 #endif
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%0, #512]       \n"
@@ -311,7 +321,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         nn_size = (size - remain_size_start) >> 1;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ii = 0; ii < nn_size; ii++) {
+        for (int ii = 0; ii < nn_size; ii++)
+        {
             int i = remain_size_start + ii * 2;
 
             const float* img0 = bottom_blob.channel(0);
@@ -323,7 +334,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
             float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2);
 #endif
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%0, #256]       \n"
@@ -352,7 +364,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         remain_size_start += nn_size << 1;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = remain_size_start; i < size; i++) {
+        for (int i = remain_size_start; i < size; i++)
+        {
             const float* img0 = bottom_blob.channel(0);
             img0 += i * 4;
 
@@ -362,7 +375,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
             float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2 + i % 2);
 #endif
 
-            for (int q = 0; q < inch; q++) {
+            for (int q = 0; q < inch; q++)
+            {
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%0, #128]       \n"
@@ -397,7 +411,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
     remain_outch_start = nn_outch << 1;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_outch; pp++) {
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
         int p = pp * 2;
 
         float* outptr0 = top_blob.channel(p);
@@ -407,7 +422,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
         const float* biasptr = bias ? bias + p * 4 : zeros;
 
         int i = 0;
-        for (; i + 11 < size; i += 12) {
+        for (; i + 11 < size; i += 12)
+        {
             const float* tmpptr = tmp.channel(i / 12);
 
             const float* kptr01 = (const float*)kernel.channel(pp);
@@ -590,7 +606,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                 "r"(biasptr) // %10
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
         }
-        for (; i + 7 < size; i += 8) {
+        for (; i + 7 < size; i += 8)
+        {
             float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8);
 
             const float* kptr01 = (const float*)kernel.channel(pp);
@@ -725,7 +742,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                 "r"(biasptr) // %10
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
         }
-        for (; i + 3 < size; i += 4) {
+        for (; i + 3 < size; i += 4)
+        {
             float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
 
             const float* kptr01 = (const float*)kernel.channel(pp);
@@ -814,7 +832,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                 "r"(biasptr) // %10
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
         }
-        for (; i + 1 < size; i += 2) {
+        for (; i + 1 < size; i += 2)
+        {
             float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
 
             const float* kptr01 = (const float*)kernel.channel(pp);
@@ -879,7 +898,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                 "r"(biasptr) // %10
                 : "cc", "memory", "v0", "v1", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19");
         }
-        for (; i < size; i++) {
+        for (; i < size; i++)
+        {
             float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
 
             const float* kptr01 = (const float*)kernel.channel(pp);
@@ -937,7 +957,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
 #endif // __ARM_NEON && __aarch64__
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = remain_outch_start; p < outch; p++) {
+    for (int p = remain_outch_start; p < outch; p++)
+    {
         float* outptr0 = top_blob.channel(p);
 
         const float zeros[4] = {0.f, 0.f, 0.f, 0.f};
@@ -945,7 +966,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
 
         int i = 0;
 #if __aarch64__
-        for (; i + 11 < size; i += 12) {
+        for (; i + 11 < size; i += 12)
+        {
             float* tmpptr = tmp.channel(i / 12);
 
             const float* kptr0 = (const float*)kernel.channel(p / 2 + p % 2);
@@ -1053,7 +1075,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27");
         }
 #endif
-        for (; i + 7 < size; i += 8) {
+        for (; i + 7 < size; i += 8)
+        {
 #if __aarch64__
             float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8);
             const float* kptr0 = (const float*)kernel.channel(p / 2 + p % 2);
@@ -1219,7 +1242,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif
         }
-        for (; i + 3 < size; i += 4) {
+        for (; i + 3 < size; i += 4)
+        {
 #if __aarch64__
             float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
             const float* kptr0 = (const float*)kernel.channel(p / 2 + p % 2);
@@ -1336,7 +1360,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11");
 #endif
         }
-        for (; i + 1 < size; i += 2) {
+        for (; i + 1 < size; i += 2)
+        {
 #if __aarch64__
             float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
             const float* kptr0 = (const float*)kernel.channel(p / 2 + p % 2);
@@ -1433,7 +1458,8 @@ static void conv1x1s1_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                 : "cc", "memory", "q0", "q1", "q4", "q5", "q6", "q7", "q8", "q9");
 #endif
         }
-        for (; i < size; i++) {
+        for (; i < size; i++)
+        {
 #if __aarch64__
             float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
             const float* kptr0 = (const float*)kernel.channel(p / 2 + p % 2);
@@ -1560,12 +1586,15 @@ static void conv1x1s2_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
     bottom_blob_shrinked.create(outw, outh, channels, elemsize, elempack, opt.workspace_allocator);
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < channels; p++) {
+    for (int p = 0; p < channels; p++)
+    {
         const float* r0 = bottom_blob.channel(p);
         float* outptr = bottom_blob_shrinked.channel(p);
 
-        for (int i = 0; i < outh; i++) {
-            for (int j = 0; j < outw; j++) {
+        for (int i = 0; i < outh; i++)
+        {
+            for (int j = 0; j < outw; j++)
+            {
                 float32x4_t _v = vld1q_f32(r0);
                 vst1q_f32(outptr, _v);
 

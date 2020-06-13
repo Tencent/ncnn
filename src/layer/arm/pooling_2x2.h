@@ -23,14 +23,16 @@ static void pooling2x2s2_max_neon(const Mat& bottom_blob, Mat& top_blob, const O
     const int tailstep = w - 2 * outw + w;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < inch; q++) {
+    for (int q = 0; q < inch; q++)
+    {
         const float* img0 = bottom_blob.channel(q);
         float* outptr = top_blob.channel(q);
 
         const float* r0 = img0;
         const float* r1 = img0 + w;
 
-        for (int i = 0; i < outh; i++) {
+        for (int i = 0; i < outh; i++)
+        {
 #if __ARM_NEON
             int nn = outw >> 2;
             int remain = outw - (nn << 2);
@@ -40,7 +42,8 @@ static void pooling2x2s2_max_neon(const Mat& bottom_blob, Mat& top_blob, const O
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "0:                                   \n"
                     "prfm       pldl1keep, [%1, #256]     \n"
@@ -64,7 +67,8 @@ static void pooling2x2s2_max_neon(const Mat& bottom_blob, Mat& top_blob, const O
                     : "cc", "memory", "v0", "v1", "v2", "v3");
             }
 #else
-            if (nn > 0) {
+            if (nn > 0)
+            {
                 asm volatile(
                     "0:                             \n"
                     "pld        [%1, #256]          \n"
@@ -90,7 +94,8 @@ static void pooling2x2s2_max_neon(const Mat& bottom_blob, Mat& top_blob, const O
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 float max0 = std::max(r0[0], r0[1]);
                 float max1 = std::max(r1[0], r1[1]);
 

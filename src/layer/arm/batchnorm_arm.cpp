@@ -35,13 +35,17 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout) {
-        if (elempack == 4) {
-            if (dims == 1) {
+    if (opt.use_packing_layout)
+    {
+        if (elempack == 4)
+        {
+            if (dims == 1)
+            {
                 int w = bottom_top_blob.w;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++) {
+                for (int i = 0; i < w; i++)
+                {
                     float* ptr = (float*)bottom_top_blob + i * 4;
 
                     float32x4_t _a = vld1q_f32((const float*)a_data + i * 4);
@@ -53,18 +57,21 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 }
             }
 
-            if (dims == 2) {
+            if (dims == 2)
+            {
                 int w = bottom_top_blob.w;
                 int h = bottom_top_blob.h;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < h; i++) {
+                for (int i = 0; i < h; i++)
+                {
                     float32x4_t _a = vld1q_f32((const float*)a_data + i * 4);
                     float32x4_t _b = vld1q_f32((const float*)b_data + i * 4);
 
                     float* ptr = bottom_top_blob.row(i);
 
-                    for (int j = 0; j < w; j++) {
+                    for (int j = 0; j < w; j++)
+                    {
                         float32x4_t _p = vld1q_f32(ptr);
                         _p = vmlaq_f32(_a, _p, _b);
                         vst1q_f32(ptr, _p);
@@ -74,20 +81,23 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 }
             }
 
-            if (dims == 3) {
+            if (dims == 3)
+            {
                 int w = bottom_top_blob.w;
                 int h = bottom_top_blob.h;
                 int c = bottom_top_blob.c;
                 int size = w * h;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < c; q++) {
+                for (int q = 0; q < c; q++)
+                {
                     float32x4_t _a = vld1q_f32((const float*)a_data + q * 4);
                     float32x4_t _b = vld1q_f32((const float*)b_data + q * 4);
 
                     float* ptr = bottom_top_blob.channel(q);
 
-                    for (int i = 0; i < size; i++) {
+                    for (int i = 0; i < size; i++)
+                    {
                         float32x4_t _p = vld1q_f32(ptr);
                         _p = vmlaq_f32(_a, _p, _b);
                         vst1q_f32(ptr, _p);
@@ -112,7 +122,8 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int size = w * h;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++) {
+    for (int q = 0; q < channels; q++)
+    {
         float* ptr = bottom_top_blob.channel(q);
 
         float a = a_data[q];
@@ -127,7 +138,8 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
 #if __ARM_NEON
 #if __aarch64__
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "dup        v1.4s, %w4             \n"
                 "dup        v2.4s, %w5             \n"
@@ -148,7 +160,8 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 : "cc", "memory", "v0", "v1", "v2", "v3");
         }
 #else
-        if (nn > 0) {
+        if (nn > 0)
+        {
             asm volatile(
                 "vdup.f32   q1, %4              \n"
                 "vdup.f32   q2, %5              \n"
@@ -170,7 +183,8 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr = b * *ptr + a;
 
             ptr++;

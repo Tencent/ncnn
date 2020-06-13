@@ -36,7 +36,8 @@ static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int s
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Pooling>("Pooling", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_pooling failed w=%d h=%d c=%d pooling_type=%d kernel=%d stride=%d pad=%d global_pooling=%d pad_mode=%d avgpool_count_include_pad=%d\n", w, h, c, pooling_type, kernel, stride, pad, global_pooling, pad_mode, avgpool_count_include_pad);
     }
 
@@ -59,7 +60,8 @@ static int test_pooling_0()
         {7, 3, 2},
     };
 
-    for (int i = 0; i < 11; i++) {
+    for (int i = 0; i < 11; i++)
+    {
         int ret = 0
                   || test_pooling(9, 7, 1, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
                   || test_pooling(9, 7, 2, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
@@ -93,7 +95,8 @@ static int test_pooling_1()
         {7, 3, 2},
     };
 
-    for (int i = 0; i < 11; i++) {
+    for (int i = 0; i < 11; i++)
+    {
         int ret = 0
                   || test_pooling(9, 7, 1, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
                   || test_pooling(9, 7, 2, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)

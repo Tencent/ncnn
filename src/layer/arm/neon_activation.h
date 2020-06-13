@@ -18,14 +18,17 @@
 
 static inline float activation_ss(float v, int activation_type, const ncnn::Mat& activation_params)
 {
-    if (activation_type == 1) {
+    if (activation_type == 1)
+    {
         v = std::max(v, 0.f);
     }
-    else if (activation_type == 2) {
+    else if (activation_type == 2)
+    {
         float slope = activation_params[0];
         v = v > 0.f ? v : v * slope;
     }
-    else if (activation_type == 3) {
+    else if (activation_type == 3)
+    {
         float min = activation_params[0];
         float max = activation_params[1];
         if (v < min)
@@ -33,10 +36,12 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
         if (v > max)
             v = max;
     }
-    else if (activation_type == 4) {
+    else if (activation_type == 4)
+    {
         v = 1.f / (1.f + exp(-v));
     }
-    else if (activation_type == 5) {
+    else if (activation_type == 5)
+    {
         v = v * tanh(log(exp(v) + 1.f));
     }
 
@@ -46,24 +51,28 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
 #if __ARM_NEON
 static inline float32x4_t activation_ps(float32x4_t _v, int activation_type, const ncnn::Mat& activation_params)
 {
-    if (activation_type == 1) {
+    if (activation_type == 1)
+    {
         float32x4_t _zero = vdupq_n_f32(0.f);
         _v = vmaxq_f32(_v, _zero);
     }
-    else if (activation_type == 2) {
+    else if (activation_type == 2)
+    {
         float32x4_t _zero = vdupq_n_f32(0.f);
         float32x4_t _slope = vdupq_n_f32(activation_params[0]);
         uint32x4_t _lemask = vcleq_f32(_v, _zero);
         float32x4_t _ps = vmulq_f32(_v, _slope);
         _v = vbslq_f32(_lemask, _ps, _v);
     }
-    else if (activation_type == 3) {
+    else if (activation_type == 3)
+    {
         float32x4_t _min = vdupq_n_f32(activation_params[0]);
         float32x4_t _max = vdupq_n_f32(activation_params[1]);
         _v = vmaxq_f32(_v, _min);
         _v = vminq_f32(_v, _max);
     }
-    else if (activation_type == 4) {
+    else if (activation_type == 4)
+    {
         float32x4_t _one = vdupq_n_f32(1.f);
         _v = vnegq_f32(_v);
         _v = exp_ps(_v);
@@ -73,7 +82,8 @@ static inline float32x4_t activation_ps(float32x4_t _v, int activation_type, con
         //         _outp = vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
         _v = _outp;
     }
-    else if (activation_type == 5) {
+    else if (activation_type == 5)
+    {
         _v = vmulq_f32(_v, tanh_ps(log_ps(vaddq_f32(exp_ps(_v), vdupq_n_f32(1.f)))));
     }
 

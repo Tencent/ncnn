@@ -56,7 +56,8 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     size_t elemsize = bottom_top_blob.elemsize;
     int size = w * h;
 
-    if (across_spatial && across_channel) {
+    if (across_spatial && across_channel)
+    {
         // square
         Mat square_sum_blob;
         square_sum_blob.create(channels, elemsize, opt.workspace_allocator);
@@ -64,11 +65,13 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             const float* ptr = bottom_top_blob.channel(q);
 
             float ssum = 0.f;
-            for (int i = 0; i < size; i++) {
+            for (int i = 0; i < size; i++)
+            {
                 ssum += ptr[i] * ptr[i];
             }
 
@@ -76,7 +79,8 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
 
         float ssum = 0.f;
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             ssum += square_sum_blob[q];
         }
 
@@ -94,25 +98,31 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             a = static_cast<float>(1.f / sqrt(std::max(ssum, eps)));
         }
 
-        if (channel_shared) {
+        if (channel_shared)
+        {
             float scale = a * scale_data[0];
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 float* ptr = bottom_top_blob.channel(q);
 
-                for (int i = 0; i < size; i++) {
+                for (int i = 0; i < size; i++)
+                {
                     ptr[i] = ptr[i] * scale;
                 }
             }
         }
-        else {
+        else
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 float* ptr = bottom_top_blob.channel(q);
                 float scale = a * scale_data[q];
 
-                for (int i = 0; i < size; i++) {
+                for (int i = 0; i < size; i++)
+                {
                     ptr[i] = ptr[i] * scale;
                 }
             }
@@ -121,13 +131,16 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return 0;
     }
 
-    if (across_spatial && !across_channel) {
+    if (across_spatial && !across_channel)
+    {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             float* ptr = bottom_top_blob.channel(q);
 
             float ssum = 0.f;
-            for (int i = 0; i < size; i++) {
+            for (int i = 0; i < size; i++)
+            {
                 ssum += ptr[i] * ptr[i];
             }
 
@@ -147,7 +160,8 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             float scale = a * (channel_shared ? scale_data[0] : scale_data[q]);
 
-            for (int i = 0; i < size; i++) {
+            for (int i = 0; i < size; i++)
+            {
                 ptr[i] = ptr[i] * scale;
             }
         }
@@ -155,20 +169,24 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return 0;
     }
 
-    if (!across_spatial && across_channel) {
+    if (!across_spatial && across_channel)
+    {
         // square sum, 1 / sqrt(ssum)
         Mat square_sum_blob;
         square_sum_blob.create(size, elemsize, opt.workspace_allocator);
         if (square_sum_blob.empty())
             return -100;
 
-        if (channel_shared) {
+        if (channel_shared)
+        {
             float scale = scale_data[0];
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < size; i++) {
+            for (int i = 0; i < size; i++)
+            {
                 float ssum = 0.f;
-                for (int q = 0; q < channels; q++) {
+                for (int q = 0; q < channels; q++)
+                {
                     const float* ptr = bottom_top_blob.channel(q);
                     ssum += ptr[i] * ptr[i];
                 }
@@ -191,19 +209,24 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 float* ptr = bottom_top_blob.channel(q);
 
-                for (int i = 0; i < size; i++) {
+                for (int i = 0; i < size; i++)
+                {
                     ptr[i] = ptr[i] * square_sum_blob[i];
                 }
             }
         }
-        else {
+        else
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < size; i++) {
+            for (int i = 0; i < size; i++)
+            {
                 float ssum = 0.f;
-                for (int q = 0; q < channels; q++) {
+                for (int q = 0; q < channels; q++)
+                {
                     const float* ptr = bottom_top_blob.channel(q);
                     ssum += ptr[i] * ptr[i];
                 }
@@ -226,11 +249,13 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 float* ptr = bottom_top_blob.channel(q);
                 float scale = scale_data[q];
 
-                for (int i = 0; i < size; i++) {
+                for (int i = 0; i < size; i++)
+                {
                     ptr[i] = ptr[i] * square_sum_blob[i] * scale;
                 }
             }

@@ -28,7 +28,8 @@ static int test_relu(const ncnn::Mat& a, float slope)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::ReLU>("ReLU", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_relu failed a.dims=%d a=(%d %d %d) slope=%f\n", a.dims, a.w, a.h, a.c, slope);
     }
 

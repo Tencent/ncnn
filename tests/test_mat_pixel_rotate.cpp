@@ -26,7 +26,8 @@ static ncnn::Mat RandomMat(int w, int h, int elempack)
     ncnn::Mat m(w, h, (size_t)elempack, elempack);
 
     unsigned char* p = m;
-    for (int i = 0; i < w * h * elempack; i++) {
+    for (int i = 0; i < w * h * elempack; i++)
+    {
         p[i] = RAND() % 256;
     }
 
@@ -55,7 +56,8 @@ static int test_mat_pixel_rotate_c1(int w, int h)
     ncnn::kanna_rotate_c1(a6, w, h, a7, h, w, 7);
     ncnn::kanna_rotate_c1(a7, h, w, a8, w, h, 8);
 
-    if (memcmp(a0, a8, w * h * 1) != 0) {
+    if (memcmp(a0, a8, w * h * 1) != 0)
+    {
         fprintf(stderr, "test_mat_pixel_rotate_c1 failed w=%d h=%d\n", w, h);
         return -1;
     }
@@ -85,7 +87,8 @@ static int test_mat_pixel_rotate_c2(int w, int h)
     ncnn::kanna_rotate_c2(a6, w, h, a7, h, w, 7);
     ncnn::kanna_rotate_c2(a7, h, w, a8, w, h, 8);
 
-    if (memcmp(a0, a8, w * h * 2) != 0) {
+    if (memcmp(a0, a8, w * h * 2) != 0)
+    {
         fprintf(stderr, "test_mat_pixel_rotate_c2 failed w=%d h=%d\n", w, h);
         return -1;
     }
@@ -115,7 +118,8 @@ static int test_mat_pixel_rotate_c3(int w, int h)
     ncnn::kanna_rotate_c3(a6, w, h, a7, h, w, 7);
     ncnn::kanna_rotate_c3(a7, h, w, a8, w, h, 8);
 
-    if (memcmp(a0, a8, w * h * 3) != 0) {
+    if (memcmp(a0, a8, w * h * 3) != 0)
+    {
         fprintf(stderr, "test_mat_pixel_rotate_c3 failed w=%d h=%d\n", w, h);
         return -1;
     }
@@ -145,7 +149,8 @@ static int test_mat_pixel_rotate_c4(int w, int h)
     ncnn::kanna_rotate_c4(a6, w, h, a7, h, w, 7);
     ncnn::kanna_rotate_c4(a7, h, w, a8, w, h, 8);
 
-    if (memcmp(a0, a8, w * h * 4) != 0) {
+    if (memcmp(a0, a8, w * h * 4) != 0)
+    {
         fprintf(stderr, "test_mat_pixel_rotate_c4 failed w=%d h=%d\n", w, h);
         return -1;
     }
@@ -192,7 +197,8 @@ static int test_mat_pixel_rotate_yuv420sp(int w, int h)
     ncnn::kanna_rotate_yuv420sp(a6, w, h, a7, h, w, 7);
     ncnn::kanna_rotate_yuv420sp(a7, h, w, a8, w, h, 8);
 
-    if (memcmp(a0, a8, w * h * 3 / 2) != 0) {
+    if (memcmp(a0, a8, w * h * 3 / 2) != 0)
+    {
         fprintf(stderr, "test_mat_pixel_rotate_yuv420sp failed w=%d h=%d\n", w, h);
         return -1;
     }

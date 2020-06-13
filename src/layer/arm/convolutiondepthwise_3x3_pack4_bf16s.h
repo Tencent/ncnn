@@ -24,7 +24,8 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int g = 0; g < group; g++) {
+    for (int g = 0; g < group; g++)
+    {
         Mat out = top_blob.channel(g);
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + g * 4) : vdupq_n_f32(0.f);
@@ -54,10 +55,12 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
         int i = 0;
 
 #if __aarch64__
-        for (; i + 1 < outh; i += 2) {
+        for (; i + 1 < outh; i += 2)
+        {
             int j = 0;
 
-            for (; j + 3 < outw; j += 4) {
+            for (; j + 3 < outw; j += 4)
+            {
                 asm volatile(
                     "prfm   pldl1keep, [%3, #256]       \n"
                     "ld1    {v10.4h, v11.4h, v12.4h, v13.4h}, [%3], #32 \n" // r10 r11 r12 r13
@@ -281,7 +284,8 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "w"(_bias0) // %21
                     : "memory", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
-            for (; j + 1 < outw; j += 2) {
+            for (; j + 1 < outw; j += 2)
+            {
                 asm volatile(
                     "prfm   pldl1keep, [%3, #256]       \n"
                     "ld1    {v10.4h, v11.4h, v12.4h, v13.4h}, [%3] \n" // r10 r11 r12 r13
@@ -426,7 +430,8 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     "w"(_bias0) // %21
                     : "memory", "v10", "v11", "v12", "v13", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27");
             }
-            for (; j < outw; j++) {
+            for (; j < outw; j++)
+            {
                 asm volatile(
                     "prfm   pldl1keep, [%3, #192]       \n"
                     "ld1    {v10.4h, v11.4h, v12.4h}, [%3] \n" // r10 r11 r12
@@ -540,10 +545,12 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
             outptr1 += outw * 4;
         }
 #endif // __aarch64__
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
             int j = 0;
 
-            for (; j + 3 < outw; j += 4) {
+            for (; j + 3 < outw; j += 4)
+            {
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%1, #256]       \n"
@@ -814,7 +821,8 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     : "memory", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif
             }
-            for (; j + 1 < outw; j += 2) {
+            for (; j + 1 < outw; j += 2)
+            {
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%1, #256]       \n"
@@ -1000,7 +1008,8 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     : "memory", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif
             }
-            for (; j < outw; j++) {
+            for (; j < outw; j++)
+            {
                 float32x4_t _sum0 = _bias0;
 
                 float32x4_t _r00 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
@@ -1052,7 +1061,8 @@ static void convdw3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int g = 0; g < group; g++) {
+    for (int g = 0; g < group; g++)
+    {
         Mat out = top_blob.channel(g);
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + g * 4) : vdupq_n_f32(0.f);
@@ -1079,11 +1089,13 @@ static void convdw3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
 
         int i = 0;
 
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
             int j = 0;
 
 #if __aarch64__
-            for (; j + 3 < outw; j += 4) {
+            for (; j + 3 < outw; j += 4)
+            {
                 asm volatile(
                     "prfm   pldl1keep, [%1, #256]       \n"
                     "ld1    {v10.4h, v11.4h, v12.4h, v13.4h}, [%1], #32 \n" // r00 r01 r02 r03
@@ -1238,7 +1250,8 @@ static void convdw3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     : "memory", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
 #endif // __aarch64__
-            for (; j + 1 < outw; j += 2) {
+            for (; j + 1 < outw; j += 2)
+            {
 #if __aarch64__
                 asm volatile(
                     "prfm   pldl1keep, [%1, #256]       \n"
@@ -1445,7 +1458,8 @@ static void convdw3x3s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
                     : "memory", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif
             }
-            for (; j < outw; j++) {
+            for (; j < outw; j++)
+            {
                 float32x4_t _sum0 = _bias0;
 
                 float32x4_t _r00 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));

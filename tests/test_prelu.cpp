@@ -29,7 +29,8 @@ static int test_prelu(const ncnn::Mat& a, int num_slope)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::PReLU>("PReLU", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_prelu failed a.dims=%d a=(%d %d %d) num_slope=%d\n", a.dims, a.w, a.h, a.c, num_slope);
     }
 

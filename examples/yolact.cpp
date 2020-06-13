@@ -45,14 +45,16 @@ static void qsort_descent_inplace(std::vector<Object>& objects, int left, int ri
     int j = right;
     float p = objects[(left + right) / 2].prob;
 
-    while (i <= j) {
+    while (i <= j)
+    {
         while (objects[i].prob > p)
             i++;
 
         while (objects[j].prob < p)
             j--;
 
-        if (i <= j) {
+        if (i <= j)
+        {
             // swap
             std::swap(objects[i], objects[j]);
 
@@ -89,15 +91,18 @@ static void nms_sorted_bboxes(const std::vector<Object>& objects, std::vector<in
     const int n = objects.size();
 
     std::vector<float> areas(n);
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
+    {
         areas[i] = objects[i].rect.area();
     }
 
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
+    {
         const Object& a = objects[i];
 
         int keep = 1;
-        for (int j = 0; j < (int)picked.size(); j++) {
+        for (int j = 0; j < (int)picked.size(); j++)
+        {
             const Object& b = objects[picked[j]];
 
             // intersection over union
@@ -168,19 +173,23 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
 
         float* pb = priorbox;
 
-        for (int p = 0; p < 5; p++) {
+        for (int p = 0; p < 5; p++)
+        {
             int conv_w = conv_ws[p];
             int conv_h = conv_hs[p];
 
             float scale = scales[p];
 
-            for (int i = 0; i < conv_h; i++) {
-                for (int j = 0; j < conv_w; j++) {
+            for (int i = 0; i < conv_h; i++)
+            {
+                for (int j = 0; j < conv_w; j++)
+                {
                     // +0.5 because priors are in center-size notation
                     float cx = (j + 0.5f) / conv_w;
                     float cy = (i + 0.5f) / conv_h;
 
-                    for (int k = 0; k < 3; k++) {
+                    for (int k = 0; k < 3; k++)
+                    {
                         float ar = aspect_ratios[k];
 
                         ar = sqrt(ar);
@@ -211,7 +220,8 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
     std::vector<std::vector<Object> > class_candidates;
     class_candidates.resize(num_class);
 
-    for (int i = 0; i < num_priors; i++) {
+    for (int i = 0; i < num_priors; i++)
+    {
         const float* conf = confidence.row(i);
         const float* loc = location.row(i);
         const float* pb = priorbox.row(i);
@@ -221,9 +231,11 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
         // start from 1 to skip background
         int label = 0;
         float score = 0.f;
-        for (int j = 1; j < num_class; j++) {
+        for (int j = 1; j < num_class; j++)
+        {
             float class_score = conf[j];
-            if (class_score > score) {
+            if (class_score > score)
+            {
                 label = j;
                 score = class_score;
             }
@@ -268,7 +280,8 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
     }
 
     objects.clear();
-    for (int i = 0; i < (int)class_candidates.size(); i++) {
+    for (int i = 0; i < (int)class_candidates.size(); i++)
+    {
         std::vector<Object>& candidates = class_candidates[i];
 
         qsort_descent_inplace(candidates);
@@ -276,7 +289,8 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
         std::vector<int> picked;
         nms_sorted_bboxes(candidates, picked, nms_threshold);
 
-        for (int j = 0; j < (int)picked.size(); j++) {
+        for (int j = 0; j < (int)picked.size(); j++)
+        {
             int z = picked[j];
             objects.push_back(candidates[z]);
         }
@@ -285,25 +299,29 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
     qsort_descent_inplace(objects);
 
     // keep_top_k
-    if (keep_top_k < (int)objects.size()) {
+    if (keep_top_k < (int)objects.size())
+    {
         objects.resize(keep_top_k);
     }
 
     // generate mask
-    for (int i = 0; i < objects.size(); i++) {
+    for (int i = 0; i < objects.size(); i++)
+    {
         Object& obj = objects[i];
 
         cv::Mat mask(maskmaps.h, maskmaps.w, CV_32FC1);
         {
             mask = cv::Scalar(0.f);
 
-            for (int p = 0; p < maskmaps.c; p++) {
+            for (int p = 0; p < maskmaps.c; p++)
+            {
                 const float* maskmap = maskmaps.channel(p);
                 float coeff = obj.maskdata[p];
                 float* mp = (float*)mask.data;
 
                 // mask += m * coeff
-                for (int j = 0; j < maskmaps.w * maskmaps.h; j++) {
+                for (int j = 0; j < maskmaps.w * maskmaps.h; j++)
+                {
                     mp[j] += maskmap[j] * coeff;
                 }
             }
@@ -317,14 +335,16 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
         {
             obj.mask = cv::Scalar(0);
 
-            for (int y = 0; y < img_h; y++) {
+            for (int y = 0; y < img_h; y++)
+            {
                 if (y < obj.rect.y || y > obj.rect.y + obj.rect.height)
                     continue;
 
                 const float* mp2 = mask2.ptr<const float>(y);
                 uchar* bmp = obj.mask.ptr<uchar>(y);
 
-                for (int x = 0; x < img_w; x++) {
+                for (int x = 0; x < img_w; x++)
+                {
                     if (x < obj.rect.x || x > obj.rect.x + obj.rect.width)
                         continue;
 
@@ -382,7 +402,8 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
     int color_index = 0;
 
-    for (size_t i = 0; i < objects.size(); i++) {
+    for (size_t i = 0; i < objects.size(); i++)
+    {
         const Object& obj = objects[i];
 
         if (obj.prob < 0.15)
@@ -415,11 +436,14 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
         // draw mask
-        for (int y = 0; y < image.rows; y++) {
+        for (int y = 0; y < image.rows; y++)
+        {
             const uchar* mp = obj.mask.ptr(y);
             uchar* p = image.ptr(y);
-            for (int x = 0; x < image.cols; x++) {
-                if (mp[x] == 255) {
+            for (int x = 0; x < image.cols; x++)
+            {
+                if (mp[x] == 255)
+                {
                     p[0] = cv::saturate_cast<uchar>(p[0] * 0.5 + color[0] * 0.5);
                     p[1] = cv::saturate_cast<uchar>(p[1] * 0.5 + color[1] * 0.5);
                     p[2] = cv::saturate_cast<uchar>(p[2] * 0.5 + color[2] * 0.5);
@@ -436,7 +460,8 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
 int main(int argc, char** argv)
 {
-    if (argc != 2) {
+    if (argc != 2)
+    {
         fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
         return -1;
     }
@@ -444,7 +469,8 @@ int main(int argc, char** argv)
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, 1);
-    if (m.empty()) {
+    if (m.empty())
+    {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);
         return -1;
     }

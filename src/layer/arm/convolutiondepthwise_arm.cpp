@@ -17,8 +17,9 @@
 #include "layer_type.h"
 
 #if __ARM_NEON
-#include <arm_neon.h>
 #include "neon_mathfun.h"
+
+#include <arm_neon.h>
 #endif // __ARM_NEON
 
 #include "neon_activation.h"
@@ -51,20 +52,23 @@ ConvolutionDepthWise_arm::ConvolutionDepthWise_arm()
 
 int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
 {
-    if (activation_type == 1) {
+    if (activation_type == 1)
+    {
         activation = ncnn::create_layer(ncnn::LayerType::ReLU);
 
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
-    else if (activation_type == 2) {
+    else if (activation_type == 2)
+    {
         activation = ncnn::create_layer(ncnn::LayerType::ReLU);
 
         ncnn::ParamDict pd;
         pd.set(0, activation_params[0]); // slope
         activation->load_param(pd);
     }
-    else if (activation_type == 3) {
+    else if (activation_type == 3)
+    {
         activation = ncnn::create_layer(ncnn::LayerType::Clip);
 
         ncnn::ParamDict pd;
@@ -72,24 +76,28 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
         pd.set(1, activation_params[1]); // max
         activation->load_param(pd);
     }
-    else if (activation_type == 4) {
+    else if (activation_type == 4)
+    {
         activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
 
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
-    else if (activation_type == 5) {
+    else if (activation_type == 5)
+    {
         activation = ncnn::create_layer(ncnn::LayerType::Mish);
 
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
 
-    if (activation) {
+    if (activation)
+    {
         activation->create_pipeline(opt);
     }
 
-    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u) {
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+    {
         support_packing = false;
     }
 
@@ -98,21 +106,27 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
     // depth-wise
-    if (channels == group && group == num_output) {
-        if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u) {
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+    if (channels == group && group == num_output)
+    {
+        if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+        {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
                 return 0;
             }
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
                 return 0;
             }
         }
-        else {
+        else
+        {
             int elempack = (opt.use_packing_layout && channels % 4 == 0) ? 4 : 1;
 
 #if __ARM_NEON
             // pack4
-            if (elempack == 4) {
+            if (elempack == 4)
+            {
                 Mat weight_data_r2 = weight_data.reshape(maxk, group);
                 convert_packing(weight_data_r2, weight_data_pack4, 4);
 
@@ -122,19 +136,24 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
             }
 #endif // __ARM_NEON
 
-            if (elempack == 1) {
+            if (elempack == 1)
+            {
                 ncnn::cast_float32_to_bfloat16(weight_data, weight_data_bf16, opt);
 
-                if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+                if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                {
                     return 0;
                 }
-                if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+                if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+                {
                     return 0;
                 }
-                if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+                if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+                {
                     return 0;
                 }
-                if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+                if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+                {
                     return 0;
                 }
             }
@@ -152,7 +171,8 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
 
     group_ops.resize(group);
 
-    for (int g = 0; g < group; g++) {
+    for (int g = 0; g < group; g++)
+    {
         Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
         Mat bias_data_g;
         if (bias_term)
@@ -180,23 +200,27 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
         op->load_param(pd);
 
         // set weights
-        if (bias_term) {
+        if (bias_term)
+        {
             ncnn::Mat weights[4];
             weights[0] = weight_data_g;
             weights[1] = bias_data_g;
 
-            if (int8_scale_term) {
+            if (int8_scale_term)
+            {
                 weights[2] = weight_data_int8_scales.range(g, 1);
                 weights[3] = bottom_blob_int8_scales.range(g, 1);
             }
 
             op->load_model(ModelBinFromMatArray(weights));
         }
-        else {
+        else
+        {
             ncnn::Mat weights[3];
             weights[0] = weight_data_g;
 
-            if (int8_scale_term) {
+            if (int8_scale_term)
+            {
                 weights[1] = weight_data_int8_scales.range(g, 1);
                 weights[2] = bottom_blob_int8_scales.range(g, 1);
             }
@@ -216,13 +240,15 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
 
 int ConvolutionDepthWise_arm::destroy_pipeline(const Option& opt)
 {
-    if (activation) {
+    if (activation)
+    {
         activation->destroy_pipeline(opt);
         delete activation;
         activation = 0;
     }
 
-    for (int i = 0; i < (int)group_ops.size(); i++) {
+    for (int i = 0; i < (int)group_ops.size(); i++)
+    {
         group_ops[i]->destroy_pipeline(opt);
         delete group_ops[i];
     }
@@ -236,7 +262,8 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     // convolv with NxN kernel
     // value = value + bias
 
-    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u) {
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+    {
         return forward_int8_arm(bottom_blob, top_blob, opt);
     }
 
@@ -270,46 +297,57 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
         return -100;
 
     // depth-wise
-    if (channels * elempack == group && group == num_output) {
+    if (channels * elempack == group && group == num_output)
+    {
 #if __ARM_NEON
-        if (elempack == 4) {
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        if (elempack == 4)
+        {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
                 convdw3x3s1_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
 
                 return 0;
             }
-            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
                 convdw3x3s2_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
 
                 return 0;
             }
-            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
                 convdw5x5s1_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
 
                 return 0;
             }
-            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
                 convdw5x5s2_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
 
                 return 0;
             }
-            else {
+            else
+            {
                 const int maxk = kernel_w * kernel_h;
 
                 // kernel offsets
@@ -319,8 +357,10 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                     int p1 = 0;
                     int p2 = 0;
                     int gap = w * dilation_h - kernel_w * dilation_w;
-                    for (int i = 0; i < kernel_h; i++) {
-                        for (int j = 0; j < kernel_w; j++) {
+                    for (int i = 0; i < kernel_h; i++)
+                    {
+                        for (int j = 0; j < kernel_w; j++)
+                        {
                             space_ofs[p1] = p2;
                             p1++;
                             p2 += dilation_w;
@@ -330,22 +370,27 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                 }
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int g = 0; g < channels; g++) {
+                for (int g = 0; g < channels; g++)
+                {
                     float* outptr = top_blob.channel(g);
                     const float* kptr = (const float*)weight_data_pack4 + maxk * g * 4;
                     const Mat m = bottom_blob_bordered.channel(g);
 
-                    for (int i = 0; i < outh; i++) {
-                        for (int j = 0; j < outw; j++) {
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
                             float32x4_t _sum = vdupq_n_f32(0.f);
 
-                            if (bias_term) {
+                            if (bias_term)
+                            {
                                 _sum = vld1q_f32(((const float*)bias_data) + g * 4);
                             }
 
                             const float* sptr = m.row(i * stride_h) + j * stride_w * 4;
 
-                            for (int k = 0; k < maxk; k++) {
+                            for (int k = 0; k < maxk; k++)
+                            {
                                 float32x4_t _val = vld1q_f32(sptr + space_ofs[k] * 4);
                                 float32x4_t _w = vld1q_f32(kptr + k * 4);
                                 _sum = vmlaq_f32(_sum, _val, _w);
@@ -365,38 +410,47 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
         }
 #endif // __ARM_NEON
 
-        if (elempack == 1) {
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        if (elempack == 1)
+        {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
                 convdw3x3s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
 
                 return 0;
             }
-            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
                 convdw3x3s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
 
                 return 0;
             }
-            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
                 convdw5x5s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
 
                 return 0;
             }
-            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
                 convdw5x5s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
 
@@ -414,20 +468,23 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
 
     // unpacking
     Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
-    if (elempack == 4 && g_elempack == 1) {
+    if (elempack == 4 && g_elempack == 1)
+    {
         Option opt_p = opt;
         opt_p.blob_allocator = opt.workspace_allocator;
         convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, 1, opt_p);
     }
 
     Mat top_blob_unpacked = top_blob;
-    if (out_g_elempack == 1 && out_elempack == 4) {
+    if (out_g_elempack == 1 && out_elempack == 4)
+    {
         top_blob_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
         if (top_blob_unpacked.empty())
             return -100;
     }
 
-    for (int g = 0; g < group; g++) {
+    for (int g = 0; g < group; g++)
+    {
         const Mat bottom_blob_bordered_g = bottom_blob_bordered_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
         Mat top_blob_g = top_blob_unpacked.channel_range(num_output_g * g / out_g_elempack, num_output_g / out_g_elempack);
 
@@ -441,10 +498,12 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     }
 
     // packing
-    if (out_g_elempack == 1 && out_elempack == 4) {
+    if (out_g_elempack == 1 && out_elempack == 4)
+    {
         convert_packing(top_blob_unpacked, top_blob, 4, opt);
     }
-    else {
+    else
+    {
         top_blob = top_blob_unpacked;
     }
 
@@ -480,38 +539,49 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
         return -100;
 
     // depth-wise
-    if (channels * elempack == group && group == num_output) {
+    if (channels * elempack == group && group == num_output)
+    {
 #if __ARM_NEON
-        if (elempack == 4) {
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        if (elempack == 4)
+        {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
                 convdw3x3s1_pack4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4_bf16, bias_data, opt);
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
             }
-            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
                 convdw3x3s2_pack4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4_bf16, bias_data, opt);
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
             }
-            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
                 convdw5x5s1_pack4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4_bf16, bias_data, opt);
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
             }
-            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
                 convdw5x5s2_pack4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4_bf16, bias_data, opt);
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
             }
-            else {
+            else
+            {
                 const int maxk = kernel_w * kernel_h;
 
                 // kernel offsets
@@ -521,8 +591,10 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
                     int p1 = 0;
                     int p2 = 0;
                     int gap = w * dilation_h - kernel_w * dilation_w;
-                    for (int i = 0; i < kernel_h; i++) {
-                        for (int j = 0; j < kernel_w; j++) {
+                    for (int i = 0; i < kernel_h; i++)
+                    {
+                        for (int j = 0; j < kernel_w; j++)
+                        {
                             space_ofs[p1] = p2;
                             p1++;
                             p2 += dilation_w;
@@ -532,22 +604,27 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
                 }
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int g = 0; g < channels; g++) {
+                for (int g = 0; g < channels; g++)
+                {
                     unsigned short* outptr = top_blob.channel(g);
                     const unsigned short* kptr = (const unsigned short*)weight_data_pack4_bf16 + maxk * g * 4;
                     const Mat m = bottom_blob_bordered.channel(g);
 
-                    for (int i = 0; i < outh; i++) {
-                        for (int j = 0; j < outw; j++) {
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
                             float32x4_t _sum = vdupq_n_f32(0.f);
 
-                            if (bias_term) {
+                            if (bias_term)
+                            {
                                 _sum = vld1q_f32(((const float*)bias_data) + g * 4);
                             }
 
                             const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 4;
 
-                            for (int k = 0; k < maxk; k++) {
+                            for (int k = 0; k < maxk; k++)
+                            {
                                 float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(sptr + space_ofs[k] * 4), 16));
                                 float32x4_t _w = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr + k * 4), 16));
                                 _sum = vmlaq_f32(_sum, _val, _w);
@@ -567,7 +644,8 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
         }
 #endif // __ARM_NEON
 
-        if (elempack == 1) {
+        if (elempack == 1)
+        {
             //             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             //             {
             //                 convdw3x3s1_neon(bottom_blob_bordered, top_blob, weight_data_bf16, bias_data, opt);
@@ -623,8 +701,10 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
                     int p1 = 0;
                     int p2 = 0;
                     int gap = w * dilation_h - kernel_w * dilation_w;
-                    for (int i = 0; i < kernel_h; i++) {
-                        for (int j = 0; j < kernel_w; j++) {
+                    for (int i = 0; i < kernel_h; i++)
+                    {
+                        for (int j = 0; j < kernel_w; j++)
+                        {
                             space_ofs[p1] = p2;
                             p1++;
                             p2 += dilation_w;
@@ -634,13 +714,16 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
                 }
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int g = 0; g < group; g++) {
+                for (int g = 0; g < group; g++)
+                {
                     unsigned short* outptr = top_blob.channel(g);
                     const unsigned short* kptr = (const unsigned short*)weight_data_bf16 + maxk * g;
                     const Mat m = bottom_blob_bordered.channel(g);
 
-                    for (int i = 0; i < outh; i++) {
-                        for (int j = 0; j < outw; j++) {
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
                             float sum = 0.f;
 
                             if (bias_term)
@@ -648,20 +731,24 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
 
                             const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w;
 
-                            for (int k = 0; k < maxk; k++) {
+                            for (int k = 0; k < maxk; k++)
+                            {
                                 float val = bfloat16_to_float32(sptr[space_ofs[k]]);
                                 float w = bfloat16_to_float32(kptr[k]);
                                 sum += val * w;
                             }
 
-                            if (activation_type == 1) {
+                            if (activation_type == 1)
+                            {
                                 sum = std::max(sum, 0.f);
                             }
-                            else if (activation_type == 2) {
+                            else if (activation_type == 2)
+                            {
                                 float slope = activation_params[0];
                                 sum = sum > 0.f ? sum : sum * slope;
                             }
-                            else if (activation_type == 3) {
+                            else if (activation_type == 3)
+                            {
                                 float min = activation_params[0];
                                 float max = activation_params[1];
                                 if (sum < min)
@@ -669,10 +756,12 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
                                 if (sum > max)
                                     sum = max;
                             }
-                            else if (activation_type == 4) {
+                            else if (activation_type == 4)
+                            {
                                 sum = static_cast<float>(1.f / (1.f + exp(-sum)));
                             }
-                            else if (activation_type == 5) {
+                            else if (activation_type == 5)
+                            {
                                 sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
                             }
 
@@ -697,20 +786,23 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
 
     // unpacking
     Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
-    if (elempack == 4 && g_elempack == 1) {
+    if (elempack == 4 && g_elempack == 1)
+    {
         Option opt_p = opt;
         opt_p.blob_allocator = opt.workspace_allocator;
         convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, 1, opt_p);
     }
 
     Mat top_blob_unpacked = top_blob;
-    if (out_g_elempack == 1 && out_elempack == 4) {
+    if (out_g_elempack == 1 && out_elempack == 4)
+    {
         top_blob_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
         if (top_blob_unpacked.empty())
             return -100;
     }
 
-    for (int g = 0; g < group; g++) {
+    for (int g = 0; g < group; g++)
+    {
         const Mat bottom_blob_bordered_g = bottom_blob_bordered_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
         Mat top_blob_g = top_blob_unpacked.channel_range(num_output_g * g / out_g_elempack, num_output_g / out_g_elempack);
 
@@ -724,10 +816,12 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
     }
 
     // packing
-    if (out_g_elempack == 1 && out_elempack == 4) {
+    if (out_g_elempack == 1 && out_elempack == 4)
+    {
         convert_packing(top_blob_unpacked, top_blob, 4, opt);
     }
-    else {
+    else
+    {
         top_blob = top_blob_unpacked;
     }
 
@@ -745,7 +839,8 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
     Mat bottom_blob_unbordered = bottom_blob;
-    if (elemsize != 1) {
+    if (elemsize != 1)
+    {
         bottom_blob_unbordered.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
         if (bottom_blob_unbordered.empty())
             return -100;
@@ -754,7 +849,8 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
 
         // quantize, scale and round to nearest
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int g = 0; g < group; g++) {
+        for (int g = 0; g < group; g++)
+        {
             Option opt_g = opt;
             opt_g.num_threads = 1;
             opt_g.blob_allocator = bottom_blob_unbordered.allocator;
@@ -784,10 +880,13 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
         return -100;
 
     // depth-wise
-    if (channels == group && group == num_output) {
-        if (use_int8_requantize) {
+    if (channels == group && group == num_output)
+    {
+        if (use_int8_requantize)
+        {
             std::vector<float> requantize_scales;
-            for (int g = 0; g < group; g++) {
+            for (int g = 0; g < group; g++)
+            {
                 float scale_in;
                 if (weight_data_int8_scales[g] == 0)
                     scale_in = 0;
@@ -800,26 +899,31 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                 requantize_scales.push_back(scale_out);
             }
 
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
                 convdw3x3s1_int8_requant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
 
                 return 0;
             }
-            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
                 convdw3x3s2_int8_requant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
 
                 return 0;
             }
         }
-        else {
+        else
+        {
             //             std::vector<float> dequantize_scales;
             //             for (int g=0; g<group; g++)
             //             {
@@ -828,13 +932,15 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
             //                 dequantize_scales.push_back(top_rescale);
             //             }
 
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
                 convdw3x3s1_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
                 //                 convdw3x3s1_int8_dequant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);
 
                 // dequantize, reverse scale inplace
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int g = 0; g < group; g++) {
+                for (int g = 0; g < group; g++)
+                {
                     // dequantize and relu
                     float scale_in;
                     if (weight_data_int8_scales[g] == 0)
@@ -850,19 +956,22 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                     dequantize_int32_to_float32(top_blob_g, scale_in, bias_term ? (const float*)bias_data + g : 0, bias_term ? 0 : 1, opt_g);
                 }
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
 
                 return 0;
             }
-            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
                 convdw3x3s2_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
                 //                 convdw3x3s2_int8_dequant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);
 
                 // dequantize, reverse scale inplace
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int g = 0; g < group; g++) {
+                for (int g = 0; g < group; g++)
+                {
                     // dequantize and relu
                     float scale_in;
                     if (weight_data_int8_scales[g] == 0)
@@ -878,7 +987,8 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                     dequantize_int32_to_float32(top_blob_g, scale_in, bias_term ? (const float*)bias_data + g : 0, bias_term ? 0 : 1, opt_g);
                 }
 
-                if (activation) {
+                if (activation)
+                {
                     activation->forward_inplace(top_blob, opt);
                 }
 
@@ -892,7 +1002,8 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
     const int num_output_g = num_output / group;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int g = 0; g < group; g++) {
+    for (int g = 0; g < group; g++)
+    {
         const Mat bottom_blob_bordered_g = bottom_blob_bordered.channel_range(channels_g * g, channels_g);
         Mat top_blob_g = top_blob.channel_range(num_output_g * g, num_output_g);
 

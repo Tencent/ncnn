@@ -42,7 +42,8 @@ int Embed::load_model(const ModelBin& mb)
     if (weight_data.empty())
         return -100;
 
-    if (bias_term) {
+    if (bias_term)
+    {
         bias_data = mb.load(num_output, 1);
         if (bias_data.empty())
             return -100;
@@ -61,7 +62,8 @@ int Embed::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) con
 
     // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < words; q++) {
+    for (int q = 0; q < words; q++)
+    {
         float* outptr = top_blob.row(q);
 
         int word_index = ((const int*)bottom_blob)[q];
@@ -75,8 +77,10 @@ int Embed::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) con
 
         memcpy(outptr, em, num_output * sizeof(float));
 
-        if (bias_term) {
-            for (int p = 0; p < num_output; p++) {
+        if (bias_term)
+        {
+            for (int p = 0; p < num_output; p++)
+            {
                 outptr[p] += bias_data[p];
             }
         }

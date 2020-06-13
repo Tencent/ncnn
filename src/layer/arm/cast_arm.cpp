@@ -35,7 +35,8 @@ Cast_arm::Cast_arm()
 
 int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (type_from == type_to) {
+    if (type_from == type_to)
+    {
         top_blob = bottom_blob;
         return 0;
     }
@@ -48,7 +49,8 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     int elempack = bottom_blob.elempack;
 
 #if __ARM_NEON
-    if (elempack % 4 == 0) {
+    if (elempack % 4 == 0)
+    {
 #if (__ARM_FP & 2)
         if (!cpu_support_arm_vfpv4() && (type_from == 2 || type_to == 2))
 #else
@@ -60,30 +62,37 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         }
 
         size_t out_elemsize = elemsize;
-        if (type_to == 1) {
+        if (type_to == 1)
+        {
             // float32
             out_elemsize = 4 * elempack;
         }
-        else if (type_to == 2) {
+        else if (type_to == 2)
+        {
             // float16
             out_elemsize = 2 * elempack;
         }
-        else if (type_to == 3) {
+        else if (type_to == 3)
+        {
             // int8
             out_elemsize = elempack;
         }
-        else if (type_to == 4) {
+        else if (type_to == 4)
+        {
             // bfloat16
             out_elemsize = 2 * elempack;
         }
 
-        if (dims == 1) {
+        if (dims == 1)
+        {
             top_blob.create(w, out_elemsize, elempack, opt.blob_allocator);
         }
-        else if (dims == 2) {
+        else if (dims == 2)
+        {
             top_blob.create(w, h, out_elemsize, elempack, opt.blob_allocator);
         }
-        else if (dims == 3) {
+        else if (dims == 3)
+        {
             top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
         }
         if (top_blob.empty())
@@ -92,9 +101,11 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         int size = w * h * elempack;
 
 #if (__ARM_FP & 2)
-        if (type_from == 1 && type_to == 2) {
+        if (type_from == 1 && type_to == 2)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const float* ptr = bottom_blob.channel(q);
                 unsigned short* outptr = top_blob.channel(q);
 
@@ -136,9 +147,11 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             }
         }
 
-        if (type_from == 2 && type_to == 1) {
+        if (type_from == 2 && type_to == 1)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const unsigned short* ptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
@@ -181,21 +194,26 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         }
 #endif // (__ARM_FP & 2)
 
-        if (type_from == 3 && type_to == 1) {
+        if (type_from == 3 && type_to == 1)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const signed char* ptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int i = 0; i < size; i++) {
+                for (int i = 0; i < size; i++)
+                {
                     outptr[i] = (float)ptr[i];
                 }
             }
         }
 
-        if (type_from == 1 && type_to == 4) {
+        if (type_from == 1 && type_to == 4)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const float* ptr = bottom_blob.channel(q);
                 unsigned short* outptr = top_blob.channel(q);
 
@@ -237,9 +255,11 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             }
         }
 
-        if (type_from == 4 && type_to == 1) {
+        if (type_from == 4 && type_to == 1)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++) {
+            for (int q = 0; q < channels; q++)
+            {
                 const unsigned short* ptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 

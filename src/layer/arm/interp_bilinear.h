@@ -16,16 +16,19 @@ static void linear_coeffs(int w, int outw, int* xofs, float* alpha)
 {
     double scale = (double)w / outw;
 
-    for (int dx = 0; dx < outw; dx++) {
+    for (int dx = 0; dx < outw; dx++)
+    {
         float fx = (float)((dx + 0.5) * scale - 0.5);
         int sx = floor(fx);
         fx -= sx;
 
-        if (sx < 0) {
+        if (sx < 0)
+        {
             sx = 0;
             fx = 0.f;
         }
-        if (sx >= w - 1) {
+        if (sx >= w - 1)
+        {
             sx = w - 2;
             fx = 1.f;
         }
@@ -50,13 +53,16 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
 
     int prev_sy1 = -2;
 
-    for (int dy = 0; dy < h; dy++) {
+    for (int dy = 0; dy < h; dy++)
+    {
         int sy = yofs[dy];
 
-        if (sy == prev_sy1) {
+        if (sy == prev_sy1)
+        {
             // reuse all rows
         }
-        else if (sy == prev_sy1 + 1) {
+        else if (sy == prev_sy1 + 1)
+        {
             // hresize one row
             float* rows0_old = rows0;
             rows0 = rows1;
@@ -67,7 +73,8 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             float* rows1p = rows1;
             int dx = 0;
 #if __ARM_NEON
-            for (; dx + 1 < w; dx += 2) {
+            for (; dx + 1 < w; dx += 2)
+            {
                 int sx = xofs[dx];
                 int sxn = xofs[dx + 1];
                 const float* S1p = S1 + sx;
@@ -86,7 +93,8 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
                 alphap += 4;
             }
 #endif // __ARM_NEON
-            for (; dx < w; dx++) {
+            for (; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 const float* S1p = S1 + sx;
 
@@ -97,7 +105,8 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
                 alphap += 2;
             }
         }
-        else {
+        else
+        {
             // hresize two rows
             const float* S0 = src.row(sy);
             const float* S1 = src.row(sy + 1);
@@ -107,7 +116,8 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             float* rows1p = rows1;
             int dx = 0;
 #if __ARM_NEON
-            for (; dx + 1 < w; dx += 2) {
+            for (; dx + 1 < w; dx += 2)
+            {
                 int sx = xofs[dx];
                 int sxn = xofs[dx + 1];
                 const float* S0p = S0 + sx;
@@ -134,7 +144,8 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
                 alphap += 4;
             }
 #endif // __ARM_NEON
-            for (; dx < w; dx++) {
+            for (; dx < w; dx++)
+            {
                 int sx = xofs[dx];
                 const float* S0p = S0 + sx;
                 const float* S1p = S1 + sx;
@@ -168,7 +179,8 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
 #if __ARM_NEON
         float32x4_t _b0 = vdupq_n_f32(b0);
         float32x4_t _b1 = vdupq_n_f32(b1);
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             float32x4_t _rows0 = vld1q_f32(rows0p);
             float32x4_t _rows1 = vld1q_f32(rows1p);
 
@@ -190,7 +202,8 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             rows1p += 8;
         }
 #endif // __ARM_NEON
-        for (; remain; --remain) {
+        for (; remain; --remain)
+        {
             //             D[x] = rows0[x]*b0 + rows1[x]*b1;
             *Dp++ = *rows0p++ * b0 + *rows1p++ * b1;
         }

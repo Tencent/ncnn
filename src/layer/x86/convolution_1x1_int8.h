@@ -23,14 +23,16 @@ static void conv1x1s1_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat&
     const float* kernel = _kernel;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out0 = top_blob.channel(p);
 
         out0.fill(0);
 
         int q = 0;
 
-        for (; q + 7 < inch; q += 8) {
+        for (; q + 7 < inch; q += 8)
+        {
             int* outptr0 = out0;
 
             const signed char* kernel0 = (const signed char*)kernel + p * inch + q;
@@ -47,7 +49,8 @@ static void conv1x1s1_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat&
             int size = outw * outh;
             int remain = size;
 
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 //ToDo Neon
                 int sum0 = (int)*r0 * (int)kernel0[0] + (int)*r1 * (int)kernel0[1] + (int)*r2 * (int)kernel0[2] + (int)*r3 * (int)kernel0[3] + (int)*r4 * (int)kernel0[4] + (int)*r5 * (int)kernel0[5] + (int)*r6 * (int)kernel0[6] + (int)*r7 * (int)kernel0[7];
 
@@ -65,7 +68,8 @@ static void conv1x1s1_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat&
             }
         }
 
-        for (; q < inch; q++) {
+        for (; q < inch; q++)
+        {
             int* outptr0 = out0;
 
             const signed char* r0 = bottom_blob.channel(q);
@@ -76,7 +80,8 @@ static void conv1x1s1_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat&
             int size = outw * outh;
             int remain = size;
 
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 int sum0 = (int)(*r0) * (int)k0;
 
                 *outptr0 += sum0;
@@ -101,14 +106,16 @@ static void conv1x1s2_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat&
     const signed char* kernel = _kernel;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out0 = top_blob.channel(p);
 
         out0.fill(0);
 
         int q = 0;
 
-        for (; q + 7 < inch; q += 8) {
+        for (; q + 7 < inch; q += 8)
+        {
             int* outptr0 = out0;
 
             const signed char* kernel0 = (const signed char*)kernel + p * inch + q;
@@ -122,10 +129,12 @@ static void conv1x1s2_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat&
             const signed char* r6 = bottom_blob.channel(q + 6);
             const signed char* r7 = bottom_blob.channel(q + 7);
 
-            for (int i = 0; i < outh; i++) {
+            for (int i = 0; i < outh; i++)
+            {
                 int remain = outw;
 
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
                     //ToDo Neon
                     int sum0 = (int)*r0 * (int)kernel0[0] + (int)*r1 * (int)kernel0[1] + (int)*r2 * (int)kernel0[2] + (int)*r3 * (int)kernel0[3] + (int)*r4 * (int)kernel0[4] + (int)*r5 * (int)kernel0[5] + (int)*r6 * (int)kernel0[6] + (int)*r7 * (int)kernel0[7];
 
@@ -153,17 +162,20 @@ static void conv1x1s2_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat&
             }
         }
 
-        for (; q < inch; q++) {
+        for (; q < inch; q++)
+        {
             int* outptr0 = out0;
 
             const signed char* r0 = bottom_blob.channel(q);
 
             const signed char* kernel0 = (const signed char*)kernel + p * inch + q;
 
-            for (int i = 0; i < outh; i++) {
+            for (int i = 0; i < outh; i++)
+            {
                 int remain = outw;
 
-                for (; remain > 0; remain--) {
+                for (; remain > 0; remain--)
+                {
                     //ToDo Neon
                     int sum0 = (int)*r0 * (int)kernel0[0];
 

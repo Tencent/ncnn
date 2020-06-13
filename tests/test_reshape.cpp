@@ -30,7 +30,8 @@ static int test_reshape(const ncnn::Mat& a, int outw, int outh, int outc)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Reshape>("Reshape", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_reshape failed a.dims=%d a=(%d %d %d) outw=%d outh=%d outc=%d\n", a.dims, a.w, a.h, a.c, outw, outh, outc);
     }
 

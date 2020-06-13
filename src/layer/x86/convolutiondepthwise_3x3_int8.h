@@ -33,7 +33,8 @@ static void convdw3x3s1_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Ma
     const signed char* kernel = _kernel;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
 
         out.fill(0);
@@ -49,10 +50,12 @@ static void convdw3x3s1_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Ma
         const signed char* r2 = img0 + w * 2;
 
         int i = 0;
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
             int remain = outw;
 
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 int sum = 0;
 
                 sum += (int)r0[0] * (int)kernel0[0];
@@ -95,7 +98,8 @@ static void convdw3x3s2_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Ma
     const signed char* kernel = _kernel;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
         out.fill(0);
 
@@ -111,10 +115,12 @@ static void convdw3x3s2_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Ma
 
         int i = 0;
 
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
             int remain = outw;
 
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 int sum = 0;
 
                 sum += (int)r0[0] * (int)kernel0[0];
@@ -156,7 +162,8 @@ static void convdw3x3s1_int8_dequant_sse(const Mat& bottom_blob, Mat& top_blob, 
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
         float* outptr = out;
 
@@ -173,10 +180,12 @@ static void convdw3x3s1_int8_dequant_sse(const Mat& bottom_blob, Mat& top_blob, 
         const signed char* r2 = img0 + w * 2;
 
         int i = 0;
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
             int remain = outw;
 
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 int sum = 0;
 
                 sum += (int)r0[0] * (int)kernel0[0];
@@ -220,7 +229,8 @@ static void convdw3x3s2_int8_dequant_sse(const Mat& bottom_blob, Mat& top_blob, 
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
         float* outptr = out;
 
@@ -238,10 +248,12 @@ static void convdw3x3s2_int8_dequant_sse(const Mat& bottom_blob, Mat& top_blob, 
 
         int i = 0;
 
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
             int remain = outw;
 
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 int sum = 0;
 
                 sum += (int)r0[0] * (int)kernel0[0];
@@ -283,7 +295,8 @@ static void convdw3x3s1_int8_requant_sse(const Mat& bottom_blob, Mat& top_blob, 
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
         signed char* outptr = out;
 
@@ -299,10 +312,12 @@ static void convdw3x3s1_int8_requant_sse(const Mat& bottom_blob, Mat& top_blob, 
         const signed char* r2 = img0 + w * 2;
 
         int i = 0;
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
             int remain = outw;
 
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 int sum = 0;
 
                 sum += (int)r0[0] * (int)kernel0[0];
@@ -346,7 +361,8 @@ static void convdw3x3s2_int8_requant_sse(const Mat& bottom_blob, Mat& top_blob, 
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++) {
+    for (int p = 0; p < outch; p++)
+    {
         Mat out = top_blob.channel(p);
         signed char* outptr = out;
 
@@ -363,10 +379,12 @@ static void convdw3x3s2_int8_requant_sse(const Mat& bottom_blob, Mat& top_blob, 
 
         int i = 0;
 
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
             int remain = outw;
 
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 int sum = 0;
 
                 sum += (int)r0[0] * (int)kernel0[0];

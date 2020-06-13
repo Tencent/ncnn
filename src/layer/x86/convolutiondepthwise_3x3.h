@@ -25,7 +25,8 @@ static void convdw3x3s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int g = 0; g < group; g++) {
+    for (int g = 0; g < group; g++)
+    {
         Mat out = top_blob.channel(g);
 
         const float bias0 = bias ? bias[g] : 0.f;
@@ -48,10 +49,12 @@ static void convdw3x3s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
 
         int i = 0;
 
-        for (; i + 1 < outh; i += 2) {
+        for (; i + 1 < outh; i += 2)
+        {
             int remain = outw;
 
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 float sum = bias0;
                 sum += r0[0] * k0[0];
                 sum += r0[1] * k0[1];
@@ -94,10 +97,12 @@ static void convdw3x3s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
             outptr2 += outw;
         }
 
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
             int remain = outw;
 
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 float sum = bias0;
                 sum += r0[0] * k0[0];
                 sum += r0[1] * k0[1];
@@ -139,7 +144,8 @@ static void convdw3x3s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int g = 0; g < group; g++) {
+    for (int g = 0; g < group; g++)
+    {
         Mat out = top_blob.channel(g);
 
         const float bias0 = bias ? bias[g] : 0.f;
@@ -160,10 +166,12 @@ static void convdw3x3s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
 
         int i = 0;
 
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
             int remain = outw;
 
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 float sum = bias0;
                 sum += r0[0] * k0[0];
                 sum += r0[1] * k0[1];

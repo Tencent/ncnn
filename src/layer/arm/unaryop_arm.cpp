@@ -45,10 +45,12 @@ static int unary_op_inplace(Mat& a, const Option& opt)
     int size = w * h;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++) {
+    for (int q = 0; q < channels; q++)
+    {
         float* ptr = a.channel(q);
 
-        for (int i = 0; i < size; i++) {
+        for (int i = 0; i < size; i++)
+        {
             float32x4_t _p = vld1q_f32(ptr);
             _p = op(_p);
             vst1q_f32(ptr, _p);
@@ -271,8 +273,10 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout) {
-        if (elempack == 4) {
+    if (opt.use_packing_layout)
+    {
+        if (elempack == 4)
+        {
             if (op_type == Operation_ABS)
                 return unary_op_inplace<unary_op_abs<float32x4_t> >(bottom_top_blob, opt);
 

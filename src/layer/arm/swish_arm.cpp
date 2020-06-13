@@ -48,12 +48,15 @@ int Swish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
 #if __ARM_NEON
     const float32x4_t _one = vdupq_n_f32(1.f);
-    if (elempack == 4) {
+    if (elempack == 4)
+    {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             float* ptr = bottom_top_blob.channel(q);
 
-            for (int i = 0; i < size; i++) {
+            for (int i = 0; i < size; i++)
+            {
                 float32x4_t _p = vld1q_f32(ptr);
                 float32x4_t _q = vaddq_f32(_one, exp_ps(vnegq_f32(_p)));
                 float32x4_t _r = vrecpeq_f32(_q);
@@ -68,7 +71,8 @@ int Swish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++) {
+    for (int q = 0; q < channels; q++)
+    {
         float* ptr = bottom_top_blob.channel(q);
 
 #if __ARM_NEON
@@ -79,7 +83,8 @@ int Swish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             float32x4_t _p = vld1q_f32(ptr);
             float32x4_t _q = vaddq_f32(_one, exp_ps(vnegq_f32(_p)));
             float32x4_t _r = vrecpeq_f32(_q);
@@ -88,7 +93,8 @@ int Swish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             ptr += 4;
         }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             *ptr = *ptr / (1.f + exp(-*ptr));
             ptr++;
         }
@@ -107,12 +113,15 @@ int Swish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
 
 #if __ARM_NEON
     const float32x4_t _one = vdupq_n_f32(1.f);
-    if (elempack == 4) {
+    if (elempack == 4)
+    {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             unsigned short* ptr = bottom_top_blob.channel(q);
 
-            for (int i = 0; i < size; i++) {
+            for (int i = 0; i < size; i++)
+            {
                 float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                 float32x4_t _q = vaddq_f32(_one, exp_ps(vnegq_f32(_p)));
                 float32x4_t _r = vrecpeq_f32(_q);
@@ -127,7 +136,8 @@ int Swish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++) {
+    for (int q = 0; q < channels; q++)
+    {
         unsigned short* ptr = bottom_top_blob.channel(q);
 
 #if __ARM_NEON
@@ -138,7 +148,8 @@ int Swish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-        for (; nn > 0; nn--) {
+        for (; nn > 0; nn--)
+        {
             float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
             float32x4_t _q = vaddq_f32(_one, exp_ps(vnegq_f32(_p)));
             float32x4_t _r = vrecpeq_f32(_q);
@@ -147,7 +158,8 @@ int Swish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             ptr += 4;
         }
 #endif // __ARM_NEON
-        for (; remain > 0; remain--) {
+        for (; remain > 0; remain--)
+        {
             float v = bfloat16_to_float32(*ptr);
             v = v / (1.f + exp(-v));
             *ptr = float32_to_bfloat16(v);

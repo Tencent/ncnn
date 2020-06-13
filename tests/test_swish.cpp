@@ -27,7 +27,8 @@ static int test_swish(const ncnn::Mat& a)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Swish>("Swish", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_swish failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
     }
 

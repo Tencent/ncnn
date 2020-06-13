@@ -32,7 +32,8 @@ static int test_scale(const ncnn::Mat& a, int scale_data_size, int bias)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Scale>("Scale", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_scale failed a.dims=%d a=(%d %d %d) scale_data_size=%d bias=%d\n", a.dims, a.w, a.h, a.c, scale_data_size, bias);
     }
 
@@ -55,7 +56,8 @@ static int test_scale_attention(const ncnn::Mat& a, int scale_data_size)
     ab[1] = RandomMat(scale_data_size);
 
     int ret = test_layer<ncnn::Scale>("Scale", pd, weights, opt, ab, 2);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_scale_attention failed a.dims=%d a=(%d %d %d) scale_data_size=%d\n", a.dims, a.w, a.h, a.c, scale_data_size);
     }
 

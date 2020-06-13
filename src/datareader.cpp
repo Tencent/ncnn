@@ -92,7 +92,8 @@ DataReaderFromAndroidAsset::DataReaderFromAndroidAsset(AAsset* _asset)
 #if NCNN_STRING
 int DataReaderFromAndroidAsset::scan(const char* format, void* p) const
 {
-    if (!mem) {
+    if (!mem)
+    {
         off_t pos = AAsset_seek(asset, 0, SEEK_CUR);
         mem = (const unsigned char*)AAsset_getBuffer(asset);
         mem += pos;
@@ -124,7 +125,8 @@ size_t DataReaderFromAndroidAsset::read(void* buf, size_t size) const
     if (nread < 0)
         return 0;
 
-    if (mem) {
+    if (mem)
+    {
         mem += nread;
     }
 

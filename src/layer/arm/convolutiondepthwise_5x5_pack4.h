@@ -24,7 +24,8 @@ static void convdw5x5s1_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const 
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int g = 0; g < group; g++) {
+    for (int g = 0; g < group; g++)
+    {
         Mat out = top_blob.channel(g);
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + g * 4) : vdupq_n_f32(0.f);
@@ -45,10 +46,12 @@ static void convdw5x5s1_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const 
 
         int i = 0;
 #if __aarch64__
-        for (; i + 1 < outh; i += 2) {
+        for (; i + 1 < outh; i += 2)
+        {
             int j = 0;
 
-            for (; j + 3 < outw; j += 4) {
+            for (; j + 3 < outw; j += 4)
+            {
                 float32x4_t _sum00 = _bias0;
                 float32x4_t _sum01 = _bias0;
                 float32x4_t _sum02 = _bias0;
@@ -375,7 +378,8 @@ static void convdw5x5s1_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 outptr0 += 16;
                 outptr1 += 16;
             }
-            for (; j + 1 < outw; j += 2) {
+            for (; j + 1 < outw; j += 2)
+            {
                 float32x4_t _sum00 = _bias0;
                 float32x4_t _sum01 = _bias0;
                 float32x4_t _sum10 = _bias0;
@@ -582,7 +586,8 @@ static void convdw5x5s1_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 outptr0 += 8;
                 outptr1 += 8;
             }
-            for (; j < outw; j++) {
+            for (; j < outw; j++)
+            {
                 float32x4_t _sum0 = _bias0;
                 float32x4_t _sum1 = _bias0;
 
@@ -741,10 +746,12 @@ static void convdw5x5s1_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const 
             outptr1 += outw * 4;
         }
 #endif // __aarch64__
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
             int j = 0;
 
-            for (; j + 3 < outw; j += 4) {
+            for (; j + 3 < outw; j += 4)
+            {
                 float32x4_t _sum0 = _bias0;
                 float32x4_t _sum1 = _bias0;
                 float32x4_t _sum2 = _bias0;
@@ -947,7 +954,8 @@ static void convdw5x5s1_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 r4 += 16;
                 outptr0 += 16;
             }
-            for (; j + 1 < outw; j += 2) {
+            for (; j + 1 < outw; j += 2)
+            {
                 float32x4_t _sum0 = _bias0;
                 float32x4_t _sum1 = _bias0;
 
@@ -1086,7 +1094,8 @@ static void convdw5x5s1_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 r4 += 8;
                 outptr0 += 8;
             }
-            for (; j < outw; j++) {
+            for (; j < outw; j++)
+            {
                 float32x4_t _sum0 = _bias0;
 
                 float32x4_t _r00 = vld1q_f32(r0);
@@ -1217,7 +1226,8 @@ static void convdw5x5s2_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const 
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int g = 0; g < group; g++) {
+    for (int g = 0; g < group; g++)
+    {
         Mat out = top_blob.channel(g);
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + g * 4) : vdupq_n_f32(0.f);
@@ -1236,10 +1246,12 @@ static void convdw5x5s2_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const 
 
         int i = 0;
 
-        for (; i < outh; i++) {
+        for (; i < outh; i++)
+        {
             int j = 0;
 
-            for (; j + 3 < outw; j += 4) {
+            for (; j + 3 < outw; j += 4)
+            {
                 float32x4_t _sum0 = _bias0;
                 float32x4_t _sum1 = _bias0;
                 float32x4_t _sum2 = _bias0;
@@ -1457,7 +1469,8 @@ static void convdw5x5s2_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 r4 += 8 * 4;
                 outptr0 += 16;
             }
-            for (; j + 1 < outw; j += 2) {
+            for (; j + 1 < outw; j += 2)
+            {
                 float32x4_t _sum0 = _bias0;
                 float32x4_t _sum1 = _bias0;
 
@@ -1601,7 +1614,8 @@ static void convdw5x5s2_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 r4 += 4 * 4;
                 outptr0 += 8;
             }
-            for (; j < outw; j++) {
+            for (; j < outw; j++)
+            {
                 float32x4_t _sum0 = _bias0;
 
                 float32x4_t _r00 = vld1q_f32(r0);

@@ -43,14 +43,16 @@ static void qsort_descent_inplace(std::vector<FaceObject>& faceobjects, int left
     int j = right;
     float p = faceobjects[(left + right) / 2].prob;
 
-    while (i <= j) {
+    while (i <= j)
+    {
         while (faceobjects[i].prob > p)
             i++;
 
         while (faceobjects[j].prob < p)
             j--;
 
-        if (i <= j) {
+        if (i <= j)
+        {
             // swap
             std::swap(faceobjects[i], faceobjects[j]);
 
@@ -87,15 +89,18 @@ static void nms_sorted_bboxes(const std::vector<FaceObject>& faceobjects, std::v
     const int n = faceobjects.size();
 
     std::vector<float> areas(n);
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
+    {
         areas[i] = faceobjects[i].rect.area();
     }
 
-    for (int i = 0; i < n; i++) {
+    for (int i = 0; i < n; i++)
+    {
         const FaceObject& a = faceobjects[i];
 
         int keep = 1;
-        for (int j = 0; j < (int)picked.size(); j++) {
+        for (int j = 0; j < (int)picked.size(); j++)
+        {
             const FaceObject& b = faceobjects[picked[j]];
 
             // intersection over union
@@ -123,13 +128,15 @@ static ncnn::Mat generate_anchors(int base_size, const ncnn::Mat& ratios, const 
     const float cx = base_size * 0.5f;
     const float cy = base_size * 0.5f;
 
-    for (int i = 0; i < num_ratio; i++) {
+    for (int i = 0; i < num_ratio; i++)
+    {
         float ar = ratios[i];
 
         int r_w = round(base_size / sqrt(ar));
         int r_h = round(r_w * ar); //round(base_size * sqrt(ar));
 
-        for (int j = 0; j < num_scale; j++) {
+        for (int j = 0; j < num_scale; j++)
+        {
             float scale = scales[j];
 
             float rs_w = r_w * scale;
@@ -155,7 +162,8 @@ static void generate_proposals(const ncnn::Mat& anchors, int feat_stride, const 
     // generate face proposal from bbox deltas and shifted anchors
     const int num_anchors = anchors.h;
 
-    for (int q = 0; q < num_anchors; q++) {
+    for (int q = 0; q < num_anchors; q++)
+    {
         const float* anchor = anchors.row(q);
 
         const ncnn::Mat score = score_blob.channel(q + num_anchors);
@@ -168,15 +176,18 @@ static void generate_proposals(const ncnn::Mat& anchors, int feat_stride, const 
         float anchor_w = anchor[2] - anchor[0];
         float anchor_h = anchor[3] - anchor[1];
 
-        for (int i = 0; i < h; i++) {
+        for (int i = 0; i < h; i++)
+        {
             float anchor_x = anchor[0];
 
-            for (int j = 0; j < w; j++) {
+            for (int j = 0; j < w; j++)
+            {
                 int index = i * w + j;
 
                 float prob = score[index];
 
-                if (prob >= prob_threshold) {
+                if (prob >= prob_threshold)
+                {
                     // apply center size
                     float dx = bbox.channel(0)[index];
                     float dy = bbox.channel(1)[index];
@@ -332,7 +343,8 @@ static int detect_retinaface(const cv::Mat& bgr, std::vector<FaceObject>& faceob
     int face_count = picked.size();
 
     faceobjects.resize(face_count);
-    for (int i = 0; i < face_count; i++) {
+    for (int i = 0; i < face_count; i++)
+    {
         faceobjects[i] = faceproposals[picked[i]];
 
         // clip to image size
@@ -359,7 +371,8 @@ static void draw_faceobjects(const cv::Mat& bgr, const std::vector<FaceObject>& 
 {
     cv::Mat image = bgr.clone();
 
-    for (size_t i = 0; i < faceobjects.size(); i++) {
+    for (size_t i = 0; i < faceobjects.size(); i++)
+    {
         const FaceObject& obj = faceobjects[i];
 
         fprintf(stderr, "%.5f at %.2f %.2f %.2f x %.2f\n", obj.prob,
@@ -399,7 +412,8 @@ static void draw_faceobjects(const cv::Mat& bgr, const std::vector<FaceObject>& 
 
 int main(int argc, char** argv)
 {
-    if (argc != 2) {
+    if (argc != 2)
+    {
         fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
         return -1;
     }
@@ -407,7 +421,8 @@ int main(int argc, char** argv)
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, 1);
-    if (m.empty()) {
+    if (m.empty())
+    {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);
         return -1;
     }

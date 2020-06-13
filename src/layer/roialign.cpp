@@ -57,12 +57,14 @@ static inline float bilinear_interpolate(const float* ptr, int w, int h, float x
     float b0 = y1 - y;
     float b1 = y - y0;
 
-    if (x1 >= w) {
+    if (x1 >= w)
+    {
         x1 = w - 1;
         a0 = 1.f;
         a1 = 0.f;
     }
-    if (y1 >= h) {
+    if (y1 >= h)
+    {
         y1 = h - 1;
         b0 = 1.f;
         b1 = 0.f;
@@ -98,7 +100,8 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     float roi_y1 = roi_ptr[1] * spatial_scale;
     float roi_x2 = roi_ptr[2] * spatial_scale;
     float roi_y2 = roi_ptr[3] * spatial_scale;
-    if (aligned) {
+    if (aligned)
+    {
         roi_x1 -= 0.5f;
         roi_y1 -= 0.5f;
         roi_x2 -= 0.5f;
@@ -108,7 +111,8 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     float roi_w = roi_x2 - roi_x1;
     float roi_h = roi_y2 - roi_y1;
 
-    if (!aligned) {
+    if (!aligned)
+    {
         roi_w = std::max(roi_w, 1.f);
         roi_h = std::max(roi_h, 1.f);
     }
@@ -116,15 +120,19 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     float bin_size_w = roi_w / (float)pooled_width;
     float bin_size_h = roi_h / (float)pooled_height;
 
-    if (version == 0) {
+    if (version == 0)
+    {
         // original version
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int ph = 0; ph < pooled_height; ph++) {
-                for (int pw = 0; pw < pooled_width; pw++) {
+            for (int ph = 0; ph < pooled_height; ph++)
+            {
+                for (int pw = 0; pw < pooled_width; pw++)
+                {
                     // Compute pooling region for this output unit:
                     //  start (included) = ph * roi_height / pooled_height
                     //  end (excluded) = (ph + 1) * roi_height / pooled_height
@@ -145,10 +153,12 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     int area = bin_grid_h * bin_grid_w;
 
                     float sum = 0.f;
-                    for (int by = 0; by < bin_grid_h; by++) {
+                    for (int by = 0; by < bin_grid_h; by++)
+                    {
                         float y = hstart + (by + 0.5f) * bin_size_h / (float)bin_grid_h;
 
-                        for (int bx = 0; bx < bin_grid_w; bx++) {
+                        for (int bx = 0; bx < bin_grid_w; bx++)
+                        {
                             float x = wstart + (bx + 0.5f) * bin_size_w / (float)bin_grid_w;
 
                             // bilinear interpolate at (x,y)
@@ -165,7 +175,8 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             }
         }
     }
-    else if (version == 1) {
+    else if (version == 1)
+    {
         // the version in detectron 2
         int roi_bin_grid_h = sampling_ratio > 0 ? sampling_ratio : ceil(roi_h / pooled_height);
         int roi_bin_grid_w = sampling_ratio > 0 ? sampling_ratio : ceil(roi_w / pooled_width);
@@ -173,24 +184,31 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         const float count = std::max(roi_bin_grid_h * roi_bin_grid_w, 1);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++) {
+        for (int q = 0; q < channels; q++)
+        {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int ph = 0; ph < pooled_height; ph++) {
-                for (int pw = 0; pw < pooled_width; pw++) {
+            for (int ph = 0; ph < pooled_height; ph++)
+            {
+                for (int pw = 0; pw < pooled_width; pw++)
+                {
                     float sum = 0.f;
-                    for (int by = 0; by < roi_bin_grid_h; by++) {
+                    for (int by = 0; by < roi_bin_grid_h; by++)
+                    {
                         float y = roi_y1 + ph * bin_size_h + (by + 0.5f) * bin_size_h / (float)roi_bin_grid_h;
 
-                        for (int bx = 0; bx < roi_bin_grid_w; bx++) {
+                        for (int bx = 0; bx < roi_bin_grid_w; bx++)
+                        {
                             float x = roi_x1 + pw * bin_size_w + (bx + 0.5f) * bin_size_w / (float)roi_bin_grid_w;
 
-                            if (y < -1.0 || y > h || x < -1.0 || x > w) {
+                            if (y < -1.0 || y > h || x < -1.0 || x > w)
+                            {
                                 // empty
                                 continue;
                             }
-                            else {
+                            else
+                            {
                                 if (y <= 0) y = 0;
                                 if (x <= 0) x = 0;
 

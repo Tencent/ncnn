@@ -28,7 +28,8 @@ static int test_permute(const ncnn::Mat& a, int order_type)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Permute>("Permute", pd, weights, opt, a);
-    if (ret != 0) {
+    if (ret != 0)
+    {
         fprintf(stderr, "test_permute failed a.dims=%d a=(%d %d %d) order_type=%d\n", a.dims, a.w, a.h, a.c, order_type);
     }
 
@@ -52,7 +53,8 @@ static int test_permute_1()
     ncnn::Mat c = RandomMat(11, 16);
     ncnn::Mat d = RandomMat(7, 9);
 
-    for (int order_type = 0; order_type < 2; order_type++) {
+    for (int order_type = 0; order_type < 2; order_type++)
+    {
         int ret = 0
                   || test_permute(a, order_type)
                   || test_permute(b, order_type)
@@ -75,7 +77,8 @@ static int test_permute_2()
     ncnn::Mat e = RandomMat(1, 2, 7);
     ncnn::Mat f = RandomMat(8, 5, 6);
 
-    for (int order_type = 0; order_type < 6; order_type++) {
+    for (int order_type = 0; order_type < 6; order_type++)
+    {
         int ret = 0
                   || test_permute(a, order_type)
                   || test_permute(b, order_type)

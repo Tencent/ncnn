@@ -40,19 +40,22 @@ struct vector
     vector(const vector& v)
     {
         resize(v.size());
-        for (size_t i = 0; i < size_; i++) {
+        for (size_t i = 0; i < size_; i++)
+        {
             data_[i] = v.data_[i];
         }
     }
 
     vector& operator=(const vector& v)
     {
-        if (this == &v) {
+        if (this == &v)
+        {
             return *this;
         }
         resize(0);
         resize(v.size());
-        for (size_t i = 0; i < size_; i++) {
+        for (size_t i = 0; i < size_; i++)
+        {
             data_[i] = v.data_[i];
         }
         return *this;
@@ -61,13 +64,17 @@ struct vector
     void resize(const size_t new_size, const T& value = T())
     {
         try_alloc(new_size);
-        if (new_size > size_) {
-            for (size_t i = size_; i < new_size; i++) {
+        if (new_size > size_)
+        {
+            for (size_t i = size_; i < new_size; i++)
+            {
                 new (&data_[i]) T(value);
             }
         }
-        else if (new_size < size_) {
-            for (size_t i = new_size; i < size_; i++) {
+        else if (new_size < size_)
+        {
+            for (size_t i = new_size; i < size_; i++)
+            {
                 data_[i].~T();
             }
         }
@@ -76,7 +83,8 @@ struct vector
 
     void clear()
     {
-        for (size_t i = 0; i < size_; i++) {
+        for (size_t i = 0; i < size_; i++)
+        {
             data_[i].~T();
         }
         delete[](char*) data_;
@@ -120,7 +128,8 @@ struct vector
     void insert(T* pos, T* b, T* e)
     {
         vector* v = nullptr;
-        if (b >= begin() && b < end()) {
+        if (b >= begin() && b < end())
+        {
             //the same vector
             v = new vector(*this);
             b = v->begin() + (b - begin());
@@ -132,7 +141,8 @@ struct vector
         memmove(pos + (e - b), pos, (end() - pos) * sizeof(T));
         size_t len = e - b;
         size_ += len;
-        for (size_t i = 0; i < len; i++) {
+        for (size_t i = 0; i < len; i++)
+        {
             *pos = *b;
             pos++;
             b++;
@@ -154,11 +164,13 @@ protected:
     size_t capacity_ = 0;
     void try_alloc(size_t new_size)
     {
-        if (new_size * 3 / 2 > capacity_ / 2) {
+        if (new_size * 3 / 2 > capacity_ / 2)
+        {
             capacity_ = new_size * 2;
             T* new_data = (T*)new char[capacity_ * sizeof(T)];
             memset(new_data, 0, capacity_ * sizeof(T));
-            if (data_) {
+            if (data_)
+            {
                 memmove(new_data, data_, sizeof(T) * size_);
                 delete[](char*) data_;
             }

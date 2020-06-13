@@ -19,8 +19,9 @@
 #include "layer_type.h"
 
 #if __ARM_NEON
-#include <arm_neon.h>
 #include "neon_mathfun.h"
+
+#include <arm_neon.h>
 #endif // __ARM_NEON
 
 #include "neon_activation.h"
@@ -72,20 +73,23 @@ Convolution_arm::Convolution_arm()
 
 int Convolution_arm::create_pipeline(const Option& opt)
 {
-    if (activation_type == 1) {
+    if (activation_type == 1)
+    {
         activation = ncnn::create_layer(ncnn::LayerType::ReLU);
 
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
-    else if (activation_type == 2) {
+    else if (activation_type == 2)
+    {
         activation = ncnn::create_layer(ncnn::LayerType::ReLU);
 
         ncnn::ParamDict pd;
         pd.set(0, activation_params[0]); // slope
         activation->load_param(pd);
     }
-    else if (activation_type == 3) {
+    else if (activation_type == 3)
+    {
         activation = ncnn::create_layer(ncnn::LayerType::Clip);
 
         ncnn::ParamDict pd;
@@ -93,34 +97,40 @@ int Convolution_arm::create_pipeline(const Option& opt)
         pd.set(1, activation_params[1]); // max
         activation->load_param(pd);
     }
-    else if (activation_type == 4) {
+    else if (activation_type == 4)
+    {
         activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
 
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
-    else if (activation_type == 5) {
+    else if (activation_type == 5)
+    {
         activation = ncnn::create_layer(ncnn::LayerType::Mish);
 
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
 
-    if (activation) {
+    if (activation)
+    {
         activation->create_pipeline(opt);
     }
 
-    if (opt.use_bf16_storage) {
+    if (opt.use_bf16_storage)
+    {
         return create_pipeline_bf16s(opt);
     }
 
-    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u) {
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+    {
         support_packing = false;
 
         return create_pipeline_int8_arm(opt);
     }
 
-    if (opt.use_packing_layout == false && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1) {
+    if (opt.use_packing_layout == false && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+    {
         convolution_dilation1 = ncnn::create_layer(ncnn::LayerType::Convolution);
 
         // set param
@@ -140,14 +150,16 @@ int Convolution_arm::create_pipeline(const Option& opt)
         convolution_dilation1->load_param(pd);
 
         // set weights
-        if (bias_term) {
+        if (bias_term)
+        {
             ncnn::Mat weights[2];
             weights[0] = weight_data;
             weights[1] = bias_data;
 
             convolution_dilation1->load_model(ModelBinFromMatArray(weights));
         }
-        else {
+        else
+        {
             ncnn::Mat weights[1];
             weights[0] = weight_data;
 
@@ -167,24 +179,30 @@ int Convolution_arm::create_pipeline(const Option& opt)
 
 #if __ARM_NEON
     // pack4
-    if (elempack == 4 && out_elempack == 4) {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+    if (elempack == 4 && out_elempack == 4)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv1x1s1_sgemm_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output);
         }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv1x1s1_sgemm_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output);
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv3x3s1_winograd64_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output);
         }
-        else {
+        else
+        {
             // src = kw-kh-inch-outch
             // dst = 4b-4a-kw-kh-inch/4a-outch/4b
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
             weight_data_pack4.create(maxk, num_input / 4, num_output / 4, (size_t)4 * 16, 16);
 
-            for (int q = 0; q + 3 < num_output; q += 4) {
+            for (int q = 0; q + 3 < num_output; q += 4)
+            {
                 const Mat k0 = weight_data_r2.channel(q);
                 const Mat k1 = weight_data_r2.channel(q + 1);
                 const Mat k2 = weight_data_r2.channel(q + 2);
@@ -192,7 +210,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
 
                 Mat g0 = weight_data_pack4.channel(q / 4);
 
-                for (int p = 0; p + 3 < num_input; p += 4) {
+                for (int p = 0; p + 3 < num_input; p += 4)
+                {
                     const float* k00 = k0.row(p);
                     const float* k01 = k0.row(p + 1);
                     const float* k02 = k0.row(p + 2);
@@ -215,7 +234,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
 
                     float* g00 = g0.row(p / 4);
 
-                    for (int k = 0; k < maxk; k++) {
+                    for (int k = 0; k < maxk; k++)
+                    {
                         g00[0] = k00[k];
                         g00[1] = k10[k];
                         g00[2] = k20[k];
@@ -244,7 +264,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
     }
 
     // pack1to4
-    if (elempack == 1 && out_elempack == 4) {
+    if (elempack == 1 && out_elempack == 4)
+    {
         // src = kw-kh-inch-outch
         // dst = 4b-kw-kh-inch-outch/4b
         {
@@ -252,7 +273,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
 
             weight_data_pack1to4.create(maxk, num_input, num_output / 4, (size_t)4 * 4, 4);
 
-            for (int q = 0; q + 3 < num_output; q += 4) {
+            for (int q = 0; q + 3 < num_output; q += 4)
+            {
                 const Mat k0 = weight_data_r2.channel(q);
                 const Mat k1 = weight_data_r2.channel(q + 1);
                 const Mat k2 = weight_data_r2.channel(q + 2);
@@ -260,7 +282,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
 
                 Mat g0 = weight_data_pack1to4.channel(q / 4);
 
-                for (int p = 0; p < num_input; p++) {
+                for (int p = 0; p < num_input; p++)
+                {
                     const float* k00 = k0.row(p);
                     const float* k10 = k1.row(p);
                     const float* k20 = k2.row(p);
@@ -268,7 +291,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
 
                     float* g00 = g0.row(p);
 
-                    for (int k = 0; k < maxk; k++) {
+                    for (int k = 0; k < maxk; k++)
+                    {
                         g00[0] = k00[k];
                         g00[1] = k10[k];
                         g00[2] = k20[k];
@@ -282,28 +306,35 @@ int Convolution_arm::create_pipeline(const Option& opt)
     }
 
     // pack4to1
-    if (elempack == 4 && out_elempack == 1) {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+    if (elempack == 4 && out_elempack == 1)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv1x1s1_sgemm_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output);
         }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv1x1s1_sgemm_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output);
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv3x3s1_winograd64_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output);
         }
-        else {
+        else
+        {
             // src = kw-kh-inch-outch
             // dst = 4a-kw-kh-inch/4a-outch
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
             weight_data_pack4to1.create(maxk, num_input / 4, num_output, (size_t)4 * 4, 4);
 
-            for (int q = 0; q < num_output; q++) {
+            for (int q = 0; q < num_output; q++)
+            {
                 const Mat k0 = weight_data_r2.channel(q);
                 Mat g0 = weight_data_pack4to1.channel(q);
 
-                for (int p = 0; p + 3 < num_input; p += 4) {
+                for (int p = 0; p + 3 < num_input; p += 4)
+                {
                     const float* k00 = k0.row(p);
                     const float* k01 = k0.row(p + 1);
                     const float* k02 = k0.row(p + 2);
@@ -311,7 +342,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
 
                     float* g00 = g0.row(p / 4);
 
-                    for (int k = 0; k < maxk; k++) {
+                    for (int k = 0; k < maxk; k++)
+                    {
                         g00[0] = k00[k];
                         g00[1] = k01[k];
                         g00[2] = k02[k];
@@ -326,33 +358,40 @@ int Convolution_arm::create_pipeline(const Option& opt)
 #endif // __ARM_NEON
 
     // pack1
-    if (elempack == 1 && out_elempack == 1) {
+    if (elempack == 1 && out_elempack == 1)
+    {
         use_winograd3x3 = false;
         use_sgemm1x1 = false;
 
-        if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             // winograd is slow on small channel count
             if (num_input >= 16 && num_output >= 16)
                 use_winograd3x3 = true;
 
-            if (use_winograd3x3) {
+            if (use_winograd3x3)
+            {
                 //                 conv3x3s1_winograd64_transform_kernel_neon(weight_data, weight_3x3_winograd64_data, num_input, num_output);
                 conv3x3s1_winograd64_transform_kernel_neon5(weight_data, weight_3x3_winograd64_data, num_input, num_output);
             }
         }
 
         // TODO assume more proper condition
-        if (opt.use_sgemm_convolution && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        if (opt.use_sgemm_convolution && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             if (num_input >= 64 && num_output >= 64)
                 use_sgemm1x1 = true;
 
-            if (use_sgemm1x1) {
+            if (use_sgemm1x1)
+            {
                 conv1x1s1_sgemm_transform_kernel_neon(weight_data, weight_1x1_sgemm_data, num_input, num_output);
             }
         }
 
-        if (impl_type > 0 && impl_type < 6 && impl_type != 4) {
-            switch (impl_type) {
+        if (impl_type > 0 && impl_type < 6 && impl_type != 4)
+        {
+            switch (impl_type)
+            {
             case 1:
                 // winograd
                 conv3x3s1_winograd64_transform_kernel_neon5(weight_data, weight_3x3_winograd64_data, num_input, num_output);
@@ -375,15 +414,18 @@ int Convolution_arm::create_pipeline(const Option& opt)
             }
         }
 
-        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv3x3s2_transform_kernel_neon(weight_data, weight_3x3s2_data, num_input, num_output);
         }
 
-        if (opt.use_sgemm_convolution && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        if (opt.use_sgemm_convolution && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv_im2col_sgemm_transform_kernel_neon(weight_data, weight_sgemm_data, num_input, num_output, maxk);
         }
 
-        if (opt.use_sgemm_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        if (opt.use_sgemm_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv_im2col_sgemm_transform_kernel_neon(weight_data, weight_sgemm_data, num_input, num_output, maxk);
         }
     }
@@ -393,13 +435,15 @@ int Convolution_arm::create_pipeline(const Option& opt)
 
 int Convolution_arm::destroy_pipeline(const Option& opt)
 {
-    if (activation) {
+    if (activation)
+    {
         activation->destroy_pipeline(opt);
         delete activation;
         activation = 0;
     }
 
-    if (convolution_dilation1) {
+    if (convolution_dilation1)
+    {
         convolution_dilation1->destroy_pipeline(opt);
         delete convolution_dilation1;
         convolution_dilation1 = 0;
@@ -410,11 +454,13 @@ int Convolution_arm::destroy_pipeline(const Option& opt)
 
 int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (bottom_blob.dims != 3) {
+    if (bottom_blob.dims != 3)
+    {
         return Convolution::forward(bottom_blob, top_blob, opt);
     }
 
-    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u) {
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+    {
         return forward_int8_arm(bottom_blob, top_blob, opt);
     }
 
@@ -449,8 +495,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (top_blob.empty())
         return -100;
 
-    if (opt.use_packing_layout == false && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1) {
-        if (outw >= dilation_w && outh >= dilation_h) {
+    if (opt.use_packing_layout == false && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+    {
+        if (outw >= dilation_w && outh >= dilation_h)
+        {
             return forwardDilation_arm(bottom_blob_bordered, top_blob, opt);
         }
     }
@@ -464,8 +512,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         int p1 = 0;
         int p2 = 0;
         int gap = w * dilation_h - kernel_w * dilation_w;
-        for (int i = 0; i < kernel_h; i++) {
-            for (int j = 0; j < kernel_w; j++) {
+        for (int i = 0; i < kernel_h; i++)
+        {
+            for (int j = 0; j < kernel_w; j++)
+            {
                 space_ofs[p1] = p2;
                 p1++;
                 p2 += dilation_w;
@@ -475,67 +525,86 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }
 
 #if __ARM_NEON
-    if (elempack == 4 && out_elempack == 4) {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+    if (elempack == 4 && out_elempack == 4)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv1x1s1_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv1x1s2_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv3x3s1_winograd64_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv3x3s2_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv5x5s1_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv5x5s2_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else {
+        else
+        {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++) {
+            for (int p = 0; p < num_output / out_elempack; p++)
+            {
                 float* outptr = top_blob.channel(p);
 
-                for (int i = 0; i < outh; i++) {
-                    for (int j = 0; j < outw; j++) {
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
                         float32x4_t _sum = vdupq_n_f32(0.f);
 
-                        if (bias_term) {
+                        if (bias_term)
+                        {
                             _sum = vld1q_f32(((const float*)bias_data) + p * 4);
                         }
 
                         const float* kptr = (const float*)weight_data_pack4 + maxk * channels * p * 16;
 
                         // channels
-                        for (int q = 0; q < channels; q++) {
+                        for (int q = 0; q < channels; q++)
+                        {
                             const Mat m = bottom_blob_bordered.channel(q);
                             const float* sptr = m.row(i * stride_h) + j * stride_w * 4;
 
@@ -575,46 +644,59 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
     }
 
-    if (elempack == 1 && out_elempack == 4) {
-        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+    if (elempack == 1 && out_elempack == 4)
+    {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv3x3s1_pack1to4_neon(bottom_blob_bordered, top_blob, weight_data_pack1to4, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv3x3s2_pack1to4_neon(bottom_blob_bordered, top_blob, weight_data_pack1to4, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv7x7s2_pack1to4_neon(bottom_blob_bordered, top_blob, weight_data_pack1to4, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else {
+        else
+        {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++) {
+            for (int p = 0; p < num_output / out_elempack; p++)
+            {
                 float* outptr = top_blob.channel(p);
 
-                for (int i = 0; i < outh; i++) {
-                    for (int j = 0; j < outw; j++) {
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
                         float32x4_t _sum = vdupq_n_f32(0.f);
 
-                        if (bias_term) {
+                        if (bias_term)
+                        {
                             _sum = vld1q_f32(((const float*)bias_data) + p * 4);
                         }
 
                         const float* kptr = (const float*)weight_data_pack1to4 + maxk * channels * p * 4;
 
                         // channels
-                        for (int q = 0; q < channels; q++) {
+                        for (int q = 0; q < channels; q++)
+                        {
                             const Mat m = bottom_blob_bordered.channel(q);
                             const float* sptr = m.row(i * stride_h) + j * stride_w;
 
@@ -639,49 +721,62 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
     }
 
-    if (elempack == 4 && out_elempack == 1) {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+    if (elempack == 4 && out_elempack == 1)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv1x1s1_sgemm_pack4to1_neon(bottom_blob_bordered, top_blob, weight_data_pack4to1, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv1x1s2_pack4to1_neon(bottom_blob_bordered, top_blob, weight_data_pack4to1, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             // TODO more proper condition
             conv3x3s1_winograd64_pack4to1_neon(bottom_blob_bordered, top_blob, weight_data_pack4to1, bias_data, opt);
 
             //             conv3x3s1_pack4to1_neon(bottom_blob_bordered, top_blob, weight_data_pack4to1, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else {
+        else
+        {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++) {
+            for (int p = 0; p < num_output; p++)
+            {
                 float* outptr = top_blob.channel(p);
 
-                for (int i = 0; i < outh; i++) {
-                    for (int j = 0; j < outw; j++) {
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
                         float sum = 0.f;
 
-                        if (bias_term) {
+                        if (bias_term)
+                        {
                             sum = bias_data[p];
                         }
 
                         const float* kptr = (const float*)weight_data_pack4to1 + maxk * channels * p * 4;
 
                         // channels
-                        for (int q = 0; q < channels; q++) {
+                        for (int q = 0; q < channels; q++)
+                        {
                             const Mat m = bottom_blob_bordered.channel(q);
                             const float* sptr = m.row(i * stride_h) + j * stride_w * 4;
 
@@ -714,10 +809,13 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }
 #endif // __ARM_NEON
 
-    if (elempack == 1 && out_elempack == 1) {
-        if (impl_type > 0 && impl_type < 6 && impl_type != 4) {
+    if (elempack == 1 && out_elempack == 1)
+    {
+        if (impl_type > 0 && impl_type < 6 && impl_type != 4)
+        {
             // engineering is magic.
-            switch (impl_type) {
+            switch (impl_type)
+            {
             case 1:
                 conv3x3s1_winograd64_neon5(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
                 break;
@@ -735,112 +833,142 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 break;
             }
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
-            if (use_sgemm1x1) {
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            if (use_sgemm1x1)
+            {
                 conv1x1s1_sgemm_neon(bottom_blob_bordered, top_blob, weight_1x1_sgemm_data, bias_data, opt);
             }
-            else {
+            else
+            {
                 conv1x1s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
             }
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             if (opt.use_sgemm_convolution)
                 conv_im2col_sgemm_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
             else
                 conv1x1s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
-            if (use_winograd3x3 && w <= 120 && h <= 120) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            if (use_winograd3x3 && w <= 120 && h <= 120)
+            {
                 //                 conv3x3s1_winograd64_neon4(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
                 conv3x3s1_winograd64_neon5(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
             }
-            else {
+            else
+            {
                 conv3x3s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
             }
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             if (opt.use_sgemm_convolution && !(outw >= 8 && outh >= 8))
                 conv_im2col_sgemm_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
             else
                 conv3x3s2_packed_neon(bottom_blob_bordered, top_blob, weight_3x3s2_data, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 4 && kernel_h == 4 && dilation_w == 1 && dilation_h == 1 && stride_w == 4 && stride_h == 4) {
+        else if (kernel_w == 4 && kernel_h == 4 && dilation_w == 1 && dilation_h == 1 && stride_w == 4 && stride_h == 4)
+        {
             conv4x4s4_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv5x5s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv5x5s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        else if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv7x7s1_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv7x7s2_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else {
+        else
+        {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++) {
+            for (int p = 0; p < num_output; p++)
+            {
                 float* outptr = top_blob.channel(p);
 
-                for (int i = 0; i < outh; i++) {
-                    for (int j = 0; j < outw; j++) {
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
                         float sum = 0.f;
 
-                        if (bias_term) {
+                        if (bias_term)
+                        {
                             sum = bias_data[p];
                         }
 
                         const float* kptr = (const float*)weight_data + maxk * channels * p;
 
                         // channels
-                        for (int q = 0; q < channels; q++) {
+                        for (int q = 0; q < channels; q++)
+                        {
                             const Mat m = bottom_blob_bordered.channel(q);
                             const float* sptr = m.row(i * stride_h) + j * stride_w;
 
-                            for (int k = 0; k < maxk; k++) {
+                            for (int k = 0; k < maxk; k++)
+                            {
                                 float val = sptr[space_ofs[k]];
                                 float w = kptr[k];
                                 sum += val * w;
@@ -849,14 +977,17 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             kptr += maxk;
                         }
 
-                        if (activation_type == 1) {
+                        if (activation_type == 1)
+                        {
                             sum = std::max(sum, 0.f);
                         }
-                        else if (activation_type == 2) {
+                        else if (activation_type == 2)
+                        {
                             float slope = activation_params[0];
                             sum = sum > 0.f ? sum : sum * slope;
                         }
-                        else if (activation_type == 3) {
+                        else if (activation_type == 3)
+                        {
                             float min = activation_params[0];
                             float max = activation_params[1];
                             if (sum < min)
@@ -864,10 +995,12 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             if (sum > max)
                                 sum = max;
                         }
-                        else if (activation_type == 4) {
+                        else if (activation_type == 4)
+                        {
                             sum = static_cast<float>(1.f / (1.f + exp(-sum)));
                         }
-                        else if (activation_type == 5) {
+                        else if (activation_type == 5)
+                        {
                             sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
                         }
 
@@ -893,24 +1026,30 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
 
 #if __ARM_NEON
     // pack4
-    if (elempack == 4 && out_elempack == 4) {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+    if (elempack == 4 && out_elempack == 4)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv1x1s1_sgemm_transform_kernel_pack4_bf16s_neon(weight_data, weight_data_pack4_bf16, num_input, num_output);
         }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv1x1s1_sgemm_transform_kernel_pack4_bf16s_neon(weight_data, weight_data_pack4_bf16, num_input, num_output);
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv3x3s1_winograd64_transform_kernel_pack4_neon(weight_data, weight_data_pack4_bf16, num_input, num_output);
         }
-        else {
+        else
+        {
             // src = kw-kh-inch-outch
             // dst = 4b-4a-kw-kh-inch/4a-outch/4b
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
             weight_data_pack4_bf16.create(maxk, num_input / 4, num_output / 4, (size_t)2 * 16, 16);
 
-            for (int q = 0; q + 3 < num_output; q += 4) {
+            for (int q = 0; q + 3 < num_output; q += 4)
+            {
                 const Mat k0 = weight_data_r2.channel(q);
                 const Mat k1 = weight_data_r2.channel(q + 1);
                 const Mat k2 = weight_data_r2.channel(q + 2);
@@ -918,7 +1057,8 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
 
                 Mat g0 = weight_data_pack4_bf16.channel(q / 4);
 
-                for (int p = 0; p + 3 < num_input; p += 4) {
+                for (int p = 0; p + 3 < num_input; p += 4)
+                {
                     const float* k00 = k0.row(p);
                     const float* k01 = k0.row(p + 1);
                     const float* k02 = k0.row(p + 2);
@@ -941,7 +1081,8 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
 
                     unsigned short* g00 = g0.row<unsigned short>(p / 4);
 
-                    for (int k = 0; k < maxk; k++) {
+                    for (int k = 0; k < maxk; k++)
+                    {
                         g00[0] = float32_to_bfloat16(k00[k]);
                         g00[1] = float32_to_bfloat16(k10[k]);
                         g00[2] = float32_to_bfloat16(k20[k]);
@@ -970,7 +1111,8 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
     }
 
     // pack1to4
-    if (elempack == 1 && out_elempack == 4) {
+    if (elempack == 1 && out_elempack == 4)
+    {
         // src = kw-kh-inch-outch
         // dst = 4b-kw-kh-inch-outch/4b
         {
@@ -978,7 +1120,8 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
 
             weight_data_pack1to4_bf16.create(maxk, num_input, num_output / 4, (size_t)2 * 4, 4);
 
-            for (int q = 0; q + 3 < num_output; q += 4) {
+            for (int q = 0; q + 3 < num_output; q += 4)
+            {
                 const Mat k0 = weight_data_r2.channel(q);
                 const Mat k1 = weight_data_r2.channel(q + 1);
                 const Mat k2 = weight_data_r2.channel(q + 2);
@@ -986,7 +1129,8 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
 
                 Mat g0 = weight_data_pack1to4_bf16.channel(q / 4);
 
-                for (int p = 0; p < num_input; p++) {
+                for (int p = 0; p < num_input; p++)
+                {
                     const float* k00 = k0.row(p);
                     const float* k10 = k1.row(p);
                     const float* k20 = k2.row(p);
@@ -994,7 +1138,8 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
 
                     unsigned short* g00 = g0.row<unsigned short>(p);
 
-                    for (int k = 0; k < maxk; k++) {
+                    for (int k = 0; k < maxk; k++)
+                    {
                         g00[0] = float32_to_bfloat16(k00[k]);
                         g00[1] = float32_to_bfloat16(k10[k]);
                         g00[2] = float32_to_bfloat16(k20[k]);
@@ -1008,28 +1153,35 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
     }
 
     // pack4to1
-    if (elempack == 4 && out_elempack == 1) {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+    if (elempack == 4 && out_elempack == 1)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv1x1s1_sgemm_transform_kernel_pack4to1_bf16s_neon(weight_data, weight_data_pack4to1_bf16, num_input, num_output);
         }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv1x1s1_sgemm_transform_kernel_pack4to1_bf16s_neon(weight_data, weight_data_pack4to1_bf16, num_input, num_output);
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv3x3s1_winograd64_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1_bf16, num_input, num_output);
         }
-        else {
+        else
+        {
             // src = kw-kh-inch-outch
             // dst = 4a-kw-kh-inch/4a-outch
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
             weight_data_pack4to1_bf16.create(maxk, num_input / 4, num_output, (size_t)2 * 4, 4);
 
-            for (int q = 0; q < num_output; q++) {
+            for (int q = 0; q < num_output; q++)
+            {
                 const Mat k0 = weight_data_r2.channel(q);
                 Mat g0 = weight_data_pack4to1_bf16.channel(q);
 
-                for (int p = 0; p + 3 < num_input; p += 4) {
+                for (int p = 0; p + 3 < num_input; p += 4)
+                {
                     const float* k00 = k0.row(p);
                     const float* k01 = k0.row(p + 1);
                     const float* k02 = k0.row(p + 2);
@@ -1037,7 +1189,8 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
 
                     unsigned short* g00 = g0.row<unsigned short>(p / 4);
 
-                    for (int k = 0; k < maxk; k++) {
+                    for (int k = 0; k < maxk; k++)
+                    {
                         g00[0] = float32_to_bfloat16(k00[k]);
                         g00[1] = float32_to_bfloat16(k01[k]);
                         g00[2] = float32_to_bfloat16(k02[k]);
@@ -1052,11 +1205,14 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
 #endif // __ARM_NEON
 
     // pack1
-    if (elempack == 1 && out_elempack == 1) {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+    if (elempack == 1 && out_elempack == 1)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv1x1s1_sgemm_transform_kernel_bf16s_neon(weight_data, weight_data_bf16, num_input, num_output);
         }
-        else {
+        else
+        {
             ncnn::cast_float32_to_bfloat16(weight_data, weight_data_bf16, opt);
         }
     }
@@ -1109,8 +1265,10 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         int p1 = 0;
         int p2 = 0;
         int gap = w * dilation_h - kernel_w * dilation_w;
-        for (int i = 0; i < kernel_h; i++) {
-            for (int j = 0; j < kernel_w; j++) {
+        for (int i = 0; i < kernel_h; i++)
+        {
+            for (int j = 0; j < kernel_w; j++)
+            {
                 space_ofs[p1] = p2;
                 p1++;
                 p2 += dilation_w;
@@ -1120,71 +1278,91 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
     }
 
 #if __ARM_NEON
-    if (elempack == 4 && out_elempack == 4) {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+    if (elempack == 4 && out_elempack == 4)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv1x1s1_sgemm_pack4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4_bf16, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv1x1s2_pack4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4_bf16, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv3x3s1_winograd64_pack4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4_bf16, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv3x3s2_pack4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4_bf16, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv5x5s1_pack4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4_bf16, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv5x5s2_pack4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4_bf16, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else {
+        else
+        {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++) {
+            for (int p = 0; p < num_output / out_elempack; p++)
+            {
                 unsigned short* outptr = top_blob.channel(p);
 
-                for (int i = 0; i < outh; i++) {
-                    for (int j = 0; j < outw; j++) {
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
                         float32x4_t _sum = vdupq_n_f32(0.f);
 
-                        if (bias_term) {
+                        if (bias_term)
+                        {
                             _sum = vld1q_f32(((const float*)bias_data) + p * 4);
                         }
 
                         const unsigned short* kptr = weight_data_pack4_bf16.channel(p);
 
                         // channels
-                        for (int q = 0; q < channels; q++) {
+                        for (int q = 0; q < channels; q++)
+                        {
                             const Mat m = bottom_blob_bordered.channel(q);
                             const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 4;
 
-                            for (int k = 0; k < maxk; k++) {
+                            for (int k = 0; k < maxk; k++)
+                            {
                                 float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(sptr + space_ofs[k] * 4), 16));
 
                                 float32x4_t _w0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr), 16));
@@ -1219,50 +1397,64 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         }
     }
 
-    if (elempack == 1 && out_elempack == 4) {
-        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+    if (elempack == 1 && out_elempack == 4)
+    {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv3x3s1_pack1to4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack1to4_bf16, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv3x3s2_pack1to4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack1to4_bf16, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv7x7s2_pack1to4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack1to4_bf16, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else {
+        else
+        {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++) {
+            for (int p = 0; p < num_output / out_elempack; p++)
+            {
                 unsigned short* outptr = top_blob.channel(p);
 
-                for (int i = 0; i < outh; i++) {
-                    for (int j = 0; j < outw; j++) {
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
                         float32x4_t _sum = vdupq_n_f32(0.f);
 
-                        if (bias_term) {
+                        if (bias_term)
+                        {
                             _sum = vld1q_f32(((const float*)bias_data) + p * 4);
                         }
 
                         const unsigned short* kptr = weight_data_pack1to4_bf16.channel(p);
 
                         // channels
-                        for (int q = 0; q < channels; q++) {
+                        for (int q = 0; q < channels; q++)
+                        {
                             const Mat m = bottom_blob_bordered.channel(q);
                             const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w;
 
-                            for (int k = 0; k < maxk; k++) {
+                            for (int k = 0; k < maxk; k++)
+                            {
                                 float32x4_t _val = vdupq_n_f32(bfloat16_to_float32(sptr[space_ofs[k]]));
                                 float32x4_t _w = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr), 16));
                                 _sum = vmlaq_f32(_sum, _val, _w);
@@ -1282,53 +1474,67 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         }
     }
 
-    if (elempack == 4 && out_elempack == 1) {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+    if (elempack == 4 && out_elempack == 1)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv1x1s1_sgemm_pack4to1_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4to1_bf16, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv1x1s2_pack4to1_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4to1_bf16, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             // TODO more proper condition
             conv3x3s1_winograd64_pack4to1_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4to1_bf16, bias_data, opt);
 
             //             conv3x3s1_pack4to1_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4to1_bf16, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else {
+        else
+        {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++) {
+            for (int p = 0; p < num_output; p++)
+            {
                 unsigned short* outptr = top_blob.channel(p);
 
-                for (int i = 0; i < outh; i++) {
-                    for (int j = 0; j < outw; j++) {
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
                         float sum = 0.f;
 
-                        if (bias_term) {
+                        if (bias_term)
+                        {
                             sum = bias_data[p];
                         }
 
                         const unsigned short* kptr = weight_data_pack4to1_bf16.channel(p);
 
                         // channels
-                        for (int q = 0; q < channels; q++) {
+                        for (int q = 0; q < channels; q++)
+                        {
                             const Mat m = bottom_blob_bordered.channel(q);
                             const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 4;
 
-                            for (int k = 0; k < maxk; k++) {
+                            for (int k = 0; k < maxk; k++)
+                            {
                                 float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(sptr + space_ofs[k] * 4), 16));
                                 float32x4_t _w = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr), 16));
                                 float32x4_t _s4 = vmulq_f32(_val, _w);
@@ -1356,36 +1562,46 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
     }
 #endif // __ARM_NEON
 
-    if (elempack == 1 && out_elempack == 1) {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+    if (elempack == 1 && out_elempack == 1)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
             conv1x1s1_sgemm_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_bf16, bias_data, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else {
+        else
+        {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++) {
+            for (int p = 0; p < num_output; p++)
+            {
                 unsigned short* outptr = top_blob.channel(p);
 
-                for (int i = 0; i < outh; i++) {
-                    for (int j = 0; j < outw; j++) {
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
                         float sum = 0.f;
 
-                        if (bias_term) {
+                        if (bias_term)
+                        {
                             sum = bias_data[p];
                         }
 
                         const unsigned short* kptr = (const unsigned short*)weight_data_bf16 + maxk * channels * p;
 
                         // channels
-                        for (int q = 0; q < channels; q++) {
+                        for (int q = 0; q < channels; q++)
+                        {
                             const Mat m = bottom_blob_bordered.channel(q);
                             const unsigned short* sptr = m.row<unsigned short>(i * stride_h) + j * stride_w;
 
-                            for (int k = 0; k < maxk; k++) {
+                            for (int k = 0; k < maxk; k++)
+                            {
                                 float val = bfloat16_to_float32(sptr[space_ofs[k]]);
                                 float w = bfloat16_to_float32(kptr[k]);
                                 sum += val * w;
@@ -1394,14 +1610,17 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
                             kptr += maxk;
                         }
 
-                        if (activation_type == 1) {
+                        if (activation_type == 1)
+                        {
                             sum = std::max(sum, 0.f);
                         }
-                        else if (activation_type == 2) {
+                        else if (activation_type == 2)
+                        {
                             float slope = activation_params[0];
                             sum = sum > 0.f ? sum : sum * slope;
                         }
-                        else if (activation_type == 3) {
+                        else if (activation_type == 3)
+                        {
                             float min = activation_params[0];
                             float max = activation_params[1];
                             if (sum < min)
@@ -1409,10 +1628,12 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
                             if (sum > max)
                                 sum = max;
                         }
-                        else if (activation_type == 4) {
+                        else if (activation_type == 4)
+                        {
                             sum = static_cast<float>(1.f / (1.f + exp(-sum)));
                         }
-                        else if (activation_type == 5) {
+                        else if (activation_type == 5)
+                        {
                             sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
                         }
 
@@ -1436,20 +1657,24 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
     use_winograd3x3_int8 = false;
     use_sgemm1x1_int8 = false;
 
-    if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+    if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    {
         use_winograd3x3_int8 = true;
         //         conv3x3s1_winograd23_transform_kernel_int8_neon(weight_data, weight_3x3_winograd23_data_int8, num_input, num_output);
         conv3x3s1_winograd43_transform_kernel_int8_neon(weight_data, weight_3x3_winograd23_data_int8, num_input, num_output);
     }
 
-    if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+    if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+    {
         conv3x3s2_transform_kernel_int8_neon(weight_data, weight_3x3s2_data_int8, num_input, num_output);
     }
-    else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1) {
+    else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    {
         use_sgemm1x1_int8 = true;
         conv1x1s1_sgemm_transform_kernel_int8_neon(weight_data, weight_1x1s1_sgemm_data_int8, num_input, num_output);
     }
-    else {
+    else
+    {
         conv_im2col_sgemm_transform_kernel_int8_neon(weight_data, weight_sgemm_data_int8, num_input, num_output, maxk);
     }
 
@@ -1458,7 +1683,8 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
 
 int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (dilation_w > 1 || dilation_h > 1) {
+    if (dilation_w > 1 || dilation_h > 1)
+    {
         return Convolution::forward(bottom_blob, top_blob, opt);
     }
 
@@ -1473,7 +1699,8 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
     Mat bottom_blob_unbordered = bottom_blob;
-    if (elemsize != 1) {
+    if (elemsize != 1)
+    {
         Option opt_g = opt;
         opt_g.blob_allocator = opt.workspace_allocator;
 
@@ -1499,15 +1726,18 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         return -100;
 
     // int8
-    if (use_int8_requantize == true) {
+    if (use_int8_requantize == true)
+    {
         Mat top_blob_tm;
         top_blob_tm.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
         if (top_blob_tm.empty())
             return -100;
 
-        if (use_sgemm1x1_int8) {
+        if (use_sgemm1x1_int8)
+        {
             std::vector<float> requantize_scales;
-            for (int p = 0; p < num_output; p++) {
+            for (int p = 0; p < num_output; p++)
+            {
                 float scale_in;
                 if (weight_data_int8_scales[p] == 0)
                     scale_in = 0;
@@ -1522,26 +1752,31 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
 
             conv1x1s1_sgemm_int8_requant_neon(bottom_blob_bordered, top_blob, weight_1x1s1_sgemm_data_int8, bias_data, requantize_scales, opt);
 
-            if (activation) {
+            if (activation)
+            {
                 activation->forward_inplace(top_blob, opt);
             }
 
             return 0;
         }
-        else if (use_winograd3x3_int8) {
+        else if (use_winograd3x3_int8)
+        {
             //             conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data_int8, opt);
             conv3x3s1_winograd43_int8_neon(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data_int8, opt);
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv3x3s2_packed_int8_neon(bottom_blob_bordered, top_blob_tm, weight_3x3s2_data_int8, opt);
         }
-        else {
+        else
+        {
             conv_im2col_sgemm_int8_neon(bottom_blob_bordered, top_blob_tm, weight_sgemm_data_int8, kernel_w, kernel_h, stride_w, stride_h, opt);
         }
 
         // requantize, reverse scale inplace
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < num_output; p++) {
+        for (int p = 0; p < num_output; p++)
+        {
             Option opt_g = opt;
             opt_g.num_threads = 1;
             opt_g.blob_allocator = top_blob.allocator;
@@ -1561,24 +1796,30 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
             requantize_int8_to_int8(top_blob_tm_g, top_blob_g, scale_in, scale_out, bias_term ? (const float*)bias_data + p : 0, bias_term ? 1 : 0, 0, opt_g);
         }
     }
-    else {
-        if (use_sgemm1x1_int8) {
+    else
+    {
+        if (use_sgemm1x1_int8)
+        {
             conv1x1s1_sgemm_int8_neon(bottom_blob_bordered, top_blob, weight_1x1s1_sgemm_data_int8, opt);
         }
-        else if (use_winograd3x3_int8) {
+        else if (use_winograd3x3_int8)
+        {
             //             conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data_int8, opt);
             conv3x3s1_winograd43_int8_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data_int8, opt);
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2) {
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
             conv3x3s2_packed_int8_neon(bottom_blob_bordered, top_blob, weight_3x3s2_data_int8, opt);
         }
-        else {
+        else
+        {
             conv_im2col_sgemm_int8_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_int8, kernel_w, kernel_h, stride_w, stride_h, opt);
         }
 
         // dequantize, reverse scale inplace
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < num_output; p++) {
+        for (int p = 0; p < num_output; p++)
+        {
             Option opt_g = opt;
             opt_g.num_threads = 1;
             opt_g.blob_allocator = top_blob.allocator;
@@ -1596,7 +1837,8 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         }
     }
 
-    if (activation) {
+    if (activation)
+    {
         activation->forward_inplace(top_blob, opt);
     }
 
@@ -1624,8 +1866,10 @@ int Convolution_arm::forwardDilation_arm(const Mat& bottom_blob, Mat& top_blob, 
     // Make (dilation * dilation) batches
     Mat inner_bottom_blob;
     Mat inner_top_blob;
-    for (int x = 0; x < dilation; x++) {
-        for (int y = 0; y < dilation; y++) {
+    for (int x = 0; x < dilation; x++)
+    {
+        for (int y = 0; y < dilation; y++)
+        {
             int inner_w = (w - y + dilation - 1) / dilation;
             int inner_h = (h - x + dilation - 1) / dilation;
 
@@ -1641,12 +1885,15 @@ int Convolution_arm::forwardDilation_arm(const Mat& bottom_blob, Mat& top_blob, 
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int c = 0; c < bottom_blob.c; c++) {
+            for (int c = 0; c < bottom_blob.c; c++)
+            {
                 float* outptr = inner_bottom_blob.channel(c);
 
-                for (int i = 0; i < inner_h; i++) {
+                for (int i = 0; i < inner_h; i++)
+                {
                     const float* ptr = (const float*)bottom_blob.channel(c) + dilation * i * w + x * w + y;
-                    for (int j = 0; j < inner_w; j++) {
+                    for (int j = 0; j < inner_w; j++)
+                    {
                         outptr[j] = ptr[j * dilation];
                     }
                     outptr += inner_w;
@@ -1658,11 +1905,14 @@ int Convolution_arm::forwardDilation_arm(const Mat& bottom_blob, Mat& top_blob, 
             convolution_dilation1->forward(inner_bottom_blob, inner_top_blob, opt_g);
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int c = 0; c < num_output; c++) {
+            for (int c = 0; c < num_output; c++)
+            {
                 float* outptr = (float*)top_blob.channel(c) + x * outw + y;
-                for (int i = 0; i < inner_outh; i++) {
+                for (int i = 0; i < inner_outh; i++)
+                {
                     const float* ptr = (const float*)inner_top_blob.channel(c) + i * inner_outw;
-                    for (int j = 0; j < inner_outw; j++) {
+                    for (int j = 0; j < inner_outw; j++)
+                    {
                         outptr[j * dilation] = ptr[j];
                     }
                     outptr += dilation * outw;
@@ -1671,7 +1921,8 @@ int Convolution_arm::forwardDilation_arm(const Mat& bottom_blob, Mat& top_blob, 
         }
     }
 
-    if (activation) {
+    if (activation)
+    {
         activation->forward_inplace(top_blob, opt);
     }
 
