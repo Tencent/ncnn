@@ -112,12 +112,12 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (pack1to4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i=0; i<outh; i++)
+            for (int i = 0; i < outh; i++)
             {
-                const float* r0 = bottom_blob.row(i*4);
-                const float* r1 = bottom_blob.row(i*4+1);
-                const float* r2 = bottom_blob.row(i*4+2);
-                const float* r3 = bottom_blob.row(i*4+3);
+                const float* r0 = bottom_blob.row(i * 4);
+                const float* r1 = bottom_blob.row(i * 4 + 1);
+                const float* r2 = bottom_blob.row(i * 4 + 2);
+                const float* r3 = bottom_blob.row(i * 4 + 3);
 
                 float* outptr = top_blob.row(i);
 
@@ -129,7 +129,7 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 #endif
 
 #if __ARM_NEON
-                for (; nn>0; nn--)
+                for (; nn > 0; nn--)
                 {
                     float32x4x4_t _p;
                     _p.val[0] = vld1q_f32(r0);
@@ -145,7 +145,7 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     outptr += 16;
                 }
 #endif
-                for (; remain>0; remain--)
+                for (; remain > 0; remain--)
                 {
                     outptr[0] = *r0++;
                     outptr[1] = *r1++;
@@ -159,14 +159,14 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (pack4to1)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i=0; i<h; i++)
+            for (int i = 0; i < h; i++)
             {
                 const float* r0 = bottom_blob.row(i);
 
-                float* outptr0 = top_blob.row(i*4);
-                float* outptr1 = top_blob.row(i*4+1);
-                float* outptr2 = top_blob.row(i*4+2);
-                float* outptr3 = top_blob.row(i*4+3);
+                float* outptr0 = top_blob.row(i * 4);
+                float* outptr1 = top_blob.row(i * 4 + 1);
+                float* outptr2 = top_blob.row(i * 4 + 2);
+                float* outptr3 = top_blob.row(i * 4 + 3);
 
 #if __ARM_NEON
                 int nn = w >> 2;
@@ -176,7 +176,7 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 #endif
 
 #if __ARM_NEON
-                for (; nn>0; nn--)
+                for (; nn > 0; nn--)
                 {
                     float32x4x4_t _p = vld4q_f32(r0);
                     vst1q_f32(outptr0, _p.val[0]);
@@ -191,7 +191,7 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     outptr3 += 4;
                 }
 #endif
-                for (; remain>0; remain--)
+                for (; remain > 0; remain--)
                 {
                     *outptr0++ = r0[0];
                     *outptr1++ = r0[1];
@@ -219,12 +219,12 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (pack1to4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<outc; q++)
+            for (int q = 0; q < outc; q++)
             {
-                const float* r0 = bottom_blob.channel(q*4);
-                const float* r1 = bottom_blob.channel(q*4+1);
-                const float* r2 = bottom_blob.channel(q*4+2);
-                const float* r3 = bottom_blob.channel(q*4+3);
+                const float* r0 = bottom_blob.channel(q * 4);
+                const float* r1 = bottom_blob.channel(q * 4 + 1);
+                const float* r2 = bottom_blob.channel(q * 4 + 2);
+                const float* r3 = bottom_blob.channel(q * 4 + 3);
 
                 float* outptr = top_blob.channel(q);
 
@@ -236,7 +236,7 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 #endif
 
 #if __ARM_NEON
-                for (; nn>0; nn--)
+                for (; nn > 0; nn--)
                 {
                     float32x4x4_t _p;
                     _p.val[0] = vld1q_f32(r0);
@@ -252,7 +252,7 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     outptr += 16;
                 }
 #endif
-                for (; remain>0; remain--)
+                for (; remain > 0; remain--)
                 {
                     outptr[0] = *r0++;
                     outptr[1] = *r1++;
@@ -266,14 +266,14 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (pack4to1)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const float* r0 = bottom_blob.channel(q);
 
-                float* outptr0 = top_blob.channel(q*4);
-                float* outptr1 = top_blob.channel(q*4+1);
-                float* outptr2 = top_blob.channel(q*4+2);
-                float* outptr3 = top_blob.channel(q*4+3);
+                float* outptr0 = top_blob.channel(q * 4);
+                float* outptr1 = top_blob.channel(q * 4 + 1);
+                float* outptr2 = top_blob.channel(q * 4 + 2);
+                float* outptr3 = top_blob.channel(q * 4 + 3);
 
 #if __ARM_NEON
                 int nn = size >> 2;
@@ -283,7 +283,7 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 #endif
 
 #if __ARM_NEON
-                for (; nn>0; nn--)
+                for (; nn > 0; nn--)
                 {
                     float32x4x4_t _p = vld4q_f32(r0);
                     vst1q_f32(outptr0, _p.val[0]);
@@ -298,7 +298,7 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     outptr3 += 4;
                 }
 #endif
-                for (; remain>0; remain--)
+                for (; remain > 0; remain--)
                 {
                     *outptr0++ = r0[0];
                     *outptr1++ = r0[1];
@@ -387,12 +387,12 @@ int Packing_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
         if (pack1to4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i=0; i<outh; i++)
+            for (int i = 0; i < outh; i++)
             {
-                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i*4);
-                const unsigned short* r1 = bottom_blob.row<const unsigned short>(i*4+1);
-                const unsigned short* r2 = bottom_blob.row<const unsigned short>(i*4+2);
-                const unsigned short* r3 = bottom_blob.row<const unsigned short>(i*4+3);
+                const unsigned short* r0 = bottom_blob.row<const unsigned short>(i * 4);
+                const unsigned short* r1 = bottom_blob.row<const unsigned short>(i * 4 + 1);
+                const unsigned short* r2 = bottom_blob.row<const unsigned short>(i * 4 + 2);
+                const unsigned short* r3 = bottom_blob.row<const unsigned short>(i * 4 + 3);
 
                 unsigned short* outptr = top_blob.row<unsigned short>(i);
 
@@ -404,7 +404,7 @@ int Packing_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 #endif
 
 #if __ARM_NEON
-                for (; nn>0; nn--)
+                for (; nn > 0; nn--)
                 {
                     uint16x4x4_t _p;
                     _p.val[0] = vld1_u16(r0);
@@ -420,7 +420,7 @@ int Packing_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                     outptr += 16;
                 }
 #endif
-                for (; remain>0; remain--)
+                for (; remain > 0; remain--)
                 {
                     outptr[0] = *r0++;
                     outptr[1] = *r1++;
@@ -434,14 +434,14 @@ int Packing_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
         if (pack4to1)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i=0; i<h; i++)
+            for (int i = 0; i < h; i++)
             {
                 const unsigned short* r0 = bottom_blob.row<const unsigned short>(i);
 
-                unsigned short* outptr0 = top_blob.row<unsigned short>(i*4);
-                unsigned short* outptr1 = top_blob.row<unsigned short>(i*4+1);
-                unsigned short* outptr2 = top_blob.row<unsigned short>(i*4+2);
-                unsigned short* outptr3 = top_blob.row<unsigned short>(i*4+3);
+                unsigned short* outptr0 = top_blob.row<unsigned short>(i * 4);
+                unsigned short* outptr1 = top_blob.row<unsigned short>(i * 4 + 1);
+                unsigned short* outptr2 = top_blob.row<unsigned short>(i * 4 + 2);
+                unsigned short* outptr3 = top_blob.row<unsigned short>(i * 4 + 3);
 
 #if __ARM_NEON
                 int nn = w >> 2;
@@ -451,7 +451,7 @@ int Packing_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 #endif
 
 #if __ARM_NEON
-                for (; nn>0; nn--)
+                for (; nn > 0; nn--)
                 {
                     uint16x4x4_t _p = vld4_u16(r0);
                     vst1_u16(outptr0, _p.val[0]);
@@ -466,7 +466,7 @@ int Packing_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                     outptr3 += 4;
                 }
 #endif
-                for (; remain>0; remain--)
+                for (; remain > 0; remain--)
                 {
                     *outptr0++ = r0[0];
                     *outptr1++ = r0[1];
@@ -494,12 +494,12 @@ int Packing_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
         if (pack1to4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<outc; q++)
+            for (int q = 0; q < outc; q++)
             {
-                const unsigned short* r0 = bottom_blob.channel(q*4);
-                const unsigned short* r1 = bottom_blob.channel(q*4+1);
-                const unsigned short* r2 = bottom_blob.channel(q*4+2);
-                const unsigned short* r3 = bottom_blob.channel(q*4+3);
+                const unsigned short* r0 = bottom_blob.channel(q * 4);
+                const unsigned short* r1 = bottom_blob.channel(q * 4 + 1);
+                const unsigned short* r2 = bottom_blob.channel(q * 4 + 2);
+                const unsigned short* r3 = bottom_blob.channel(q * 4 + 3);
 
                 unsigned short* outptr = top_blob.channel(q);
 
@@ -511,7 +511,7 @@ int Packing_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 #endif
 
 #if __ARM_NEON
-                for (; nn>0; nn--)
+                for (; nn > 0; nn--)
                 {
                     uint16x4x4_t _p;
                     _p.val[0] = vld1_u16(r0);
@@ -527,7 +527,7 @@ int Packing_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                     outptr += 16;
                 }
 #endif
-                for (; remain>0; remain--)
+                for (; remain > 0; remain--)
                 {
                     outptr[0] = *r0++;
                     outptr[1] = *r1++;
@@ -541,14 +541,14 @@ int Packing_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
         if (pack4to1)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const unsigned short* r0 = bottom_blob.channel(q);
 
-                unsigned short* outptr0 = top_blob.channel(q*4);
-                unsigned short* outptr1 = top_blob.channel(q*4+1);
-                unsigned short* outptr2 = top_blob.channel(q*4+2);
-                unsigned short* outptr3 = top_blob.channel(q*4+3);
+                unsigned short* outptr0 = top_blob.channel(q * 4);
+                unsigned short* outptr1 = top_blob.channel(q * 4 + 1);
+                unsigned short* outptr2 = top_blob.channel(q * 4 + 2);
+                unsigned short* outptr3 = top_blob.channel(q * 4 + 3);
 
 #if __ARM_NEON
                 int nn = size >> 2;
@@ -558,7 +558,7 @@ int Packing_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 #endif
 
 #if __ARM_NEON
-                for (; nn>0; nn--)
+                for (; nn > 0; nn--)
                 {
                     uint16x4x4_t _p = vld4_u16(r0);
                     vst1_u16(outptr0, _p.val[0]);
@@ -573,7 +573,7 @@ int Packing_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                     outptr3 += 4;
                 }
 #endif
-                for (; remain>0; remain--)
+                for (; remain > 0; remain--)
                 {
                     *outptr0++ = r0[0];
                     *outptr1++ = r0[1];

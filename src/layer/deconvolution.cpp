@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "deconvolution.h"
-#include <algorithm>
+
 #include "layer_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -77,7 +79,7 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
-//     NCNN_LOGE("Deconvolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
+    //     NCNN_LOGE("Deconvolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -121,7 +123,7 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
     // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<num_output; p++)
+    for (int p = 0; p < num_output; p++)
     {
         Mat out = top_blob_bordered.channel(p);
 
@@ -133,12 +135,12 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         {
             for (int j = 0; j < w; j++)
             {
-                float* outptr = out.row(i*stride_h) + j*stride_w;
+                float* outptr = out.row(i * stride_h) + j * stride_w;
 
                 const float* kptr = (const float*)weight_data + maxk * channels * p;
 
                 // channels
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob.channel(q);
                     float val = *(m.row(i) + j);
@@ -146,7 +148,7 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                     for (int k = 0; k < maxk; k++)
                     {
                         float w = kptr[k];
-                        outptr[ space_ofs[k] ] += val * w;
+                        outptr[space_ofs[k]] += val * w;
                     }
 
                     kptr += maxk;

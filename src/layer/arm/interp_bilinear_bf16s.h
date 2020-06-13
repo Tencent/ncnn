@@ -25,7 +25,7 @@ static void resize_bilinear_image_bf16s(const Mat& src, Mat& dst, float* alpha, 
 
     int prev_sy1 = -2;
 
-    for (int dy = 0; dy < h; dy++ )
+    for (int dy = 0; dy < h; dy++)
     {
         int sy = yofs[dy];
 
@@ -39,19 +39,19 @@ static void resize_bilinear_image_bf16s(const Mat& src, Mat& dst, float* alpha, 
             float* rows0_old = rows0;
             rows0 = rows1;
             rows1 = rows0_old;
-            const unsigned short* S1 = src.row<const unsigned short>(sy+1);
+            const unsigned short* S1 = src.row<const unsigned short>(sy + 1);
 
             const float* alphap = alpha;
             float* rows1p = rows1;
             int dx = 0;
-            for ( ; dx < w; dx++ )
+            for (; dx < w; dx++)
             {
                 int sx = xofs[dx];
                 const unsigned short* S1p = S1 + sx;
 
                 float a0 = alphap[0];
                 float a1 = alphap[1];
-                rows1p[dx] = bfloat16_to_float32(S1p[0])*a0 + bfloat16_to_float32(S1p[1])*a1;
+                rows1p[dx] = bfloat16_to_float32(S1p[0]) * a0 + bfloat16_to_float32(S1p[1]) * a1;
 
                 alphap += 2;
             }
@@ -60,13 +60,13 @@ static void resize_bilinear_image_bf16s(const Mat& src, Mat& dst, float* alpha, 
         {
             // hresize two rows
             const unsigned short* S0 = src.row<const unsigned short>(sy);
-            const unsigned short* S1 = src.row<const unsigned short>(sy+1);
+            const unsigned short* S1 = src.row<const unsigned short>(sy + 1);
 
             const float* alphap = alpha;
             float* rows0p = rows0;
             float* rows1p = rows1;
             int dx = 0;
-            for ( ; dx < w; dx++ )
+            for (; dx < w; dx++)
             {
                 int sx = xofs[dx];
                 const unsigned short* S0p = S0 + sx;
@@ -74,8 +74,8 @@ static void resize_bilinear_image_bf16s(const Mat& src, Mat& dst, float* alpha, 
 
                 float a0 = alphap[0];
                 float a1 = alphap[1];
-                rows0p[dx] = bfloat16_to_float32(S0p[0])*a0 + bfloat16_to_float32(S0p[1])*a1;
-                rows1p[dx] = bfloat16_to_float32(S1p[0])*a0 + bfloat16_to_float32(S1p[1])*a1;
+                rows0p[dx] = bfloat16_to_float32(S0p[0]) * a0 + bfloat16_to_float32(S0p[1]) * a1;
+                rows1p[dx] = bfloat16_to_float32(S1p[0]) * a0 + bfloat16_to_float32(S1p[1]) * a1;
 
                 alphap += 2;
             }
@@ -101,7 +101,7 @@ static void resize_bilinear_image_bf16s(const Mat& src, Mat& dst, float* alpha, 
 #if __ARM_NEON
         float32x4_t _b0 = vdupq_n_f32(b0);
         float32x4_t _b1 = vdupq_n_f32(b1);
-        for (; nn>0; nn--)
+        for (; nn > 0; nn--)
         {
             float32x4_t _rows0 = vld1q_f32(rows0p);
             float32x4_t _rows1 = vld1q_f32(rows1p);
@@ -111,22 +111,22 @@ static void resize_bilinear_image_bf16s(const Mat& src, Mat& dst, float* alpha, 
 
             vst1_u16(Dp, vshrn_n_u32(vreinterpretq_u32_f32(_D), 16));
 
-            float32x4_t _rows0n = vld1q_f32(rows0p+4);
-            float32x4_t _rows1n = vld1q_f32(rows1p+4);
+            float32x4_t _rows0n = vld1q_f32(rows0p + 4);
+            float32x4_t _rows1n = vld1q_f32(rows1p + 4);
 
             float32x4_t _Dn = vmulq_f32(_rows0n, _b0);
             _Dn = vmlaq_f32(_Dn, _rows1n, _b1);
 
-            vst1_u16(Dp+4, vshrn_n_u32(vreinterpretq_u32_f32(_Dn), 16));
+            vst1_u16(Dp + 4, vshrn_n_u32(vreinterpretq_u32_f32(_Dn), 16));
 
             Dp += 8;
             rows0p += 8;
             rows1p += 8;
         }
 #endif // __ARM_NEON
-        for ( ; remain; --remain )
+        for (; remain; --remain)
         {
-//             D[x] = rows0[x]*b0 + rows1[x]*b1;
+            //             D[x] = rows0[x]*b0 + rows1[x]*b1;
             *Dp++ = float32_to_bfloat16(*rows0p++ * b0 + *rows1p++ * b1);
         }
 

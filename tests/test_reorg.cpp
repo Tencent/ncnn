@@ -12,14 +12,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/reorg.h"
+#include "testutil.h"
 
 static int test_reorg(const ncnn::Mat& a, int stride)
 {
     ncnn::ParamDict pd;
-    pd.set(0, stride);//stride
+    pd.set(0, stride); //stride
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -40,14 +39,13 @@ static int test_reorg(const ncnn::Mat& a, int stride)
 static int test_reorg_0()
 {
     return 0
-        || test_reorg(RandomMat(6, 7, 1), 1)
-        || test_reorg(RandomMat(6, 6, 2), 2)
-        || test_reorg(RandomMat(6, 8, 3), 2)
-        || test_reorg(RandomMat(4, 4, 4), 4)
-        || test_reorg(RandomMat(8, 8, 8), 2)
-        || test_reorg(RandomMat(10, 10, 12), 2)
-        || test_reorg(RandomMat(9, 9, 16), 3)
-        ;
+           || test_reorg(RandomMat(6, 7, 1), 1)
+           || test_reorg(RandomMat(6, 6, 2), 2)
+           || test_reorg(RandomMat(6, 8, 3), 2)
+           || test_reorg(RandomMat(4, 4, 4), 4)
+           || test_reorg(RandomMat(8, 8, 8), 2)
+           || test_reorg(RandomMat(10, 10, 12), 2)
+           || test_reorg(RandomMat(9, 9, 16), 3);
 }
 
 int main()

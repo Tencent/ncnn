@@ -12,14 +12,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/eltwise.h"
+#include "testutil.h"
 
 static void print_float_array(const ncnn::Mat& a)
 {
     fprintf(stderr, "[");
-    for (int i=0; i<a.w; i++)
+    for (int i = 0; i < a.w; i++)
     {
         fprintf(stderr, " %f", a[i]);
     }
@@ -43,7 +42,8 @@ static int test_eltwise(const std::vector<ncnn::Mat>& a, int op_type, const ncnn
     if (ret != 0)
     {
         fprintf(stderr, "test_eltwise failed a[0].dims=%d a[0]=(%d %d %d) op_type=%d", a[0].dims, a[0].w, a[0].h, a[0].c, op_type);
-        fprintf(stderr, " coeffs="); print_float_array(coeffs);
+        fprintf(stderr, " coeffs=");
+        print_float_array(coeffs);
         fprintf(stderr, "\n");
     }
 
@@ -57,14 +57,13 @@ static int test_eltwise_0()
     a[1] = RandomMat(16, 12, 8);
 
     return 0
-        || test_eltwise(a, 0, ncnn::Mat())
-        || test_eltwise(a, 1, ncnn::Mat())
-        || test_eltwise(a, 2, ncnn::Mat())
+           || test_eltwise(a, 0, ncnn::Mat())
+           || test_eltwise(a, 1, ncnn::Mat())
+           || test_eltwise(a, 2, ncnn::Mat())
 
-        || test_eltwise(a, 0, RandomMat(2))
-        || test_eltwise(a, 1, RandomMat(2))
-        || test_eltwise(a, 2, RandomMat(2))
-        ;
+           || test_eltwise(a, 0, RandomMat(2))
+           || test_eltwise(a, 1, RandomMat(2))
+           || test_eltwise(a, 2, RandomMat(2));
 }
 
 static int test_eltwise_1()
@@ -76,14 +75,13 @@ static int test_eltwise_1()
     a[3] = RandomMat(7, 3, 5);
 
     return 0
-        || test_eltwise(a, 0, ncnn::Mat())
-        || test_eltwise(a, 1, ncnn::Mat())
-        || test_eltwise(a, 2, ncnn::Mat())
+           || test_eltwise(a, 0, ncnn::Mat())
+           || test_eltwise(a, 1, ncnn::Mat())
+           || test_eltwise(a, 2, ncnn::Mat())
 
-        || test_eltwise(a, 0, RandomMat(4))
-        || test_eltwise(a, 1, RandomMat(4))
-        || test_eltwise(a, 2, RandomMat(4))
-        ;
+           || test_eltwise(a, 0, RandomMat(4))
+           || test_eltwise(a, 1, RandomMat(4))
+           || test_eltwise(a, 2, RandomMat(4));
 }
 
 int main()
@@ -91,7 +89,6 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_eltwise_0()
-        || test_eltwise_1()
-        ;
+           || test_eltwise_0()
+           || test_eltwise_1();
 }

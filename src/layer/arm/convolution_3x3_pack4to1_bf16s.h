@@ -42,25 +42,25 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
         int w_tm = outw / 6 * 8;
         int h_tm = outh / 6 * 8;
 
-        const int tiles = w_tm/8 * h_tm/8;
+        const int tiles = w_tm / 8 * h_tm / 8;
 
-//         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
+        //         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
         bottom_blob_tm.create(tiles, 64, inch, 4u * elempack, elempack, opt.workspace_allocator);
 
-//         const float itm[8][8] = {
-//             {1.0f,  0.0f, -5.25f,  0.00f,  5.25f,  0.00f, -1.0f, 0.0f},
-//
-//             {0.0f,  1.0f,  1.00f, -4.25f, -4.25f,  1.00f,  1.0f, 0.0f},
-//             {0.0f, -1.0f,  1.00f,  4.25f, -4.25f, -1.00f,  1.0f, 0.0f},
-//
-//             {0.0f,  0.5f,  0.25f, -2.50f, -1.25f,  2.00f,  1.0f, 0.0f},
-//             {0.0f, -0.5f,  0.25f,  2.50f, -1.25f, -2.00f,  1.0f, 0.0f},
-//
-//             {0.0f,  2.0f,  4.00f, -2.50f, -5.00f,  0.50f,  1.0f, 0.0f},
-//             {0.0f, -2.0f,  4.00f,  2.50f, -5.00f, -0.50f,  1.0f, 0.0f},
-//
-//             {0.0f, -1.0f,  0.00f,  5.25f,  0.00f, -5.25f,  0.0f, 1.0f}
-//         };
+        //         const float itm[8][8] = {
+        //             {1.0f,  0.0f, -5.25f,  0.00f,  5.25f,  0.00f, -1.0f, 0.0f},
+        //
+        //             {0.0f,  1.0f,  1.00f, -4.25f, -4.25f,  1.00f,  1.0f, 0.0f},
+        //             {0.0f, -1.0f,  1.00f,  4.25f, -4.25f, -1.00f,  1.0f, 0.0f},
+        //
+        //             {0.0f,  0.5f,  0.25f, -2.50f, -1.25f,  2.00f,  1.0f, 0.0f},
+        //             {0.0f, -0.5f,  0.25f,  2.50f, -1.25f, -2.00f,  1.0f, 0.0f},
+        //
+        //             {0.0f,  2.0f,  4.00f, -2.50f, -5.00f,  0.50f,  1.0f, 0.0f},
+        //             {0.0f, -2.0f,  4.00f,  2.50f, -5.00f, -0.50f,  1.0f, 0.0f},
+        //
+        //             {0.0f, -1.0f,  0.00f,  5.25f,  0.00f, -5.25f,  0.0f, 1.0f}
+        //         };
 
         // 0 = r00 - r06 + (r04 - r02) * 5.25
         // 7 = r07 - r01 + (r03 - r05) * 5.25
@@ -77,7 +77,7 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
         // 6 = (r06 + (r02 - r04 * 1.25) * 4) - (r01 * 2 - r03 * 2.5 + r05 * 0.5)
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q<inch; q++)
+        for (int q = 0; q < inch; q++)
         {
             const Mat img0 = bottom_blob_bordered.channel(q);
             Mat img0_tm = bottom_blob_tm.channel(q);
@@ -85,13 +85,13 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
             float tmp[8][8][4];
 
             // tile
-            for (int i=0; i<h_tm/8; i++)
+            for (int i = 0; i < h_tm / 8; i++)
             {
-                for (int j=0; j<w_tm/8; j++)
+                for (int j = 0; j < w_tm / 8; j++)
                 {
                     const unsigned short* r0 = img0.row<const unsigned short>(i * 6) + (j * 6) * 4;
 
-                    for (int m=0; m<8; m++)
+                    for (int m = 0; m < 8; m++)
                     {
                         float32x4_t _r00 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
                         float32x4_t _r01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 4), 16));
@@ -107,55 +107,55 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         vst1q_f32(tmp[0][m], _tmp0m);
                         vst1q_f32(tmp[7][m], _tmp7m);
 
-//                         tmp[0][m] = r0[0] - r0[6] + (r0[4] - r0[2]) * 5.25;
-//                         tmp[7][m] = r0[7] - r0[1] + (r0[3] - r0[5]) * 5.25;
+                        //                         tmp[0][m] = r0[0] - r0[6] + (r0[4] - r0[2]) * 5.25;
+                        //                         tmp[7][m] = r0[7] - r0[1] + (r0[3] - r0[5]) * 5.25;
 
                         float32x4_t _tmp12a = vmlsq_n_f32(vaddq_f32(_r02, _r06), _r04, 4.25f);
                         float32x4_t _tmp12b = vmlsq_n_f32(vaddq_f32(_r01, _r05), _r03, 4.25f);
 
-//                         float tmp12a = (r0[2] + r0[6] - r0[4] * 4.25);
-//                         float tmp12b = (r0[1] + r0[5] - r0[3] * 4.25);
+                        //                         float tmp12a = (r0[2] + r0[6] - r0[4] * 4.25);
+                        //                         float tmp12b = (r0[1] + r0[5] - r0[3] * 4.25);
 
                         float32x4_t _tmp1m = vaddq_f32(_tmp12a, _tmp12b);
                         float32x4_t _tmp2m = vsubq_f32(_tmp12a, _tmp12b);
                         vst1q_f32(tmp[1][m], _tmp1m);
                         vst1q_f32(tmp[2][m], _tmp2m);
 
-//                         tmp[1][m] = tmp12a + tmp12b;
-//                         tmp[2][m] = tmp12a - tmp12b;
+                        //                         tmp[1][m] = tmp12a + tmp12b;
+                        //                         tmp[2][m] = tmp12a - tmp12b;
 
                         float32x4_t _tmp34a = vmlsq_n_f32(vmlaq_n_f32(_r06, _r02, 0.25f), _r04, 1.25f);
                         float32x4_t _tmp34b = vmlaq_n_f32(vmlsq_n_f32(vmulq_n_f32(_r01, 0.5f), _r03, 2.5f), _r05, 2.f);
 
-//                         float tmp34a = (r0[6] + r0[2] * 0.25 - r0[4] * 1.25);
-//                         float tmp34b = (r0[1] * 0.5 - r0[3] * 2.5 + r0[5] * 2);
+                        //                         float tmp34a = (r0[6] + r0[2] * 0.25 - r0[4] * 1.25);
+                        //                         float tmp34b = (r0[1] * 0.5 - r0[3] * 2.5 + r0[5] * 2);
 
                         float32x4_t _tmp3m = vaddq_f32(_tmp34a, _tmp34b);
                         float32x4_t _tmp4m = vsubq_f32(_tmp34a, _tmp34b);
                         vst1q_f32(tmp[3][m], _tmp3m);
                         vst1q_f32(tmp[4][m], _tmp4m);
 
-//                         tmp[3][m] = tmp34a + tmp34b;
-//                         tmp[4][m] = tmp34a - tmp34b;
+                        //                         tmp[3][m] = tmp34a + tmp34b;
+                        //                         tmp[4][m] = tmp34a - tmp34b;
 
                         float32x4_t _tmp56a = vmlaq_n_f32(_r06, vmlsq_n_f32(_r02, _r04, 1.25f), 4.f);
                         float32x4_t _tmp56b = vmlaq_n_f32(vmlsq_n_f32(vmulq_n_f32(_r01, 2.f), _r03, 2.5f), _r05, 0.5f);
 
-//                         float tmp56a = (r0[6] + (r0[2] - r0[4] * 1.25) * 4);
-//                         float tmp56b = (r0[1] * 2 - r0[3] * 2.5 + r0[5] * 0.5);
+                        //                         float tmp56a = (r0[6] + (r0[2] - r0[4] * 1.25) * 4);
+                        //                         float tmp56b = (r0[1] * 2 - r0[3] * 2.5 + r0[5] * 0.5);
 
                         float32x4_t _tmp5m = vaddq_f32(_tmp56a, _tmp56b);
                         float32x4_t _tmp6m = vsubq_f32(_tmp56a, _tmp56b);
                         vst1q_f32(tmp[5][m], _tmp5m);
                         vst1q_f32(tmp[6][m], _tmp6m);
 
-//                         tmp[5][m] = tmp56a + tmp56b;
-//                         tmp[6][m] = tmp56a - tmp56b;
+                        //                         tmp[5][m] = tmp56a + tmp56b;
+                        //                         tmp[6][m] = tmp56a - tmp56b;
 
                         r0 += w * 4;
                     }
 
-                    float* r0_tm_0 = (float*)img0_tm + (i * w_tm/8 + j) * 4;
+                    float* r0_tm_0 = (float*)img0_tm + (i * w_tm / 8 + j) * 4;
                     float* r0_tm_1 = r0_tm_0 + tiles * 4;
                     float* r0_tm_2 = r0_tm_0 + tiles * 8;
                     float* r0_tm_3 = r0_tm_0 + tiles * 12;
@@ -164,7 +164,7 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                     float* r0_tm_6 = r0_tm_0 + tiles * 24;
                     float* r0_tm_7 = r0_tm_0 + tiles * 28;
 
-                    for (int m=0; m<8; m++)
+                    for (int m = 0; m < 8; m++)
                     {
                         float32x4_t _tmp00 = vld1q_f32(tmp[m][0]);
                         float32x4_t _tmp01 = vld1q_f32(tmp[m][1]);
@@ -178,44 +178,44 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         float32x4_t _r0tm0 = vmlaq_n_f32(vsubq_f32(_tmp00, _tmp06), vsubq_f32(_tmp04, _tmp02), 5.25f);
                         float32x4_t _r0tm7 = vmlaq_n_f32(vsubq_f32(_tmp07, _tmp01), vsubq_f32(_tmp03, _tmp05), 5.25f);
 
-//                         r0_tm[0] = tmp0[0] - tmp0[6] + (tmp0[4] - tmp0[2]) * 5.25;
-//                         r0_tm[7] = tmp0[7] - tmp0[1] + (tmp0[3] - tmp0[5]) * 5.25;
+                        //                         r0_tm[0] = tmp0[0] - tmp0[6] + (tmp0[4] - tmp0[2]) * 5.25;
+                        //                         r0_tm[7] = tmp0[7] - tmp0[1] + (tmp0[3] - tmp0[5]) * 5.25;
 
                         float32x4_t _tmp12a = vmlsq_n_f32(vaddq_f32(_tmp02, _tmp06), _tmp04, 4.25f);
                         float32x4_t _tmp12b = vmlsq_n_f32(vaddq_f32(_tmp01, _tmp05), _tmp03, 4.25f);
 
-//                         float tmp12a = (tmp0[2] + tmp0[6] - tmp0[4] * 4.25);
-//                         float tmp12b = (tmp0[1] + tmp0[5] - tmp0[3] * 4.25);
+                        //                         float tmp12a = (tmp0[2] + tmp0[6] - tmp0[4] * 4.25);
+                        //                         float tmp12b = (tmp0[1] + tmp0[5] - tmp0[3] * 4.25);
 
                         float32x4_t _r0tm1 = vaddq_f32(_tmp12a, _tmp12b);
                         float32x4_t _r0tm2 = vsubq_f32(_tmp12a, _tmp12b);
 
-//                         r0_tm[1] = tmp12a + tmp12b;
-//                         r0_tm[2] = tmp12a - tmp12b;
+                        //                         r0_tm[1] = tmp12a + tmp12b;
+                        //                         r0_tm[2] = tmp12a - tmp12b;
 
                         float32x4_t _tmp34a = vmlsq_n_f32(vmlaq_n_f32(_tmp06, _tmp02, 0.25f), _tmp04, 1.25f);
                         float32x4_t _tmp34b = vmlaq_n_f32(vmlsq_n_f32(vmulq_n_f32(_tmp01, 0.5f), _tmp03, 2.5f), _tmp05, 2.f);
 
-//                         float tmp34a = (tmp0[6] + tmp0[2] * 0.25 - tmp0[4] * 1.25);
-//                         float tmp34b = (tmp0[1] * 0.5 - tmp0[3] * 2.5 + tmp0[5] * 2);
+                        //                         float tmp34a = (tmp0[6] + tmp0[2] * 0.25 - tmp0[4] * 1.25);
+                        //                         float tmp34b = (tmp0[1] * 0.5 - tmp0[3] * 2.5 + tmp0[5] * 2);
 
                         float32x4_t _r0tm3 = vaddq_f32(_tmp34a, _tmp34b);
                         float32x4_t _r0tm4 = vsubq_f32(_tmp34a, _tmp34b);
 
-//                         r0_tm[3] = tmp34a + tmp34b;
-//                         r0_tm[4] = tmp34a - tmp34b;
+                        //                         r0_tm[3] = tmp34a + tmp34b;
+                        //                         r0_tm[4] = tmp34a - tmp34b;
 
                         float32x4_t _tmp56a = vmlaq_n_f32(_tmp06, vmlsq_n_f32(_tmp02, _tmp04, 1.25f), 4.f);
                         float32x4_t _tmp56b = vmlaq_n_f32(vmlsq_n_f32(vmulq_n_f32(_tmp01, 2.f), _tmp03, 2.5f), _tmp05, 0.5f);
 
-//                         float tmp56a = (tmp0[6] + (tmp0[2] - tmp0[4] * 1.25) * 4);
-//                         float tmp56b = (tmp0[1] * 2 - tmp0[3] * 2.5 + tmp0[5] * 0.5);
+                        //                         float tmp56a = (tmp0[6] + (tmp0[2] - tmp0[4] * 1.25) * 4);
+                        //                         float tmp56b = (tmp0[1] * 2 - tmp0[3] * 2.5 + tmp0[5] * 0.5);
 
                         float32x4_t _r0tm5 = vaddq_f32(_tmp56a, _tmp56b);
                         float32x4_t _r0tm6 = vsubq_f32(_tmp56a, _tmp56b);
 
-//                         r0_tm[5] = tmp56a + tmp56b;
-//                         r0_tm[6] = tmp56a - tmp56b;
+                        //                         r0_tm[5] = tmp56a + tmp56b;
+                        //                         r0_tm[6] = tmp56a - tmp56b;
 
                         vst1q_f32(r0_tm_0, _r0tm0);
                         vst1q_f32(r0_tm_1, _r0tm1);
@@ -238,7 +238,6 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                 }
             }
         }
-
     }
     bottom_blob_bordered = Mat();
     // END transform input
@@ -249,46 +248,46 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
         int w_tm = outw / 6 * 8;
         int h_tm = outh / 6 * 8;
 
-        const int tiles = h_tm/8 * w_tm/8;
+        const int tiles = h_tm / 8 * w_tm / 8;
 
         // permute
-//         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
+        //         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
         Mat bottom_blob_tm2;
 #if __aarch64__
         if (tiles >= 12)
-            bottom_blob_tm2.create(12 * inch, tiles/12 + (tiles%12)/8 + (tiles%12%8)/4 + tiles%12%4, 64, 4u * elempack, elempack, opt.workspace_allocator);
+            bottom_blob_tm2.create(12 * inch, tiles / 12 + (tiles % 12) / 8 + (tiles % 12 % 8) / 4 + tiles % 12 % 4, 64, 4u * elempack, elempack, opt.workspace_allocator);
         else if (tiles >= 8)
-            bottom_blob_tm2.create(8 * inch, tiles/8 + (tiles%8)/4 + tiles%4, 64, 4u * elempack, elempack, opt.workspace_allocator);
+            bottom_blob_tm2.create(8 * inch, tiles / 8 + (tiles % 8) / 4 + tiles % 4, 64, 4u * elempack, elempack, opt.workspace_allocator);
         else if (tiles >= 4)
-            bottom_blob_tm2.create(4 * inch, tiles/4 + tiles%4, 64, 4u * elempack, elempack, opt.workspace_allocator);
+            bottom_blob_tm2.create(4 * inch, tiles / 4 + tiles % 4, 64, 4u * elempack, elempack, opt.workspace_allocator);
         else // if (tiles >= 1)
             bottom_blob_tm2.create(1 * inch, tiles, 64, 4u * elempack, elempack, opt.workspace_allocator);
 #else
         if (tiles >= 8)
-            bottom_blob_tm2.create(8 * inch, tiles/8 + (tiles%8)/4 + tiles%4, 64, 4u * elempack, elempack, opt.workspace_allocator);
+            bottom_blob_tm2.create(8 * inch, tiles / 8 + (tiles % 8) / 4 + tiles % 4, 64, 4u * elempack, elempack, opt.workspace_allocator);
         else if (tiles >= 4)
-            bottom_blob_tm2.create(4 * inch, tiles/4 + tiles%4, 64, 4u * elempack, elempack, opt.workspace_allocator);
+            bottom_blob_tm2.create(4 * inch, tiles / 4 + tiles % 4, 64, 4u * elempack, elempack, opt.workspace_allocator);
         else // if (tiles >= 1)
             bottom_blob_tm2.create(1 * inch, tiles, 64, 4u * elempack, elempack, opt.workspace_allocator);
 #endif
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int r=0; r<64; r++)
+        for (int r = 0; r < 64; r++)
         {
             Mat tm2 = bottom_blob_tm2.channel(r);
 
             // tile
-            int i=0;
+            int i = 0;
 #if __aarch64__
-            for (; i+11<tiles; i+=12)
+            for (; i + 11 < tiles; i += 12)
             {
-                float* tm2p = tm2.row(i/12);
+                float* tm2p = tm2.row(i / 12);
 
                 const float* r0 = bottom_blob_tm;
 
-                r0 += (r*tiles + i) * 4;
+                r0 += (r * tiles + i) * 4;
 
-                for (int q=0; q<inch; q++)
+                for (int q = 0; q < inch; q++)
                 {
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
@@ -310,29 +309,28 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "st1    {v3.4s}, [%1], #16          \n"
                         "st1    {v7.4s}, [%1], #16          \n"
                         "st1    {v19.4s}, [%1], #16         \n"
-                        : "=r"(r0),     // %0
-                          "=r"(tm2p)    // %1
+                        : "=r"(r0),  // %0
+                        "=r"(tm2p) // %1
                         : "0"(r0),
-                          "1"(tm2p)
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19"
-                    );
+                        "1"(tm2p)
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19");
                     r0 += bottom_blob_tm.cstep * 4;
                 }
             }
 #endif
-            for (; i+7<tiles; i+=8)
+            for (; i + 7 < tiles; i += 8)
             {
 #if __aarch64__
-                float* tm2p = tm2.row(i/12 + (i%12)/8);
+                float* tm2p = tm2.row(i / 12 + (i % 12) / 8);
 #else
-                float* tm2p = tm2.row(i/8);
+                float* tm2p = tm2.row(i / 8);
 #endif
 
                 const float* r0 = bottom_blob_tm;
 
-                r0 += (r*tiles + i) * 4;
+                r0 += (r * tiles + i) * 4;
 
-                for (int q=0; q<inch; q++)
+                for (int q = 0; q < inch; q++)
                 {
 #if __aarch64__
                     asm volatile(
@@ -349,12 +347,11 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "st1    {v6.4s}, [%1], #16          \n"
                         "st1    {v3.4s}, [%1], #16          \n"
                         "st1    {v7.4s}, [%1], #16          \n"
-                        : "=r"(r0),     // %0
-                          "=r"(tm2p)    // %1
+                        : "=r"(r0),  // %0
+                        "=r"(tm2p) // %1
                         : "0"(r0),
-                          "1"(tm2p)
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7"
-                    );
+                        "1"(tm2p)
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
 #else
                     asm volatile(
                         "pld        [%0, #256]          \n"
@@ -378,41 +375,39 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "vst1.f32   {d18-d19}, [%1 :128]! \n"
                         "vst1.f32   {d6-d7}, [%1 :128]! \n"
                         "vst1.f32   {d22-d23}, [%1 :128]! \n"
-                        : "=r"(r0),     // %0
-                          "=r"(tm2p)    // %1
+                        : "=r"(r0),  // %0
+                        "=r"(tm2p) // %1
                         : "0"(r0),
-                          "1"(tm2p)
-                        : "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11"
-                    );
+                        "1"(tm2p)
+                        : "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
 #endif
                     r0 += bottom_blob_tm.cstep * 4;
                 }
             }
-            for (; i+3<tiles; i+=4)
+            for (; i + 3 < tiles; i += 4)
             {
 #if __aarch64__
-                float* tm2p = tm2.row(i/12 + (i%12)/8 + (i%12%8)/4);
+                float* tm2p = tm2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
 #else
-                float* tm2p = tm2.row(i/8 + (i%8)/4);
+                float* tm2p = tm2.row(i / 8 + (i % 8) / 4);
 #endif
 
                 const float* r0 = bottom_blob_tm;
 
-                r0 += (r*tiles + i) * 4;
+                r0 += (r * tiles + i) * 4;
 
-                for (int q=0; q<inch; q++)
+                for (int q = 0; q < inch; q++)
                 {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
                         "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
-                        : "=r"(r0),     // %0
-                          "=r"(tm2p)    // %1
+                        : "=r"(r0),  // %0
+                        "=r"(tm2p) // %1
                         : "0"(r0),
-                          "1"(tm2p)
-                        : "memory", "v0", "v1", "v2", "v3"
-                    );
+                        "1"(tm2p)
+                        : "memory", "v0", "v1", "v2", "v3");
 #else
                     asm volatile(
                         "pld        [%0, #256]          \n"
@@ -426,52 +421,49 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "vst1.f32   {d4-d5}, [%1 :128]! \n"
                         "vst1.f32   {d2-d3}, [%1 :128]! \n"
                         "vst1.f32   {d6-d7}, [%1 :128]! \n"
-                        : "=r"(r0),     // %0
-                          "=r"(tm2p)    // %1
+                        : "=r"(r0),  // %0
+                        "=r"(tm2p) // %1
                         : "0"(r0),
-                          "1"(tm2p)
-                        : "memory", "q0", "q1", "q2", "q3"
-                    );
+                        "1"(tm2p)
+                        : "memory", "q0", "q1", "q2", "q3");
 #endif // __aarch64__
                     r0 += bottom_blob_tm.cstep * 4;
                 }
             }
-            for (; i<tiles; i++)
+            for (; i < tiles; i++)
             {
 #if __aarch64__
-                float* tm2p = tm2.row(i/12 + (i%12)/8 + (i%12%8)/4 + i%12%4);
+                float* tm2p = tm2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + i % 12 % 4);
 #else
-                float* tm2p = tm2.row(i/8 + (i%8)/4 + i%4);
+                float* tm2p = tm2.row(i / 8 + (i % 8) / 4 + i % 4);
 #endif
 
                 const float* r0 = bottom_blob_tm;
 
-                r0 += (r*tiles + i) * 4;
+                r0 += (r * tiles + i) * 4;
 
-                for (int q=0; q<inch; q++)
+                for (int q = 0; q < inch; q++)
                 {
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #128]       \n"
                         "ld1    {v0.4s}, [%0]               \n"
                         "st1    {v0.4s}, [%1], #16          \n"
-                        : "=r"(r0),     // %0
-                          "=r"(tm2p)    // %1
+                        : "=r"(r0),  // %0
+                        "=r"(tm2p) // %1
                         : "0"(r0),
-                          "1"(tm2p)
-                        : "memory", "v0"
-                    );
+                        "1"(tm2p)
+                        : "memory", "v0");
 #else
                     asm volatile(
                         "pld        [%0, #128]          \n"
                         "vld1.f32   {d0-d1}, [%0 :128]  \n"
                         "vst1.f32   {d0-d1}, [%1 :128]! \n"
-                        : "=r"(r0),     // %0
-                          "=r"(tm2p)    // %1
+                        : "=r"(r0),  // %0
+                        "=r"(tm2p) // %1
                         : "0"(r0),
-                          "1"(tm2p)
-                        : "memory", "q0"
-                    );
+                        "1"(tm2p)
+                        : "memory", "q0");
 #endif // __aarch64__
                     r0 += bottom_blob_tm.cstep * 4;
                 }
@@ -490,33 +482,33 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
         nn_outch = outch >> 3;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int pp=0; pp<nn_outch; pp++)
+        for (int pp = 0; pp < nn_outch; pp++)
         {
             int p = pp * 8;
 
             float* output0_tm = top_blob_tm.channel(p);
-            float* output1_tm = top_blob_tm.channel(p+1);
-            float* output2_tm = top_blob_tm.channel(p+2);
-            float* output3_tm = top_blob_tm.channel(p+3);
-            float* output4_tm = top_blob_tm.channel(p+4);
-            float* output5_tm = top_blob_tm.channel(p+5);
-            float* output6_tm = top_blob_tm.channel(p+6);
-            float* output7_tm = top_blob_tm.channel(p+7);
+            float* output1_tm = top_blob_tm.channel(p + 1);
+            float* output2_tm = top_blob_tm.channel(p + 2);
+            float* output3_tm = top_blob_tm.channel(p + 3);
+            float* output4_tm = top_blob_tm.channel(p + 4);
+            float* output5_tm = top_blob_tm.channel(p + 5);
+            float* output6_tm = top_blob_tm.channel(p + 6);
+            float* output7_tm = top_blob_tm.channel(p + 7);
 
-            const Mat kernel01_tm = kernel_tm.channel(p/8);
+            const Mat kernel01_tm = kernel_tm.channel(p / 8);
 
-            for (int r=0; r<64; r++)
+            for (int r = 0; r < 64; r++)
             {
                 const Mat bb2 = bottom_blob_tm2.channel(r);
 
-                int i=0;
-                for (; i+11<tiles; i+=12)
+                int i = 0;
+                for (; i + 11 < tiles; i += 12)
                 {
-                    const float* r0 = bb2.row(i/12);
+                    const float* r0 = bb2.row(i / 12);
 
                     const float* kptr = kernel01_tm.row(r);
 
-                    int nn = inch;// inch always > 0
+                    int nn = inch; // inch always > 0
 
                     asm volatile(
                         "eor    v8.16b, v8.16b, v8.16b      \n"
@@ -683,37 +675,36 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "st1    {v29.4s, v30.4s, v31.4s}, [%8], #48 \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(output4_tm), // %5
-                          "=r"(output5_tm), // %6
-                          "=r"(output6_tm), // %7
-                          "=r"(output7_tm), // %8
-                          "=r"(r0),         // %9
-                          "=r"(kptr)        // %10
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(output4_tm), // %5
+                        "=r"(output5_tm), // %6
+                        "=r"(output6_tm), // %7
+                        "=r"(output7_tm), // %8
+                        "=r"(r0),         // %9
+                        "=r"(kptr)        // %10
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(output4_tm),
-                          "6"(output5_tm),
-                          "7"(output6_tm),
-                          "8"(output7_tm),
-                          "9"(r0),
-                          "10"(kptr)
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-                    );
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(output4_tm),
+                        "6"(output5_tm),
+                        "7"(output6_tm),
+                        "8"(output7_tm),
+                        "9"(r0),
+                        "10"(kptr)
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
-                for (; i+7<tiles; i+=8)
+                for (; i + 7 < tiles; i += 8)
                 {
-                    const float* r0 = bb2.row(i/12 + (i%12)/8);
+                    const float* r0 = bb2.row(i / 12 + (i % 12) / 8);
 
                     const float* kptr = kernel01_tm.row(r);
 
-                    int nn = inch;// inch always > 0
+                    int nn = inch; // inch always > 0
 
                     asm volatile(
                         "eor    v16.16b, v16.16b, v16.16b   \n"
@@ -829,37 +820,36 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "st1    {v30.4s, v31.4s}, [%8], #32 \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(output4_tm), // %5
-                          "=r"(output5_tm), // %6
-                          "=r"(output6_tm), // %7
-                          "=r"(output7_tm), // %8
-                          "=r"(r0),         // %9
-                          "=r"(kptr)        // %10
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(output4_tm), // %5
+                        "=r"(output5_tm), // %6
+                        "=r"(output6_tm), // %7
+                        "=r"(output7_tm), // %8
+                        "=r"(r0),         // %9
+                        "=r"(kptr)        // %10
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(output4_tm),
-                          "6"(output5_tm),
-                          "7"(output6_tm),
-                          "8"(output7_tm),
-                          "9"(r0),
-                          "10"(kptr)
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-                    );
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(output4_tm),
+                        "6"(output5_tm),
+                        "7"(output6_tm),
+                        "8"(output7_tm),
+                        "9"(r0),
+                        "10"(kptr)
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
-                for (; i+3<tiles; i+=4)
+                for (; i + 3 < tiles; i += 4)
                 {
-                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%12%8)/4);
+                    const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
 
                     const float* kptr = kernel01_tm.row(r);
 
-                    int nn = inch;// inch always > 0
+                    int nn = inch; // inch always > 0
 
                     asm volatile(
                         "eor    v16.16b, v16.16b, v16.16b   \n"
@@ -932,37 +922,36 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "st1    {v23.4s}, [%8], #16     \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(output4_tm), // %5
-                          "=r"(output5_tm), // %6
-                          "=r"(output6_tm), // %7
-                          "=r"(output7_tm), // %8
-                          "=r"(r0),         // %9
-                          "=r"(kptr)        // %10
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(output4_tm), // %5
+                        "=r"(output5_tm), // %6
+                        "=r"(output6_tm), // %7
+                        "=r"(output7_tm), // %8
+                        "=r"(r0),         // %9
+                        "=r"(kptr)        // %10
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(output4_tm),
-                          "6"(output5_tm),
-                          "7"(output6_tm),
-                          "8"(output7_tm),
-                          "9"(r0),
-                          "10"(kptr)
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
-                    );
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(output4_tm),
+                        "6"(output5_tm),
+                        "7"(output6_tm),
+                        "8"(output7_tm),
+                        "9"(r0),
+                        "10"(kptr)
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
                 }
-                for (; i<tiles; i++)
+                for (; i < tiles; i++)
                 {
-                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%12%8)/4 + i%12%4);
+                    const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + i % 12 % 4);
 
                     const float* kptr = kernel01_tm.row(r);
 
-                    int nn = inch;// inch always > 0
+                    int nn = inch; // inch always > 0
 
                     asm volatile(
                         "eor    v16.16b, v16.16b, v16.16b   \n"
@@ -1008,68 +997,67 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "st1    {v17.s}[3], [%8], #4    \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(output4_tm), // %5
-                          "=r"(output5_tm), // %6
-                          "=r"(output6_tm), // %7
-                          "=r"(output7_tm), // %8
-                          "=r"(r0),         // %9
-                          "=r"(kptr)        // %10
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(output4_tm), // %5
+                        "=r"(output5_tm), // %6
+                        "=r"(output6_tm), // %7
+                        "=r"(output7_tm), // %8
+                        "=r"(r0),         // %9
+                        "=r"(kptr)        // %10
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(output4_tm),
-                          "6"(output5_tm),
-                          "7"(output6_tm),
-                          "8"(output7_tm),
-                          "9"(r0),
-                          "10"(kptr)
-                        : "cc", "memory", "v0", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19"
-                    );
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(output4_tm),
+                        "6"(output5_tm),
+                        "7"(output6_tm),
+                        "8"(output7_tm),
+                        "9"(r0),
+                        "10"(kptr)
+                        : "cc", "memory", "v0", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19");
                 }
             }
         }
 
         remain_outch_start += nn_outch << 3;
         nn_outch = (outch - remain_outch_start) >> 2;
-#else // __aarch64__
+#else  // __aarch64__
         nn_outch = outch >> 2;
 #endif // __aarch64__
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int pp=0; pp<nn_outch; pp++)
+        for (int pp = 0; pp < nn_outch; pp++)
         {
             int p = remain_outch_start + pp * 4;
 
             float* output0_tm = top_blob_tm.channel(p);
-            float* output1_tm = top_blob_tm.channel(p+1);
-            float* output2_tm = top_blob_tm.channel(p+2);
-            float* output3_tm = top_blob_tm.channel(p+3);
+            float* output1_tm = top_blob_tm.channel(p + 1);
+            float* output2_tm = top_blob_tm.channel(p + 2);
+            float* output3_tm = top_blob_tm.channel(p + 3);
 
 #if __aarch64__
-            const Mat kernel01_tm = kernel_tm.channel(p/8+(p%8)/4);
+            const Mat kernel01_tm = kernel_tm.channel(p / 8 + (p % 8) / 4);
 #else
-            const Mat kernel01_tm = kernel_tm.channel(p/4);
+            const Mat kernel01_tm = kernel_tm.channel(p / 4);
 #endif
 
-            for (int r=0; r<64; r++)
+            for (int r = 0; r < 64; r++)
             {
                 const Mat bb2 = bottom_blob_tm2.channel(r);
 
-                int i=0;
+                int i = 0;
 #if __aarch64__
-                for (; i+11<tiles; i+=12)
+                for (; i + 11 < tiles; i += 12)
                 {
-                    const float* r0 = bb2.row(i/12);
+                    const float* r0 = bb2.row(i / 12);
 
                     const float* kptr = kernel01_tm.row(r);
 
-                    int nn = inch;// inch always > 0
+                    int nn = inch; // inch always > 0
 
                     asm volatile(
                         "eor    v8.16b, v8.16b, v8.16b      \n"
@@ -1161,34 +1149,33 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "st1    {v17.4s, v18.4s, v19.4s}, [%4], #48 \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(r0),         // %5
-                          "=r"(kptr)        // %6
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(r0),         // %5
+                        "=r"(kptr)        // %6
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(r0),
-                          "6"(kptr)
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27"
-                    );
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(r0),
+                        "6"(kptr)
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27");
                 }
 #endif // __aarch64__
-                for (; i+7<tiles; i+=8)
+                for (; i + 7 < tiles; i += 8)
                 {
 #if __aarch64__
-                    const float* r0 = bb2.row(i/12 + (i%12)/8);
+                    const float* r0 = bb2.row(i / 12 + (i % 12) / 8);
 #else
-                    const float* r0 = bb2.row(i/8);
+                    const float* r0 = bb2.row(i / 8);
 #endif
 
                     const float* kptr = kernel01_tm.row(r);
 
-                    int nn = inch;// inch always > 0
+                    int nn = inch; // inch always > 0
 
 #if __aarch64__
                     asm volatile(
@@ -1258,22 +1245,21 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "st1    {v14.4s, v15.4s}, [%4], #32 \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(r0),         // %5
-                          "=r"(kptr)        // %6
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(r0),         // %5
+                        "=r"(kptr)        // %6
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(r0),
-                          "6"(kptr)
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19"
-                    );
-#else // __aarch64__
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(r0),
+                        "6"(kptr)
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19");
+#else  // __aarch64__
                     asm volatile(
                         "veor       q8, q8          \n"
                         "veor       q9, q9          \n"
@@ -1341,34 +1327,33 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "vst1.f32   {d28-d31}, [%4]! \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(r0),         // %5
-                          "=r"(kptr)        // %6
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(r0),         // %5
+                        "=r"(kptr)        // %6
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(r0),
-                          "6"(kptr)
-                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                    );
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(r0),
+                        "6"(kptr)
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; i+3<tiles; i+=4)
+                for (; i + 3 < tiles; i += 4)
                 {
 #if __aarch64__
-                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%12%8)/4);
+                    const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
 #else
-                    const float* r0 = bb2.row(i/8 + (i%8)/4);
+                    const float* r0 = bb2.row(i / 8 + (i % 8) / 4);
 #endif
 
                     const float* kptr = kernel01_tm.row(r);
 
-                    int nn = inch;// inch always > 0
+                    int nn = inch; // inch always > 0
 
 #if __aarch64__
                     asm volatile(
@@ -1415,22 +1400,21 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "st1    {v11.4s}, [%4], #16     \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(r0),         // %5
-                          "=r"(kptr)        // %6
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(r0),         // %5
+                        "=r"(kptr)        // %6
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(r0),
-                          "6"(kptr)
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
-                    );
-#else // __aarch64__
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(r0),
+                        "6"(kptr)
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
+#else  // __aarch64__
                     asm volatile(
                         "veor       q8, q8          \n"
                         "veor       q9, q9          \n"
@@ -1475,34 +1459,33 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "vst1.f32   {d22-d23}, [%4]! \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(r0),         // %5
-                          "=r"(kptr)        // %6
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(r0),         // %5
+                        "=r"(kptr)        // %6
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(r0),
-                          "6"(kptr)
-                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11"
-                    );
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(r0),
+                        "6"(kptr)
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11");
 #endif // __aarch64__
                 }
-                for (; i<tiles; i++)
+                for (; i < tiles; i++)
                 {
 #if __aarch64__
-                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%12%8)/4 + i%12%4);
+                    const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + i % 12 % 4);
 #else
-                    const float* r0 = bb2.row(i/8 + (i%8)/4 + i%4);
+                    const float* r0 = bb2.row(i / 8 + (i % 8) / 4 + i % 4);
 #endif
 
                     const float* kptr = kernel01_tm.row(r);
 
-                    int nn = inch;// inch always > 0
+                    int nn = inch; // inch always > 0
 
 #if __aarch64__
                     asm volatile(
@@ -1538,22 +1521,21 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "st1    {v8.s}[3], [%4], #4     \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(r0),         // %5
-                          "=r"(kptr)        // %6
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(r0),         // %5
+                        "=r"(kptr)        // %6
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(r0),
-                          "6"(kptr)
-                        : "cc", "memory", "v0", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
-                    );
-#else // __aarch64__
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(r0),
+                        "6"(kptr)
+                        : "cc", "memory", "v0", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
+#else  // __aarch64__
                     asm volatile(
                         "veor       q8, q8          \n"
                         "veor       q9, q9          \n"
@@ -1587,21 +1569,20 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "vst1.f32   {d17[1]}, [%4]! \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(output1_tm), // %2
-                          "=r"(output2_tm), // %3
-                          "=r"(output3_tm), // %4
-                          "=r"(r0),         // %5
-                          "=r"(kptr)        // %6
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(r0),         // %5
+                        "=r"(kptr)        // %6
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(output1_tm),
-                          "3"(output2_tm),
-                          "4"(output3_tm),
-                          "5"(r0),
-                          "6"(kptr)
-                        : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11"
-                    );
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(r0),
+                        "6"(kptr)
+                        : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11");
 #endif // __aarch64__
                 }
             }
@@ -1610,29 +1591,29 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
         remain_outch_start += nn_outch << 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=remain_outch_start; p<outch; p++)
+        for (int p = remain_outch_start; p < outch; p++)
         {
             float* output0_tm = top_blob_tm.channel(p);
 
 #if __aarch64__
-            const Mat kernel0_tm = kernel_tm.channel(p/8+(p%8)/4+p%4);
+            const Mat kernel0_tm = kernel_tm.channel(p / 8 + (p % 8) / 4 + p % 4);
 #else
-            const Mat kernel0_tm = kernel_tm.channel(p/4+p%4);
+            const Mat kernel0_tm = kernel_tm.channel(p / 4 + p % 4);
 #endif
 
-            for (int r=0; r<64; r++)
+            for (int r = 0; r < 64; r++)
             {
                 const Mat bb2 = bottom_blob_tm2.channel(r);
 
-                int i=0;
+                int i = 0;
 #if __aarch64__
-                for (; i+11<tiles; i+=12)
+                for (; i + 11 < tiles; i += 12)
                 {
-                    const float* r0 = bb2.row(i/12);
+                    const float* r0 = bb2.row(i / 12);
 
                     const float* kptr = kernel0_tm.row(r);
 
-                    int nn = inch;// inch always > 0
+                    int nn = inch; // inch always > 0
 
                     asm volatile(
                         "eor    v8.16b, v8.16b, v8.16b  \n"
@@ -1683,28 +1664,27 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "st1    {v8.4s, v9.4s, v10.4s}, [%1], #48 \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(r0),         // %2
-                          "=r"(kptr)        // %3
+                        "=r"(output0_tm), // %1
+                        "=r"(r0),         // %2
+                        "=r"(kptr)        // %3
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(r0),
-                          "3"(kptr)
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19"
-                    );
+                        "1"(output0_tm),
+                        "2"(r0),
+                        "3"(kptr)
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19");
                 }
 #endif
-                for (; i+7<tiles; i+=8)
+                for (; i + 7 < tiles; i += 8)
                 {
 #if __aarch64__
-                    const float* r0 = bb2.row(i/12 + (i%12)/8);
+                    const float* r0 = bb2.row(i / 12 + (i % 12) / 8);
 #else
-                    const float* r0 = bb2.row(i/8);
+                    const float* r0 = bb2.row(i / 8);
 #endif
 
                     const float* kptr = kernel0_tm.row(r);
 
-                    int nn = inch;// inch always > 0
+                    int nn = inch; // inch always > 0
 
 #if __aarch64__
                     asm volatile(
@@ -1744,16 +1724,15 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "st1    {v8.4s, v9.4s}, [%1], #32 \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(r0),         // %2
-                          "=r"(kptr)        // %3
+                        "=r"(output0_tm), // %1
+                        "=r"(r0),         // %2
+                        "=r"(kptr)        // %3
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(r0),
-                          "3"(kptr)
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
-                    );
-#else // __aarch64__
+                        "1"(output0_tm),
+                        "2"(r0),
+                        "3"(kptr)
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
+#else  // __aarch64__
                     asm volatile(
                         "veor       q8, q8          \n"
                         "veor       q9, q9          \n"
@@ -1791,28 +1770,27 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "vst1.f32   {d16-d19}, [%1]! \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(r0),         // %2
-                          "=r"(kptr)        // %3
+                        "=r"(output0_tm), // %1
+                        "=r"(r0),         // %2
+                        "=r"(kptr)        // %3
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(r0),
-                          "3"(kptr)
-                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                    );
+                        "1"(output0_tm),
+                        "2"(r0),
+                        "3"(kptr)
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; i+3<tiles; i+=4)
+                for (; i + 3 < tiles; i += 4)
                 {
 #if __aarch64__
-                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%12%8)/4);
+                    const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
 #else
-                    const float* r0 = bb2.row(i/8 + (i%8)/4);
+                    const float* r0 = bb2.row(i / 8 + (i % 8) / 4);
 #endif
 
                     const float* kptr = kernel0_tm.row(r);
 
-                    int nn = inch;// inch always > 0
+                    int nn = inch; // inch always > 0
 
 #if __aarch64__
                     asm volatile(
@@ -1845,16 +1823,15 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "st1    {v8.4s}, [%1], #16      \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(r0),         // %2
-                          "=r"(kptr)        // %3
+                        "=r"(output0_tm), // %1
+                        "=r"(r0),         // %2
+                        "=r"(kptr)        // %3
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(r0),
-                          "3"(kptr)
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11"
-                    );
-#else // __aarch64__
+                        "1"(output0_tm),
+                        "2"(r0),
+                        "3"(kptr)
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11");
+#else  // __aarch64__
                     asm volatile(
                         "veor       q8, q8          \n"
                         "veor       q9, q9          \n"
@@ -1885,30 +1862,29 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                         "vst1.f32   {d16-d17}, [%1]! \n"
 
                         : "=r"(nn),         // %0
-                          "=r"(output0_tm), // %1
-                          "=r"(r0),         // %2
-                          "=r"(kptr)        // %3
+                        "=r"(output0_tm), // %1
+                        "=r"(r0),         // %2
+                        "=r"(kptr)        // %3
                         : "0"(nn),
-                          "1"(output0_tm),
-                          "2"(r0),
-                          "3"(kptr)
-                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q8", "q9", "q10", "q11"
-                    );
+                        "1"(output0_tm),
+                        "2"(r0),
+                        "3"(kptr)
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q8", "q9", "q10", "q11");
 #endif // __aarch64__
                 }
-                for (; i<tiles; i++)
+                for (; i < tiles; i++)
                 {
 #if __aarch64__
-                    const float* r0 = bb2.row(i/12 + (i%12)/8 + (i%12%8)/4 + i%12%4);
+                    const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + i % 12 % 4);
 #else
-                    const float* r0 = bb2.row(i/8 + (i%8)/4 + i%4);
+                    const float* r0 = bb2.row(i / 8 + (i % 8) / 4 + i % 4);
 #endif
 
                     const float* kptr = kernel0_tm.row(r);
 
                     float32x4_t _sum0 = vdupq_n_f32(0.f);
 
-                    for (int q=0; q<inch; q++)
+                    for (int q = 0; q < inch; q++)
                     {
                         float32x4_t _r0 = vld1q_f32(r0);
 
@@ -1932,10 +1908,8 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
 
                     output0_tm++;
                 }
-
             }
         }
-
     }
     bottom_blob_tm = Mat();
     // END dot
@@ -1951,14 +1925,14 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
         top_blob_bordered.create(outw, outh, outch, 2u, 1, opt.workspace_allocator);
     }
     {
-//         const float otm[6][8] = {
-//             {1.0f,  1.0f,   1.0f,   1.0f,   1.0f,  32.0f, 32.0f, 0.0f},
-//             {0.0f,  1.0f,  -1.0f,   2.0f,  -2.0f,  16.0f,-16.0f, 0.0f},
-//             {0.0f,  1.0f,   1.0f,   4.0f,   4.0f,   8.0f,  8.0f, 0.0f},
-//             {0.0f,  1.0f,  -1.0f,   8.0f,  -8.0f,   4.0f, -4.0f, 0.0f},
-//             {0.0f,  1.0f,   1.0f,  16.0f,  16.0f,   2.0f,  2.0f, 0.0f},
-//             {0.0f,  1.0f,  -1.0f,  32.0f, -32.0f,   1.0f, -1.0f, 1.0f}
-//         };
+        //         const float otm[6][8] = {
+        //             {1.0f,  1.0f,   1.0f,   1.0f,   1.0f,  32.0f, 32.0f, 0.0f},
+        //             {0.0f,  1.0f,  -1.0f,   2.0f,  -2.0f,  16.0f,-16.0f, 0.0f},
+        //             {0.0f,  1.0f,   1.0f,   4.0f,   4.0f,   8.0f,  8.0f, 0.0f},
+        //             {0.0f,  1.0f,  -1.0f,   8.0f,  -8.0f,   4.0f, -4.0f, 0.0f},
+        //             {0.0f,  1.0f,   1.0f,  16.0f,  16.0f,   2.0f,  2.0f, 0.0f},
+        //             {0.0f,  1.0f,  -1.0f,  32.0f, -32.0f,   1.0f, -1.0f, 1.0f}
+        //         };
 
         // 0 = r0 + (r1 + r2) + (r3 + r4)     + (r5 + r6) * 32
         // 1 =      (r1 - r2) + (r3 - r4) * 2 + (r5 - r6) * 16
@@ -1969,10 +1943,10 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
 
         int w_tm = outw / 6 * 8;
         int h_tm = outh / 6 * 8;
-        const int tiles = w_tm/8 * h_tm/8;
+        const int tiles = w_tm / 8 * h_tm / 8;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p<outch; p++)
+        for (int p = 0; p < outch; p++)
         {
             const Mat out0_tm = top_blob_tm.channel(p);
             Mat out0 = top_blob_bordered.channel(p);
@@ -1983,13 +1957,13 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
             float tmp[6][8];
 
             // tile
-            for (int i=0; i<outh/6; i++)
+            for (int i = 0; i < outh / 6; i++)
             {
-                for (int j=0; j<outw/6; j++)
+                for (int j = 0; j < outw / 6; j++)
                 {
-//                     top_blob_tm.create(tiles, 64, outch, 4u, 1, opt.workspace_allocator);
+                    //                     top_blob_tm.create(tiles, 64, outch, 4u, 1, opt.workspace_allocator);
 
-                    const float* output0_tm_0 = (const float*)out0_tm + (i * w_tm/8 + j) * 1;
+                    const float* output0_tm_0 = (const float*)out0_tm + (i * w_tm / 8 + j) * 1;
                     const float* output0_tm_1 = output0_tm_0 + tiles * 1;
                     const float* output0_tm_2 = output0_tm_0 + tiles * 2;
                     const float* output0_tm_3 = output0_tm_0 + tiles * 3;
@@ -1999,7 +1973,7 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
                     const float* output0_tm_7 = output0_tm_0 + tiles * 7;
 
                     // TODO neon optimize
-                    for (int m=0; m<8; m++)
+                    for (int m = 0; m < 8; m++)
                     {
                         float tmp024a = output0_tm_1[0] + output0_tm_2[0];
                         float tmp135a = output0_tm_1[0] - output0_tm_2[0];
@@ -2030,7 +2004,7 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
 
                     unsigned short* output0 = out0.row<unsigned short>(i * 6) + j * 6;
 
-                    for (int m=0; m<6; m++)
+                    for (int m = 0; m < 6; m++)
                     {
                         const float* tmp0 = tmp[m];
 

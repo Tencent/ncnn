@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "mish_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -140,8 +142,8 @@ int Mish_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
     constants[4].i = bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_mish_pack8
-                             : elempack == 4 ? pipeline_mish_pack4
-                             : pipeline_mish;
+                               : elempack == 4 ? pipeline_mish_pack4
+                               : pipeline_mish;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

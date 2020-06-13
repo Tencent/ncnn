@@ -37,8 +37,10 @@ int Cast::load_param(const ParamDict& pd)
 signed char float32_to_int8(float value)
 {
     float tmp;
-    if (value >= 0.f) tmp = value + 0.5f;
-    else tmp = value - 0.5f;
+    if (value >= 0.f)
+        tmp = value + 0.5f;
+    else
+        tmp = value - 0.5f;
 
     if (tmp > 127)
         return 127;
@@ -105,12 +107,12 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     if (type_from == 1 && type_to == 2)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
             unsigned short* outptr = top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 outptr[i] = float32_to_float16(ptr[i]);
             }
@@ -120,12 +122,12 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     if (type_from == 2 && type_to == 1)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const unsigned short* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 outptr[i] = float16_to_float32(ptr[i]);
             }
@@ -135,12 +137,12 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     if (type_from == 3 && type_to == 1)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const signed char* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 outptr[i] = (float)ptr[i];
             }
@@ -150,12 +152,12 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     if (type_from == 1 && type_to == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
             unsigned short* outptr = top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 outptr[i] = float32_to_bfloat16(ptr[i]);
             }
@@ -165,12 +167,12 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     if (type_from == 4 && type_to == 1)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const unsigned short* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 outptr[i] = bfloat16_to_float32(ptr[i]);
             }

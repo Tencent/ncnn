@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "clip_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -143,8 +145,8 @@ int Clip_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
     constants[4].i = bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_clip_pack8
-                             : elempack == 4 ? pipeline_clip_pack4
-                             : pipeline_clip;
+                               : elempack == 4 ? pipeline_clip_pack4
+                               : pipeline_clip;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
@@ -164,11 +166,11 @@ int Clip_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, co
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;
     constants[3].i = bottom_top_blob.c;
-    constants[4].i = 0;//bottom_top_blob.cstep;
+    constants[4].i = 0; //bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_clip_pack8
-                             : elempack == 4 ? pipeline_clip_pack4
-                             : pipeline_clip;
+                               : elempack == 4 ? pipeline_clip_pack4
+                               : pipeline_clip;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

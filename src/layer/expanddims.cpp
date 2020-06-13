@@ -53,11 +53,11 @@ int ExpandDims::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
     else
     {
         const int* axes_ptr = axes;
-        for (int i=0; i<axes.w; i++)
+        for (int i = 0; i < axes.w; i++)
         {
             int axis = axes_ptr[i];
             if (axis < 0)
-                axis = dims + 1 + axis;// +1 for N-dim
+                axis = dims + 1 + axis; // +1 for N-dim
 
             if (dims == 1 && axis == 1)
             {

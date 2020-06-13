@@ -17,8 +17,8 @@
 #if NCNN_PIXEL
 
 #if __ANDROID_API__ >= 9
-#include <jni.h>
 #include <android/bitmap.h>
+#include <jni.h>
 #endif // __ANDROID_API__ >= 9
 
 namespace ncnn {

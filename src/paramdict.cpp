@@ -12,10 +12,12 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <ctype.h>
 #include "paramdict.h"
+
 #include "datareader.h"
 #include "platform.h"
+
+#include <ctype.h>
 
 #if NCNN_STDIO || NCNN_STRING
 #include <stdio.h>
@@ -75,7 +77,7 @@ void ParamDict::clear()
 static bool vstr_is_float(const char vstr[16])
 {
     // look ahead for determine isfloat
-    for (int j=0; j<16; j++)
+    for (int j = 0; j < 16; j++)
     {
         if (vstr[j] == '\0')
             break;
@@ -149,13 +151,21 @@ static float vstr_to_float(const char vstr[16])
         }
 
         double scale = 1.0;
-        while (expon >=  8) { scale *= 1e8;  expon -=  8; }
-        while (expon >   0) { scale *= 10.0; expon -=  1; }
+        while (expon >= 8)
+        {
+            scale *= 1e8;
+            expon -= 8;
+        }
+        while (expon > 0)
+        {
+            scale *= 10.0;
+            expon -= 1;
+        }
 
         v = fact ? v * scale : v / scale;
     }
 
-//     fprintf(stderr, "v = %f\n", v);
+    //     fprintf(stderr, "v = %f\n", v);
     return sign ? (float)v : (float)-v;
 }
 
@@ -163,7 +173,7 @@ int ParamDict::load_param(const DataReader& dr)
 {
     clear();
 
-//     0=100 1=1.250000 -23303=5,0.1,0.2,0.4,0.8,1.0
+    //     0=100 1=1.250000 -23303=5,0.1,0.2,0.4,0.8,1.0
 
     // parse each key=value pair
     int id = 0;
@@ -256,18 +266,18 @@ int ParamDict::load_param_bin(const DataReader& dr)
 {
     clear();
 
-//     binary 0
-//     binary 100
-//     binary 1
-//     binary 1.250000
-//     binary 3 | array_bit
-//     binary 5
-//     binary 0.1
-//     binary 0.2
-//     binary 0.4
-//     binary 0.8
-//     binary 1.0
-//     binary -233(EOP)
+    //     binary 0
+    //     binary 100
+    //     binary 1
+    //     binary 1.250000
+    //     binary 3 | array_bit
+    //     binary 5
+    //     binary 0.1
+    //     binary 0.2
+    //     binary 0.4
+    //     binary 0.8
+    //     binary 1.0
+    //     binary -233(EOP)
 
     int id = 0;
     size_t nread;

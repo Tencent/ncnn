@@ -37,81 +37,80 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
-
-    if (elempack == 4)
-    {
-        if (dims == 1)
+        if (elempack == 4)
         {
-            int w = bottom_top_blob.w;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i=0; i<w; i++)
+            if (dims == 1)
             {
-                float* ptr = (float*)bottom_top_blob + i * 4;
+                int w = bottom_top_blob.w;
 
-                float32x4_t _a = vld1q_f32((const float*)a_data + i * 4);
-                float32x4_t _b = vld1q_f32((const float*)b_data + i * 4);
-
-                float32x4_t _p = vld1q_f32(ptr);
-                _p = vmlaq_f32(_a, _p, _b);
-                vst1q_f32(ptr, _p);
-            }
-        }
-
-        if (dims == 2)
-        {
-            int w = bottom_top_blob.w;
-            int h = bottom_top_blob.h;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i=0; i<h; i++)
-            {
-                float32x4_t _a = vld1q_f32((const float*)a_data + i * 4);
-                float32x4_t _b = vld1q_f32((const float*)b_data + i * 4);
-
-                float* ptr = bottom_top_blob.row(i);
-
-                for (int j=0; j<w; j++)
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int i = 0; i < w; i++)
                 {
+                    float* ptr = (float*)bottom_top_blob + i * 4;
+
+                    float32x4_t _a = vld1q_f32((const float*)a_data + i * 4);
+                    float32x4_t _b = vld1q_f32((const float*)b_data + i * 4);
+
                     float32x4_t _p = vld1q_f32(ptr);
                     _p = vmlaq_f32(_a, _p, _b);
                     vst1q_f32(ptr, _p);
-
-                    ptr += 4;
                 }
             }
-        }
 
-        if (dims == 3)
-        {
-            int w = bottom_top_blob.w;
-            int h = bottom_top_blob.h;
-            int c = bottom_top_blob.c;
-            int size = w * h;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<c; q++)
+            if (dims == 2)
             {
-                float32x4_t _a = vld1q_f32((const float*)a_data + q * 4);
-                float32x4_t _b = vld1q_f32((const float*)b_data + q * 4);
+                int w = bottom_top_blob.w;
+                int h = bottom_top_blob.h;
 
-                float* ptr = bottom_top_blob.channel(q);
-
-                for (int i=0; i<size; i++)
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int i = 0; i < h; i++)
                 {
-                    float32x4_t _p = vld1q_f32(ptr);
-                    _p = vmlaq_f32(_a, _p, _b);
-                    vst1q_f32(ptr, _p);
+                    float32x4_t _a = vld1q_f32((const float*)a_data + i * 4);
+                    float32x4_t _b = vld1q_f32((const float*)b_data + i * 4);
 
-                    ptr += 4;
+                    float* ptr = bottom_top_blob.row(i);
+
+                    for (int j = 0; j < w; j++)
+                    {
+                        float32x4_t _p = vld1q_f32(ptr);
+                        _p = vmlaq_f32(_a, _p, _b);
+                        vst1q_f32(ptr, _p);
+
+                        ptr += 4;
+                    }
                 }
             }
+
+            if (dims == 3)
+            {
+                int w = bottom_top_blob.w;
+                int h = bottom_top_blob.h;
+                int c = bottom_top_blob.c;
+                int size = w * h;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < c; q++)
+                {
+                    float32x4_t _a = vld1q_f32((const float*)a_data + q * 4);
+                    float32x4_t _b = vld1q_f32((const float*)b_data + q * 4);
+
+                    float* ptr = bottom_top_blob.channel(q);
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        float32x4_t _p = vld1q_f32(ptr);
+                        _p = vmlaq_f32(_a, _p, _b);
+                        vst1q_f32(ptr, _p);
+
+                        ptr += 4;
+                    }
+                }
+            }
+
+            return 0;
         }
 
-        return 0;
-    }
-
-    } // opt.use_packing_layout
+    }  // opt.use_packing_layout
 #endif // __ARM_NEON
 
     if (dims != 3)
@@ -123,7 +122,7 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int size = w * h;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
@@ -141,52 +140,50 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #if __aarch64__
         if (nn > 0)
         {
-        asm volatile(
-            "dup        v1.4s, %w4             \n"
-            "dup        v2.4s, %w5             \n"
-            "0:                                \n"
-            "prfm       pldl1keep, [%1, #128]  \n"
-            "ld1        {v0.4s}, [%1]          \n"
-            "orr        v3.16b, v1.16b, v1.16b \n"
-            "fmla       v3.4s, v0.4s, v2.4s    \n"
-            "subs       %w0, %w0, #1           \n"
-            "st1        {v3.4s}, [%1], #16     \n"
-            "bne        0b                     \n"
-            : "=r"(nn),     // %0
-              "=r"(ptr)     // %1
-            : "0"(nn),
-              "1"(ptr),
-              "r"(a),       // %4
-              "r"(b)        // %5
-            : "cc", "memory", "v0", "v1", "v2", "v3"
-        );
+            asm volatile(
+                "dup        v1.4s, %w4             \n"
+                "dup        v2.4s, %w5             \n"
+                "0:                                \n"
+                "prfm       pldl1keep, [%1, #128]  \n"
+                "ld1        {v0.4s}, [%1]          \n"
+                "orr        v3.16b, v1.16b, v1.16b \n"
+                "fmla       v3.4s, v0.4s, v2.4s    \n"
+                "subs       %w0, %w0, #1           \n"
+                "st1        {v3.4s}, [%1], #16     \n"
+                "bne        0b                     \n"
+                : "=r"(nn), // %0
+                "=r"(ptr) // %1
+                : "0"(nn),
+                "1"(ptr),
+                "r"(a), // %4
+                "r"(b)  // %5
+                : "cc", "memory", "v0", "v1", "v2", "v3");
         }
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "vdup.f32   q1, %4              \n"
-            "vdup.f32   q2, %5              \n"
-            "0:                             \n"
-            "pld        [%1, #128]          \n"
-            "vld1.f32   {d0-d1}, [%1 :128]  \n"
-            "vorr.32    q3, q1, q1          \n"
-            "vmla.f32   q3, q0, q2          \n"
-            "subs       %0, #1              \n"
-            "vst1.f32   {d6-d7}, [%1 :128]! \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(ptr)     // %1
-            : "0"(nn),
-              "1"(ptr),
-              "r"(a),       // %4
-              "r"(b)        // %5
-            : "cc", "memory", "q0", "q1", "q2", "q3"
-        );
+            asm volatile(
+                "vdup.f32   q1, %4              \n"
+                "vdup.f32   q2, %5              \n"
+                "0:                             \n"
+                "pld        [%1, #128]          \n"
+                "vld1.f32   {d0-d1}, [%1 :128]  \n"
+                "vorr.32    q3, q1, q1          \n"
+                "vmla.f32   q3, q0, q2          \n"
+                "subs       %0, #1              \n"
+                "vst1.f32   {d6-d7}, [%1 :128]! \n"
+                "bne        0b                  \n"
+                : "=r"(nn), // %0
+                "=r"(ptr) // %1
+                : "0"(nn),
+                "1"(ptr),
+                "r"(a), // %4
+                "r"(b)  // %5
+                : "cc", "memory", "q0", "q1", "q2", "q3");
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain>0; remain--)
+        for (; remain > 0; remain--)
         {
             *ptr = b * *ptr + a;
 

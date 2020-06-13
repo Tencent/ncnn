@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/cast.h"
+#include "testutil.h"
 
 static int test_cast_cpu(const ncnn::Mat& a, int type_from, int type_to)
 {
@@ -44,7 +43,8 @@ static int test_cast_cpu(const ncnn::Mat& a, int type_from, int type_to)
     if (type_from == 2)
     {
         ncnn::cast_float32_to_float16(a, a_fp16, opt);
-    }else if (type_from == 4)
+    }
+    else if (type_from == 4)
     {
         ncnn::cast_float32_to_bfloat16(a, a_fp16, opt);
     }
@@ -71,7 +71,6 @@ static int test_cast_cpu(const ncnn::Mat& a, int type_from, int type_to)
 
     return 0;
 }
-
 
 static int test_cast_cpu_packed(const ncnn::Mat& a, int type_from, int type_to)
 {
@@ -100,7 +99,8 @@ static int test_cast_cpu_packed(const ncnn::Mat& a, int type_from, int type_to)
     if (type_from == 2)
     {
         ncnn::cast_float32_to_float16(a, a_fp16, opt);
-    } else if (type_from == 4)
+    }
+    else if (type_from == 4)
     {
         ncnn::cast_float32_to_bfloat16(a, a_fp16, opt);
     }
@@ -119,7 +119,8 @@ static int test_cast_cpu_packed(const ncnn::Mat& a, int type_from, int type_to)
     if (type_from == 2)
     {
         ncnn::cast_float32_to_float16(a4, a4_fp16, opt);
-    }else if (type_from == 4)
+    }
+    else if (type_from == 4)
     {
         ncnn::cast_float32_to_bfloat16(a4, a4_fp16, opt);
     }
@@ -621,57 +622,54 @@ static int test_cast_gpu_image_fp16p_pack8(const ncnn::Mat& a, int type_from, in
 static int test_cast(const ncnn::Mat& a, int type_from, int type_to)
 {
     return 0
-        || test_cast_cpu(a, type_from, type_to)
-        || test_cast_cpu_packed(a, type_from, type_to)
+           || test_cast_cpu(a, type_from, type_to)
+           || test_cast_cpu_packed(a, type_from, type_to)
 #if NCNN_VULKAN
-        || test_cast_gpu_fp16p(a, type_from, type_to)
-        || test_cast_gpu_fp16p_pack8(a, type_from, type_to)
-        || test_cast_gpu_image_fp16p(a, type_from, type_to)
-        || test_cast_gpu_image_fp16p_pack8(a, type_from, type_to)
+           || test_cast_gpu_fp16p(a, type_from, type_to)
+           || test_cast_gpu_fp16p_pack8(a, type_from, type_to)
+           || test_cast_gpu_image_fp16p(a, type_from, type_to)
+           || test_cast_gpu_image_fp16p_pack8(a, type_from, type_to)
 #endif // NCNN_VULKAN
-        ;
+           ;
 }
 
 static int test_cast_0()
 {
     return 0
-        || test_cast(RandomMat(6, 7, 16), 1, 2)
-        || test_cast(RandomMat(3, 5, 13), 1, 2)
-        || test_cast(RandomMat(6, 7, 16), 2, 1)
-        || test_cast(RandomMat(3, 5, 13), 2, 1)
-        || test_cast(RandomMat(6, 7, 16), 1, 4)
-        || test_cast(RandomMat(3, 5, 13), 1, 4)
-        || test_cast(RandomMat(6, 7, 16), 4, 1)
-        || test_cast(RandomMat(3, 5, 13), 4, 1)
-        ;
+           || test_cast(RandomMat(6, 7, 16), 1, 2)
+           || test_cast(RandomMat(3, 5, 13), 1, 2)
+           || test_cast(RandomMat(6, 7, 16), 2, 1)
+           || test_cast(RandomMat(3, 5, 13), 2, 1)
+           || test_cast(RandomMat(6, 7, 16), 1, 4)
+           || test_cast(RandomMat(3, 5, 13), 1, 4)
+           || test_cast(RandomMat(6, 7, 16), 4, 1)
+           || test_cast(RandomMat(3, 5, 13), 4, 1);
 }
 
 static int test_cast_1()
 {
     return 0
-        || test_cast(RandomMat(6, 16), 1, 2)
-        || test_cast(RandomMat(7, 15), 1, 2)
-        || test_cast(RandomMat(6, 16), 2, 1)
-        || test_cast(RandomMat(7, 15), 2, 1)
-        || test_cast(RandomMat(6, 16), 1, 4)
-        || test_cast(RandomMat(7, 15), 1, 4)
-        || test_cast(RandomMat(6, 16), 4, 1)
-        || test_cast(RandomMat(7, 15), 4, 1)
-        ;
+           || test_cast(RandomMat(6, 16), 1, 2)
+           || test_cast(RandomMat(7, 15), 1, 2)
+           || test_cast(RandomMat(6, 16), 2, 1)
+           || test_cast(RandomMat(7, 15), 2, 1)
+           || test_cast(RandomMat(6, 16), 1, 4)
+           || test_cast(RandomMat(7, 15), 1, 4)
+           || test_cast(RandomMat(6, 16), 4, 1)
+           || test_cast(RandomMat(7, 15), 4, 1);
 }
 
 static int test_cast_2()
 {
     return 0
-        || test_cast(RandomMat(128), 1, 2)
-        || test_cast(RandomMat(127), 1, 2)
-        || test_cast(RandomMat(128), 2, 1)
-        || test_cast(RandomMat(127), 2, 1)
-        || test_cast(RandomMat(128), 1, 4)
-        || test_cast(RandomMat(127), 1, 4)
-        || test_cast(RandomMat(128), 4, 1)
-        || test_cast(RandomMat(127), 4, 1)
-        ;
+           || test_cast(RandomMat(128), 1, 2)
+           || test_cast(RandomMat(127), 1, 2)
+           || test_cast(RandomMat(128), 2, 1)
+           || test_cast(RandomMat(127), 2, 1)
+           || test_cast(RandomMat(128), 1, 4)
+           || test_cast(RandomMat(127), 1, 4)
+           || test_cast(RandomMat(128), 4, 1)
+           || test_cast(RandomMat(127), 4, 1);
 }
 
 int main()
@@ -679,8 +677,7 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_cast_0()
-        || test_cast_1()
-        || test_cast_2()
-        ;
+           || test_cast_0()
+           || test_cast_1()
+           || test_cast_2();
 }

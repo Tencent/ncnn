@@ -13,9 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "roialign.h"
-#include <math.h>
+
 #include <algorithm>
 #include <cassert>
+#include <math.h>
 
 namespace ncnn {
 
@@ -58,19 +59,19 @@ static inline float bilinear_interpolate(const float* ptr, int w, int h, float x
 
     if (x1 >= w)
     {
-        x1 = w-1;
+        x1 = w - 1;
         a0 = 1.f;
         a1 = 0.f;
     }
     if (y1 >= h)
     {
-        y1 = h-1;
+        y1 = h - 1;
         b0 = 1.f;
         b1 = 0.f;
     }
 
-    float r0 = ptr[ y0 * w + x0 ] * a0 + ptr[ y0 * w + x1 ] * a1;
-    float r1 = ptr[ y1 * w + x0 ] * a0 + ptr[ y1 * w + x1 ] * a1;
+    float r0 = ptr[y0 * w + x0] * a0 + ptr[y0 * w + x1] * a1;
+    float r1 = ptr[y1 * w + x0] * a0 + ptr[y1 * w + x1] * a1;
 
     float v = r0 * b0 + r1 * b1;
 
@@ -99,26 +100,31 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     float roi_y1 = roi_ptr[1] * spatial_scale;
     float roi_x2 = roi_ptr[2] * spatial_scale;
     float roi_y2 = roi_ptr[3] * spatial_scale;
-    if (aligned) {
-      roi_x1 -= 0.5f; roi_y1 -= 0.5f;
-      roi_x2 -= 0.5f; roi_y2 -= 0.5f;
+    if (aligned)
+    {
+        roi_x1 -= 0.5f;
+        roi_y1 -= 0.5f;
+        roi_x2 -= 0.5f;
+        roi_y2 -= 0.5f;
     }
 
     float roi_w = roi_x2 - roi_x1;
     float roi_h = roi_y2 - roi_y1;
 
-    if (!aligned) {
-      roi_w = std::max(roi_w, 1.f);
-      roi_h = std::max(roi_h, 1.f);
+    if (!aligned)
+    {
+        roi_w = std::max(roi_w, 1.f);
+        roi_h = std::max(roi_h, 1.f);
     }
 
     float bin_size_w = roi_w / (float)pooled_width;
     float bin_size_h = roi_h / (float)pooled_height;
 
-    if (version == 0) {
+    if (version == 0)
+    {
         // original version
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
@@ -140,10 +146,8 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     hend = std::min(std::max(hend, 0.f), (float)h);
                     wend = std::min(std::max(wend, 0.f), (float)w);
 
-                    int bin_grid_h = sampling_ratio > 0 ?
-                      sampling_ratio : ceil(hend - hstart);
-                    int bin_grid_w = sampling_ratio > 0 ?
-                      sampling_ratio : ceil(wend - wstart);
+                    int bin_grid_h = sampling_ratio > 0 ? sampling_ratio : ceil(hend - hstart);
+                    int bin_grid_w = sampling_ratio > 0 ? sampling_ratio : ceil(wend - wstart);
 
                     bool is_empty = (hend <= hstart) || (wend <= wstart);
                     int area = bin_grid_h * bin_grid_w;
@@ -170,18 +174,17 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 outptr += pooled_width;
             }
         }
-    } else if (version == 1)
+    }
+    else if (version == 1)
     {
         // the version in detectron 2
-        int roi_bin_grid_h = sampling_ratio > 0 ?
-          sampling_ratio : ceil(roi_h / pooled_height);
-        int roi_bin_grid_w = sampling_ratio > 0 ?
-          sampling_ratio : ceil(roi_w / pooled_width);
+        int roi_bin_grid_h = sampling_ratio > 0 ? sampling_ratio : ceil(roi_h / pooled_height);
+        int roi_bin_grid_w = sampling_ratio > 0 ? sampling_ratio : ceil(roi_w / pooled_width);
 
         const float count = std::max(roi_bin_grid_h * roi_bin_grid_w, 1);
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
@@ -199,16 +202,19 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         {
                             float x = roi_x1 + pw * bin_size_w + (bx + 0.5f) * bin_size_w / (float)roi_bin_grid_w;
 
-                            if (y < -1.0 || y > h || x < -1.0 || x > w) {
-                              // empty
-                              continue;
-                            } else {
-                              if (y <= 0) y = 0;
-                              if (x <= 0) x = 0;
+                            if (y < -1.0 || y > h || x < -1.0 || x > w)
+                            {
+                                // empty
+                                continue;
+                            }
+                            else
+                            {
+                                if (y <= 0) y = 0;
+                                if (x <= 0) x = 0;
 
-                              // bilinear interpolate at (x,y)
-                              float v = bilinear_interpolate(ptr, w, h, x, y);
-                              sum += v;
+                                // bilinear interpolate at (x,y)
+                                float v = bilinear_interpolate(ptr, w, h, x, y);
+                                sum += v;
                             }
                         }
                     }

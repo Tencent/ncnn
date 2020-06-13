@@ -19,20 +19,19 @@
 #define _CRT_SECURE_NO_DEPRECATE
 #endif
 
-#include <cstdio>
-#include <cstring>
-#include <vector>
-#include <iostream>
-#include <cstdlib>
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
 #include <map>
-
 #include <opencv2/opencv.hpp>
+#include <vector>
 
 // ncnn public header
-#include "net.h"
-#include "cpu.h"
 #include "benchmark.h"
+#include "cpu.h"
+#include "net.h"
 
 // ncnn private header
 #include "layer/convolution.h"
@@ -160,7 +159,7 @@ int QuantNet::get_conv_weight_blob_scales()
             for (int n = 0; n < convolution->num_output; n++)
             {
                 const ncnn::Mat weight_data_n = convolution->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-                const float *data_n = weight_data_n;
+                const float* data_n = weight_data_n;
                 float max_value = std::numeric_limits<float>::min();
 
                 for (int k = 0; k < weight_data_size_output; k++)
@@ -192,7 +191,7 @@ int QuantNet::get_conv_weight_blob_scales()
             for (int n = 0; n < convolutiondepthwise->group; n++)
             {
                 const ncnn::Mat weight_data_n = convolutiondepthwise->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-                const float *data_n = weight_data_n;
+                const float* data_n = weight_data_n;
                 float max_value = std::numeric_limits<float>::min();
 
                 for (int k = 0; k < weight_data_size_output; k++)
@@ -217,7 +216,7 @@ int QuantNet::get_conv_weight_blob_scales()
             for (int n = 0; n < innerproduct->num_output; n++)
             {
                 const ncnn::Mat weight_data_n = innerproduct->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-                const float *data_n = weight_data_n;
+                const float* data_n = weight_data_n;
                 float max_value = std::numeric_limits<float>::min();
 
                 for (int k = 0; k < weight_data_size_output; k++)
@@ -245,8 +244,8 @@ public:
     int normalize_histogram();
     int update_histogram(ncnn::Mat data);
 
-    float compute_kl_divergence(const std::vector<float> &dist_a, const std::vector<float> &dist_b) const;
-    int threshold_distribution(const std::vector<float> &distribution, const int target_bin = 128) const;
+    float compute_kl_divergence(const std::vector<float>& dist_a, const std::vector<float>& dist_b) const;
+    int threshold_distribution(const std::vector<float>& distribution, const int target_bin = 128) const;
     float get_data_blob_scale();
 
 public:
@@ -283,7 +282,7 @@ int QuantizeData::initial_blob_max(ncnn::Mat data)
 
     for (int q = 0; q < channel_num; q++)
     {
-        const float *data_n = data.channel(q);
+        const float* data_n = data.channel(q);
         for (int i = 0; i < size; i++)
         {
             max_value = std::max(max_value, std::fabs(data_n[i]));
@@ -331,7 +330,7 @@ int QuantizeData::update_histogram(ncnn::Mat data)
 
     for (int q = 0; q < channel_num; q++)
     {
-        const float *data_n = data.channel(q);
+        const float* data_n = data.channel(q);
         for (int i = 0; i < size; i++)
         {
             if (data_n[i] == 0)
@@ -346,7 +345,7 @@ int QuantizeData::update_histogram(ncnn::Mat data)
     return 0;
 }
 
-float QuantizeData::compute_kl_divergence(const std::vector<float> &dist_a, const std::vector<float> &dist_b) const
+float QuantizeData::compute_kl_divergence(const std::vector<float>& dist_a, const std::vector<float>& dist_b) const
 {
     const size_t length = dist_a.size();
     assert(dist_b.size() == length);
@@ -370,7 +369,7 @@ float QuantizeData::compute_kl_divergence(const std::vector<float> &dist_a, cons
     return result;
 }
 
-int QuantizeData::threshold_distribution(const std::vector<float> &distribution, const int target_bin) const
+int QuantizeData::threshold_distribution(const std::vector<float>& distribution, const int target_bin) const
 {
     int target_threshold = target_bin;
     float min_kl_divergence = 1000;
@@ -386,7 +385,6 @@ int QuantizeData::threshold_distribution(const std::vector<float> &distribution,
 
     for (int threshold = target_bin; threshold < length; threshold++)
     {
-
         std::vector<float> t_distribution(distribution.begin(), distribution.begin() + threshold);
 
         t_distribution[threshold - 1] += threshold_sum;
@@ -413,7 +411,6 @@ int QuantizeData::threshold_distribution(const std::vector<float> &distribution,
 
             if (static_cast<float>(right_lower) < end)
             {
-
                 const float right_scale = end - static_cast<float>(right_lower);
                 quantize_distribution[i] += right_scale * distribution[right_lower];
             }
@@ -560,9 +557,9 @@ static int post_training_quantize(const std::vector<std::string>& image_list, co
         return -1;
     }
 
-    FILE *fp = fopen(table_path.c_str(), "w");
+    FILE* fp = fopen(table_path.c_str(), "w");
 
-    // save quantization scale of weight 
+    // save quantization scale of weight
     printf("====> Quantize the parameters.\n");
     for (size_t i = 0; i < net.conv_names.size(); i++)
     {
@@ -571,7 +568,7 @@ static int post_training_quantize(const std::vector<std::string>& image_list, co
         std::vector<float> weight_scale_n = net.weight_scales[layer_name];
 
         fprintf(fp, "%s_param_0 ", layer_name.c_str());
-        for (size_t j = 0 ; j < weight_scale_n.size(); j++)
+        for (size_t j = 0; j < weight_scale_n.size(); j++)
         {
             fprintf(fp, "%f ", weight_scale_n[j]);
         }
@@ -802,18 +799,16 @@ int main(int argc, char** argv)
 {
     std::cout << "--- ncnn post training quantization tool --- " << __TIME__ << " " << __DATE__ << std::endl;
 
-    const char* key_map =
-        "{help h usage ? |   | print this message }"
-        "{param p        |   | path to ncnn.param file }"
-        "{bin b          |   | path to ncnn.bin file }"
-        "{images i       |   | path to calibration images folder }"
-        "{output o       |   | path to output calibration table file }"
-        "{mean m         |   | value of mean (mean value, default is 104.0,117.0,123.0) }"
-        "{norm n         |   | value of normalize (scale value, default is 1.0,1.0,1.0) }"
-        "{size s         |   | the size of input image(using the resize the original image,default is w=224,h=224) }"
-        "{swapRB c       |   | flag which indicates that swap first and last channels in 3-channel image is necessary }"
-        "{thread t       | 4 | count of processing threads }"
-    ;
+    const char* key_map = "{help h usage ? |   | print this message }"
+                          "{param p        |   | path to ncnn.param file }"
+                          "{bin b          |   | path to ncnn.bin file }"
+                          "{images i       |   | path to calibration images folder }"
+                          "{output o       |   | path to output calibration table file }"
+                          "{mean m         |   | value of mean (mean value, default is 104.0,117.0,123.0) }"
+                          "{norm n         |   | value of normalize (scale value, default is 1.0,1.0,1.0) }"
+                          "{size s         |   | the size of input image(using the resize the original image,default is w=224,h=224) }"
+                          "{swapRB c       |   | flag which indicates that swap first and last channels in 3-channel image is necessary }"
+                          "{thread t       | 4 | count of processing threads }";
 
     cv::CommandLineParser parser(argc, argv, key_map);
 

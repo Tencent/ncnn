@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "argmax.h"
+
 #include <algorithm>
 #include <functional>
 
@@ -48,21 +49,21 @@ int ArgMax::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
 
     // partial sort topk with index
     // optional value
-    std::vector< std::pair<float, int> > vec;
+    std::vector<std::pair<float, int> > vec;
     vec.resize(size);
-    for (int i=0; i<size; i++)
+    for (int i = 0; i < size; i++)
     {
         vec[i] = std::make_pair(ptr[i], i);
     }
 
     std::partial_sort(vec.begin(), vec.begin() + topk, vec.end(),
-                        std::greater< std::pair<float, int> >());
+                      std::greater<std::pair<float, int> >());
 
     float* outptr = top_blob;
     if (out_max_val)
     {
         float* valptr = outptr + topk;
-        for (int i=0; i<topk; i++)
+        for (int i = 0; i < topk; i++)
         {
             outptr[i] = vec[i].first;
             valptr[i] = vec[i].second;
@@ -70,7 +71,7 @@ int ArgMax::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
     }
     else
     {
-        for (int i=0; i<topk; i++)
+        for (int i = 0; i < topk; i++)
         {
             outptr[i] = vec[i].second;
         }

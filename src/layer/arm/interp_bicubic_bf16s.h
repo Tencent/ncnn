@@ -29,7 +29,7 @@ static void resize_bicubic_image_bf16s(const Mat& src, Mat& dst, float* alpha, i
 
     int prev_sy1 = -3;
 
-    for (int dy = 0; dy < h; dy++ )
+    for (int dy = 0; dy < h; dy++)
     {
         int sy = yofs[dy];
 
@@ -45,7 +45,7 @@ static void resize_bicubic_image_bf16s(const Mat& src, Mat& dst, float* alpha, i
             rows1 = rows2;
             rows2 = rows3;
             rows3 = rows0_old;
-            const unsigned short* S3 = src.row<const unsigned short>(sy+2);
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
 
             const float* alphap = alpha;
             float* rows3p = rows3;
@@ -58,7 +58,7 @@ static void resize_bicubic_image_bf16s(const Mat& src, Mat& dst, float* alpha, i
                 float a1 = alphap[1];
                 float a2 = alphap[2];
                 float a3 = alphap[3];
-                rows3p[dx] = bfloat16_to_float32(S3p[-1])*a0 + bfloat16_to_float32(S3p[0])*a1 + bfloat16_to_float32(S3p[1])*a2 + bfloat16_to_float32(S3p[2])*a3;
+                rows3p[dx] = bfloat16_to_float32(S3p[-1]) * a0 + bfloat16_to_float32(S3p[0]) * a1 + bfloat16_to_float32(S3p[1]) * a2 + bfloat16_to_float32(S3p[2]) * a3;
 
                 alphap += 4;
             }
@@ -72,8 +72,8 @@ static void resize_bicubic_image_bf16s(const Mat& src, Mat& dst, float* alpha, i
             rows1 = rows3;
             rows2 = rows0_old;
             rows3 = rows1_old;
-            const unsigned short* S2 = src.row<const unsigned short>(sy+1);
-            const unsigned short* S3 = src.row<const unsigned short>(sy+2);
+            const unsigned short* S2 = src.row<const unsigned short>(sy + 1);
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
 
             const float* alphap = alpha;
             float* rows2p = rows2;
@@ -88,8 +88,8 @@ static void resize_bicubic_image_bf16s(const Mat& src, Mat& dst, float* alpha, i
                 float a1 = alphap[1];
                 float a2 = alphap[2];
                 float a3 = alphap[3];
-                rows2p[dx] = bfloat16_to_float32(S2p[-1])*a0 + bfloat16_to_float32(S2p[0])*a1 + bfloat16_to_float32(S2p[1])*a2 + bfloat16_to_float32(S2p[2])*a3;
-                rows3p[dx] = bfloat16_to_float32(S3p[-1])*a0 + bfloat16_to_float32(S3p[0])*a1 + bfloat16_to_float32(S3p[1])*a2 + bfloat16_to_float32(S3p[2])*a3;
+                rows2p[dx] = bfloat16_to_float32(S2p[-1]) * a0 + bfloat16_to_float32(S2p[0]) * a1 + bfloat16_to_float32(S2p[1]) * a2 + bfloat16_to_float32(S2p[2]) * a3;
+                rows3p[dx] = bfloat16_to_float32(S3p[-1]) * a0 + bfloat16_to_float32(S3p[0]) * a1 + bfloat16_to_float32(S3p[1]) * a2 + bfloat16_to_float32(S3p[2]) * a3;
 
                 alphap += 4;
             }
@@ -105,8 +105,8 @@ static void resize_bicubic_image_bf16s(const Mat& src, Mat& dst, float* alpha, i
             rows2 = rows1_old;
             rows3 = rows2_old;
             const unsigned short* S1 = src.row<const unsigned short>(sy);
-            const unsigned short* S2 = src.row<const unsigned short>(sy+1);
-            const unsigned short* S3 = src.row<const unsigned short>(sy+2);
+            const unsigned short* S2 = src.row<const unsigned short>(sy + 1);
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
 
             const float* alphap = alpha;
             float* rows1p = rows1;
@@ -123,9 +123,9 @@ static void resize_bicubic_image_bf16s(const Mat& src, Mat& dst, float* alpha, i
                 float a1 = alphap[1];
                 float a2 = alphap[2];
                 float a3 = alphap[3];
-                rows1p[dx] = bfloat16_to_float32(S1p[-1])*a0 + bfloat16_to_float32(S1p[0])*a1 + bfloat16_to_float32(S1p[1])*a2 + bfloat16_to_float32(S1p[2])*a3;
-                rows2p[dx] = bfloat16_to_float32(S2p[-1])*a0 + bfloat16_to_float32(S2p[0])*a1 + bfloat16_to_float32(S2p[1])*a2 + bfloat16_to_float32(S2p[2])*a3;
-                rows3p[dx] = bfloat16_to_float32(S3p[-1])*a0 + bfloat16_to_float32(S3p[0])*a1 + bfloat16_to_float32(S3p[1])*a2 + bfloat16_to_float32(S3p[2])*a3;
+                rows1p[dx] = bfloat16_to_float32(S1p[-1]) * a0 + bfloat16_to_float32(S1p[0]) * a1 + bfloat16_to_float32(S1p[1]) * a2 + bfloat16_to_float32(S1p[2]) * a3;
+                rows2p[dx] = bfloat16_to_float32(S2p[-1]) * a0 + bfloat16_to_float32(S2p[0]) * a1 + bfloat16_to_float32(S2p[1]) * a2 + bfloat16_to_float32(S2p[2]) * a3;
+                rows3p[dx] = bfloat16_to_float32(S3p[-1]) * a0 + bfloat16_to_float32(S3p[0]) * a1 + bfloat16_to_float32(S3p[1]) * a2 + bfloat16_to_float32(S3p[2]) * a3;
 
                 alphap += 4;
             }
@@ -133,10 +133,10 @@ static void resize_bicubic_image_bf16s(const Mat& src, Mat& dst, float* alpha, i
         else
         {
             // hresize four rows
-            const unsigned short* S0 = src.row<const unsigned short>(sy-1);
+            const unsigned short* S0 = src.row<const unsigned short>(sy - 1);
             const unsigned short* S1 = src.row<const unsigned short>(sy);
-            const unsigned short* S2 = src.row<const unsigned short>(sy+1);
-            const unsigned short* S3 = src.row<const unsigned short>(sy+2);
+            const unsigned short* S2 = src.row<const unsigned short>(sy + 1);
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
 
             const float* alphap = alpha;
             float* rows0p = rows0;
@@ -155,10 +155,10 @@ static void resize_bicubic_image_bf16s(const Mat& src, Mat& dst, float* alpha, i
                 float a1 = alphap[1];
                 float a2 = alphap[2];
                 float a3 = alphap[3];
-                rows0p[dx] = bfloat16_to_float32(S0p[-1])*a0 + bfloat16_to_float32(S0p[0])*a1 + bfloat16_to_float32(S0p[1])*a2 + bfloat16_to_float32(S0p[2])*a3;
-                rows1p[dx] = bfloat16_to_float32(S1p[-1])*a0 + bfloat16_to_float32(S1p[0])*a1 + bfloat16_to_float32(S1p[1])*a2 + bfloat16_to_float32(S1p[2])*a3;
-                rows2p[dx] = bfloat16_to_float32(S2p[-1])*a0 + bfloat16_to_float32(S2p[0])*a1 + bfloat16_to_float32(S2p[1])*a2 + bfloat16_to_float32(S2p[2])*a3;
-                rows3p[dx] = bfloat16_to_float32(S3p[-1])*a0 + bfloat16_to_float32(S3p[0])*a1 + bfloat16_to_float32(S3p[1])*a2 + bfloat16_to_float32(S3p[2])*a3;
+                rows0p[dx] = bfloat16_to_float32(S0p[-1]) * a0 + bfloat16_to_float32(S0p[0]) * a1 + bfloat16_to_float32(S0p[1]) * a2 + bfloat16_to_float32(S0p[2]) * a3;
+                rows1p[dx] = bfloat16_to_float32(S1p[-1]) * a0 + bfloat16_to_float32(S1p[0]) * a1 + bfloat16_to_float32(S1p[1]) * a2 + bfloat16_to_float32(S1p[2]) * a3;
+                rows2p[dx] = bfloat16_to_float32(S2p[-1]) * a0 + bfloat16_to_float32(S2p[0]) * a1 + bfloat16_to_float32(S2p[1]) * a2 + bfloat16_to_float32(S2p[2]) * a3;
+                rows3p[dx] = bfloat16_to_float32(S3p[-1]) * a0 + bfloat16_to_float32(S3p[0]) * a1 + bfloat16_to_float32(S3p[1]) * a2 + bfloat16_to_float32(S3p[2]) * a3;
 
                 alphap += 4;
             }
@@ -179,7 +179,7 @@ static void resize_bicubic_image_bf16s(const Mat& src, Mat& dst, float* alpha, i
         unsigned short* Dp = dst.row<unsigned short>(dy);
         for (int dx = 0; dx < w; dx++)
         {
-//             D[x] = rows0[x]*b0 + rows1[x]*b1 + rows2[x]*b2 + rows3[x]*b3;
+            //             D[x] = rows0[x]*b0 + rows1[x]*b1 + rows2[x]*b2 + rows3[x]*b3;
             *Dp++ = float32_to_bfloat16(*rows0p++ * b0 + *rows1p++ * b1 + *rows2p++ * b2 + *rows3p++ * b3);
         }
 

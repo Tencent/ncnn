@@ -13,8 +13,9 @@
 // specific language governing permissions and limitations under the License.
 
 #include "psroipooling.h"
-#include <math.h>
+
 #include <algorithm>
+#include <math.h>
 
 namespace ncnn {
 
@@ -72,7 +73,7 @@ int PSROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     float bin_size_h = roi_h / (float)pooled_height;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<output_dim; q++)
+    for (int q = 0; q < output_dim; q++)
     {
         float* outptr = top_blob.channel(q);
 
@@ -82,8 +83,8 @@ int PSROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             {
                 const float* ptr = bottom_blob.channel((q * pooled_height + ph) * pooled_width + pw);
 
-                int hstart = static_cast<int>(floor(roi_y1 + (float)(ph) * bin_size_h));
-                int wstart = static_cast<int>(floor(roi_x1 + (float)(pw) * bin_size_w));
+                int hstart = static_cast<int>(floor(roi_y1 + (float)(ph)*bin_size_h));
+                int wstart = static_cast<int>(floor(roi_x1 + (float)(pw)*bin_size_w));
                 int hend = static_cast<int>(ceil(roi_y1 + (float)(ph + 1) * bin_size_h));
                 int wend = static_cast<int>(ceil(roi_x1 + (float)(pw + 1) * bin_size_w));
 

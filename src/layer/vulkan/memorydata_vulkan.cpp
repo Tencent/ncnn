@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "memorydata_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 

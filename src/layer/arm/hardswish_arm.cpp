@@ -46,13 +46,13 @@ int HardSwish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     if (elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
 
             float32x4_t _zero = vdupq_n_f32(0.f);
             float32x4_t _one = vdupq_n_f32(1.f);
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 float32x4_t _p = vld1q_f32(ptr);
                 float32x4_t _ans = vdupq_n_f32(beta);
@@ -71,7 +71,7 @@ int HardSwish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
@@ -98,7 +98,7 @@ int HardSwish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             ptr += 4;
         }
 #endif // __ARM_NEON
-        for (; remain>0; remain--)
+        for (; remain > 0; remain--)
         {
             if (*ptr < lower)
                 *ptr = 0.f;
@@ -125,13 +125,13 @@ int HardSwish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
     if (elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             unsigned short* ptr = bottom_top_blob.channel(q);
 
             float32x4_t _zero = vdupq_n_f32(0.f);
             float32x4_t _one = vdupq_n_f32(1.f);
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                 float32x4_t _ans = vdupq_n_f32(beta);
@@ -150,7 +150,7 @@ int HardSwish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         unsigned short* ptr = bottom_top_blob.channel(q);
 
@@ -177,7 +177,7 @@ int HardSwish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
             ptr += 4;
         }
 #endif // __ARM_NEON
-        for (; remain>0; remain--)
+        for (; remain > 0; remain--)
         {
             float v = bfloat16_to_float32(*ptr);
             if (v < lower)

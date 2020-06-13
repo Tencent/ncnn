@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "crop_arm.h"
+
 #include <algorithm>
 
 #if __ARM_NEON
@@ -173,7 +174,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     return -100;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<top_blob.c; q++)
+                for (int q = 0; q < top_blob.c; q++)
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);
@@ -311,7 +312,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     return -100;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<top_blob.c; q++)
+                for (int q = 0; q < top_blob.c; q++)
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
                     Mat borderm = top_blob.channel(q);

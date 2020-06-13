@@ -14,9 +14,9 @@
 
 #include "softmax.h"
 
+#include <algorithm>
 #include <float.h>
 #include <math.h>
-#include <algorithm>
 
 namespace ncnn {
 
@@ -60,19 +60,19 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob;
 
         float max = -FLT_MAX;
-        for (int i=0; i<w; i++)
+        for (int i = 0; i < w; i++)
         {
             max = std::max(max, ptr[i]);
         }
 
         float sum = 0.f;
-        for (int i=0; i<w; i++)
+        for (int i = 0; i < w; i++)
         {
             ptr[i] = static_cast<float>(exp(ptr[i] - max));
             sum += ptr[i];
         }
 
-        for (int i=0; i<w; i++)
+        for (int i = 0; i < w; i++)
         {
             ptr[i] /= sum;
         }
@@ -91,10 +91,10 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return -100;
         max.fill(-FLT_MAX);
 
-        for (int i=0; i<h; i++)
+        for (int i = 0; i < h; i++)
         {
             const float* ptr = bottom_top_blob.row(i);
-            for (int j=0; j<w; j++)
+            for (int j = 0; j < w; j++)
             {
                 max[j] = std::max(max[j], ptr[j]);
             }
@@ -106,20 +106,20 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return -100;
         sum.fill(0.f);
 
-        for (int i = 0; i<h; i++)
+        for (int i = 0; i < h; i++)
         {
             float* ptr = bottom_top_blob.row(i);
-            for (int j=0; j<w; j++)
+            for (int j = 0; j < w; j++)
             {
                 ptr[j] = static_cast<float>(exp(ptr[j] - max[j]));
                 sum[j] += ptr[j];
             }
         }
 
-        for (int i=0; i<h; i++)
+        for (int i = 0; i < h; i++)
         {
             float* ptr = bottom_top_blob.row(i);
-            for (int j=0; j<w; j++)
+            for (int j = 0; j < w; j++)
             {
                 ptr[j] /= sum[j];
             }
@@ -133,23 +133,23 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-        for (int i=0; i<h; i++)
+        for (int i = 0; i < h; i++)
         {
             float* ptr = bottom_top_blob.row(i);
             float m = -FLT_MAX;
-            for (int j=0; j<w; j++)
+            for (int j = 0; j < w; j++)
             {
                 m = std::max(m, ptr[j]);
             }
 
             float s = 0.f;
-            for (int j=0; j<w; j++)
+            for (int j = 0; j < w; j++)
             {
                 ptr[j] = static_cast<float>(exp(ptr[j] - m));
                 s += ptr[j];
             }
 
-            for (int j=0; j<w; j++)
+            for (int j = 0; j < w; j++)
             {
                 ptr[j] /= s;
             }
@@ -170,11 +170,11 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         if (max.empty())
             return -100;
         max.fill(-FLT_MAX);
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 max[i] = std::max(max[i], ptr[i]);
             }
@@ -185,11 +185,11 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         if (sum.empty())
             return -100;
         sum.fill(0.f);
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 ptr[i] = static_cast<float>(exp(ptr[i] - max[i]));
                 sum[i] += ptr[i];
@@ -197,11 +197,11 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 ptr[i] /= sum[i];
             }
@@ -222,14 +222,14 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return -100;
         max.fill(-FLT_MAX);
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_top_blob.channel(q);
             float* maxptr = max.row(q);
 
-            for (int i=0; i<h; i++)
+            for (int i = 0; i < h; i++)
             {
-                for (int j=0; j<w; j++)
+                for (int j = 0; j < w; j++)
                 {
                     maxptr[j] = std::max(maxptr[j], ptr[j]);
                 }
@@ -244,15 +244,15 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return -100;
         sum.fill(0.f);
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
             float* maxptr = max.row(q);
             float* sumptr = sum.row(q);
 
-            for (int i=0; i<h; i++)
+            for (int i = 0; i < h; i++)
             {
-                for (int j=0; j<w; j++)
+                for (int j = 0; j < w; j++)
                 {
                     ptr[j] = static_cast<float>(exp(ptr[j] - maxptr[j]));
                     sumptr[j] += ptr[j];
@@ -263,14 +263,14 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
             float* sumptr = sum.row(q);
 
-            for (int i=0; i<h; i++)
+            for (int i = 0; i < h; i++)
             {
-                for (int j=0; j<w; j++)
+                for (int j = 0; j < w; j++)
                 {
                     ptr[j] /= sumptr[j];
                 }
@@ -289,26 +289,26 @@ int Softmax::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int channels = bottom_top_blob.c;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            for (int i=0; i<h; i++)
+            for (int i = 0; i < h; i++)
             {
                 float max = -FLT_MAX;
-                for (int j=0; j<w; j++)
+                for (int j = 0; j < w; j++)
                 {
                     max = std::max(max, ptr[j]);
                 }
 
                 float sum = 0.f;
-                for (int j=0; j<w; j++)
+                for (int j = 0; j < w; j++)
                 {
                     ptr[j] = static_cast<float>(exp(ptr[j] - max));
                     sum += ptr[j];
                 }
 
-                for (int j=0; j<w; j++)
+                for (int j = 0; j < w; j++)
                 {
                     ptr[j] /= sum;
                 }

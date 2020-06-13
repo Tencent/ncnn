@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/sigmoid.h"
+#include "testutil.h"
 
 static int test_sigmoid(const ncnn::Mat& a)
 {
@@ -39,25 +38,22 @@ static int test_sigmoid(const ncnn::Mat& a)
 static int test_sigmoid_0()
 {
     return 0
-        || test_sigmoid(RandomMat(6, 7, 16))
-        || test_sigmoid(RandomMat(3, 5, 13))
-        ;
+           || test_sigmoid(RandomMat(6, 7, 16))
+           || test_sigmoid(RandomMat(3, 5, 13));
 }
 
 static int test_sigmoid_1()
 {
     return 0
-        || test_sigmoid(RandomMat(6, 16))
-        || test_sigmoid(RandomMat(7, 15))
-        ;
+           || test_sigmoid(RandomMat(6, 16))
+           || test_sigmoid(RandomMat(7, 15));
 }
 
 static int test_sigmoid_2()
 {
     return 0
-        || test_sigmoid(RandomMat(128))
-        || test_sigmoid(RandomMat(127))
-        ;
+           || test_sigmoid(RandomMat(128))
+           || test_sigmoid(RandomMat(127));
 }
 
 int main()
@@ -65,8 +61,7 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_sigmoid_0()
-        || test_sigmoid_1()
-        || test_sigmoid_2()
-        ;
+           || test_sigmoid_0()
+           || test_sigmoid_1()
+           || test_sigmoid_2();
 }

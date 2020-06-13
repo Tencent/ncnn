@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "selu.h"
+
 #include <math.h>
 
 namespace ncnn {
@@ -42,11 +43,11 @@ int SELU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     float alphaxlambda = alpha * lambda;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
-        for (int i=0; i<size; i++)
+        for (int i = 0; i < size; i++)
         {
             if (ptr[i] < 0.f)
                 ptr[i] = static_cast<float>((exp(ptr[i]) - 1.f) * alphaxlambda);
