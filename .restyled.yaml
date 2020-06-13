@@ -12,6 +12,6 @@ statuses:
 restylers:
   - name: astyle
     include:
-      - "*.h"
-      - "*.cpp"
+      - "**/*.h"
+      - "**/*.cpp"
       - "!/glslang/*"
