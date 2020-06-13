@@ -28,7 +28,11 @@ public:
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
-    enum NormRegionType { NormRegion_ACROSS_CHANNELS = 0, NormRegion_WITHIN_CHANNEL = 1 };
+    enum NormRegionType
+    {
+        NormRegion_ACROSS_CHANNELS = 0,
+        NormRegion_WITHIN_CHANNEL = 1
+    };
 
 public:
     // param

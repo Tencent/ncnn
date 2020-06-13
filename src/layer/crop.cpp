@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "crop.h"
+
 #include <algorithm>
 
 namespace ncnn {
@@ -43,8 +44,7 @@ int Crop::load_param(const ParamDict& pd)
 
     bool numpy_style_slice = !starts.empty() && !ends.empty();
 
-    if (outw == 0 && outh == 0 && outc == 0 && !numpy_style_slice)
-    {
+    if (outw == 0 && outh == 0 && outc == 0 && !numpy_style_slice) {
         one_blob_only = false;
     }
 
@@ -58,20 +58,16 @@ static void copy_cut_border_image(const Mat& src, Mat& dst, int top, int left)
     int h = dst.h;
 
     const T* ptr = src.row<T>(top) + left;
-    T* outptr = dst;//.data;
+    T* outptr = dst; //.data;
 
-    for (int y = 0; y < h; y++)
-    {
-        if(w < 12)
-        {
-            for (int x = 0; x < w; x++)
-            {
+    for (int y = 0; y < h; y++) {
+        if (w < 12) {
+            for (int x = 0; x < w; x++) {
                 outptr[x] = ptr[x];
             }
         }
-        else
-        {
-            memcpy(outptr, ptr, w*sizeof(T));
+        else {
+            memcpy(outptr, ptr, w * sizeof(T));
         }
         outptr += w;
         ptr += src.w;
@@ -90,10 +86,8 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     int _outw, _outh, _outc;
     resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
 
-    if (dims == 1)
-    {
-        if (_outw == w)
-        {
+    if (dims == 1) {
+        if (_outw == w) {
             top_blob = bottom_blob;
             return 0;
         }
@@ -112,10 +106,8 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         return 0;
     }
 
-    if (dims == 2)
-    {
-        if (_outw == w && _outh == h)
-        {
+    if (dims == 2) {
+        if (_outw == w && _outh == h) {
             top_blob = bottom_blob;
             return 0;
         }
@@ -134,18 +126,15 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         return 0;
     }
 
-    if (dims == 3)
-    {
-        if (_outw == w && _outh == h && _outc == channels)
-        {
+    if (dims == 3) {
+        if (_outw == w && _outh == h && _outc == channels) {
             top_blob = bottom_blob;
             return 0;
         }
 
         const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset, _outc);
 
-        if (_outw == w && _outh == h)
-        {
+        if (_outw == w && _outh == h) {
             top_blob = bottom_blob_sliced.clone();
             if (top_blob.empty())
                 return -100;
@@ -158,8 +147,7 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<_outc; q++)
-        {
+        for (int q = 0; q < _outc; q++) {
             const Mat m = bottom_blob_sliced.channel(q);
             Mat borderm = top_blob.channel(q);
 
@@ -192,19 +180,15 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
 
     int _woffset, _hoffset, _coffset;
     int _outw, _outh, _outc;
-    if (woffset == -233)
-    {
+    if (woffset == -233) {
         resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _coffset, _outw, _outh, _outc);
     }
-    else
-    {
+    else {
         resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
     }
 
-    if (dims == 1)
-    {
-        if (_outw == w)
-        {
+    if (dims == 1) {
+        if (_outw == w) {
             top_blob = bottom_blob;
             return 0;
         }
@@ -223,10 +207,8 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         return 0;
     }
 
-    if (dims == 2)
-    {
-        if (_outw == w && _outh == h)
-        {
+    if (dims == 2) {
+        if (_outw == w && _outh == h) {
             top_blob = bottom_blob;
             return 0;
         }
@@ -245,18 +227,15 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         return 0;
     }
 
-    if (dims == 3)
-    {
-        if (_outw == w && _outh == h && _outc == channels)
-        {
+    if (dims == 3) {
+        if (_outw == w && _outh == h && _outc == channels) {
             top_blob = bottom_blob;
             return 0;
         }
 
         const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset, _outc);
 
-        if (_outw == w && _outh == h)
-        {
+        if (_outw == w && _outh == h) {
             top_blob = bottom_blob_sliced.clone();
             if (top_blob.empty())
                 return -100;
@@ -269,8 +248,7 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<_outc; q++)
-        {
+        for (int q = 0; q < _outc; q++) {
             const Mat m = bottom_blob_sliced.channel(q);
             Mat borderm = top_blob.channel(q);
 
@@ -296,8 +274,7 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
     int dims = bottom_blob.dims;
 
     bool numpy_style_slice = !starts.empty() && !ends.empty();
-    if (numpy_style_slice)
-    {
+    if (numpy_style_slice) {
         _woffset = 0;
         _hoffset = 0;
         _coffset = 0;
@@ -309,16 +286,13 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
         const int* ends_ptr = ends;
         const int* axes_ptr = axes;
 
-        int _axes[3] = {0,1,2};
+        int _axes[3] = {0, 1, 2};
         int num_axis = axes.w;
-        if (num_axis == 0)
-        {
+        if (num_axis == 0) {
             num_axis = dims;
         }
-        else
-        {
-            for (int i=0; i<num_axis; i++)
-            {
+        else {
+            for (int i = 0; i < num_axis; i++) {
                 int axis = axes_ptr[i];
                 if (axis < 0)
                     axis = dims + axis;
@@ -326,65 +300,55 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
             }
         }
 
-        for (int i=0; i<num_axis; i++)
-        {
+        for (int i = 0; i < num_axis; i++) {
             int axis = _axes[i];
             int start = starts_ptr[i];
             int end = ends_ptr[i];
 
             if (dims == 1) // axis == 0
             {
-                if (start == -233) start=0;
-                if (end == -233) end=w;
+                if (start == -233) start = 0;
+                if (end == -233) end = w;
                 _woffset = start >= 0 ? start : w + start;
                 _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
             }
-            if (dims == 2)
-            {
-                if (axis == 0)
-                {
-                    if (start == -233) start=0;
-                    if (end == -233) end=h;
+            if (dims == 2) {
+                if (axis == 0) {
+                    if (start == -233) start = 0;
+                    if (end == -233) end = h;
                     _hoffset = start >= 0 ? start : h + start;
                     _outh = std::min(h, end > 0 ? end : h + end) - _hoffset;
                 }
-                if (axis == 1)
-                {
-                    if (start == -233) start=0;
-                    if (end == -233) end=w;
+                if (axis == 1) {
+                    if (start == -233) start = 0;
+                    if (end == -233) end = w;
                     _woffset = start >= 0 ? start : w + start;
                     _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
                 }
             }
-            if (dims == 3)
-            {
-
-                if (axis == 0)
-                {
-                    if (start == -233) start=0;
-                    if (end == -233) end=channels;
+            if (dims == 3) {
+                if (axis == 0) {
+                    if (start == -233) start = 0;
+                    if (end == -233) end = channels;
                     _coffset = start >= 0 ? start : channels + start;
                     _outc = std::min(channels, end > 0 ? end : channels + end) - _coffset;
                 }
-                if (axis == 1)
-                {
-                    if (start == -233) start=0;
-                    if (end == -233) end=h;
+                if (axis == 1) {
+                    if (start == -233) start = 0;
+                    if (end == -233) end = h;
                     _hoffset = start >= 0 ? start : h + start;
                     _outh = std::min(h, end > 0 ? end : h + end) - _hoffset;
                 }
-                if (axis == 2)
-                {
-                    if (start == -233) start=0;
-                    if (end == -233) end=w;
+                if (axis == 2) {
+                    if (start == -233) start = 0;
+                    if (end == -233) end = w;
                     _woffset = start >= 0 ? start : w + start;
                     _outw = std::min(w, end > 0 ? end : w + end) - _woffset;
                 }
             }
         }
     }
-    else
-    {
+    else {
         _woffset = woffset;
         _hoffset = hoffset;
         _coffset = coffset;
@@ -392,16 +356,13 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
         _outh = h;
         _outc = channels;
 
-        if (dims == 1)
-        {
+        if (dims == 1) {
             _outw = w - woffset - woffset2;
             if (outw != -233)
                 _outw = std::min(outw, _outw);
         }
-        if (dims == 2)
-        {
-            if (hoffset == -233)
-            {
+        if (dims == 2) {
+            if (hoffset == -233) {
                 _woffset = 0;
                 _hoffset = woffset;
 
@@ -410,8 +371,7 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
                 if (outw != -233)
                     _outh = std::min(outw, _outh);
             }
-            else
-            {
+            else {
                 _outw = w - woffset - woffset2;
                 if (outw != -233)
                     _outw = std::min(outw, _outw);
@@ -421,10 +381,8 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
                     _outh = std::min(outh, _outh);
             }
         }
-        if (dims == 3)
-        {
-            if (hoffset == -233 && coffset == -233)
-            {
+        if (dims == 3) {
+            if (hoffset == -233 && coffset == -233) {
                 _woffset = 0;
                 _hoffset = 0;
 
@@ -434,8 +392,7 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
                 if (outw != -233)
                     _outc = std::min(outw, _outc);
             }
-            else if (coffset == -233)
-            {
+            else if (coffset == -233) {
                 _woffset = 0;
 
                 _outw = w;
@@ -447,8 +404,7 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
                 if (outh != -233)
                     _outc = std::min(outh, _outc);
             }
-            else
-            {
+            else {
                 _outw = w - woffset - woffset2;
                 if (outw != -233)
                     _outw = std::min(outw, _outw);
@@ -475,20 +431,17 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, const Mat& reference_blob, i
     int ref_channels = reference_blob.c;
     int ref_dims = reference_blob.dims;
 
-    if (dims == 1)
-    {
+    if (dims == 1) {
         _woffset = woffset;
         _outw = ref_w;
     }
-    if (dims == 2)
-    {
+    if (dims == 2) {
         _woffset = woffset;
         _hoffset = hoffset;
         _outw = ref_w;
         _outh = ref_h;
     }
-    if (dims == 3)
-    {
+    if (dims == 3) {
         _woffset = woffset;
         _hoffset = hoffset;
         _coffset = coffset;
@@ -502,20 +455,17 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, const int* param_data, int& 
 {
     int dims = bottom_blob.dims;
 
-    if (dims == 1)
-    {
+    if (dims == 1) {
         _woffset = param_data[0];
         _outw = param_data[3];
     }
-    if (dims == 2)
-    {
+    if (dims == 2) {
         _woffset = param_data[0];
         _hoffset = param_data[1];
         _outw = param_data[3];
         _outh = param_data[4];
     }
-    if (dims == 3)
-    {
+    if (dims == 3) {
         _woffset = param_data[0];
         _hoffset = param_data[1];
         _coffset = param_data[2];

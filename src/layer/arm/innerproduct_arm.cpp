@@ -17,8 +17,9 @@
 #include "layer_type.h"
 
 #if __ARM_NEON
-#include <arm_neon.h>
 #include "neon_mathfun.h"
+
+#include <arm_neon.h>
 #endif // __ARM_NEON
 #include "neon_activation.h"
 
@@ -40,8 +41,7 @@ InnerProduct_arm::InnerProduct_arm()
 int InnerProduct_arm::create_pipeline(const Option& opt)
 {
 #if __ARM_NEON
-    if (opt.use_packing_layout)
-    {
+    if (opt.use_packing_layout) {
         flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
 
         ncnn::ParamDict pd;
@@ -52,8 +52,7 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     }
 #endif // __ARM_NEON
 
-    if (opt.use_bf16_storage)
-    {
+    if (opt.use_bf16_storage) {
         ncnn::cast_float32_to_bfloat16(weight_data, weight_data_bf16, opt);
     }
 
@@ -62,8 +61,7 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
 
 int InnerProduct_arm::destroy_pipeline(const Option& opt)
 {
-    if (flatten)
-    {
+    if (flatten) {
         flatten->destroy_pipeline(opt);
         delete flatten;
         flatten = 0;
@@ -74,8 +72,7 @@ int InnerProduct_arm::destroy_pipeline(const Option& opt)
 
 int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
-    {
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u) {
         // TODO
         return InnerProduct::forward(bottom_blob, top_blob, opt);
     }
@@ -91,12 +88,10 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     int size = w * h;
 
 #if __ARM_NEON
-    if (elempack == 4)
-    {
+    if (elempack == 4) {
         // flatten
         Mat bottom_blob_flattened = bottom_blob;
-        if (bottom_blob.dims != 1)
-        {
+        if (bottom_blob.dims != 1) {
             Option opt_flatten = opt;
             opt_flatten.blob_allocator = opt.workspace_allocator;
 
@@ -125,8 +120,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     int remain_num_output_start = nn_num_output << 2;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp=0; pp<nn_num_output; pp++)
-    {
+    for (int pp = 0; pp < nn_num_output; pp++) {
         int p = pp * 4;
 
         float sum0 = 0.f;
@@ -134,18 +128,17 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         float sum2 = 0.f;
         float sum3 = 0.f;
 
-        if (bias_term)
-        {
+        if (bias_term) {
             sum0 = bias_data[p];
-            sum1 = bias_data[p+1];
-            sum2 = bias_data[p+2];
-            sum3 = bias_data[p+3];
+            sum1 = bias_data[p + 1];
+            sum2 = bias_data[p + 2];
+            sum3 = bias_data[p + 3];
         }
 
         const float* w0 = weight_data_ptr + size * channels * p;
-        const float* w1 = weight_data_ptr + size * channels * (p+1);
-        const float* w2 = weight_data_ptr + size * channels * (p+2);
-        const float* w3 = weight_data_ptr + size * channels * (p+3);
+        const float* w1 = weight_data_ptr + size * channels * (p + 1);
+        const float* w2 = weight_data_ptr + size * channels * (p + 2);
+        const float* w3 = weight_data_ptr + size * channels * (p + 3);
 
 #if __ARM_NEON
         float32x4_t _sum0 = vdupq_n_f32(0.f);
@@ -155,8 +148,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 #endif // __ARM_NEON
 
         // channels
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             const float* m = bottom_blob.channel(q);
 
 #if __ARM_NEON
@@ -167,8 +159,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-            for (; nn>0; nn--)
-            {
+            for (; nn > 0; nn--) {
                 float32x4_t _m = vld1q_f32(m);
 
                 float32x4_t _w0 = vld1q_f32(w0);
@@ -190,8 +181,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                 w3 += 4;
             }
 #endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 sum0 += *m * *w0;
                 sum1 += *m * *w1;
                 sum2 += *m * *w2;
@@ -203,7 +193,6 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                 w2++;
                 w3++;
             }
-
         }
 
 #if __ARM_NEON
@@ -222,23 +211,20 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
 #endif // __ARM_NEON
 
-        if (activation_type == 1)
-        {
+        if (activation_type == 1) {
             sum0 = std::max(sum0, 0.f);
             sum1 = std::max(sum1, 0.f);
             sum2 = std::max(sum2, 0.f);
             sum3 = std::max(sum3, 0.f);
         }
-        else if (activation_type == 2)
-        {
+        else if (activation_type == 2) {
             float slope = activation_params[0];
             sum0 = sum0 > 0.f ? sum0 : sum0 * slope;
             sum1 = sum1 > 0.f ? sum1 : sum1 * slope;
             sum2 = sum2 > 0.f ? sum2 : sum2 * slope;
             sum3 = sum3 > 0.f ? sum3 : sum3 * slope;
         }
-        else if (activation_type == 3)
-        {
+        else if (activation_type == 3) {
             float min = activation_params[0];
             float max = activation_params[1];
             if (sum0 < min) sum0 = min;
@@ -250,8 +236,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             if (sum3 < min) sum3 = min;
             if (sum3 > max) sum3 = max;
         }
-        else if (activation_type == 4)
-        {
+        else if (activation_type == 4) {
             sum0 = static_cast<float>(1.f / (1.f + exp(-sum0)));
             sum1 = static_cast<float>(1.f / (1.f + exp(-sum1)));
             sum2 = static_cast<float>(1.f / (1.f + exp(-sum2)));
@@ -259,15 +244,14 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         }
 
         top_blob[p] = sum0;
-        top_blob[p+1] = sum1;
-        top_blob[p+2] = sum2;
-        top_blob[p+3] = sum3;
+        top_blob[p + 1] = sum1;
+        top_blob[p + 2] = sum2;
+        top_blob[p + 3] = sum3;
     }
 
-    // num_output
+// num_output
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=remain_num_output_start; p<num_output; p++)
-    {
+    for (int p = remain_num_output_start; p < num_output; p++) {
         float sum = 0.f;
 
         if (bias_term)
@@ -281,8 +265,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 #endif // __ARM_NEON
 
         // channels
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             const float* m = bottom_blob.channel(q);
 
 #if __ARM_NEON
@@ -294,8 +277,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "0:                                   \n"
                     "prfm       pldl1keep, [%1, #256]     \n"
@@ -306,22 +288,20 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     "subs       %w0, %w0, #1              \n"
                     "fmla       %4.4s, v1.4s, v3.4s       \n"
                     "bne        0b                        \n"
-                    : "=r"(nn),     // %0
-                    "=r"(m),      // %1
-                    "=r"(w),      // %2
-                    "=w"(_sum),   // %3
-                    "=w"(_sum2)   // %4
+                    : "=r"(nn),   // %0
+                    "=r"(m),    // %1
+                    "=r"(w),    // %2
+                    "=w"(_sum), // %3
+                    "=w"(_sum2) // %4
                     : "0"(nn),
                     "1"(m),
                     "2"(w),
                     "3"(_sum),
                     "4"(_sum2)
-                    : "cc", "memory", "v0", "v1", "v2", "v3"
-                );
+                    : "cc", "memory", "v0", "v1", "v2", "v3");
             }
 #else
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "0:                             \n"
                     "pld        [%1, #256]          \n"
@@ -332,23 +312,21 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     "subs       %0, #1              \n"
                     "vmla.f32   %q4, q1, q3         \n"
                     "bne        0b                  \n"
-                    : "=r"(nn),     // %0
-                    "=r"(m),      // %1
-                    "=r"(w),      // %2
-                    "=w"(_sum),   // %3
-                    "=w"(_sum2)   // %4
+                    : "=r"(nn),   // %0
+                    "=r"(m),    // %1
+                    "=r"(w),    // %2
+                    "=w"(_sum), // %3
+                    "=w"(_sum2) // %4
                     : "0"(nn),
                     "1"(m),
                     "2"(w),
                     "3"(_sum),
                     "4"(_sum2)
-                    : "cc", "memory", "q0", "q1", "q2", "q3"
-                );
+                    : "cc", "memory", "q0", "q1", "q2", "q3");
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 sum += *m * *w;
 
                 m++;
@@ -385,12 +363,10 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
     int size = w * h;
 
 #if __ARM_NEON
-    if (elempack == 4)
-    {
+    if (elempack == 4) {
         // flatten
         Mat bottom_blob_flattened = bottom_blob;
-        if (bottom_blob.dims != 1)
-        {
+        if (bottom_blob.dims != 1) {
             Option opt_flatten = opt;
             opt_flatten.blob_allocator = opt.workspace_allocator;
 
@@ -418,8 +394,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
     int remain_num_output_start = nn_num_output << 2;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp=0; pp<nn_num_output; pp++)
-    {
+    for (int pp = 0; pp < nn_num_output; pp++) {
         int p = pp * 4;
 
         float sum0 = 0.f;
@@ -427,18 +402,17 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
         float sum2 = 0.f;
         float sum3 = 0.f;
 
-        if (bias_term)
-        {
+        if (bias_term) {
             sum0 = bias_data[p];
-            sum1 = bias_data[p+1];
-            sum2 = bias_data[p+2];
-            sum3 = bias_data[p+3];
+            sum1 = bias_data[p + 1];
+            sum2 = bias_data[p + 2];
+            sum3 = bias_data[p + 3];
         }
 
         const unsigned short* w0 = weight_data_ptr + size * channels * p;
-        const unsigned short* w1 = weight_data_ptr + size * channels * (p+1);
-        const unsigned short* w2 = weight_data_ptr + size * channels * (p+2);
-        const unsigned short* w3 = weight_data_ptr + size * channels * (p+3);
+        const unsigned short* w1 = weight_data_ptr + size * channels * (p + 1);
+        const unsigned short* w2 = weight_data_ptr + size * channels * (p + 2);
+        const unsigned short* w3 = weight_data_ptr + size * channels * (p + 3);
 
 #if __ARM_NEON
         float32x4_t _sum0 = vdupq_n_f32(0.f);
@@ -448,14 +422,12 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 #endif // __ARM_NEON
 
         // channels
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             const unsigned short* m = bottom_blob.channel(q);
 
             int i = 0;
 #if __ARM_NEON
-            for (; i+3<size; i+=4)
-            {
+            for (; i + 3 < size; i += 4) {
                 float32x4_t _m = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(m), 16));
                 float32x4_t _w0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(w0), 16));
                 float32x4_t _w1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(w1), 16));
@@ -474,8 +446,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                 w3 += 4;
             }
 #endif // __ARM_NEON
-            for (; i<size; i++)
-            {
+            for (; i < size; i++) {
                 float _m = bfloat16_to_float32(*m);
                 float _w0 = bfloat16_to_float32(*w0);
                 float _w1 = bfloat16_to_float32(*w1);
@@ -511,23 +482,20 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 
 #endif // __ARM_NEON
 
-        if (activation_type == 1)
-        {
+        if (activation_type == 1) {
             sum0 = std::max(sum0, 0.f);
             sum1 = std::max(sum1, 0.f);
             sum2 = std::max(sum2, 0.f);
             sum3 = std::max(sum3, 0.f);
         }
-        else if (activation_type == 2)
-        {
+        else if (activation_type == 2) {
             float slope = activation_params[0];
             sum0 = sum0 > 0.f ? sum0 : sum0 * slope;
             sum1 = sum1 > 0.f ? sum1 : sum1 * slope;
             sum2 = sum2 > 0.f ? sum2 : sum2 * slope;
             sum3 = sum3 > 0.f ? sum3 : sum3 * slope;
         }
-        else if (activation_type == 3)
-        {
+        else if (activation_type == 3) {
             float min = activation_params[0];
             float max = activation_params[1];
             if (sum0 < min) sum0 = min;
@@ -539,8 +507,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
             if (sum3 < min) sum3 = min;
             if (sum3 > max) sum3 = max;
         }
-        else if (activation_type == 4)
-        {
+        else if (activation_type == 4) {
             sum0 = static_cast<float>(1.f / (1.f + exp(-sum0)));
             sum1 = static_cast<float>(1.f / (1.f + exp(-sum1)));
             sum2 = static_cast<float>(1.f / (1.f + exp(-sum2)));
@@ -554,10 +521,9 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
         outptr[3] = float32_to_bfloat16(sum3);
     }
 
-    // num_output
+// num_output
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=remain_num_output_start; p<num_output; p++)
-    {
+    for (int p = remain_num_output_start; p < num_output; p++) {
         float sum = 0.f;
 
         if (bias_term)
@@ -570,14 +536,12 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 #endif // __ARM_NEON
 
         // channels
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             const unsigned short* m = bottom_blob.channel(q);
 
             int i = 0;
 #if __ARM_NEON
-            for (; i+3<size; i+=4)
-            {
+            for (; i + 3 < size; i += 4) {
                 float32x4_t _m = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(m), 16));
                 float32x4_t _w = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(w), 16));
 
@@ -587,8 +551,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                 w += 4;
             }
 #endif // __ARM_NEON
-            for (; i<size; i++)
-            {
+            for (; i < size; i++) {
                 float _m = bfloat16_to_float32(*m);
                 float _w = bfloat16_to_float32(*w);
 

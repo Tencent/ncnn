@@ -47,8 +47,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     size_t elemsize = bottom_blob.elemsize;
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.c;
 
-    if (ndim == 1)
-    {
+    if (ndim == 1) {
         int _w = w;
 
         if (_w == 0)
@@ -57,33 +56,27 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         if (_w == -1)
             _w = total;
 
-        if (permute == 1)
-        {
+        if (permute == 1) {
             top_blob.create(_w, elemsize, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
             // c-h-w to h-w-c
             float* ptr = top_blob;
-            for (int i=0; i<bottom_blob.h; i++)
-            {
-                for (int j=0; j<bottom_blob.w; j++)
-                {
-                    for (int p=0; p<bottom_blob.c; p++)
-                    {
+            for (int i = 0; i < bottom_blob.h; i++) {
+                for (int j = 0; j < bottom_blob.w; j++) {
+                    for (int p = 0; p < bottom_blob.c; p++) {
                         const float* bptr = bottom_blob.channel(p);
-                        *ptr++ = bptr[i*bottom_blob.w + j];
+                        *ptr++ = bptr[i * bottom_blob.w + j];
                     }
                 }
             }
         }
-        else
-        {
+        else {
             top_blob = bottom_blob.reshape(_w, opt.blob_allocator);
         }
     }
-    else if (ndim == 2)
-    {
+    else if (ndim == 2) {
         int _w = w;
         int _h = h;
 
@@ -99,8 +92,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
         top_blob = bottom_blob.reshape(_w, _h, opt.blob_allocator);
     }
-    else if (ndim == 3)
-    {
+    else if (ndim == 3) {
         int _w = w;
         int _h = h;
         int _c = c;

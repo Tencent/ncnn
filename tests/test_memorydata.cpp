@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/memorydata.h"
+#include "testutil.h"
 
 static int test_memorydata(const ncnn::Mat& a)
 {
@@ -34,8 +33,7 @@ static int test_memorydata(const ncnn::Mat& a)
     std::vector<ncnn::Mat> as(0);
 
     int ret = test_layer<ncnn::MemoryData>("MemoryData", pd, weights, opt, as, 1);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_memorydata failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
     }
 
@@ -46,24 +44,21 @@ static int test_memorydata_0()
 {
     return 0
            || test_memorydata(RandomMat(6, 7, 16))
-           || test_memorydata(RandomMat(3, 5, 13))
-           ;
+           || test_memorydata(RandomMat(3, 5, 13));
 }
 
 static int test_memorydata_1()
 {
     return 0
            || test_memorydata(RandomMat(6, 16))
-           || test_memorydata(RandomMat(7, 15))
-           ;
+           || test_memorydata(RandomMat(7, 15));
 }
 
 static int test_memorydata_2()
 {
     return 0
            || test_memorydata(RandomMat(128))
-           || test_memorydata(RandomMat(127))
-           ;
+           || test_memorydata(RandomMat(127));
 }
 
 int main()
@@ -73,6 +68,5 @@ int main()
     return 0
            || test_memorydata_0()
            || test_memorydata_1()
-           || test_memorydata_2()
-           ;
+           || test_memorydata_2();
 }

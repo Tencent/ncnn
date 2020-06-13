@@ -13,10 +13,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include "yolov3detectionoutput.h"
+
+#include "layer_type.h"
+
 #include <algorithm>
 #include <limits>
 #include <math.h>
-#include "layer_type.h"
 
 namespace ncnn {
 
@@ -31,7 +33,7 @@ Yolov3DetectionOutput::Yolov3DetectionOutput()
 
     // set param
     ncnn::ParamDict pd;
-    pd.set(0, 0);// axis
+    pd.set(0, 0); // axis
 
     //softmax->load_param(pd);
 }
@@ -64,8 +66,7 @@ struct BBoxRect
 
 static inline float intersection_area(const BBoxRect& a, const BBoxRect& b)
 {
-    if (a.xmin > b.xmax || a.xmax < b.xmin || a.ymin > b.ymax || a.ymax < b.ymin)
-    {
+    if (a.xmin > b.xmax || a.xmax < b.xmin || a.ymin > b.ymax || a.ymax < b.ymin) {
         // no intersection
         return 0.f;
     }
@@ -76,23 +77,21 @@ static inline float intersection_area(const BBoxRect& a, const BBoxRect& b)
     return inter_width * inter_height;
 }
 
-template <typename T>
+template<typename T>
 static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& scores, int left, int right)
 {
     int i = left;
     int j = right;
     float p = scores[(left + right) / 2];
 
-    while (i <= j)
-    {
+    while (i <= j) {
         while (scores[i] > p)
             i++;
 
         while (scores[j] < p)
             j--;
 
-        if (i <= j)
-        {
+        if (i <= j) {
             // swap
             std::swap(datas[i], datas[j]);
             std::swap(scores[i], scores[j]);
@@ -109,7 +108,7 @@ static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& sco
         qsort_descent_inplace(datas, scores, i, right);
 }
 
-template <typename T>
+template<typename T>
 static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& scores)
 {
     if (datas.empty() || scores.empty())
@@ -125,8 +124,7 @@ static void nms_sorted_bboxes(const std::vector<BBoxRect>& bboxes, std::vector<s
     const size_t n = bboxes.size();
 
     std::vector<float> areas(n);
-    for (size_t i = 0; i < n; i++)
-    {
+    for (size_t i = 0; i < n; i++) {
         const BBoxRect& r = bboxes[i];
 
         float width = r.xmax - r.xmin;
@@ -135,19 +133,17 @@ static void nms_sorted_bboxes(const std::vector<BBoxRect>& bboxes, std::vector<s
         areas[i] = width * height;
     }
 
-    for (size_t i = 0; i < n; i++)
-    {
+    for (size_t i = 0; i < n; i++) {
         const BBoxRect& a = bboxes[i];
 
         int keep = 1;
-        for (int j = 0; j < (int)picked.size(); j++)
-        {
+        for (int j = 0; j < (int)picked.size(); j++) {
             const BBoxRect& b = bboxes[picked[j]];
 
             // intersection over union
             float inter_area = intersection_area(a, b);
             float union_area = areas[i] + areas[picked[j]] - inter_area;
-//             float IoU = inter_area / union_area
+            //             float IoU = inter_area / union_area
             if (inter_area / union_area > nms_threshold)
                 keep = 0;
         }
@@ -168,10 +164,9 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
     std::vector<BBoxRect> all_bbox_rects;
     std::vector<float> all_bbox_scores;
 
-    for (size_t b = 0; b < bottom_blobs.size(); b++)
-    {
-        std::vector< std::vector<BBoxRect> > all_box_bbox_rects;
-        std::vector< std::vector<float> > all_box_bbox_scores;
+    for (size_t b = 0; b < bottom_blobs.size(); b++) {
+        std::vector<std::vector<BBoxRect> > all_box_bbox_rects;
+        std::vector<std::vector<float> > all_box_bbox_scores;
         all_box_bbox_rects.resize(num_box);
         all_box_bbox_scores.resize(num_box);
         const Mat& bottom_top_blobs = bottom_blobs[b];
@@ -188,12 +183,11 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
         size_t mask_offset = b * num_box;
         int net_w = (int)(anchors_scale[b] * w);
         int net_h = (int)(anchors_scale[b] * h);
-        //printf("%d %d\n", net_w, net_h);
+//printf("%d %d\n", net_w, net_h);
 
-        //printf("%d %d %d\n", w, h, channels);
+//printf("%d %d %d\n", w, h, channels);
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int pp = 0; pp < num_box; pp++)
-        {
+        for (int pp = 0; pp < num_box; pp++) {
             int p = pp * channels_per_box;
             int biases_index = static_cast<int>(mask[pp + mask_offset]);
             //printf("%d\n", biases_index);
@@ -211,23 +205,17 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
             Mat scores = bottom_top_blobs.channel_range(p + 5, num_class);
             //softmax->forward_inplace(scores, opt);
 
-            for (int i = 0; i < h; i++)
-            {
-                for (int j = 0; j < w; j++)
-                {
-
-
+            for (int i = 0; i < h; i++) {
+                for (int j = 0; j < w; j++) {
                     // box score
                     float box_score = sigmoid(box_score_ptr[0]);
 
                     // find class index with max class score
                     int class_index = 0;
                     float class_score = -std::numeric_limits<float>::max();
-                    for (int q = 0; q < num_class; q++)
-                    {
+                    for (int q = 0; q < num_class; q++) {
                         float score = scores.channel(q).row(i)[j];
-                        if (score > class_score)
-                        {
+                        if (score > class_score) {
                             class_index = q;
                             class_score = score;
                         }
@@ -237,8 +225,7 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
                     //printf( "%d %f %f\n", class_index, box_score, class_score);
 
                     float confidence = box_score * class_score;
-                    if (confidence >= confidence_threshold)
-                    {
+                    if (confidence >= confidence_threshold) {
                         // region box
                         float bbox_cx = (j + sigmoid(xptr[0])) / w;
                         float bbox_cy = (i + sigmoid(yptr[0])) / h;
@@ -250,7 +237,7 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
                         float bbox_xmax = bbox_cx + bbox_w * 0.5f;
                         float bbox_ymax = bbox_cy + bbox_h * 0.5f;
 
-                        BBoxRect c = { bbox_xmin, bbox_ymin, bbox_xmax, bbox_ymax, class_index };
+                        BBoxRect c = {bbox_xmin, bbox_ymin, bbox_xmax, bbox_ymax, class_index};
                         all_box_bbox_rects[pp].push_back(c);
                         all_box_bbox_scores[pp].push_back(confidence);
                     }
@@ -265,19 +252,14 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
             }
         }
 
-
-
-        for (int i = 0; i < num_box; i++)
-        {
+        for (int i = 0; i < num_box; i++) {
             const std::vector<BBoxRect>& box_bbox_rects = all_box_bbox_rects[i];
             const std::vector<float>& box_bbox_scores = all_box_bbox_scores[i];
 
             all_bbox_rects.insert(all_bbox_rects.end(), box_bbox_rects.begin(), box_bbox_rects.end());
             all_bbox_scores.insert(all_bbox_scores.end(), box_bbox_scores.begin(), box_bbox_scores.end());
         }
-
     }
-
 
     // global sort inplace
     qsort_descent_inplace(all_bbox_rects, all_bbox_scores);
@@ -290,8 +272,7 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
     std::vector<BBoxRect> bbox_rects;
     std::vector<float> bbox_scores;
 
-    for (size_t i = 0; i < picked.size(); i++)
-    {
+    for (size_t i = 0; i < picked.size(); i++) {
         size_t z = picked[i];
         bbox_rects.push_back(all_bbox_rects[z]);
         bbox_scores.push_back(all_bbox_scores[z]);
@@ -307,13 +288,12 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
     if (top_blob.empty())
         return -100;
 
-    for (int i = 0; i < num_detected; i++)
-    {
+    for (int i = 0; i < num_detected; i++) {
         const BBoxRect& r = bbox_rects[i];
         float score = bbox_scores[i];
         float* outptr = top_blob.row(i);
 
-        outptr[0] = static_cast<float>(r.label + 1);// +1 for prepend background class
+        outptr[0] = static_cast<float>(r.label + 1); // +1 for prepend background class
         outptr[1] = score;
         outptr[2] = r.xmin;
         outptr[3] = r.ymin;

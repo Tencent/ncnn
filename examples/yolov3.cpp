@@ -12,14 +12,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <stdio.h>
-#include <vector>
+#include "net.h"
+#include "platform.h"
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-
-#include "platform.h"
-#include "net.h"
+#include <stdio.h>
+#include <vector>
 #if NCNN_VULKAN
 #include "gpu.h"
 #endif // NCNN_VULKAN
@@ -65,10 +65,9 @@ static int detect_yolov3(const cv::Mat& bgr, std::vector<Object>& objects)
     ncnn::Mat out;
     ex.extract("detection_out", out);
 
-//     printf("%d %d %d\n", out.w, out.h, out.c);
+    //     printf("%d %d %d\n", out.w, out.h, out.c);
     objects.clear();
-    for (int i=0; i<out.h; i++)
-    {
+    for (int i = 0; i < out.h; i++) {
         const float* values = out.row(i);
 
         Object object;
@@ -88,16 +87,16 @@ static int detect_yolov3(const cv::Mat& bgr, std::vector<Object>& objects)
 static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 {
     static const char* class_names[] = {"background",
-        "aeroplane", "bicycle", "bird", "boat",
-        "bottle", "bus", "car", "cat", "chair",
-        "cow", "diningtable", "dog", "horse",
-        "motorbike", "person", "pottedplant",
-        "sheep", "sofa", "train", "tvmonitor"};
+                                        "aeroplane", "bicycle", "bird", "boat",
+                                        "bottle", "bus", "car", "cat", "chair",
+                                        "cow", "diningtable", "dog", "horse",
+                                        "motorbike", "person", "pottedplant",
+                                        "sheep", "sofa", "train", "tvmonitor"
+                                       };
 
     cv::Mat image = bgr.clone();
 
-    for (size_t i = 0; i < objects.size(); i++)
-    {
+    for (size_t i = 0; i < objects.size(); i++) {
         const Object& obj = objects[i];
 
         fprintf(stderr, "%d = %.5f at %.2f %.2f %.2f x %.2f\n", obj.label, obj.prob,
@@ -118,8 +117,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         if (x + label_size.width > image.cols)
             x = image.cols - label_size.width;
 
-        cv::rectangle(image, cv::Rect(cv::Point(x, y),
-                                      cv::Size(label_size.width, label_size.height + baseLine)),
+        cv::rectangle(image, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
                       cv::Scalar(255, 255, 255), -1);
 
         cv::putText(image, text, cv::Point(x, y + label_size.height),
@@ -132,8 +130,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
 int main(int argc, char** argv)
 {
-    if (argc != 2)
-    {
+    if (argc != 2) {
         fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
         return -1;
     }
@@ -141,8 +138,7 @@ int main(int argc, char** argv)
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, 1);
-    if (m.empty())
-    {
+    if (m.empty()) {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);
         return -1;
     }

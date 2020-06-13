@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "lrn_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -47,16 +49,13 @@ int LRN_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage)
-    {
+    if (opt.use_fp16_storage) {
         elemsize = elempack * 2u;
     }
-    else if (opt.use_fp16_packed)
-    {
+    else if (opt.use_fp16_packed) {
         elemsize = elempack == 1 ? 4u : elempack * 2u;
     }
-    else
-    {
+    else {
         elemsize = elempack * 4u;
     }
 
@@ -66,14 +65,11 @@ int LRN_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
 
     Mat workspace_shape_packed;
-    if (shape.dims != 0)
-    {
-        if (region_type == NormRegion_ACROSS_CHANNELS)
-        {
+    if (shape.dims != 0) {
+        if (region_type == NormRegion_ACROSS_CHANNELS) {
             workspace_shape_packed = Mat(shape.w, shape.h, shape.c + local_size - 1, (void*)0);
         }
-        else if (region_type == NormRegion_WITHIN_CHANNEL)
-        {
+        else if (region_type == NormRegion_WITHIN_CHANNEL) {
             workspace_shape_packed = Mat(shape.w + local_size - 1, shape.h + local_size - 1, shape.c / elempack, (void*)0, elempack * 4u, elempack);
         }
     }
@@ -97,44 +93,38 @@ int LRN_vulkan::create_pipeline(const Option& opt)
         specializations[3 + 9].i = workspace_shape_packed.cstep;
 
         Mat local_size_xyz;
-        if (workspace_shape_packed.dims != 0)
-        {
+        if (workspace_shape_packed.dims != 0) {
             local_size_xyz.w = std::min(4, workspace_shape_packed.w);
             local_size_xyz.h = std::min(4, workspace_shape_packed.h);
             local_size_xyz.c = std::min(4, workspace_shape_packed.c);
         }
 
         // pack1
-        if (shape.dims == 0 || elempack == 1)
-        {
+        if (shape.dims == 0 || elempack == 1) {
             pipeline_lrn_square_pad = new Pipeline(vkdev);
             pipeline_lrn_square_pad->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_lrn_square_pad->create(LayerShaderType::lrn_square_pad, opt, specializations);
         }
 
         // pack4
-        if (region_type == 0 && (shape.dims == 0 || elempack == 4))
-        {
+        if (region_type == 0 && (shape.dims == 0 || elempack == 4)) {
             pipeline_lrn_square_pad_across_channel_pack4 = new Pipeline(vkdev);
             pipeline_lrn_square_pad_across_channel_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_lrn_square_pad_across_channel_pack4->create(LayerShaderType::lrn_square_pad_across_channel_pack4, opt, specializations);
         }
-        if (region_type == 1 && (shape.dims == 0 || elempack == 4))
-        {
+        if (region_type == 1 && (shape.dims == 0 || elempack == 4)) {
             pipeline_lrn_square_pad_within_channel_pack4 = new Pipeline(vkdev);
             pipeline_lrn_square_pad_within_channel_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_lrn_square_pad_within_channel_pack4->create(LayerShaderType::lrn_square_pad_within_channel_pack4, opt, specializations);
         }
 
         // pack8
-        if (region_type == 0 && ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8))
-        {
+        if (region_type == 0 && ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)) {
             pipeline_lrn_square_pad_across_channel_pack8 = new Pipeline(vkdev);
             pipeline_lrn_square_pad_across_channel_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_lrn_square_pad_across_channel_pack8->create(LayerShaderType::lrn_square_pad_across_channel_pack8, opt, specializations);
         }
-        if (region_type == 1 && ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8))
-        {
+        if (region_type == 1 && ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)) {
             pipeline_lrn_square_pad_within_channel_pack8 = new Pipeline(vkdev);
             pipeline_lrn_square_pad_within_channel_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_lrn_square_pad_within_channel_pack8->create(LayerShaderType::lrn_square_pad_within_channel_pack8, opt, specializations);
@@ -160,44 +150,38 @@ int LRN_vulkan::create_pipeline(const Option& opt)
         specializations[5 + 9].i = shape_packed.cstep;
 
         Mat local_size_xyz;
-        if (shape_packed.dims != 0)
-        {
+        if (shape_packed.dims != 0) {
             local_size_xyz.w = std::min(4, shape_packed.w);
             local_size_xyz.h = std::min(4, shape_packed.h);
             local_size_xyz.c = std::min(4, shape_packed.c);
         }
 
         // pack1
-        if (shape.dims == 0 || elempack == 1)
-        {
+        if (shape.dims == 0 || elempack == 1) {
             pipeline_lrn_norm = new Pipeline(vkdev);
             pipeline_lrn_norm->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_lrn_norm->create(LayerShaderType::lrn_norm, opt, specializations);
         }
 
         // pack4
-        if (region_type == 0 && (shape.dims == 0 || elempack == 4))
-        {
+        if (region_type == 0 && (shape.dims == 0 || elempack == 4)) {
             pipeline_lrn_norm_across_channel_pack4 = new Pipeline(vkdev);
             pipeline_lrn_norm_across_channel_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_lrn_norm_across_channel_pack4->create(LayerShaderType::lrn_norm_across_channel_pack4, opt, specializations);
         }
-        if (region_type == 1 && (shape.dims == 0 || elempack == 4))
-        {
+        if (region_type == 1 && (shape.dims == 0 || elempack == 4)) {
             pipeline_lrn_norm_within_channel_pack4 = new Pipeline(vkdev);
             pipeline_lrn_norm_within_channel_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_lrn_norm_within_channel_pack4->create(LayerShaderType::lrn_norm_within_channel_pack4, opt, specializations);
         }
 
         // pack8
-        if (region_type == 0 && ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8))
-        {
+        if (region_type == 0 && ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)) {
             pipeline_lrn_norm_across_channel_pack8 = new Pipeline(vkdev);
             pipeline_lrn_norm_across_channel_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_lrn_norm_across_channel_pack8->create(LayerShaderType::lrn_norm_across_channel_pack8, opt, specializations);
         }
-        if (region_type == 1 && ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8))
-        {
+        if (region_type == 1 && ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)) {
             pipeline_lrn_norm_within_channel_pack8 = new Pipeline(vkdev);
             pipeline_lrn_norm_within_channel_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_lrn_norm_within_channel_pack8->create(LayerShaderType::lrn_norm_within_channel_pack8, opt, specializations);
@@ -252,13 +236,11 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
 
     VkMat square_workspace;
 
-    if (region_type == NormRegion_ACROSS_CHANNELS)
-    {
+    if (region_type == NormRegion_ACROSS_CHANNELS) {
         // always create scalar square workspace blob for norm across channel
         square_workspace.create(w, h, channels * elempack + local_size - 1, 4u, 1, opt.workspace_vkallocator);
     }
-    else if (region_type == NormRegion_WITHIN_CHANNEL)
-    {
+    else if (region_type == NormRegion_WITHIN_CHANNEL) {
         square_workspace.create(w + local_size - 1, h + local_size - 1, channels, elempack * 4u, elempack, opt.workspace_vkallocator);
     }
 
@@ -281,18 +263,15 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
         constants[9].i = square_workspace.cstep;
 
         const Pipeline* pipeline = 0;
-        if (elempack == 8)
-        {
+        if (elempack == 8) {
             if (region_type == 0) pipeline = pipeline_lrn_square_pad_across_channel_pack8;
             if (region_type == 1) pipeline = pipeline_lrn_square_pad_within_channel_pack8;
         }
-        else if (elempack == 4)
-        {
+        else if (elempack == 4) {
             if (region_type == 0) pipeline = pipeline_lrn_square_pad_across_channel_pack4;
             if (region_type == 1) pipeline = pipeline_lrn_square_pad_within_channel_pack4;
         }
-        else
-        {
+        else {
             pipeline = pipeline_lrn_square_pad;
         }
 
@@ -318,18 +297,15 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
         constants[9].i = bottom_top_blob.cstep;
 
         const Pipeline* pipeline = 0;
-        if (elempack == 8)
-        {
+        if (elempack == 8) {
             if (region_type == 0) pipeline = pipeline_lrn_norm_across_channel_pack8;
             if (region_type == 1) pipeline = pipeline_lrn_norm_within_channel_pack8;
         }
-        else if (elempack == 4)
-        {
+        else if (elempack == 4) {
             if (region_type == 0) pipeline = pipeline_lrn_norm_across_channel_pack4;
             if (region_type == 1) pipeline = pipeline_lrn_norm_within_channel_pack4;
         }
-        else
-        {
+        else {
             pipeline = pipeline_lrn_norm;
         }
 
@@ -349,13 +325,11 @@ int LRN_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, con
 
     VkImageMat square_workspace;
 
-    if (region_type == NormRegion_ACROSS_CHANNELS)
-    {
+    if (region_type == NormRegion_ACROSS_CHANNELS) {
         // always create scalar square workspace blob for norm across channel
         square_workspace.create(w, h, channels * elempack + local_size - 1, 4u, 1, opt.workspace_vkallocator);
     }
-    else if (region_type == NormRegion_WITHIN_CHANNEL)
-    {
+    else if (region_type == NormRegion_WITHIN_CHANNEL) {
         square_workspace.create(w + local_size - 1, h + local_size - 1, channels, elempack * 4u, elempack, opt.workspace_vkallocator);
     }
 
@@ -370,26 +344,23 @@ int LRN_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, con
         constants[1].i = bottom_top_blob.w;
         constants[2].i = bottom_top_blob.h;
         constants[3].i = bottom_top_blob.c;
-        constants[4].i = 0;//bottom_top_blob.cstep;
+        constants[4].i = 0; //bottom_top_blob.cstep;
         constants[5].i = square_workspace.dims;
         constants[6].i = square_workspace.w;
         constants[7].i = square_workspace.h;
         constants[8].i = square_workspace.c;
-        constants[9].i = 0;//square_workspace.cstep;
+        constants[9].i = 0; //square_workspace.cstep;
 
         const Pipeline* pipeline = 0;
-        if (elempack == 8)
-        {
+        if (elempack == 8) {
             if (region_type == 0) pipeline = pipeline_lrn_square_pad_across_channel_pack8;
             if (region_type == 1) pipeline = pipeline_lrn_square_pad_within_channel_pack8;
         }
-        else if (elempack == 4)
-        {
+        else if (elempack == 4) {
             if (region_type == 0) pipeline = pipeline_lrn_square_pad_across_channel_pack4;
             if (region_type == 1) pipeline = pipeline_lrn_square_pad_within_channel_pack4;
         }
-        else
-        {
+        else {
             pipeline = pipeline_lrn_square_pad;
         }
 
@@ -408,26 +379,23 @@ int LRN_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, con
         constants[1].i = square_workspace.w;
         constants[2].i = square_workspace.h;
         constants[3].i = square_workspace.c;
-        constants[4].i = 0;//square_workspace.cstep;
+        constants[4].i = 0; //square_workspace.cstep;
         constants[5].i = bottom_top_blob.dims;
         constants[6].i = bottom_top_blob.w;
         constants[7].i = bottom_top_blob.h;
         constants[8].i = bottom_top_blob.c;
-        constants[9].i = 0;//bottom_top_blob.cstep;
+        constants[9].i = 0; //bottom_top_blob.cstep;
 
         const Pipeline* pipeline = 0;
-        if (elempack == 8)
-        {
+        if (elempack == 8) {
             if (region_type == 0) pipeline = pipeline_lrn_norm_across_channel_pack8;
             if (region_type == 1) pipeline = pipeline_lrn_norm_within_channel_pack8;
         }
-        else if (elempack == 4)
-        {
+        else if (elempack == 4) {
             if (region_type == 0) pipeline = pipeline_lrn_norm_across_channel_pack4;
             if (region_type == 1) pipeline = pipeline_lrn_norm_within_channel_pack4;
         }
-        else
-        {
+        else {
             pipeline = pipeline_lrn_norm;
         }
 

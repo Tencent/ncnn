@@ -63,7 +63,8 @@ protected:
         // 5 = array of int
         // 6 = array of float
         int type;
-        union {
+        union
+        {
             int i;
             float f;
         };

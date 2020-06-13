@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/hardsigmoid.h"
+#include "testutil.h"
 
 static int test_hardsigmoid(const ncnn::Mat& a, float alpha, float beta)
 {
@@ -30,8 +29,7 @@ static int test_hardsigmoid(const ncnn::Mat& a, float alpha, float beta)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::HardSigmoid>("HardSigmoid", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_hardsigmoid failed a.dims=%d a=(%d %d %d) alpha=%f beta=%f\n", a.dims, a.w, a.h, a.c, alpha, beta);
     }
 
@@ -42,24 +40,21 @@ static int test_hardsigmoid_0()
 {
     return 0
            || test_hardsigmoid(RandomMat(6, 7, 16), 0.5f, 0.5f)
-           || test_hardsigmoid(RandomMat(3, 5, 13), 0.5f, 0.5f)
-           ;
+           || test_hardsigmoid(RandomMat(3, 5, 13), 0.5f, 0.5f);
 }
 
 static int test_hardsigmoid_1()
 {
     return 0
            || test_hardsigmoid(RandomMat(6, 16), 0.5f, 0.5f)
-           || test_hardsigmoid(RandomMat(7, 15), 0.5f, 0.5f)
-           ;
+           || test_hardsigmoid(RandomMat(7, 15), 0.5f, 0.5f);
 }
 
 static int test_hardsigmoid_2()
 {
     return 0
            || test_hardsigmoid(RandomMat(128), 0.5f, 0.5f)
-           || test_hardsigmoid(RandomMat(127), 0.5f, 0.5f)
-           ;
+           || test_hardsigmoid(RandomMat(127), 0.5f, 0.5f);
 }
 
 int main()
@@ -69,6 +64,5 @@ int main()
     return 0
            || test_hardsigmoid_0()
            || test_hardsigmoid_1()
-           || test_hardsigmoid_2()
-           ;
+           || test_hardsigmoid_2();
 }

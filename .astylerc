@@ -1,7 +1,7 @@
-# astyle -n -r "benchmark/*.h,*.cpp" "src/*.h,*.cpp" "tests/*.h,*.cpp" "tools/*.h,*.cpp"
+# astyle -n -r "benchmark/*.h,*.cpp" "src/*.h,*.cpp" "tests/*.h,*.cpp" "tools/*.h,*.cpp" "examples/*.h,*.cpp"
 
 # brace style
---style=allman
+--style=stroustrup
 
 # tab
 --attach-namespaces
@@ -23,6 +23,8 @@
 
 # formatting
 --break-closing-braces
+--attach-return-type
+--attach-return-type-decl
 --keep-one-line-blocks
 --keep-one-line-statements
 --convert-tabs

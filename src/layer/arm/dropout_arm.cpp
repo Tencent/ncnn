@@ -31,8 +31,7 @@ Dropout_arm::Dropout_arm()
 
 int Dropout_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    if (scale == 1.f)
-    {
+    if (scale == 1.f) {
         return 0;
     }
 
@@ -40,11 +39,8 @@ int Dropout_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout)
-    {
-
-        if (elempack == 4)
-        {
+    if (opt.use_packing_layout) {
+        if (elempack == 4) {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
             int channels = bottom_top_blob.c;
@@ -52,11 +48,9 @@ int Dropout_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             float32x4_t _scale = vdupq_n_f32(scale);
 
-            if (dims == 1)
-            {
+            if (dims == 1) {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i=0; i<w; i++)
-                {
+                for (int i = 0; i < w; i++) {
                     float* ptr = (float*)bottom_top_blob + i * 4;
                     float32x4_t _p = vld1q_f32(ptr);
                     _p = vmulq_f32(_p, _scale);
@@ -64,15 +58,12 @@ int Dropout_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 }
             }
 
-            if (dims == 2)
-            {
+            if (dims == 2) {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i=0; i<h; i++)
-                {
+                for (int i = 0; i < h; i++) {
                     float* ptr = bottom_top_blob.row(i);
 
-                    for (int j=0; j<w; j++)
-                    {
+                    for (int j = 0; j < w; j++) {
                         float32x4_t _p = vld1q_f32(ptr);
                         _p = vmulq_f32(_p, _scale);
                         vst1q_f32(ptr, _p);
@@ -81,15 +72,12 @@ int Dropout_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 }
             }
 
-            if (dims == 3)
-            {
+            if (dims == 3) {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
-                {
+                for (int q = 0; q < channels; q++) {
                     float* ptr = bottom_top_blob.channel(q);
 
-                    for (int i=0; i<size; i++)
-                    {
+                    for (int i = 0; i < size; i++) {
                         float32x4_t _p = vld1q_f32(ptr);
                         _p = vmulq_f32(_p, _scale);
                         vst1q_f32(ptr, _p);
@@ -101,7 +89,7 @@ int Dropout_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return 0;
         }
 
-    } // opt.use_packing_layout
+    }  // opt.use_packing_layout
 #endif // __ARM_NEON
 
     return Dropout::forward_inplace(bottom_top_blob, opt);

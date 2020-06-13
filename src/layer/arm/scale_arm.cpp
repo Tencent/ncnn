@@ -38,22 +38,16 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout)
-    {
-
-        if (elempack == 4)
-        {
-            if (dims == 1)
-            {
+    if (opt.use_packing_layout) {
+        if (elempack == 4) {
+            if (dims == 1) {
                 int w = bottom_top_blob.w;
 
                 const float* scale = scale_blob;
-                if (bias_term)
-                {
+                if (bias_term) {
                     const float* bias = bias_data;
                     #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i=0; i<w; i++)
-                    {
+                    for (int i = 0; i < w; i++) {
                         float* ptr = (float*)bottom_top_blob + i * 4;
 
                         float32x4_t _p = vld1q_f32(ptr);
@@ -63,11 +57,9 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
                         vst1q_f32(ptr, _p);
                     }
                 }
-                else
-                {
+                else {
                     #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i=0; i<w; i++)
-                    {
+                    for (int i = 0; i < w; i++) {
                         float* ptr = (float*)bottom_top_blob + i * 4;
 
                         float32x4_t _p = vld1q_f32(ptr);
@@ -78,22 +70,18 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
                 }
             }
 
-            if (dims == 2)
-            {
+            if (dims == 2) {
                 int w = bottom_top_blob.w;
                 int h = bottom_top_blob.h;
 
-                if (bias_term)
-                {
+                if (bias_term) {
                     #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i=0; i<h; i++)
-                    {
+                    for (int i = 0; i < h; i++) {
                         float* ptr = bottom_top_blob.row(i);
                         float32x4_t _s = vld1q_f32((const float*)scale_blob + i * 4);
                         float32x4_t _bias = vld1q_f32((const float*)bias_data + i * 4);
 
-                        for (int j=0; j<w; j++)
-                        {
+                        for (int j = 0; j < w; j++) {
                             float32x4_t _p = vld1q_f32(ptr);
                             _p = vmlaq_f32(_bias, _p, _s);
                             vst1q_f32(ptr, _p);
@@ -102,16 +90,13 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
                         }
                     }
                 }
-                else
-                {
+                else {
                     #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i=0; i<h; i++)
-                    {
+                    for (int i = 0; i < h; i++) {
                         float* ptr = bottom_top_blob.row(i);
                         float32x4_t _s = vld1q_f32((const float*)scale_blob + i * 4);
 
-                        for (int j=0; j<w; j++)
-                        {
+                        for (int j = 0; j < w; j++) {
                             float32x4_t _p = vld1q_f32(ptr);
                             _p = vmulq_f32(_p, _s);
                             vst1q_f32(ptr, _p);
@@ -122,24 +107,20 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
                 }
             }
 
-            if (dims == 3)
-            {
+            if (dims == 3) {
                 int w = bottom_top_blob.w;
                 int h = bottom_top_blob.h;
                 int channels = bottom_top_blob.c;
                 int size = w * h;
 
-                if (bias_term)
-                {
+                if (bias_term) {
                     #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int q=0; q<channels; q++)
-                    {
+                    for (int q = 0; q < channels; q++) {
                         float* ptr = bottom_top_blob.channel(q);
                         float32x4_t _s = vld1q_f32((const float*)scale_blob + q * 4);
                         float32x4_t _bias = vld1q_f32((const float*)bias_data + q * 4);
 
-                        for (int i=0; i<size; i++)
-                        {
+                        for (int i = 0; i < size; i++) {
                             float32x4_t _p = vld1q_f32(ptr);
                             _p = vmlaq_f32(_bias, _p, _s);
                             vst1q_f32(ptr, _p);
@@ -148,16 +129,13 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
                         }
                     }
                 }
-                else
-                {
+                else {
                     #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int q=0; q<channels; q++)
-                    {
+                    for (int q = 0; q < channels; q++) {
                         float* ptr = bottom_top_blob.channel(q);
                         float32x4_t _s = vld1q_f32((const float*)scale_blob + q * 4);
 
-                        for (int i=0; i<size; i++)
-                        {
+                        for (int i = 0; i < size; i++) {
                             float32x4_t _p = vld1q_f32(ptr);
                             _p = vmulq_f32(_p, _s);
                             vst1q_f32(ptr, _p);
@@ -171,7 +149,7 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             return 0;
         }
 
-    } // opt.use_packing_layout
+    }  // opt.use_packing_layout
 #endif // __ARM_NEON
 
     if (dims != 3)
@@ -182,13 +160,11 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
     int channels = bottom_top_blob.c;
     int size = w * h;
 
-    if (bias_term)
-    {
+    if (bias_term) {
         const float* scale_ptr = scale_blob;
         const float* bias_ptr = bias_data;
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             float* ptr = bottom_top_blob.channel(q);
 
             float s = scale_ptr[q];
@@ -204,8 +180,7 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 #if __ARM_NEON
             float32x4_t _s = vdupq_n_f32(s);
             float32x4_t _bias = vdupq_n_f32(bias);
-            for (; nn>0; nn--)
-            {
+            for (; nn > 0; nn--) {
                 float32x4_t _p = vld1q_f32(ptr);
                 _p = vmlaq_f32(_bias, _p, _s);
                 vst1q_f32(ptr, _p);
@@ -214,20 +189,17 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             }
 #endif // __ARM_NEON
 
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 *ptr = *ptr * s + bias;
 
                 ptr++;
             }
         }
     }
-    else
-    {
+    else {
         const float* scale_ptr = scale_blob;
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             float* ptr = bottom_top_blob.channel(q);
 
             float s = scale_ptr[q];
@@ -241,8 +213,7 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 
 #if __ARM_NEON
             float32x4_t _s = vdupq_n_f32(s);
-            for (; nn>0; nn--)
-            {
+            for (; nn > 0; nn--) {
                 float32x4_t _p = vld1q_f32(ptr);
                 _p = vmulq_f32(_p, _s);
                 vst1q_f32(ptr, _p);
@@ -251,8 +222,7 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             }
 #endif // __ARM_NEON
 
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 *ptr *= s;
 
                 ptr++;

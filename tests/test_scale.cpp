@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/scale.h"
+#include "testutil.h"
 
 static int test_scale(const ncnn::Mat& a, int scale_data_size, int bias)
 {
@@ -33,8 +32,7 @@ static int test_scale(const ncnn::Mat& a, int scale_data_size, int bias)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Scale>("Scale", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_scale failed a.dims=%d a=(%d %d %d) scale_data_size=%d bias=%d\n", a.dims, a.w, a.h, a.c, scale_data_size, bias);
     }
 
@@ -57,8 +55,7 @@ static int test_scale_attention(const ncnn::Mat& a, int scale_data_size)
     ab[1] = RandomMat(scale_data_size);
 
     int ret = test_layer<ncnn::Scale>("Scale", pd, weights, opt, ab, 2);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_scale_attention failed a.dims=%d a=(%d %d %d) scale_data_size=%d\n", a.dims, a.w, a.h, a.c, scale_data_size);
     }
 
@@ -71,8 +68,7 @@ static int test_scale_0()
            || test_scale(RandomMat(6, 7, 16), 16, 0)
            || test_scale(RandomMat(6, 7, 16), 16, 1)
            || test_scale(RandomMat(3, 5, 13), 13, 0)
-           || test_scale(RandomMat(3, 5, 13), 13, 1)
-           ;
+           || test_scale(RandomMat(3, 5, 13), 13, 1);
 }
 
 static int test_scale_1()
@@ -81,8 +77,7 @@ static int test_scale_1()
            || test_scale(RandomMat(6, 16), 16, 0)
            || test_scale(RandomMat(6, 16), 16, 1)
            || test_scale(RandomMat(7, 15), 15, 0)
-           || test_scale(RandomMat(7, 15), 15, 1)
-           ;
+           || test_scale(RandomMat(7, 15), 15, 1);
 }
 
 static int test_scale_2()
@@ -91,32 +86,28 @@ static int test_scale_2()
            || test_scale(RandomMat(128), 128, 0)
            || test_scale(RandomMat(128), 128, 1)
            || test_scale(RandomMat(127), 127, 0)
-           || test_scale(RandomMat(127), 127, 1)
-           ;
+           || test_scale(RandomMat(127), 127, 1);
 }
 
 static int test_scale_3()
 {
     return 0
            || test_scale_attention(RandomMat(6, 7, 16), 16)
-           || test_scale_attention(RandomMat(3, 5, 13), 13)
-           ;
+           || test_scale_attention(RandomMat(3, 5, 13), 13);
 }
 
 static int test_scale_4()
 {
     return 0
            || test_scale_attention(RandomMat(6, 16), 16)
-           || test_scale_attention(RandomMat(7, 15), 15)
-           ;
+           || test_scale_attention(RandomMat(7, 15), 15);
 }
 
 static int test_scale_5()
 {
     return 0
            || test_scale_attention(RandomMat(128), 128)
-           || test_scale_attention(RandomMat(127), 127)
-           ;
+           || test_scale_attention(RandomMat(127), 127);
 }
 
 int main()
@@ -129,6 +120,5 @@ int main()
            || test_scale_2()
            || test_scale_3()
            || test_scale_4()
-           || test_scale_5()
-           ;
+           || test_scale_5();
 }

@@ -34,10 +34,12 @@
 class GlobalGpuInstance
 {
 public:
-    GlobalGpuInstance() {
+    GlobalGpuInstance()
+    {
         ncnn::create_gpu_instance();
     }
-    ~GlobalGpuInstance() {
+    ~GlobalGpuInstance()
+    {
         ncnn::destroy_gpu_instance();
     }
 };
@@ -48,10 +50,12 @@ GlobalGpuInstance g_global_gpu_instance;
 class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
-    virtual int scan(const char* format, void* p) const {
+    virtual int scan(const char* format, void* p) const
+    {
         return 0;
     }
-    virtual size_t read(void* buf, size_t size) const {
+    virtual size_t read(void* buf, size_t size) const
+    {
         memset(buf, 0, size);
         return size;
     }
@@ -80,8 +84,7 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     net.opt = opt;
 
 #if NCNN_VULKAN
-    if (net.opt.use_vulkan_compute)
-    {
+    if (net.opt.use_vulkan_compute) {
         net.set_vulkan_device(g_vkdev);
     }
 #endif // NCNN_VULKAN
@@ -97,15 +100,13 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     g_workspace_pool_allocator.clear();
 
 #if NCNN_VULKAN
-    if (net.opt.use_vulkan_compute)
-    {
+    if (net.opt.use_vulkan_compute) {
         g_blob_vkallocator->clear();
         g_staging_vkallocator->clear();
     }
 #endif // NCNN_VULKAN
 
-    if (g_enable_cooling_down)
-    {
+    if (g_enable_cooling_down) {
         // sleep 10 seconds for cooling down SOC  :(
 #ifdef _WIN32
         Sleep(10 * 1000);
@@ -117,8 +118,7 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     ncnn::Mat out;
 
     // warm up
-    for (int i=0; i<g_warmup_loop_count; i++)
-    {
+    for (int i = 0; i < g_warmup_loop_count; i++) {
         ncnn::Extractor ex = net.create_extractor();
         ex.input("data", in);
         ex.extract("output", out);
@@ -128,8 +128,7 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     double time_max = -DBL_MAX;
     double time_avg = 0;
 
-    for (int i=0; i<g_loop_count; i++)
-    {
+    for (int i = 0; i < g_loop_count; i++) {
         double start = ncnn::get_current_time();
 
         {
@@ -160,24 +159,19 @@ int main(int argc, char** argv)
     int gpu_device = -1;
     int cooling_down = 1;
 
-    if (argc >= 2)
-    {
+    if (argc >= 2) {
         loop_count = atoi(argv[1]);
     }
-    if (argc >= 3)
-    {
+    if (argc >= 3) {
         num_threads = atoi(argv[2]);
     }
-    if (argc >= 4)
-    {
+    if (argc >= 4) {
         powersave = atoi(argv[3]);
     }
-    if (argc >= 5)
-    {
+    if (argc >= 5) {
         gpu_device = atoi(argv[4]);
     }
-    if (argc >= 6)
-    {
+    if (argc >= 6) {
         cooling_down = atoi(argv[5]);
     }
 
@@ -191,8 +185,7 @@ int main(int argc, char** argv)
     g_workspace_pool_allocator.set_size_compare_ratio(0.5f);
 
 #if NCNN_VULKAN
-    if (use_vulkan_compute)
-    {
+    if (use_vulkan_compute) {
         g_warmup_loop_count = 10;
 
         g_vkdev = ncnn::get_gpu_device(gpu_device);
@@ -258,10 +251,10 @@ int main(int argc, char** argv)
 
     benchmark("mobilenet_v2", ncnn::Mat(224, 224, 3), opt);
 
-// #if NCNN_VULKAN
-//     if (!use_vulkan_compute)
-// #endif // NCNN_VULKAN
-//     benchmark("mobilenet_v2_int8", ncnn::Mat(224, 224, 3), opt);
+    // #if NCNN_VULKAN
+    //     if (!use_vulkan_compute)
+    // #endif // NCNN_VULKAN
+    //     benchmark("mobilenet_v2_int8", ncnn::Mat(224, 224, 3), opt);
 
     benchmark("mobilenet_v3", ncnn::Mat(224, 224, 3), opt);
 
@@ -327,7 +320,6 @@ int main(int argc, char** argv)
     }
 
     benchmark("mobilenet_ssd", ncnn::Mat(300, 300, 3), opt);
-
 
 #if NCNN_VULKAN
     if (!use_vulkan_compute)

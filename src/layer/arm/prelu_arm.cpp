@@ -35,24 +35,18 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout)
-    {
-
-        if (elempack == 4)
-        {
+    if (opt.use_packing_layout) {
+        if (elempack == 4) {
             float32x4_t _zero = vdupq_n_f32(0.f);
 
-            if (dims == 1)
-            {
+            if (dims == 1) {
                 int w = bottom_top_blob.w;
 
-                if (num_slope > 1)
-                {
+                if (num_slope > 1) {
                     const float* slope = slope_data;
 
                     #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i=0; i<w; i++)
-                    {
+                    for (int i = 0; i < w; i++) {
                         float* ptr = (float*)bottom_top_blob + i * 4;
 
                         float32x4_t _p = vld1q_f32(ptr);
@@ -63,13 +57,11 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                         vst1q_f32(ptr, _p);
                     }
                 }
-                else
-                {
+                else {
                     float32x4_t _slope = vdupq_n_f32(slope_data[0]);
 
                     #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i=0; i<w; i++)
-                    {
+                    for (int i = 0; i < w; i++) {
                         float* ptr = (float*)bottom_top_blob + i * 4;
 
                         float32x4_t _p = vld1q_f32(ptr);
@@ -81,19 +73,16 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 }
             }
 
-            if (dims == 2)
-            {
+            if (dims == 2) {
                 int w = bottom_top_blob.w;
                 int h = bottom_top_blob.h;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i=0; i<h; i++)
-                {
+                for (int i = 0; i < h; i++) {
                     float* ptr = bottom_top_blob.row(i);
                     float32x4_t _slope = num_slope > 1 ? vld1q_f32((const float*)slope_data + i * 4) : vdupq_n_f32(slope_data[0]);
 
-                    for (int j=0; j<w; j++)
-                    {
+                    for (int j = 0; j < w; j++) {
                         float32x4_t _p = vld1q_f32(ptr);
                         uint32x4_t _lemask = vcleq_f32(_p, _zero);
                         float32x4_t _ps = vmulq_f32(_p, _slope);
@@ -105,21 +94,18 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 }
             }
 
-            if (dims == 3)
-            {
+            if (dims == 3) {
                 int w = bottom_top_blob.w;
                 int h = bottom_top_blob.h;
                 int channels = bottom_top_blob.c;
                 int size = w * h;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
-                {
+                for (int q = 0; q < channels; q++) {
                     float* ptr = bottom_top_blob.channel(q);
                     float32x4_t _slope = num_slope > 1 ? vld1q_f32((const float*)slope_data + q * 4) : vdupq_n_f32(slope_data[0]);
 
-                    for (int i=0; i<size; i++)
-                    {
+                    for (int i = 0; i < size; i++) {
                         float32x4_t _p = vld1q_f32(ptr);
                         uint32x4_t _lemask = vcleq_f32(_p, _zero);
                         float32x4_t _ps = vmulq_f32(_p, _slope);
@@ -134,7 +120,7 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return 0;
         }
 
-    } // opt.use_packing_layout
+    }  // opt.use_packing_layout
 #endif // __ARM_NEON
 
     if (dims != 3)
@@ -148,8 +134,7 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     const float* slope_data_ptr = slope_data;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
-    {
+    for (int q = 0; q < channels; q++) {
         float* ptr = bottom_top_blob.channel(q);
         float slope = num_slope > 1 ? slope_data_ptr[q] : slope_data_ptr[0];
 
@@ -164,8 +149,7 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __aarch64__
         float32x4_t _zero = vdupq_n_f32(0.f);
         float32x4_t _slope = vdupq_n_f32(slope);
-        for (; nn>0; nn--)
-        {
+        for (; nn > 0; nn--) {
             float32x4_t _p = vld1q_f32(ptr);
             uint32x4_t _lemask = vcleq_f32(_p, _zero);
             float32x4_t _ps = vmulq_f32(_p, _slope);
@@ -175,8 +159,7 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             ptr += 4;
         }
 #else
-        if (nn > 0)
-        {
+        if (nn > 0) {
             asm volatile(
                 "veor       q1, q0, q0          \n"
                 "vdup.f32   q2, %4              \n"
@@ -189,18 +172,16 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 "subs       %0, #1              \n"
                 "vst1.f32   {d0-d1}, [%1 :128]! \n"
                 "bne        0b                  \n"
-                : "=r"(nn),     // %0
-                "=r"(ptr)     // %1
+                : "=r"(nn), // %0
+                "=r"(ptr) // %1
                 : "0"(nn),
                 "1"(ptr),
-                "r"(slope)    // %4
-                : "cc", "memory", "q0", "q1", "q2", "q3", "q4"
-            );
+                "r"(slope) // %4
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4");
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain>0; remain--)
-        {
+        for (; remain > 0; remain--) {
             if (*ptr < 0)
                 *ptr *= slope;
 

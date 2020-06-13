@@ -18,28 +18,26 @@ static void conv1x1s1_sgemm_transform_kernel_neon(const Mat& _kernel, Mat& kerne
 
     // interleave
 #if __ARM_NEON && __aarch64__
-    kernel_tm.create(4*8, inch/4 + inch%4, outch/8 + (outch%8)/4 + outch%4);
+    kernel_tm.create(4 * 8, inch / 4 + inch % 4, outch / 8 + (outch % 8) / 4 + outch % 4);
 #else
-    kernel_tm.create(4*4, inch/4 + inch%4, outch/4 + outch%4);
+    kernel_tm.create(4 * 4, inch / 4 + inch % 4, outch / 4 + outch % 4);
 #endif // __ARM_NEON && __aarch64__
 
     int p = 0;
 #if __ARM_NEON && __aarch64__
-    for (; p+7<outch; p+=8)
-    {
-        const float* kernel0 = kernel + (p+0)*inch;
-        const float* kernel1 = kernel + (p+1)*inch;
-        const float* kernel2 = kernel + (p+2)*inch;
-        const float* kernel3 = kernel + (p+3)*inch;
-        const float* kernel4 = kernel + (p+4)*inch;
-        const float* kernel5 = kernel + (p+5)*inch;
-        const float* kernel6 = kernel + (p+6)*inch;
-        const float* kernel7 = kernel + (p+7)*inch;
+    for (; p + 7 < outch; p += 8) {
+        const float* kernel0 = kernel + (p + 0) * inch;
+        const float* kernel1 = kernel + (p + 1) * inch;
+        const float* kernel2 = kernel + (p + 2) * inch;
+        const float* kernel3 = kernel + (p + 3) * inch;
+        const float* kernel4 = kernel + (p + 4) * inch;
+        const float* kernel5 = kernel + (p + 5) * inch;
+        const float* kernel6 = kernel + (p + 6) * inch;
+        const float* kernel7 = kernel + (p + 7) * inch;
 
-        float* ktmp = kernel_tm.channel(p/8);
+        float* ktmp = kernel_tm.channel(p / 8);
 
-        for (int q=0; q<inch; q++)
-        {
+        for (int q = 0; q < inch; q++) {
             // kernel0...7 0
             ktmp[0] = kernel0[0];
             ktmp[1] = kernel1[0];
@@ -62,21 +60,19 @@ static void conv1x1s1_sgemm_transform_kernel_neon(const Mat& _kernel, Mat& kerne
         }
     }
 #endif // __ARM_NEON && __aarch64__
-    for (; p+3<outch; p+=4)
-    {
-        const float* kernel0 = kernel + (p+0)*inch;
-        const float* kernel1 = kernel + (p+1)*inch;
-        const float* kernel2 = kernel + (p+2)*inch;
-        const float* kernel3 = kernel + (p+3)*inch;
+    for (; p + 3 < outch; p += 4) {
+        const float* kernel0 = kernel + (p + 0) * inch;
+        const float* kernel1 = kernel + (p + 1) * inch;
+        const float* kernel2 = kernel + (p + 2) * inch;
+        const float* kernel3 = kernel + (p + 3) * inch;
 
 #if __ARM_NEON && __aarch64__
-        float* ktmp = kernel_tm.channel(p/8 + (p%8)/4);
+        float* ktmp = kernel_tm.channel(p / 8 + (p % 8) / 4);
 #else
-        float* ktmp = kernel_tm.channel(p/4);
+        float* ktmp = kernel_tm.channel(p / 4);
 #endif // __ARM_NEON && __aarch64__
 
-        for (int q=0; q<inch; q++)
-        {
+        for (int q = 0; q < inch; q++) {
             // kernel0...3 0
             ktmp[0] = kernel0[0];
             ktmp[1] = kernel1[0];
@@ -90,18 +86,16 @@ static void conv1x1s1_sgemm_transform_kernel_neon(const Mat& _kernel, Mat& kerne
             kernel3 += 1;
         }
     }
-    for (; p<outch; p++)
-    {
-        const float* kernel0 = kernel + p*inch;
+    for (; p < outch; p++) {
+        const float* kernel0 = kernel + p * inch;
 
 #if __ARM_NEON && __aarch64__
-        float* ktmp = kernel_tm.channel(p/8 + (p%8)/4 + p%4);
+        float* ktmp = kernel_tm.channel(p / 8 + (p % 8) / 4 + p % 4);
 #else
-        float* ktmp = kernel_tm.channel(p/4 + p%4);
+        float* ktmp = kernel_tm.channel(p / 4 + p % 4);
 #endif // __ARM_NEON && __aarch64__
 
-        for (int q=0; q<inch; q++)
-        {
+        for (int q = 0; q < inch; q++) {
             ktmp[0] = kernel0[0];
             ktmp++;
             kernel0++;
@@ -121,27 +115,25 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
     const float* bias = _bias;
 
     // interleave
-    Mat tmp(8*4, inch/4+inch%4, size/8 + (size%8)/4 + size%4, 4u, opt.workspace_allocator);
+    Mat tmp(8 * 4, inch / 4 + inch % 4, size / 8 + (size % 8) / 4 + size % 4, 4u, opt.workspace_allocator);
     {
         int nn_size = size >> 3;
         int remain_size_start = nn_size << 3;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ii=0; ii<nn_size; ii++)
-        {
+        for (int ii = 0; ii < nn_size; ii++) {
             int i = ii * 8;
 
             const float* img0 = bottom_blob.channel(0);
             img0 += i;
 
-            float* tmpptr = tmp.channel(i/8);
+            float* tmpptr = tmp.channel(i / 8);
 
-            for (int q=0; q<inch; q++)
-            {
+            for (int q = 0; q < inch; q++) {
 #if __ARM_NEON
 #if __aarch64__
                 vst1q_f32(tmpptr, vld1q_f32(img0));
-                vst1q_f32(tmpptr+4, vld1q_f32(img0+4));
+                vst1q_f32(tmpptr + 4, vld1q_f32(img0 + 4));
 
                 tmpptr += 8;
                 img0 += bottom_blob.cstep;
@@ -150,12 +142,11 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                     "pld        [%0, #256]          \n"
                     "vld1.f32   {d0-d3}, [%0 :128]  \n"
                     "vst1.f32   {d0-d3}, [%1 :128]! \n"
-                    : "=r"(img0),   // %0
-                    "=r"(tmpptr)  // %1
+                    : "=r"(img0),  // %0
+                    "=r"(tmpptr) // %1
                     : "0"(img0),
                     "1"(tmpptr)
-                    : "memory", "q0", "q1"
-                );
+                    : "memory", "q0", "q1");
 
                 img0 += bottom_blob.cstep;
 #endif // __aarch64__
@@ -178,17 +169,15 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
         nn_size = (size - remain_size_start) >> 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int ii=0; ii<nn_size; ii++)
-        {
+        for (int ii = 0; ii < nn_size; ii++) {
             int i = remain_size_start + ii * 4;
 
             const float* img0 = bottom_blob.channel(0);
             img0 += i;
 
-            float* tmpptr = tmp.channel(i/8 + (i%8)/4);
+            float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
 
-            for (int q=0; q<inch; q++)
-            {
+            for (int q = 0; q < inch; q++) {
 #if __ARM_NEON
 #if __aarch64__
                 vst1q_f32(tmpptr, vld1q_f32(img0));
@@ -200,12 +189,11 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                     "pld        [%0, #128]          \n"
                     "vld1.f32   {d0-d1}, [%0 :128]  \n"
                     "vst1.f32   {d0-d1}, [%1 :128]! \n"
-                    : "=r"(img0),   // %0
-                    "=r"(tmpptr)  // %1
+                    : "=r"(img0),  // %0
+                    "=r"(tmpptr) // %1
                     : "0"(img0),
                     "1"(tmpptr)
-                    : "memory", "q0"
-                );
+                    : "memory", "q0");
 
                 img0 += bottom_blob.cstep;
 #endif // __aarch64__
@@ -224,15 +212,13 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
         remain_size_start += nn_size << 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i=remain_size_start; i<size; i++)
-        {
+        for (int i = remain_size_start; i < size; i++) {
             const float* img0 = bottom_blob.channel(0);
             img0 += i;
 
-            float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);
+            float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
 
-            for (int q=0; q<inch; q++)
-            {
+            for (int q = 0; q < inch; q++) {
                 tmpptr[0] = img0[0];
                 tmpptr++;
                 img0 += bottom_blob.cstep;
@@ -248,28 +234,26 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
     remain_outch_start = nn_outch << 3;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp=0; pp<nn_outch; pp++)
-    {
+    for (int pp = 0; pp < nn_outch; pp++) {
         int p = pp * 8;
 
         float* outptr0 = top_blob.channel(p);
-        float* outptr1 = top_blob.channel(p+1);
-        float* outptr2 = top_blob.channel(p+2);
-        float* outptr3 = top_blob.channel(p+3);
-        float* outptr4 = top_blob.channel(p+4);
-        float* outptr5 = top_blob.channel(p+5);
-        float* outptr6 = top_blob.channel(p+6);
-        float* outptr7 = top_blob.channel(p+7);
+        float* outptr1 = top_blob.channel(p + 1);
+        float* outptr2 = top_blob.channel(p + 2);
+        float* outptr3 = top_blob.channel(p + 3);
+        float* outptr4 = top_blob.channel(p + 4);
+        float* outptr5 = top_blob.channel(p + 5);
+        float* outptr6 = top_blob.channel(p + 6);
+        float* outptr7 = top_blob.channel(p + 7);
 
         const float zeros[8] = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
         const float* biasptr = bias ? bias + p : zeros;
 
         int i = 0;
 
-        for (; i+7<size; i+=8)
-        {
-            const float* tmpptr = tmp.channel(i/8);
-            const float* kptr = kernel.channel(p/8);
+        for (; i + 7 < size; i += 8) {
+            const float* tmpptr = tmp.channel(i / 8);
+            const float* kptr = kernel.channel(p / 8);
 
             asm volatile(
                 "ld1    {v0.4s, v1.4s}, [%20]   \n"
@@ -291,7 +275,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "dup    v31.4s, v1.s[3]         \n"
 
                 // inch loop
-                "lsr    w4, %w21, #2            \n"// w4 = nn = inch >> 2
+                "lsr    w4, %w21, #2            \n" // w4 = nn = inch >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -396,7 +380,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w21, #3            \n"// w4 = remain = inch & 3;
+                "and    w4, %w21, #3            \n" // w4 = remain = inch & 3;
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -443,16 +427,16 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "st1    {v28.4s, v29.4s}, [%6], #32 \n"
                 "st1    {v30.4s, v31.4s}, [%7], #32 \n"
 
-                : "=r"(outptr0),    // %0
-                "=r"(outptr1),    // %1
-                "=r"(outptr2),    // %2
-                "=r"(outptr3),    // %3
-                "=r"(outptr4),    // %4
-                "=r"(outptr5),    // %5
-                "=r"(outptr6),    // %6
-                "=r"(outptr7),    // %7
-                "=r"(tmpptr),     // %8
-                "=r"(kptr)        // %9
+                : "=r"(outptr0), // %0
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(outptr4), // %4
+                "=r"(outptr5), // %5
+                "=r"(outptr6), // %6
+                "=r"(outptr7), // %7
+                "=r"(tmpptr),  // %8
+                "=r"(kptr)     // %9
                 : "0"(outptr0),
                 "1"(outptr1),
                 "2"(outptr2),
@@ -463,16 +447,14 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "7"(outptr7),
                 "8"(tmpptr),
                 "9"(kptr),
-                "r"(biasptr),     // %20
-                "r"(inch)         // %21
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-            );
+                "r"(biasptr), // %20
+                "r"(inch)     // %21
+                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
         }
 
-        for (; i+3<size; i+=4)
-        {
-            const float* tmpptr = tmp.channel(i/8 + (i%8)/4);
-            const float* kptr = kernel.channel(p/8);
+        for (; i + 3 < size; i += 4) {
+            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+            const float* kptr = kernel.channel(p / 8);
 
             asm volatile(
                 "ld1    {v0.4s, v1.4s}, [%20]   \n"
@@ -486,7 +468,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "dup    v23.4s, v1.s[3]         \n"
 
                 // inch loop
-                "lsr    w4, %w21, #2            \n"// w4 = nn = inch >> 2
+                "lsr    w4, %w21, #2            \n" // w4 = nn = inch >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -544,7 +526,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w21, #3            \n"// w4 = remain = inch & 3;
+                "and    w4, %w21, #3            \n" // w4 = remain = inch & 3;
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -581,16 +563,16 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "st1    {v22.4s}, [%6], #16     \n"
                 "st1    {v23.4s}, [%7], #16     \n"
 
-                : "=r"(outptr0),    // %0
-                "=r"(outptr1),    // %1
-                "=r"(outptr2),    // %2
-                "=r"(outptr3),    // %3
-                "=r"(outptr4),    // %4
-                "=r"(outptr5),    // %5
-                "=r"(outptr6),    // %6
-                "=r"(outptr7),    // %7
-                "=r"(tmpptr),     // %8
-                "=r"(kptr)        // %9
+                : "=r"(outptr0), // %0
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(outptr4), // %4
+                "=r"(outptr5), // %5
+                "=r"(outptr6), // %6
+                "=r"(outptr7), // %7
+                "=r"(tmpptr),  // %8
+                "=r"(kptr)     // %9
                 : "0"(outptr0),
                 "1"(outptr1),
                 "2"(outptr2),
@@ -601,22 +583,20 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "7"(outptr7),
                 "8"(tmpptr),
                 "9"(kptr),
-                "r"(biasptr),     // %20
-                "r"(inch)         // %21
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
-            );
+                "r"(biasptr), // %20
+                "r"(inch)     // %21
+                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
         }
 
-        for (; i<size; i++)
-        {
-            const float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);
-            const float* kptr = kernel.channel(p/8);
+        for (; i < size; i++) {
+            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
+            const float* kptr = kernel.channel(p / 8);
 
             asm volatile(
                 "ld1    {v24.4s, v25.4s}, [%20] \n"
 
                 // inch loop
-                "lsr    w4, %w21, #2            \n"// w4 = nn = inch >> 2
+                "lsr    w4, %w21, #2            \n" // w4 = nn = inch >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -666,7 +646,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w21, #3            \n"// w4 = remain = inch & 3;
+                "and    w4, %w21, #3            \n" // w4 = remain = inch & 3;
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -696,16 +676,16 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "st1    {v25.s}[2],[%6], #4     \n"
                 "st1    {v25.s}[3],[%7], #4     \n"
 
-                : "=r"(outptr0),    // %0
-                "=r"(outptr1),    // %1
-                "=r"(outptr2),    // %2
-                "=r"(outptr3),    // %3
-                "=r"(outptr4),    // %4
-                "=r"(outptr5),    // %5
-                "=r"(outptr6),    // %6
-                "=r"(outptr7),    // %7
-                "=r"(tmpptr),     // %8
-                "=r"(kptr)        // %9
+                : "=r"(outptr0), // %0
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(outptr4), // %4
+                "=r"(outptr5), // %5
+                "=r"(outptr6), // %6
+                "=r"(outptr7), // %7
+                "=r"(tmpptr),  // %8
+                "=r"(kptr)     // %9
                 : "0"(outptr0),
                 "1"(outptr1),
                 "2"(outptr2),
@@ -716,10 +696,9 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "7"(outptr7),
                 "8"(tmpptr),
                 "9"(kptr),
-                "r"(biasptr),     // %20
-                "r"(inch)         // %21
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25"
-            );
+                "r"(biasptr), // %20
+                "r"(inch)     // %21
+                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25");
         }
     }
 #endif // __ARM_NEON && __aarch64__
@@ -727,27 +706,25 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
     nn_outch = (outch - remain_outch_start) >> 2;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp=0; pp<nn_outch; pp++)
-    {
+    for (int pp = 0; pp < nn_outch; pp++) {
         int p = remain_outch_start + pp * 4;
 
         float* outptr0 = top_blob.channel(p);
-        float* outptr1 = top_blob.channel(p+1);
-        float* outptr2 = top_blob.channel(p+2);
-        float* outptr3 = top_blob.channel(p+3);
+        float* outptr1 = top_blob.channel(p + 1);
+        float* outptr2 = top_blob.channel(p + 2);
+        float* outptr3 = top_blob.channel(p + 3);
 
         const float zeros[4] = {0.f, 0.f, 0.f, 0.f};
         const float* biasptr = bias ? bias + p : zeros;
 
         int i = 0;
 
-        for (; i+7<size; i+=8)
-        {
-            const float* tmpptr = tmp.channel(i/8);
+        for (; i + 7 < size; i += 8) {
+            const float* tmpptr = tmp.channel(i / 8);
 #if __ARM_NEON && __aarch64__
-            const float* kptr = kernel.channel(p/8 + (p%8)/4);
+            const float* kptr = kernel.channel(p / 8 + (p % 8) / 4);
 #else
-            const float* kptr = kernel.channel(p/4);
+            const float* kptr = kernel.channel(p / 4);
 #endif // __ARM_NEON && __aarch64__
 
 #if __ARM_NEON
@@ -764,7 +741,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "dup    v15.4s, v0.s[3]         \n"
 
                 // inch loop
-                "lsr    w4, %w13, #2            \n"// w4 = nn = inch >> 2
+                "lsr    w4, %w13, #2            \n" // w4 = nn = inch >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -826,7 +803,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w13, #3            \n"// w4 = remain = inch & 3;
+                "and    w4, %w13, #3            \n" // w4 = remain = inch & 3;
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -859,23 +836,22 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "st1    {v12.4s, v13.4s}, [%2], #32 \n"
                 "st1    {v14.4s, v15.4s}, [%3], #32 \n"
 
-                : "=r"(outptr0),    // %0
-                "=r"(outptr1),    // %1
-                "=r"(outptr2),    // %2
-                "=r"(outptr3),    // %3
-                "=r"(tmpptr),     // %4
-                "=r"(kptr)        // %5
+                : "=r"(outptr0), // %0
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(tmpptr),  // %4
+                "=r"(kptr)     // %5
                 : "0"(outptr0),
                 "1"(outptr1),
                 "2"(outptr2),
                 "3"(outptr3),
                 "4"(tmpptr),
                 "5"(kptr),
-                "r"(biasptr),     // %12
-                "r"(inch)         // %13
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19"
-            );
-#else // __aarch64__
+                "r"(biasptr), // %12
+                "r"(inch)     // %13
+                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19");
+#else  // __aarch64__
             asm volatile(
                 "vld1.f32   {d0-d1}, [%12]      \n"
                 "vdup.f32   q8, d0[0]           \n"
@@ -888,7 +864,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "vdup.f32   q15, d1[1]          \n"
 
                 // inch loop
-                "lsr        r4, %13, #2         \n"// r4 = nn = inch >> 2
+                "lsr        r4, %13, #2         \n" // r4 = nn = inch >> 2
                 "cmp        r4, #0              \n"
                 "beq        1f                  \n"
 
@@ -896,13 +872,13 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 "pld        [%4, #512]          \n"
                 "vldm       %4!, {d8-d15}       \n"
-//                 "vld1.f32   {d8-d11}, [%4 :128]!    \n"
-//                 "vld1.f32   {d12-d15}, [%4 :128]!   \n"
+                //                 "vld1.f32   {d8-d11}, [%4 :128]!    \n"
+                //                 "vld1.f32   {d12-d15}, [%4 :128]!   \n"
 
                 "pld        [%5, #512]          \n"
                 "vldm       %5!, {d0-d7}       \n"
-//                 "vld1.f32   {d0-d3}, [%5 :128]! \n"
-//                 "vld1.f32   {d4-d7}, [%5 :128]! \n"
+                //                 "vld1.f32   {d0-d3}, [%5 :128]! \n"
+                //                 "vld1.f32   {d4-d7}, [%5 :128]! \n"
 
                 "vmla.f32   q8, q4, d0[0]       \n"
                 "vmla.f32   q10, q4, d0[1]      \n"
@@ -926,8 +902,8 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 "pld        [%4, #512]          \n"
                 "vldm       %4!, {d8-d15}       \n"
-//                 "vld1.f32   {d8-d11}, [%4 :128]!    \n"
-//                 "vld1.f32   {d12-d15}, [%4 :128]!   \n"
+                //                 "vld1.f32   {d8-d11}, [%4 :128]!    \n"
+                //                 "vld1.f32   {d12-d15}, [%4 :128]!   \n"
 
                 "vmla.f32   q8, q4, d4[0]       \n"
                 "vmla.f32   q10, q4, d4[1]      \n"
@@ -956,7 +932,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "1:                             \n"
 
                 // remain loop
-                "and        r4, %13, #3         \n"// r4 = remain = inch & 3;
+                "and        r4, %13, #3         \n" // r4 = remain = inch & 3;
                 "cmp        r4, #0              \n"
                 "beq        3f                  \n"
 
@@ -989,22 +965,21 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "vst1.f32   {d24-d27}, [%2 :128]!   \n"
                 "vst1.f32   {d28-d31}, [%3 :128]!   \n"
 
-                : "=r"(outptr0),    // %0
-                "=r"(outptr1),    // %1
-                "=r"(outptr2),    // %2
-                "=r"(outptr3),    // %3
-                "=r"(tmpptr),     // %4
-                "=r"(kptr)        // %5
+                : "=r"(outptr0), // %0
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(tmpptr),  // %4
+                "=r"(kptr)     // %5
                 : "0"(outptr0),
                 "1"(outptr1),
                 "2"(outptr2),
                 "3"(outptr3),
                 "4"(tmpptr),
                 "5"(kptr),
-                "r"(biasptr),     // %12
-                "r"(inch)         // %13
-                : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-            );
+                "r"(biasptr), // %12
+                "r"(inch)     // %13
+                : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
 #else
             float sum0_0 = biasptr[0];
@@ -1043,8 +1018,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             float sum3_6 = biasptr[3];
             float sum3_7 = biasptr[3];
 
-            for (int q=0; q<inch; q++)
-            {
+            for (int q = 0; q < inch; q++) {
                 sum0_0 += tmpptr[0] * kptr[0];
                 sum0_1 += tmpptr[1] * kptr[0];
                 sum0_2 += tmpptr[2] * kptr[0];
@@ -1128,13 +1102,12 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 #endif // __ARM_NEON
         }
 
-        for (; i+3<size; i+=4)
-        {
-            const float* tmpptr = tmp.channel(i/8 + (i%8)/4);
+        for (; i + 3 < size; i += 4) {
+            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
 #if __ARM_NEON && __aarch64__
-            const float* kptr = kernel.channel(p/8 + (p%8)/4);
+            const float* kptr = kernel.channel(p / 8 + (p % 8) / 4);
 #else
-            const float* kptr = kernel.channel(p/4);
+            const float* kptr = kernel.channel(p / 4);
 #endif // __ARM_NEON && __aarch64__
 
 #if __ARM_NEON
@@ -1147,7 +1120,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "dup    v11.4s, v0.s[3]         \n"
 
                 // inch loop
-                "lsr    w4, %w13, #2            \n"// w4 = nn = inch >> 2
+                "lsr    w4, %w13, #2            \n" // w4 = nn = inch >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -1186,7 +1159,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w13, #3            \n"// w4 = remain = inch & 3;
+                "and    w4, %w13, #3            \n" // w4 = remain = inch & 3;
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -1214,23 +1187,22 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "st1    {v10.4s}, [%2], #16     \n"
                 "st1    {v11.4s}, [%3], #16     \n"
 
-                : "=r"(outptr0),    // %0
-                "=r"(outptr1),    // %1
-                "=r"(outptr2),    // %2
-                "=r"(outptr3),    // %3
-                "=r"(tmpptr),     // %4
-                "=r"(kptr)        // %5
+                : "=r"(outptr0), // %0
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(tmpptr),  // %4
+                "=r"(kptr)     // %5
                 : "0"(outptr0),
                 "1"(outptr1),
                 "2"(outptr2),
                 "3"(outptr3),
                 "4"(tmpptr),
                 "5"(kptr),
-                "r"(biasptr),     // %12
-                "r"(inch)         // %13
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11"
-            );
-#else // __aarch64__
+                "r"(biasptr), // %12
+                "r"(inch)     // %13
+                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
+#else  // __aarch64__
             asm volatile(
                 "vld1.f32   {d0-d1}, [%12]      \n"
                 "vdup.f32   q8, d0[0]           \n"
@@ -1239,7 +1211,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "vdup.f32   q11, d1[1]          \n"
 
                 // inch loop
-                "lsr        r4, %13, #2         \n"// r4 = nn = inch >> 2
+                "lsr        r4, %13, #2         \n" // r4 = nn = inch >> 2
                 "cmp        r4, #0              \n"
                 "beq        1f                  \n"
 
@@ -1247,13 +1219,13 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 "pld        [%4, #512]          \n"
                 "vldm       %4!, {d8-d15}       \n"
-//                 "vld1.f32   {d8-d11}, [%4 :128]!    \n"
-//                 "vld1.f32   {d12-d15}, [%4 :128]!   \n"
+                //                 "vld1.f32   {d8-d11}, [%4 :128]!    \n"
+                //                 "vld1.f32   {d12-d15}, [%4 :128]!   \n"
 
                 "pld        [%5, #512]          \n"
                 "vldm       %5!, {d0-d7}       \n"
-//                 "vld1.f32   {d0-d3}, [%5 :128]! \n"
-//                 "vld1.f32   {d4-d7}, [%5 :128]! \n"
+                //                 "vld1.f32   {d0-d3}, [%5 :128]! \n"
+                //                 "vld1.f32   {d4-d7}, [%5 :128]! \n"
 
                 "vmla.f32   q8, q4, d0[0]       \n"
                 "vmla.f32   q9, q4, d0[1]       \n"
@@ -1282,7 +1254,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "1:                             \n"
 
                 // remain loop
-                "and        r4, %13, #3         \n"// r4 = remain = inch & 3;
+                "and        r4, %13, #3         \n" // r4 = remain = inch & 3;
                 "cmp        r4, #0              \n"
                 "beq        3f                  \n"
 
@@ -1310,22 +1282,21 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "vst1.f32   {d20-d21}, [%2 :128]!   \n"
                 "vst1.f32   {d22-d23}, [%3 :128]!   \n"
 
-                : "=r"(outptr0),    // %0
-                "=r"(outptr1),    // %1
-                "=r"(outptr2),    // %2
-                "=r"(outptr3),    // %3
-                "=r"(tmpptr),     // %4
-                "=r"(kptr)        // %5
+                : "=r"(outptr0), // %0
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(tmpptr),  // %4
+                "=r"(kptr)     // %5
                 : "0"(outptr0),
                 "1"(outptr1),
                 "2"(outptr2),
                 "3"(outptr3),
                 "4"(tmpptr),
                 "5"(kptr),
-                "r"(biasptr),     // %12
-                "r"(inch)         // %13
-                : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11"
-            );
+                "r"(biasptr), // %12
+                "r"(inch)     // %13
+                : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11");
 #endif // __aarch64__
 #else
             float sum0_0 = biasptr[0];
@@ -1348,8 +1319,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             float sum3_2 = biasptr[3];
             float sum3_3 = biasptr[3];
 
-            for (int q=0; q<inch; q++)
-            {
+            for (int q = 0; q < inch; q++) {
                 sum0_0 += tmpptr[0] * kptr[0];
                 sum0_1 += tmpptr[1] * kptr[0];
                 sum0_2 += tmpptr[2] * kptr[0];
@@ -1401,13 +1371,12 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 #endif // __ARM_NEON
         }
 
-        for (; i<size; i++)
-        {
-            const float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);
+        for (; i < size; i++) {
+            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
 #if __ARM_NEON && __aarch64__
-            const float* kptr = kernel.channel(p/8 + (p%8)/4);
+            const float* kptr = kernel.channel(p / 8 + (p % 8) / 4);
 #else
-            const float* kptr = kernel.channel(p/4);
+            const float* kptr = kernel.channel(p / 4);
 #endif // __ARM_NEON && __aarch64__
 
 #if __ARM_NEON
@@ -1416,7 +1385,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "ld1    {v12.4s}, [%12]         \n"
 
                 // inch loop
-                "lsr    w4, %w13, #2            \n"// w4 = nn = inch >> 2
+                "lsr    w4, %w13, #2            \n" // w4 = nn = inch >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -1450,7 +1419,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w13, #3            \n"// w4 = remain = inch & 3;
+                "and    w4, %w13, #3            \n" // w4 = remain = inch & 3;
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -1475,28 +1444,27 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "st1    {v12.s}[2], [%2], #4    \n"
                 "st1    {v12.s}[3], [%3], #4    \n"
 
-                : "=r"(outptr0),    // %0
-                "=r"(outptr1),    // %1
-                "=r"(outptr2),    // %2
-                "=r"(outptr3),    // %3
-                "=r"(tmpptr),     // %4
-                "=r"(kptr)        // %5
+                : "=r"(outptr0), // %0
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(tmpptr),  // %4
+                "=r"(kptr)     // %5
                 : "0"(outptr0),
                 "1"(outptr1),
                 "2"(outptr2),
                 "3"(outptr3),
                 "4"(tmpptr),
                 "5"(kptr),
-                "r"(biasptr),     // %12
-                "r"(inch)         // %13
-                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11", "v12"
-            );
-#else // __aarch64__
+                "r"(biasptr), // %12
+                "r"(inch)     // %13
+                : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11", "v12");
+#else  // __aarch64__
             asm volatile(
                 "vld1.f32   {d24-d25}, [%12]    \n"
 
                 // inch loop
-                "lsr        r4, %13, #2         \n"// r4 = nn = inch >> 2
+                "lsr        r4, %13, #2         \n" // r4 = nn = inch >> 2
                 "cmp        r4, #0              \n"
                 "beq        1f                  \n"
 
@@ -1512,8 +1480,8 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 "pld        [%5, #512]          \n"
                 "vldm       %5!, {d0-d7}       \n"
-//                 "vld1.f32   {d0-d3}, [%5 :128]! \n"
-//                 "vld1.f32   {d4-d7}, [%5 :128]! \n"
+                //                 "vld1.f32   {d0-d3}, [%5 :128]! \n"
+                //                 "vld1.f32   {d4-d7}, [%5 :128]! \n"
 
                 "subs       r4, r4, #1          \n"
 
@@ -1532,7 +1500,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "1:                             \n"
 
                 // remain loop
-                "and        r4, %13, #3         \n"// r4 = remain = inch & 3;
+                "and        r4, %13, #3         \n" // r4 = remain = inch & 3;
                 "cmp        r4, #0              \n"
                 "beq        3f                  \n"
 
@@ -1557,22 +1525,21 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "vst1.f32   {d25[0]}, [%2]!     \n"
                 "vst1.f32   {d25[1]}, [%3]!     \n"
 
-                : "=r"(outptr0),    // %0
-                "=r"(outptr1),    // %1
-                "=r"(outptr2),    // %2
-                "=r"(outptr3),    // %3
-                "=r"(tmpptr),     // %4
-                "=r"(kptr)        // %5
+                : "=r"(outptr0), // %0
+                "=r"(outptr1), // %1
+                "=r"(outptr2), // %2
+                "=r"(outptr3), // %3
+                "=r"(tmpptr),  // %4
+                "=r"(kptr)     // %5
                 : "0"(outptr0),
                 "1"(outptr1),
                 "2"(outptr2),
                 "3"(outptr3),
                 "4"(tmpptr),
                 "5"(kptr),
-                "r"(biasptr),     // %12
-                "r"(inch)         // %13
-                : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q8", "q9", "q10", "q11", "q12"
-            );
+                "r"(biasptr), // %12
+                "r"(inch)     // %13
+                : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q8", "q9", "q10", "q11", "q12");
 #endif // __aarch64__
 #else
             float sum0 = biasptr[0];
@@ -1580,8 +1547,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             float sum2 = biasptr[2];
             float sum3 = biasptr[3];
 
-            for (int q=0; q<inch; q++)
-            {
+            for (int q = 0; q < inch; q++) {
                 sum0 += tmpptr[0] * kptr[0];
                 sum1 += tmpptr[0] * kptr[1];
                 sum2 += tmpptr[0] * kptr[2];
@@ -1607,8 +1573,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
     remain_outch_start += nn_outch << 2;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=remain_outch_start; p<outch; p++)
-    {
+    for (int p = remain_outch_start; p < outch; p++) {
         Mat out0 = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
@@ -1617,13 +1582,12 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
         int i = 0;
 
-        for (; i+7<size; i+=8)
-        {
-            const float* tmpptr = tmp.channel(i/8);
+        for (; i + 7 < size; i += 8) {
+            const float* tmpptr = tmp.channel(i / 8);
 #if __ARM_NEON && __aarch64__
-            const float* kptr = kernel.channel(p/8 + (p%8)/4 + p%4);
+            const float* kptr = kernel.channel(p / 8 + (p % 8) / 4 + p % 4);
 #else
-            const float* kptr = kernel.channel(p/4 + p%4);
+            const float* kptr = kernel.channel(p / 4 + p % 4);
 #endif // __ARM_NEON && __aarch64__
 
 #if __ARM_NEON
@@ -1633,7 +1597,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "dup    v9.4s, %w6              \n"
 
                 // inch loop
-                "lsr    w4, %w7, #2             \n"// w4 = nn = inch >> 2
+                "lsr    w4, %w7, #2             \n" // w4 = nn = inch >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -1667,7 +1631,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w7, #3             \n"// w4 = remain = inch & 3;
+                "and    w4, %w7, #3             \n" // w4 = remain = inch & 3;
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -1690,23 +1654,22 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 "st1    {v8.4s, v9.4s}, [%0], #32   \n"
 
-                : "=r"(outptr0),    // %0
-                "=r"(tmpptr),     // %1
-                "=r"(kptr)        // %2
+                : "=r"(outptr0), // %0
+                "=r"(tmpptr),  // %1
+                "=r"(kptr)     // %2
                 : "0"(outptr0),
                 "1"(tmpptr),
                 "2"(kptr),
-                "r"(bias0),       // %6
-                "r"(inch)         // %7
-                : "cc", "memory", "x4", "v0", "v4", "v5", "v6", "v7", "v8", "v9", "v12", "v13", "v14", "v15"
-            );
-#else // __aarch64__
+                "r"(bias0), // %6
+                "r"(inch)   // %7
+                : "cc", "memory", "x4", "v0", "v4", "v5", "v6", "v7", "v8", "v9", "v12", "v13", "v14", "v15");
+#else  // __aarch64__
             asm volatile(
                 "vdup.f32   q8, %6              \n"
                 "vdup.f32   q9, %6              \n"
 
                 // inch loop
-                "lsr        r4, %7, #2          \n"// r4 = nn = inch >> 2
+                "lsr        r4, %7, #2          \n" // r4 = nn = inch >> 2
                 "cmp        r4, #0              \n"
                 "beq        1f                  \n"
 
@@ -1714,8 +1677,8 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 "pld        [%1, #512]          \n"
                 "vldm       %1!, {d8-d15}       \n"
-//                 "vld1.f32   {d8-d11}, [%1 :128]!    \n"
-//                 "vld1.f32   {d12-d15}, [%1 :128]!   \n"
+                //                 "vld1.f32   {d8-d11}, [%1 :128]!    \n"
+                //                 "vld1.f32   {d12-d15}, [%1 :128]!   \n"
 
                 "pld        [%2, #128]          \n"
                 "vld1.f32   {d0-d1}, [%2 :128]! \n"
@@ -1725,8 +1688,8 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 "pld        [%1, #512]          \n"
                 "vldm       %1!, {d24-d31}      \n"
-//                 "vld1.f32   {d24-d27}, [%1 :128]!   \n"
-//                 "vld1.f32   {d28-d31}, [%1 :128]!   \n"
+                //                 "vld1.f32   {d24-d27}, [%1 :128]!   \n"
+                //                 "vld1.f32   {d28-d31}, [%1 :128]!   \n"
 
                 "vmla.f32   q8, q6, d0[1]       \n"
                 "vmla.f32   q9, q7, d0[1]       \n"
@@ -1744,7 +1707,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "1:                             \n"
 
                 // remain loop
-                "and        r4, %7, #3          \n"// r4 = remain = inch & 3;
+                "and        r4, %7, #3          \n" // r4 = remain = inch & 3;
                 "cmp        r4, #0              \n"
                 "beq        3f                  \n"
 
@@ -1767,16 +1730,15 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 "vst1.f32   {d16-d19}, [%0 :128]!   \n"
 
-                : "=r"(outptr0),    // %0
-                "=r"(tmpptr),     // %1
-                "=r"(kptr)        // %2
+                : "=r"(outptr0), // %0
+                "=r"(tmpptr),  // %1
+                "=r"(kptr)     // %2
                 : "0"(outptr0),
                 "1"(tmpptr),
                 "2"(kptr),
-                "r"(bias0),       // %6
-                "r"(inch)         // %7
-                : "cc", "memory", "r4", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q12", "q13", "q14", "q15"
-            );
+                "r"(bias0), // %6
+                "r"(inch)   // %7
+                : "cc", "memory", "r4", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
 #else
             float sum0 = bias0;
@@ -1788,8 +1750,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             float sum6 = bias0;
             float sum7 = bias0;
 
-            for (int q=0; q<inch; q++)
-            {
+            for (int q = 0; q < inch; q++) {
                 sum0 += tmpptr[0] * kptr[0];
                 sum1 += tmpptr[1] * kptr[0];
                 sum2 += tmpptr[2] * kptr[0];
@@ -1816,13 +1777,12 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 #endif // __ARM_NEON
         }
 
-        for (; i+3<size; i+=4)
-        {
-            const float* tmpptr = tmp.channel(i/8 + (i%8)/4);
+        for (; i + 3 < size; i += 4) {
+            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
 #if __ARM_NEON && __aarch64__
-            const float* kptr = kernel.channel(p/8 + (p%8)/4 + p%4);
+            const float* kptr = kernel.channel(p / 8 + (p % 8) / 4 + p % 4);
 #else
-            const float* kptr = kernel.channel(p/4 + p%4);
+            const float* kptr = kernel.channel(p / 4 + p % 4);
 #endif // __ARM_NEON && __aarch64__
 
 #if __ARM_NEON
@@ -1831,7 +1791,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "dup    v8.4s, %w6              \n"
 
                 // inch loop
-                "lsr    w4, %w7, #2             \n"// w4 = nn = inch >> 2
+                "lsr    w4, %w7, #2             \n" // w4 = nn = inch >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -1855,7 +1815,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w7, #3             \n"// w4 = remain = inch & 3;
+                "and    w4, %w7, #3             \n" // w4 = remain = inch & 3;
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -1877,22 +1837,21 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 "st1    {v8.4s}, [%0], #16      \n"
 
-                : "=r"(outptr0),    // %0
-                "=r"(tmpptr),     // %1
-                "=r"(kptr)        // %2
+                : "=r"(outptr0), // %0
+                "=r"(tmpptr),  // %1
+                "=r"(kptr)     // %2
                 : "0"(outptr0),
                 "1"(tmpptr),
                 "2"(kptr),
-                "r"(bias0),       // %6
-                "r"(inch)         // %7
-                : "cc", "memory", "x4", "v0", "v4", "v5", "v6", "v7", "v8"
-            );
-#else // __aarch64__
+                "r"(bias0), // %6
+                "r"(inch)   // %7
+                : "cc", "memory", "x4", "v0", "v4", "v5", "v6", "v7", "v8");
+#else  // __aarch64__
             asm volatile(
                 "vdup.f32   q8, %6              \n"
 
                 // inch loop
-                "lsr        r4, %7, #2          \n"// r4 = nn = inch >> 2
+                "lsr        r4, %7, #2          \n" // r4 = nn = inch >> 2
                 "cmp        r4, #0              \n"
                 "beq        1f                  \n"
 
@@ -1900,8 +1859,8 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 "pld        [%1, #512]          \n"
                 "vldm       %1!, {d8-d15}       \n"
-//                 "vld1.f32   {d8-d11}, [%1 :128]!    \n"
-//                 "vld1.f32   {d12-d15}, [%1 :128]!   \n"
+                //                 "vld1.f32   {d8-d11}, [%1 :128]!    \n"
+                //                 "vld1.f32   {d12-d15}, [%1 :128]!   \n"
 
                 "pld        [%2, #128]          \n"
                 "vld1.f32   {d0-d1}, [%2]!      \n"
@@ -1918,7 +1877,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
                 "1:                             \n"
 
                 // remain loop
-                "and        r4, %7, #3          \n"// r4 = remain = inch & 3;
+                "and        r4, %7, #3          \n" // r4 = remain = inch & 3;
                 "cmp        r4, #0              \n"
                 "beq        3f                  \n"
 
@@ -1940,16 +1899,15 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 
                 "vst1.f32   {d16-d17}, [%0 :128]!   \n"
 
-                : "=r"(outptr0),    // %0
-                "=r"(tmpptr),     // %1
-                "=r"(kptr)        // %2
+                : "=r"(outptr0), // %0
+                "=r"(tmpptr),  // %1
+                "=r"(kptr)     // %2
                 : "0"(outptr0),
                 "1"(tmpptr),
                 "2"(kptr),
-                "r"(bias0),       // %6
-                "r"(inch)         // %7
-                : "cc", "memory", "r4", "q0", "q4", "q5", "q6", "q7", "q8"
-            );
+                "r"(bias0), // %6
+                "r"(inch)   // %7
+                : "cc", "memory", "r4", "q0", "q4", "q5", "q6", "q7", "q8");
 #endif // __aarch64__
 #else
             float sum0 = bias0;
@@ -1957,8 +1915,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             float sum2 = bias0;
             float sum3 = bias0;
 
-            for (int q=0; q<inch; q++)
-            {
+            for (int q = 0; q < inch; q++) {
                 sum0 += tmpptr[0] * kptr[0];
                 sum1 += tmpptr[1] * kptr[0];
                 sum2 += tmpptr[2] * kptr[0];
@@ -1977,13 +1934,12 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 #endif // __ARM_NEON
         }
 
-        for (; i<size; i++)
-        {
-            const float* tmpptr = tmp.channel(i/8 + (i%8)/4 + i%4);
+        for (; i < size; i++) {
+            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
 #if __ARM_NEON && __aarch64__
-            const float* kptr = kernel.channel(p/8 + (p%8)/4 + p%4);
+            const float* kptr = kernel.channel(p / 8 + (p % 8) / 4 + p % 4);
 #else
-            const float* kptr = kernel.channel(p/4 + p%4);
+            const float* kptr = kernel.channel(p / 4 + p % 4);
 #endif // __ARM_NEON && __aarch64__
 
             int q = 0;
@@ -1991,8 +1947,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
 #if __ARM_NEON
             float32x4_t _sum0 = vdupq_n_f32(0.f);
 
-            for (; q+3<inch; q+=4)
-            {
+            for (; q + 3 < inch; q += 4) {
                 float32x4_t _p0 = vld1q_f32(tmpptr);
                 tmpptr += 4;
 
@@ -2016,8 +1971,7 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
             float sum0 = bias0;
 #endif // __ARM_NEON
 
-            for (; q<inch; q++)
-            {
+            for (; q < inch; q++) {
                 sum0 += tmpptr[0] * kptr[0];
                 tmpptr++;
                 kptr++;
@@ -2029,32 +1983,32 @@ static void conv1x1s1_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
         }
     }
 
-//     // NOTE sgemm
-//     for (; p<outch; p++)
-//     {
-//         Mat out0 = top_blob.channel(p);
-//
-//         const float bias0 = bias ? bias[p] : 0.f;
-//
-//         float* outptr0 = out0;
-//
-//         for (int i=0; i<size; i++)
-//         {
-//             float sum = bias0;
-//
-//             const float* kptr = _kernel.channel(p/8 + p%8);
-//
-//             for (int q=0; q<inch; q++)
-//             {
-//                 const float* img0 = bottom_blob.channel(q);
-//
-//                 sum += img0[i] * kptr[0];
-//                 kptr ++;
-//             }
-//
-//             outptr0[i] = sum;
-//         }
-//     }
+    //     // NOTE sgemm
+    //     for (; p<outch; p++)
+    //     {
+    //         Mat out0 = top_blob.channel(p);
+    //
+    //         const float bias0 = bias ? bias[p] : 0.f;
+    //
+    //         float* outptr0 = out0;
+    //
+    //         for (int i=0; i<size; i++)
+    //         {
+    //             float sum = bias0;
+    //
+    //             const float* kptr = _kernel.channel(p/8 + p%8);
+    //
+    //             for (int q=0; q<inch; q++)
+    //             {
+    //                 const float* img0 = bottom_blob.channel(q);
+    //
+    //                 sum += img0[i] * kptr[0];
+    //                 kptr ++;
+    //             }
+    //
+    //             outptr0[i] = sum;
+    //         }
+    //     }
 }
 
 static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
@@ -2077,27 +2031,26 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     remain_outch_start = nn_outch << 3;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp=0; pp<nn_outch; pp++)
-    {
+    for (int pp = 0; pp < nn_outch; pp++) {
         int p = pp * 8;
 
         Mat out0 = top_blob.channel(p);
-        Mat out1 = top_blob.channel(p+1);
-        Mat out2 = top_blob.channel(p+2);
-        Mat out3 = top_blob.channel(p+3);
-        Mat out4 = top_blob.channel(p+4);
-        Mat out5 = top_blob.channel(p+5);
-        Mat out6 = top_blob.channel(p+6);
-        Mat out7 = top_blob.channel(p+7);
+        Mat out1 = top_blob.channel(p + 1);
+        Mat out2 = top_blob.channel(p + 2);
+        Mat out3 = top_blob.channel(p + 3);
+        Mat out4 = top_blob.channel(p + 4);
+        Mat out5 = top_blob.channel(p + 5);
+        Mat out6 = top_blob.channel(p + 6);
+        Mat out7 = top_blob.channel(p + 7);
 
         const float bias0 = bias ? bias[p] : 0.f;
-        const float bias1 = bias ? bias[p+1] : 0.f;
-        const float bias2 = bias ? bias[p+2] : 0.f;
-        const float bias3 = bias ? bias[p+3] : 0.f;
-        const float bias4 = bias ? bias[p+4] : 0.f;
-        const float bias5 = bias ? bias[p+5] : 0.f;
-        const float bias6 = bias ? bias[p+6] : 0.f;
-        const float bias7 = bias ? bias[p+7] : 0.f;
+        const float bias1 = bias ? bias[p + 1] : 0.f;
+        const float bias2 = bias ? bias[p + 2] : 0.f;
+        const float bias3 = bias ? bias[p + 3] : 0.f;
+        const float bias4 = bias ? bias[p + 4] : 0.f;
+        const float bias5 = bias ? bias[p + 5] : 0.f;
+        const float bias6 = bias ? bias[p + 6] : 0.f;
+        const float bias7 = bias ? bias[p + 7] : 0.f;
 
         out0.fill(bias0);
         out1.fill(bias1);
@@ -2110,8 +2063,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
         int q = 0;
 
-        for (; q+7<inch; q+=8)
-        {
+        for (; q + 7 < inch; q += 8) {
             float* outptr0 = out0;
             float* outptr1 = out1;
             float* outptr2 = out2;
@@ -2122,22 +2074,22 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             float* outptr7 = out7;
 
             const float* img0 = bottom_blob.channel(q);
-            const float* img1 = bottom_blob.channel(q+1);
-            const float* img2 = bottom_blob.channel(q+2);
-            const float* img3 = bottom_blob.channel(q+3);
-            const float* img4 = bottom_blob.channel(q+4);
-            const float* img5 = bottom_blob.channel(q+5);
-            const float* img6 = bottom_blob.channel(q+6);
-            const float* img7 = bottom_blob.channel(q+7);
+            const float* img1 = bottom_blob.channel(q + 1);
+            const float* img2 = bottom_blob.channel(q + 2);
+            const float* img3 = bottom_blob.channel(q + 3);
+            const float* img4 = bottom_blob.channel(q + 4);
+            const float* img5 = bottom_blob.channel(q + 5);
+            const float* img6 = bottom_blob.channel(q + 6);
+            const float* img7 = bottom_blob.channel(q + 7);
 
-            const float* kernel0 = kernel + p*inch + q;
-            const float* kernel1 = kernel + (p+1)*inch + q;
-            const float* kernel2 = kernel + (p+2)*inch + q;
-            const float* kernel3 = kernel + (p+3)*inch + q;
-            const float* kernel4 = kernel + (p+4)*inch + q;
-            const float* kernel5 = kernel + (p+5)*inch + q;
-            const float* kernel6 = kernel + (p+6)*inch + q;
-            const float* kernel7 = kernel + (p+7)*inch + q;
+            const float* kernel0 = kernel + p * inch + q;
+            const float* kernel1 = kernel + (p + 1) * inch + q;
+            const float* kernel2 = kernel + (p + 2) * inch + q;
+            const float* kernel3 = kernel + (p + 3) * inch + q;
+            const float* kernel4 = kernel + (p + 4) * inch + q;
+            const float* kernel5 = kernel + (p + 5) * inch + q;
+            const float* kernel6 = kernel + (p + 6) * inch + q;
+            const float* kernel7 = kernel + (p + 7) * inch + q;
 
             const float* r0 = img0;
             const float* r1 = img1;
@@ -2162,19 +2114,18 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             float32x4_t _k6 = vld1q_f32(kernel6);
             float32x4_t _k7 = vld1q_f32(kernel7);
 
-            float32x4_t _k0n = vld1q_f32(kernel0+4);
-            float32x4_t _k1n = vld1q_f32(kernel1+4);
-            float32x4_t _k2n = vld1q_f32(kernel2+4);
-            float32x4_t _k3n = vld1q_f32(kernel3+4);
-            float32x4_t _k4n = vld1q_f32(kernel4+4);
-            float32x4_t _k5n = vld1q_f32(kernel5+4);
-            float32x4_t _k6n = vld1q_f32(kernel6+4);
-            float32x4_t _k7n = vld1q_f32(kernel7+4);
+            float32x4_t _k0n = vld1q_f32(kernel0 + 4);
+            float32x4_t _k1n = vld1q_f32(kernel1 + 4);
+            float32x4_t _k2n = vld1q_f32(kernel2 + 4);
+            float32x4_t _k3n = vld1q_f32(kernel3 + 4);
+            float32x4_t _k4n = vld1q_f32(kernel4 + 4);
+            float32x4_t _k5n = vld1q_f32(kernel5 + 4);
+            float32x4_t _k6n = vld1q_f32(kernel6 + 4);
+            float32x4_t _k7n = vld1q_f32(kernel7 + 4);
 
 #ifdef __clang__
             // gcc reject over 30 oprands :(
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "prfm   pldl1keep, [%9, #128]       \n"
                     "ld1    {v17.4s}, [%9], #16         \n"
@@ -2356,23 +2307,23 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                     "bne    0b                          \n"
                     "sub    %9, %9, #16                 \n"
-                    : "=r"(nn),     // %0
-                    "=r"(outptr0),// %1
-                    "=r"(outptr1),// %2
-                    "=r"(outptr2),// %3
-                    "=r"(outptr3),// %4
-                    "=r"(outptr4),// %5
-                    "=r"(outptr5),// %6
-                    "=r"(outptr6),// %7
-                    "=r"(outptr7),// %8
-                    "=r"(r0),     // %9
-                    "=r"(r1),     // %10
-                    "=r"(r2),     // %11
-                    "=r"(r3),     // %12
-                    "=r"(r4),     // %13
-                    "=r"(r5),     // %14
-                    "=r"(r6),     // %15
-                    "=r"(r7)      // %16
+                    : "=r"(nn),      // %0
+                    "=r"(outptr0), // %1
+                    "=r"(outptr1), // %2
+                    "=r"(outptr2), // %3
+                    "=r"(outptr3), // %4
+                    "=r"(outptr4), // %5
+                    "=r"(outptr5), // %6
+                    "=r"(outptr6), // %7
+                    "=r"(outptr7), // %8
+                    "=r"(r0),      // %9
+                    "=r"(r1),      // %10
+                    "=r"(r2),      // %11
+                    "=r"(r3),      // %12
+                    "=r"(r4),      // %13
+                    "=r"(r5),      // %14
+                    "=r"(r6),      // %15
+                    "=r"(r7)       // %16
                     : "0"(nn),
                     "1"(outptr0),
                     "2"(outptr1),
@@ -2390,28 +2341,27 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "14"(r5),
                     "15"(r6),
                     "16"(r7),
-                    "w"(_k0),     // %34
-                    "w"(_k1),     // %35
-                    "w"(_k2),     // %36
-                    "w"(_k3),     // %37
-                    "w"(_k4),     // %38
-                    "w"(_k5),     // %39
-                    "w"(_k6),     // %40
-                    "w"(_k7),     // %41
-                    "w"(_k0n),    // %42
-                    "w"(_k1n),    // %43
-                    "w"(_k2n),    // %44
-                    "w"(_k3n),    // %45
-                    "w"(_k4n),    // %46
-                    "w"(_k5n),    // %47
-                    "w"(_k6n),    // %48
-                    "w"(_k7n)     // %49
-                    : "cc", "memory", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25"//, "v26", "v27", "v28", "v29", "v30", "v31"
+                    "w"(_k0),                                                                            // %34
+                    "w"(_k1),                                                                            // %35
+                    "w"(_k2),                                                                            // %36
+                    "w"(_k3),                                                                            // %37
+                    "w"(_k4),                                                                            // %38
+                    "w"(_k5),                                                                            // %39
+                    "w"(_k6),                                                                            // %40
+                    "w"(_k7),                                                                            // %41
+                    "w"(_k0n),                                                                           // %42
+                    "w"(_k1n),                                                                           // %43
+                    "w"(_k2n),                                                                           // %44
+                    "w"(_k3n),                                                                           // %45
+                    "w"(_k4n),                                                                           // %46
+                    "w"(_k5n),                                                                           // %47
+                    "w"(_k6n),                                                                           // %48
+                    "w"(_k7n)                                                                            // %49
+                    : "cc", "memory", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25" //, "v26", "v27", "v28", "v29", "v30", "v31"
                 );
             }
 #else
-            for (; nn>0; nn--)
-            {
+            for (; nn > 0; nn--) {
                 float32x4_t _p = vld1q_f32(r0);
 
                 float32x4_t _out0p = vld1q_f32(outptr0);
@@ -2536,8 +2486,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 outptr7 += 4;
             }
 #endif
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 // TODO neon optimize
                 float sum0 = *r0 * kernel0[0] + *r1 * kernel0[1] + *r2 * kernel0[2] + *r3 * kernel0[3] + *r4 * kernel0[4] + *r5 * kernel0[5] + *r6 * kernel0[6] + *r7 * kernel0[7];
                 float sum1 = *r0 * kernel1[0] + *r1 * kernel1[1] + *r2 * kernel1[2] + *r3 * kernel1[3] + *r4 * kernel1[4] + *r5 * kernel1[5] + *r6 * kernel1[6] + *r7 * kernel1[7];
@@ -2576,8 +2525,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             }
         }
 
-        for (; q<inch; q++)
-        {
+        for (; q < inch; q++) {
             float* outptr0 = out0;
             float* outptr1 = out1;
             float* outptr2 = out2;
@@ -2589,14 +2537,14 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
             const float* img0 = bottom_blob.channel(q);
 
-            const float* kernel0 = kernel + p*inch + q;
-            const float* kernel1 = kernel + (p+1)*inch + q;
-            const float* kernel2 = kernel + (p+2)*inch + q;
-            const float* kernel3 = kernel + (p+3)*inch + q;
-            const float* kernel4 = kernel + (p+4)*inch + q;
-            const float* kernel5 = kernel + (p+5)*inch + q;
-            const float* kernel6 = kernel + (p+6)*inch + q;
-            const float* kernel7 = kernel + (p+7)*inch + q;
+            const float* kernel0 = kernel + p * inch + q;
+            const float* kernel1 = kernel + (p + 1) * inch + q;
+            const float* kernel2 = kernel + (p + 2) * inch + q;
+            const float* kernel3 = kernel + (p + 3) * inch + q;
+            const float* kernel4 = kernel + (p + 4) * inch + q;
+            const float* kernel5 = kernel + (p + 5) * inch + q;
+            const float* kernel6 = kernel + (p + 6) * inch + q;
+            const float* kernel7 = kernel + (p + 7) * inch + q;
 
             const float k0 = kernel0[0];
             const float k1 = kernel1[0];
@@ -2623,8 +2571,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             float32x4_t _k6 = vdupq_n_f32(k6);
             float32x4_t _k7 = vdupq_n_f32(k7);
 
-            for (; nn>0; nn--)
-            {
+            for (; nn > 0; nn--) {
                 float32x4_t _p = vld1q_f32(r0);
 
                 float32x4_t _out0p = vld1q_f32(outptr0);
@@ -2664,8 +2611,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 outptr6 += 4;
                 outptr7 += 4;
             }
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 // TODO neon optimize
                 float sum0 = *r0 * k0;
                 float sum1 = *r0 * k1;
@@ -2704,23 +2650,22 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     remain_outch_start = nn_outch * 6;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp=0; pp<nn_outch; pp++)
-    {
+    for (int pp = 0; pp < nn_outch; pp++) {
         int p = pp * 6;
 
         Mat out0 = top_blob.channel(p);
-        Mat out1 = top_blob.channel(p+1);
-        Mat out2 = top_blob.channel(p+2);
-        Mat out3 = top_blob.channel(p+3);
-        Mat out4 = top_blob.channel(p+4);
-        Mat out5 = top_blob.channel(p+5);
+        Mat out1 = top_blob.channel(p + 1);
+        Mat out2 = top_blob.channel(p + 2);
+        Mat out3 = top_blob.channel(p + 3);
+        Mat out4 = top_blob.channel(p + 4);
+        Mat out5 = top_blob.channel(p + 5);
 
         const float bias0 = bias ? bias[p] : 0.f;
-        const float bias1 = bias ? bias[p+1] : 0.f;
-        const float bias2 = bias ? bias[p+2] : 0.f;
-        const float bias3 = bias ? bias[p+3] : 0.f;
-        const float bias4 = bias ? bias[p+4] : 0.f;
-        const float bias5 = bias ? bias[p+5] : 0.f;
+        const float bias1 = bias ? bias[p + 1] : 0.f;
+        const float bias2 = bias ? bias[p + 2] : 0.f;
+        const float bias3 = bias ? bias[p + 3] : 0.f;
+        const float bias4 = bias ? bias[p + 4] : 0.f;
+        const float bias5 = bias ? bias[p + 5] : 0.f;
 
         out0.fill(bias0);
         out1.fill(bias1);
@@ -2731,8 +2676,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
         int q = 0;
 
-        for (; q+3<inch; q+=4)
-        {
+        for (; q + 3 < inch; q += 4) {
             float* outptr0 = out0;
             float* outptr1 = out1;
             float* outptr2 = out2;
@@ -2741,16 +2685,16 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             float* outptr5 = out5;
 
             const float* img0 = bottom_blob.channel(q);
-            const float* img1 = bottom_blob.channel(q+1);
-            const float* img2 = bottom_blob.channel(q+2);
-            const float* img3 = bottom_blob.channel(q+3);
+            const float* img1 = bottom_blob.channel(q + 1);
+            const float* img2 = bottom_blob.channel(q + 2);
+            const float* img3 = bottom_blob.channel(q + 3);
 
-            const float* kernel0 = kernel + p*inch + q;
-            const float* kernel1 = kernel + (p+1)*inch + q;
-            const float* kernel2 = kernel + (p+2)*inch + q;
-            const float* kernel3 = kernel + (p+3)*inch + q;
-            const float* kernel4 = kernel + (p+4)*inch + q;
-            const float* kernel5 = kernel + (p+5)*inch + q;
+            const float* kernel0 = kernel + p * inch + q;
+            const float* kernel1 = kernel + (p + 1) * inch + q;
+            const float* kernel2 = kernel + (p + 2) * inch + q;
+            const float* kernel3 = kernel + (p + 3) * inch + q;
+            const float* kernel4 = kernel + (p + 4) * inch + q;
+            const float* kernel5 = kernel + (p + 5) * inch + q;
 
             const float* r0 = img0;
             const float* r1 = img1;
@@ -2774,45 +2718,44 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             float32x4_t _k4 = vld1q_f32(kernel4);
             float32x4_t _k5 = vld1q_f32(kernel5);
 
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "pld        [%7, #128]              \n"
-                    "vld1.f32   {d24-d25}, [%7 :128]!   \n"// q12 = r0
+                    "vld1.f32   {d24-d25}, [%7 :128]!   \n" // q12 = r0
 
                     "pld        [%1, #128]              \n"
-                    "vld1.f32   {d12-d13}, [%1 :128]    \n"// q6 = outptr0
+                    "vld1.f32   {d12-d13}, [%1 :128]    \n" // q6 = outptr0
 
                     "pld        [%2, #128]              \n"
-                    "vld1.f32   {d14-d15}, [%2 :128]    \n"// q7 = outptr1
+                    "vld1.f32   {d14-d15}, [%2 :128]    \n" // q7 = outptr1
 
                     "vmla.f32   q6, q12, %e22[0]        \n"
 
                     "0:                                 \n"
 
                     "pld        [%3, #128]              \n"
-                    "vld1.f32   {d16-d17}, [%3 :128]    \n"// q8 = outptr2
+                    "vld1.f32   {d16-d17}, [%3 :128]    \n" // q8 = outptr2
 
                     "vmla.f32   q7, q12, %e23[0]        \n"
 
                     "pld        [%4, #128]              \n"
-                    "vld1.f32   {d18-d19}, [%4 :128]    \n"// q9 = outptr3
+                    "vld1.f32   {d18-d19}, [%4 :128]    \n" // q9 = outptr3
 
                     "vmla.f32   q8, q12, %e24[0]        \n"
 
                     "pld        [%8, #128]              \n"
-                    "vld1.f32   {d26-d27}, [%8 :128]!   \n"// q13 = r1
+                    "vld1.f32   {d26-d27}, [%8 :128]!   \n" // q13 = r1
 
                     "vmla.f32   q9, q12, %e25[0]        \n"
 
                     "pld        [%5, #128]              \n"
-                    "vld1.f32   {d20-d21}, [%5 :128]    \n"// q10 = outptr4
+                    "vld1.f32   {d20-d21}, [%5 :128]    \n" // q10 = outptr4
 
                     "vmla.f32   q6, q13, %e22[1]        \n"
                     "vmla.f32   q7, q13, %e23[1]        \n"
 
                     "pld        [%6, #128]              \n"
-                    "vld1.f32   {d22-d23}, [%6 :128]    \n"// q11 = outptr5
+                    "vld1.f32   {d22-d23}, [%6 :128]    \n" // q11 = outptr5
 
                     "vmla.f32   q10, q12, %e26[0]       \n"
                     "vmla.f32   q11, q12, %e27[0]       \n"
@@ -2821,7 +2764,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vmla.f32   q9, q13, %e25[1]        \n"
 
                     "pld        [%9, #128]              \n"
-                    "vld1.f32   {d28-d29}, [%9 :128]!   \n"// q14 = r2
+                    "vld1.f32   {d28-d29}, [%9 :128]!   \n" // q14 = r2
 
                     "vmla.f32   q10, q13, %e26[1]       \n"
                     "vmla.f32   q11, q13, %e27[1]       \n"
@@ -2832,7 +2775,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vmla.f32   q9, q14, %f25[0]        \n"
 
                     "pld        [%10, #128]             \n"
-                    "vld1.f32   {d30-d31}, [%10 :128]!  \n"// q15 = r3
+                    "vld1.f32   {d30-d31}, [%10 :128]!  \n" // q15 = r3
 
                     "vmla.f32   q10, q14, %f26[0]       \n"
                     "vmla.f32   q11, q14, %f27[0]       \n"
@@ -2843,7 +2786,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vmla.f32   q9, q15, %f25[1]        \n"
 
                     "pld        [%7, #128]              \n"
-                    "vld1.f32   {d24-d25}, [%7 :128]!   \n"// q12 = r0
+                    "vld1.f32   {d24-d25}, [%7 :128]!   \n" // q12 = r0
 
                     "vmla.f32   q10, q15, %f26[1]       \n"
                     "vmla.f32   q11, q15, %f27[1]       \n"
@@ -2852,7 +2795,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vst1.f32   {d14-d15}, [%2 :128]!   \n"
 
                     "pld        [%1, #128]              \n"
-                    "vld1.f32   {d12-d13}, [%1 :128]    \n"// q6 = outptr0
+                    "vld1.f32   {d12-d13}, [%1 :128]    \n" // q6 = outptr0
 
                     "vst1.f32   {d16-d17}, [%3 :128]!   \n"
                     "vst1.f32   {d18-d19}, [%4 :128]!   \n"
@@ -2860,7 +2803,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vmla.f32   q6, q12, %e22[0]        \n"
 
                     "pld        [%2, #128]              \n"
-                    "vld1.f32   {d14-d15}, [%2 :128]    \n"// q7 = outptr1
+                    "vld1.f32   {d14-d15}, [%2 :128]    \n" // q7 = outptr1
 
                     "subs       %0, #1                  \n"
 
@@ -2871,17 +2814,17 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                     "sub        %7, #16                 \n"
 
-                    : "=r"(nn),     // %0
-                    "=r"(outptr0),// %1
-                    "=r"(outptr1),// %2
-                    "=r"(outptr2),// %3
-                    "=r"(outptr3),// %4
-                    "=r"(outptr4),// %5
-                    "=r"(outptr5),// %6
-                    "=r"(r0),     // %7
-                    "=r"(r1),     // %8
-                    "=r"(r2),     // %9
-                    "=r"(r3)      // %10
+                    : "=r"(nn),      // %0
+                    "=r"(outptr0), // %1
+                    "=r"(outptr1), // %2
+                    "=r"(outptr2), // %3
+                    "=r"(outptr3), // %4
+                    "=r"(outptr4), // %5
+                    "=r"(outptr5), // %6
+                    "=r"(r0),      // %7
+                    "=r"(r1),      // %8
+                    "=r"(r2),      // %9
+                    "=r"(r3)       // %10
                     : "0"(nn),
                     "1"(outptr0),
                     "2"(outptr1),
@@ -2893,19 +2836,17 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "8"(r1),
                     "9"(r2),
                     "10"(r3),
-                    "w"(_k0),     // %22
-                    "w"(_k1),     // %23
-                    "w"(_k2),     // %24
-                    "w"(_k3),     // %25
-                    "w"(_k4),     // %26
-                    "w"(_k5)      // %27
-                    : "cc", "memory", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                );
+                    "w"(_k0), // %22
+                    "w"(_k1), // %23
+                    "w"(_k2), // %24
+                    "w"(_k3), // %25
+                    "w"(_k4), // %26
+                    "w"(_k5)  // %27
+                    : "cc", "memory", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
             }
 #endif // __ARM_NEON
 
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 // TODO neon optimize
                 float sum0 = *r0 * kernel0[0] + *r1 * kernel0[1] + *r2 * kernel0[2] + *r3 * kernel0[3];
                 float sum1 = *r0 * kernel1[0] + *r1 * kernel1[1] + *r2 * kernel1[2] + *r3 * kernel1[3];
@@ -2934,8 +2875,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             }
         }
 
-        for (; q<inch; q++)
-        {
+        for (; q < inch; q++) {
             float* outptr0 = out0;
             float* outptr1 = out1;
             float* outptr2 = out2;
@@ -2945,12 +2885,12 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
             const float* img0 = bottom_blob.channel(q);
 
-            const float* kernel0 = kernel + p*inch + q;
-            const float* kernel1 = kernel + (p+1)*inch + q;
-            const float* kernel2 = kernel + (p+2)*inch + q;
-            const float* kernel3 = kernel + (p+3)*inch + q;
-            const float* kernel4 = kernel + (p+4)*inch + q;
-            const float* kernel5 = kernel + (p+5)*inch + q;
+            const float* kernel0 = kernel + p * inch + q;
+            const float* kernel1 = kernel + (p + 1) * inch + q;
+            const float* kernel2 = kernel + (p + 2) * inch + q;
+            const float* kernel3 = kernel + (p + 3) * inch + q;
+            const float* kernel4 = kernel + (p + 4) * inch + q;
+            const float* kernel5 = kernel + (p + 5) * inch + q;
 
             const float k0 = kernel0[0];
             const float k1 = kernel1[0];
@@ -2978,51 +2918,50 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             float32x4_t _k4 = vdupq_n_f32(k4);
             float32x4_t _k5 = vdupq_n_f32(k5);
 
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "pld        [%7, #128]              \n"
-                    "vld1.f32   {d24-d25}, [%7 :128]!   \n"// q12 = r0
+                    "vld1.f32   {d24-d25}, [%7 :128]!   \n" // q12 = r0
 
                     "pld        [%1, #128]              \n"
-                    "vld1.f32   {d12-d13}, [%1 :128]    \n"// q6 = outptr0
+                    "vld1.f32   {d12-d13}, [%1 :128]    \n" // q6 = outptr0
 
                     "0:                                 \n"
 
                     "pld        [%2, #128]              \n"
-                    "vld1.f32   {d14-d15}, [%2 :128]    \n"// q7 = outptr1
+                    "vld1.f32   {d14-d15}, [%2 :128]    \n" // q7 = outptr1
 
                     "vmla.f32   q6, q12, %q16           \n"
 
                     "pld        [%3, #128]              \n"
-                    "vld1.f32   {d16-d17}, [%3 :128]    \n"// q8 = outptr2
+                    "vld1.f32   {d16-d17}, [%3 :128]    \n" // q8 = outptr2
 
                     "vmla.f32   q7, q12, %q17           \n"
 
                     "pld        [%4, #128]              \n"
-                    "vld1.f32   {d18-d19}, [%4 :128]    \n"// q9 = outptr3
+                    "vld1.f32   {d18-d19}, [%4 :128]    \n" // q9 = outptr3
 
                     "vmla.f32   q8, q12, %q18           \n"
 
                     "pld        [%5, #128]              \n"
-                    "vld1.f32   {d20-d21}, [%5 :128]    \n"// q10 = outptr4
+                    "vld1.f32   {d20-d21}, [%5 :128]    \n" // q10 = outptr4
 
                     "vmla.f32   q9, q12, %q19           \n"
 
                     "pld        [%6, #128]              \n"
-                    "vld1.f32   {d22-d23}, [%6 :128]    \n"// q11 = outptr5
+                    "vld1.f32   {d22-d23}, [%6 :128]    \n" // q11 = outptr5
 
                     "vmla.f32   q10, q12, %q20          \n"
                     "vmla.f32   q11, q12, %q21          \n"
 
                     "pld        [%7, #128]              \n"
-                    "vld1.f32   {d24-d25}, [%7 :128]!   \n"// q12 = r0
+                    "vld1.f32   {d24-d25}, [%7 :128]!   \n" // q12 = r0
 
                     "vst1.f32   {d12-d13}, [%1 :128]!   \n"
                     "vst1.f32   {d14-d15}, [%2 :128]!   \n"
 
                     "pld        [%1, #128]              \n"
-                    "vld1.f32   {d12-d13}, [%1 :128]    \n"// q6 = outptr0
+                    "vld1.f32   {d12-d13}, [%1 :128]    \n" // q6 = outptr0
 
                     "vst1.f32   {d16-d17}, [%3 :128]!   \n"
                     "vst1.f32   {d18-d19}, [%4 :128]!   \n"
@@ -3036,14 +2975,14 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                     "sub        %7, #16                 \n"
 
-                    : "=r"(nn),     // %0
-                    "=r"(outptr0),// %1
-                    "=r"(outptr1),// %2
-                    "=r"(outptr2),// %3
-                    "=r"(outptr3),// %4
-                    "=r"(outptr4),// %5
-                    "=r"(outptr5),// %6
-                    "=r"(r0)      // %7
+                    : "=r"(nn),      // %0
+                    "=r"(outptr0), // %1
+                    "=r"(outptr1), // %2
+                    "=r"(outptr2), // %3
+                    "=r"(outptr3), // %4
+                    "=r"(outptr4), // %5
+                    "=r"(outptr5), // %6
+                    "=r"(r0)       // %7
                     : "0"(nn),
                     "1"(outptr0),
                     "2"(outptr1),
@@ -3052,19 +2991,17 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "5"(outptr4),
                     "6"(outptr5),
                     "7"(r0),
-                    "w"(_k0),     // %16
-                    "w"(_k1),     // %17
-                    "w"(_k2),     // %18
-                    "w"(_k3),     // %19
-                    "w"(_k4),     // %20
-                    "w"(_k5)      // %21
-                    : "cc", "memory", "q6", "q7", "q8", "q9", "q10", "q11", "q12"
-                );
+                    "w"(_k0), // %16
+                    "w"(_k1), // %17
+                    "w"(_k2), // %18
+                    "w"(_k3), // %19
+                    "w"(_k4), // %20
+                    "w"(_k5)  // %21
+                    : "cc", "memory", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
             }
 #endif // __ARM_NEON
 
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 // TODO neon optimize
                 float sum0 = *r0 * k0;
                 float sum1 = *r0 * k1;
@@ -3095,19 +3032,18 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     nn_outch = (outch - remain_outch_start) >> 2;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp=0; pp<nn_outch; pp++)
-    {
+    for (int pp = 0; pp < nn_outch; pp++) {
         int p = remain_outch_start + pp * 4;
 
         Mat out0 = top_blob.channel(p);
-        Mat out1 = top_blob.channel(p+1);
-        Mat out2 = top_blob.channel(p+2);
-        Mat out3 = top_blob.channel(p+3);
+        Mat out1 = top_blob.channel(p + 1);
+        Mat out2 = top_blob.channel(p + 2);
+        Mat out3 = top_blob.channel(p + 3);
 
         const float bias0 = bias ? bias[p] : 0.f;
-        const float bias1 = bias ? bias[p+1] : 0.f;
-        const float bias2 = bias ? bias[p+2] : 0.f;
-        const float bias3 = bias ? bias[p+3] : 0.f;
+        const float bias1 = bias ? bias[p + 1] : 0.f;
+        const float bias2 = bias ? bias[p + 2] : 0.f;
+        const float bias3 = bias ? bias[p + 3] : 0.f;
 
         out0.fill(bias0);
         out1.fill(bias1);
@@ -3116,22 +3052,21 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
         int q = 0;
 
-        for (; q+3<inch; q+=4)
-        {
+        for (; q + 3 < inch; q += 4) {
             float* outptr0 = out0;
             float* outptr1 = out1;
             float* outptr2 = out2;
             float* outptr3 = out3;
 
             const float* img0 = bottom_blob.channel(q);
-            const float* img1 = bottom_blob.channel(q+1);
-            const float* img2 = bottom_blob.channel(q+2);
-            const float* img3 = bottom_blob.channel(q+3);
+            const float* img1 = bottom_blob.channel(q + 1);
+            const float* img2 = bottom_blob.channel(q + 2);
+            const float* img3 = bottom_blob.channel(q + 3);
 
-            const float* kernel0 = kernel + p*inch + q;
-            const float* kernel1 = kernel + (p+1)*inch + q;
-            const float* kernel2 = kernel + (p+2)*inch + q;
-            const float* kernel3 = kernel + (p+3)*inch + q;
+            const float* kernel0 = kernel + p * inch + q;
+            const float* kernel1 = kernel + (p + 1) * inch + q;
+            const float* kernel2 = kernel + (p + 2) * inch + q;
+            const float* kernel3 = kernel + (p + 3) * inch + q;
 
             const float* r0 = img0;
             const float* r1 = img1;
@@ -3154,8 +3089,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             float32x4_t _k3 = vld1q_f32(kernel3);
 
 #if __aarch64__
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "prfm   pldl1keep, [%5, #256]       \n"
                     "ld1    {v6.4s, v7.4s}, [%5], #32   \n"
@@ -3252,15 +3186,15 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                     "bne    0b                          \n"
                     "sub    %5, %5, #32                 \n"
-                    : "=r"(nn),     // %0
-                    "=r"(outptr0),// %1
-                    "=r"(outptr1),// %2
-                    "=r"(outptr2),// %3
-                    "=r"(outptr3),// %4
-                    "=r"(r0),     // %5
-                    "=r"(r1),     // %6
-                    "=r"(r2),     // %7
-                    "=r"(r3)      // %8
+                    : "=r"(nn),      // %0
+                    "=r"(outptr0), // %1
+                    "=r"(outptr1), // %2
+                    "=r"(outptr2), // %3
+                    "=r"(outptr3), // %4
+                    "=r"(r0),      // %5
+                    "=r"(r1),      // %6
+                    "=r"(r2),      // %7
+                    "=r"(r3)       // %8
                     : "0"(nn),
                     "1"(outptr0),
                     "2"(outptr1),
@@ -3270,16 +3204,14 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "6"(r1),
                     "7"(r2),
                     "8"(r3),
-                    "w"(_k0),     // %18
-                    "w"(_k1),     // %19
-                    "w"(_k2),     // %20
-                    "w"(_k3)      // %21
-                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
-                );
+                    "w"(_k0), // %18
+                    "w"(_k1), // %19
+                    "w"(_k2), // %20
+                    "w"(_k3)  // %21
+                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
             }
 #else
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "pld        [%5, #256]              \n"
                     "vld1.f32   {d12-d15}, [%5 :128]!   \n"
@@ -3370,15 +3302,15 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                     "bne        0b                      \n"
                     "sub        %5, #32                 \n"
-                    : "=r"(nn),     // %0
-                    "=r"(outptr0),// %1
-                    "=r"(outptr1),// %2
-                    "=r"(outptr2),// %3
-                    "=r"(outptr3),// %4
-                    "=r"(r0),     // %5
-                    "=r"(r1),     // %6
-                    "=r"(r2),     // %7
-                    "=r"(r3)      // %8
+                    : "=r"(nn),      // %0
+                    "=r"(outptr0), // %1
+                    "=r"(outptr1), // %2
+                    "=r"(outptr2), // %3
+                    "=r"(outptr3), // %4
+                    "=r"(r0),      // %5
+                    "=r"(r1),      // %6
+                    "=r"(r2),      // %7
+                    "=r"(r3)       // %8
                     : "0"(nn),
                     "1"(outptr0),
                     "2"(outptr1),
@@ -3388,17 +3320,15 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "6"(r1),
                     "7"(r2),
                     "8"(r3),
-                    "w"(_k0),     // %18
-                    "w"(_k1),     // %19
-                    "w"(_k2),     // %20
-                    "w"(_k3)      // %21
-                    : "cc", "memory", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                );
+                    "w"(_k0), // %18
+                    "w"(_k1), // %19
+                    "w"(_k2), // %20
+                    "w"(_k3)  // %21
+                    : "cc", "memory", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 // TODO neon optimize
                 float sum0 = *r0 * kernel0[0] + *r1 * kernel0[1] + *r2 * kernel0[2] + *r3 * kernel0[3];
                 float sum1 = *r0 * kernel1[0] + *r1 * kernel1[1] + *r2 * kernel1[2] + *r3 * kernel1[3];
@@ -3421,8 +3351,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             }
         }
 
-        for (; q<inch; q++)
-        {
+        for (; q < inch; q++) {
             float* outptr0 = out0;
             float* outptr1 = out1;
             float* outptr2 = out2;
@@ -3430,10 +3359,10 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
             const float* img0 = bottom_blob.channel(q);
 
-            const float* kernel0 = kernel + p*inch + q;
-            const float* kernel1 = kernel + (p+1)*inch + q;
-            const float* kernel2 = kernel + (p+2)*inch + q;
-            const float* kernel3 = kernel + (p+3)*inch + q;
+            const float* kernel0 = kernel + p * inch + q;
+            const float* kernel1 = kernel + (p + 1) * inch + q;
+            const float* kernel2 = kernel + (p + 2) * inch + q;
+            const float* kernel3 = kernel + (p + 3) * inch + q;
 
             const float k0 = kernel0[0];
             const float k1 = kernel1[0];
@@ -3457,8 +3386,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             float32x4_t _k2 = vdupq_n_f32(k2);
             float32x4_t _k3 = vdupq_n_f32(k3);
 #if __aarch64__
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "prfm       pldl1keep, [%5, #256]          \n"
                     "ld1        {v6.4s, v7.4s}, [%5], #32      \n"
@@ -3495,28 +3423,26 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "st1        {v14.4s, v15.4s}, [%4], #32    \n"
                     "bne        0b                             \n"
                     "sub        %5, %5, #32                    \n"
-                    : "=r"(nn),     // %0
-                    "=r"(outptr0),// %1
-                    "=r"(outptr1),// %2
-                    "=r"(outptr2),// %3
-                    "=r"(outptr3),// %4
-                    "=r"(r0)      // %5
+                    : "=r"(nn),      // %0
+                    "=r"(outptr0), // %1
+                    "=r"(outptr1), // %2
+                    "=r"(outptr2), // %3
+                    "=r"(outptr3), // %4
+                    "=r"(r0)       // %5
                     : "0"(nn),
                     "1"(outptr0),
                     "2"(outptr1),
                     "3"(outptr2),
                     "4"(outptr3),
                     "5"(r0),
-                    "w"(_k0),     // %12
-                    "w"(_k1),     // %13
-                    "w"(_k2),     // %14
-                    "w"(_k3)      // %15
-                    : "cc", "memory", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
-                );
+                    "w"(_k0), // %12
+                    "w"(_k1), // %13
+                    "w"(_k2), // %14
+                    "w"(_k3)  // %15
+                    : "cc", "memory", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
             }
 #else
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "pld        [%5, #256]              \n"
                     "vld1.f32   {d12-d15}, [%5 :128]!   \n"
@@ -3553,29 +3479,27 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vst1.f32   {d28-d31}, [%4 :128]!   \n"
                     "bne        0b                      \n"
                     "sub        %5, #32                 \n"
-                    : "=r"(nn),     // %0
-                    "=r"(outptr0),// %1
-                    "=r"(outptr1),// %2
-                    "=r"(outptr2),// %3
-                    "=r"(outptr3),// %4
-                    "=r"(r0)      // %5
+                    : "=r"(nn),      // %0
+                    "=r"(outptr0), // %1
+                    "=r"(outptr1), // %2
+                    "=r"(outptr2), // %3
+                    "=r"(outptr3), // %4
+                    "=r"(r0)       // %5
                     : "0"(nn),
                     "1"(outptr0),
                     "2"(outptr1),
                     "3"(outptr2),
                     "4"(outptr3),
                     "5"(r0),
-                    "w"(_k0),     // %12
-                    "w"(_k1),     // %13
-                    "w"(_k2),     // %14
-                    "w"(_k3)      // %15
-                    : "cc", "memory", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                );
+                    "w"(_k0), // %12
+                    "w"(_k1), // %13
+                    "w"(_k2), // %14
+                    "w"(_k3)  // %15
+                    : "cc", "memory", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 // TODO neon optimize
                 float sum0 = *r0 * k0;
                 float sum1 = *r0 * k1;
@@ -3599,8 +3523,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     remain_outch_start += nn_outch << 2;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=remain_outch_start; p<outch; p++)
-    {
+    for (int p = remain_outch_start; p < outch; p++) {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
@@ -3609,16 +3532,15 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
         int q = 0;
 
-        for (; q+3<inch; q+=4)
-        {
+        for (; q + 3 < inch; q += 4) {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
-            const float* img1 = bottom_blob.channel(q+1);
-            const float* img2 = bottom_blob.channel(q+2);
-            const float* img3 = bottom_blob.channel(q+3);
+            const float* img1 = bottom_blob.channel(q + 1);
+            const float* img2 = bottom_blob.channel(q + 2);
+            const float* img3 = bottom_blob.channel(q + 3);
 
-            const float* kernel0 = kernel + p*inch + q;
+            const float* kernel0 = kernel + p * inch + q;
             const float k0 = kernel0[0];
             const float k1 = kernel0[1];
             const float k2 = kernel0[2];
@@ -3644,8 +3566,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             float32x4_t _k2 = vdupq_n_f32(k2);
             float32x4_t _k3 = vdupq_n_f32(k3);
 #if __aarch64__
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "prfm       pldl1keep, [%2, #256]          \n"
                     "ld1        {v2.4s, v3.4s}, [%2], #32      \n"
@@ -3688,16 +3609,14 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "3"(r1),
                     "4"(r2),
                     "5"(r3),
-                    "w"(_k0),     // %12
-                    "w"(_k1),     // %13
-                    "w"(_k2),     // %14
-                    "w"(_k3)      // %15
-                    : "cc", "memory", "v0", "v1", "v2", "v3"
-                );
+                    "w"(_k0), // %12
+                    "w"(_k1), // %13
+                    "w"(_k2), // %14
+                    "w"(_k3)  // %15
+                    : "cc", "memory", "v0", "v1", "v2", "v3");
             }
 #else
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "pld        [%2, #256]          \n"
                     "vld1.f32   {d4-d7}, [%2 :128]! \n"
@@ -3736,17 +3655,15 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "3"(r1),
                     "4"(r2),
                     "5"(r3),
-                    "w"(_k0),     // %12
-                    "w"(_k1),     // %13
-                    "w"(_k2),     // %14
-                    "w"(_k3)      // %15
-                    : "cc", "memory", "q0", "q1", "q2", "q3"
-                );
+                    "w"(_k0), // %12
+                    "w"(_k1), // %13
+                    "w"(_k2), // %14
+                    "w"(_k3)  // %15
+                    : "cc", "memory", "q0", "q1", "q2", "q3");
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 float sum = *r0 * k0;
                 float sum1 = *r1 * k1;
                 float sum2 = *r2 * k2;
@@ -3760,16 +3677,14 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 r3++;
                 outptr++;
             }
-
         }
 
-        for (; q<inch; q++)
-        {
+        for (; q < inch; q++) {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
 
-            const float* kernel0 = kernel + p*inch  + q;
+            const float* kernel0 = kernel + p * inch + q;
             const float k0 = kernel0[0];
 
             const float* r0 = img0;
@@ -3786,8 +3701,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 #if __ARM_NEON
             float32x4_t _k0 = vdupq_n_f32(k0);
 #if __aarch64__
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "prfm       pldl1keep, [%2, #256]          \n"
                     "ld1        {v2.4s, v3.4s}, [%2], #32      \n"
@@ -3808,13 +3722,11 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     : "0"(nn),
                     "1"(outptr),
                     "2"(r0),
-                    "w"(_k0)      // %6
-                    : "cc", "memory", "v0", "v1", "v2", "v3"
-                );
+                    "w"(_k0) // %6
+                    : "cc", "memory", "v0", "v1", "v2", "v3");
             }
 #else
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "pld        [%2, #256]          \n"
                     "vld1.f32   {d4-d7}, [%2 :128]! \n"
@@ -3835,14 +3747,12 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     : "0"(nn),
                     "1"(outptr),
                     "2"(r0),
-                    "w"(_k0)      // %6
-                    : "cc", "memory", "q0", "q1", "q2", "q3"
-                );
+                    "w"(_k0) // %6
+                    : "cc", "memory", "q0", "q1", "q2", "q3");
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 float sum = *r0 * k0;
 
                 *outptr += sum;
@@ -3850,10 +3760,8 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 r0++;
                 outptr++;
             }
-
         }
     }
-
 }
 
 static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
@@ -3865,7 +3773,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     int outh = top_blob.h;
     int outch = top_blob.c;
 
-    const int tailstep = w - 2*outw + w;
+    const int tailstep = w - 2 * outw + w;
 
     const float* kernel = _kernel;
     const float* bias = _bias;
@@ -3874,19 +3782,18 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     int remain_outch_start = nn_outch << 2;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp=0; pp<nn_outch; pp++)
-    {
+    for (int pp = 0; pp < nn_outch; pp++) {
         int p = pp * 4;
 
         Mat out0 = top_blob.channel(p);
-        Mat out1 = top_blob.channel(p+1);
-        Mat out2 = top_blob.channel(p+2);
-        Mat out3 = top_blob.channel(p+3);
+        Mat out1 = top_blob.channel(p + 1);
+        Mat out2 = top_blob.channel(p + 2);
+        Mat out3 = top_blob.channel(p + 3);
 
         const float bias0 = bias ? bias[p] : 0.f;
-        const float bias1 = bias ? bias[p+1] : 0.f;
-        const float bias2 = bias ? bias[p+2] : 0.f;
-        const float bias3 = bias ? bias[p+3] : 0.f;
+        const float bias1 = bias ? bias[p + 1] : 0.f;
+        const float bias2 = bias ? bias[p + 2] : 0.f;
+        const float bias3 = bias ? bias[p + 3] : 0.f;
 
         out0.fill(bias0);
         out1.fill(bias1);
@@ -3895,30 +3802,28 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
         int q = 0;
 
-        for (; q+3<inch; q+=4)
-        {
+        for (; q + 3 < inch; q += 4) {
             float* outptr0 = out0;
             float* outptr1 = out1;
             float* outptr2 = out2;
             float* outptr3 = out3;
 
             const float* img0 = bottom_blob.channel(q);
-            const float* img1 = bottom_blob.channel(q+1);
-            const float* img2 = bottom_blob.channel(q+2);
-            const float* img3 = bottom_blob.channel(q+3);
+            const float* img1 = bottom_blob.channel(q + 1);
+            const float* img2 = bottom_blob.channel(q + 2);
+            const float* img3 = bottom_blob.channel(q + 3);
 
-            const float* kernel0 = kernel + p*inch + q;
-            const float* kernel1 = kernel + (p+1)*inch + q;
-            const float* kernel2 = kernel + (p+2)*inch + q;
-            const float* kernel3 = kernel + (p+3)*inch + q;
+            const float* kernel0 = kernel + p * inch + q;
+            const float* kernel1 = kernel + (p + 1) * inch + q;
+            const float* kernel2 = kernel + (p + 2) * inch + q;
+            const float* kernel3 = kernel + (p + 3) * inch + q;
 
             const float* r0 = img0;
             const float* r1 = img1;
             const float* r2 = img2;
             const float* r3 = img3;
 
-            for (int i = 0; i < outh; i++)
-            {
+            for (int i = 0; i < outh; i++) {
                 int size = outw;
 
 #if __ARM_NEON
@@ -3934,15 +3839,14 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 float32x4_t _k2 = vld1q_f32(kernel2);
                 float32x4_t _k3 = vld1q_f32(kernel3);
 #if __aarch64__
-                if (nn > 0)
-                {
+                if (nn > 0) {
                     asm volatile(
                         "0:                                        \n"
 
                         "prfm       pldl1keep, [%5, #512]          \n"
                         "ld2        {v4.4s, v5.4s}, [%5], #32      \n"
                         "ld2        {v6.4s, v7.4s}, [%5], #32      \n"
-                        "and        v5.16b, v6.16b, v6.16b         \n"// v4 v5
+                        "and        v5.16b, v6.16b, v6.16b         \n" // v4 v5
 
                         "prfm       pldl1keep, [%1, #256]          \n"
                         "ld1        {v8.4s, v9.4s}, [%1]           \n"
@@ -3972,7 +3876,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "fmla       v15.4s, v5.4s, %21.s[0]        \n"
 
                         "ld2        {v4.4s, v5.4s}, [%6], #32      \n"
-                        "and        v7.16b, v4.16b, v4.16b         \n"// v6 v7
+                        "and        v7.16b, v4.16b, v4.16b         \n" // v6 v7
 
                         "fmla       v8.4s, v6.4s, %18.s[1]         \n"
                         "fmla       v9.4s, v7.4s, %18.s[1]         \n"
@@ -3990,7 +3894,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "fmla       v15.4s, v7.4s, %21.s[1]        \n"
 
                         "ld2        {v6.4s, v7.4s}, [%7], #32      \n"
-                        "and        v5.16b, v6.16b, v6.16b         \n"// v4 v5
+                        "and        v5.16b, v6.16b, v6.16b         \n" // v4 v5
 
                         "fmla       v8.4s, v4.4s, %18.s[2]         \n"
                         "fmla       v9.4s, v5.4s, %18.s[2]         \n"
@@ -4008,7 +3912,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "fmla       v15.4s, v5.4s, %21.s[2]        \n"
 
                         "ld2        {v4.4s, v5.4s}, [%8], #32      \n"
-                        "and        v7.16b, v4.16b, v4.16b         \n"// v6 v7
+                        "and        v7.16b, v4.16b, v4.16b         \n" // v6 v7
 
                         "fmla       v8.4s, v6.4s, %18.s[3]         \n"
                         "fmla       v9.4s, v7.4s, %18.s[3]         \n"
@@ -4032,15 +3936,15 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "st1        {v14.4s, v15.4s}, [%4], #32    \n"
 
                         "bne        0b                             \n"
-                        : "=r"(nn),     // %0
-                        "=r"(outptr0),// %1
-                        "=r"(outptr1),// %2
-                        "=r"(outptr2),// %3
-                        "=r"(outptr3),// %4
-                        "=r"(r0),     // %5
-                        "=r"(r1),     // %6
-                        "=r"(r2),     // %7
-                        "=r"(r3)      // %8
+                        : "=r"(nn),      // %0
+                        "=r"(outptr0), // %1
+                        "=r"(outptr1), // %2
+                        "=r"(outptr2), // %3
+                        "=r"(outptr3), // %4
+                        "=r"(r0),      // %5
+                        "=r"(r1),      // %6
+                        "=r"(r2),      // %7
+                        "=r"(r3)       // %8
                         : "0"(nn),
                         "1"(outptr0),
                         "2"(outptr1),
@@ -4050,23 +3954,21 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "6"(r1),
                         "7"(r2),
                         "8"(r3),
-                        "w"(_k0),     // %18
-                        "w"(_k1),     // %19
-                        "w"(_k2),     // %20
-                        "w"(_k3)      // %21
-                        : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
-                    );
+                        "w"(_k0), // %18
+                        "w"(_k1), // %19
+                        "w"(_k2), // %20
+                        "w"(_k3)  // %21
+                        : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 }
 #else
-                if (nn > 0)
-                {
+                if (nn > 0) {
                     asm volatile(
                         "0:                             \n"
 
                         "pld        [%5, #512]          \n"
                         "vld2.f32   {d8-d11}, [%5]!     \n"
                         "vld2.f32   {d12-d15}, [%5]!    \n"
-                        "vand       q5, q6, q6          \n"// q4 q5
+                        "vand       q5, q6, q6          \n" // q4 q5
 
                         "pld        [%1, #256]          \n"
                         "vld1.f32   {d16-d19}, [%1]     \n"
@@ -4096,7 +3998,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vmla.f32   q15, q5, %e21[0]    \n"
 
                         "vld2.f32   {d8-d11}, [%6]!     \n"
-                        "vand       q7, q4, q4          \n"// q6 q7
+                        "vand       q7, q4, q4          \n" // q6 q7
 
                         "vmla.f32   q8, q6, %e18[1]     \n"
                         "vmla.f32   q9, q7, %e18[1]     \n"
@@ -4114,7 +4016,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vmla.f32   q15, q7, %e21[1]    \n"
 
                         "vld2.f32   {d12-d15}, [%7]!    \n"
-                        "vand       q5, q6, q6          \n"// q4 q5
+                        "vand       q5, q6, q6          \n" // q4 q5
 
                         "vmla.f32   q8, q4, %f18[0]     \n"
                         "vmla.f32   q9, q5, %f18[0]     \n"
@@ -4132,7 +4034,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vmla.f32   q15, q5, %f21[0]    \n"
 
                         "vld2.f32   {d8-d11}, [%8]!     \n"
-                        "vand       q7, q4, q4          \n"// q6 q7
+                        "vand       q7, q4, q4          \n" // q6 q7
 
                         "vmla.f32   q8, q6, %f18[1]     \n"
                         "vmla.f32   q9, q7, %f18[1]     \n"
@@ -4156,15 +4058,15 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vst1.f32   {d28-d31}, [%4]!    \n"
 
                         "bne        0b                  \n"
-                        : "=r"(nn),     // %0
-                        "=r"(outptr0),// %1
-                        "=r"(outptr1),// %2
-                        "=r"(outptr2),// %3
-                        "=r"(outptr3),// %4
-                        "=r"(r0),     // %5
-                        "=r"(r1),     // %6
-                        "=r"(r2),     // %7
-                        "=r"(r3)      // %8
+                        : "=r"(nn),      // %0
+                        "=r"(outptr0), // %1
+                        "=r"(outptr1), // %2
+                        "=r"(outptr2), // %3
+                        "=r"(outptr3), // %4
+                        "=r"(r0),      // %5
+                        "=r"(r1),      // %6
+                        "=r"(r2),      // %7
+                        "=r"(r3)       // %8
                         : "0"(nn),
                         "1"(outptr0),
                         "2"(outptr1),
@@ -4174,17 +4076,15 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "6"(r1),
                         "7"(r2),
                         "8"(r3),
-                        "w"(_k0),     // %18
-                        "w"(_k1),     // %19
-                        "w"(_k2),     // %20
-                        "w"(_k3)      // %21
-                        : "cc", "memory", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                    );
+                        "w"(_k0), // %18
+                        "w"(_k1), // %19
+                        "w"(_k2), // %20
+                        "w"(_k3)  // %21
+                        : "cc", "memory", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain>0; remain--)
-                {
+                for (; remain > 0; remain--) {
                     // TODO neon optimize
                     float sum0 = *r0 * kernel0[0] + *r1 * kernel0[1] + *r2 * kernel0[2] + *r3 * kernel0[3];
                     float sum1 = *r0 * kernel1[0] + *r1 * kernel1[1] + *r2 * kernel1[2] + *r3 * kernel1[3];
@@ -4213,8 +4113,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             }
         }
 
-        for (; q<inch; q++)
-        {
+        for (; q < inch; q++) {
             float* outptr0 = out0;
             float* outptr1 = out1;
             float* outptr2 = out2;
@@ -4222,10 +4121,10 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
             const float* img0 = bottom_blob.channel(q);
 
-            const float* kernel0 = kernel + p*inch + q;
-            const float* kernel1 = kernel + (p+1)*inch + q;
-            const float* kernel2 = kernel + (p+2)*inch + q;
-            const float* kernel3 = kernel + (p+3)*inch + q;
+            const float* kernel0 = kernel + p * inch + q;
+            const float* kernel1 = kernel + (p + 1) * inch + q;
+            const float* kernel2 = kernel + (p + 2) * inch + q;
+            const float* kernel3 = kernel + (p + 3) * inch + q;
 
             const float k0 = kernel0[0];
             const float k1 = kernel1[0];
@@ -4234,8 +4133,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
             const float* r0 = img0;
 
-            for (int i = 0; i < outh; i++)
-            {
+            for (int i = 0; i < outh; i++) {
                 int size = outw;
 
 #if __ARM_NEON
@@ -4251,8 +4149,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 float32x4_t _k2 = vdupq_n_f32(k2);
                 float32x4_t _k3 = vdupq_n_f32(k3);
 #if __aarch64__
-                if (nn > 0)
-                {
+                if (nn > 0) {
                     asm volatile(
                         "0:                                        \n"
 
@@ -4294,35 +4191,33 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                         "st1        {v14.4s, v15.4s}, [%4], #32    \n"
                         "bne        0b                             \n"
-                        : "=r"(nn),     // %0
-                        "=r"(outptr0),// %1
-                        "=r"(outptr1),// %2
-                        "=r"(outptr2),// %3
-                        "=r"(outptr3),// %4
-                        "=r"(r0)      // %5
+                        : "=r"(nn),      // %0
+                        "=r"(outptr0), // %1
+                        "=r"(outptr1), // %2
+                        "=r"(outptr2), // %3
+                        "=r"(outptr3), // %4
+                        "=r"(r0)       // %5
                         : "0"(nn),
                         "1"(outptr0),
                         "2"(outptr1),
                         "3"(outptr2),
                         "4"(outptr3),
                         "5"(r0),
-                        "w"(_k0),     // %12
-                        "w"(_k1),     // %13
-                        "w"(_k2),     // %14
-                        "w"(_k3)      // %15
-                        : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"
-                    );
+                        "w"(_k0), // %12
+                        "w"(_k1), // %13
+                        "w"(_k2), // %14
+                        "w"(_k3)  // %15
+                        : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 }
 #else
-                if (nn > 0)
-                {
+                if (nn > 0) {
                     asm volatile(
                         "0:                             \n"
 
                         "pld        [%5, #512]          \n"
                         "vld2.f32   {d8-d11}, [%5]!     \n"
                         "vld2.f32   {d12-d15}, [%5]!    \n"
-                        "vand       q5, q6, q6          \n"// q4 q5
+                        "vand       q5, q6, q6          \n" // q4 q5
 
                         "pld        [%1, #256]          \n"
                         "vld1.f32   {d16-d19}, [%1]     \n"
@@ -4356,29 +4251,27 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "subs       %0, #1              \n"
                         "vst1.f32   {d28-d31}, [%4]!    \n"
                         "bne        0b                  \n"
-                        : "=r"(nn),     // %0
-                        "=r"(outptr0),// %1
-                        "=r"(outptr1),// %2
-                        "=r"(outptr2),// %3
-                        "=r"(outptr3),// %4
-                        "=r"(r0)      // %5
+                        : "=r"(nn),      // %0
+                        "=r"(outptr0), // %1
+                        "=r"(outptr1), // %2
+                        "=r"(outptr2), // %3
+                        "=r"(outptr3), // %4
+                        "=r"(r0)       // %5
                         : "0"(nn),
                         "1"(outptr0),
                         "2"(outptr1),
                         "3"(outptr2),
                         "4"(outptr3),
                         "5"(r0),
-                        "w"(_k0),     // %12
-                        "w"(_k1),     // %13
-                        "w"(_k2),     // %14
-                        "w"(_k3)      // %15
-                        : "cc", "memory", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                    );
+                        "w"(_k0), // %12
+                        "w"(_k1), // %13
+                        "w"(_k2), // %14
+                        "w"(_k3)  // %15
+                        : "cc", "memory", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain>0; remain--)
-                {
+                for (; remain > 0; remain--) {
                     // TODO neon optimize
                     float sum0 = *r0 * k0;
                     float sum1 = *r0 * k1;
@@ -4403,8 +4296,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=remain_outch_start; p<outch; p++)
-    {
+    for (int p = remain_outch_start; p < outch; p++) {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
@@ -4413,16 +4305,15 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
         int q = 0;
 
-        for (; q+3<inch; q+=4)
-        {
+        for (; q + 3 < inch; q += 4) {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
-            const float* img1 = bottom_blob.channel(q+1);
-            const float* img2 = bottom_blob.channel(q+2);
-            const float* img3 = bottom_blob.channel(q+3);
+            const float* img1 = bottom_blob.channel(q + 1);
+            const float* img2 = bottom_blob.channel(q + 2);
+            const float* img3 = bottom_blob.channel(q + 3);
 
-            const float* kernel0 = kernel + p*inch + q;
+            const float* kernel0 = kernel + p * inch + q;
             const float k0 = kernel0[0];
             const float k1 = kernel0[1];
             const float k2 = kernel0[2];
@@ -4433,8 +4324,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
             const float* r2 = img2;
             const float* r3 = img3;
 
-            for (int i = 0; i < outh; i++)
-            {
+            for (int i = 0; i < outh; i++) {
 #if __ARM_NEON
                 int nn = outw >> 3;
                 int remain = outw & 7;
@@ -4448,8 +4338,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 float32x4_t _k2 = vdupq_n_f32(k2);
                 float32x4_t _k3 = vdupq_n_f32(k3);
 #if __aarch64__
-                if (nn > 0)
-                {
+                if (nn > 0) {
                     asm volatile(
                         "prfm       pldl1keep, [%2, #512]          \n"
                         "ld2        {v2.4s, v3.4s}, [%2], #32      \n"
@@ -4499,16 +4388,14 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "3"(r1),
                         "4"(r2),
                         "5"(r3),
-                        "w"(_k0),     // %12
-                        "w"(_k1),     // %13
-                        "w"(_k2),     // %14
-                        "w"(_k3)      // %15
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9"
-                    );
+                        "w"(_k0), // %12
+                        "w"(_k1), // %13
+                        "w"(_k2), // %14
+                        "w"(_k3)  // %15
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9");
                 }
 #else
-                if (nn > 0)
-                {
+                if (nn > 0) {
                     asm volatile(
                         "pld        [%2, #512]          \n"
                         "vld2.f32   {d4-d7}, [%2]!      \n"
@@ -4552,17 +4439,15 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "3"(r1),
                         "4"(r2),
                         "5"(r3),
-                        "w"(_k0),     // %12
-                        "w"(_k1),     // %13
-                        "w"(_k2),     // %14
-                        "w"(_k3)      // %15
-                        : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9"
-                    );
+                        "w"(_k0), // %12
+                        "w"(_k1), // %13
+                        "w"(_k2), // %14
+                        "w"(_k3)  // %15
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9");
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain>0; remain--)
-                {
+                for (; remain > 0; remain--) {
                     float sum = *r0 * k0;
                     float sum1 = *r1 * k1;
                     float sum2 = *r2 * k2;
@@ -4582,22 +4467,19 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 r2 += tailstep;
                 r3 += tailstep;
             }
-
         }
 
-        for (; q<inch; q++)
-        {
+        for (; q < inch; q++) {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
 
-            const float* kernel0 = kernel + p*inch + q;
+            const float* kernel0 = kernel + p * inch + q;
             const float k0 = kernel0[0];
 
             const float* r0 = img0;
 
-            for (int i = 0; i < outh; i++)
-            {
+            for (int i = 0; i < outh; i++) {
 #if __ARM_NEON
                 int nn = outw >> 3;
                 int remain = outw & 7;
@@ -4608,8 +4490,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 #if __ARM_NEON
                 float32x4_t _k0 = vdupq_n_f32(k0);
 #if __aarch64__
-                if (nn > 0)
-                {
+                if (nn > 0) {
                     asm volatile(
                         "prfm       pldl1keep, [%2, #512]          \n"
                         "ld2        {v2.4s, v3.4s}, [%2], #32      \n"
@@ -4636,13 +4517,11 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         : "0"(nn),
                         "1"(outptr),
                         "2"(r0),
-                        "w"(_k0)      // %6
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9"
-                    );
+                        "w"(_k0) // %6
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9");
                 }
 #else
-                if (nn > 0)
-                {
+                if (nn > 0) {
                     asm volatile(
                         "pld        [%2, #512]          \n"
                         "vld2.f32   {d4-d7}, [%2]!      \n"
@@ -4665,14 +4544,12 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         : "0"(nn),
                         "1"(outptr),
                         "2"(r0),
-                        "w"(_k0)      // %6
-                        : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9"
-                    );
+                        "w"(_k0) // %6
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9");
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain>0; remain--)
-                {
+                for (; remain > 0; remain--) {
                     float sum = *r0 * k0;
 
                     *outptr += sum;
@@ -4683,8 +4560,6 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                 r0 += tailstep;
             }
-
         }
     }
-
 }

@@ -17,12 +17,11 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
-#include <math.h>
-
 #include "cpu.h"
-
-#include "layer_type.h"
 #include "layer.h"
+#include "layer_type.h"
+
+#include <math.h>
 
 #if NCNN_VULKAN
 #if __ANDROID_API__ >= 26
@@ -36,8 +35,7 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
 {
     Layer* op;
 
-    if (mean_vals && !norm_vals)
-    {
+    if (mean_vals && !norm_vals) {
         // substract mean only
         op = create_layer(LayerType::Bias);
 
@@ -48,15 +46,13 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
 
         Mat weights[1];
         weights[0] = Mat(c);
-        for (int q=0; q<c; q++)
-        {
+        for (int q = 0; q < c; q++) {
             weights[0][q] = -mean_vals[q];
         }
 
         op->load_model(ModelBinFromMatArray(weights));
     }
-    else if (!mean_vals && norm_vals)
-    {
+    else if (!mean_vals && norm_vals) {
         // normalize only
         op = create_layer(LayerType::Scale);
 
@@ -67,15 +63,13 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
 
         Mat weights[1];
         weights[0] = Mat(c);
-        for (int q=0; q<c; q++)
-        {
+        for (int q = 0; q < c; q++) {
             weights[0][q] = norm_vals[q];
         }
 
         op->load_model(ModelBinFromMatArray(weights));
     }
-    else if (mean_vals && norm_vals)
-    {
+    else if (mean_vals && norm_vals) {
         // substract mean and normalize
         op = create_layer(LayerType::Scale);
 
@@ -88,10 +82,9 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
         Mat weights[2];
         weights[0] = Mat(c);
         weights[1] = Mat(c);
-        for (int q=0; q<c; q++)
-        {
+        for (int q = 0; q < c; q++) {
             weights[0][q] = norm_vals[q];
-            weights[1][q] = - mean_vals[q] * norm_vals[q];
+            weights[1][q] = -mean_vals[q] * norm_vals[q];
         }
 
         op->load_model(ModelBinFromMatArray(weights));
@@ -102,7 +95,7 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
     }
 
     Option opt;
-    opt.num_threads = 1;// TODO
+    opt.num_threads = 1; // TODO
 
     op->create_pipeline(opt);
 
@@ -119,7 +112,7 @@ Mat Mat::from_float16(const unsigned short* data, int size)
     if (m.empty())
         return m;
 
-    float* ptr = m;//.data;
+    float* ptr = m; //.data;
 
 #if __ARM_NEON && (__ARM_FP & 2)
     int nn = cpu_support_arm_vfpv4() ? size >> 2 : 0;
@@ -130,8 +123,7 @@ Mat Mat::from_float16(const unsigned short* data, int size)
 
 #if __ARM_NEON && (__ARM_FP & 2)
 #if __aarch64__
-    if (nn > 0)
-    {
+    if (nn > 0) {
         asm volatile(
             "0:                             \n"
             "ld1    {v0.4h}, [%1], #8       \n"
@@ -139,18 +131,16 @@ Mat Mat::from_float16(const unsigned short* data, int size)
             "subs   %w0, %w0, #1            \n"
             "st1    {v1.4s}, [%2], #16      \n"
             "bne    0b                      \n"
-            : "=r"(nn),     // %0
-            "=r"(data),   // %1
-            "=r"(ptr)     // %2
+            : "=r"(nn),   // %0
+            "=r"(data), // %1
+            "=r"(ptr)   // %2
             : "0"(nn),
             "1"(data),
             "2"(ptr)
-            : "cc", "memory", "v0", "v1"
-        );
+            : "cc", "memory", "v0", "v1");
     }
 #else
-    if (nn > 0)
-    {
+    if (nn > 0) {
         asm volatile(
             "0:                             \n"
             "pld        [%1, #64]           \n"
@@ -159,19 +149,17 @@ Mat Mat::from_float16(const unsigned short* data, int size)
             "subs       %0, #1              \n"
             "vst1.f32   {d2-d3}, [%2 :128]! \n"
             "bne        0b                  \n"
-            : "=r"(nn),     // %0
-            "=r"(data),   // %1
-            "=r"(ptr)     // %2
+            : "=r"(nn),   // %0
+            "=r"(data), // %1
+            "=r"(ptr)   // %2
             : "0"(nn),
             "1"(data),
             "2"(ptr)
-            : "cc", "memory", "q0", "q1"
-        );
+            : "cc", "memory", "q0", "q1");
     }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain>0; remain--)
-    {
+    for (; remain > 0; remain--) {
         *ptr = float16_to_float32(*data);
 
         data++;
@@ -213,42 +201,34 @@ unsigned short float32_to_float16(float value)
 
     // 1 : 5 : 10
     unsigned short fp16;
-    if (exponent == 0)
-    {
+    if (exponent == 0) {
         // zero or denormal, always underflow
         fp16 = (sign << 15) | (0x00 << 10) | 0x00;
     }
-    else if (exponent == 0xFF)
-    {
+    else if (exponent == 0xFF) {
         // infinity or NaN
         fp16 = (sign << 15) | (0x1F << 10) | (significand ? 0x200 : 0x00);
     }
-    else
-    {
+    else {
         // normalized
-        short newexp = exponent + (- 127 + 15);
-        if (newexp >= 31)
-        {
+        short newexp = exponent + (-127 + 15);
+        if (newexp >= 31) {
             // overflow, return infinity
             fp16 = (sign << 15) | (0x1F << 10) | 0x00;
         }
-        else if (newexp <= 0)
-        {
+        else if (newexp <= 0) {
             // underflow
-            if (newexp >= -10)
-            {
+            if (newexp >= -10) {
                 // denormal half-precision
                 unsigned short sig = (significand | 0x800000) >> (14 - newexp);
                 fp16 = (sign << 15) | (0x00 << 10) | sig;
             }
-            else
-            {
+            else {
                 // underflow
                 fp16 = (sign << 15) | (0x00 << 10) | 0x00;
             }
         }
-        else
-        {
+        else {
             fp16 = (sign << 15) | (newexp << 10) | (significand >> 13);
         }
     }
@@ -271,20 +251,16 @@ float float16_to_float32(unsigned short value)
         unsigned int u;
         float f;
     } tmp;
-    if (exponent == 0)
-    {
-        if (significand == 0)
-        {
+    if (exponent == 0) {
+        if (significand == 0) {
             // zero
             tmp.u = (sign << 31);
         }
-        else
-        {
+        else {
             // denormal
             exponent = 0;
             // find non-zero bit
-            while ((significand & 0x200) == 0)
-            {
+            while ((significand & 0x200) == 0) {
                 significand <<= 1;
                 exponent++;
             }
@@ -293,13 +269,11 @@ float float16_to_float32(unsigned short value)
             tmp.u = (sign << 31) | ((-exponent + (-15 + 127)) << 23) | (significand << 13);
         }
     }
-    else if (exponent == 0x1F)
-    {
+    else if (exponent == 0x1F) {
         // infinity or NaN
         tmp.u = (sign << 31) | (0xFF << 23) | (significand << 13);
     }
-    else
-    {
+    else {
         // normalized
         tmp.u = (sign << 31) | ((exponent + (-15 + 127)) << 23) | (significand << 13);
     }
@@ -332,8 +306,7 @@ void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, i
 
 void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, const Option& opt)
 {
-    if (left + right > src.w || top + bottom > src.h)
-    {
+    if (left + right > src.w || top + bottom > src.h) {
         NCNN_LOGE("copy_cut_border parameter error, top: %d, bottom: %d, left: %d, right: %d, src.w: %d, src.h: %d", top, bottom, left, right, src.w, src.h);
         return;
     }

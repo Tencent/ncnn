@@ -12,15 +12,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/eltwise.h"
+#include "testutil.h"
 
 static void print_float_array(const ncnn::Mat& a)
 {
     fprintf(stderr, "[");
-    for (int i=0; i<a.w; i++)
-    {
+    for (int i = 0; i < a.w; i++) {
         fprintf(stderr, " %f", a[i]);
     }
     fprintf(stderr, " ]");
@@ -40,8 +38,7 @@ static int test_eltwise(const std::vector<ncnn::Mat>& a, int op_type, const ncnn
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Eltwise>("Eltwise", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_eltwise failed a[0].dims=%d a[0]=(%d %d %d) op_type=%d", a[0].dims, a[0].w, a[0].h, a[0].c, op_type);
         fprintf(stderr, " coeffs=");
         print_float_array(coeffs);
@@ -64,8 +61,7 @@ static int test_eltwise_0()
 
            || test_eltwise(a, 0, RandomMat(2))
            || test_eltwise(a, 1, RandomMat(2))
-           || test_eltwise(a, 2, RandomMat(2))
-           ;
+           || test_eltwise(a, 2, RandomMat(2));
 }
 
 static int test_eltwise_1()
@@ -83,8 +79,7 @@ static int test_eltwise_1()
 
            || test_eltwise(a, 0, RandomMat(4))
            || test_eltwise(a, 1, RandomMat(4))
-           || test_eltwise(a, 2, RandomMat(4))
-           ;
+           || test_eltwise(a, 2, RandomMat(4));
 }
 
 int main()
@@ -93,6 +88,5 @@ int main()
 
     return 0
            || test_eltwise_0()
-           || test_eltwise_1()
-           ;
+           || test_eltwise_1();
 }

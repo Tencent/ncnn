@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/slice.h"
+#include "testutil.h"
 
 static ncnn::Mat IntArrayMat(int a0)
 {
@@ -48,8 +47,7 @@ static void print_int_array(const ncnn::Mat& a)
     const int* pa = a;
 
     fprintf(stderr, "[");
-    for (int i=0; i<a.w; i++)
-    {
+    for (int i = 0; i < a.w; i++) {
         fprintf(stderr, " %d", pa[i]);
     }
     fprintf(stderr, " ]");
@@ -72,8 +70,7 @@ static int test_slice(const ncnn::Mat& a, const ncnn::Mat& slices, int axis)
     a0[0] = a;
 
     int ret = test_layer<ncnn::Slice>("Slice", pd, weights, opt, a0, slices.w);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_slice failed a.dims=%d a=(%d %d %d)", a.dims, a.w, a.h, a.c);
         fprintf(stderr, " slices=");
         print_int_array(slices);
@@ -90,8 +87,7 @@ static int test_slice_0()
     return 0
            || test_slice(a, IntArrayMat(-233, -233, -233), 0)
            || test_slice(a, IntArrayMat(-233, -233, -233), 1)
-           || test_slice(a, IntArrayMat(-233, -233, -233), 2)
-           ;
+           || test_slice(a, IntArrayMat(-233, -233, -233), 2);
 }
 
 static int test_slice_1()
@@ -108,8 +104,7 @@ static int test_slice_2()
 
     return 0
            || test_slice(a, IntArrayMat(3, 8, -233), 1)
-           || test_slice(b, IntArrayMat(3, 8, 5), 1)
-           ;
+           || test_slice(b, IntArrayMat(3, 8, 5), 1);
 }
 
 static int test_slice_3()
@@ -119,8 +114,7 @@ static int test_slice_3()
 
     return 0
            || test_slice(a, IntArrayMat(5, 4, 7), 2)
-           || test_slice(b, IntArrayMat(5, 4, 7), 2)
-           ;
+           || test_slice(b, IntArrayMat(5, 4, 7), 2);
 }
 
 static int test_slice_4()
@@ -132,8 +126,7 @@ static int test_slice_4()
     return 0
            || test_slice(a, IntArrayMat(3, 8, 5), 0)
            || test_slice(b, IntArrayMat(3, -233, -233), 1)
-           || test_slice(c, IntArrayMat(3, 8, 5), 1)
-           ;
+           || test_slice(c, IntArrayMat(3, 8, 5), 1);
 }
 
 static int test_slice_5()
@@ -143,8 +136,7 @@ static int test_slice_5()
 
     return 0
            || test_slice(a, IntArrayMat(3, 8, 5), 0)
-           || test_slice(b, IntArrayMat(4, 8, -233), 0)
-           ;
+           || test_slice(b, IntArrayMat(4, 8, -233), 0);
 }
 
 int main()
@@ -157,6 +149,5 @@ int main()
            || test_slice_2()
            || test_slice_3()
            || test_slice_4()
-           || test_slice_5()
-           ;
+           || test_slice_5();
 }

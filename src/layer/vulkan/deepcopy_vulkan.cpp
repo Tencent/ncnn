@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "deepcopy_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -47,18 +49,15 @@ int DeepCopy_vulkan::create_pipeline(const Option& opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage)
-    {
+    if (opt.use_fp16_storage) {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
     }
-    else if (opt.use_fp16_packed)
-    {
+    else if (opt.use_fp16_packed) {
         elemsize = elempack == 1 ? 4u : elempack * 2u;
         out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
     }
-    else
-    {
+    else {
         elemsize = elempack * 4u;
         out_elemsize = out_elempack * 4u;
     }
@@ -81,44 +80,38 @@ int DeepCopy_vulkan::create_pipeline(const Option& opt)
     specializations[0 + 4].i = shape_packed.cstep;
 
     Mat local_size_xyz;
-    if (out_shape_packed.dims == 1)
-    {
+    if (out_shape_packed.dims == 1) {
         local_size_xyz.w = std::min(64, out_shape_packed.w);
         local_size_xyz.h = 1;
         local_size_xyz.c = 1;
     }
-    if (out_shape_packed.dims == 2)
-    {
+    if (out_shape_packed.dims == 2) {
         local_size_xyz.w = std::min(8, out_shape_packed.w);
         local_size_xyz.h = std::min(8, out_shape_packed.h);
         local_size_xyz.c = 1;
     }
-    if (out_shape_packed.dims == 3)
-    {
+    if (out_shape_packed.dims == 3) {
         local_size_xyz.w = std::min(4, out_shape_packed.w);
         local_size_xyz.h = std::min(4, out_shape_packed.h);
         local_size_xyz.c = std::min(4, out_shape_packed.c);
     }
 
     // pack1
-    if (shape.dims == 0 || elempack == 1)
-    {
+    if (shape.dims == 0 || elempack == 1) {
         pipeline_deepcopy = new Pipeline(vkdev);
         pipeline_deepcopy->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deepcopy->create(LayerShaderType::deepcopy, opt, specializations);
     }
 
     // pack4
-    if (shape.dims == 0 || elempack == 4)
-    {
+    if (shape.dims == 0 || elempack == 4) {
         pipeline_deepcopy_pack4 = new Pipeline(vkdev);
         pipeline_deepcopy_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deepcopy_pack4->create(LayerShaderType::deepcopy_pack4, opt, specializations);
     }
 
     // pack8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-    {
+    if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8) {
         pipeline_deepcopy_pack8 = new Pipeline(vkdev);
         pipeline_deepcopy_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_deepcopy_pack8->create(LayerShaderType::deepcopy_pack8, opt, specializations);
@@ -186,7 +179,7 @@ int DeepCopy_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
     constants[3].i = bottom_blob.c;
-    constants[4].i = 0;//bottom_blob.cstep;
+    constants[4].i = 0; //bottom_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_deepcopy_pack8
                                : elempack == 4 ? pipeline_deepcopy_pack4

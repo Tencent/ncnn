@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "memorydata_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -36,16 +38,13 @@ int MemoryData_vulkan::create_pipeline(const Option& opt)
     if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
 
     size_t out_elemsize;
-    if (opt.use_fp16_storage)
-    {
+    if (opt.use_fp16_storage) {
         out_elemsize = out_elempack * 2u;
     }
-    else if (opt.use_fp16_packed)
-    {
+    else if (opt.use_fp16_packed) {
         out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
     }
-    else
-    {
+    else {
         out_elemsize = out_elempack * 4u;
     }
 
@@ -55,8 +54,7 @@ int MemoryData_vulkan::create_pipeline(const Option& opt)
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     // check blob shape
-    if (!vkdev->shape_support_image_storage(out_shape_packed))
-    {
+    if (!vkdev->shape_support_image_storage(out_shape_packed)) {
         support_image_storage = false;
     }
 
@@ -65,12 +63,10 @@ int MemoryData_vulkan::create_pipeline(const Option& opt)
 
 int MemoryData_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
-    if (support_image_storage && opt.use_image_storage)
-    {
+    if (support_image_storage && opt.use_image_storage) {
         cmd.record_upload(data, data_gpu_image, opt);
     }
-    else
-    {
+    else {
         cmd.record_upload(data, data_gpu, opt, /*bool flatten*/ false);
     }
 

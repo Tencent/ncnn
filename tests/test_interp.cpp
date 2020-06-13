@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/interp.h"
+#include "testutil.h"
 
 static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, float width_scale, int output_height, int output_width)
 {
@@ -33,8 +32,7 @@ static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, 
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Interp>("Interp", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_interp failed a.dims=%d a=(%d %d %d) resize_type=%d height_scale=%f width_scale=%f output_height=%d output_width=%d\n", a.dims, a.w, a.h, a.c, resize_type, height_scale, width_scale, output_height, output_width);
     }
 
@@ -55,8 +53,7 @@ static int test_interp_0()
            || test_interp(b, 1, 2.f, 2.f, 0, 0)
            || test_interp(b, 1, 4.f, 0.5f, 0, 0)
            || test_interp(b, 1, 1.f, 1.f, 10, 12)
-           || test_interp(b, 1, 1.f, 1.f, 2, 2)
-           ;
+           || test_interp(b, 1, 1.f, 1.f, 2, 2);
 }
 
 static int test_interp_1()
@@ -73,8 +70,7 @@ static int test_interp_1()
            || test_interp(b, 2, 2.f, 2.f, 0, 0)
            || test_interp(b, 2, 4.f, 0.5f, 0, 0)
            || test_interp(b, 2, 1.f, 1.f, 10, 12)
-           || test_interp(b, 2, 1.f, 1.f, 2, 2)
-           ;
+           || test_interp(b, 2, 1.f, 1.f, 2, 2);
 }
 
 static int test_interp_2()
@@ -91,8 +87,7 @@ static int test_interp_2()
            || test_interp(b, 3, 2.f, 2.f, 0, 0)
            || test_interp(b, 3, 4.f, 0.5f, 0, 0)
            || test_interp(b, 3, 1.f, 1.f, 10, 12)
-           || test_interp(b, 3, 1.f, 1.f, 2, 2)
-           ;
+           || test_interp(b, 3, 1.f, 1.f, 2, 2);
 }
 
 int main()

@@ -12,20 +12,20 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <stdio.h>
 #include <algorithm>
-#include <vector>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <stdio.h>
+#include <vector>
 
 #if CV_VERSION_MAJOR >= 4
 #include <opencv2/opencv.hpp>
 #define CV_LOAD_IMAGE_COLOR cv::IMREAD_COLOR
-#endif  // CV_VERSION_MAJOR >= 4
+#endif // CV_VERSION_MAJOR >= 4
 
-#include "net.h"
 #include "gpu.h"
+#include "net.h"
 
 struct KeyPoint
 {
@@ -61,8 +61,8 @@ static int detect_posenet(const cv::Mat& bgr, std::vector<KeyPoint>& keypoints)
     // R' = (R / 255 - 0.485) / 0.229 = (R - 0.485 * 255) / 0.229 / 255
     // G' = (G / 255 - 0.456) / 0.224 = (G - 0.456 * 255) / 0.224 / 255
     // B' = (B / 255 - 0.406) / 0.225 = (B - 0.406 * 255) / 0.225 / 255
-    const float mean_vals[3] = {0.485f*255.f, 0.456f*255.f, 0.406f*255.f};
-    const float norm_vals[3] = {1/0.229f/255.f, 1/0.224f/255.f, 1/0.225f/255.f};
+    const float mean_vals[3] = {0.485f * 255.f, 0.456f * 255.f, 0.406f * 255.f};
+    const float norm_vals[3] = {1 / 0.229f / 255.f, 1 / 0.224f / 255.f, 1 / 0.225f / 255.f};
     in.substract_mean_normalize(mean_vals, norm_vals);
 
     ncnn::Extractor ex = posenet.create_extractor();
@@ -74,21 +74,17 @@ static int detect_posenet(const cv::Mat& bgr, std::vector<KeyPoint>& keypoints)
 
     // resolve point from heatmap
     keypoints.clear();
-    for (int p = 0; p < out.c; p++)
-    {
+    for (int p = 0; p < out.c; p++) {
         const ncnn::Mat m = out.channel(p);
 
         float max_prob = 0.f;
         int max_x = 0;
         int max_y = 0;
-        for (int y = 0; y < out.h; y++)
-        {
+        for (int y = 0; y < out.h; y++) {
             const float* ptr = m.row(y);
-            for (int x = 0; x < out.w; x++)
-            {
+            for (int x = 0; x < out.w; x++) {
                 float prob = ptr[x];
-                if (prob > max_prob)
-                {
+                if (prob > max_prob) {
                     max_prob = prob;
                     max_x = x;
                     max_y = y;
@@ -112,16 +108,12 @@ static void draw_pose(const cv::Mat& bgr, const std::vector<KeyPoint>& keypoints
 
     // draw bone
     static const int joint_pairs[16][2] = {
-        {0, 1}, {1, 3}, {0, 2}, {2, 4},
-        {5, 6}, {5, 7}, {7, 9}, {6, 8}, {8, 10},
-        {5, 11}, {6, 12}, {11, 12},
-        {11, 13}, {12, 14}, {13, 15}, {14, 16}
+        {0, 1}, {1, 3}, {0, 2}, {2, 4}, {5, 6}, {5, 7}, {7, 9}, {6, 8}, {8, 10}, {5, 11}, {6, 12}, {11, 12}, {11, 13}, {12, 14}, {13, 15}, {14, 16}
     };
 
-    for (int i = 0; i < 16; i++)
-    {
-        const KeyPoint& p1 = keypoints[ joint_pairs[i][0] ];
-        const KeyPoint& p2 = keypoints[ joint_pairs[i][1] ];
+    for (int i = 0; i < 16; i++) {
+        const KeyPoint& p1 = keypoints[joint_pairs[i][0]];
+        const KeyPoint& p2 = keypoints[joint_pairs[i][1]];
 
         if (p1.prob < 0.2f || p2.prob < 0.2f)
             continue;
@@ -130,8 +122,7 @@ static void draw_pose(const cv::Mat& bgr, const std::vector<KeyPoint>& keypoints
     }
 
     // draw joint
-    for (size_t i = 0; i < keypoints.size(); i++)
-    {
+    for (size_t i = 0; i < keypoints.size(); i++) {
         const KeyPoint& keypoint = keypoints[i];
 
         fprintf(stderr, "%.2f %.2f = %.5f\n", keypoint.p.x, keypoint.p.y, keypoint.prob);
@@ -151,8 +142,7 @@ int main(int argc, char** argv)
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, CV_LOAD_IMAGE_COLOR);
-    if (m.empty())
-    {
+    if (m.empty()) {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);
         return -1;
     }

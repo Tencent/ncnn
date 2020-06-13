@@ -20,9 +20,9 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif
-#include "platform.h"
 #include "allocator.h"
 #include "option.h"
+#include "platform.h"
 
 #if NCNN_VULKAN
 #include <vulkan/vulkan.h>
@@ -30,8 +30,8 @@
 
 #if NCNN_PIXEL
 #if __ANDROID_API__ >= 9
-#include <jni.h>
 #include <android/bitmap.h>
+#include <jni.h>
 #endif // __ANDROID_API__ >= 9
 #endif // NCNN_PIXEL
 
@@ -85,7 +85,8 @@ public:
     void fill(float32x4_t _v);
     void fill(uint16x4_t _v);
 #endif // __ARM_NEON
-    template <typename T> void fill(T v);
+    template<typename T>
+    void fill(T v);
     // deep copy
     Mat clone(Allocator* allocator = 0) const;
     // reshape vec
@@ -130,8 +131,10 @@ public:
     const Mat channel(int c) const;
     float* row(int y);
     const float* row(int y) const;
-    template<typename T> T* row(int y);
-    template<typename T> const T* row(int y) const;
+    template<typename T>
+    T* row(int y);
+    template<typename T>
+    const T* row(int y) const;
 
     // range reference
     Mat channel_range(int c, int channels);
@@ -142,8 +145,10 @@ public:
     const Mat range(int x, int n) const;
 
     // access raw data
-    template<typename T> operator T*();
-    template<typename T> operator const T*() const;
+    template<typename T>
+    operator T*();
+    template<typename T>
+    operator const T*() const;
 
     // convenient access float vec element
     float& operator[](size_t i);
@@ -156,34 +161,34 @@ public:
         PIXEL_FORMAT_MASK = 0x0000ffff,
         PIXEL_CONVERT_MASK = 0xffff0000,
 
-        PIXEL_RGB       = 1,
-        PIXEL_BGR       = 2,
-        PIXEL_GRAY      = 3,
-        PIXEL_RGBA      = 4,
-        PIXEL_BGRA      = 5,
+        PIXEL_RGB = 1,
+        PIXEL_BGR = 2,
+        PIXEL_GRAY = 3,
+        PIXEL_RGBA = 4,
+        PIXEL_BGRA = 5,
 
-        PIXEL_RGB2BGR   = PIXEL_RGB | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
-        PIXEL_RGB2GRAY  = PIXEL_RGB | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
-        PIXEL_RGB2RGBA  = PIXEL_RGB | (PIXEL_RGBA << PIXEL_CONVERT_SHIFT),
-        PIXEL_RGB2BGRA  = PIXEL_RGB | (PIXEL_BGRA << PIXEL_CONVERT_SHIFT),
+        PIXEL_RGB2BGR = PIXEL_RGB | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
+        PIXEL_RGB2GRAY = PIXEL_RGB | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
+        PIXEL_RGB2RGBA = PIXEL_RGB | (PIXEL_RGBA << PIXEL_CONVERT_SHIFT),
+        PIXEL_RGB2BGRA = PIXEL_RGB | (PIXEL_BGRA << PIXEL_CONVERT_SHIFT),
 
-        PIXEL_BGR2RGB   = PIXEL_BGR | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
-        PIXEL_BGR2GRAY  = PIXEL_BGR | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
-        PIXEL_BGR2RGBA  = PIXEL_BGR | (PIXEL_RGBA << PIXEL_CONVERT_SHIFT),
-        PIXEL_BGR2BGRA  = PIXEL_BGR | (PIXEL_BGRA << PIXEL_CONVERT_SHIFT),
+        PIXEL_BGR2RGB = PIXEL_BGR | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
+        PIXEL_BGR2GRAY = PIXEL_BGR | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
+        PIXEL_BGR2RGBA = PIXEL_BGR | (PIXEL_RGBA << PIXEL_CONVERT_SHIFT),
+        PIXEL_BGR2BGRA = PIXEL_BGR | (PIXEL_BGRA << PIXEL_CONVERT_SHIFT),
 
-        PIXEL_GRAY2RGB  = PIXEL_GRAY | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
-        PIXEL_GRAY2BGR  = PIXEL_GRAY | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
+        PIXEL_GRAY2RGB = PIXEL_GRAY | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
+        PIXEL_GRAY2BGR = PIXEL_GRAY | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
         PIXEL_GRAY2RGBA = PIXEL_GRAY | (PIXEL_RGBA << PIXEL_CONVERT_SHIFT),
         PIXEL_GRAY2BGRA = PIXEL_GRAY | (PIXEL_BGRA << PIXEL_CONVERT_SHIFT),
 
-        PIXEL_RGBA2RGB  = PIXEL_RGBA | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
-        PIXEL_RGBA2BGR  = PIXEL_RGBA | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
+        PIXEL_RGBA2RGB = PIXEL_RGBA | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
+        PIXEL_RGBA2BGR = PIXEL_RGBA | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
         PIXEL_RGBA2GRAY = PIXEL_RGBA | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
         PIXEL_RGBA2BGRA = PIXEL_RGBA | (PIXEL_BGRA << PIXEL_CONVERT_SHIFT),
 
-        PIXEL_BGRA2RGB  = PIXEL_BGRA | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
-        PIXEL_BGRA2BGR  = PIXEL_BGRA | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
+        PIXEL_BGRA2RGB = PIXEL_BGRA | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
+        PIXEL_BGRA2BGR = PIXEL_BGRA | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
         PIXEL_BGRA2GRAY = PIXEL_BGRA | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
         PIXEL_BGRA2RGBA = PIXEL_BGRA | (PIXEL_RGBA << PIXEL_CONVERT_SHIFT),
     };
@@ -474,12 +479,14 @@ public:
 };
 
 // type for vulkan specialization constant and push constant
-union vk_specialization_type {
+union vk_specialization_type
+{
     int i;
     float f;
     uint32_t u32;
 };
-union vk_constant_type {
+union vk_constant_type
+{
     int i;
     float f;
 };
@@ -539,7 +546,8 @@ float float16_to_float32(unsigned short value);
 inline unsigned short float32_to_bfloat16(float value)
 {
     // 16 : 16
-    union {
+    union
+    {
         unsigned int u;
         float f;
     } tmp;
@@ -550,7 +558,8 @@ inline unsigned short float32_to_bfloat16(float value)
 inline float bfloat16_to_float32(unsigned short value)
 {
     // 16 : 16
-    union {
+    union
+    {
         unsigned int u;
         float f;
     } tmp;
@@ -708,41 +717,36 @@ inline void Mat::fill(float _v)
 #if __ARM_NEON
     float32x4_t _c = vdupq_n_f32(_v);
 #if __aarch64__
-    if (nn > 0)
-    {
-        asm volatile (
+    if (nn > 0) {
+        asm volatile(
             "0:                             \n"
             "subs       %w0, %w0, #1        \n"
             "st1        {%4.4s}, [%1], #16  \n"
             "bne        0b                  \n"
-            : "=r"(nn),     // %0
-            "=r"(ptr)     // %1
+            : "=r"(nn), // %0
+            "=r"(ptr) // %1
             : "0"(nn),
             "1"(ptr),
-            "w"(_c)       // %4
-            : "cc", "memory"
-        );
+            "w"(_c) // %4
+            : "cc", "memory");
     }
 #else
-    if (nn > 0)
-    {
+    if (nn > 0) {
         asm volatile(
             "0:                             \n"
             "subs       %0, #1              \n"
             "vst1.f32   {%e4-%f4}, [%1 :128]!\n"
             "bne        0b                  \n"
-            : "=r"(nn),     // %0
-            "=r"(ptr)     // %1
+            : "=r"(nn), // %0
+            "=r"(ptr) // %1
             : "0"(nn),
             "1"(ptr),
-            "w"(_c)       // %4
-            : "cc", "memory"
-        );
+            "w"(_c) // %4
+            : "cc", "memory");
     }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain>0; remain--)
-    {
+    for (; remain > 0; remain--) {
         *ptr++ = _v;
     }
 }
@@ -762,41 +766,36 @@ inline void Mat::fill(int _v)
 #if __ARM_NEON
     int32x4_t _c = vdupq_n_s32(_v);
 #if __aarch64__
-    if (nn > 0)
-    {
-        asm volatile (
+    if (nn > 0) {
+        asm volatile(
             "0:                             \n"
             "subs       %w0, %w0, #1        \n"
             "st1        {%4.4s}, [%1], #16  \n"
             "bne        0b                  \n"
-            : "=r"(nn),     // %0
-            "=r"(ptr)     // %1
+            : "=r"(nn), // %0
+            "=r"(ptr) // %1
             : "0"(nn),
             "1"(ptr),
-            "w"(_c)       // %4
-            : "cc", "memory"
-        );
+            "w"(_c) // %4
+            : "cc", "memory");
     }
 #else
-    if (nn > 0)
-    {
+    if (nn > 0) {
         asm volatile(
             "0:                             \n"
             "subs       %0, #1              \n"
             "vst1.s32   {%e4-%f4}, [%1 :128]!\n"
             "bne        0b                  \n"
-            : "=r"(nn),     // %0
-            "=r"(ptr)     // %1
+            : "=r"(nn), // %0
+            "=r"(ptr) // %1
             : "0"(nn),
             "1"(ptr),
-            "w"(_c)       // %4
-            : "cc", "memory"
-        );
+            "w"(_c) // %4
+            : "cc", "memory");
     }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain>0; remain--)
-    {
+    for (; remain > 0; remain--) {
         *ptr++ = _v;
     }
 }
@@ -806,8 +805,7 @@ inline void Mat::fill(float32x4_t _v)
 {
     int size = total();
     float* ptr = (float*)data;
-    for (int i=0; i<size; i++)
-    {
+    for (int i = 0; i < size; i++) {
         vst1q_f32(ptr, _v);
         ptr += 4;
     }
@@ -816,21 +814,19 @@ inline void Mat::fill(uint16x4_t _v)
 {
     int size = total();
     unsigned short* ptr = (unsigned short*)data;
-    for (int i=0; i<size; i++)
-    {
+    for (int i = 0; i < size; i++) {
         vst1_u16(ptr, _v);
         ptr += 4;
     }
 }
 #endif // __ARM_NEON
 
-template <typename T>
+template<typename T>
 inline void Mat::fill(T _v)
 {
     int size = total();
     T* ptr = (T*)data;
-    for (int i=0; i<size; i++)
-    {
+    for (int i = 0; i < size; i++) {
         ptr[i] = _v;
     }
 }
@@ -848,8 +844,7 @@ inline Mat Mat::clone(Allocator* allocator) const
     else if (dims == 3)
         m.create(w, h, c, elemsize, elempack, allocator);
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         memcpy(m.data, data, total() * elemsize);
     }
 
@@ -861,14 +856,12 @@ inline Mat Mat::reshape(int _w, Allocator* _allocator) const
     if (w * h * c != _w)
         return Mat();
 
-    if (dims == 3 && cstep != (size_t)w * h)
-    {
+    if (dims == 3 && cstep != (size_t)w * h) {
         Mat m;
         m.create(_w, elemsize, elempack, _allocator);
 
         // flatten
-        for (int i=0; i<c; i++)
-        {
+        for (int i = 0; i < c; i++) {
             const void* ptr = (unsigned char*)data + i * cstep * elemsize;
             void* mptr = (unsigned char*)m.data + i * w * h * elemsize;
             memcpy(mptr, ptr, w * h * elemsize);
@@ -894,14 +887,12 @@ inline Mat Mat::reshape(int _w, int _h, Allocator* _allocator) const
     if (w * h * c != _w * _h)
         return Mat();
 
-    if (dims == 3 && cstep != (size_t)w * h)
-    {
+    if (dims == 3 && cstep != (size_t)w * h) {
         Mat m;
         m.create(_w, _h, elemsize, elempack, _allocator);
 
         // flatten
-        for (int i=0; i<c; i++)
-        {
+        for (int i = 0; i < c; i++) {
             const void* ptr = (unsigned char*)data + i * cstep * elemsize;
             void* mptr = (unsigned char*)m.data + i * w * h * elemsize;
             memcpy(mptr, ptr, w * h * elemsize);
@@ -927,16 +918,13 @@ inline Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
     if (w * h * c != _w * _h * _c)
         return Mat();
 
-    if (dims < 3)
-    {
-        if ((size_t)_w * _h != alignSize(_w * _h * elemsize, 16) / elemsize)
-        {
+    if (dims < 3) {
+        if ((size_t)_w * _h != alignSize(_w * _h * elemsize, 16) / elemsize) {
             Mat m;
             m.create(_w, _h, _c, elemsize, elempack, _allocator);
 
             // align channel
-            for (int i=0; i<_c; i++)
-            {
+            for (int i = 0; i < _c; i++) {
                 const void* ptr = (unsigned char*)data + i * _w * _h * elemsize;
                 void* mptr = (unsigned char*)m.data + i * m.cstep * m.elemsize;
                 memcpy(mptr, ptr, _w * _h * elemsize);
@@ -945,8 +933,7 @@ inline Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
             return m;
         }
     }
-    else if (c != _c)
-    {
+    else if (c != _c) {
         // flatten and then align
         Mat tmp = reshape(_w * _h * _c, _allocator);
         return tmp.reshape(_w, _h, _c, _allocator);
@@ -982,8 +969,7 @@ inline void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
 
     cstep = w;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
@@ -1012,8 +998,7 @@ inline void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
 
     cstep = w * h;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
@@ -1042,8 +1027,7 @@ inline void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _al
 
     cstep = alignSize(w * h * elemsize, 16) / elemsize;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
@@ -1072,8 +1056,7 @@ inline void Mat::create(int _w, size_t _elemsize, int _elempack, Allocator* _all
 
     cstep = w;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
@@ -1102,8 +1085,7 @@ inline void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocat
 
     cstep = w * h;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
@@ -1132,8 +1114,7 @@ inline void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack,
 
     cstep = alignSize(w * h * elemsize, 16) / elemsize;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
@@ -1187,8 +1168,7 @@ inline void Mat::addref()
 
 inline void Mat::release()
 {
-    if (refcount && NCNN_XADD(refcount, -1) == 1)
-    {
+    if (refcount && NCNN_XADD(refcount, -1) == 1) {
         if (allocator)
             allocator->fastFree(data);
         else
@@ -1252,13 +1232,13 @@ inline const float* Mat::row(int y) const
     return (const float*)((unsigned char*)data + w * y * elemsize);
 }
 
-template <typename T>
+template<typename T>
 inline T* Mat::row(int y)
 {
     return (T*)((unsigned char*)data + w * y * elemsize);
 }
 
-template <typename T>
+template<typename T>
 inline const T* Mat::row(int y) const
 {
     return (const T*)((unsigned char*)data + w * y * elemsize);
@@ -1294,13 +1274,13 @@ inline const Mat Mat::range(int x, int n) const
     return Mat(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
 }
 
-template <typename T>
+template<typename T>
 inline Mat::operator T*()
 {
     return (T*)data;
 }
 
-template <typename T>
+template<typename T>
 inline Mat::operator const T*() const
 {
     return (const T*)data;
@@ -1453,8 +1433,7 @@ inline void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
 
     cstep = w;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         size_t totalsize = alignSize(total() * elemsize, 4);
 
         data = allocator->fastMalloc(totalsize);
@@ -1482,8 +1461,7 @@ inline void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _alloca
 
     cstep = w * h;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         size_t totalsize = alignSize(total() * elemsize, 4);
 
         data = allocator->fastMalloc(totalsize);
@@ -1511,8 +1489,7 @@ inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator*
 
     cstep = alignSize(w * h * elemsize, 16) / elemsize;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         size_t totalsize = alignSize(total() * elemsize, 4);
 
         data = allocator->fastMalloc(totalsize);
@@ -1540,8 +1517,7 @@ inline void VkMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* 
 
     cstep = w;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         size_t totalsize = alignSize(total() * elemsize, 4);
 
         data = allocator->fastMalloc(totalsize);
@@ -1569,8 +1545,7 @@ inline void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAll
 
     cstep = w * h;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         size_t totalsize = alignSize(total() * elemsize, 4);
 
         data = allocator->fastMalloc(totalsize);
@@ -1598,8 +1573,7 @@ inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempac
 
     cstep = alignSize(w * h * elemsize, 16) / elemsize;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         size_t totalsize = alignSize(total() * elemsize, 4);
 
         data = allocator->fastMalloc(totalsize);
@@ -1675,10 +1649,8 @@ inline void VkMat::addref()
 
 inline void VkMat::release()
 {
-    if (refcount && NCNN_XADD(refcount, -1) == 1)
-    {
-        if (allocator && data)
-        {
+    if (refcount && NCNN_XADD(refcount, -1) == 1) {
+        if (allocator && data) {
             allocator->fastFree(data);
         }
     }
@@ -1858,8 +1830,7 @@ inline void VkImageMat::create(int _w, size_t _elemsize, VkAllocator* _allocator
     h = 1;
     c = 1;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
         if (!data)
             return;
@@ -1885,8 +1856,7 @@ inline void VkImageMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _a
     h = _h;
     c = 1;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
         if (!data)
             return;
@@ -1912,8 +1882,7 @@ inline void VkImageMat::create(int _w, int _h, int _c, size_t _elemsize, VkAlloc
     h = _h;
     c = _c;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
         if (!data)
             return;
@@ -1939,8 +1908,7 @@ inline void VkImageMat::create(int _w, size_t _elemsize, int _elempack, VkAlloca
     h = 1;
     c = 1;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
         if (!data)
             return;
@@ -1966,8 +1934,7 @@ inline void VkImageMat::create(int _w, int _h, size_t _elemsize, int _elempack, 
     h = _h;
     c = 1;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
         if (!data)
             return;
@@ -1993,8 +1960,7 @@ inline void VkImageMat::create(int _w, int _h, int _c, size_t _elemsize, int _el
     h = _h;
     c = _c;
 
-    if (total() > 0)
-    {
+    if (total() > 0) {
         data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
         if (!data)
             return;
@@ -2070,10 +2036,8 @@ inline void VkImageMat::addref()
 
 inline void VkImageMat::release()
 {
-    if (refcount && NCNN_XADD(refcount, -1) == 1)
-    {
-        if (allocator && data)
-        {
+    if (refcount && NCNN_XADD(refcount, -1) == 1) {
+        if (allocator && data) {
             allocator->fastFree(data);
         }
     }

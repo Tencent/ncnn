@@ -12,14 +12,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <stdio.h>
-#include <vector>
+#include "net.h"
+#include "platform.h"
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-
-#include "platform.h"
-#include "net.h"
+#include <stdio.h>
+#include <vector>
 #if NCNN_VULKAN
 #include "gpu.h"
 #endif // NCNN_VULKAN
@@ -43,16 +43,14 @@ static void qsort_descent_inplace(std::vector<FaceObject>& faceobjects, int left
     int j = right;
     float p = faceobjects[(left + right) / 2].prob;
 
-    while (i <= j)
-    {
+    while (i <= j) {
         while (faceobjects[i].prob > p)
             i++;
 
         while (faceobjects[j].prob < p)
             j--;
 
-        if (i <= j)
-        {
+        if (i <= j) {
             // swap
             std::swap(faceobjects[i], faceobjects[j]);
 
@@ -89,24 +87,21 @@ static void nms_sorted_bboxes(const std::vector<FaceObject>& faceobjects, std::v
     const int n = faceobjects.size();
 
     std::vector<float> areas(n);
-    for (int i = 0; i < n; i++)
-    {
+    for (int i = 0; i < n; i++) {
         areas[i] = faceobjects[i].rect.area();
     }
 
-    for (int i = 0; i < n; i++)
-    {
+    for (int i = 0; i < n; i++) {
         const FaceObject& a = faceobjects[i];
 
         int keep = 1;
-        for (int j = 0; j < (int)picked.size(); j++)
-        {
+        for (int j = 0; j < (int)picked.size(); j++) {
             const FaceObject& b = faceobjects[picked[j]];
 
             // intersection over union
             float inter_area = intersection_area(a, b);
             float union_area = areas[i] + areas[picked[j]] - inter_area;
-//             float IoU = inter_area / union_area
+            //             float IoU = inter_area / union_area
             if (inter_area / union_area > nms_threshold)
                 keep = 0;
         }
@@ -128,15 +123,13 @@ static ncnn::Mat generate_anchors(int base_size, const ncnn::Mat& ratios, const 
     const float cx = base_size * 0.5f;
     const float cy = base_size * 0.5f;
 
-    for (int i = 0; i < num_ratio; i++)
-    {
+    for (int i = 0; i < num_ratio; i++) {
         float ar = ratios[i];
 
         int r_w = round(base_size / sqrt(ar));
-        int r_h = round(r_w * ar);//round(base_size * sqrt(ar));
+        int r_h = round(r_w * ar); //round(base_size * sqrt(ar));
 
-        for (int j = 0; j < num_scale; j++)
-        {
+        for (int j = 0; j < num_scale; j++) {
             float scale = scales[j];
 
             float rs_w = r_w * scale;
@@ -162,8 +155,7 @@ static void generate_proposals(const ncnn::Mat& anchors, int feat_stride, const 
     // generate face proposal from bbox deltas and shifted anchors
     const int num_anchors = anchors.h;
 
-    for (int q=0; q<num_anchors; q++)
-    {
+    for (int q = 0; q < num_anchors; q++) {
         const float* anchor = anchors.row(q);
 
         const ncnn::Mat score = score_blob.channel(q + num_anchors);
@@ -176,18 +168,15 @@ static void generate_proposals(const ncnn::Mat& anchors, int feat_stride, const 
         float anchor_w = anchor[2] - anchor[0];
         float anchor_h = anchor[3] - anchor[1];
 
-        for (int i=0; i<h; i++)
-        {
+        for (int i = 0; i < h; i++) {
             float anchor_x = anchor[0];
 
-            for (int j=0; j<w; j++)
-            {
+            for (int j = 0; j < w; j++) {
                 int index = i * w + j;
 
                 float prob = score[index];
 
-                if (prob >= prob_threshold)
-                {
+                if (prob >= prob_threshold) {
                     // apply center size
                     float dx = bbox.channel(0)[index];
                     float dy = bbox.channel(1)[index];
@@ -234,7 +223,6 @@ static void generate_proposals(const ncnn::Mat& anchors, int feat_stride, const 
             anchor_y += feat_stride;
         }
     }
-
 }
 
 static int detect_retinaface(const cv::Mat& bgr, std::vector<FaceObject>& faceobjects)
@@ -249,8 +237,8 @@ static int detect_retinaface(const cv::Mat& bgr, std::vector<FaceObject>& faceob
     // https://github.com/deepinsight/insightface/tree/master/RetinaFace#retinaface-pretrained-models
     // https://github.com/deepinsight/insightface/issues/669
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-//     retinaface.load_param("retinaface-R50.param");
-//     retinaface.load_model("retinaface-R50.bin");
+    //     retinaface.load_param("retinaface-R50.param");
+    //     retinaface.load_model("retinaface-R50.bin");
     retinaface.load_param("mnet.25-opt.param");
     retinaface.load_model("mnet.25-opt.bin");
 
@@ -344,9 +332,8 @@ static int detect_retinaface(const cv::Mat& bgr, std::vector<FaceObject>& faceob
     int face_count = picked.size();
 
     faceobjects.resize(face_count);
-    for (int i = 0; i < face_count; i++)
-    {
-        faceobjects[i] = faceproposals[ picked[i] ];
+    for (int i = 0; i < face_count; i++) {
+        faceobjects[i] = faceproposals[picked[i]];
 
         // clip to image size
         float x0 = faceobjects[i].rect.x;
@@ -372,8 +359,7 @@ static void draw_faceobjects(const cv::Mat& bgr, const std::vector<FaceObject>& 
 {
     cv::Mat image = bgr.clone();
 
-    for (size_t i = 0; i < faceobjects.size(); i++)
-    {
+    for (size_t i = 0; i < faceobjects.size(); i++) {
         const FaceObject& obj = faceobjects[i];
 
         fprintf(stderr, "%.5f at %.2f %.2f %.2f x %.2f\n", obj.prob,
@@ -400,8 +386,7 @@ static void draw_faceobjects(const cv::Mat& bgr, const std::vector<FaceObject>& 
         if (x + label_size.width > image.cols)
             x = image.cols - label_size.width;
 
-        cv::rectangle(image, cv::Rect(cv::Point(x, y),
-                                      cv::Size(label_size.width, label_size.height + baseLine)),
+        cv::rectangle(image, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
                       cv::Scalar(255, 255, 255), -1);
 
         cv::putText(image, text, cv::Point(x, y + label_size.height),
@@ -414,8 +399,7 @@ static void draw_faceobjects(const cv::Mat& bgr, const std::vector<FaceObject>& 
 
 int main(int argc, char** argv)
 {
-    if (argc != 2)
-    {
+    if (argc != 2) {
         fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
         return -1;
     }
@@ -423,8 +407,7 @@ int main(int argc, char** argv)
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, 1);
-    if (m.empty())
-    {
+    if (m.empty()) {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);
         return -1;
     }

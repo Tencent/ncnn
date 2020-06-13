@@ -43,18 +43,15 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (elempack == 4)
-    {
+    if (elempack == 4) {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             float* ptr = bottom_top_blob.channel(q);
 
             float32x4_t _max = vdupq_n_f32(max);
             float32x4_t _min = vdupq_n_f32(min);
 
-            for (int i=0; i<size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 float32x4_t _ptr = vld1q_f32(ptr);
                 _ptr = vmaxq_f32(_ptr, _min);
                 _ptr = vminq_f32(_ptr, _max);
@@ -69,8 +66,7 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
-    {
+    for (int q = 0; q < channels; q++) {
         float* ptr = bottom_top_blob.channel(q);
 
 #if __ARM_NEON
@@ -84,8 +80,7 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float32x4_t _max = vdupq_n_f32(max);
         float32x4_t _min = vdupq_n_f32(min);
 #if __aarch64__
-        for (; nn>0; nn--)
-        {
+        for (; nn > 0; nn--) {
             float32x4_t _ptr = vld1q_f32(ptr);
             _ptr = vmaxq_f32(_ptr, _min);
             _ptr = vminq_f32(_ptr, _max);
@@ -93,8 +88,7 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             ptr += 4;
         }
 #else
-        if (nn > 0)
-        {
+        if (nn > 0) {
             asm volatile(
                 "0:                             \n"
                 "pld        [%1, #128]          \n"
@@ -108,20 +102,18 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                 "bne        0b                  \n"
 
-                : "=r"(nn),     // %0
-                "=r"(ptr)     // %1
+                : "=r"(nn), // %0
+                "=r"(ptr) // %1
                 : "0"(nn),
                 "1"(ptr),
-                "w"(_min),    // %q4
-                "w"(_max)     // %q5
-                : "cc", "memory", "q0"
-            );
+                "w"(_min), // %q4
+                "w"(_max)  // %q5
+                : "cc", "memory", "q0");
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
 
-        for (; remain>0; remain--)
-        {
+        for (; remain > 0; remain--) {
             if (*ptr < min)
                 *ptr = min;
 
@@ -144,18 +136,15 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (elempack == 4)
-    {
+    if (elempack == 4) {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             unsigned short* ptr = bottom_top_blob.channel(q);
 
             float32x4_t _max = vdupq_n_f32(max);
             float32x4_t _min = vdupq_n_f32(min);
 
-            for (int i=0; i<size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 float32x4_t _ptr = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                 _ptr = vmaxq_f32(_ptr, _min);
                 _ptr = vminq_f32(_ptr, _max);
@@ -170,8 +159,7 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
-    {
+    for (int q = 0; q < channels; q++) {
         unsigned short* ptr = bottom_top_blob.channel(q);
 
 #if __ARM_NEON
@@ -184,8 +172,7 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 #if __ARM_NEON
         float32x4_t _max = vdupq_n_f32(max);
         float32x4_t _min = vdupq_n_f32(min);
-        for (; nn>0; nn--)
-        {
+        for (; nn > 0; nn--) {
             float32x4_t _ptr = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
             _ptr = vmaxq_f32(_ptr, _min);
             _ptr = vminq_f32(_ptr, _max);
@@ -194,8 +181,7 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
         }
 #endif // __ARM_NEON
 
-        for (; remain>0; remain--)
-        {
+        for (; remain > 0; remain--) {
             float v = bfloat16_to_float32(*ptr);
             if (v < min)
                 v = min;

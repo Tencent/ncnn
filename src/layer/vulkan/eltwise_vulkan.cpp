@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "eltwise_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -43,16 +45,13 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage)
-    {
+    if (opt.use_fp16_storage) {
         elemsize = elempack * 2u;
     }
-    else if (opt.use_fp16_packed)
-    {
+    else if (opt.use_fp16_packed) {
         elemsize = elempack == 1 ? 4u : elempack * 2u;
     }
-    else
-    {
+    else {
         elemsize = elempack * 4u;
     }
 
@@ -71,28 +70,24 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     specializations[2 + 4].i = shape_packed.cstep;
 
     Mat local_size_xyz;
-    if (shape_packed.dims == 1)
-    {
+    if (shape_packed.dims == 1) {
         local_size_xyz.w = std::min(64, shape_packed.w);
         local_size_xyz.h = 1;
         local_size_xyz.c = 1;
     }
-    if (shape_packed.dims == 2)
-    {
+    if (shape_packed.dims == 2) {
         local_size_xyz.w = std::min(8, shape_packed.w);
         local_size_xyz.h = std::min(8, shape_packed.h);
         local_size_xyz.c = 1;
     }
-    if (shape_packed.dims == 3)
-    {
+    if (shape_packed.dims == 3) {
         local_size_xyz.w = std::min(4, shape_packed.w);
         local_size_xyz.h = std::min(4, shape_packed.h);
         local_size_xyz.c = std::min(4, shape_packed.c);
     }
 
     // pack1
-    if (shape.dims == 0 || elempack == 1)
-    {
+    if (shape.dims == 0 || elempack == 1) {
         pipeline_eltwise[0] = new Pipeline(vkdev);
         pipeline_eltwise[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_eltwise[0]->create(LayerShaderType::eltwise, opt, specializations);
@@ -102,8 +97,7 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack4
-    if (shape.dims == 0 || elempack == 4)
-    {
+    if (shape.dims == 0 || elempack == 4) {
         pipeline_eltwise_pack4[0] = new Pipeline(vkdev);
         pipeline_eltwise_pack4[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_eltwise_pack4[0]->create(LayerShaderType::eltwise_pack4, opt, specializations);
@@ -113,8 +107,7 @@ int Eltwise_vulkan::create_pipeline(const Option& opt)
     }
 
     // pack8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-    {
+    if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8) {
         pipeline_eltwise_pack8[0] = new Pipeline(vkdev);
         pipeline_eltwise_pack8[0]->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_eltwise_pack8[0]->create(LayerShaderType::eltwise_pack8, opt, specializations);
@@ -182,12 +175,11 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
-    for (size_t b=2; b<bottom_blobs.size(); b++)
-    {
+    for (size_t b = 2; b < bottom_blobs.size(); b++) {
         std::vector<VkMat> bindings(3);
         bindings[0] = top_blob;
         bindings[1] = bottom_blobs[b];
-        bindings[2] = top_blob;// TODO use separated pipeline ?
+        bindings[2] = top_blob; // TODO use separated pipeline ?
 
         std::vector<vk_constant_type> constants(5 + 2);
         constants[0].i = top_blob.dims;
@@ -198,9 +190,9 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         constants[5].f = 1.f;
         constants[6].f = coeffs.w == 0 ? 1 : coeffs[b];
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[b%2]
-                                   : elempack == 4 ? pipeline_eltwise_pack4[b%2]
-                                   : pipeline_eltwise[b%2];
+        const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[b % 2]
+                                   : elempack == 4 ? pipeline_eltwise_pack4[b % 2]
+                                   : pipeline_eltwise[b % 2];
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
@@ -234,7 +226,7 @@ int Eltwise_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     constants[1].i = top_blob.w;
     constants[2].i = top_blob.h;
     constants[3].i = top_blob.c;
-    constants[4].i = 0;//top_blob.cstep;
+    constants[4].i = 0; //top_blob.cstep;
     constants[5].f = coeffs.w == 0 ? 1.f : coeffs[0];
     constants[6].f = coeffs.w == 0 ? 1.f : coeffs[1];
 
@@ -244,25 +236,24 @@ int Eltwise_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
-    for (size_t b=2; b<bottom_blobs.size(); b++)
-    {
+    for (size_t b = 2; b < bottom_blobs.size(); b++) {
         std::vector<VkImageMat> bindings(3);
         bindings[0] = top_blob;
         bindings[1] = bottom_blobs[b];
-        bindings[2] = top_blob;// TODO use separated pipeline ?
+        bindings[2] = top_blob; // TODO use separated pipeline ?
 
         std::vector<vk_constant_type> constants(5 + 2);
         constants[0].i = top_blob.dims;
         constants[1].i = top_blob.w;
         constants[2].i = top_blob.h;
         constants[3].i = top_blob.c;
-        constants[4].i = 0;//top_blob.cstep;
+        constants[4].i = 0; //top_blob.cstep;
         constants[5].f = 1.f;
         constants[6].f = coeffs.w == 0 ? 1 : coeffs[b];
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[b%2]
-                                   : elempack == 4 ? pipeline_eltwise_pack4[b%2]
-                                   : pipeline_eltwise[b%2];
+        const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[b % 2]
+                                   : elempack == 4 ? pipeline_eltwise_pack4[b % 2]
+                                   : pipeline_eltwise[b % 2];
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }

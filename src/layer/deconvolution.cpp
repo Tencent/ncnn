@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "deconvolution.h"
-#include <algorithm>
+
 #include "layer_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -57,8 +59,7 @@ int Deconvolution::load_model(const ModelBin& mb)
     if (weight_data.empty())
         return -100;
 
-    if (bias_term)
-    {
+    if (bias_term) {
         bias_data = mb.load(num_output, 1);
         if (bias_data.empty())
             return -100;
@@ -77,7 +78,7 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
-//     NCNN_LOGE("Deconvolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
+    //     NCNN_LOGE("Deconvolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -86,12 +87,10 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     int outh = (h - 1) * stride_h + kernel_extent_h;
 
     Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
-    {
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0)) {
         top_blob_bordered.create(outw, outh, num_output, elemsize, opt.workspace_allocator);
     }
-    else
-    {
+    else {
         top_blob_bordered = top_blob;
         top_blob_bordered.create(outw, outh, num_output, elemsize, opt.blob_allocator);
     }
@@ -107,10 +106,8 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         int p1 = 0;
         int p2 = 0;
         int gap = outw * dilation_h - kernel_w * dilation_w;
-        for (int i = 0; i < kernel_h; i++)
-        {
-            for (int j = 0; j < kernel_w; j++)
-            {
+        for (int i = 0; i < kernel_h; i++) {
+            for (int j = 0; j < kernel_w; j++) {
                 space_ofs[p1] = p2;
                 p1++;
                 p2 += dilation_w;
@@ -119,34 +116,29 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         }
     }
 
-    // num_output
+// num_output
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<num_output; p++)
-    {
+    for (int p = 0; p < num_output; p++) {
         Mat out = top_blob_bordered.channel(p);
 
         const float bias = bias_term ? bias_data[p] : 0.f;
 
         out.fill(bias);
 
-        for (int i = 0; i < h; i++)
-        {
-            for (int j = 0; j < w; j++)
-            {
-                float* outptr = out.row(i*stride_h) + j*stride_w;
+        for (int i = 0; i < h; i++) {
+            for (int j = 0; j < w; j++) {
+                float* outptr = out.row(i * stride_h) + j * stride_w;
 
                 const float* kptr = (const float*)weight_data + maxk * channels * p;
 
                 // channels
-                for (int q=0; q<channels; q++)
-                {
+                for (int q = 0; q < channels; q++) {
                     const Mat m = bottom_blob.channel(q);
                     float val = *(m.row(i) + j);
 
-                    for (int k = 0; k < maxk; k++)
-                    {
+                    for (int k = 0; k < maxk; k++) {
                         float w = kptr[k];
-                        outptr[ space_ofs[k] ] += val * w;
+                        outptr[space_ofs[k]] += val * w;
                     }
 
                     kptr += maxk;
@@ -154,59 +146,49 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
             }
         }
 
-        if (activation_type == 1)
-        {
+        if (activation_type == 1) {
             float* outptr = out;
             int size = outw * outh;
 
-            for (int i = 0; i < size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 outptr[i] = std::max(outptr[i], 0.f);
             }
         }
-        else if (activation_type == 2)
-        {
+        else if (activation_type == 2) {
             float* outptr = out;
             int size = outw * outh;
             float slope = activation_params[0];
 
-            for (int i = 0; i < size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 outptr[i] = outptr[i] > 0.f ? outptr[i] : outptr[i] * slope;
             }
         }
-        else if (activation_type == 3)
-        {
+        else if (activation_type == 3) {
             float* outptr = out;
             int size = outw * outh;
             float min = activation_params[0];
             float max = activation_params[1];
 
-            for (int i = 0; i < size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 if (outptr[i] < min)
                     outptr[i] = min;
                 if (outptr[i] > max)
                     outptr[i] = max;
             }
         }
-        else if (activation_type == 4)
-        {
+        else if (activation_type == 4) {
             float* outptr = out;
             int size = outw * outh;
 
-            for (int i = 0; i < size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 outptr[i] = static_cast<float>(1.f / (1.f + exp(-outptr[i])));
             }
         }
     }
 
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
-    {
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0) {
         Mat top_blob_bordered_adj = top_blob_bordered;
-        if (output_pad_right > 0 || output_pad_bottom > 0)
-        {
+        if (output_pad_right > 0 || output_pad_bottom > 0) {
             Option opt_b = opt;
             opt_b.blob_allocator = opt.workspace_allocator;
             copy_make_border(top_blob_bordered, top_blob_bordered_adj, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt_b);
@@ -221,11 +203,9 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         outw = top_blob.w;
         outh = top_blob.h;
     }
-    else if (output_w > 0 && output_h > 0)
-    {
+    else if (output_w > 0 && output_h > 0) {
         Mat top_blob_bordered_adj = top_blob_bordered;
-        if (output_pad_right > 0 || output_pad_bottom > 0)
-        {
+        if (output_pad_right > 0 || output_pad_bottom > 0) {
             Option opt_b = opt;
             opt_b.blob_allocator = opt.workspace_allocator;
             copy_make_border(top_blob_bordered, top_blob_bordered_adj, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt_b);
@@ -236,13 +216,11 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         int wcut = top_blob_bordered_adj.w - output_w;
         int hcut = top_blob_bordered_adj.h - output_h;
 
-        if (pad_left == -233 || pad_right == -233 || pad_top == -233 || pad_bottom == -233)
-        {
+        if (pad_left == -233 || pad_right == -233 || pad_top == -233 || pad_bottom == -233) {
             // onnx padding=SAME_UPPER
             copy_cut_border(top_blob_bordered_adj, top_blob, hcut / 2, hcut - hcut / 2, wcut / 2, wcut - wcut / 2, opt);
         }
-        else if (pad_left == -234 || pad_right == -234 || pad_top == -234 || pad_bottom == -234)
-        {
+        else if (pad_left == -234 || pad_right == -234 || pad_top == -234 || pad_bottom == -234) {
             // onnx padding=SAME_LOWER
             copy_cut_border(top_blob_bordered_adj, top_blob, hcut - hcut / 2, hcut / 2, wcut - wcut / 2, wcut / 2, opt);
         }
@@ -252,16 +230,13 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         outw = top_blob.w;
         outh = top_blob.h;
     }
-    else
-    {
-        if (output_pad_right > 0 || output_pad_bottom > 0)
-        {
+    else {
+        if (output_pad_right > 0 || output_pad_bottom > 0) {
             copy_make_border(top_blob_bordered, top_blob, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt);
             if (top_blob.empty())
                 return -100;
         }
-        else
-        {
+        else {
             top_blob = top_blob_bordered;
         }
     }

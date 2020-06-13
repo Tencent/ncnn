@@ -12,16 +12,15 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/reshape.h"
+#include "testutil.h"
 
 static int test_reshape(const ncnn::Mat& a, int outw, int outh, int outc)
 {
     ncnn::ParamDict pd;
-    pd.set(0, outw);// w
-    pd.set(1, outh);// h
-    pd.set(2, outc);// c
+    pd.set(0, outw); // w
+    pd.set(1, outh); // h
+    pd.set(2, outc); // c
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -31,8 +30,7 @@ static int test_reshape(const ncnn::Mat& a, int outw, int outh, int outc)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Reshape>("Reshape", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_reshape failed a.dims=%d a=(%d %d %d) outw=%d outh=%d outc=%d\n", a.dims, a.w, a.h, a.c, outw, outh, outc);
     }
 
@@ -52,8 +50,7 @@ static int test_reshape_0()
            || test_reshape(a, -1, 4, -233)
            || test_reshape(a, 8, -1, -233)
            || test_reshape(a, 16, 21, -233)
-           || test_reshape(a, -1, -233, -233)
-           ;
+           || test_reshape(a, -1, -233, -233);
 }
 
 static int test_reshape_1()
@@ -69,8 +66,7 @@ static int test_reshape_1()
            || test_reshape(a, -1, 4, -233)
            || test_reshape(a, 8, -1, -233)
            || test_reshape(a, 8, 91, -233)
-           || test_reshape(a, -1, -233, -233)
-           ;
+           || test_reshape(a, -1, -233, -233);
 }
 
 static int test_reshape_2()
@@ -86,8 +82,7 @@ static int test_reshape_2()
            || test_reshape(a, 28, 8, -233)
            || test_reshape(a, -1, 7, -233)
            || test_reshape(a, 16, -1, -233)
-           || test_reshape(a, -1, -233, -233)
-           ;
+           || test_reshape(a, -1, -233, -233);
 }
 
 static int test_reshape_3()
@@ -103,8 +98,7 @@ static int test_reshape_3()
            || test_reshape(a, 21, 8, -233)
            || test_reshape(a, -1, 7, -233)
            || test_reshape(a, 3, -1, -233)
-           || test_reshape(a, -1, -233, -233)
-           ;
+           || test_reshape(a, -1, -233, -233);
 }
 
 static int test_reshape_4()
@@ -120,8 +114,7 @@ static int test_reshape_4()
            || test_reshape(a, 4, 30, -233)
            || test_reshape(a, -1, 2, -233)
            || test_reshape(a, 24, -1, -233)
-           || test_reshape(a, -1, -233, -233)
-           ;
+           || test_reshape(a, -1, -233, -233);
 }
 
 static int test_reshape_5()
@@ -137,8 +130,7 @@ static int test_reshape_5()
            || test_reshape(a, 6, 35, -233)
            || test_reshape(a, -1, 7, -233)
            || test_reshape(a, 21, -1, -233)
-           || test_reshape(a, -1, -233, -233)
-           ;
+           || test_reshape(a, -1, -233, -233);
 }
 
 int main()
@@ -151,6 +143,5 @@ int main()
            || test_reshape_2()
            || test_reshape_3()
            || test_reshape_4()
-           || test_reshape_5()
-           ;
+           || test_reshape_5();
 }

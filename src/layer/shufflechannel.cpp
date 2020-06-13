@@ -39,8 +39,7 @@ int ShuffleChannel::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
     size_t elemsize = bottom_blob.elemsize;
     int chs_per_group = c / group;
 
-    if (c != chs_per_group * group)
-    {
+    if (c != chs_per_group * group) {
         // reject invalid group
         return -100;
     }
@@ -50,10 +49,8 @@ int ShuffleChannel::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
         return -100;
 
     const size_t feature_sz = w * h * elemsize;
-    for (int i = 0; i != group; i++)
-    {
-        for (int j = 0; j != chs_per_group; j++)
-        {
+    for (int i = 0; i != group; i++) {
+        for (int j = 0; j != chs_per_group; j++) {
             int src_q = chs_per_group * i + j;
             int dst_q = group * j + i;
             memcpy(top_blob.channel(dst_q), bottom_blob.channel(src_q), feature_sz);

@@ -12,22 +12,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/crop.h"
+#include "testutil.h"
 
 static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int coffset, int outw, int outh, int outc, int woffset2, int hoffset2, int coffset2)
 {
     ncnn::ParamDict pd;
-    pd.set(0, woffset);// woffset
-    pd.set(1, hoffset);// hoffset
-    pd.set(2, coffset);// coffset
-    pd.set(3, outw);// outw
-    pd.set(4, outh);// outh
-    pd.set(5, outc);// outc
-    pd.set(6, woffset2);// woffset2
-    pd.set(7, hoffset2);// hoffset2
-    pd.set(8, coffset2);// coffset2
+    pd.set(0, woffset);  // woffset
+    pd.set(1, hoffset);  // hoffset
+    pd.set(2, coffset);  // coffset
+    pd.set(3, outw);     // outw
+    pd.set(4, outh);     // outh
+    pd.set(5, outc);     // outc
+    pd.set(6, woffset2); // woffset2
+    pd.set(7, hoffset2); // hoffset2
+    pd.set(8, coffset2); // coffset2
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -37,8 +36,7 @@ static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int coffset, 
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Crop>("Crop", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_crop failed a.dims=%d a=(%d %d %d) woffset=%d hoffset=%d coffset=%d outw=%d outh=%d outc=%d woffset2=%d hoffset2=%d coffset2=%d\n", a.dims, a.w, a.h, a.c, woffset, hoffset, coffset, outw, outh, outc, woffset2, hoffset2, coffset2);
     }
 
@@ -77,8 +75,7 @@ static void print_int_array(const ncnn::Mat& a)
     const int* pa = a;
 
     fprintf(stderr, "[");
-    for (int i=0; i<a.w; i++)
-    {
+    for (int i = 0; i < a.w; i++) {
         fprintf(stderr, " %d", pa[i]);
     }
     fprintf(stderr, " ]");
@@ -87,9 +84,9 @@ static void print_int_array(const ncnn::Mat& a)
 static int test_crop(const ncnn::Mat& a, const ncnn::Mat& starts, const ncnn::Mat& ends, const ncnn::Mat& axes)
 {
     ncnn::ParamDict pd;
-    pd.set(9, starts);// starts
-    pd.set(10, ends);// ends
-    pd.set(11, axes);// axes
+    pd.set(9, starts); // starts
+    pd.set(10, ends);  // ends
+    pd.set(11, axes);  // axes
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -99,8 +96,7 @@ static int test_crop(const ncnn::Mat& a, const ncnn::Mat& starts, const ncnn::Ma
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Crop>("Crop", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_crop failed a.dims=%d a=(%d %d %d)", a.dims, a.w, a.h, a.c);
         fprintf(stderr, " starts=");
         print_int_array(starts);
@@ -128,8 +124,7 @@ static int test_crop_0()
            || test_crop(a, 5, 3, 6, 2, 7, 9, 0, 0, 0)
            || test_crop(a, 0, 3, 4, -233, 4, 5, 0, 0, 0)
            || test_crop(a, 5, 0, 5, 6, 6, 8, 0, 0, 0)
-           || test_crop(a, 5, 3, 6, 4, 4, 4, 0, 0, 0)
-           ;
+           || test_crop(a, 5, 3, 6, 4, 4, 4, 0, 0, 0);
 }
 
 static int test_crop_1()
@@ -144,8 +139,7 @@ static int test_crop_1()
            || test_crop(a, 0, 3, 4, 7, -233, 8, 3, 4, 4)
            || test_crop(a, 5, 0, 5, 4, -233, 4, 0, 3, 0)
            || test_crop(a, 5, 3, 6, 2, 7, 9, 1, 2, 3)
-           || test_crop(a, 0, 3, 4, -233, 4, 5, 3, 2, 1)
-           ;
+           || test_crop(a, 0, 3, 4, -233, 4, 5, 3, 2, 1);
 }
 
 static int test_crop_2()
@@ -160,8 +154,7 @@ static int test_crop_2()
            || test_crop(a, 0, 3, 4, 7, -233, 8, 3, 4, 4)
            || test_crop(a, 5, 0, 5, 4, -233, 4, 0, 3, 0)
            || test_crop(a, 5, 3, 6, 2, 7, 9, 1, 2, 3)
-           || test_crop(a, 0, 3, 4, -233, 4, 5, 3, 2, 1)
-           ;
+           || test_crop(a, 0, 3, 4, -233, 4, 5, 3, 2, 1);
 }
 
 static int test_crop_3()
@@ -176,8 +169,7 @@ static int test_crop_3()
            || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(0, 1))
            || test_crop(a, IntArrayMat(1, 4), IntArrayMat(-5, 7), IntArrayMat(1, -3))
            || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(-1, -2))
-           || test_crop(a, IntArrayMat(1, 2, 3), IntArrayMat(-3, -2, -1), IntArrayMat(-3, -2, -1))
-           ;
+           || test_crop(a, IntArrayMat(1, 2, 3), IntArrayMat(-3, -2, -1), IntArrayMat(-3, -2, -1));
 }
 
 static int test_crop_4()
@@ -192,8 +184,7 @@ static int test_crop_4()
            || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(0, 1))
            || test_crop(a, IntArrayMat(1, 4), IntArrayMat(-5, 7), IntArrayMat(1, -3))
            || test_crop(a, IntArrayMat(2, 1), IntArrayMat(4, -2), IntArrayMat(-1, -2))
-           || test_crop(a, IntArrayMat(1, 2, 3), IntArrayMat(-3, -2, -1), IntArrayMat(-3, -2, -1))
-           ;
+           || test_crop(a, IntArrayMat(1, 2, 3), IntArrayMat(-3, -2, -1), IntArrayMat(-3, -2, -1));
 }
 
 int main()
@@ -205,6 +196,5 @@ int main()
            || test_crop_1()
            || test_crop_2()
            || test_crop_3()
-           || test_crop_4()
-           ;
+           || test_crop_4();
 }

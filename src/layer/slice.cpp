@@ -42,11 +42,9 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
         int w = bottom_blob.w;
 
         int q = 0;
-        for (size_t i=0; i<top_blobs.size(); i++)
-        {
+        for (size_t i = 0; i < top_blobs.size(); i++) {
             int slice = slices_ptr[i];
-            if (slice == -233)
-            {
+            if (slice == -233) {
                 slice = static_cast<int>((w - q) / (top_blobs.size() - i));
             }
 
@@ -65,17 +63,14 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
         return 0;
     }
 
-    if (dims == 2 && axis == 0)
-    {
+    if (dims == 2 && axis == 0) {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
 
         int q = 0;
-        for (size_t i=0; i<top_blobs.size(); i++)
-        {
+        for (size_t i = 0; i < top_blobs.size(); i++) {
             int slice = slices_ptr[i];
-            if (slice == -233)
-            {
+            if (slice == -233) {
                 slice = static_cast<int>((h - q) / (top_blobs.size() - i));
             }
 
@@ -96,17 +91,14 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
         return 0;
     }
 
-    if (dims == 2 && axis == 1)
-    {
+    if (dims == 2 && axis == 1) {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
 
         int q = 0;
-        for (size_t i=0; i<top_blobs.size(); i++)
-        {
+        for (size_t i = 0; i < top_blobs.size(); i++) {
             int slice = slices_ptr[i];
-            if (slice == -233)
-            {
+            if (slice == -233) {
                 slice = static_cast<int>((w - q) / (top_blobs.size() - i));
             }
 
@@ -116,8 +108,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int j=0; j<h; j++)
-            {
+            for (int j = 0; j < h; j++) {
                 unsigned char* outptr = top_blob.row<unsigned char>(j);
                 const unsigned char* ptr = bottom_blob.row<const unsigned char>(j) + q * elemsize;
                 memcpy(outptr, ptr, slice * elemsize);
@@ -129,18 +120,15 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
         return 0;
     }
 
-    if (dims == 3 && axis == 0)
-    {
+    if (dims == 3 && axis == 0) {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
         int channels = bottom_blob.c;
 
         int q = 0;
-        for (size_t i=0; i<top_blobs.size(); i++)
-        {
+        for (size_t i = 0; i < top_blobs.size(); i++) {
             int slice = slices_ptr[i];
-            if (slice == -233)
-            {
+            if (slice == -233) {
                 slice = static_cast<int>((channels - q) / (top_blobs.size() - i));
             }
 
@@ -161,18 +149,15 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
         return 0;
     }
 
-    if (dims == 3 && axis == 1)
-    {
+    if (dims == 3 && axis == 1) {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
         int channels = bottom_blob.c;
 
         int q = 0;
-        for (size_t i=0; i<top_blobs.size(); i++)
-        {
+        for (size_t i = 0; i < top_blobs.size(); i++) {
             int slice = slices_ptr[i];
-            if (slice == -233)
-            {
+            if (slice == -233) {
                 slice = static_cast<int>((h - q) / (top_blobs.size() - i));
             }
 
@@ -182,8 +167,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p=0; p<channels; p++)
-            {
+            for (int p = 0; p < channels; p++) {
                 int size = w * slice;
 
                 unsigned char* outptr = top_blob.channel(p);
@@ -197,18 +181,15 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
         return 0;
     }
 
-    if (dims == 3 && axis == 2)
-    {
+    if (dims == 3 && axis == 2) {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
         int channels = bottom_blob.c;
 
         int q = 0;
-        for (size_t i=0; i<top_blobs.size(); i++)
-        {
+        for (size_t i = 0; i < top_blobs.size(); i++) {
             int slice = slices_ptr[i];
-            if (slice == -233)
-            {
+            if (slice == -233) {
                 slice = static_cast<int>((w - q) / (top_blobs.size() - i));
             }
 
@@ -218,13 +199,11 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p=0; p<channels; p++)
-            {
+            for (int p = 0; p < channels; p++) {
                 unsigned char* outptr = top_blob.channel(p);
                 const Mat m = bottom_blob.channel(p);
 
-                for (int j=0; j<h; j++)
-                {
+                for (int j = 0; j < h; j++) {
                     const unsigned char* ptr = m.row<const unsigned char>(j) + q * elemsize;
                     memcpy(outptr, ptr, slice * elemsize);
 

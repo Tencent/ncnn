@@ -18,14 +18,14 @@
 
 #include <cstdio>
 #include <cstring>
-#include <vector>
-#include <set>
 #include <map>
+#include <set>
+#include <vector>
 
 // ncnn public header
-#include "net.h"
 #include "layer.h"
 #include "layer_type.h"
+#include "net.h"
 
 // ncnn private header
 #include "layer/batchnorm.h"
@@ -72,14 +72,13 @@
 #include "layer/roialign.h"
 #include "layer/roipooling.h"
 #include "layer/scale.h"
-#include "layer/slice.h"
 #include "layer/shufflechannel.h"
+#include "layer/slice.h"
 #include "layer/softmax.h"
 #include "layer/threshold.h"
 #include "layer/unaryop.h"
 #include "layer/yolodetectionoutput.h"
 #include "layer/yolov3detectionoutput.h"
-
 
 static bool read_int8scale_table(const char* filepath, std::map<std::string, std::vector<float> >& blob_int8scale_table, std::map<std::string, std::vector<float> >& weight_int8scale_table)
 {
@@ -87,8 +86,7 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
     weight_int8scale_table.clear();
 
     FILE* fp = fopen(filepath, "rb");
-    if (!fp)
-    {
+    if (!fp) {
         fprintf(stderr, "Open %s failed.\n", filepath);
         return false;
     }
@@ -96,12 +94,11 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
     std::string key_str;
     std::vector<float> scales;
 
-    std::vector<char>line(102400);
-    char *pch = NULL;
+    std::vector<char> line(102400);
+    char* pch = NULL;
     size_t len = 0;
 
-    while (NULL != std::fgets(line.data(), static_cast<int>(line.size()), fp))
-    {
+    while (NULL != std::fgets(line.data(), static_cast<int>(line.size()), fp)) {
         float scale = 1.f;
         char key[256];
         line[strcspn(line.data(), "\r\n")] = 0;
@@ -111,17 +108,14 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
         if (pch == NULL) break;
 
         bool is_key = true;
-        while (pch != NULL)
-        {
-            if (is_key)
-            {
+        while (pch != NULL) {
+            if (is_key) {
                 sscanf(pch, "%255s", key);
 
                 key_str = key;
                 is_key = false;
             }
-            else
-            {
+            else {
                 sscanf(pch, "%f", &scale);
 
                 scales.push_back(scale);
@@ -131,12 +125,10 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
         }
 
         // XYZ_param_N pattern
-        if (strstr(key_str.c_str(), "_param_"))
-        {
+        if (strstr(key_str.c_str(), "_param_")) {
             weight_int8scale_table[key_str] = scales;
         }
-        else
-        {
+        else {
             blob_int8scale_table[key_str] = scales;
         }
         key_str.clear();
@@ -174,8 +166,7 @@ public:
 int NetQuantize::quantize_convolution()
 {
     const int layer_count = static_cast<int>(layers.size());
-    for (int i = 0; i < layer_count; i++)
-    {
+    for (int i = 0; i < layer_count; i++) {
         // find convoultion layer
         if (layers[i]->type != "Convolution")
             continue;
@@ -189,8 +180,7 @@ int NetQuantize::quantize_convolution()
         sprintf(key, "%s_param_0", layers[i]->name.c_str());
 
         std::map<std::string, std::vector<float> >::iterator iter = weight_int8scale_table.find(key);
-        if (iter == weight_int8scale_table.end())
-        {
+        if (iter == weight_int8scale_table.end()) {
             fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
             return -1;
         }
@@ -210,12 +200,11 @@ int NetQuantize::quantize_convolution()
             const int weight_data_size_output = convolution->weight_data_size / convolution->num_output;
 
             // quantize weight to int8
-            for (int n = 0; n < convolution->num_output; n++)
-            {
+            for (int n = 0; n < convolution->num_output; n++) {
                 ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
 
                 ncnn::ParamDict pd;
-                pd.set(0, weight_data_int8_scales[n]);// scale
+                pd.set(0, weight_data_int8_scales[n]); // scale
 
                 op->load_param(pd);
 
@@ -241,8 +230,7 @@ int NetQuantize::quantize_convolution()
 int NetQuantize::quantize_convolutiondepthwise()
 {
     const int layer_count = static_cast<int>(layers.size());
-    for (int i = 0; i < layer_count; i++)
-    {
+    for (int i = 0; i < layer_count; i++) {
         // find convoultion layer
         if (layers[i]->type != "ConvolutionDepthWise")
             continue;
@@ -256,8 +244,7 @@ int NetQuantize::quantize_convolutiondepthwise()
         sprintf(key, "%s_param_0", layers[i]->name.c_str());
 
         std::map<std::string, std::vector<float> >::iterator iter = weight_int8scale_table.find(key);
-        if (iter == weight_int8scale_table.end())
-        {
+        if (iter == weight_int8scale_table.end()) {
             fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
             return -1;
         }
@@ -277,12 +264,11 @@ int NetQuantize::quantize_convolutiondepthwise()
             const int weight_data_size_output = convdw->weight_data_size / convdw->group;
 
             // quantize weight to int8
-            for (int n = 0; n < convdw->group; n++)
-            {
+            for (int n = 0; n < convdw->group; n++) {
                 ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
 
                 ncnn::ParamDict pd;
-                pd.set(0, weight_data_int8_scales[n]);// scale
+                pd.set(0, weight_data_int8_scales[n]); // scale
 
                 op->load_param(pd);
 
@@ -308,8 +294,7 @@ int NetQuantize::quantize_convolutiondepthwise()
 int NetQuantize::quantize_innerproduct()
 {
     const int layer_count = static_cast<int>(layers.size());
-    for (int i = 0; i < layer_count; i++)
-    {
+    for (int i = 0; i < layer_count; i++) {
         // find convoultion layer
         if (layers[i]->type != "InnerProduct")
             continue;
@@ -323,8 +308,7 @@ int NetQuantize::quantize_innerproduct()
         sprintf(key, "%s_param_0", layers[i]->name.c_str());
 
         std::map<std::string, std::vector<float> >::iterator iter = weight_int8scale_table.find(key);
-        if (iter == weight_int8scale_table.end())
-        {
+        if (iter == weight_int8scale_table.end()) {
             fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
             return -1;
         }
@@ -344,12 +328,11 @@ int NetQuantize::quantize_innerproduct()
             const int weight_data_size_output = fc->weight_data_size / fc->num_output;
 
             // quantize weight to int8
-            for (int n = 0; n < fc->num_output; n++)
-            {
+            for (int n = 0; n < fc->num_output; n++) {
                 ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
 
                 ncnn::ParamDict pd;
-                pd.set(0, weight_data_int8_scales[n]);// scale
+                pd.set(0, weight_data_int8_scales[n]); // scale
 
                 op->load_param(pd);
 
@@ -378,8 +361,7 @@ int NetQuantize::fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp)
     const int* ptr = m;
 
     fprintf(pp, " -%d=%d", 23300 + id, count);
-    for (int i = 0; i < count; i++)
-    {
+    for (int i = 0; i < count; i++) {
         fprintf(pp, ",%d", ptr[i]);
     }
 
@@ -392,8 +374,7 @@ int NetQuantize::fprintf_param_float_array(int id, const ncnn::Mat& m, FILE* pp)
     const float* ptr = m;
 
     fprintf(pp, " -%d=%d", 23300 + id, count);
-    for (int i = 0; i < count; i++)
-    {
+    for (int i = 0; i < count; i++) {
         fprintf(pp, ",%f", ptr[i]);
     }
 
@@ -420,7 +401,7 @@ int NetQuantize::fwrite_weight_tag_data(int tag, const ncnn::Mat& data, FILE* bp
     // padding to 32bit align
     int nwrite = ftell(bp) - p0;
     int nalign = static_cast<int>(alignSize(nwrite, 4));
-    unsigned char padding[4] = { 0x00, 0x00, 0x00, 0x00 };
+    unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
 
     return 0;
@@ -436,7 +417,7 @@ int NetQuantize::fwrite_weight_data(const ncnn::Mat& data, FILE* bp)
     // padding to 32bit align
     int nwrite = ftell(bp) - p0;
     int nalign = static_cast<int>(alignSize(nwrite, 4));
-    unsigned char padding[4] = { 0x00, 0x00, 0x00, 0x00 };
+    unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
 
     return 0;
@@ -453,8 +434,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
 
     int layer_count_fused = 0;
     std::set<std::string> blob_names;
-    for (int i = 0; i < layer_count; i++)
-    {
+    for (int i = 0; i < layer_count; i++) {
         const ncnn::Layer* layer = layers[i];
         if (layer->type == "ncnnfused")
             continue;
@@ -462,15 +442,13 @@ int NetQuantize::save(const char* parampath, const char* binpath)
         layer_count_fused++;
 
         int bottom_count = static_cast<int>(layer->bottoms.size());
-        for (int j = 0; j < bottom_count; j++)
-        {
+        for (int j = 0; j < bottom_count; j++) {
             int bottom_blob_index = layer->bottoms[j];
             blob_names.insert(blobs[bottom_blob_index].name);
         }
 
         int top_count = static_cast<int>(layer->tops.size());
-        for (int j = 0; j < top_count; j++)
-        {
+        for (int j = 0; j < top_count; j++) {
             int top_blob_index = layer->tops[j];
             blob_names.insert(blobs[top_blob_index].name);
         }
@@ -480,8 +458,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
 
     fprintf(pp, "%d %d\n", layer_count_fused, blob_count_fused);
 
-    for (int i = 0; i < layer_count; i++)
-    {
+    for (int i = 0; i < layer_count; i++) {
         const ncnn::Layer* layer = layers[i];
         if (layer->type == "ncnnfused")
             continue;
@@ -491,13 +468,11 @@ int NetQuantize::save(const char* parampath, const char* binpath)
 
         fprintf(pp, "%-24s %-24s %d %d", layer->type.c_str(), layer->name.c_str(), bottom_count, top_count);
 
-        for (int j = 0; j < bottom_count; j++)
-        {
+        for (int j = 0; j < bottom_count; j++) {
             int bottom_blob_index = layer->bottoms[j];
             fprintf(pp, " %s", blobs[bottom_blob_index].name.c_str());
         }
-        for (int j = 0; j < top_count; j++)
-        {
+        for (int j = 0; j < top_count; j++) {
             int top_blob_index = layer->tops[j];
             fprintf(pp, " %s", blobs[top_blob_index].name.c_str());
         }
@@ -507,11 +482,12 @@ int NetQuantize::save(const char* parampath, const char* binpath)
         ncnn::ParamDict pd;
         layer_default->load_param(pd);
 
-#define fprintf_param_value(format, phase) \
-        { if (op->phase != op_default->phase) fprintf(pp, format, op->phase); }
+#define fprintf_param_value(format, phase)                                  \
+    {                                                                       \
+        if (op->phase != op_default->phase) fprintf(pp, format, op->phase); \
+    }
 
-        if (layer->type == "BatchNorm")
-        {
+        if (layer->type == "BatchNorm") {
             ncnn::BatchNorm* op = (ncnn::BatchNorm*)layer;
             ncnn::BatchNorm* op_default = (ncnn::BatchNorm*)layer_default;
 
@@ -523,8 +499,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->var_data, bp);
             fwrite_weight_data(op->bias_data, bp);
         }
-        else if (layer->type == "Bias")
-        {
+        else if (layer->type == "Bias") {
             ncnn::Bias* op = (ncnn::Bias*)layer;
             ncnn::Bias* op_default = (ncnn::Bias*)layer_default;
 
@@ -532,8 +507,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
 
             fwrite_weight_data(op->bias_data, bp);
         }
-        else if (layer->type == "BinaryOp")
-        {
+        else if (layer->type == "BinaryOp") {
             ncnn::BinaryOp* op = (ncnn::BinaryOp*)layer;
             ncnn::BinaryOp* op_default = (ncnn::BinaryOp*)layer_default;
 
@@ -541,23 +515,20 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", with_scalar)
             fprintf_param_value(" 2=%f", b)
         }
-        else if (layer->type == "Clip")
-        {
+        else if (layer->type == "Clip") {
             ncnn::Clip* op = (ncnn::Clip*)layer;
             ncnn::Clip* op_default = (ncnn::Clip*)layer_default;
 
             fprintf_param_value(" 0=%f", min)
             fprintf_param_value(" 1=%f", max)
         }
-        else if (layer->type == "Concat")
-        {
+        else if (layer->type == "Concat") {
             ncnn::Concat* op = (ncnn::Concat*)layer;
             ncnn::Concat* op_default = (ncnn::Concat*)layer_default;
 
             fprintf_param_value(" 0=%d", axis)
         }
-        else if (layer->type == "Convolution")
-        {
+        else if (layer->type == "Convolution") {
             ncnn::Convolution* op = (ncnn::Convolution*)layer;
             ncnn::Convolution* op_default = (ncnn::Convolution*)layer_default;
 
@@ -596,21 +567,18 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->bias_data, bp);
 
             // write int8_scale data
-            if (op->int8_scale_term)
-            {
+            if (op->int8_scale_term) {
                 std::vector<float> weight_int8scale;
                 std::vector<float> blob_int8scale;
 
                 char key[256];
                 sprintf(key, "%s_param_0", layers[i]->name.c_str());
 
-                if (weight_int8scale_table.find(std::string(key)) != weight_int8scale_table.end())
-                {
+                if (weight_int8scale_table.find(std::string(key)) != weight_int8scale_table.end()) {
                     weight_int8scale = weight_int8scale_table[std::string(key)];
                 }
 
-                if (blob_int8scale_table.find(layer->name) != blob_int8scale_table.end())
-                {
+                if (blob_int8scale_table.find(layer->name) != blob_int8scale_table.end()) {
                     blob_int8scale = blob_int8scale_table[layer->name];
                 }
 
@@ -619,8 +587,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
                 fwrite(blob_int8scale.data(), sizeof(float), blob_int8scale.size(), bp);
             }
         }
-        else if (layer->type == "ConvolutionDepthWise")
-        {
+        else if (layer->type == "ConvolutionDepthWise") {
             ncnn::ConvolutionDepthWise* op = (ncnn::ConvolutionDepthWise*)layer;
             ncnn::ConvolutionDepthWise* op_default = (ncnn::ConvolutionDepthWise*)layer_default;
 
@@ -660,21 +627,18 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->bias_data, bp);
 
             // write int8_scale data
-            if (op->int8_scale_term)
-            {
+            if (op->int8_scale_term) {
                 std::vector<float> weight_int8scale;
                 std::vector<float> blob_int8scale;
 
                 char key[256];
                 sprintf(key, "%s_param_0", layers[i]->name.c_str());
 
-                if (weight_int8scale_table.find(std::string(key)) != weight_int8scale_table.end())
-                {
+                if (weight_int8scale_table.find(std::string(key)) != weight_int8scale_table.end()) {
                     weight_int8scale = weight_int8scale_table[std::string(key)];
                 }
 
-                if (blob_int8scale_table.find(layer->name) != blob_int8scale_table.end())
-                {
+                if (blob_int8scale_table.find(layer->name) != blob_int8scale_table.end()) {
                     blob_int8scale = blob_int8scale_table[layer->name];
                 }
 
@@ -683,8 +647,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
                 fwrite(blob_int8scale.data(), sizeof(float), blob_int8scale.size(), bp);
             }
         }
-        else if (layer->type == "Crop")
-        {
+        else if (layer->type == "Crop") {
             ncnn::Crop* op = (ncnn::Crop*)layer;
             ncnn::Crop* op_default = (ncnn::Crop*)layer_default;
 
@@ -707,8 +670,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
                 if (!op->axes.empty()) fprintf_param_int_array(11, op->axes, pp);
             }
         }
-        else if (layer->type == "Deconvolution")
-        {
+        else if (layer->type == "Deconvolution") {
             ncnn::Deconvolution* op = (ncnn::Deconvolution*)layer;
             ncnn::Deconvolution* op_default = (ncnn::Deconvolution*)layer_default;
 
@@ -745,8 +707,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
         }
-        else if (layer->type == "DeconvolutionDepthWise")
-        {
+        else if (layer->type == "DeconvolutionDepthWise") {
             ncnn::DeconvolutionDepthWise* op = (ncnn::DeconvolutionDepthWise*)layer;
             ncnn::DeconvolutionDepthWise* op_default = (ncnn::DeconvolutionDepthWise*)layer_default;
 
@@ -784,8 +745,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
         }
-        else if (layer->type == "DetectionOutput")
-        {
+        else if (layer->type == "DetectionOutput") {
             ncnn::DetectionOutput* op = (ncnn::DetectionOutput*)layer;
             ncnn::DetectionOutput* op_default = (ncnn::DetectionOutput*)layer_default;
 
@@ -799,15 +759,13 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 7=%f", variances[2])
             fprintf_param_value(" 8=%f", variances[3])
         }
-        else if (layer->type == "Dropout")
-        {
+        else if (layer->type == "Dropout") {
             ncnn::Dropout* op = (ncnn::Dropout*)layer;
             ncnn::Dropout* op_default = (ncnn::Dropout*)layer_default;
 
             fprintf_param_value(" 0=%f", scale)
         }
-        else if (layer->type == "Eltwise")
-        {
+        else if (layer->type == "Eltwise") {
             ncnn::Eltwise* op = (ncnn::Eltwise*)layer;
             ncnn::Eltwise* op_default = (ncnn::Eltwise*)layer_default;
 
@@ -816,15 +774,13 @@ int NetQuantize::save(const char* parampath, const char* binpath)
                 if (!op->coeffs.empty()) fprintf_param_float_array(1, op->coeffs, pp);
             }
         }
-        else if (layer->type == "ELU")
-        {
+        else if (layer->type == "ELU") {
             ncnn::ELU* op = (ncnn::ELU*)layer;
             ncnn::ELU* op_default = (ncnn::ELU*)layer_default;
 
             fprintf_param_value(" 0=%f", alpha)
         }
-        else if (layer->type == "Exp")
-        {
+        else if (layer->type == "Exp") {
             ncnn::Exp* op = (ncnn::Exp*)layer;
             ncnn::Exp* op_default = (ncnn::Exp*)layer_default;
 
@@ -832,8 +788,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%f", scale)
             fprintf_param_value(" 2=%f", shift)
         }
-        else if (layer->type == "InnerProduct")
-        {
+        else if (layer->type == "InnerProduct") {
             ncnn::InnerProduct* op = (ncnn::InnerProduct*)layer;
             ncnn::InnerProduct* op_default = (ncnn::InnerProduct*)layer_default;
 
@@ -850,21 +805,18 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->bias_data, bp);
 
             // write int8_scale data
-            if (op->int8_scale_term)
-            {
+            if (op->int8_scale_term) {
                 std::vector<float> weight_int8scale;
                 std::vector<float> blob_int8scale;
 
                 char key[256];
                 sprintf(key, "%s_param_0", layers[i]->name.c_str());
 
-                if (weight_int8scale_table.find(std::string(key)) != weight_int8scale_table.end())
-                {
+                if (weight_int8scale_table.find(std::string(key)) != weight_int8scale_table.end()) {
                     weight_int8scale = weight_int8scale_table[std::string(key)];
                 }
 
-                if (blob_int8scale_table.find(layer->name) != blob_int8scale_table.end())
-                {
+                if (blob_int8scale_table.find(layer->name) != blob_int8scale_table.end()) {
                     blob_int8scale = blob_int8scale_table[layer->name];
                 }
 
@@ -873,8 +825,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
                 fwrite(blob_int8scale.data(), sizeof(float), blob_int8scale.size(), bp);
             }
         }
-        else if (layer->type == "Input")
-        {
+        else if (layer->type == "Input") {
             ncnn::Input* op = (ncnn::Input*)layer;
             ncnn::Input* op_default = (ncnn::Input*)layer_default;
 
@@ -882,16 +833,14 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", h)
             fprintf_param_value(" 2=%d", c)
         }
-        else if (layer->type == "InstanceNorm")
-        {
+        else if (layer->type == "InstanceNorm") {
             ncnn::InstanceNorm* op = (ncnn::InstanceNorm*)layer;
             ncnn::InstanceNorm* op_default = (ncnn::InstanceNorm*)layer_default;
 
             fprintf_param_value(" 0=%d", channels)
             fprintf_param_value(" 1=%f", eps)
         }
-        else if (layer->type == "Interp")
-        {
+        else if (layer->type == "Interp") {
             ncnn::Interp* op = (ncnn::Interp*)layer;
             ncnn::Interp* op_default = (ncnn::Interp*)layer_default;
 
@@ -901,8 +850,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 3=%d", output_height)
             fprintf_param_value(" 4=%d", output_width)
         }
-        else if (layer->type == "Log")
-        {
+        else if (layer->type == "Log") {
             ncnn::Log* op = (ncnn::Log*)layer;
             ncnn::Log* op_default = (ncnn::Log*)layer_default;
 
@@ -910,8 +858,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%f", scale)
             fprintf_param_value(" 2=%f", shift)
         }
-        else if (layer->type == "LRN")
-        {
+        else if (layer->type == "LRN") {
             ncnn::LRN* op = (ncnn::LRN*)layer;
             ncnn::LRN* op_default = (ncnn::LRN*)layer_default;
 
@@ -921,8 +868,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 3=%f", beta)
             fprintf_param_value(" 4=%f", bias)
         }
-        else if (layer->type == "LSTM")
-        {
+        else if (layer->type == "LSTM") {
             ncnn::LSTM* op = (ncnn::LSTM*)layer;
             ncnn::LSTM* op_default = (ncnn::LSTM*)layer_default;
 
@@ -934,8 +880,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fwrite_weight_tag_data(0, op->bias_c_data, bp);
             fwrite_weight_tag_data(0, op->weight_hc_data, bp);
         }
-        else if (layer->type == "MemoryData")
-        {
+        else if (layer->type == "MemoryData") {
             ncnn::MemoryData* op = (ncnn::MemoryData*)layer;
             ncnn::MemoryData* op_default = (ncnn::MemoryData*)layer_default;
 
@@ -944,8 +889,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%d", c)
             fwrite_weight_data(op->data, bp);
         }
-        else if (layer->type == "MVN")
-        {
+        else if (layer->type == "MVN") {
             ncnn::MVN* op = (ncnn::MVN*)layer;
             ncnn::MVN* op_default = (ncnn::MVN*)layer_default;
 
@@ -953,8 +897,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", across_channels)
             fprintf_param_value(" 2=%f", eps)
         }
-        else if (layer->type == "Normalize")
-        {
+        else if (layer->type == "Normalize") {
             ncnn::Normalize* op = (ncnn::Normalize*)layer;
             ncnn::Normalize* op_default = (ncnn::Normalize*)layer_default;
 
@@ -966,8 +909,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
 
             fwrite_weight_data(op->scale_data, bp);
         }
-        else if (layer->type == "Padding")
-        {
+        else if (layer->type == "Padding") {
             ncnn::Padding* op = (ncnn::Padding*)layer;
             ncnn::Padding* op_default = (ncnn::Padding*)layer_default;
 
@@ -978,22 +920,19 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 4=%d", type)
             fprintf_param_value(" 5=%f", value)
         }
-        else if (layer->type == "Permute")
-        {
+        else if (layer->type == "Permute") {
             ncnn::Permute* op = (ncnn::Permute*)layer;
             ncnn::Permute* op_default = (ncnn::Permute*)layer_default;
 
             fprintf_param_value(" 0=%d", order_type)
         }
-        else if (layer->type == "PixelShuffle")
-        {
+        else if (layer->type == "PixelShuffle") {
             ncnn::PixelShuffle* op = (ncnn::PixelShuffle*)layer;
             ncnn::PixelShuffle* op_default = (ncnn::PixelShuffle*)layer_default;
 
             fprintf_param_value(" 0=%d", upscale_factor)
         }
-        else if (layer->type == "Pooling")
-        {
+        else if (layer->type == "Pooling") {
             ncnn::Pooling* op = (ncnn::Pooling*)layer;
             ncnn::Pooling* op_default = (ncnn::Pooling*)layer_default;
 
@@ -1019,8 +958,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 4=%d", global_pooling)
             fprintf_param_value(" 5=%d", pad_mode)
         }
-        else if (layer->type == "Power")
-        {
+        else if (layer->type == "Power") {
             ncnn::Power* op = (ncnn::Power*)layer;
             ncnn::Power* op_default = (ncnn::Power*)layer_default;
 
@@ -1028,8 +966,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%f", scale)
             fprintf_param_value(" 2=%f", shift)
         }
-        else if (layer->type == "PReLU")
-        {
+        else if (layer->type == "PReLU") {
             ncnn::PReLU* op = (ncnn::PReLU*)layer;
             ncnn::PReLU* op_default = (ncnn::PReLU*)layer_default;
 
@@ -1037,8 +974,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
 
             fwrite_weight_data(op->slope_data, bp);
         }
-        else if (layer->type == "PriorBox")
-        {
+        else if (layer->type == "PriorBox") {
             ncnn::PriorBox* op = (ncnn::PriorBox*)layer;
             ncnn::PriorBox* op_default = (ncnn::PriorBox*)layer_default;
 
@@ -1063,8 +999,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 12=%f", step_height)
             fprintf_param_value(" 13=%f", offset)
         }
-        else if (layer->type == "Proposal")
-        {
+        else if (layer->type == "Proposal") {
             ncnn::Proposal* op = (ncnn::Proposal*)layer;
             ncnn::Proposal* op_default = (ncnn::Proposal*)layer_default;
 
@@ -1075,8 +1010,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 4=%f", nms_thresh)
             fprintf_param_value(" 5=%d", min_size)
         }
-        else if (layer->type == "PSROIPooling")
-        {
+        else if (layer->type == "PSROIPooling") {
             ncnn::PSROIPooling* op = (ncnn::PSROIPooling*)layer;
             ncnn::PSROIPooling* op_default = (ncnn::PSROIPooling*)layer_default;
 
@@ -1085,15 +1019,13 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%f", spatial_scale)
             fprintf_param_value(" 3=%d", output_dim)
         }
-        else if (layer->type == "Quantize")
-        {
+        else if (layer->type == "Quantize") {
             ncnn::Quantize* op = (ncnn::Quantize*)layer;
             ncnn::Quantize* op_default = (ncnn::Quantize*)layer_default;
 
             fprintf_param_value(" 0=%f", scale)
         }
-        else if (layer->type == "Reduction")
-        {
+        else if (layer->type == "Reduction") {
             ncnn::Reduction* op = (ncnn::Reduction*)layer;
             ncnn::Reduction* op_default = (ncnn::Reduction*)layer_default;
 
@@ -1105,22 +1037,19 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             }
             fprintf_param_value(" 4=%d", keepdims)
         }
-        else if (layer->type == "ReLU")
-        {
+        else if (layer->type == "ReLU") {
             ncnn::ReLU* op = (ncnn::ReLU*)layer;
             ncnn::ReLU* op_default = (ncnn::ReLU*)layer_default;
 
             fprintf_param_value(" 0=%f", slope)
         }
-        else if (layer->type == "Reorg")
-        {
+        else if (layer->type == "Reorg") {
             ncnn::Reorg* op = (ncnn::Reorg*)layer;
             ncnn::Reorg* op_default = (ncnn::Reorg*)layer_default;
 
             fprintf_param_value(" 0=%d", stride)
         }
-        else if (layer->type == "Requantize")
-        {
+        else if (layer->type == "Requantize") {
             ncnn::Requantize* op = (ncnn::Requantize*)layer;
             ncnn::Requantize* op_default = (ncnn::Requantize*)layer_default;
 
@@ -1130,8 +1059,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 3=%d", bias_data_size)
             fprintf_param_value(" 4=%d", fusion_relu)
         }
-        else if (layer->type == "Reshape")
-        {
+        else if (layer->type == "Reshape") {
             ncnn::Reshape* op = (ncnn::Reshape*)layer;
             ncnn::Reshape* op_default = (ncnn::Reshape*)layer_default;
 
@@ -1140,8 +1068,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%d", c)
             fprintf_param_value(" 3=%d", permute)
         }
-        else if (layer->type == "ROIAlign")
-        {
+        else if (layer->type == "ROIAlign") {
             ncnn::ROIAlign* op = (ncnn::ROIAlign*)layer;
             ncnn::ROIAlign* op_default = (ncnn::ROIAlign*)layer_default;
 
@@ -1152,8 +1079,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 4=%d", aligned)
             fprintf_param_value(" 5=%d", version)
         }
-        else if (layer->type == "ROIPooling")
-        {
+        else if (layer->type == "ROIPooling") {
             ncnn::ROIPooling* op = (ncnn::ROIPooling*)layer;
             ncnn::ROIPooling* op_default = (ncnn::ROIPooling*)layer_default;
 
@@ -1161,8 +1087,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", pooled_height)
             fprintf_param_value(" 2=%f", spatial_scale)
         }
-        else if (layer->type == "Scale")
-        {
+        else if (layer->type == "Scale") {
             ncnn::Scale* op = (ncnn::Scale*)layer;
             ncnn::Scale* op_default = (ncnn::Scale*)layer_default;
 
@@ -1172,15 +1097,13 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->scale_data, bp);
             fwrite_weight_data(op->bias_data, bp);
         }
-        else if (layer->type == "ShuffleChannel")
-        {
+        else if (layer->type == "ShuffleChannel") {
             ncnn::ShuffleChannel* op = (ncnn::ShuffleChannel*)layer;
             ncnn::ShuffleChannel* op_default = (ncnn::ShuffleChannel*)layer_default;
 
             fprintf_param_value(" 0=%d", group)
         }
-        else if (layer->type == "Slice")
-        {
+        else if (layer->type == "Slice") {
             ncnn::Slice* op = (ncnn::Slice*)layer;
             ncnn::Slice* op_default = (ncnn::Slice*)layer_default;
 
@@ -1189,8 +1112,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             }
             fprintf_param_value(" 1=%d", axis)
         }
-        else if (layer->type == "Softmax")
-        {
+        else if (layer->type == "Softmax") {
             ncnn::Softmax* op = (ncnn::Softmax*)layer;
             ncnn::Softmax* op_default = (ncnn::Softmax*)layer_default;
 
@@ -1203,22 +1125,19 @@ int NetQuantize::save(const char* parampath, const char* binpath)
                 fprintf(pp, " 1=%d", fixbug0);
             }
         }
-        else if (layer->type == "Threshold")
-        {
+        else if (layer->type == "Threshold") {
             ncnn::Threshold* op = (ncnn::Threshold*)layer;
             ncnn::Threshold* op_default = (ncnn::Threshold*)layer_default;
 
             fprintf_param_value(" 0=%f", threshold)
         }
-        else if (layer->type == "UnaryOp")
-        {
+        else if (layer->type == "UnaryOp") {
             ncnn::UnaryOp* op = (ncnn::UnaryOp*)layer;
             ncnn::UnaryOp* op_default = (ncnn::UnaryOp*)layer_default;
 
             fprintf_param_value(" 0=%d", op_type)
         }
-        else if (layer->type == "YoloDetectionOutput")
-        {
+        else if (layer->type == "YoloDetectionOutput") {
             ncnn::YoloDetectionOutput* op = (ncnn::YoloDetectionOutput*)layer;
             ncnn::YoloDetectionOutput* op_default = (ncnn::YoloDetectionOutput*)layer_default;
 
@@ -1230,8 +1149,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
                 if (!op->biases.empty()) fprintf_param_float_array(4, op->biases, pp);
             }
         }
-        else if (layer->type == "Yolov3DetectionOutput")
-        {
+        else if (layer->type == "Yolov3DetectionOutput") {
             ncnn::Yolov3DetectionOutput* op = (ncnn::Yolov3DetectionOutput*)layer;
             ncnn::Yolov3DetectionOutput* op_default = (ncnn::Yolov3DetectionOutput*)layer_default;
 
@@ -1265,8 +1183,7 @@ int NetQuantize::save(const char* parampath, const char* binpath)
 
 int main(int argc, char** argv)
 {
-    if (argc != 6)
-    {
+    if (argc != 6) {
         fprintf(stderr, "usage: %s [inparam] [inbin] [outparam] [outbin] [calibration table]\n", argv[0]);
         return -1;
     }
@@ -1280,11 +1197,9 @@ int main(int argc, char** argv)
     NetQuantize quantizer;
 
     // parse the calibration scale table
-    if (int8scale_table_path)
-    {
+    if (int8scale_table_path) {
         bool s2 = read_int8scale_table(int8scale_table_path, quantizer.blob_int8scale_table, quantizer.weight_int8scale_table);
-        if (!s2)
-        {
+        if (!s2) {
             fprintf(stderr, "read_int8scale_table failed\n");
             return -1;
         }

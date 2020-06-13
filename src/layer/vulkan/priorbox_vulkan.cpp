@@ -13,10 +13,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include "priorbox_vulkan.h"
-#include <algorithm>
-#include <math.h>
+
 #include "layer_shader_type.h"
 #include "platform.h"
+
+#include <algorithm>
+#include <math.h>
 
 namespace ncnn {
 
@@ -33,8 +35,7 @@ PriorBox_vulkan::PriorBox_vulkan()
 int PriorBox_vulkan::create_pipeline(const Option& opt)
 {
 #if NCNN_VULKAN_ONLINE_SPIRV
-    if (opt.use_fp16_storage)
-    {
+    if (opt.use_fp16_storage) {
         // TODO investigate why fp16s produce wrong output
         support_vulkan = false;
         return 0;
@@ -49,16 +50,13 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage)
-    {
+    if (opt.use_fp16_storage) {
         elemsize = elempack * 2u;
     }
-    else if (opt.use_fp16_packed)
-    {
+    else if (opt.use_fp16_packed) {
         elemsize = elempack == 1 ? 4u : elempack * 2u;
     }
-    else
-    {
+    else {
         elemsize = elempack * 4u;
     }
 
@@ -149,8 +147,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     int w = bottom_blobs[0].w;
     int h = bottom_blobs[0].h;
 
-    if (bottom_blobs.size() == 1 && image_width == -233 && image_height == -233 && max_sizes.empty())
-    {
+    if (bottom_blobs.size() == 1 && image_width == -233 && image_height == -233 && max_sizes.empty()) {
         // mxnet style _contrib_MultiBoxPrior
         float step_w = step_width;
         float step_h = step_height;
@@ -167,8 +164,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         int elempack = 4;
 
         size_t elemsize = elempack * 4u;
-        if (opt.use_fp16_packed || opt.use_fp16_storage)
-        {
+        if (opt.use_fp16_packed || opt.use_fp16_storage) {
             elemsize = elempack * 2u;
         }
 
@@ -221,8 +217,7 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         num_prior += num_min_size * num_aspect_ratio;
 
     size_t elemsize = 4u;
-    if (opt.use_fp16_storage)
-    {
+    if (opt.use_fp16_storage) {
         elemsize = 2u;
     }
 

@@ -12,22 +12,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <string.h>
+#include "mat.h"
 #include "prng.h"
 
-#include "mat.h"
+#include <string.h>
 
 static struct prng_rand_t g_prng_rand_state;
 #define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
-#define RAND() prng_rand(&g_prng_rand_state)
+#define RAND()      prng_rand(&g_prng_rand_state)
 
 static ncnn::Mat RandomMat(int w, int h, int elempack)
 {
     ncnn::Mat m(w, h, (size_t)elempack, elempack);
 
     unsigned char* p = m;
-    for (int i=0; i<w*h*elempack; i++)
-    {
+    for (int i = 0; i < w * h * elempack; i++) {
         p[i] = RAND() % 256;
     }
 
@@ -56,8 +55,7 @@ static int test_mat_pixel_rotate_c1(int w, int h)
     ncnn::kanna_rotate_c1(a6, w, h, a7, h, w, 7);
     ncnn::kanna_rotate_c1(a7, h, w, a8, w, h, 8);
 
-    if (memcmp(a0, a8, w * h * 1) != 0)
-    {
+    if (memcmp(a0, a8, w * h * 1) != 0) {
         fprintf(stderr, "test_mat_pixel_rotate_c1 failed w=%d h=%d\n", w, h);
         return -1;
     }
@@ -87,8 +85,7 @@ static int test_mat_pixel_rotate_c2(int w, int h)
     ncnn::kanna_rotate_c2(a6, w, h, a7, h, w, 7);
     ncnn::kanna_rotate_c2(a7, h, w, a8, w, h, 8);
 
-    if (memcmp(a0, a8, w * h * 2) != 0)
-    {
+    if (memcmp(a0, a8, w * h * 2) != 0) {
         fprintf(stderr, "test_mat_pixel_rotate_c2 failed w=%d h=%d\n", w, h);
         return -1;
     }
@@ -118,8 +115,7 @@ static int test_mat_pixel_rotate_c3(int w, int h)
     ncnn::kanna_rotate_c3(a6, w, h, a7, h, w, 7);
     ncnn::kanna_rotate_c3(a7, h, w, a8, w, h, 8);
 
-    if (memcmp(a0, a8, w * h * 3) != 0)
-    {
+    if (memcmp(a0, a8, w * h * 3) != 0) {
         fprintf(stderr, "test_mat_pixel_rotate_c3 failed w=%d h=%d\n", w, h);
         return -1;
     }
@@ -149,8 +145,7 @@ static int test_mat_pixel_rotate_c4(int w, int h)
     ncnn::kanna_rotate_c4(a6, w, h, a7, h, w, 7);
     ncnn::kanna_rotate_c4(a7, h, w, a8, w, h, 8);
 
-    if (memcmp(a0, a8, w * h * 4) != 0)
-    {
+    if (memcmp(a0, a8, w * h * 4) != 0) {
         fprintf(stderr, "test_mat_pixel_rotate_c4 failed w=%d h=%d\n", w, h);
         return -1;
     }
@@ -172,8 +167,7 @@ static int test_mat_pixel_rotate_0()
            || test_mat_pixel_rotate_c1(22, 33)
            || test_mat_pixel_rotate_c2(22, 33)
            || test_mat_pixel_rotate_c3(22, 33)
-           || test_mat_pixel_rotate_c4(22, 33)
-           ;
+           || test_mat_pixel_rotate_c4(22, 33);
 }
 
 static int test_mat_pixel_rotate_yuv420sp(int w, int h)
@@ -198,8 +192,7 @@ static int test_mat_pixel_rotate_yuv420sp(int w, int h)
     ncnn::kanna_rotate_yuv420sp(a6, w, h, a7, h, w, 7);
     ncnn::kanna_rotate_yuv420sp(a7, h, w, a8, w, h, 8);
 
-    if (memcmp(a0, a8, w * h * 3 / 2) != 0)
-    {
+    if (memcmp(a0, a8, w * h * 3 / 2) != 0) {
         fprintf(stderr, "test_mat_pixel_rotate_yuv420sp failed w=%d h=%d\n", w, h);
         return -1;
     }
@@ -212,8 +205,7 @@ static int test_mat_pixel_rotate_1()
     return 0
            || test_mat_pixel_rotate_yuv420sp(6, 4)
            || test_mat_pixel_rotate_yuv420sp(12, 16)
-           || test_mat_pixel_rotate_yuv420sp(22, 34)
-           ;
+           || test_mat_pixel_rotate_yuv420sp(22, 34);
 }
 
 int main()
@@ -222,6 +214,5 @@ int main()
 
     return 0
            || test_mat_pixel_rotate_0()
-           || test_mat_pixel_rotate_1()
-           ;
+           || test_mat_pixel_rotate_1();
 }

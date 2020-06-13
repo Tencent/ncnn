@@ -15,8 +15,9 @@
 #include "tanh_mips.h"
 
 #if __MIPS_MSA
-#include <msa.h>
 #include "mips_mathfun.h"
+
+#include <msa.h>
 #endif // __MIPS_MSA
 
 #include <math.h>
@@ -33,8 +34,7 @@ int TanH_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int size = w * h;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
-    {
+    for (int q = 0; q < channels; q++) {
         float* ptr = bottom_top_blob.channel(q);
 
 #if __MIPS_MSA
@@ -45,16 +45,14 @@ int TanH_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __MIPS_MSA
 
 #if __MIPS_MSA
-        for (; nn>0; nn--)
-        {
+        for (; nn > 0; nn--) {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             _p = tanh_ps(_p);
             __msa_st_w((v4i32)_p, ptr, 0);
             ptr += 4;
         }
 #endif // __MIPS_MSA
-        for (; remain>0; remain--)
-        {
+        for (; remain > 0; remain--) {
             *ptr = tanh(*ptr);
             ptr++;
         }

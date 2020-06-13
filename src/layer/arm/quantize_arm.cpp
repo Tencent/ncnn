@@ -33,8 +33,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 {
     int dims = bottom_blob.dims;
 
-    if (dims == 1)
-    {
+    if (dims == 1) {
         int w = bottom_blob.w;
 
         top_blob.create(w, (size_t)1u, opt.blob_allocator);
@@ -45,14 +44,12 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         signed char* outptr = top_blob;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i=0; i<w; i++)
-        {
+        for (int i = 0; i < w; i++) {
             outptr[i] = float2int8(ptr[i] * scale);
         }
     }
 
-    if (dims == 2)
-    {
+    if (dims == 2) {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
         int size = w * h;
@@ -65,14 +62,12 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         signed char* outptr = top_blob;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i=0; i<size; i++)
-        {
+        for (int i = 0; i < size; i++) {
             outptr[i] = float2int8(ptr[i] * scale);
         }
     }
 
-    if (dims == 3)
-    {
+    if (dims == 3) {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
         int channels = bottom_blob.c;
@@ -83,8 +78,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             const float* ptr = bottom_blob.channel(q);
             signed char* outptr = top_blob.channel(q);
 
@@ -97,8 +91,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "dup    v2.4s, %w6                   \n" //scale
                     "0:                                  \n"
@@ -119,19 +112,17 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     "st1    {v8.8b}, [%2], #8            \n"
                     "subs   %w0, %w0, #1                 \n"
                     "bne    0b                           \n"
-                    : "=r"(nn),       // %0
-                    "=r"(ptr),      // %1
-                    "=r"(outptr)    // %2
+                    : "=r"(nn),    // %0
+                    "=r"(ptr),   // %1
+                    "=r"(outptr) // %2
                     : "0"(nn),
                     "1"(ptr),
                     "2"(outptr),
-                    "r"(scale)      // %6
-                    : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8"
-                );
+                    "r"(scale) // %6
+                    : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8");
             }
 #else
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "pld        [%1, #256]          \n"
                     "vld1.f32   {d0-d3}, [%1]!      \n"
@@ -163,20 +154,18 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     "bne        0b                  \n"
 
                     "sub        %1, #32             \n"
-                    : "=r"(nn),         // %0
-                    "=r"(ptr),        // %1
-                    "=r"(outptr)      // %2
+                    : "=r"(nn),    // %0
+                    "=r"(ptr),   // %1
+                    "=r"(outptr) // %2
                     : "0"(nn),
                     "1"(ptr),
                     "2"(outptr),
-                    "r"(scale)        // %6
-                    : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q10", "q11"
-                );
+                    "r"(scale) // %6
+                    : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q10", "q11");
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 *outptr = float2int8(*ptr * scale);
 
                 ptr++;

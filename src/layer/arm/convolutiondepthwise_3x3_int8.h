@@ -20,7 +20,7 @@ static inline signed char float2int8(float v)
     return (signed char)int32;
 }
 
-static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Option& opt)
+static void convdw3x3s1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Option& opt)
 {
     int w = bottom_blob.w;
 
@@ -29,11 +29,10 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
     int outch = top_blob.c;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++)
-    {
+    for (int p = 0; p < outch; p++) {
         Mat out = top_blob.channel(p);
 
-        const signed char* kernel = (const signed char *)_kernel + p*9;
+        const signed char* kernel = (const signed char*)_kernel + p * 9;
 
         int* outptr0 = out;
         int* outptr0n = outptr0 + outw;
@@ -42,8 +41,8 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
 
         const signed char* r0 = img0;
         const signed char* r1 = img0 + w;
-        const signed char* r2 = img0 + w*2;
-        const signed char* r3 = img0 + w*3;
+        const signed char* r2 = img0 + w * 2;
+        const signed char* r3 = img0 + w * 3;
 
         int i = 0;
 
@@ -55,21 +54,19 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
         int16x4_t _k0123 = vget_low_s16(_k_s16);
         int16x4_t _k4567 = vget_high_s16(_k_s16);
         int16x4_t _k8xxx = vget_low_s16(_kn_s16);
-#endif // __ARM_NEON 
+#endif // __ARM_NEON
 
-        for (; i+1 < outh; i+=2)
-        {
+        for (; i + 1 < outh; i += 2) {
 #if __ARM_NEON
             int nn = outw >> 3;
             int remain = outw & 7;
 #else
             int remain = outw;
-#endif // __ARM_NEON            
+#endif // __ARM_NEON
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "0:                                   \n"
                     "ld1    {v4.8b, v5.8b}, [%3]          \n"
@@ -90,63 +87,63 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
                     "ext    v18.8b, v10.8b, v11.8b, #1    \n"
                     "ext    v19.8b, v10.8b, v11.8b, #2    \n"
 
-                    "sshll  v4.8h, v4.8b, #0              \n"// r00
-                    "sshll  v12.8h, v12.8b, #0            \n"// r01
-                    "sshll  v13.8h, v13.8b, #0            \n"// r02
-                    "sshll  v6.8h, v6.8b, #0              \n"// r10
-                    "sshll  v14.8h, v14.8b, #0            \n"// r11
-                    "sshll  v15.8h, v15.8b, #0            \n"// r12
-                    "sshll  v8.8h, v8.8b, #0              \n"// r20
-                    "sshll  v16.8h, v16.8b, #0            \n"// r21
-                    "sshll  v17.8h, v17.8b, #0            \n"// r22
-                    "sshll  v10.8h, v10.8b, #0            \n"// r30
-                    "sshll  v18.8h, v18.8b, #0            \n"// r31
-                    "sshll  v19.8h, v19.8b, #0            \n"// r32
+                    "sshll  v4.8h, v4.8b, #0              \n" // r00
+                    "sshll  v12.8h, v12.8b, #0            \n" // r01
+                    "sshll  v13.8h, v13.8b, #0            \n" // r02
+                    "sshll  v6.8h, v6.8b, #0              \n" // r10
+                    "sshll  v14.8h, v14.8b, #0            \n" // r11
+                    "sshll  v15.8h, v15.8b, #0            \n" // r12
+                    "sshll  v8.8h, v8.8b, #0              \n" // r20
+                    "sshll  v16.8h, v16.8b, #0            \n" // r21
+                    "sshll  v17.8h, v17.8b, #0            \n" // r22
+                    "sshll  v10.8h, v10.8b, #0            \n" // r30
+                    "sshll  v18.8h, v18.8b, #0            \n" // r31
+                    "sshll  v19.8h, v19.8b, #0            \n" // r32
 
                     // r0
-                    "smull  v20.4s, v4.4h, %14.h[0]       \n"// (r00 - r07) * k00
+                    "smull  v20.4s, v4.4h, %14.h[0]       \n" // (r00 - r07) * k00
                     "smull2  v21.4s, v4.8h, %14.h[0]      \n"
-                    "smull  v22.4s, v12.4h, %14.h[1]      \n"// (r01 - r08) * k01
+                    "smull  v22.4s, v12.4h, %14.h[1]      \n" // (r01 - r08) * k01
                     "smull2  v23.4s, v12.8h, %14.h[1]     \n"
-                    "smull  v24.4s, v13.4h, %14.h[2]      \n"// (r02 - r09) * k02
+                    "smull  v24.4s, v13.4h, %14.h[2]      \n" // (r02 - r09) * k02
                     "smull2  v25.4s, v13.8h, %14.h[2]     \n"
 
                     // r1
-                    "smull  v26.4s, v6.4h, %14.h[0]       \n"// (r10 - r17) * k00
+                    "smull  v26.4s, v6.4h, %14.h[0]       \n" // (r10 - r17) * k00
                     "smull2  v27.4s, v6.8h, %14.h[0]      \n"
-                    "smull  v28.4s, v14.4h, %14.h[1]      \n"// (r11 - r18) * k01
+                    "smull  v28.4s, v14.4h, %14.h[1]      \n" // (r11 - r18) * k01
                     "smull2  v29.4s, v14.8h, %14.h[1]     \n"
-                    "smull  v30.4s, v15.4h, %14.h[2]      \n"// (r12 - r19) * k02
+                    "smull  v30.4s, v15.4h, %14.h[2]      \n" // (r12 - r19) * k02
                     "smull2  v31.4s, v15.8h, %14.h[2]     \n"
 
-                    "smlal  v20.4s, v6.4h, %14.h[3]       \n"// (r10 - r17) * k03
+                    "smlal  v20.4s, v6.4h, %14.h[3]       \n" // (r10 - r17) * k03
                     "smlal2  v21.4s, v6.8h, %14.h[3]      \n"
-                    "smlal  v22.4s, v14.4h, %15.h[0]      \n"// (r11 - r18) * k04
+                    "smlal  v22.4s, v14.4h, %15.h[0]      \n" // (r11 - r18) * k04
                     "smlal2  v23.4s, v14.8h, %15.h[0]     \n"
-                    "smlal  v24.4s, v15.4h, %15.h[1]      \n"// (r12 - r19) * k05
+                    "smlal  v24.4s, v15.4h, %15.h[1]      \n" // (r12 - r19) * k05
                     "smlal2  v25.4s, v15.8h, %15.h[1]     \n"
 
                     // r2
-                    "smlal  v26.4s, v8.4h, %14.h[3]       \n"// (r20 - r27) * k03
+                    "smlal  v26.4s, v8.4h, %14.h[3]       \n" // (r20 - r27) * k03
                     "smlal2  v27.4s, v8.8h, %14.h[3]      \n"
-                    "smlal  v28.4s, v16.4h, %15.h[0]      \n"// (r21 - r28) * k04
+                    "smlal  v28.4s, v16.4h, %15.h[0]      \n" // (r21 - r28) * k04
                     "smlal2  v29.4s, v16.8h, %15.h[0]     \n"
-                    "smlal  v30.4s, v17.4h, %15.h[1]      \n"// (r22 - r29) * k05
+                    "smlal  v30.4s, v17.4h, %15.h[1]      \n" // (r22 - r29) * k05
                     "smlal2  v31.4s, v17.8h, %15.h[1]     \n"
 
-                    "smlal  v20.4s, v8.4h, %15.h[2]       \n"// (r20 - r27) * k06
+                    "smlal  v20.4s, v8.4h, %15.h[2]       \n" // (r20 - r27) * k06
                     "smlal2  v21.4s, v8.8h, %15.h[2]      \n"
-                    "smlal  v22.4s, v16.4h, %15.h[3]      \n"// (r21 - r28) * k07
+                    "smlal  v22.4s, v16.4h, %15.h[3]      \n" // (r21 - r28) * k07
                     "smlal2  v23.4s, v16.8h, %15.h[3]     \n"
-                    "smlal  v24.4s, v17.4h, %16.h[0]      \n"// (r22 - r29) * k08
+                    "smlal  v24.4s, v17.4h, %16.h[0]      \n" // (r22 - r29) * k08
                     "smlal2  v25.4s, v17.8h, %16.h[0]     \n"
 
                     // r3
-                    "smlal  v26.4s, v10.4h, %15.h[2]      \n"// (r30 - r37) * k06
+                    "smlal  v26.4s, v10.4h, %15.h[2]      \n" // (r30 - r37) * k06
                     "smlal2  v27.4s, v10.8h, %15.h[2]     \n"
-                    "smlal  v28.4s, v18.4h, %15.h[3]      \n"// (r31 - r38) * k07
+                    "smlal  v28.4s, v18.4h, %15.h[3]      \n" // (r31 - r38) * k07
                     "smlal2  v29.4s, v18.8h, %15.h[3]     \n"
-                    "smlal  v30.4s, v19.4h, %16.h[0]      \n"// (r32 - r39) * k08
+                    "smlal  v30.4s, v19.4h, %16.h[0]      \n" // (r32 - r39) * k08
                     "smlal2  v31.4s, v19.8h, %16.h[0]     \n"
 
                     // add and save
@@ -179,103 +176,101 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
                     "4"(r1),
                     "5"(r2),
                     "6"(r3),
-                    "w"(_k0123),    // %14
-                    "w"(_k4567),    // %15
-                    "w"(_k8xxx)     // %16
-                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-                );
+                    "w"(_k0123), // %14
+                    "w"(_k4567), // %15
+                    "w"(_k8xxx)  // %16
+                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
 #else
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "0:                              \n"
                     // r0
-                    "vld1.s8    {d30-d31}, [%3]      \n"// r0
+                    "vld1.s8    {d30-d31}, [%3]      \n" // r0
                     "add    %3, %3, #8               \n"
 
                     "vext.s8    d10, d30, d31, #1    \n"
                     "vext.s8    d12, d30, d31, #2    \n"
 
-                    "vmovl.s8    q15, d30            \n"// r00
-                    "vmovl.s8    q5, d10             \n"// r01
-                    "vmovl.s8    q6, d12             \n"// r02
+                    "vmovl.s8    q15, d30            \n" // r00
+                    "vmovl.s8    q5, d10             \n" // r01
+                    "vmovl.s8    q6, d12             \n" // r02
                     // sum0
-                    "vmull.s16  q7, d30, %P14[0]     \n"// (r00 - r07) * k00
+                    "vmull.s16  q7, d30, %P14[0]     \n" // (r00 - r07) * k00
                     "vmull.s16  q8, d31, %P14[0]     \n"
-                    "vmull.s16  q9, d10, %P14[1]     \n"// (r01 - r08) * k01
+                    "vmull.s16  q9, d10, %P14[1]     \n" // (r01 - r08) * k01
                     "vmull.s16  q10, d11, %P14[1]    \n"
-                    "vmlal.s16  q7, d12, %P14[2]     \n"// (r02 - r09) * k02
+                    "vmlal.s16  q7, d12, %P14[2]     \n" // (r02 - r09) * k02
                     "vmlal.s16  q8, d13, %P14[2]     \n"
 
                     // r1
-                    "vld1.s8    {d30-d31}, [%4]      \n"// r1
+                    "vld1.s8    {d30-d31}, [%4]      \n" // r1
                     "add    %4, %4, #8               \n"
 
                     "vext.s8    d10, d30, d31, #1    \n"
                     "vext.s8    d12, d30, d31, #2    \n"
 
-                    "vmovl.s8    q15, d30            \n"// r10
-                    "vmovl.s8    q5, d10             \n"// r11
-                    "vmovl.s8    q6, d12             \n"// r12
+                    "vmovl.s8    q15, d30            \n" // r10
+                    "vmovl.s8    q5, d10             \n" // r11
+                    "vmovl.s8    q6, d12             \n" // r12
                     // sum0
-                    "vmlal.s16  q7, d30, %P14[3]     \n"// (r10 - r17) * k03
+                    "vmlal.s16  q7, d30, %P14[3]     \n" // (r10 - r17) * k03
                     "vmlal.s16  q8, d31, %P14[3]     \n"
-                    "vmlal.s16  q9, d10, %P15[0]     \n"// (r11 - r18) * k04
+                    "vmlal.s16  q9, d10, %P15[0]     \n" // (r11 - r18) * k04
                     "vmlal.s16  q10, d11, %P15[0]    \n"
-                    "vmlal.s16  q7, d12, %P15[1]     \n"// (r12 - r19) * k05
+                    "vmlal.s16  q7, d12, %P15[1]     \n" // (r12 - r19) * k05
                     "vmlal.s16  q8, d13, %P15[1]     \n"
                     // sum1
-                    "vmull.s16  q11, d30, %P14[0]    \n"// (r10 - r17) * k00
+                    "vmull.s16  q11, d30, %P14[0]    \n" // (r10 - r17) * k00
                     "vmull.s16  q12, d31, %P14[0]    \n"
-                    "vmull.s16  q13, d10, %P14[1]    \n"// (r11 - r18) * k01
+                    "vmull.s16  q13, d10, %P14[1]    \n" // (r11 - r18) * k01
                     "vmull.s16  q14, d11, %P14[1]    \n"
-                    "vmlal.s16  q11, d12, %P14[2]    \n"// (r12 - r19) * k02
+                    "vmlal.s16  q11, d12, %P14[2]    \n" // (r12 - r19) * k02
                     "vmlal.s16  q12, d13, %P14[2]    \n"
 
                     // r2
-                    "vld1.s8    {d30-d31}, [%5]      \n"// r2
+                    "vld1.s8    {d30-d31}, [%5]      \n" // r2
                     "add    %5, %5, #8               \n"
 
                     "vext.s8    d10, d30, d31, #1    \n"
                     "vext.s8    d12, d30, d31, #2    \n"
 
-                    "vmovl.s8    q15, d30            \n"// r20
-                    "vmovl.s8    q5, d10             \n"// r21
-                    "vmovl.s8    q6, d12             \n"// r22
+                    "vmovl.s8    q15, d30            \n" // r20
+                    "vmovl.s8    q5, d10             \n" // r21
+                    "vmovl.s8    q6, d12             \n" // r22
 
                     // sum0
-                    "vmlal.s16  q7, d30, %P15[2]     \n"// (r20 - r27) * k06
+                    "vmlal.s16  q7, d30, %P15[2]     \n" // (r20 - r27) * k06
                     "vmlal.s16  q8, d31, %P15[2]     \n"
-                    "vmlal.s16  q9, d10, %P15[3]     \n"// (r21 - r28) * k07
+                    "vmlal.s16  q9, d10, %P15[3]     \n" // (r21 - r28) * k07
                     "vmlal.s16  q10, d11, %P15[3]    \n"
-                    "vmlal.s16  q7, d12, %P16[0]     \n"// (r22 - r29) * k08
+                    "vmlal.s16  q7, d12, %P16[0]     \n" // (r22 - r29) * k08
                     "vmlal.s16  q8, d13, %P16[0]     \n"
                     // sum1
-                    "vmlal.s16  q11, d30, %P14[3]    \n"// (r20 - r27) * k03
+                    "vmlal.s16  q11, d30, %P14[3]    \n" // (r20 - r27) * k03
                     "vmlal.s16  q12, d31, %P14[3]    \n"
-                    "vmlal.s16  q13, d10, %P15[0]    \n"// (r21 - r28) * k04
+                    "vmlal.s16  q13, d10, %P15[0]    \n" // (r21 - r28) * k04
                     "vmlal.s16  q14, d11, %P15[0]    \n"
-                    "vmlal.s16  q11, d12, %P15[1]    \n"// (r22 - r29) * k05
+                    "vmlal.s16  q11, d12, %P15[1]    \n" // (r22 - r29) * k05
                     "vmlal.s16  q12, d13, %P15[1]    \n"
 
                     // r3
-                    "vld1.s8    {d30-d31}, [%6]      \n"// r3
+                    "vld1.s8    {d30-d31}, [%6]      \n" // r3
                     "add    %6, %6, #8               \n"
 
                     "vext.s8    d10, d30, d31, #1    \n"
                     "vext.s8    d12, d30, d31, #2    \n"
 
-                    "vmovl.s8    q15, d30            \n"// r30
-                    "vmovl.s8    q5, d10             \n"// r31
-                    "vmovl.s8    q6, d12             \n"// r32
+                    "vmovl.s8    q15, d30            \n" // r30
+                    "vmovl.s8    q5, d10             \n" // r31
+                    "vmovl.s8    q6, d12             \n" // r32
 
                     // sum1
-                    "vmlal.s16  q11, d30, %P15[2]    \n"// (r30 - r37) * k06
+                    "vmlal.s16  q11, d30, %P15[2]    \n" // (r30 - r37) * k06
                     "vmlal.s16  q12, d31, %P15[2]    \n"
-                    "vmlal.s16  q13, d10, %P15[3]    \n"// (r31 - r38) * k07
+                    "vmlal.s16  q13, d10, %P15[3]    \n" // (r31 - r38) * k07
                     "vmlal.s16  q14, d11, %P15[3]    \n"
-                    "vmlal.s16  q11, d12, %P16[0]    \n"// (r32 - r39) * k08
+                    "vmlal.s16  q11, d12, %P16[0]    \n" // (r32 - r39) * k08
                     "vmlal.s16  q12, d13, %P16[0]    \n"
 
                     "subs   %0, %0, #1               \n"
@@ -305,16 +300,14 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
                     "4"(r1),
                     "5"(r2),
                     "6"(r3),
-                    "w"(_k0123),    // %14
-                    "w"(_k4567),    // %15
-                    "w"(_k8xxx)     // %16
-                    : "cc", "memory", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                );
+                    "w"(_k0123), // %14
+                    "w"(_k4567), // %15
+                    "w"(_k8xxx)  // %16
+                    : "cc", "memory", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
             }
-#endif // __aarch64__            
+#endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 // TODO NEON
                 int sum0 = 0;
                 int sum0n = 0;
@@ -359,8 +352,7 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
             outptr0n += outw;
         }
 
-        for (; i < outh; i++)
-        {
+        for (; i < outh; i++) {
 #if __ARM_NEON
             int nn = outw >> 3;
             int remain = outw & 7;
@@ -370,8 +362,7 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "0:                                   \n"
                     "ld1    {v4.8b, v5.8b}, [%2]          \n"
@@ -388,38 +379,38 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
                     "ext    v16.8b, v8.8b, v9.8b, #1      \n"
                     "ext    v17.8b, v8.8b, v9.8b, #2      \n"
 
-                    "sshll  v4.8h, v4.8b, #0              \n"// r00
-                    "sshll  v12.8h, v12.8b, #0            \n"// r01
-                    "sshll  v13.8h, v13.8b, #0            \n"// r02
-                    "sshll  v6.8h, v6.8b, #0              \n"// r10
-                    "sshll  v14.8h, v14.8b, #0            \n"// r11
-                    "sshll  v15.8h, v15.8b, #0            \n"// r12
-                    "sshll  v8.8h, v8.8b, #0              \n"// r20
-                    "sshll  v16.8h, v16.8b, #0            \n"// r21
-                    "sshll  v17.8h, v17.8b, #0            \n"// r22
+                    "sshll  v4.8h, v4.8b, #0              \n" // r00
+                    "sshll  v12.8h, v12.8b, #0            \n" // r01
+                    "sshll  v13.8h, v13.8b, #0            \n" // r02
+                    "sshll  v6.8h, v6.8b, #0              \n" // r10
+                    "sshll  v14.8h, v14.8b, #0            \n" // r11
+                    "sshll  v15.8h, v15.8b, #0            \n" // r12
+                    "sshll  v8.8h, v8.8b, #0              \n" // r20
+                    "sshll  v16.8h, v16.8b, #0            \n" // r21
+                    "sshll  v17.8h, v17.8b, #0            \n" // r22
 
                     // r0
-                    "smull  v20.4s, v4.4h, %10.h[0]       \n"// (r00 - r07) * k00
+                    "smull  v20.4s, v4.4h, %10.h[0]       \n" // (r00 - r07) * k00
                     "smull2  v21.4s, v4.8h, %10.h[0]      \n"
-                    "smull  v22.4s, v12.4h, %10.h[1]      \n"// (r01 - r08) * k01
+                    "smull  v22.4s, v12.4h, %10.h[1]      \n" // (r01 - r08) * k01
                     "smull2  v23.4s, v12.8h, %10.h[1]     \n"
-                    "smull  v24.4s, v13.4h, %10.h[2]      \n"// (r02 - r09) * k02
+                    "smull  v24.4s, v13.4h, %10.h[2]      \n" // (r02 - r09) * k02
                     "smull2  v25.4s, v13.8h, %10.h[2]     \n"
 
                     // r1
-                    "smlal  v20.4s, v6.4h, %10.h[3]       \n"// (r10 - r17) * k03
+                    "smlal  v20.4s, v6.4h, %10.h[3]       \n" // (r10 - r17) * k03
                     "smlal2  v21.4s, v6.8h, %10.h[3]      \n"
-                    "smlal  v22.4s, v14.4h, %11.h[0]      \n"// (r11 - r18) * k04
+                    "smlal  v22.4s, v14.4h, %11.h[0]      \n" // (r11 - r18) * k04
                     "smlal2  v23.4s, v14.8h, %11.h[0]     \n"
-                    "smlal  v24.4s, v15.4h, %11.h[1]      \n"// (r12 - r19) * k05
+                    "smlal  v24.4s, v15.4h, %11.h[1]      \n" // (r12 - r19) * k05
                     "smlal2  v25.4s, v15.8h, %11.h[1]     \n"
 
                     // r2
-                    "smlal  v20.4s, v8.4h, %11.h[2]       \n"// (r20 - r27) * k06
+                    "smlal  v20.4s, v8.4h, %11.h[2]       \n" // (r20 - r27) * k06
                     "smlal2  v21.4s, v8.8h, %11.h[2]      \n"
-                    "smlal  v22.4s, v16.4h, %11.h[3]      \n"// (r21 - r28) * k07
+                    "smlal  v22.4s, v16.4h, %11.h[3]      \n" // (r21 - r28) * k07
                     "smlal2  v23.4s, v16.8h, %11.h[3]     \n"
-                    "smlal  v24.4s, v17.4h, %12.h[0]      \n"// (r22 - r29) * k08
+                    "smlal  v24.4s, v17.4h, %12.h[0]      \n" // (r22 - r29) * k08
                     "smlal2  v25.4s, v17.8h, %12.h[0]     \n"
 
                     // add and save
@@ -433,80 +424,78 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
                     "subs   %w0, %w0, #1                  \n"
                     "bne    0b                            \n"
 
-                    : "=r"(nn),       // %0
-                    "=r"(outptr0),  // %1
-                    "=r"(r0),       // %2
-                    "=r"(r1),       // %3
-                    "=r"(r2)        // %4
+                    : "=r"(nn),      // %0
+                    "=r"(outptr0), // %1
+                    "=r"(r0),      // %2
+                    "=r"(r1),      // %3
+                    "=r"(r2)       // %4
                     : "0"(nn),
                     "1"(outptr0),
                     "2"(r0),
                     "3"(r1),
                     "4"(r2),
-                    "w"(_k0123),    // %10
-                    "w"(_k4567),    // %11
-                    "w"(_k8xxx)     // %12
-                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25"
-                );
+                    "w"(_k0123), // %10
+                    "w"(_k4567), // %11
+                    "w"(_k8xxx)  // %12
+                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25");
             }
 #else
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "0:                              \n"
                     // r0
-                    "vld1.s8    {d30-d31}, [%2]        \n"// r0
+                    "vld1.s8    {d30-d31}, [%2]        \n" // r0
                     "add    %2, %2, #8               \n"
 
                     "vext.s8    d10, d30, d31, #1      \n"
                     "vext.s8    d12, d30, d31, #2      \n"
 
-                    "vmovl.s8    q15, d30              \n"// r00
-                    "vmovl.s8    q5, d10             \n"// r01
-                    "vmovl.s8    q6, d12             \n"// r02
+                    "vmovl.s8    q15, d30              \n" // r00
+                    "vmovl.s8    q5, d10             \n"   // r01
+                    "vmovl.s8    q6, d12             \n"   // r02
                     // sum0
-                    "vmull.s16  q7, d30, %P10[0]      \n"// (r00 - r07) * k00
+                    "vmull.s16  q7, d30, %P10[0]      \n" // (r00 - r07) * k00
                     "vmull.s16  q8, d31, %P10[0]      \n"
-                    "vmull.s16  q9, d10, %P10[1]     \n"// (r01 - r08) * k01
+                    "vmull.s16  q9, d10, %P10[1]     \n" // (r01 - r08) * k01
                     "vmull.s16  q10, d11, %P10[1]    \n"
-                    "vmlal.s16  q7, d12, %P10[2]     \n"// (r02 - r09) * k02
+                    "vmlal.s16  q7, d12, %P10[2]     \n" // (r02 - r09) * k02
                     "vmlal.s16  q8, d13, %P10[2]     \n"
 
                     // r1
-                    "vld1.s8    {d30-d31}, [%3]        \n"// r1
+                    "vld1.s8    {d30-d31}, [%3]        \n" // r1
                     "add    %3, %3, #8               \n"
 
                     "vext.s8    d10, d30, d31, #1      \n"
                     "vext.s8    d12, d30, d31, #2      \n"
 
-                    "vmovl.s8    q15, d30              \n"// r10
-                    "vmovl.s8    q5, d10             \n"// r11
-                    "vmovl.s8    q6, d12             \n"// r12
+                    "vmovl.s8    q15, d30              \n" // r10
+                    "vmovl.s8    q5, d10             \n"   // r11
+                    "vmovl.s8    q6, d12             \n"   // r12
                     // sum0
-                    "vmlal.s16  q7, d30, %P10[3]      \n"// (r10 - r17) * k03
+                    "vmlal.s16  q7, d30, %P10[3]      \n" // (r10 - r17) * k03
                     "vmlal.s16  q8, d31, %P10[3]      \n"
-                    "vmlal.s16  q9, d10, %P11[0]     \n"// (r11 - r18) * k04
+                    "vmlal.s16  q9, d10, %P11[0]     \n" // (r11 - r18) * k04
                     "vmlal.s16  q10, d11, %P11[0]    \n"
-                    "vmlal.s16  q7, d12, %P11[1]     \n"// (r12 - r19) * k05
+                    "vmlal.s16  q7, d12, %P11[1]     \n" // (r12 - r19) * k05
                     "vmlal.s16  q8, d13, %P11[1]     \n"
 
                     // r2
-                    "vld1.s8    {d30-d31}, [%4]        \n"// r2
+                    "vld1.s8    {d30-d31}, [%4]        \n" // r2
                     "add    %4, %4, #8               \n"
 
                     "vext.s8    d10, d30, d31, #1      \n"
                     "vext.s8    d12, d30, d31, #2      \n"
 
-                    "vmovl.s8    q15, d30              \n"// r20
-                    "vmovl.s8    q5, d10             \n"// r21
-                    "vmovl.s8    q6, d12             \n"// r22
+                    "vmovl.s8    q15, d30              \n" // r20
+                    "vmovl.s8    q5, d10             \n"   // r21
+                    "vmovl.s8    q6, d12             \n"   // r22
 
                     // sum0
-                    "vmlal.s16  q7, d30, %P11[2]      \n"// (r20 - r27) * k06
+                    "vmlal.s16  q7, d30, %P11[2]      \n" // (r20 - r27) * k06
                     "vmlal.s16  q8, d31, %P11[2]      \n"
-                    "vmlal.s16  q9, d10, %P11[3]     \n"// (r21 - r28) * k07
+                    "vmlal.s16  q9, d10, %P11[3]     \n" // (r21 - r28) * k07
                     "vmlal.s16  q10, d11, %P11[3]    \n"
-                    "vmlal.s16  q7, d12, %P12[0]     \n"// (r22 - r29) * k08
+                    "vmlal.s16  q7, d12, %P12[0]     \n" // (r22 - r29) * k08
                     "vmlal.s16  q8, d13, %P12[0]     \n"
 
                     "subs   %0, %0, #1               \n"
@@ -519,26 +508,24 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
 
                     "bne    0b                       \n"
 
-                    : "=r"(nn),       // %0
-                    "=r"(outptr0),  // %1
-                    "=r"(r0),       // %2
-                    "=r"(r1),       // %3
-                    "=r"(r2)        // %4
+                    : "=r"(nn),      // %0
+                    "=r"(outptr0), // %1
+                    "=r"(r0),      // %2
+                    "=r"(r1),      // %3
+                    "=r"(r2)       // %4
                     : "0"(nn),
                     "1"(outptr0),
                     "2"(r0),
                     "3"(r1),
                     "4"(r2),
-                    "w"(_k0123),    // %10
-                    "w"(_k4567),    // %11
-                    "w"(_k8xxx)     // %12
-                    : "cc", "memory", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                );
+                    "w"(_k0123), // %10
+                    "w"(_k4567), // %11
+                    "w"(_k8xxx)  // %12
+                    : "cc", "memory", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
             }
-#endif // __aarch64__            
+#endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 int sum = 0;
 
                 sum += (int)r0[0] * kernel[0];
@@ -566,7 +553,7 @@ static void convdw3x3s1_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
     }
 }
 
-static void convdw3x3s2_int8_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Option& opt)
+static void convdw3x3s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Option& opt)
 {
     int w = bottom_blob.w;
 
@@ -574,14 +561,13 @@ static void convdw3x3s2_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
     int outh = top_blob.h;
     int outch = top_blob.c;
 
-    const int tailstep = w - 2*outw + w;
+    const int tailstep = w - 2 * outw + w;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<outch; p++)
-    {
+    for (int p = 0; p < outch; p++) {
         Mat out = top_blob.channel(p);
 
-        const signed char* kernel = (const signed char*)_kernel + p*9;
+        const signed char* kernel = (const signed char*)_kernel + p * 9;
 
         int* outptr = out;
 
@@ -589,7 +575,7 @@ static void convdw3x3s2_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
 
         const signed char* r0 = img;
         const signed char* r1 = img + w;
-        const signed char* r2 = img + w*2;
+        const signed char* r2 = img + w * 2;
 
         int i = 0;
 #if __ARM_NEON
@@ -600,9 +586,8 @@ static void convdw3x3s2_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
         int16x4_t _k0123 = vget_low_s16(_k_s16);
         int16x4_t _k4567 = vget_high_s16(_k_s16);
         int16x4_t _k8xxx = vget_low_s16(_kn_s16);
-#endif // __ARM_NEON 
-        for (; i < outh; i++)
-        {
+#endif // __ARM_NEON
+        for (; i < outh; i++) {
 #if __ARM_NEON
             int nn = outw >> 3;
             int remain = outw & 7;
@@ -612,8 +597,7 @@ static void convdw3x3s2_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "0:                                   \n"
                     "ld2    {v4.8b, v5.8b}, [%2], #16     \n"
@@ -627,38 +611,38 @@ static void convdw3x3s2_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
                     "ext    v10.8b, v8.8b, v10.8b, #1     \n"
                     "ext    v14.8b, v12.8b, v14.8b, #1    \n"
 
-                    "sshll  v4.8h, v4.8b, #0              \n"// r00
-                    "sshll  v5.8h, v5.8b, #0              \n"// r01
-                    "sshll  v6.8h, v6.8b, #0              \n"// r02
-                    "sshll  v8.8h, v8.8b, #0              \n"// r10
-                    "sshll  v9.8h, v9.8b, #0              \n"// r11
-                    "sshll  v10.8h, v10.8b, #0            \n"// r12
-                    "sshll  v12.8h, v12.8b, #0            \n"// r20
-                    "sshll  v13.8h, v13.8b, #0            \n"// r21
-                    "sshll  v14.8h, v14.8b, #0            \n"// r22
+                    "sshll  v4.8h, v4.8b, #0              \n" // r00
+                    "sshll  v5.8h, v5.8b, #0              \n" // r01
+                    "sshll  v6.8h, v6.8b, #0              \n" // r02
+                    "sshll  v8.8h, v8.8b, #0              \n" // r10
+                    "sshll  v9.8h, v9.8b, #0              \n" // r11
+                    "sshll  v10.8h, v10.8b, #0            \n" // r12
+                    "sshll  v12.8h, v12.8b, #0            \n" // r20
+                    "sshll  v13.8h, v13.8b, #0            \n" // r21
+                    "sshll  v14.8h, v14.8b, #0            \n" // r22
 
                     // r0
-                    "smull  v20.4s, v4.4h, %10.h[0]       \n"// (r00 - r07) * k00
+                    "smull  v20.4s, v4.4h, %10.h[0]       \n" // (r00 - r07) * k00
                     "smull2  v21.4s, v4.8h, %10.h[0]      \n"
-                    "smull  v22.4s, v5.4h, %10.h[1]       \n"// (r01 - r08) * k01
+                    "smull  v22.4s, v5.4h, %10.h[1]       \n" // (r01 - r08) * k01
                     "smull2  v23.4s, v5.8h, %10.h[1]      \n"
-                    "smull  v24.4s, v6.4h, %10.h[2]       \n"// (r02 - r09) * k02
+                    "smull  v24.4s, v6.4h, %10.h[2]       \n" // (r02 - r09) * k02
                     "smull2  v25.4s, v6.8h, %10.h[2]      \n"
 
                     // r1
-                    "smlal  v20.4s, v8.4h, %10.h[3]       \n"// (r10 - r17) * k03
+                    "smlal  v20.4s, v8.4h, %10.h[3]       \n" // (r10 - r17) * k03
                     "smlal2  v21.4s, v8.8h, %10.h[3]      \n"
-                    "smlal  v22.4s, v9.4h, %11.h[0]       \n"// (r11 - r18) * k04
+                    "smlal  v22.4s, v9.4h, %11.h[0]       \n" // (r11 - r18) * k04
                     "smlal2  v23.4s, v9.8h, %11.h[0]      \n"
-                    "smlal  v24.4s, v10.4h, %11.h[1]      \n"// (r12 - r19) * k05
+                    "smlal  v24.4s, v10.4h, %11.h[1]      \n" // (r12 - r19) * k05
                     "smlal2  v25.4s, v10.8h, %11.h[1]     \n"
 
                     // r2
-                    "smlal  v20.4s, v12.4h, %11.h[2]      \n"// (r20 - r27) * k06
+                    "smlal  v20.4s, v12.4h, %11.h[2]      \n" // (r20 - r27) * k06
                     "smlal2  v21.4s, v12.8h, %11.h[2]     \n"
-                    "smlal  v22.4s, v13.4h, %11.h[3]      \n"// (r21 - r28) * k07
+                    "smlal  v22.4s, v13.4h, %11.h[3]      \n" // (r21 - r28) * k07
                     "smlal2  v23.4s, v13.8h, %11.h[3]     \n"
-                    "smlal  v24.4s, v14.4h, %12.h[0]      \n"// (r22 - r29) * k08
+                    "smlal  v24.4s, v14.4h, %12.h[0]      \n" // (r22 - r29) * k08
                     "smlal2  v25.4s, v14.8h, %12.h[0]     \n"
 
                     // add and save
@@ -672,74 +656,72 @@ static void convdw3x3s2_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
                     "subs   %w0, %w0, #1                  \n"
                     "bne    0b                            \n"
 
-                    : "=r"(nn),       // %0
-                    "=r"(outptr),   // %1
-                    "=r"(r0),       // %2
-                    "=r"(r1),       // %3
-                    "=r"(r2)        // %4
+                    : "=r"(nn),     // %0
+                    "=r"(outptr), // %1
+                    "=r"(r0),     // %2
+                    "=r"(r1),     // %3
+                    "=r"(r2)      // %4
                     : "0"(nn),
                     "1"(outptr),
                     "2"(r0),
                     "3"(r1),
                     "4"(r2),
-                    "w"(_k0123),    // %10
-                    "w"(_k4567),    // %11
-                    "w"(_k8xxx)     // %12
-                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25"
-                );
+                    "w"(_k0123), // %10
+                    "w"(_k4567), // %11
+                    "w"(_k8xxx)  // %12
+                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25");
             }
 #else
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "0:                              \n"
                     // r0
-                    "vld2.s8    {d30-d31}, [%2]!     \n"// r0
+                    "vld2.s8    {d30-d31}, [%2]!     \n" // r0
                     "vld2.s8    {d10-d11}, [%2]      \n"
                     "vext.s8    d12, d30, d10, #1    \n"
 
-                    "vmovl.s8    q5, d31             \n"// r01
-                    "vmovl.s8    q15, d30            \n"// r00
-                    "vmovl.s8    q6, d12             \n"// r02
+                    "vmovl.s8    q5, d31             \n" // r01
+                    "vmovl.s8    q15, d30            \n" // r00
+                    "vmovl.s8    q6, d12             \n" // r02
                     // sum0
-                    "vmull.s16  q7, d30, %P10[0]     \n"// (r00 - r07) * k00
+                    "vmull.s16  q7, d30, %P10[0]     \n" // (r00 - r07) * k00
                     "vmull.s16  q8, d31, %P10[0]     \n"
-                    "vmull.s16  q9, d10, %P10[1]     \n"// (r01 - r08) * k01
+                    "vmull.s16  q9, d10, %P10[1]     \n" // (r01 - r08) * k01
                     "vmull.s16  q10, d11, %P10[1]    \n"
-                    "vmlal.s16  q7, d12, %P10[2]     \n"// (r02 - r09) * k02
+                    "vmlal.s16  q7, d12, %P10[2]     \n" // (r02 - r09) * k02
                     "vmlal.s16  q8, d13, %P10[2]     \n"
 
                     // r1
-                    "vld2.s8    {d30-d31}, [%3]!     \n"// r1
+                    "vld2.s8    {d30-d31}, [%3]!     \n" // r1
                     "vld2.s8    {d10-d11}, [%3]      \n"
                     "vext.s8    d12, d30, d10, #1    \n"
 
-                    "vmovl.s8    q5, d31             \n"// r11
-                    "vmovl.s8    q15, d30            \n"// r10
-                    "vmovl.s8    q6, d12             \n"// r12
+                    "vmovl.s8    q5, d31             \n" // r11
+                    "vmovl.s8    q15, d30            \n" // r10
+                    "vmovl.s8    q6, d12             \n" // r12
                     // sum0
-                    "vmlal.s16  q7, d30, %P10[3]     \n"// (r10 - r17) * k03
+                    "vmlal.s16  q7, d30, %P10[3]     \n" // (r10 - r17) * k03
                     "vmlal.s16  q8, d31, %P10[3]     \n"
-                    "vmlal.s16  q9, d10, %P11[0]     \n"// (r11 - r18) * k04
+                    "vmlal.s16  q9, d10, %P11[0]     \n" // (r11 - r18) * k04
                     "vmlal.s16  q10, d11, %P11[0]    \n"
-                    "vmlal.s16  q7, d12, %P11[1]     \n"// (r12 - r19) * k05
+                    "vmlal.s16  q7, d12, %P11[1]     \n" // (r12 - r19) * k05
                     "vmlal.s16  q8, d13, %P11[1]     \n"
 
                     // r2
-                    "vld2.s8    {d30-d31}, [%4]!     \n"// r2
+                    "vld2.s8    {d30-d31}, [%4]!     \n" // r2
                     "vld2.s8    {d10-d11}, [%4]      \n"
                     "vext.s8    d12, d30, d10, #1    \n"
 
-                    "vmovl.s8    q5, d31             \n"// r21
-                    "vmovl.s8    q15, d30            \n"// r20
-                    "vmovl.s8    q6, d12             \n"// r22
+                    "vmovl.s8    q5, d31             \n" // r21
+                    "vmovl.s8    q15, d30            \n" // r20
+                    "vmovl.s8    q6, d12             \n" // r22
 
                     // sum0
-                    "vmlal.s16  q7, d30, %P11[2]     \n"// (r20 - r27) * k06
+                    "vmlal.s16  q7, d30, %P11[2]     \n" // (r20 - r27) * k06
                     "vmlal.s16  q8, d31, %P11[2]     \n"
-                    "vmlal.s16  q9, d10, %P11[3]     \n"// (r21 - r28) * k07
+                    "vmlal.s16  q9, d10, %P11[3]     \n" // (r21 - r28) * k07
                     "vmlal.s16  q10, d11, %P11[3]    \n"
-                    "vmlal.s16  q7, d12, %P12[0]     \n"// (r22 - r29) * k08
+                    "vmlal.s16  q7, d12, %P12[0]     \n" // (r22 - r29) * k08
                     "vmlal.s16  q8, d13, %P12[0]     \n"
 
                     "subs   %0, %0, #1               \n"
@@ -752,26 +734,24 @@ static void convdw3x3s2_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
 
                     "bne    0b                       \n"
 
-                    : "=r"(nn),       // %0
-                    "=r"(outptr),   // %1
-                    "=r"(r0),       // %2
-                    "=r"(r1),       // %3
-                    "=r"(r2)        // %4
+                    : "=r"(nn),     // %0
+                    "=r"(outptr), // %1
+                    "=r"(r0),     // %2
+                    "=r"(r1),     // %3
+                    "=r"(r2)      // %4
                     : "0"(nn),
                     "1"(outptr),
                     "2"(r0),
                     "3"(r1),
                     "4"(r2),
-                    "w"(_k0123),    // %10
-                    "w"(_k4567),    // %11
-                    "w"(_k8xxx)     // %12
-                    : "cc", "memory", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                );
+                    "w"(_k0123), // %10
+                    "w"(_k4567), // %11
+                    "w"(_k8xxx)  // %12
+                    : "cc", "memory", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
             }
-#endif // __aarch64__             
+#endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 int sum = 0;
 
                 sum += (int)r0[0] * kernel[0];
@@ -799,7 +779,7 @@ static void convdw3x3s2_int8_neon(const Mat &bottom_blob, Mat &top_blob, const M
     }
 }
 
-static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
+static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, std::vector<float> scales_requant, const Option& opt)
 {
     int w = bottom_blob.w;
 
@@ -810,15 +790,14 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++)
-    {
+    for (int p = 0; p < outch; p++) {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
-        const float scale_requant_in = scales_requant[2*p];
-        const float scale_requant_out = scales_requant[2*p+1];
+        const float scale_requant_in = scales_requant[2 * p];
+        const float scale_requant_out = scales_requant[2 * p + 1];
 
-        const signed char* kernel = (const signed char *)_kernel + p*9;
+        const signed char* kernel = (const signed char*)_kernel + p * 9;
 
         signed char* outptr0 = out;
         signed char* outptr0n = outptr0 + outw;
@@ -827,8 +806,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
 
         const signed char* r0 = img0;
         const signed char* r1 = img0 + w;
-        const signed char* r2 = img0 + w*2;
-        const signed char* r3 = img0 + w*3;
+        const signed char* r2 = img0 + w * 2;
+        const signed char* r3 = img0 + w * 3;
 
         int i = 0;
 
@@ -840,21 +819,19 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
         int16x4_t _k0123 = vget_low_s16(_k_s16);
         int16x4_t _k4567 = vget_high_s16(_k_s16);
         int16x4_t _k8xxx = vget_low_s16(_kn_s16);
-#endif // __ARM_NEON 
+#endif // __ARM_NEON
 
-        for (; i+1 < outh; i+=2)
-        {
+        for (; i + 1 < outh; i += 2) {
 #if __ARM_NEON
             int nn = outw >> 3;
             int remain = outw & 7;
 #else
             int remain = outw;
-#endif // __ARM_NEON            
+#endif // __ARM_NEON
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "0:                                   \n"
                     "ld1    {v4.8b, v5.8b}, [%3]          \n"
@@ -875,63 +852,63 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                     "ext    v18.8b, v10.8b, v11.8b, #1    \n"
                     "ext    v19.8b, v10.8b, v11.8b, #2    \n"
 
-                    "sshll  v4.8h, v4.8b, #0              \n"// r00
-                    "sshll  v12.8h, v12.8b, #0            \n"// r01
-                    "sshll  v13.8h, v13.8b, #0            \n"// r02
-                    "sshll  v6.8h, v6.8b, #0              \n"// r10
-                    "sshll  v14.8h, v14.8b, #0            \n"// r11
-                    "sshll  v15.8h, v15.8b, #0            \n"// r12
-                    "sshll  v8.8h, v8.8b, #0              \n"// r20
-                    "sshll  v16.8h, v16.8b, #0            \n"// r21
-                    "sshll  v17.8h, v17.8b, #0            \n"// r22
-                    "sshll  v10.8h, v10.8b, #0            \n"// r30
-                    "sshll  v18.8h, v18.8b, #0            \n"// r31
-                    "sshll  v19.8h, v19.8b, #0            \n"// r32
+                    "sshll  v4.8h, v4.8b, #0              \n" // r00
+                    "sshll  v12.8h, v12.8b, #0            \n" // r01
+                    "sshll  v13.8h, v13.8b, #0            \n" // r02
+                    "sshll  v6.8h, v6.8b, #0              \n" // r10
+                    "sshll  v14.8h, v14.8b, #0            \n" // r11
+                    "sshll  v15.8h, v15.8b, #0            \n" // r12
+                    "sshll  v8.8h, v8.8b, #0              \n" // r20
+                    "sshll  v16.8h, v16.8b, #0            \n" // r21
+                    "sshll  v17.8h, v17.8b, #0            \n" // r22
+                    "sshll  v10.8h, v10.8b, #0            \n" // r30
+                    "sshll  v18.8h, v18.8b, #0            \n" // r31
+                    "sshll  v19.8h, v19.8b, #0            \n" // r32
 
                     // r0
-                    "smull  v20.4s, v4.4h, %14.h[0]       \n"// (r00 - r07) * k00
+                    "smull  v20.4s, v4.4h, %14.h[0]       \n" // (r00 - r07) * k00
                     "smull2  v21.4s, v4.8h, %14.h[0]      \n"
-                    "smull  v22.4s, v12.4h, %14.h[1]      \n"// (r01 - r08) * k01
+                    "smull  v22.4s, v12.4h, %14.h[1]      \n" // (r01 - r08) * k01
                     "smull2  v23.4s, v12.8h, %14.h[1]     \n"
-                    "smull  v24.4s, v13.4h, %14.h[2]      \n"// (r02 - r09) * k02
+                    "smull  v24.4s, v13.4h, %14.h[2]      \n" // (r02 - r09) * k02
                     "smull2  v25.4s, v13.8h, %14.h[2]     \n"
 
                     // r1
-                    "smull  v26.4s, v6.4h, %14.h[0]       \n"// (r10 - r17) * k00
+                    "smull  v26.4s, v6.4h, %14.h[0]       \n" // (r10 - r17) * k00
                     "smull2  v27.4s, v6.8h, %14.h[0]      \n"
-                    "smull  v28.4s, v14.4h, %14.h[1]      \n"// (r11 - r18) * k01
+                    "smull  v28.4s, v14.4h, %14.h[1]      \n" // (r11 - r18) * k01
                     "smull2  v29.4s, v14.8h, %14.h[1]     \n"
-                    "smull  v30.4s, v15.4h, %14.h[2]      \n"// (r12 - r19) * k02
+                    "smull  v30.4s, v15.4h, %14.h[2]      \n" // (r12 - r19) * k02
                     "smull2  v31.4s, v15.8h, %14.h[2]     \n"
 
-                    "smlal  v20.4s, v6.4h, %14.h[3]       \n"// (r10 - r17) * k03
+                    "smlal  v20.4s, v6.4h, %14.h[3]       \n" // (r10 - r17) * k03
                     "smlal2  v21.4s, v6.8h, %14.h[3]      \n"
-                    "smlal  v22.4s, v14.4h, %15.h[0]      \n"// (r11 - r18) * k04
+                    "smlal  v22.4s, v14.4h, %15.h[0]      \n" // (r11 - r18) * k04
                     "smlal2  v23.4s, v14.8h, %15.h[0]     \n"
-                    "smlal  v24.4s, v15.4h, %15.h[1]      \n"// (r12 - r19) * k05
+                    "smlal  v24.4s, v15.4h, %15.h[1]      \n" // (r12 - r19) * k05
                     "smlal2  v25.4s, v15.8h, %15.h[1]     \n"
 
                     // r2
-                    "smlal  v26.4s, v8.4h, %14.h[3]       \n"// (r20 - r27) * k03
+                    "smlal  v26.4s, v8.4h, %14.h[3]       \n" // (r20 - r27) * k03
                     "smlal2  v27.4s, v8.8h, %14.h[3]      \n"
-                    "smlal  v28.4s, v16.4h, %15.h[0]      \n"// (r21 - r28) * k04
+                    "smlal  v28.4s, v16.4h, %15.h[0]      \n" // (r21 - r28) * k04
                     "smlal2  v29.4s, v16.8h, %15.h[0]     \n"
-                    "smlal  v30.4s, v17.4h, %15.h[1]      \n"// (r22 - r29) * k05
+                    "smlal  v30.4s, v17.4h, %15.h[1]      \n" // (r22 - r29) * k05
                     "smlal2  v31.4s, v17.8h, %15.h[1]     \n"
 
-                    "smlal  v20.4s, v8.4h, %15.h[2]       \n"// (r20 - r27) * k06
+                    "smlal  v20.4s, v8.4h, %15.h[2]       \n" // (r20 - r27) * k06
                     "smlal2  v21.4s, v8.8h, %15.h[2]      \n"
-                    "smlal  v22.4s, v16.4h, %15.h[3]      \n"// (r21 - r28) * k07
+                    "smlal  v22.4s, v16.4h, %15.h[3]      \n" // (r21 - r28) * k07
                     "smlal2  v23.4s, v16.8h, %15.h[3]     \n"
-                    "smlal  v24.4s, v17.4h, %16.h[0]      \n"// (r22 - r29) * k08
+                    "smlal  v24.4s, v17.4h, %16.h[0]      \n" // (r22 - r29) * k08
                     "smlal2  v25.4s, v17.8h, %16.h[0]     \n"
 
                     // r3
-                    "smlal  v26.4s, v10.4h, %15.h[2]      \n"// (r30 - r37) * k06
+                    "smlal  v26.4s, v10.4h, %15.h[2]      \n" // (r30 - r37) * k06
                     "smlal2  v27.4s, v10.8h, %15.h[2]     \n"
-                    "smlal  v28.4s, v18.4h, %15.h[3]      \n"// (r31 - r38) * k07
+                    "smlal  v28.4s, v18.4h, %15.h[3]      \n" // (r31 - r38) * k07
                     "smlal2  v29.4s, v18.8h, %15.h[3]     \n"
-                    "smlal  v30.4s, v19.4h, %16.h[0]      \n"// (r32 - r39) * k08
+                    "smlal  v30.4s, v19.4h, %16.h[0]      \n" // (r32 - r39) * k08
                     "smlal2  v31.4s, v19.8h, %16.h[0]     \n"
 
                     // add and save
@@ -1003,106 +980,104 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                     "4"(r1),
                     "5"(r2),
                     "6"(r3),
-                    "w"(_k0123),    // %14
-                    "w"(_k4567),    // %15
-                    "w"(_k8xxx),    // %16
-                    "r"(bias0),    // %17
+                    "w"(_k0123),           // %14
+                    "w"(_k4567),           // %15
+                    "w"(_k8xxx),           // %16
+                    "r"(bias0),            // %17
                     "r"(scale_requant_in), // %18
                     "r"(scale_requant_out) // %19
-                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-                );
+                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
 #else
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "0:                              \n"
                     // r0
-                    "vld1.s8    {d30-d31}, [%3]      \n"// r0
+                    "vld1.s8    {d30-d31}, [%3]      \n" // r0
                     "add    %3, %3, #8               \n"
 
                     "vext.s8    d10, d30, d31, #1    \n"
                     "vext.s8    d12, d30, d31, #2    \n"
 
-                    "vmovl.s8    q15, d30            \n"// r00
-                    "vmovl.s8    q5, d10             \n"// r01
-                    "vmovl.s8    q6, d12             \n"// r02
+                    "vmovl.s8    q15, d30            \n" // r00
+                    "vmovl.s8    q5, d10             \n" // r01
+                    "vmovl.s8    q6, d12             \n" // r02
                     // sum0
-                    "vmull.s16  q7, d30, %P14[0]     \n"// (r00 - r07) * k00
+                    "vmull.s16  q7, d30, %P14[0]     \n" // (r00 - r07) * k00
                     "vmull.s16  q8, d31, %P14[0]     \n"
-                    "vmull.s16  q9, d10, %P14[1]     \n"// (r01 - r08) * k01
+                    "vmull.s16  q9, d10, %P14[1]     \n" // (r01 - r08) * k01
                     "vmull.s16  q10, d11, %P14[1]    \n"
-                    "vmlal.s16  q7, d12, %P14[2]     \n"// (r02 - r09) * k02
+                    "vmlal.s16  q7, d12, %P14[2]     \n" // (r02 - r09) * k02
                     "vmlal.s16  q8, d13, %P14[2]     \n"
 
                     // r1
-                    "vld1.s8    {d30-d31}, [%4]      \n"// r1
+                    "vld1.s8    {d30-d31}, [%4]      \n" // r1
                     "add    %4, %4, #8               \n"
 
                     "vext.s8    d10, d30, d31, #1    \n"
                     "vext.s8    d12, d30, d31, #2    \n"
 
-                    "vmovl.s8    q15, d30            \n"// r10
-                    "vmovl.s8    q5, d10             \n"// r11
-                    "vmovl.s8    q6, d12             \n"// r12
+                    "vmovl.s8    q15, d30            \n" // r10
+                    "vmovl.s8    q5, d10             \n" // r11
+                    "vmovl.s8    q6, d12             \n" // r12
                     // sum0
-                    "vmlal.s16  q7, d30, %P14[3]     \n"// (r10 - r17) * k03
+                    "vmlal.s16  q7, d30, %P14[3]     \n" // (r10 - r17) * k03
                     "vmlal.s16  q8, d31, %P14[3]     \n"
-                    "vmlal.s16  q9, d10, %P15[0]     \n"// (r11 - r18) * k04
+                    "vmlal.s16  q9, d10, %P15[0]     \n" // (r11 - r18) * k04
                     "vmlal.s16  q10, d11, %P15[0]    \n"
-                    "vmlal.s16  q7, d12, %P15[1]     \n"// (r12 - r19) * k05
+                    "vmlal.s16  q7, d12, %P15[1]     \n" // (r12 - r19) * k05
                     "vmlal.s16  q8, d13, %P15[1]     \n"
                     // sum1
-                    "vmull.s16  q11, d30, %P14[0]    \n"// (r10 - r17) * k00
+                    "vmull.s16  q11, d30, %P14[0]    \n" // (r10 - r17) * k00
                     "vmull.s16  q12, d31, %P14[0]    \n"
-                    "vmull.s16  q13, d10, %P14[1]    \n"// (r11 - r18) * k01
+                    "vmull.s16  q13, d10, %P14[1]    \n" // (r11 - r18) * k01
                     "vmull.s16  q14, d11, %P14[1]    \n"
-                    "vmlal.s16  q11, d12, %P14[2]    \n"// (r12 - r19) * k02
+                    "vmlal.s16  q11, d12, %P14[2]    \n" // (r12 - r19) * k02
                     "vmlal.s16  q12, d13, %P14[2]    \n"
 
                     // r2
-                    "vld1.s8    {d30-d31}, [%5]      \n"// r2
+                    "vld1.s8    {d30-d31}, [%5]      \n" // r2
                     "add    %5, %5, #8               \n"
 
                     "vext.s8    d10, d30, d31, #1    \n"
                     "vext.s8    d12, d30, d31, #2    \n"
 
-                    "vmovl.s8    q15, d30            \n"// r20
-                    "vmovl.s8    q5, d10             \n"// r21
-                    "vmovl.s8    q6, d12             \n"// r22
+                    "vmovl.s8    q15, d30            \n" // r20
+                    "vmovl.s8    q5, d10             \n" // r21
+                    "vmovl.s8    q6, d12             \n" // r22
 
                     // sum0
-                    "vmlal.s16  q7, d30, %P15[2]     \n"// (r20 - r27) * k06
+                    "vmlal.s16  q7, d30, %P15[2]     \n" // (r20 - r27) * k06
                     "vmlal.s16  q8, d31, %P15[2]     \n"
-                    "vmlal.s16  q9, d10, %P15[3]     \n"// (r21 - r28) * k07
+                    "vmlal.s16  q9, d10, %P15[3]     \n" // (r21 - r28) * k07
                     "vmlal.s16  q10, d11, %P15[3]    \n"
-                    "vmlal.s16  q7, d12, %P16[0]     \n"// (r22 - r29) * k08
+                    "vmlal.s16  q7, d12, %P16[0]     \n" // (r22 - r29) * k08
                     "vmlal.s16  q8, d13, %P16[0]     \n"
                     // sum1
-                    "vmlal.s16  q11, d30, %P14[3]    \n"// (r20 - r27) * k03
+                    "vmlal.s16  q11, d30, %P14[3]    \n" // (r20 - r27) * k03
                     "vmlal.s16  q12, d31, %P14[3]    \n"
-                    "vmlal.s16  q13, d10, %P15[0]    \n"// (r21 - r28) * k04
+                    "vmlal.s16  q13, d10, %P15[0]    \n" // (r21 - r28) * k04
                     "vmlal.s16  q14, d11, %P15[0]    \n"
-                    "vmlal.s16  q11, d12, %P15[1]    \n"// (r22 - r29) * k05
+                    "vmlal.s16  q11, d12, %P15[1]    \n" // (r22 - r29) * k05
                     "vmlal.s16  q12, d13, %P15[1]    \n"
 
                     // r3
-                    "vld1.s8    {d30-d31}, [%6]      \n"// r3
+                    "vld1.s8    {d30-d31}, [%6]      \n" // r3
                     "add    %6, %6, #8               \n"
 
                     "vext.s8    d10, d30, d31, #1    \n"
                     "vext.s8    d12, d30, d31, #2    \n"
 
-                    "vmovl.s8    q15, d30            \n"// r30
-                    "vmovl.s8    q5, d10             \n"// r31
-                    "vmovl.s8    q6, d12             \n"// r32
+                    "vmovl.s8    q15, d30            \n" // r30
+                    "vmovl.s8    q5, d10             \n" // r31
+                    "vmovl.s8    q6, d12             \n" // r32
 
                     // sum1
-                    "vmlal.s16  q11, d30, %P15[2]    \n"// (r30 - r37) * k06
+                    "vmlal.s16  q11, d30, %P15[2]    \n" // (r30 - r37) * k06
                     "vmlal.s16  q12, d31, %P15[2]    \n"
-                    "vmlal.s16  q13, d10, %P15[3]    \n"// (r31 - r38) * k07
+                    "vmlal.s16  q13, d10, %P15[3]    \n" // (r31 - r38) * k07
                     "vmlal.s16  q14, d11, %P15[3]    \n"
-                    "vmlal.s16  q11, d12, %P16[0]    \n"// (r32 - r39) * k08
+                    "vmlal.s16  q11, d12, %P16[0]    \n" // (r32 - r39) * k08
                     "vmlal.s16  q12, d13, %P16[0]    \n"
 
                     "subs   %0, %0, #1               \n"
@@ -1191,19 +1166,17 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                     "4"(r1),
                     "5"(r2),
                     "6"(r3),
-                    "w"(_k0123),    // %14
-                    "w"(_k4567),    // %15
-                    "w"(_k8xxx),    // %16
-                    "r"(bias0),    // %17
+                    "w"(_k0123),           // %14
+                    "w"(_k4567),           // %15
+                    "w"(_k8xxx),           // %16
+                    "r"(bias0),            // %17
                     "r"(scale_requant_in), // %18
                     "r"(scale_requant_out) // %19
-                    : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                );
+                    : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
             }
-#endif // __aarch64__            
+#endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 // TODO NEON
                 int sum0 = 0;
                 int sum0n = 0;
@@ -1248,8 +1221,7 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
             outptr0n += outw;
         }
 
-        for (; i < outh; i++)
-        {
+        for (; i < outh; i++) {
 #if __ARM_NEON
             int nn = outw >> 3;
             int remain = outw & 7;
@@ -1259,8 +1231,7 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "dup    v26.4s, %w13                  \n"
                     "dup    v27.4s, %w14                  \n"
@@ -1281,38 +1252,38 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                     "ext    v16.8b, v8.8b, v9.8b, #1      \n"
                     "ext    v17.8b, v8.8b, v9.8b, #2      \n"
 
-                    "sshll  v4.8h, v4.8b, #0              \n"// r00
-                    "sshll  v12.8h, v12.8b, #0            \n"// r01
-                    "sshll  v13.8h, v13.8b, #0            \n"// r02
-                    "sshll  v6.8h, v6.8b, #0              \n"// r10
-                    "sshll  v14.8h, v14.8b, #0            \n"// r11
-                    "sshll  v15.8h, v15.8b, #0            \n"// r12
-                    "sshll  v8.8h, v8.8b, #0              \n"// r20
-                    "sshll  v16.8h, v16.8b, #0            \n"// r21
-                    "sshll  v17.8h, v17.8b, #0            \n"// r22
+                    "sshll  v4.8h, v4.8b, #0              \n" // r00
+                    "sshll  v12.8h, v12.8b, #0            \n" // r01
+                    "sshll  v13.8h, v13.8b, #0            \n" // r02
+                    "sshll  v6.8h, v6.8b, #0              \n" // r10
+                    "sshll  v14.8h, v14.8b, #0            \n" // r11
+                    "sshll  v15.8h, v15.8b, #0            \n" // r12
+                    "sshll  v8.8h, v8.8b, #0              \n" // r20
+                    "sshll  v16.8h, v16.8b, #0            \n" // r21
+                    "sshll  v17.8h, v17.8b, #0            \n" // r22
 
                     // r0
-                    "smull  v20.4s, v4.4h, %10.h[0]       \n"// (r00 - r07) * k00
+                    "smull  v20.4s, v4.4h, %10.h[0]       \n" // (r00 - r07) * k00
                     "smull2  v21.4s, v4.8h, %10.h[0]      \n"
-                    "smull  v22.4s, v12.4h, %10.h[1]      \n"// (r01 - r08) * k01
+                    "smull  v22.4s, v12.4h, %10.h[1]      \n" // (r01 - r08) * k01
                     "smull2  v23.4s, v12.8h, %10.h[1]     \n"
-                    "smull  v24.4s, v13.4h, %10.h[2]      \n"// (r02 - r09) * k02
+                    "smull  v24.4s, v13.4h, %10.h[2]      \n" // (r02 - r09) * k02
                     "smull2  v25.4s, v13.8h, %10.h[2]     \n"
 
                     // r1
-                    "smlal  v20.4s, v6.4h, %10.h[3]       \n"// (r10 - r17) * k03
+                    "smlal  v20.4s, v6.4h, %10.h[3]       \n" // (r10 - r17) * k03
                     "smlal2  v21.4s, v6.8h, %10.h[3]      \n"
-                    "smlal  v22.4s, v14.4h, %11.h[0]      \n"// (r11 - r18) * k04
+                    "smlal  v22.4s, v14.4h, %11.h[0]      \n" // (r11 - r18) * k04
                     "smlal2  v23.4s, v14.8h, %11.h[0]     \n"
-                    "smlal  v24.4s, v15.4h, %11.h[1]      \n"// (r12 - r19) * k05
+                    "smlal  v24.4s, v15.4h, %11.h[1]      \n" // (r12 - r19) * k05
                     "smlal2  v25.4s, v15.8h, %11.h[1]     \n"
 
                     // r2
-                    "smlal  v20.4s, v8.4h, %11.h[2]       \n"// (r20 - r27) * k06
+                    "smlal  v20.4s, v8.4h, %11.h[2]       \n" // (r20 - r27) * k06
                     "smlal2  v21.4s, v8.8h, %11.h[2]      \n"
-                    "smlal  v22.4s, v16.4h, %11.h[3]      \n"// (r21 - r28) * k07
+                    "smlal  v22.4s, v16.4h, %11.h[3]      \n" // (r21 - r28) * k07
                     "smlal2  v23.4s, v16.8h, %11.h[3]     \n"
-                    "smlal  v24.4s, v17.4h, %12.h[0]      \n"// (r22 - r29) * k08
+                    "smlal  v24.4s, v17.4h, %12.h[0]      \n" // (r22 - r29) * k08
                     "smlal2  v25.4s, v17.8h, %12.h[0]     \n"
 
                     // add and save
@@ -1347,83 +1318,81 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                     "subs   %w0, %w0, #1                  \n"
                     "bne    0b                            \n"
 
-                    : "=r"(nn),       // %0
-                    "=r"(outptr0),  // %1
-                    "=r"(r0),       // %2
-                    "=r"(r1),       // %3
-                    "=r"(r2)        // %4
+                    : "=r"(nn),      // %0
+                    "=r"(outptr0), // %1
+                    "=r"(r0),      // %2
+                    "=r"(r1),      // %3
+                    "=r"(r2)       // %4
                     : "0"(nn),
                     "1"(outptr0),
                     "2"(r0),
                     "3"(r1),
                     "4"(r2),
-                    "w"(_k0123),    // %10
-                    "w"(_k4567),    // %11
-                    "w"(_k8xxx),    // %12
-                    "r"(bias0),     // %13
+                    "w"(_k0123),           // %10
+                    "w"(_k4567),           // %11
+                    "w"(_k8xxx),           // %12
+                    "r"(bias0),            // %13
                     "r"(scale_requant_in), // %14
                     "r"(scale_requant_out) // %15
-                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-                );
+                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
 #else
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "0:                              \n"
                     // r0
-                    "vld1.s8    {d30-d31}, [%2]      \n"// r0
+                    "vld1.s8    {d30-d31}, [%2]      \n" // r0
                     "add    %2, %2, #8               \n"
 
                     "vext.s8    d10, d30, d31, #1    \n"
                     "vext.s8    d12, d30, d31, #2    \n"
 
-                    "vmovl.s8    q15, d30            \n"// r00
-                    "vmovl.s8    q5, d10             \n"// r01
-                    "vmovl.s8    q6, d12             \n"// r02
+                    "vmovl.s8    q15, d30            \n" // r00
+                    "vmovl.s8    q5, d10             \n" // r01
+                    "vmovl.s8    q6, d12             \n" // r02
                     // sum0
-                    "vmull.s16  q7, d30, %P10[0]     \n"// (r00 - r07) * k00
+                    "vmull.s16  q7, d30, %P10[0]     \n" // (r00 - r07) * k00
                     "vmull.s16  q8, d31, %P10[0]     \n"
-                    "vmull.s16  q9, d10, %P10[1]     \n"// (r01 - r08) * k01
+                    "vmull.s16  q9, d10, %P10[1]     \n" // (r01 - r08) * k01
                     "vmull.s16  q10, d11, %P10[1]    \n"
-                    "vmlal.s16  q7, d12, %P10[2]     \n"// (r02 - r09) * k02
+                    "vmlal.s16  q7, d12, %P10[2]     \n" // (r02 - r09) * k02
                     "vmlal.s16  q8, d13, %P10[2]     \n"
 
                     // r1
-                    "vld1.s8    {d30-d31}, [%3]      \n"// r1
+                    "vld1.s8    {d30-d31}, [%3]      \n" // r1
                     "add    %3, %3, #8               \n"
 
                     "vext.s8    d10, d30, d31, #1    \n"
                     "vext.s8    d12, d30, d31, #2    \n"
 
-                    "vmovl.s8    q15, d30            \n"// r10
-                    "vmovl.s8    q5, d10             \n"// r11
-                    "vmovl.s8    q6, d12             \n"// r12
+                    "vmovl.s8    q15, d30            \n" // r10
+                    "vmovl.s8    q5, d10             \n" // r11
+                    "vmovl.s8    q6, d12             \n" // r12
                     // sum0
-                    "vmlal.s16  q7, d30, %P10[3]     \n"// (r10 - r17) * k03
+                    "vmlal.s16  q7, d30, %P10[3]     \n" // (r10 - r17) * k03
                     "vmlal.s16  q8, d31, %P10[3]     \n"
-                    "vmlal.s16  q9, d10, %P11[0]     \n"// (r11 - r18) * k04
+                    "vmlal.s16  q9, d10, %P11[0]     \n" // (r11 - r18) * k04
                     "vmlal.s16  q10, d11, %P11[0]    \n"
-                    "vmlal.s16  q7, d12, %P11[1]     \n"// (r12 - r19) * k05
+                    "vmlal.s16  q7, d12, %P11[1]     \n" // (r12 - r19) * k05
                     "vmlal.s16  q8, d13, %P11[1]     \n"
 
                     // r2
-                    "vld1.s8    {d30-d31}, [%4]      \n"// r2
+                    "vld1.s8    {d30-d31}, [%4]      \n" // r2
                     "add    %4, %4, #8               \n"
 
                     "vext.s8    d10, d30, d31, #1    \n"
                     "vext.s8    d12, d30, d31, #2    \n"
 
-                    "vmovl.s8    q15, d30            \n"// r20
-                    "vmovl.s8    q5, d10             \n"// r21
-                    "vmovl.s8    q6, d12             \n"// r22
+                    "vmovl.s8    q15, d30            \n" // r20
+                    "vmovl.s8    q5, d10             \n" // r21
+                    "vmovl.s8    q6, d12             \n" // r22
 
                     // sum0
-                    "vmlal.s16  q7, d30, %P11[2]     \n"// (r20 - r27) * k06
+                    "vmlal.s16  q7, d30, %P11[2]     \n" // (r20 - r27) * k06
                     "vmlal.s16  q8, d31, %P11[2]     \n"
-                    "vmlal.s16  q9, d10, %P11[3]     \n"// (r21 - r28) * k07
+                    "vmlal.s16  q9, d10, %P11[3]     \n" // (r21 - r28) * k07
                     "vmlal.s16  q10, d11, %P11[3]    \n"
-                    "vmlal.s16  q7, d12, %P12[0]     \n"// (r22 - r29) * k08
+                    "vmlal.s16  q7, d12, %P12[0]     \n" // (r22 - r29) * k08
                     "vmlal.s16  q8, d13, %P12[0]     \n"
 
                     "subs   %0, %0, #1               \n"
@@ -1467,29 +1436,27 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
 
                     "bne    0b                      \n"
 
-                    : "=r"(nn),       // %0
-                    "=r"(outptr0),  // %1
-                    "=r"(r0),       // %2
-                    "=r"(r1),       // %3
-                    "=r"(r2)        // %4
+                    : "=r"(nn),      // %0
+                    "=r"(outptr0), // %1
+                    "=r"(r0),      // %2
+                    "=r"(r1),      // %3
+                    "=r"(r2)       // %4
                     : "0"(nn),
                     "1"(outptr0),
                     "2"(r0),
                     "3"(r1),
                     "4"(r2),
-                    "w"(_k0123),    // %10
-                    "w"(_k4567),    // %11
-                    "w"(_k8xxx),    // %12
-                    "r"(bias0),     // %13
+                    "w"(_k0123),           // %10
+                    "w"(_k4567),           // %11
+                    "w"(_k8xxx),           // %12
+                    "r"(bias0),            // %13
                     "r"(scale_requant_in), // %14
                     "r"(scale_requant_out) // %15
-                    : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                );
+                    : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
             }
-#endif // __aarch64__            
+#endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 int sum = 0;
 
                 sum += (int)r0[0] * kernel[0];
@@ -1517,7 +1484,7 @@ static void convdw3x3s1_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
     }
 }
 
-static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
+static void convdw3x3s2_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, std::vector<float> scales_requant, const Option& opt)
 {
     int w = bottom_blob.w;
 
@@ -1527,18 +1494,17 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
 
     const float* bias = _bias;
 
-    const int tailstep = w - 2*outw + w;
+    const int tailstep = w - 2 * outw + w;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<outch; p++)
-    {
+    for (int p = 0; p < outch; p++) {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
-        const float scale_requant_in = scales_requant[2*p];
-        const float scale_requant_out = scales_requant[2*p+1];
+        const float scale_requant_in = scales_requant[2 * p];
+        const float scale_requant_out = scales_requant[2 * p + 1];
 
-        const signed char* kernel = (const signed char*)_kernel + p*9;
+        const signed char* kernel = (const signed char*)_kernel + p * 9;
 
         signed char* outptr = out;
 
@@ -1546,7 +1512,7 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
 
         const signed char* r0 = img;
         const signed char* r1 = img + w;
-        const signed char* r2 = img + w*2;
+        const signed char* r2 = img + w * 2;
 
         int i = 0;
 #if __ARM_NEON
@@ -1557,9 +1523,8 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
         int16x4_t _k0123 = vget_low_s16(_k_s16);
         int16x4_t _k4567 = vget_high_s16(_k_s16);
         int16x4_t _k8xxx = vget_low_s16(_kn_s16);
-#endif // __ARM_NEON 
-        for (; i < outh; i++)
-        {
+#endif // __ARM_NEON
+        for (; i < outh; i++) {
 #if __ARM_NEON
             int nn = outw >> 3;
             int remain = outw & 7;
@@ -1569,8 +1534,7 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
 
 #if __ARM_NEON
 #if __aarch64__
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "dup    v26.4s, %w13                  \n"
                     "dup    v27.4s, %w14                  \n"
@@ -1587,38 +1551,38 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                     "ext    v10.8b, v8.8b, v10.8b, #1     \n"
                     "ext    v14.8b, v12.8b, v14.8b, #1    \n"
 
-                    "sshll  v4.8h, v4.8b, #0              \n"// r00
-                    "sshll  v5.8h, v5.8b, #0              \n"// r01
-                    "sshll  v6.8h, v6.8b, #0              \n"// r02
-                    "sshll  v8.8h, v8.8b, #0              \n"// r10
-                    "sshll  v9.8h, v9.8b, #0              \n"// r11
-                    "sshll  v10.8h, v10.8b, #0            \n"// r12
-                    "sshll  v12.8h, v12.8b, #0            \n"// r20
-                    "sshll  v13.8h, v13.8b, #0            \n"// r21
-                    "sshll  v14.8h, v14.8b, #0            \n"// r22
+                    "sshll  v4.8h, v4.8b, #0              \n" // r00
+                    "sshll  v5.8h, v5.8b, #0              \n" // r01
+                    "sshll  v6.8h, v6.8b, #0              \n" // r02
+                    "sshll  v8.8h, v8.8b, #0              \n" // r10
+                    "sshll  v9.8h, v9.8b, #0              \n" // r11
+                    "sshll  v10.8h, v10.8b, #0            \n" // r12
+                    "sshll  v12.8h, v12.8b, #0            \n" // r20
+                    "sshll  v13.8h, v13.8b, #0            \n" // r21
+                    "sshll  v14.8h, v14.8b, #0            \n" // r22
 
                     // r0
-                    "smull  v20.4s, v4.4h, %10.h[0]       \n"// (r00 - r07) * k00
+                    "smull  v20.4s, v4.4h, %10.h[0]       \n" // (r00 - r07) * k00
                     "smull2  v21.4s, v4.8h, %10.h[0]      \n"
-                    "smull  v22.4s, v5.4h, %10.h[1]       \n"// (r01 - r08) * k01
+                    "smull  v22.4s, v5.4h, %10.h[1]       \n" // (r01 - r08) * k01
                     "smull2  v23.4s, v5.8h, %10.h[1]      \n"
-                    "smull  v24.4s, v6.4h, %10.h[2]       \n"// (r02 - r09) * k02
+                    "smull  v24.4s, v6.4h, %10.h[2]       \n" // (r02 - r09) * k02
                     "smull2  v25.4s, v6.8h, %10.h[2]      \n"
 
                     // r1
-                    "smlal  v20.4s, v8.4h, %10.h[3]       \n"// (r10 - r17) * k03
+                    "smlal  v20.4s, v8.4h, %10.h[3]       \n" // (r10 - r17) * k03
                     "smlal2  v21.4s, v8.8h, %10.h[3]      \n"
-                    "smlal  v22.4s, v9.4h, %11.h[0]       \n"// (r11 - r18) * k04
+                    "smlal  v22.4s, v9.4h, %11.h[0]       \n" // (r11 - r18) * k04
                     "smlal2  v23.4s, v9.8h, %11.h[0]      \n"
-                    "smlal  v24.4s, v10.4h, %11.h[1]      \n"// (r12 - r19) * k05
+                    "smlal  v24.4s, v10.4h, %11.h[1]      \n" // (r12 - r19) * k05
                     "smlal2  v25.4s, v10.8h, %11.h[1]     \n"
 
                     // r2
-                    "smlal  v20.4s, v12.4h, %11.h[2]      \n"// (r20 - r27) * k06
+                    "smlal  v20.4s, v12.4h, %11.h[2]      \n" // (r20 - r27) * k06
                     "smlal2  v21.4s, v12.8h, %11.h[2]     \n"
-                    "smlal  v22.4s, v13.4h, %11.h[3]      \n"// (r21 - r28) * k07
+                    "smlal  v22.4s, v13.4h, %11.h[3]      \n" // (r21 - r28) * k07
                     "smlal2  v23.4s, v13.8h, %11.h[3]     \n"
-                    "smlal  v24.4s, v14.4h, %12.h[0]      \n"// (r22 - r29) * k08
+                    "smlal  v24.4s, v14.4h, %12.h[0]      \n" // (r22 - r29) * k08
                     "smlal2  v25.4s, v14.8h, %12.h[0]     \n"
 
                     // add and save
@@ -1653,77 +1617,75 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
                     "subs   %w0, %w0, #1                  \n"
                     "bne    0b                            \n"
 
-                    : "=r"(nn),       // %0
-                    "=r"(outptr),   // %1
-                    "=r"(r0),       // %2
-                    "=r"(r1),       // %3
-                    "=r"(r2)        // %4
+                    : "=r"(nn),     // %0
+                    "=r"(outptr), // %1
+                    "=r"(r0),     // %2
+                    "=r"(r1),     // %3
+                    "=r"(r2)      // %4
                     : "0"(nn),
                     "1"(outptr),
                     "2"(r0),
                     "3"(r1),
                     "4"(r2),
-                    "w"(_k0123),    // %10
-                    "w"(_k4567),    // %11
-                    "w"(_k8xxx),    // %12
+                    "w"(_k0123),           // %10
+                    "w"(_k4567),           // %11
+                    "w"(_k8xxx),           // %12
                     "r"(bias0),            // %13
                     "r"(scale_requant_in), // %14
                     "r"(scale_requant_out) // %15
-                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-                );
+                    : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
 #else
-            if (nn > 0)
-            {
+            if (nn > 0) {
                 asm volatile(
                     "0:                              \n"
                     // r0
-                    "vld2.s8    {d30-d31}, [%2]!     \n"// r0
+                    "vld2.s8    {d30-d31}, [%2]!     \n" // r0
                     "vld2.s8    {d10-d11}, [%2]      \n"
                     "vext.s8    d12, d30, d10, #1    \n"
 
-                    "vmovl.s8    q5, d31             \n"// r01
-                    "vmovl.s8    q15, d30            \n"// r00
-                    "vmovl.s8    q6, d12             \n"// r02
+                    "vmovl.s8    q5, d31             \n" // r01
+                    "vmovl.s8    q15, d30            \n" // r00
+                    "vmovl.s8    q6, d12             \n" // r02
                     // sum0
-                    "vmull.s16  q7, d30, %P10[0]     \n"// (r00 - r07) * k00
+                    "vmull.s16  q7, d30, %P10[0]     \n" // (r00 - r07) * k00
                     "vmull.s16  q8, d31, %P10[0]     \n"
-                    "vmull.s16  q9, d10, %P10[1]     \n"// (r01 - r08) * k01
+                    "vmull.s16  q9, d10, %P10[1]     \n" // (r01 - r08) * k01
                     "vmull.s16  q10, d11, %P10[1]    \n"
-                    "vmlal.s16  q7, d12, %P10[2]     \n"// (r02 - r09) * k02
+                    "vmlal.s16  q7, d12, %P10[2]     \n" // (r02 - r09) * k02
                     "vmlal.s16  q8, d13, %P10[2]     \n"
 
                     // r1
-                    "vld2.s8    {d30-d31}, [%3]!     \n"// r1
+                    "vld2.s8    {d30-d31}, [%3]!     \n" // r1
                     "vld2.s8    {d10-d11}, [%3]      \n"
                     "vext.s8    d12, d30, d10, #1    \n"
 
-                    "vmovl.s8    q5, d31             \n"// r11
-                    "vmovl.s8    q15, d30            \n"// r10
-                    "vmovl.s8    q6, d12             \n"// r12
+                    "vmovl.s8    q5, d31             \n" // r11
+                    "vmovl.s8    q15, d30            \n" // r10
+                    "vmovl.s8    q6, d12             \n" // r12
                     // sum0
-                    "vmlal.s16  q7, d30, %P10[3]     \n"// (r10 - r17) * k03
+                    "vmlal.s16  q7, d30, %P10[3]     \n" // (r10 - r17) * k03
                     "vmlal.s16  q8, d31, %P10[3]     \n"
-                    "vmlal.s16  q9, d10, %P11[0]     \n"// (r11 - r18) * k04
+                    "vmlal.s16  q9, d10, %P11[0]     \n" // (r11 - r18) * k04
                     "vmlal.s16  q10, d11, %P11[0]    \n"
-                    "vmlal.s16  q7, d12, %P11[1]     \n"// (r12 - r19) * k05
+                    "vmlal.s16  q7, d12, %P11[1]     \n" // (r12 - r19) * k05
                     "vmlal.s16  q8, d13, %P11[1]     \n"
 
                     // r2
-                    "vld2.s8    {d30-d31}, [%4]!     \n"// r2
+                    "vld2.s8    {d30-d31}, [%4]!     \n" // r2
                     "vld2.s8    {d10-d11}, [%4]      \n"
                     "vext.s8    d12, d30, d10, #1    \n"
 
-                    "vmovl.s8    q5, d31             \n"// r21
-                    "vmovl.s8    q15, d30            \n"// r20
-                    "vmovl.s8    q6, d12             \n"// r22
+                    "vmovl.s8    q5, d31             \n" // r21
+                    "vmovl.s8    q15, d30            \n" // r20
+                    "vmovl.s8    q6, d12             \n" // r22
 
                     // sum0
-                    "vmlal.s16  q7, d30, %P11[2]     \n"// (r20 - r27) * k06
+                    "vmlal.s16  q7, d30, %P11[2]     \n" // (r20 - r27) * k06
                     "vmlal.s16  q8, d31, %P11[2]     \n"
-                    "vmlal.s16  q9, d10, %P11[3]     \n"// (r21 - r28) * k07
+                    "vmlal.s16  q9, d10, %P11[3]     \n" // (r21 - r28) * k07
                     "vmlal.s16  q10, d11, %P11[3]    \n"
-                    "vmlal.s16  q7, d12, %P12[0]     \n"// (r22 - r29) * k08
+                    "vmlal.s16  q7, d12, %P12[0]     \n" // (r22 - r29) * k08
                     "vmlal.s16  q8, d13, %P12[0]     \n"
 
                     "subs   %0, %0, #1               \n"
@@ -1767,29 +1729,27 @@ static void convdw3x3s2_int8_requant_neon(const Mat &bottom_blob, Mat &top_blob,
 
                     "bne    0b                       \n"
 
-                    : "=r"(nn),       // %0
-                    "=r"(outptr),   // %1
-                    "=r"(r0),       // %2
-                    "=r"(r1),       // %3
-                    "=r"(r2)        // %4
+                    : "=r"(nn),     // %0
+                    "=r"(outptr), // %1
+                    "=r"(r0),     // %2
+                    "=r"(r1),     // %3
+                    "=r"(r2)      // %4
                     : "0"(nn),
                     "1"(outptr),
                     "2"(r0),
                     "3"(r1),
                     "4"(r2),
-                    "w"(_k0123),    // %10
-                    "w"(_k4567),    // %11
-                    "w"(_k8xxx),     // %12
+                    "w"(_k0123),           // %10
+                    "w"(_k4567),           // %11
+                    "w"(_k8xxx),           // %12
                     "r"(bias0),            // %13
                     "r"(scale_requant_in), // %14
                     "r"(scale_requant_out) // %15
-                    : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                );
+                    : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
             }
-#endif // __aarch64__             
+#endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 int sum = 0;
 
                 sum += (int)r0[0] * kernel[0];

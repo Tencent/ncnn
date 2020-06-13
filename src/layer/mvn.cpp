@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "mvn.h"
+
 #include <math.h>
 
 namespace ncnn {
@@ -52,86 +53,72 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
         return -100;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
-    {
+    for (int q = 0; q < channels; q++) {
         const float* ptr = bottom_blob.channel(q);
 
         float s = 0.f;
-        for (int i=0; i<size; i++)
-        {
+        for (int i = 0; i < size; i++) {
             s += ptr[i];
         }
 
         sum[q] = s;
     }
 
-    if (across_channels)
-    {
+    if (across_channels) {
         // compute mean across channels
         float mean = 0.f;
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             mean += sum[q];
         }
         mean = mean / (channels * size);
 
-        // subtract mean
+// subtract mean
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 outptr[i] = ptr[i] - mean;
             }
         }
     }
-    else
-    {
-        // subtract mean
+    else {
+// subtract mean
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
             float mean = sum[q] / size;
 
-            for (int i=0; i<size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 outptr[i] = ptr[i] - mean;
             }
         }
     }
 
-    if (normalize_variance)
-    {
+    if (normalize_variance) {
         // prepare squared sum per channel
         Mat sqsum(channels, elemsize, opt.workspace_allocator);
         if (sqsum.empty())
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             const float* ptr = top_blob.channel(q);
 
             float s = 0.f;
-            for (int i=0; i<size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 s += ptr[i] * ptr[i];
             }
 
             sqsum[q] = s;
         }
 
-        if (across_channels)
-        {
+        if (across_channels) {
             // compute squared mean across channels
             float sqmean = 0.f;
-            for (int q=0; q<channels; q++)
-            {
+            for (int q = 0; q < channels; q++) {
                 sqmean += sqsum[q];
             }
             sqmean = sqmean / (channels * size);
@@ -140,36 +127,30 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
             float norm_var = static_cast<float>(sqrt(sqmean) + eps);
             float norm_var_inv = 1.f / norm_var;
 
-            // apply normalize_variance
+// apply normalize_variance
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
-            {
+            for (int q = 0; q < channels; q++) {
                 float* outptr = top_blob.channel(q);
 
-                for (int i=0; i<size; i++)
-                {
+                for (int i = 0; i < size; i++) {
                     outptr[i] = outptr[i] * norm_var_inv;
                 }
             }
         }
-        else
-        {
-            // apply normalize_variance
+        else {
+// apply normalize_variance
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
-            {
+            for (int q = 0; q < channels; q++) {
                 float* outptr = top_blob.channel(q);
                 float sqmean = sqsum[q] / size;
                 float norm_var = static_cast<float>(sqrt(sqmean) + eps);
                 float norm_var_inv = 1.f / norm_var;
 
-                for (int i=0; i<size; i++)
-                {
+                for (int i = 0; i < size; i++) {
                     outptr[i] = outptr[i] * norm_var_inv;
                 }
             }
         }
-
     }
 
     return 0;

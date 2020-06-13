@@ -12,14 +12,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <stdio.h>
-#include <vector>
+#include "net.h"
+#include "platform.h"
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-
-#include "platform.h"
-#include "net.h"
+#include <stdio.h>
+#include <vector>
 #if NCNN_VULKAN
 #include "gpu.h"
 #endif // NCNN_VULKAN
@@ -45,16 +45,14 @@ static void qsort_descent_inplace(std::vector<Object>& objects, int left, int ri
     int j = right;
     float p = objects[(left + right) / 2].prob;
 
-    while (i <= j)
-    {
+    while (i <= j) {
         while (objects[i].prob > p)
             i++;
 
         while (objects[j].prob < p)
             j--;
 
-        if (i <= j)
-        {
+        if (i <= j) {
             // swap
             std::swap(objects[i], objects[j]);
 
@@ -91,18 +89,15 @@ static void nms_sorted_bboxes(const std::vector<Object>& objects, std::vector<in
     const int n = objects.size();
 
     std::vector<float> areas(n);
-    for (int i = 0; i < n; i++)
-    {
+    for (int i = 0; i < n; i++) {
         areas[i] = objects[i].rect.area();
     }
 
-    for (int i = 0; i < n; i++)
-    {
+    for (int i = 0; i < n; i++) {
         const Object& a = objects[i];
 
         int keep = 1;
-        for (int j = 0; j < (int)picked.size(); j++)
-        {
+        for (int j = 0; j < (int)picked.size(); j++) {
             const Object& b = objects[picked[j]];
 
             // intersection over union
@@ -140,11 +135,11 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR2RGB, img_w, img_h, target_size, target_size);
 
     const float mean_vals[3] = {123.68f, 116.78f, 103.94f};
-    const float norm_vals[3] = {1.0/58.40f, 1.0/57.12f, 1.0/57.38f};
+    const float norm_vals[3] = {1.0 / 58.40f, 1.0 / 57.12f, 1.0 / 57.38f};
     in.substract_mean_normalize(mean_vals, norm_vals);
 
     ncnn::Extractor ex = yolact.create_extractor();
-//     ex.set_num_threads(4);
+    //     ex.set_num_threads(4);
 
     ex.input("input.1", in);
 
@@ -153,11 +148,11 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
     ncnn::Mat mask;
     ncnn::Mat confidence;
 
-    ex.extract("619", maskmaps);// 138x138 x 32
+    ex.extract("619", maskmaps); // 138x138 x 32
 
-    ex.extract("816", location);// 4 x 19248
-    ex.extract("818", mask);// maskdim 32 x 19248
-    ex.extract("820", confidence);// 81 x 19248
+    ex.extract("816", location);   // 4 x 19248
+    ex.extract("818", mask);       // maskdim 32 x 19248
+    ex.extract("820", confidence); // 81 x 19248
 
     int num_class = confidence.w;
     int num_priors = confidence.h;
@@ -173,23 +168,19 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
 
         float* pb = priorbox;
 
-        for (int p = 0; p < 5; p++)
-        {
+        for (int p = 0; p < 5; p++) {
             int conv_w = conv_ws[p];
             int conv_h = conv_hs[p];
 
             float scale = scales[p];
 
-            for (int i = 0; i < conv_h; i++)
-            {
-                for (int j = 0; j < conv_w; j++)
-                {
+            for (int i = 0; i < conv_h; i++) {
+                for (int j = 0; j < conv_w; j++) {
                     // +0.5 because priors are in center-size notation
                     float cx = (j + 0.5f) / conv_w;
                     float cy = (i + 0.5f) / conv_h;
 
-                    for (int k = 0; k < 3; k++)
-                    {
+                    for (int k = 0; k < 3; k++) {
                         float ar = aspect_ratios[k];
 
                         ar = sqrt(ar);
@@ -217,11 +208,10 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
     const float nms_threshold = 0.5f;
     const int keep_top_k = 200;
 
-    std::vector< std::vector<Object> > class_candidates;
+    std::vector<std::vector<Object> > class_candidates;
     class_candidates.resize(num_class);
 
-    for (int i = 0; i < num_priors; i++)
-    {
+    for (int i = 0; i < num_priors; i++) {
         const float* conf = confidence.row(i);
         const float* loc = location.row(i);
         const float* pb = priorbox.row(i);
@@ -231,11 +221,9 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
         // start from 1 to skip background
         int label = 0;
         float score = 0.f;
-        for (int j=1; j<num_class; j++)
-        {
+        for (int j = 1; j < num_class; j++) {
             float class_score = conf[j];
-            if (class_score > score)
-            {
+            if (class_score > score) {
                 label = j;
                 score = class_score;
             }
@@ -271,7 +259,7 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
 
         // append object
         Object obj;
-        obj.rect = cv::Rect_<float>(obj_x1, obj_y1, obj_x2-obj_x1+1, obj_y2-obj_y1+1);
+        obj.rect = cv::Rect_<float>(obj_x1, obj_y1, obj_x2 - obj_x1 + 1, obj_y2 - obj_y1 + 1);
         obj.label = label;
         obj.prob = score;
         obj.maskdata = std::vector<float>(maskdata, maskdata + mask.w);
@@ -280,8 +268,7 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
     }
 
     objects.clear();
-    for (int i = 0; i < (int)class_candidates.size(); i++)
-    {
+    for (int i = 0; i < (int)class_candidates.size(); i++) {
         std::vector<Object>& candidates = class_candidates[i];
 
         qsort_descent_inplace(candidates);
@@ -289,8 +276,7 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
         std::vector<int> picked;
         nms_sorted_bboxes(candidates, picked, nms_threshold);
 
-        for (int j = 0; j < (int)picked.size(); j++)
-        {
+        for (int j = 0; j < (int)picked.size(); j++) {
             int z = picked[j];
             objects.push_back(candidates[z]);
         }
@@ -299,29 +285,25 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
     qsort_descent_inplace(objects);
 
     // keep_top_k
-    if (keep_top_k < (int)objects.size())
-    {
+    if (keep_top_k < (int)objects.size()) {
         objects.resize(keep_top_k);
     }
 
     // generate mask
-    for (int i=0; i<objects.size(); i++)
-    {
+    for (int i = 0; i < objects.size(); i++) {
         Object& obj = objects[i];
 
         cv::Mat mask(maskmaps.h, maskmaps.w, CV_32FC1);
         {
             mask = cv::Scalar(0.f);
 
-            for (int p=0; p<maskmaps.c; p++)
-            {
+            for (int p = 0; p < maskmaps.c; p++) {
                 const float* maskmap = maskmaps.channel(p);
                 float coeff = obj.maskdata[p];
                 float* mp = (float*)mask.data;
 
                 // mask += m * coeff
-                for (int j=0; j<maskmaps.w * maskmaps.h; j++)
-                {
+                for (int j = 0; j < maskmaps.w * maskmaps.h; j++) {
                     mp[j] += maskmap[j] * coeff;
                 }
             }
@@ -335,16 +317,14 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
         {
             obj.mask = cv::Scalar(0);
 
-            for (int y=0; y<img_h; y++)
-            {
+            for (int y = 0; y < img_h; y++) {
                 if (y < obj.rect.y || y > obj.rect.y + obj.rect.height)
                     continue;
 
                 const float* mp2 = mask2.ptr<const float>(y);
                 uchar* bmp = obj.mask.ptr<uchar>(y);
 
-                for (int x=0; x<img_w; x++)
-                {
+                for (int x = 0; x < img_w; x++) {
                     if (x < obj.rect.x || x > obj.rect.x + obj.rect.width)
                         continue;
 
@@ -360,49 +340,49 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
 static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 {
     static const char* class_names[] = {"background",
-        "person", "bicycle", "car", "motorcycle", "airplane", "bus",
-        "train", "truck", "boat", "traffic light", "fire hydrant",
-        "stop sign", "parking meter", "bench", "bird", "cat", "dog",
-        "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe",
-        "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
-        "skis", "snowboard", "sports ball", "kite", "baseball bat",
-        "baseball glove", "skateboard", "surfboard", "tennis racket",
-        "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl",
-        "banana", "apple", "sandwich", "orange", "broccoli", "carrot",
-        "hot dog", "pizza", "donut", "cake", "chair", "couch",
-        "potted plant", "bed", "dining table", "toilet", "tv", "laptop",
-        "mouse", "remote", "keyboard", "cell phone", "microwave", "oven",
-        "toaster", "sink", "refrigerator", "book", "clock", "vase",
-        "scissors", "teddy bear", "hair drier", "toothbrush"};
+                                        "person", "bicycle", "car", "motorcycle", "airplane", "bus",
+                                        "train", "truck", "boat", "traffic light", "fire hydrant",
+                                        "stop sign", "parking meter", "bench", "bird", "cat", "dog",
+                                        "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe",
+                                        "backpack", "umbrella", "handbag", "tie", "suitcase", "frisbee",
+                                        "skis", "snowboard", "sports ball", "kite", "baseball bat",
+                                        "baseball glove", "skateboard", "surfboard", "tennis racket",
+                                        "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl",
+                                        "banana", "apple", "sandwich", "orange", "broccoli", "carrot",
+                                        "hot dog", "pizza", "donut", "cake", "chair", "couch",
+                                        "potted plant", "bed", "dining table", "toilet", "tv", "laptop",
+                                        "mouse", "remote", "keyboard", "cell phone", "microwave", "oven",
+                                        "toaster", "sink", "refrigerator", "book", "clock", "vase",
+                                        "scissors", "teddy bear", "hair drier", "toothbrush"
+                                       };
 
     static const unsigned char colors[19][3] = {
-        {244,  67,  54},
-        {233,  30,  99},
-        {156,  39, 176},
-        {103,  58, 183},
-        { 63,  81, 181},
-        { 33, 150, 243},
-        {  3, 169, 244},
-        {  0, 188, 212},
-        {  0, 150, 136},
-        { 76, 175,  80},
-        {139, 195,  74},
-        {205, 220,  57},
-        {255, 235,  59},
-        {255, 193,   7},
-        {255, 152,   0},
-        {255,  87,  34},
-        {121,  85,  72},
+        {244, 67, 54},
+        {233, 30, 99},
+        {156, 39, 176},
+        {103, 58, 183},
+        {63, 81, 181},
+        {33, 150, 243},
+        {3, 169, 244},
+        {0, 188, 212},
+        {0, 150, 136},
+        {76, 175, 80},
+        {139, 195, 74},
+        {205, 220, 57},
+        {255, 235, 59},
+        {255, 193, 7},
+        {255, 152, 0},
+        {255, 87, 34},
+        {121, 85, 72},
         {158, 158, 158},
-        { 96, 125, 139}
+        {96, 125, 139}
     };
 
     cv::Mat image = bgr.clone();
 
     int color_index = 0;
 
-    for (size_t i = 0; i < objects.size(); i++)
-    {
+    for (size_t i = 0; i < objects.size(); i++) {
         const Object& obj = objects[i];
 
         if (obj.prob < 0.15)
@@ -428,22 +408,18 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         if (x + label_size.width > image.cols)
             x = image.cols - label_size.width;
 
-        cv::rectangle(image, cv::Rect(cv::Point(x, y),
-                                      cv::Size(label_size.width, label_size.height + baseLine)),
+        cv::rectangle(image, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
                       cv::Scalar(255, 255, 255), -1);
 
         cv::putText(image, text, cv::Point(x, y + label_size.height),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
         // draw mask
-        for (int y=0; y<image.rows; y++)
-        {
+        for (int y = 0; y < image.rows; y++) {
             const uchar* mp = obj.mask.ptr(y);
             uchar* p = image.ptr(y);
-            for (int x=0; x<image.cols; x++)
-            {
-                if (mp[x] == 255)
-                {
+            for (int x = 0; x < image.cols; x++) {
+                if (mp[x] == 255) {
                     p[0] = cv::saturate_cast<uchar>(p[0] * 0.5 + color[0] * 0.5);
                     p[1] = cv::saturate_cast<uchar>(p[1] * 0.5 + color[1] * 0.5);
                     p[2] = cv::saturate_cast<uchar>(p[2] * 0.5 + color[2] * 0.5);
@@ -460,8 +436,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 
 int main(int argc, char** argv)
 {
-    if (argc != 2)
-    {
+    if (argc != 2) {
         fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
         return -1;
     }
@@ -469,8 +444,7 @@ int main(int argc, char** argv)
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, 1);
-    if (m.empty())
-    {
+    if (m.empty()) {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);
         return -1;
     }

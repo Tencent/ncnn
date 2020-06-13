@@ -37,8 +37,10 @@ int Cast::load_param(const ParamDict& pd)
 signed char float32_to_int8(float value)
 {
     float tmp;
-    if (value >= 0.f) tmp = value + 0.5f;
-    else tmp = value - 0.5f;
+    if (value >= 0.f)
+        tmp = value + 0.5f;
+    else
+        tmp = value - 0.5f;
 
     if (tmp > 127)
         return 127;
@@ -50,8 +52,7 @@ signed char float32_to_int8(float value)
 
 int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (type_from == type_to)
-    {
+    if (type_from == type_to) {
         top_blob = bottom_blob;
         return 0;
     }
@@ -64,37 +65,30 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     int elempack = bottom_blob.elempack;
 
     size_t out_elemsize = elemsize;
-    if (type_to == 1)
-    {
+    if (type_to == 1) {
         // float32
         out_elemsize = 4 * elempack;
     }
-    else if (type_to == 2)
-    {
+    else if (type_to == 2) {
         // float16
         out_elemsize = 2 * elempack;
     }
-    else if (type_to == 3)
-    {
+    else if (type_to == 3) {
         // int8
         out_elemsize = elempack;
     }
-    else if (type_to == 4)
-    {
+    else if (type_to == 4) {
         // bfloat16
         out_elemsize = 2 * elempack;
     }
 
-    if (dims == 1)
-    {
+    if (dims == 1) {
         top_blob.create(w, out_elemsize, elempack, opt.blob_allocator);
     }
-    else if (dims == 2)
-    {
+    else if (dims == 2) {
         top_blob.create(w, h, out_elemsize, elempack, opt.blob_allocator);
     }
-    else if (dims == 3)
-    {
+    else if (dims == 3) {
         top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
     }
     if (top_blob.empty())
@@ -102,76 +96,61 @@ int Cast::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
     int size = w * h * elempack;
 
-    if (type_from == 1 && type_to == 2)
-    {
+    if (type_from == 1 && type_to == 2) {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             const float* ptr = bottom_blob.channel(q);
             unsigned short* outptr = top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 outptr[i] = float32_to_float16(ptr[i]);
             }
         }
     }
 
-    if (type_from == 2 && type_to == 1)
-    {
+    if (type_from == 2 && type_to == 1) {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             const unsigned short* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 outptr[i] = float16_to_float32(ptr[i]);
             }
         }
     }
 
-    if (type_from == 3 && type_to == 1)
-    {
+    if (type_from == 3 && type_to == 1) {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             const signed char* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 outptr[i] = (float)ptr[i];
             }
         }
     }
 
-    if (type_from == 1 && type_to == 4)
-    {
+    if (type_from == 1 && type_to == 4) {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             const float* ptr = bottom_blob.channel(q);
             unsigned short* outptr = top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 outptr[i] = float32_to_bfloat16(ptr[i]);
             }
         }
     }
 
-    if (type_from == 4 && type_to == 1)
-    {
+    if (type_from == 4 && type_to == 1) {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             const unsigned short* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 outptr[i] = bfloat16_to_float32(ptr[i]);
             }
         }

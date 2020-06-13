@@ -12,14 +12,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/reorg.h"
+#include "testutil.h"
 
 static int test_reorg(const ncnn::Mat& a, int stride)
 {
     ncnn::ParamDict pd;
-    pd.set(0, stride);//stride
+    pd.set(0, stride); //stride
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -29,8 +28,7 @@ static int test_reorg(const ncnn::Mat& a, int stride)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Reorg>("Reorg", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_reorg failed a.dims=%d a=(%d %d %d) stride=%d\n", a.dims, a.w, a.h, a.c, stride);
     }
 
@@ -46,8 +44,7 @@ static int test_reorg_0()
            || test_reorg(RandomMat(4, 4, 4), 4)
            || test_reorg(RandomMat(8, 8, 8), 2)
            || test_reorg(RandomMat(10, 10, 12), 2)
-           || test_reorg(RandomMat(9, 9, 16), 3)
-           ;
+           || test_reorg(RandomMat(9, 9, 16), 3);
 }
 
 int main()

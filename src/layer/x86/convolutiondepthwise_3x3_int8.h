@@ -20,7 +20,7 @@ static inline signed char float2int8(float v)
     return (signed char)int32;
 }
 
-static void convdw3x3s1_int8_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Option& opt)
+static void convdw3x3s1_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Option& opt)
 {
     int w = bottom_blob.w;
     //int h = bottom_blob.h;
@@ -30,33 +30,29 @@ static void convdw3x3s1_int8_sse(const Mat &bottom_blob, Mat &top_blob, const Ma
     int outh = top_blob.h;
     int outch = top_blob.c;
 
-    const signed char *kernel = _kernel;
+    const signed char* kernel = _kernel;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++)
-    {
+    for (int p = 0; p < outch; p++) {
         Mat out = top_blob.channel(p);
 
         out.fill(0);
 
-        const signed char *kernel0 = (const signed char *)kernel + p * 9;
+        const signed char* kernel0 = (const signed char*)kernel + p * 9;
 
-        int *outptr = out;
+        int* outptr = out;
 
-        const signed char *img0 = bottom_blob.channel(p);
+        const signed char* img0 = bottom_blob.channel(p);
 
-        const signed char *r0 = img0;
-        const signed char *r1 = img0 + w;
-        const signed char *r2 = img0 + w * 2;
+        const signed char* r0 = img0;
+        const signed char* r1 = img0 + w;
+        const signed char* r2 = img0 + w * 2;
 
         int i = 0;
-        for (; i < outh; i++)
-        {
+        for (; i < outh; i++) {
             int remain = outw;
 
-            for (; remain > 0; remain--)
-            {
-
+            for (; remain > 0; remain--) {
                 int sum = 0;
 
                 sum += (int)r0[0] * (int)kernel0[0];
@@ -84,7 +80,7 @@ static void convdw3x3s1_int8_sse(const Mat &bottom_blob, Mat &top_blob, const Ma
     }
 }
 
-static void convdw3x3s2_int8_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Option& opt)
+static void convdw3x3s2_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Option& opt)
 {
     int w = bottom_blob.w;
     //int h = bottom_blob.h;
@@ -96,32 +92,29 @@ static void convdw3x3s2_int8_sse(const Mat &bottom_blob, Mat &top_blob, const Ma
 
     const int tailstep = w - 2 * outw + w;
 
-    const signed char *kernel = _kernel;
+    const signed char* kernel = _kernel;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++)
-    {
+    for (int p = 0; p < outch; p++) {
         Mat out = top_blob.channel(p);
         out.fill(0);
 
-        const signed char *kernel0 = (const signed char *)kernel + p * 9;
+        const signed char* kernel0 = (const signed char*)kernel + p * 9;
 
-        int *outptr = out;
+        int* outptr = out;
 
-        const signed char *img0 = bottom_blob.channel(p);
+        const signed char* img0 = bottom_blob.channel(p);
 
-        const signed char *r0 = img0;
-        const signed char *r1 = img0 + w;
-        const signed char *r2 = img0 + w * 2;
+        const signed char* r0 = img0;
+        const signed char* r1 = img0 + w;
+        const signed char* r2 = img0 + w * 2;
 
         int i = 0;
 
-        for (; i < outh; i++)
-        {
+        for (; i < outh; i++) {
             int remain = outw;
 
-            for (; remain > 0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 int sum = 0;
 
                 sum += (int)r0[0] * (int)kernel0[0];
@@ -149,7 +142,7 @@ static void convdw3x3s2_int8_sse(const Mat &bottom_blob, Mat &top_blob, const Ma
     }
 }
 
-static void convdw3x3s1_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_dequant, const Option& opt)
+static void convdw3x3s1_int8_dequant_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, std::vector<float> scales_dequant, const Option& opt)
 {
     int w = bottom_blob.w;
     //int h = bottom_blob.h;
@@ -159,34 +152,31 @@ static void convdw3x3s1_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, 
     int outh = top_blob.h;
     int outch = top_blob.c;
 
-    const signed char *kernel = _kernel;
+    const signed char* kernel = _kernel;
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++)
-    {
+    for (int p = 0; p < outch; p++) {
         Mat out = top_blob.channel(p);
-        float *outptr = out;
+        float* outptr = out;
 
         const float bias0 = bias ? bias[p] : 0.f;
         const float scale_dequant = scales_dequant[p];
 
         out.fill(bias0);
 
-        const signed char *kernel0 = (const signed char *)kernel + p * 9;
+        const signed char* kernel0 = (const signed char*)kernel + p * 9;
 
-        const signed char *img0 = bottom_blob.channel(p);
-        const signed char *r0 = img0;
-        const signed char *r1 = img0 + w;
-        const signed char *r2 = img0 + w * 2;
+        const signed char* img0 = bottom_blob.channel(p);
+        const signed char* r0 = img0;
+        const signed char* r1 = img0 + w;
+        const signed char* r2 = img0 + w * 2;
 
         int i = 0;
-        for (; i < outh; i++)
-        {
+        for (; i < outh; i++) {
             int remain = outw;
 
-            for (; remain > 0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 int sum = 0;
 
                 sum += (int)r0[0] * (int)kernel0[0];
@@ -214,7 +204,7 @@ static void convdw3x3s1_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, 
     }
 }
 
-static void convdw3x3s2_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_dequant, const Option& opt)
+static void convdw3x3s2_int8_dequant_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, std::vector<float> scales_dequant, const Option& opt)
 {
     int w = bottom_blob.w;
     //int h = bottom_blob.h;
@@ -226,35 +216,32 @@ static void convdw3x3s2_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, 
 
     const int tailstep = w - 2 * outw + w;
 
-    const signed char *kernel = _kernel;
+    const signed char* kernel = _kernel;
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++)
-    {
+    for (int p = 0; p < outch; p++) {
         Mat out = top_blob.channel(p);
-        float *outptr = out;
+        float* outptr = out;
 
         const float bias0 = bias ? bias[p] : 0.f;
         const float scale_dequant = scales_dequant[p];
 
         out.fill(bias0);
 
-        const signed char *kernel0 = (const signed char *)kernel + p * 9;
+        const signed char* kernel0 = (const signed char*)kernel + p * 9;
 
-        const signed char *img0 = bottom_blob.channel(p);
-        const signed char *r0 = img0;
-        const signed char *r1 = img0 + w;
-        const signed char *r2 = img0 + w * 2;
+        const signed char* img0 = bottom_blob.channel(p);
+        const signed char* r0 = img0;
+        const signed char* r1 = img0 + w;
+        const signed char* r2 = img0 + w * 2;
 
         int i = 0;
 
-        for (; i < outh; i++)
-        {
+        for (; i < outh; i++) {
             int remain = outw;
 
-            for (; remain > 0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 int sum = 0;
 
                 sum += (int)r0[0] * (int)kernel0[0];
@@ -282,7 +269,7 @@ static void convdw3x3s2_int8_dequant_sse(const Mat &bottom_blob, Mat &top_blob, 
     }
 }
 
-static void convdw3x3s1_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
+static void convdw3x3s1_int8_requant_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, std::vector<float> scales_requant, const Option& opt)
 {
     int w = bottom_blob.w;
     //int h = bottom_blob.h;
@@ -292,33 +279,30 @@ static void convdw3x3s1_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, 
     int outh = top_blob.h;
     int outch = top_blob.c;
 
-    const signed char *kernel = _kernel;
+    const signed char* kernel = _kernel;
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++)
-    {
+    for (int p = 0; p < outch; p++) {
         Mat out = top_blob.channel(p);
-        signed char *outptr = out;
+        signed char* outptr = out;
 
         const float bias0 = bias ? bias[p] : 0.f;
-        const float scale_requant_in = scales_requant[2*p];
-        const float scale_requant_out = scales_requant[2*p+1];
+        const float scale_requant_in = scales_requant[2 * p];
+        const float scale_requant_out = scales_requant[2 * p + 1];
 
-        const signed char *kernel0 = (const signed char *)kernel + p * 9;
+        const signed char* kernel0 = (const signed char*)kernel + p * 9;
 
-        const signed char *img0 = bottom_blob.channel(p);
-        const signed char *r0 = img0;
-        const signed char *r1 = img0 + w;
-        const signed char *r2 = img0 + w * 2;
+        const signed char* img0 = bottom_blob.channel(p);
+        const signed char* r0 = img0;
+        const signed char* r1 = img0 + w;
+        const signed char* r2 = img0 + w * 2;
 
         int i = 0;
-        for (; i < outh; i++)
-        {
+        for (; i < outh; i++) {
             int remain = outw;
 
-            for (; remain > 0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 int sum = 0;
 
                 sum += (int)r0[0] * (int)kernel0[0];
@@ -346,7 +330,7 @@ static void convdw3x3s1_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, 
     }
 }
 
-static void convdw3x3s2_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat &_bias, std::vector<float> scales_requant, const Option& opt)
+static void convdw3x3s2_int8_requant_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, std::vector<float> scales_requant, const Option& opt)
 {
     int w = bottom_blob.w;
     //int h = bottom_blob.h;
@@ -358,34 +342,31 @@ static void convdw3x3s2_int8_requant_sse(const Mat &bottom_blob, Mat &top_blob, 
 
     const int tailstep = w - 2 * outw + w;
 
-    const signed char *kernel = _kernel;
+    const signed char* kernel = _kernel;
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++)
-    {
+    for (int p = 0; p < outch; p++) {
         Mat out = top_blob.channel(p);
-        signed char *outptr = out;
+        signed char* outptr = out;
 
         const float bias0 = bias ? bias[p] : 0.f;
-        const float scale_requant_in = scales_requant[2*p];
-        const float scale_requant_out = scales_requant[2*p+1];
+        const float scale_requant_in = scales_requant[2 * p];
+        const float scale_requant_out = scales_requant[2 * p + 1];
 
-        const signed char *kernel0 = (const signed char *)kernel + p * 9;
+        const signed char* kernel0 = (const signed char*)kernel + p * 9;
 
-        const signed char *img0 = bottom_blob.channel(p);
-        const signed char *r0 = img0;
-        const signed char *r1 = img0 + w;
-        const signed char *r2 = img0 + w * 2;
+        const signed char* img0 = bottom_blob.channel(p);
+        const signed char* r0 = img0;
+        const signed char* r1 = img0 + w;
+        const signed char* r2 = img0 + w * 2;
 
         int i = 0;
 
-        for (; i < outh; i++)
-        {
+        for (; i < outh; i++) {
             int remain = outw;
 
-            for (; remain > 0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 int sum = 0;
 
                 sum += (int)r0[0] * (int)kernel0[0];

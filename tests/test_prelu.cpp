@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/prelu.h"
+#include "testutil.h"
 
 static int test_prelu(const ncnn::Mat& a, int num_slope)
 {
@@ -30,8 +29,7 @@ static int test_prelu(const ncnn::Mat& a, int num_slope)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::PReLU>("PReLU", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_prelu failed a.dims=%d a=(%d %d %d) num_slope=%d\n", a.dims, a.w, a.h, a.c, num_slope);
     }
 
@@ -44,8 +42,7 @@ static int test_prelu_0()
            || test_prelu(RandomMat(6, 7, 16), 16)
            || test_prelu(RandomMat(6, 7, 16), 1)
            || test_prelu(RandomMat(3, 5, 13), 13)
-           || test_prelu(RandomMat(3, 5, 13), 1)
-           ;
+           || test_prelu(RandomMat(3, 5, 13), 1);
 }
 
 static int test_prelu_1()
@@ -54,8 +51,7 @@ static int test_prelu_1()
            || test_prelu(RandomMat(6, 16), 16)
            || test_prelu(RandomMat(6, 16), 1)
            || test_prelu(RandomMat(7, 15), 15)
-           || test_prelu(RandomMat(7, 15), 1)
-           ;
+           || test_prelu(RandomMat(7, 15), 1);
 }
 
 static int test_prelu_2()
@@ -64,8 +60,7 @@ static int test_prelu_2()
            || test_prelu(RandomMat(128), 128)
            || test_prelu(RandomMat(128), 1)
            || test_prelu(RandomMat(127), 127)
-           || test_prelu(RandomMat(127), 1)
-           ;
+           || test_prelu(RandomMat(127), 1);
 }
 
 int main()
@@ -75,6 +70,5 @@ int main()
     return 0
            || test_prelu_0()
            || test_prelu_1()
-           || test_prelu_2()
-           ;
+           || test_prelu_2();
 }

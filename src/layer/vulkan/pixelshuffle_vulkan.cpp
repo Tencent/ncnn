@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "pixelshuffle_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -51,18 +53,15 @@ int PixelShuffle_vulkan::create_pipeline(const Option& _opt)
 
     size_t elemsize;
     size_t out_elemsize;
-    if (opt.use_fp16_storage)
-    {
+    if (opt.use_fp16_storage) {
         elemsize = elempack * 2u;
         out_elemsize = out_elempack * 2u;
     }
-    else if (opt.use_fp16_packed)
-    {
+    else if (opt.use_fp16_packed) {
         elemsize = elempack == 1 ? 4u : elempack * 2u;
         out_elemsize = out_elempack == 1 ? 4u : out_elempack * 2u;
     }
-    else
-    {
+    else {
         elemsize = elempack * 4u;
         out_elemsize = out_elempack * 4u;
     }
@@ -78,8 +77,7 @@ int PixelShuffle_vulkan::create_pipeline(const Option& _opt)
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     // check blob shape
-    if (!vkdev->shape_support_image_storage(shape_packed) || !vkdev->shape_support_image_storage(out_shape_packed))
-    {
+    if (!vkdev->shape_support_image_storage(shape_packed) || !vkdev->shape_support_image_storage(out_shape_packed)) {
         support_image_storage = false;
         opt.use_image_storage = false;
     }
@@ -97,65 +95,57 @@ int PixelShuffle_vulkan::create_pipeline(const Option& _opt)
     specializations[1 + 8].i = out_shape_packed.c;
     specializations[1 + 9].i = out_shape_packed.cstep;
 
-    Mat local_size_xyz_bottom;// pack4to1 and pack8to1
-    if (shape_packed.dims != 3)
-    {
+    Mat local_size_xyz_bottom; // pack4to1 and pack8to1
+    if (shape_packed.dims != 3) {
         local_size_xyz_bottom.w = std::min(4, shape_packed.w);
         local_size_xyz_bottom.h = std::min(4, shape_packed.h);
         local_size_xyz_bottom.c = std::min(4, shape_packed.c);
     }
 
     Mat local_size_xyz;
-    if (out_shape_packed.dims != 0)
-    {
+    if (out_shape_packed.dims != 0) {
         local_size_xyz.w = std::min(4, out_shape_packed.w);
         local_size_xyz.h = std::min(4, out_shape_packed.h);
         local_size_xyz.c = std::min(4, out_shape_packed.c);
     }
 
     // pack1
-    if (shape.dims == 0 || (elempack == 1 && out_elempack == 1))
-    {
+    if (shape.dims == 0 || (elempack == 1 && out_elempack == 1)) {
         pipeline_pixelshuffle = new Pipeline(vkdev);
         pipeline_pixelshuffle->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_pixelshuffle->create(LayerShaderType::pixelshuffle, opt, specializations);
     }
 
     // pack4
-    if (shape.dims == 0 || (elempack == 4 && out_elempack == 4))
-    {
+    if (shape.dims == 0 || (elempack == 4 && out_elempack == 4)) {
         pipeline_pixelshuffle_pack4 = new Pipeline(vkdev);
         pipeline_pixelshuffle_pack4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_pixelshuffle_pack4->create(LayerShaderType::pixelshuffle_pack4, opt, specializations);
     }
 
     // pack4to1
-    if (shape.dims == 0 || (elempack == 4 && out_elempack == 1))
-    {
+    if (shape.dims == 0 || (elempack == 4 && out_elempack == 1)) {
         pipeline_pixelshuffle_pack4to1 = new Pipeline(vkdev);
         pipeline_pixelshuffle_pack4to1->set_optimal_local_size_xyz(local_size_xyz_bottom);
         pipeline_pixelshuffle_pack4to1->create(LayerShaderType::pixelshuffle_pack4to1, opt, specializations);
     }
 
     // pack8
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 8))
-    {
+    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 8)) {
         pipeline_pixelshuffle_pack8 = new Pipeline(vkdev);
         pipeline_pixelshuffle_pack8->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_pixelshuffle_pack8->create(LayerShaderType::pixelshuffle_pack8, opt, specializations);
     }
 
     // pack8to1
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 1))
-    {
+    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 1)) {
         pipeline_pixelshuffle_pack8to1 = new Pipeline(vkdev);
         pipeline_pixelshuffle_pack8to1->set_optimal_local_size_xyz(local_size_xyz_bottom);
         pipeline_pixelshuffle_pack8to1->create(LayerShaderType::pixelshuffle_pack8to1, opt, specializations);
     }
 
     // pack8to4
-    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 4))
-    {
+    if ((opt.use_shader_pack8 && shape.dims == 0) || (elempack == 8 && out_elempack == 4)) {
         pipeline_pixelshuffle_pack8to4 = new Pipeline(vkdev);
         pipeline_pixelshuffle_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
         pipeline_pixelshuffle_pack8to4->create(LayerShaderType::pixelshuffle_pack8to4, opt, specializations);
@@ -202,10 +192,9 @@ int PixelShuffle_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     int out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    if (opt.use_fp16_packed && !opt.use_fp16_storage)
-    {
-        if (out_elempack == 8) out_elemsize = 8*2u;
-        if (out_elempack == 4) out_elemsize = 4*2u;
+    if (opt.use_fp16_packed && !opt.use_fp16_storage) {
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
@@ -229,28 +218,22 @@ int PixelShuffle_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    if (elempack == 1 && out_elempack == 1)
-    {
+    if (elempack == 1 && out_elempack == 1) {
         cmd.record_pipeline(pipeline_pixelshuffle, bindings, constants, top_blob);
     }
-    else if (elempack == 4 && out_elempack == 4)
-    {
+    else if (elempack == 4 && out_elempack == 4) {
         cmd.record_pipeline(pipeline_pixelshuffle_pack4, bindings, constants, top_blob);
     }
-    else if (elempack == 4 && out_elempack == 1)
-    {
+    else if (elempack == 4 && out_elempack == 1) {
         cmd.record_pipeline(pipeline_pixelshuffle_pack4to1, bindings, constants, bottom_blob);
     }
-    else if (elempack == 8 && out_elempack == 8)
-    {
+    else if (elempack == 8 && out_elempack == 8) {
         cmd.record_pipeline(pipeline_pixelshuffle_pack8, bindings, constants, top_blob);
     }
-    else if (elempack == 8 && out_elempack == 1)
-    {
+    else if (elempack == 8 && out_elempack == 1) {
         cmd.record_pipeline(pipeline_pixelshuffle_pack8to1, bindings, constants, bottom_blob);
     }
-    else if (elempack == 8 && out_elempack == 4)
-    {
+    else if (elempack == 8 && out_elempack == 4) {
         cmd.record_pipeline(pipeline_pixelshuffle_pack8to4, bindings, constants, top_blob);
     }
 
@@ -272,10 +255,9 @@ int PixelShuffle_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_
     int out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    if (opt.use_fp16_packed && !opt.use_fp16_storage)
-    {
-        if (out_elempack == 8) out_elemsize = 8*2u;
-        if (out_elempack == 4) out_elemsize = 4*2u;
+    if (opt.use_fp16_packed && !opt.use_fp16_storage) {
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
@@ -292,35 +274,29 @@ int PixelShuffle_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
     constants[3].i = bottom_blob.c;
-    constants[4].i = 0;//bottom_blob.cstep;
+    constants[4].i = 0; //bottom_blob.cstep;
     constants[5].i = top_blob.dims;
     constants[6].i = top_blob.w;
     constants[7].i = top_blob.h;
     constants[8].i = top_blob.c;
-    constants[9].i = 0;//top_blob.cstep;
+    constants[9].i = 0; //top_blob.cstep;
 
-    if (elempack == 1 && out_elempack == 1)
-    {
+    if (elempack == 1 && out_elempack == 1) {
         cmd.record_pipeline(pipeline_pixelshuffle, bindings, constants, top_blob);
     }
-    else if (elempack == 4 && out_elempack == 4)
-    {
+    else if (elempack == 4 && out_elempack == 4) {
         cmd.record_pipeline(pipeline_pixelshuffle_pack4, bindings, constants, top_blob);
     }
-    else if (elempack == 4 && out_elempack == 1)
-    {
+    else if (elempack == 4 && out_elempack == 1) {
         cmd.record_pipeline(pipeline_pixelshuffle_pack4to1, bindings, constants, bottom_blob);
     }
-    else if (elempack == 8 && out_elempack == 8)
-    {
+    else if (elempack == 8 && out_elempack == 8) {
         cmd.record_pipeline(pipeline_pixelshuffle_pack8, bindings, constants, top_blob);
     }
-    else if (elempack == 8 && out_elempack == 1)
-    {
+    else if (elempack == 8 && out_elempack == 1) {
         cmd.record_pipeline(pipeline_pixelshuffle_pack8to1, bindings, constants, bottom_blob);
     }
-    else if (elempack == 8 && out_elempack == 4)
-    {
+    else if (elempack == 8 && out_elempack == 4) {
         cmd.record_pipeline(pipeline_pixelshuffle_pack8to4, bindings, constants, top_blob);
     }
 

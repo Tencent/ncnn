@@ -24,8 +24,7 @@ static void conv1x1s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<outch; p++)
-    {
+    for (int p = 0; p < outch; p++) {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
@@ -34,16 +33,15 @@ static void conv1x1s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
 
         int q = 0;
 
-        for (; q+3<inch; q+=4)
-        {
+        for (; q + 3 < inch; q += 4) {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
-            const float* img1 = bottom_blob.channel(q+1);
-            const float* img2 = bottom_blob.channel(q+2);
-            const float* img3 = bottom_blob.channel(q+3);
+            const float* img1 = bottom_blob.channel(q + 1);
+            const float* img2 = bottom_blob.channel(q + 2);
+            const float* img3 = bottom_blob.channel(q + 3);
 
-            const float* kernel0 = kernel + p*inch  + q;
+            const float* kernel0 = kernel + p * inch + q;
             const float k0 = kernel0[0];
             const float k1 = kernel0[1];
             const float k2 = kernel0[2];
@@ -58,8 +56,7 @@ static void conv1x1s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
 
             int remain = size;
 
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 float sum = *r0 * k0;
                 float sum1 = *r1 * k1;
                 float sum2 = *r2 * k2;
@@ -73,16 +70,14 @@ static void conv1x1s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
                 r3++;
                 outptr++;
             }
-
         }
 
-        for (; q<inch; q++)
-        {
+        for (; q < inch; q++) {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
 
-            const float* kernel0 = kernel + p*inch  + q;
+            const float* kernel0 = kernel + p * inch + q;
             const float k0 = kernel0[0];
 
             const float* r0 = img0;
@@ -91,8 +86,7 @@ static void conv1x1s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
 
             int remain = size;
 
-            for (; remain>0; remain--)
-            {
+            for (; remain > 0; remain--) {
                 float sum = *r0 * k0;
 
                 *outptr += sum;
@@ -100,10 +94,8 @@ static void conv1x1s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
                 r0++;
                 outptr++;
             }
-
         }
     }
-
 }
 
 static void conv1x1s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
@@ -115,14 +107,13 @@ static void conv1x1s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
     int outh = top_blob.h;
     int outch = top_blob.c;
 
-    const int tailstep = w - 2*outw + w;
+    const int tailstep = w - 2 * outw + w;
 
     const float* kernel = _kernel;
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<outch; p++)
-    {
+    for (int p = 0; p < outch; p++) {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
@@ -131,16 +122,15 @@ static void conv1x1s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
 
         int q = 0;
 
-        for (; q+3<inch; q+=4)
-        {
+        for (; q + 3 < inch; q += 4) {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
-            const float* img1 = bottom_blob.channel(q+1);
-            const float* img2 = bottom_blob.channel(q+2);
-            const float* img3 = bottom_blob.channel(q+3);
+            const float* img1 = bottom_blob.channel(q + 1);
+            const float* img2 = bottom_blob.channel(q + 2);
+            const float* img3 = bottom_blob.channel(q + 3);
 
-            const float* kernel0 = kernel + p*inch + q;
+            const float* kernel0 = kernel + p * inch + q;
             const float k0 = kernel0[0];
             const float k1 = kernel0[1];
             const float k2 = kernel0[2];
@@ -151,12 +141,10 @@ static void conv1x1s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
             const float* r2 = img2;
             const float* r3 = img3;
 
-            for (int i = 0; i < outh; i++)
-            {
+            for (int i = 0; i < outh; i++) {
                 int remain = outw;
 
-                for (; remain>0; remain--)
-                {
+                for (; remain > 0; remain--) {
                     float sum = *r0 * k0;
                     float sum1 = *r1 * k1;
                     float sum2 = *r2 * k2;
@@ -176,26 +164,22 @@ static void conv1x1s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
                 r2 += tailstep;
                 r3 += tailstep;
             }
-
         }
 
-        for (; q<inch; q++)
-        {
+        for (; q < inch; q++) {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
 
-            const float* kernel0 = kernel + p*inch + q;
+            const float* kernel0 = kernel + p * inch + q;
             const float k0 = kernel0[0];
 
             const float* r0 = img0;
 
-            for (int i = 0; i < outh; i++)
-            {
+            for (int i = 0; i < outh; i++) {
                 int remain = outw;
 
-                for (; remain>0; remain--)
-                {
+                for (; remain > 0; remain--) {
                     float sum = *r0 * k0;
 
                     *outptr += sum;
@@ -206,8 +190,6 @@ static void conv1x1s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
 
                 r0 += tailstep;
             }
-
         }
     }
-
 }

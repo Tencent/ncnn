@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "normalize_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -54,16 +56,13 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
-    if (opt.use_fp16_storage)
-    {
+    if (opt.use_fp16_storage) {
         elemsize = elempack * 2u;
     }
-    else if (opt.use_fp16_packed)
-    {
+    else if (opt.use_fp16_packed) {
         elemsize = elempack == 1 ? 4u : elempack * 2u;
     }
-    else
-    {
+    else {
         elemsize = elempack * 4u;
     }
 
@@ -77,11 +76,10 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         specializations[0].i = across_spatial;
         specializations[1].i = across_channel;
 
-        Mat local_size_xyz;// TODO select by across_channel / across_spatial
+        Mat local_size_xyz; // TODO select by across_channel / across_spatial
 
         // pack1
-        if (shape.dims == 0 || elempack == 1)
-        {
+        if (shape.dims == 0 || elempack == 1) {
             pipeline_normalize_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_reduce_sum4_fp16_to_fp32->create(LayerShaderType::normalize_reduce_sum4_fp16_to_fp32, opt, specializations);
@@ -95,8 +93,7 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack4
-        if (shape.dims == 0 || elempack == 4)
-        {
+        if (shape.dims == 0 || elempack == 4) {
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4->create(LayerShaderType::normalize_reduce_sum4_fp16_to_fp32_pack4, opt, specializations);
@@ -110,8 +107,7 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack8
-        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-        {
+        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8) {
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8 = new Pipeline(vkdev);
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8->create(LayerShaderType::normalize_reduce_sum4_fp16_to_fp32_pack8, opt, specializations);
@@ -132,24 +128,21 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         specializations[2].f = eps;
         specializations[3].i = eps_mode;
 
-        Mat local_size_xyz;// TODO resolve sqsum_workspace shape
+        Mat local_size_xyz; // TODO resolve sqsum_workspace shape
 
-        if (shape.dims == 0 || elempack == 1)
-        {
+        if (shape.dims == 0 || elempack == 1) {
             pipeline_normalize_coeffs = new Pipeline(vkdev);
             pipeline_normalize_coeffs->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_coeffs->create(LayerShaderType::normalize_coeffs, opt, specializations);
         }
 
-        if (shape.dims == 0 || elempack == 4)
-        {
+        if (shape.dims == 0 || elempack == 4) {
             pipeline_normalize_coeffs_pack4 = new Pipeline(vkdev);
             pipeline_normalize_coeffs_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_coeffs_pack4->create(LayerShaderType::normalize_coeffs_pack4, opt, specializations);
         }
 
-        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-        {
+        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8) {
             pipeline_normalize_coeffs_pack8 = new Pipeline(vkdev);
             pipeline_normalize_coeffs_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_coeffs_pack8->create(LayerShaderType::normalize_coeffs_pack8, opt, specializations);
@@ -170,29 +163,25 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         specializations[5 + 4].i = shape_packed.cstep;
 
         Mat local_size_xyz;
-        if (shape_packed.dims != 0)
-        {
+        if (shape_packed.dims != 0) {
             local_size_xyz.w = std::min(4, shape_packed.w);
             local_size_xyz.h = std::min(4, shape_packed.h);
             local_size_xyz.c = std::min(4, shape_packed.c);
         }
 
-        if (shape.dims == 0 || elempack == 1)
-        {
+        if (shape.dims == 0 || elempack == 1) {
             pipeline_normalize_norm = new Pipeline(vkdev);
             pipeline_normalize_norm->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_norm->create(LayerShaderType::normalize_norm, opt, specializations);
         }
 
-        if (shape.dims == 0 || elempack == 4)
-        {
+        if (shape.dims == 0 || elempack == 4) {
             pipeline_normalize_norm_pack4 = new Pipeline(vkdev);
             pipeline_normalize_norm_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_norm_pack4->create(LayerShaderType::normalize_norm_pack4, opt, specializations);
         }
 
-        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
-        {
+        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8) {
             pipeline_normalize_norm_pack8 = new Pipeline(vkdev);
             pipeline_normalize_norm_pack8->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_normalize_norm_pack8->create(LayerShaderType::normalize_norm_pack8, opt, specializations);
@@ -251,19 +240,16 @@ int Normalize_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int Normalize_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
-    if (!channel_shared && !(scale_data_size == 1 && scale_data[0] == 1.f))
-    {
+    if (!channel_shared && !(scale_data_size == 1 && scale_data[0] == 1.f)) {
         int elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4 : 1;
 
         Mat scale_data_packed;
         convert_packing(scale_data, scale_data_packed, elempack);
 
-        if (opt.use_image_storage)
-        {
+        if (opt.use_image_storage) {
             cmd.record_upload(scale_data_packed, scale_data_gpu_image, opt);
         }
-        else
-        {
+        else {
             cmd.record_upload(scale_data_packed, scale_data_gpu, opt);
         }
     }
@@ -287,14 +273,12 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
             int reduced_h;
             int reduced_c;
 
-            if (across_spatial && across_channel)
-            {
+            if (across_spatial && across_channel) {
                 reduced_w = (bottom_top_blob.w * bottom_top_blob.h + 1) / 2;
                 reduced_h = 1;
                 reduced_c = (bottom_top_blob.c + 1) / 2;
             }
-            else if (across_spatial && !across_channel)
-            {
+            else if (across_spatial && !across_channel) {
                 reduced_w = (bottom_top_blob.w * bottom_top_blob.h + 3) / 4;
                 reduced_h = 1;
                 reduced_c = bottom_top_blob.c;
@@ -306,7 +290,7 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
                 reduced_c = (bottom_top_blob.c + 3) / 4;
             }
 
-            sqsum_workspace.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
+            sqsum_workspace.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
             {
                 std::vector<VkMat> bindings(2);
                 bindings[0] = bottom_top_blob;
@@ -331,20 +315,17 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         }
 
         int pb = 0;
-        while ((across_spatial && sqsum_workspace.w > 1) || (across_channel && sqsum_workspace.c > 1))
-        {
+        while ((across_spatial && sqsum_workspace.w > 1) || (across_channel && sqsum_workspace.c > 1)) {
             int reduced_w;
             int reduced_h;
             int reduced_c;
 
-            if (across_spatial && across_channel)
-            {
+            if (across_spatial && across_channel) {
                 reduced_w = (sqsum_workspace.w + 1) / 2;
                 reduced_h = 1;
                 reduced_c = (sqsum_workspace.c + 1) / 2;
             }
-            else if (across_spatial && !across_channel)
-            {
+            else if (across_spatial && !across_channel) {
                 reduced_w = (sqsum_workspace.w + 3) / 4;
                 reduced_h = 1;
                 reduced_c = sqsum_workspace.c;
@@ -357,7 +338,7 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
             }
 
             VkMat sqsum_workspace_reduced;
-            sqsum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
+            sqsum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
 
             {
                 std::vector<VkMat> bindings(2);
@@ -374,9 +355,9 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
                 constants[6].i = sqsum_workspace_reduced.c;
                 constants[7].i = sqsum_workspace_reduced.cstep;
 
-                const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp32_pack8[pb%2]
-                                           : elempack == 4 ? pipeline_normalize_reduce_sum4_fp32_pack4[pb%2]
-                                           : pipeline_normalize_reduce_sum4_fp32[pb%2];
+                const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp32_pack8[pb % 2]
+                                           : elempack == 4 ? pipeline_normalize_reduce_sum4_fp32_pack4[pb % 2]
+                                           : pipeline_normalize_reduce_sum4_fp32[pb % 2];
 
                 cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace_reduced);
 
@@ -448,14 +429,12 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
             int reduced_h;
             int reduced_c;
 
-            if (across_spatial && across_channel)
-            {
+            if (across_spatial && across_channel) {
                 reduced_w = (bottom_top_blob.w + 1) / 2;
                 reduced_h = (bottom_top_blob.h + 1) / 2;
                 reduced_c = (bottom_top_blob.c + 1) / 2;
             }
-            else if (across_spatial && !across_channel)
-            {
+            else if (across_spatial && !across_channel) {
                 reduced_w = (bottom_top_blob.w + 1) / 2;
                 reduced_h = (bottom_top_blob.h + 1) / 2;
                 reduced_c = bottom_top_blob.c;
@@ -467,7 +446,7 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
                 reduced_c = (bottom_top_blob.c + 3) / 4;
             }
 
-            sqsum_workspace.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
+            sqsum_workspace.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
             {
                 std::vector<VkImageMat> bindings(2);
                 bindings[0] = bottom_top_blob;
@@ -477,11 +456,11 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
                 constants[0].i = bottom_top_blob.w;
                 constants[1].i = bottom_top_blob.h;
                 constants[2].i = bottom_top_blob.c;
-                constants[3].i = 0;//bottom_top_blob.cstep;
+                constants[3].i = 0; //bottom_top_blob.cstep;
                 constants[4].i = sqsum_workspace.w;
                 constants[5].i = sqsum_workspace.h;
                 constants[6].i = sqsum_workspace.c;
-                constants[7].i = 0;//sqsum_workspace.cstep;
+                constants[7].i = 0; //sqsum_workspace.cstep;
 
                 const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8
                                            : elempack == 4 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4
@@ -492,20 +471,17 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
         }
 
         int pb = 0;
-        while ((across_spatial && sqsum_workspace.w * sqsum_workspace.h > 1) || (across_channel && sqsum_workspace.c > 1))
-        {
+        while ((across_spatial && sqsum_workspace.w * sqsum_workspace.h > 1) || (across_channel && sqsum_workspace.c > 1)) {
             int reduced_w;
             int reduced_h;
             int reduced_c;
 
-            if (across_spatial && across_channel)
-            {
+            if (across_spatial && across_channel) {
                 reduced_w = (sqsum_workspace.w + 1) / 2;
                 reduced_h = (sqsum_workspace.h + 1) / 2;
                 reduced_c = (sqsum_workspace.c + 1) / 2;
             }
-            else if (across_spatial && !across_channel)
-            {
+            else if (across_spatial && !across_channel) {
                 reduced_w = (sqsum_workspace.w + 1) / 2;
                 reduced_h = (sqsum_workspace.h + 1) / 2;
                 reduced_c = sqsum_workspace.c;
@@ -518,7 +494,7 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
             }
 
             VkImageMat sqsum_workspace_reduced;
-            sqsum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
+            sqsum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
 
             {
                 std::vector<VkImageMat> bindings(2);
@@ -529,15 +505,15 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
                 constants[0].i = sqsum_workspace.w;
                 constants[1].i = sqsum_workspace.h;
                 constants[2].i = sqsum_workspace.c;
-                constants[3].i = 0;//sqsum_workspace.cstep;
+                constants[3].i = 0; //sqsum_workspace.cstep;
                 constants[4].i = sqsum_workspace_reduced.w;
                 constants[5].i = sqsum_workspace_reduced.h;
                 constants[6].i = sqsum_workspace_reduced.c;
-                constants[7].i = 0;//sqsum_workspace_reduced.cstep;
+                constants[7].i = 0; //sqsum_workspace_reduced.cstep;
 
-                const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp32_pack8[pb%2]
-                                           : elempack == 4 ? pipeline_normalize_reduce_sum4_fp32_pack4[pb%2]
-                                           : pipeline_normalize_reduce_sum4_fp32[pb%2];
+                const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp32_pack8[pb % 2]
+                                           : elempack == 4 ? pipeline_normalize_reduce_sum4_fp32_pack4[pb % 2]
+                                           : pipeline_normalize_reduce_sum4_fp32[pb % 2];
 
                 cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace_reduced);
 
@@ -560,7 +536,7 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
         constants[0].i = sqsum_workspace.w;
         constants[1].i = sqsum_workspace.h;
         constants[2].i = sqsum_workspace.c;
-        constants[3].i = 0;//sqsum_workspace.cstep;
+        constants[3].i = 0; //sqsum_workspace.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_coeffs_pack8
                                    : elempack == 4 ? pipeline_normalize_coeffs_pack4
@@ -582,7 +558,7 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
         constants[1].i = bottom_top_blob.w;
         constants[2].i = bottom_top_blob.h;
         constants[3].i = bottom_top_blob.c;
-        constants[4].i = 0;//bottom_top_blob.cstep;
+        constants[4].i = 0; //bottom_top_blob.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_norm_pack8
                                    : elempack == 4 ? pipeline_normalize_norm_pack4

@@ -1,3 +1,5 @@
+# find src/ tools/ tests/ examples/ benchmark/ -type f -name '*.c' -o -name '*.cpp' -o -name '*.h' | xargs -i clang-format -i {}
+
 AccessModifierOffset: -4
 AlignAfterOpenBracket: Align
 AlignConsecutiveAssignments: false

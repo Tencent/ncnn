@@ -16,26 +16,21 @@
 
 #if NCNN_VULKAN
 
-#include <vulkan/vulkan.h>
-
+#include <algorithm>
 #include <math.h>
 #include <string.h>
-
-#include <algorithm>
+#include <vulkan/vulkan.h>
 
 #if NCNN_VULKAN_ONLINE_SPIRV
-#include "glslang/glslang/Public/ShaderLang.h"
 #include "glslang/SPIRV/GlslangToSpv.h"
+#include "glslang/glslang/Public/ShaderLang.h"
 #endif
 
-#include "mat.h"
 #include "command.h"
-#include "layer_type.h"
 #include "layer.h"
-
-#include "command.h"
-
 #include "layer/vulkan/packing_vulkan.h"
+#include "layer_type.h"
+#include "mat.h"
 
 #if __ANDROID__
 #define ENABLE_VALIDATION_LAYER 0
@@ -75,8 +70,7 @@ struct layer_shader_registry_entry
 
 #include "layer_shader_spv_data.h"
 
-static const layer_shader_registry_entry layer_shader_registry[] =
-{
+static const layer_shader_registry_entry layer_shader_registry[] = {
 #include "layer_shader_registry.h"
 };
 
@@ -126,42 +120,43 @@ PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR = 0;
 // compile with old vulkan sdk
 #if VK_HEADER_VERSION < 80
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR (VkStructureType)1000177000
-typedef struct VkPhysicalDevice8BitStorageFeaturesKHR {
-    VkStructureType    sType;
-    void*              pNext;
-    VkBool32           storageBuffer8BitAccess;
-    VkBool32           uniformAndStorageBuffer8BitAccess;
-    VkBool32           storagePushConstant8;
+typedef struct VkPhysicalDevice8BitStorageFeaturesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 storageBuffer8BitAccess;
+    VkBool32 uniformAndStorageBuffer8BitAccess;
+    VkBool32 storagePushConstant8;
 } VkPhysicalDevice8BitStorageFeaturesKHR;
 #endif // VK_HEADER_VERSION < 80
 #if VK_HEADER_VERSION < 95
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT16_INT8_FEATURES_KHR (VkStructureType)1000082000
-typedef struct VkPhysicalDeviceFloat16Int8FeaturesKHR {
-    VkStructureType    sType;
-    void*              pNext;
-    VkBool32           shaderFloat16;
-    VkBool32           shaderInt8;
+typedef struct VkPhysicalDeviceFloat16Int8FeaturesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderFloat16;
+    VkBool32 shaderInt8;
 } VkPhysicalDeviceFloat16Int8FeaturesKHR;
 #endif // VK_HEADER_VERSION < 95
 #if VK_HEADER_VERSION < 97
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT (VkStructureType)1000237000
-typedef struct VkPhysicalDeviceMemoryBudgetPropertiesEXT {
-    VkStructureType    sType;
-    void*              pNext;
-    VkDeviceSize       heapBudget[VK_MAX_MEMORY_HEAPS];
-    VkDeviceSize       heapUsage[VK_MAX_MEMORY_HEAPS];
+typedef struct VkPhysicalDeviceMemoryBudgetPropertiesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkDeviceSize heapBudget[VK_MAX_MEMORY_HEAPS];
+    VkDeviceSize heapUsage[VK_MAX_MEMORY_HEAPS];
 } VkPhysicalDeviceMemoryBudgetPropertiesEXT;
 #endif // VK_HEADER_VERSION < 97
 
 static int init_instance_extension()
 {
-    if (support_VK_KHR_external_memory_capabilities)
-    {
+    if (support_VK_KHR_external_memory_capabilities) {
         vkGetPhysicalDeviceExternalBufferPropertiesKHR = (PFN_vkGetPhysicalDeviceExternalBufferPropertiesKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceExternalBufferPropertiesKHR");
     }
 
-    if (support_VK_KHR_get_physical_device_properties2)
-    {
+    if (support_VK_KHR_get_physical_device_properties2) {
         vkGetPhysicalDeviceFeatures2KHR = (PFN_vkGetPhysicalDeviceFeatures2KHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceFeatures2KHR");
         vkGetPhysicalDeviceProperties2KHR = (PFN_vkGetPhysicalDeviceProperties2KHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceProperties2KHR");
         vkGetPhysicalDeviceFormatProperties2KHR = (PFN_vkGetPhysicalDeviceFormatProperties2KHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceFormatProperties2KHR");
@@ -171,24 +166,28 @@ static int init_instance_extension()
         vkGetPhysicalDeviceSparseImageFormatProperties2KHR = (PFN_vkGetPhysicalDeviceSparseImageFormatProperties2KHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSparseImageFormatProperties2KHR");
     }
 
-    if (support_VK_KHR_get_surface_capabilities2)
-    {
-        vkGetPhysicalDeviceSurfaceCapabilities2KHR = (PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceCapabilities2KHR");;
-        vkGetPhysicalDeviceSurfaceFormats2KHR = (PFN_vkGetPhysicalDeviceSurfaceFormats2KHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceFormats2KHR");;
+    if (support_VK_KHR_get_surface_capabilities2) {
+        vkGetPhysicalDeviceSurfaceCapabilities2KHR = (PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceCapabilities2KHR");
+        ;
+        vkGetPhysicalDeviceSurfaceFormats2KHR = (PFN_vkGetPhysicalDeviceSurfaceFormats2KHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceFormats2KHR");
+        ;
     }
 
-    if (support_VK_KHR_surface)
-    {
-        vkDestroySurfaceKHR = (PFN_vkDestroySurfaceKHR)vkGetInstanceProcAddr(g_instance, "vkDestroySurfaceKHR");;
-        vkGetPhysicalDeviceSurfaceSupportKHR = (PFN_vkGetPhysicalDeviceSurfaceSupportKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceSupportKHR");;
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR = (PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");;
-        vkGetPhysicalDeviceSurfaceFormatsKHR = (PFN_vkGetPhysicalDeviceSurfaceFormatsKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceFormatsKHR");;
-        vkGetPhysicalDeviceSurfacePresentModesKHR = (PFN_vkGetPhysicalDeviceSurfacePresentModesKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfacePresentModesKHR");;
+    if (support_VK_KHR_surface) {
+        vkDestroySurfaceKHR = (PFN_vkDestroySurfaceKHR)vkGetInstanceProcAddr(g_instance, "vkDestroySurfaceKHR");
+        ;
+        vkGetPhysicalDeviceSurfaceSupportKHR = (PFN_vkGetPhysicalDeviceSurfaceSupportKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceSupportKHR");
+        ;
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR = (PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
+        ;
+        vkGetPhysicalDeviceSurfaceFormatsKHR = (PFN_vkGetPhysicalDeviceSurfaceFormatsKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceFormatsKHR");
+        ;
+        vkGetPhysicalDeviceSurfacePresentModesKHR = (PFN_vkGetPhysicalDeviceSurfacePresentModesKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfacePresentModesKHR");
+        ;
     }
 
 #if __ANDROID_API__ >= 26
-    if (support_VK_KHR_android_surface)
-    {
+    if (support_VK_KHR_android_surface) {
         vkCreateAndroidSurfaceKHR = (PFN_vkCreateAndroidSurfaceKHR)vkGetInstanceProcAddr(g_instance, "vkCreateAndroidSurfaceKHR");
     }
 #endif // __ANDROID_API__ >= 26
@@ -230,141 +229,121 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
 static uint32_t find_device_compute_queue(const std::vector<VkQueueFamilyProperties>& queueFamilyProperties)
 {
     // first try, compute only queue
-    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
-    {
+    for (uint32_t i = 0; i < queueFamilyProperties.size(); i++) {
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
         if ((queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
-                && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
-        {
+                && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
             return i;
         }
     }
 
     // second try, any queue with compute and graphics
-    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
-    {
+    for (uint32_t i = 0; i < queueFamilyProperties.size(); i++) {
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
         if ((queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
-                && (queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
-        {
+                && (queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
             return i;
         }
     }
 
     // third try, any queue with compute
-    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
-    {
+    for (uint32_t i = 0; i < queueFamilyProperties.size(); i++) {
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
-        if (queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
-        {
+        if (queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT) {
             return i;
         }
     }
 
-//     NCNN_LOGE("no compute queue");
+    //     NCNN_LOGE("no compute queue");
     return -1;
 }
 
 static uint32_t find_device_graphics_queue(const std::vector<VkQueueFamilyProperties>& queueFamilyProperties)
 {
     // first try, graphics only queue
-    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
-    {
+    for (uint32_t i = 0; i < queueFamilyProperties.size(); i++) {
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
         if ((queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-                && !(queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT))
-        {
+                && !(queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)) {
             return i;
         }
     }
 
     // second try, any queue with graphics and compute
-    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
-    {
+    for (uint32_t i = 0; i < queueFamilyProperties.size(); i++) {
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
         if ((queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-                && (queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT))
-        {
+                && (queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)) {
             return i;
         }
     }
 
     // third try, any queue with graphics
-    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
-    {
+    for (uint32_t i = 0; i < queueFamilyProperties.size(); i++) {
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
-        if (queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-        {
+        if (queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             return i;
         }
     }
 
-//     NCNN_LOGE("no graphics queue");
+    //     NCNN_LOGE("no graphics queue");
     return -1;
 }
 
 static uint32_t find_device_transfer_queue(const std::vector<VkQueueFamilyProperties>& queueFamilyProperties)
 {
     // first try, transfer only queue
-    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
-    {
+    for (uint32_t i = 0; i < queueFamilyProperties.size(); i++) {
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
         if ((queueFamilyProperty.queueFlags & VK_QUEUE_TRANSFER_BIT)
                 && !(queueFamilyProperty.queueFlags & VK_QUEUE_COMPUTE_BIT)
-                && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT))
-        {
+                && !(queueFamilyProperty.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {
             return i;
         }
     }
 
     // second try, any queue with transfer
-    for (uint32_t i=0; i<queueFamilyProperties.size(); i++)
-    {
+    for (uint32_t i = 0; i < queueFamilyProperties.size(); i++) {
         const VkQueueFamilyProperties& queueFamilyProperty = queueFamilyProperties[i];
 
-        if (queueFamilyProperty.queueFlags & VK_QUEUE_TRANSFER_BIT)
-        {
+        if (queueFamilyProperty.queueFlags & VK_QUEUE_TRANSFER_BIT) {
             return i;
         }
     }
 
     // third try, use compute queue
     uint32_t compute_queue_index = find_device_compute_queue(queueFamilyProperties);
-    if (compute_queue_index != (uint32_t)-1)
-    {
+    if (compute_queue_index != (uint32_t)-1) {
         return compute_queue_index;
     }
 
     // fourth try, use graphics queue
     uint32_t graphics_queue_index = find_device_graphics_queue(queueFamilyProperties);
-    if (graphics_queue_index != (uint32_t)-1)
-    {
+    if (graphics_queue_index != (uint32_t)-1) {
         return graphics_queue_index;
     }
 
-//     NCNN_LOGE("no transfer queue");
+    //     NCNN_LOGE("no transfer queue");
     return -1;
 }
 
 static int find_default_vulkan_device_index()
 {
     // first try, discrete gpu
-    for (int i=0; i<g_gpu_count; i++)
-    {
+    for (int i = 0; i < g_gpu_count; i++) {
         if (g_gpu_infos[i].type == 0)
             return i;
     }
 
     // second try, integrated gpu
-    for (int i=0; i<g_gpu_count; i++)
-    {
+    for (int i = 0; i < g_gpu_count; i++) {
         if (g_gpu_infos[i].type == 1)
             return i;
     }
@@ -386,31 +365,26 @@ int create_gpu_instance()
 #if ENABLE_VALIDATION_LAYER
     uint32_t instanceLayerPropertyCount;
     ret = vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, NULL);
-    if (ret != VK_SUCCESS)
-    {
+    if (ret != VK_SUCCESS) {
         NCNN_LOGE("vkEnumerateInstanceLayerProperties failed %d", ret);
         return -1;
     }
 
     std::vector<VkLayerProperties> instanceLayerProperties(instanceLayerPropertyCount);
     ret = vkEnumerateInstanceLayerProperties(&instanceLayerPropertyCount, instanceLayerProperties.data());
-    if (ret != VK_SUCCESS)
-    {
+    if (ret != VK_SUCCESS) {
         NCNN_LOGE("vkEnumerateInstanceLayerProperties failed %d", ret);
         return -1;
     }
 
-    for (uint32_t i=0; i<instanceLayerPropertyCount; i++)
-    {
+    for (uint32_t i = 0; i < instanceLayerPropertyCount; i++) {
         const VkLayerProperties& lp = instanceLayerProperties[i];
-//         NCNN_LOGE("instance layer %s = %u", lp.layerName, lp.implementationVersion);
+        //         NCNN_LOGE("instance layer %s = %u", lp.layerName, lp.implementationVersion);
 
-        if (strcmp(lp.layerName, "VK_LAYER_LUNARG_standard_validation") == 0)
-        {
+        if (strcmp(lp.layerName, "VK_LAYER_LUNARG_standard_validation") == 0) {
             enabledLayers.push_back("VK_LAYER_LUNARG_standard_validation");
         }
-        if (strcmp(lp.layerName, "VK_LAYER_LUNARG_parameter_validation") == 0)
-        {
+        if (strcmp(lp.layerName, "VK_LAYER_LUNARG_parameter_validation") == 0) {
             enabledLayers.push_back("VK_LAYER_LUNARG_parameter_validation");
         }
     }
@@ -420,16 +394,14 @@ int create_gpu_instance()
 
     uint32_t instanceExtensionPropertyCount;
     ret = vkEnumerateInstanceExtensionProperties(NULL, &instanceExtensionPropertyCount, NULL);
-    if (ret != VK_SUCCESS)
-    {
+    if (ret != VK_SUCCESS) {
         NCNN_LOGE("vkEnumerateInstanceExtensionProperties failed %d", ret);
         return -1;
     }
 
     std::vector<VkExtensionProperties> instanceExtensionProperties(instanceExtensionPropertyCount);
     ret = vkEnumerateInstanceExtensionProperties(NULL, &instanceExtensionPropertyCount, instanceExtensionProperties.data());
-    if (ret != VK_SUCCESS)
-    {
+    if (ret != VK_SUCCESS) {
         NCNN_LOGE("vkEnumerateInstanceExtensionProperties failed %d", ret);
         return -1;
     }
@@ -441,10 +413,9 @@ int create_gpu_instance()
 #if __ANDROID_API__ >= 26
     support_VK_KHR_android_surface = 0;
 #endif // __ANDROID_API__ >= 26
-    for (uint32_t j=0; j<instanceExtensionPropertyCount; j++)
-    {
+    for (uint32_t j = 0; j < instanceExtensionPropertyCount; j++) {
         const VkExtensionProperties& exp = instanceExtensionProperties[j];
-//         NCNN_LOGE("instance extension %s = %u", exp.extensionName, exp.specVersion);
+        //         NCNN_LOGE("instance extension %s = %u", exp.extensionName, exp.specVersion);
 
         if (strcmp(exp.extensionName, "VK_KHR_external_memory_capabilities") == 0)
             support_VK_KHR_external_memory_capabilities = exp.specVersion;
@@ -499,15 +470,13 @@ int create_gpu_instance()
     instanceCreateInfo.ppEnabledExtensionNames = enabledExtensions.data();
 
     ret = vkCreateInstance(&instanceCreateInfo, 0, &g_instance);
-    if (ret != VK_SUCCESS)
-    {
+    if (ret != VK_SUCCESS) {
         NCNN_LOGE("vkCreateInstance failed %d", ret);
         return -1;
     }
 
 #if ENABLE_VALIDATION_LAYER
-    if (support_VK_EXT_debug_utils)
-    {
+    if (support_VK_EXT_debug_utils) {
         VkDebugUtilsMessengerCreateInfoEXT createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
         createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
@@ -515,8 +484,7 @@ int create_gpu_instance()
         createInfo.pfnUserCallback = debugCallback;
         createInfo.pUserData = 0;
         ret = CreateDebugUtilsMessengerEXT(g_instance, &createInfo, NULL, &callback);
-        if (ret != VK_SUCCESS)
-        {
+        if (ret != VK_SUCCESS) {
             NCNN_LOGE("CreateDebugUtilsMessengerEXT failed %d", ret);
             return -1;
         }
@@ -527,8 +495,7 @@ int create_gpu_instance()
 
     uint32_t physicalDeviceCount = 0;
     ret = vkEnumeratePhysicalDevices(g_instance, &physicalDeviceCount, 0);
-    if (ret != VK_SUCCESS)
-    {
+    if (ret != VK_SUCCESS) {
         NCNN_LOGE("vkEnumeratePhysicalDevices failed %d", ret);
         return -1;
     }
@@ -539,16 +506,14 @@ int create_gpu_instance()
     std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
 
     ret = vkEnumeratePhysicalDevices(g_instance, &physicalDeviceCount, physicalDevices.data());
-    if (ret != VK_SUCCESS)
-    {
+    if (ret != VK_SUCCESS) {
         NCNN_LOGE("vkEnumeratePhysicalDevices failed %d", ret);
         return -1;
     }
 
     // find proper device and queue
     int gpu_info_index = 0;
-    for (uint32_t i=0; i<physicalDeviceCount; i++)
-    {
+    for (uint32_t i = 0; i < physicalDeviceCount; i++) {
         const VkPhysicalDevice& physicalDevice = physicalDevices[i];
         GpuInfo& gpu_info = g_gpu_infos[gpu_info_index];
 
@@ -556,15 +521,15 @@ int create_gpu_instance()
         VkPhysicalDeviceProperties physicalDeviceProperties;
         vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
 
-//         NCNN_LOGE("[%u] apiVersion = %u.%u.%u", i, VK_VERSION_MAJOR(physicalDeviceProperties.apiVersion),
-//             VK_VERSION_MINOR(physicalDeviceProperties.apiVersion), VK_VERSION_PATCH(physicalDeviceProperties.apiVersion));
-//         NCNN_LOGE("[%u] driverVersion = %u.%u.%u", i, VK_VERSION_MAJOR(physicalDeviceProperties.driverVersion),
-//             VK_VERSION_MINOR(physicalDeviceProperties.driverVersion), VK_VERSION_PATCH(physicalDeviceProperties.driverVersion));
-//         NCNN_LOGE("[%u] vendorID = %x", i, physicalDeviceProperties.vendorID);
-//         NCNN_LOGE("[%u] deviceID = %x", i, physicalDeviceProperties.deviceID);
-//         NCNN_LOGE("[%u] deviceType = %x", i, physicalDeviceProperties.deviceType);
-//         NCNN_LOGE("[%u] deviceName = %s", i, physicalDeviceProperties.deviceName);
-//         NCNN_LOGE("[%u] pipelineCacheUUID = %u", i, physicalDeviceProperties.pipelineCacheUUID);
+        //         NCNN_LOGE("[%u] apiVersion = %u.%u.%u", i, VK_VERSION_MAJOR(physicalDeviceProperties.apiVersion),
+        //             VK_VERSION_MINOR(physicalDeviceProperties.apiVersion), VK_VERSION_PATCH(physicalDeviceProperties.apiVersion));
+        //         NCNN_LOGE("[%u] driverVersion = %u.%u.%u", i, VK_VERSION_MAJOR(physicalDeviceProperties.driverVersion),
+        //             VK_VERSION_MINOR(physicalDeviceProperties.driverVersion), VK_VERSION_PATCH(physicalDeviceProperties.driverVersion));
+        //         NCNN_LOGE("[%u] vendorID = %x", i, physicalDeviceProperties.vendorID);
+        //         NCNN_LOGE("[%u] deviceID = %x", i, physicalDeviceProperties.deviceID);
+        //         NCNN_LOGE("[%u] deviceType = %x", i, physicalDeviceProperties.deviceType);
+        //         NCNN_LOGE("[%u] deviceName = %s", i, physicalDeviceProperties.deviceName);
+        //         NCNN_LOGE("[%u] pipelineCacheUUID = %u", i, physicalDeviceProperties.pipelineCacheUUID);
 
         // mali
         // t760 = 0x13b5 0x7500001
@@ -593,14 +558,12 @@ int create_gpu_instance()
         gpu_info.bug_layout_binding_id_alias = false;
         gpu_info.bug_implicit_fp16_arithmetic = false;
 
-        if (physicalDeviceProperties.vendorID == 0x13b5 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 66))
-        {
+        if (physicalDeviceProperties.vendorID == 0x13b5 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 66)) {
             // arm mali with old buggy driver
             gpu_info.bug_local_size_spec_const = true;
         }
 
-        if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 49))
-        {
+        if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 49)) {
             // qcom adreno with old buggy driver
             gpu_info.bug_local_size_spec_const = true;
 
@@ -608,8 +571,7 @@ int create_gpu_instance()
             gpu_info.bug_layout_binding_id_alias = true;
         }
 
-        if (physicalDeviceProperties.vendorID == 0x5143 && !(physicalDeviceProperties.deviceID == 0x6040001 || physicalDeviceProperties.deviceID == 0x6050002))
-        {
+        if (physicalDeviceProperties.vendorID == 0x5143 && !(physicalDeviceProperties.deviceID == 0x6040001 || physicalDeviceProperties.deviceID == 0x6050002)) {
             // NOTE but qcom855/qcom855plus/qcom865 are known exceptions
             // qcom adreno storage buffer without L1 cache
             gpu_info.bug_storage_buffer_no_l1 = true;
@@ -618,8 +580,7 @@ int create_gpu_instance()
         if (physicalDeviceProperties.vendorID == 0x13b5
                 && (physicalDeviceProperties.deviceID == 0x7500001
                     || physicalDeviceProperties.deviceID == 0x8602000
-                    || physicalDeviceProperties.deviceID == 0x8800020))
-        {
+                    || physicalDeviceProperties.deviceID == 0x8800020)) {
             // these arm mali midgard era driver cannot handle binding id alias
             gpu_info.bug_layout_binding_id_alias = true;
         }
@@ -638,8 +599,7 @@ int create_gpu_instance()
                     || physicalDeviceProperties.deviceID == 0x70901010
                     || physicalDeviceProperties.deviceID == 0x74021000
                     || physicalDeviceProperties.deviceID == 0x60a00002
-                    || physicalDeviceProperties.deviceID == 0x62210001))
-        {
+                    || physicalDeviceProperties.deviceID == 0x62210001)) {
             // NOTE rk3288/rk3399/t880/g51/g52/g71/g72
             // however, g76/g77 has explicit fp16 arithmetic
             // arm mali driver accept spirv with fp16 arithmetic
@@ -649,8 +609,7 @@ int create_gpu_instance()
         if (physicalDeviceProperties.vendorID == 0x5143
                 && (physicalDeviceProperties.deviceID == 0x6030001
                     || physicalDeviceProperties.deviceID == 0x6040001
-                    || physicalDeviceProperties.deviceID == 0x6050002))
-        {
+                    || physicalDeviceProperties.deviceID == 0x6050002)) {
             // TODO enable devices other than qcom845/qcom855/qcom855plus/qcom865
             // qcom adreno driver accept spirv with fp16 arithmetic
             gpu_info.bug_implicit_fp16_arithmetic = true;
@@ -699,12 +658,12 @@ int create_gpu_instance()
 
         gpu_info.timestamp_period = physicalDeviceProperties.limits.timestampPeriod;
 
-//         NCNN_LOGE("[%u] max_shared_memory_size = %u", i, gpu_info.max_shared_memory_size);
-//         NCNN_LOGE("[%u] max_workgroup_count = %u %u %u", i, gpu_info.max_workgroup_count[0], gpu_info.max_workgroup_count[1], gpu_info.max_workgroup_count[2]);
-//         NCNN_LOGE("[%u] max_workgroup_invocations = %u", i, gpu_info.max_workgroup_invocations);
-//         NCNN_LOGE("[%u] max_workgroup_size = %u %u %u", i, gpu_info.max_workgroup_size[0], gpu_info.max_workgroup_size[1], gpu_info.max_workgroup_size[2]);
-//         NCNN_LOGE("[%u] memory_map_alignment = %lu", i, gpu_info.memory_map_alignment);
-//         NCNN_LOGE("[%u] buffer_offset_alignment = %lu", i, gpu_info.buffer_offset_alignment);
+        //         NCNN_LOGE("[%u] max_shared_memory_size = %u", i, gpu_info.max_shared_memory_size);
+        //         NCNN_LOGE("[%u] max_workgroup_count = %u %u %u", i, gpu_info.max_workgroup_count[0], gpu_info.max_workgroup_count[1], gpu_info.max_workgroup_count[2]);
+        //         NCNN_LOGE("[%u] max_workgroup_invocations = %u", i, gpu_info.max_workgroup_invocations);
+        //         NCNN_LOGE("[%u] max_workgroup_size = %u %u %u", i, gpu_info.max_workgroup_size[0], gpu_info.max_workgroup_size[1], gpu_info.max_workgroup_size[2]);
+        //         NCNN_LOGE("[%u] memory_map_alignment = %lu", i, gpu_info.memory_map_alignment);
+        //         NCNN_LOGE("[%u] buffer_offset_alignment = %lu", i, gpu_info.buffer_offset_alignment);
 
         // find compute queue
         uint32_t queueFamilyPropertiesCount;
@@ -729,16 +688,14 @@ int create_gpu_instance()
         // get device extension
         uint32_t deviceExtensionPropertyCount = 0;
         ret = vkEnumerateDeviceExtensionProperties(physicalDevice, NULL, &deviceExtensionPropertyCount, NULL);
-        if (ret != VK_SUCCESS)
-        {
+        if (ret != VK_SUCCESS) {
             NCNN_LOGE("vkEnumerateDeviceExtensionProperties failed %d", ret);
             return -1;
         }
 
         std::vector<VkExtensionProperties> deviceExtensionProperties(deviceExtensionPropertyCount);
         ret = vkEnumerateDeviceExtensionProperties(physicalDevice, NULL, &deviceExtensionPropertyCount, deviceExtensionProperties.data());
-        if (ret != VK_SUCCESS)
-        {
+        if (ret != VK_SUCCESS) {
             NCNN_LOGE("vkEnumerateDeviceExtensionProperties failed %d", ret);
             return -1;
         }
@@ -762,10 +719,9 @@ int create_gpu_instance()
 #if __ANDROID_API__ >= 26
         gpu_info.support_VK_ANDROID_external_memory_android_hardware_buffer = 0;
 #endif // __ANDROID_API__ >= 26
-        for (uint32_t j=0; j<deviceExtensionPropertyCount; j++)
-        {
+        for (uint32_t j = 0; j < deviceExtensionPropertyCount; j++) {
             const VkExtensionProperties& exp = deviceExtensionProperties[j];
-//             NCNN_LOGE("device extension %s = %u", exp.extensionName, exp.specVersion);
+            //             NCNN_LOGE("device extension %s = %u", exp.extensionName, exp.specVersion);
 
             if (strcmp(exp.extensionName, "VK_KHR_8bit_storage") == 0)
                 gpu_info.support_VK_KHR_8bit_storage = exp.specVersion;
@@ -812,16 +768,14 @@ int create_gpu_instance()
         gpu_info.support_int8_storage = false;
         gpu_info.support_int8_arithmetic = false;
         gpu_info.support_ycbcr_conversion = false;
-        if (support_VK_KHR_get_physical_device_properties2)
-        {
+        if (support_VK_KHR_get_physical_device_properties2) {
             void* queryExtensionFeatures = 0;
 
             // query int8 storage
             VkPhysicalDevice8BitStorageFeaturesKHR query8BitStorageFeatures;
             query8BitStorageFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR;
             query8BitStorageFeatures.pNext = 0;
-            if (gpu_info.support_VK_KHR_8bit_storage)
-            {
+            if (gpu_info.support_VK_KHR_8bit_storage) {
                 query8BitStorageFeatures.pNext = queryExtensionFeatures;
                 queryExtensionFeatures = &query8BitStorageFeatures;
             }
@@ -830,8 +784,7 @@ int create_gpu_instance()
             VkPhysicalDevice16BitStorageFeaturesKHR query16BitStorageFeatures;
             query16BitStorageFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR;
             query16BitStorageFeatures.pNext = 0;
-            if (gpu_info.support_VK_KHR_16bit_storage)
-            {
+            if (gpu_info.support_VK_KHR_16bit_storage) {
                 query16BitStorageFeatures.pNext = queryExtensionFeatures;
                 queryExtensionFeatures = &query16BitStorageFeatures;
             }
@@ -840,8 +793,7 @@ int create_gpu_instance()
             VkPhysicalDeviceFloat16Int8FeaturesKHR queryFloat16Int8Features;
             queryFloat16Int8Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT16_INT8_FEATURES_KHR;
             queryFloat16Int8Features.pNext = 0;
-            if (gpu_info.support_VK_KHR_shader_float16_int8)
-            {
+            if (gpu_info.support_VK_KHR_shader_float16_int8) {
                 queryFloat16Int8Features.pNext = queryExtensionFeatures;
                 queryExtensionFeatures = &queryFloat16Int8Features;
             }
@@ -850,8 +802,7 @@ int create_gpu_instance()
             VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR querySamplerYcbcrConversionFeatures;
             querySamplerYcbcrConversionFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES_KHR;
             querySamplerYcbcrConversionFeatures.pNext = 0;
-            if (gpu_info.support_VK_KHR_sampler_ycbcr_conversion)
-            {
+            if (gpu_info.support_VK_KHR_sampler_ycbcr_conversion) {
                 querySamplerYcbcrConversionFeatures.pNext = queryExtensionFeatures;
                 queryExtensionFeatures = &querySamplerYcbcrConversionFeatures;
             }
@@ -862,46 +813,38 @@ int create_gpu_instance()
 
             vkGetPhysicalDeviceFeatures2KHR(physicalDevice, &queryFeatures);
 
-            if (gpu_info.support_VK_KHR_8bit_storage)
-            {
+            if (gpu_info.support_VK_KHR_8bit_storage) {
                 gpu_info.support_int8_storage = query8BitStorageFeatures.storageBuffer8BitAccess && query8BitStorageFeatures.uniformAndStorageBuffer8BitAccess;
             }
-            if (gpu_info.support_VK_KHR_16bit_storage && queryFeatures.features.shaderStorageImageExtendedFormats)
-            {
+            if (gpu_info.support_VK_KHR_16bit_storage && queryFeatures.features.shaderStorageImageExtendedFormats) {
                 // shaderStorageImageExtendedFormats enables r16f format in storage image
                 gpu_info.support_fp16_storage = query16BitStorageFeatures.storageBuffer16BitAccess && query16BitStorageFeatures.uniformAndStorageBuffer16BitAccess;
             }
-            if (gpu_info.support_VK_KHR_shader_float16_int8)
-            {
+            if (gpu_info.support_VK_KHR_shader_float16_int8) {
                 gpu_info.support_fp16_arithmetic = queryFloat16Int8Features.shaderFloat16;
                 gpu_info.support_int8_arithmetic = queryFloat16Int8Features.shaderInt8;
             }
-            if (gpu_info.support_VK_KHR_sampler_ycbcr_conversion)
-            {
+            if (gpu_info.support_VK_KHR_sampler_ycbcr_conversion) {
                 gpu_info.support_ycbcr_conversion = querySamplerYcbcrConversionFeatures.samplerYcbcrConversion;
             }
         }
-        else
-        {
-//             // TODO
-//             VkPhysicalDeviceFeatures features;
-//             vkGetPhysicalDeviceFeatures(physicalDevice, &features);
+        else {
+            //             // TODO
+            //             VkPhysicalDeviceFeatures features;
+            //             vkGetPhysicalDeviceFeatures(physicalDevice, &features);
         }
 
-        if (physicalDeviceProperties.vendorID == 0x13b5)
-        {
+        if (physicalDeviceProperties.vendorID == 0x13b5) {
             // the 16bit_storage implementation of arm mali driver is buggy :[
             gpu_info.support_fp16_storage = false;
         }
 
-        if (physicalDeviceProperties.vendorID == 0x10002 && physicalDeviceProperties.deviceID == 0x70006214 && physicalDeviceProperties.apiVersion == VK_MAKE_VERSION(1, 1, 82))
-        {
+        if (physicalDeviceProperties.vendorID == 0x10002 && physicalDeviceProperties.deviceID == 0x70006214 && physicalDeviceProperties.apiVersion == VK_MAKE_VERSION(1, 1, 82)) {
             // the 16bit_storage implementation of vivante gc1700 driver is buggy :[
             gpu_info.support_fp16_storage = false;
         }
 
-        if (gpu_info.bug_implicit_fp16_arithmetic)
-        {
+        if (gpu_info.bug_implicit_fp16_arithmetic) {
             // force capability on as long as the driver accept spirv with fp16 arithmetic :D
             gpu_info.support_fp16_arithmetic = true;
         }
@@ -930,8 +873,7 @@ int create_gpu_instance()
     glslang::InitializeProcess();
 #else
     // resolve shader info
-    for (int i=0; i<layer_shader_registry_entry_count; i++)
-    {
+    for (int i = 0; i < layer_shader_registry_entry_count; i++) {
         resolve_shader_info(layer_shader_registry[i].spv_data, layer_shader_registry[i].spv_data_size, layer_shader_infos[i]);
     }
 #endif
@@ -945,15 +887,13 @@ void destroy_gpu_instance()
     glslang::FinalizeProcess();
 #endif
 
-    for (int i=0; i<NCNN_MAX_GPU_COUNT; i++)
-    {
+    for (int i = 0; i < NCNN_MAX_GPU_COUNT; i++) {
         delete g_default_vkdev[i];
         g_default_vkdev[i] = 0;
     }
 
 #if ENABLE_VALIDATION_LAYER
-    if (support_VK_EXT_debug_utils)
-    {
+    if (support_VK_EXT_debug_utils) {
         DestroyDebugUtilsMessengerEXT(g_instance, callback, NULL);
     }
 #endif // ENABLE_VALIDATION_LAYER
@@ -976,7 +916,8 @@ const GpuInfo& get_gpu_info(int device_index)
     return g_gpu_infos[device_index];
 }
 
-VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
+VulkanDevice::VulkanDevice(int device_index)
+    : info(g_gpu_infos[device_index])
 {
     std::vector<const char*> enabledExtensions;
     if (info.support_VK_KHR_8bit_storage)
@@ -1025,8 +966,7 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     enabled8BitStorageFeatures.storageBuffer8BitAccess = info.support_int8_storage;
     enabled8BitStorageFeatures.uniformAndStorageBuffer8BitAccess = info.support_int8_storage;
     enabled8BitStorageFeatures.storagePushConstant8 = VK_FALSE;
-    if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_8bit_storage)
-    {
+    if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_8bit_storage) {
         enabled8BitStorageFeatures.pNext = enabledExtensionFeatures;
         enabledExtensionFeatures = &enabled8BitStorageFeatures;
     }
@@ -1039,8 +979,7 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     enabled16BitStorageFeatures.uniformAndStorageBuffer16BitAccess = info.support_fp16_storage;
     enabled16BitStorageFeatures.storagePushConstant16 = VK_FALSE;
     enabled16BitStorageFeatures.storageInputOutput16 = VK_FALSE;
-    if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_16bit_storage)
-    {
+    if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_16bit_storage) {
         enabled16BitStorageFeatures.pNext = enabledExtensionFeatures;
         enabledExtensionFeatures = &enabled16BitStorageFeatures;
     }
@@ -1051,8 +990,7 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     enabledFloat16Int8Features.pNext = 0;
     enabledFloat16Int8Features.shaderFloat16 = info.support_fp16_arithmetic;
     enabledFloat16Int8Features.shaderInt8 = info.support_int8_arithmetic;
-    if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_shader_float16_int8)
-    {
+    if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_shader_float16_int8) {
         enabledFloat16Int8Features.pNext = enabledExtensionFeatures;
         enabledExtensionFeatures = &enabledFloat16Int8Features;
     }
@@ -1062,15 +1000,14 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     querySamplerYcbcrConversionFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES_KHR;
     querySamplerYcbcrConversionFeatures.pNext = 0;
     querySamplerYcbcrConversionFeatures.samplerYcbcrConversion = info.support_ycbcr_conversion;
-    if (support_VK_KHR_get_physical_device_properties2 && info.support_ycbcr_conversion)
-    {
+    if (support_VK_KHR_get_physical_device_properties2 && info.support_ycbcr_conversion) {
         querySamplerYcbcrConversionFeatures.pNext = enabledExtensionFeatures;
         enabledExtensionFeatures = &querySamplerYcbcrConversionFeatures;
     }
 
-    std::vector<float> compute_queue_priorities(info.compute_queue_count, 1.f);// 0.f ~ 1.f
-    std::vector<float> graphics_queue_priorities(info.graphics_queue_count, 1.f);// 0.f ~ 1.f
-    std::vector<float> transfer_queue_priorities(info.transfer_queue_count, 1.f);// 0.f ~ 1.f
+    std::vector<float> compute_queue_priorities(info.compute_queue_count, 1.f);   // 0.f ~ 1.f
+    std::vector<float> graphics_queue_priorities(info.graphics_queue_count, 1.f); // 0.f ~ 1.f
+    std::vector<float> transfer_queue_priorities(info.transfer_queue_count, 1.f); // 0.f ~ 1.f
 
     VkDeviceQueueCreateInfo deviceQueueCreateInfos[3];
 
@@ -1102,19 +1039,16 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceCreateInfo.pNext = enabledExtensionFeatures;
     deviceCreateInfo.flags = 0;
-    if (info.compute_queue_family_index == info.graphics_queue_family_index && info.compute_queue_family_index == info.transfer_queue_family_index)
-    {
+    if (info.compute_queue_family_index == info.graphics_queue_family_index && info.compute_queue_family_index == info.transfer_queue_family_index) {
         deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
         deviceCreateInfo.queueCreateInfoCount = 1;
     }
-    else if (info.compute_queue_family_index == info.graphics_queue_family_index && info.compute_queue_family_index != info.transfer_queue_family_index)
-    {
+    else if (info.compute_queue_family_index == info.graphics_queue_family_index && info.compute_queue_family_index != info.transfer_queue_family_index) {
         deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
         deviceQueueCreateInfos[1] = deviceTransferQueueCreateInfo;
         deviceCreateInfo.queueCreateInfoCount = 2;
     }
-    else if (info.compute_queue_family_index != info.graphics_queue_family_index && info.graphics_queue_family_index == info.transfer_queue_family_index)
-    {
+    else if (info.compute_queue_family_index != info.graphics_queue_family_index && info.graphics_queue_family_index == info.transfer_queue_family_index) {
         deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
         deviceQueueCreateInfos[1] = deviceGraphicsQueueCreateInfo;
         deviceCreateInfo.queueCreateInfoCount = 2;
@@ -1131,11 +1065,10 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     deviceCreateInfo.ppEnabledLayerNames = 0;
     deviceCreateInfo.enabledExtensionCount = enabledExtensions.size();
     deviceCreateInfo.ppEnabledExtensionNames = enabledExtensions.data();
-    deviceCreateInfo.pEnabledFeatures = 0;// VkPhysicalDeviceFeatures pointer
+    deviceCreateInfo.pEnabledFeatures = 0; // VkPhysicalDeviceFeatures pointer
 
     VkResult ret = vkCreateDevice(info.physical_device, &deviceCreateInfo, 0, &device);
-    if (ret != VK_SUCCESS)
-    {
+    if (ret != VK_SUCCESS) {
         NCNN_LOGE("vkCreateDevice failed %d", ret);
     }
 
@@ -1148,25 +1081,20 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
     compute_queues.resize(info.compute_queue_count);
     blob_allocators.resize(info.compute_queue_count);
     staging_allocators.resize(info.compute_queue_count);
-    for (uint32_t i = 0; i < info.compute_queue_count; i++)
-    {
+    for (uint32_t i = 0; i < info.compute_queue_count; i++) {
         vkGetDeviceQueue(device, info.compute_queue_family_index, i, &compute_queues[i]);
         blob_allocators[i] = new VkBlobAllocator(this);
         staging_allocators[i] = new VkStagingAllocator(this);
     }
-    if (info.compute_queue_family_index != info.graphics_queue_family_index)
-    {
+    if (info.compute_queue_family_index != info.graphics_queue_family_index) {
         graphics_queues.resize(info.graphics_queue_count);
-        for (uint32_t i = 0; i < info.graphics_queue_count; i++)
-        {
+        for (uint32_t i = 0; i < info.graphics_queue_count; i++) {
             vkGetDeviceQueue(device, info.graphics_queue_family_index, i, &graphics_queues[i]);
         }
     }
-    if (info.compute_queue_family_index != info.transfer_queue_family_index && info.graphics_queue_family_index != info.transfer_queue_family_index)
-    {
+    if (info.compute_queue_family_index != info.transfer_queue_family_index && info.graphics_queue_family_index != info.transfer_queue_family_index) {
         transfer_queues.resize(info.transfer_queue_count);
-        for (uint32_t i = 0; i < info.transfer_queue_count; i++)
-        {
+        for (uint32_t i = 0; i < info.transfer_queue_count; i++) {
             vkGetDeviceQueue(device, info.transfer_queue_family_index, i, &transfer_queues[i]);
         }
     }
@@ -1195,8 +1123,7 @@ VulkanDevice::VulkanDevice(int device_index) : info(g_gpu_infos[device_index])
 
         texelfetch_sampler = 0;
         ret = vkCreateSampler(device, &samplerCreateInfo, 0, &texelfetch_sampler);
-        if (ret != VK_SUCCESS)
-        {
+        if (ret != VK_SUCCESS) {
             NCNN_LOGE("vkCreateSampler failed %d", ret);
         }
     }
@@ -1212,13 +1139,11 @@ VulkanDevice::~VulkanDevice()
 
     destroy_dummy_buffer_image();
 
-    if (texelfetch_sampler)
-    {
+    if (texelfetch_sampler) {
         vkDestroySampler(device, texelfetch_sampler, 0);
     }
 
-    for (uint32_t i = 0; i < info.compute_queue_count; i++)
-    {
+    for (uint32_t i = 0; i < info.compute_queue_count; i++) {
         delete blob_allocators[i];
         delete staging_allocators[i];
     }
@@ -1235,8 +1160,7 @@ VulkanDevice::~VulkanDevice()
 #if !NCNN_VULKAN_ONLINE_SPIRV
 VkShaderModule VulkanDevice::get_shader_module(int shader_type_index) const
 {
-    if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
-    {
+    if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count) {
         NCNN_LOGE("no such shader module %d", shader_type_index);
         return 0;
     }
@@ -1246,8 +1170,7 @@ VkShaderModule VulkanDevice::get_shader_module(int shader_type_index) const
 
 VkShaderModule VulkanDevice::create_shader_module(int shader_type_index, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const
 {
-    if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
-    {
+    if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count) {
         NCNN_LOGE("no such shader module %d", shader_type_index);
         return 0;
     }
@@ -1270,8 +1193,7 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
 
     VkShaderModule shader_module;
     VkResult ret = vkCreateShaderModule(device, &shaderModuleCreateInfo, 0, &shader_module);
-    if (ret != VK_SUCCESS)
-    {
+    if (ret != VK_SUCCESS) {
         NCNN_LOGE("vkCreateShaderModule failed %d", ret);
         return 0;
     }
@@ -1295,8 +1217,7 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
     dp += 5;
 
     // foreach op
-    while ((const unsigned char*)p < (const unsigned char*)code + size)
-    {
+    while ((const unsigned char*)p < (const unsigned char*)code + size) {
         uint32_t opcode = p[0];
 
         uint16_t wordcount = opcode >> 16;
@@ -1322,8 +1243,7 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
         else if (op == 50) // OpSpecConstant
         {
             uint32_t id = p[2];
-            if (id == local_size_x_id || id == local_size_y_id || id == local_size_z_id)
-            {
+            if (id == local_size_x_id || id == local_size_y_id || id == local_size_z_id) {
                 p += wordcount;
                 continue;
             }
@@ -1331,10 +1251,8 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
         else if (op == 51) // OpSpecConstantComposite
         {
             uint32_t id = p[2];
-            if (id == gl_WorkGroupSize_id)
-            {
-                if (wordcount == 6 && (p[3] == local_size_x_id || p[4] == local_size_y_id || p[5] == local_size_z_id))
-                {
+            if (id == gl_WorkGroupSize_id) {
+                if (wordcount == 6 && (p[3] == local_size_x_id || p[4] == local_size_y_id || p[5] == local_size_z_id)) {
                     p += wordcount;
                     continue;
                 }
@@ -1350,8 +1268,7 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
                 if (specid == 233) local_size_x_id = id;
                 if (specid == 234) local_size_y_id = id;
                 if (specid == 235) local_size_z_id = id;
-                if (specid == 233 || specid == 234 || specid == 235)
-                {
+                if (specid == 233 || specid == 234 || specid == 235) {
                     p += wordcount;
                     continue;
                 }
@@ -1392,60 +1309,48 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
 uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const
 {
     // first try, find required and with preferred and without preferred_not
-    for (uint32_t i=0; i<info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
+    for (uint32_t i = 0; i < info.physicalDeviceMemoryProperties.memoryTypeCount; i++) {
         bool is_required = (1 << i) & memory_type_bits;
-        if (is_required)
-        {
+        if (is_required) {
             const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
             if ((memoryType.propertyFlags & required) == required
                     && (preferred && (memoryType.propertyFlags & preferred))
-                    && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
-            {
+                    && (preferred_not && !(memoryType.propertyFlags & preferred_not))) {
                 return i;
             }
         }
     }
 
     // second try, find required and with preferred
-    for (uint32_t i=0; i<info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
+    for (uint32_t i = 0; i < info.physicalDeviceMemoryProperties.memoryTypeCount; i++) {
         bool is_required = (1 << i) & memory_type_bits;
-        if (is_required)
-        {
+        if (is_required) {
             const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
             if ((memoryType.propertyFlags & required) == required
-                    && (preferred && (memoryType.propertyFlags & preferred)))
-            {
+                    && (preferred && (memoryType.propertyFlags & preferred))) {
                 return i;
             }
         }
     }
 
     // third try, find required and without preferred_not
-    for (uint32_t i=0; i<info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
+    for (uint32_t i = 0; i < info.physicalDeviceMemoryProperties.memoryTypeCount; i++) {
         bool is_required = (1 << i) & memory_type_bits;
-        if (is_required)
-        {
+        if (is_required) {
             const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
             if ((memoryType.propertyFlags & required) == required
-                    && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
-            {
+                    && (preferred_not && !(memoryType.propertyFlags & preferred_not))) {
                 return i;
             }
         }
     }
 
     // fourth try, find any required
-    for (uint32_t i=0; i<info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
+    for (uint32_t i = 0; i < info.physicalDeviceMemoryProperties.memoryTypeCount; i++) {
         bool is_required = (1 << i) & memory_type_bits;
-        if (is_required)
-        {
+        if (is_required) {
             const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
-            if ((memoryType.propertyFlags & required) == required)
-            {
+            if ((memoryType.propertyFlags & required) == required) {
                 return i;
             }
         }
@@ -1473,8 +1378,7 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
 {
     if (queue_family_index != info.compute_queue_family_index
             && queue_family_index != info.graphics_queue_family_index
-            && queue_family_index != info.transfer_queue_family_index)
-    {
+            && queue_family_index != info.transfer_queue_family_index) {
         NCNN_LOGE("invalid queue_family_index %u", queue_family_index);
         return 0;
     }
@@ -1483,11 +1387,9 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
 
     std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues
                                    : queue_family_index == info.graphics_queue_family_index ? graphics_queues : transfer_queues;
-    for (int i=0; i<(int)queues.size(); i++)
-    {
+    for (int i = 0; i < (int)queues.size(); i++) {
         VkQueue queue = queues[i];
-        if (queue)
-        {
+        if (queue) {
             queues[i] = 0;
             return queue;
         }
@@ -1501,8 +1403,7 @@ void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) con
 {
     if (queue_family_index != info.compute_queue_family_index
             && queue_family_index != info.graphics_queue_family_index
-            && queue_family_index != info.transfer_queue_family_index)
-    {
+            && queue_family_index != info.transfer_queue_family_index) {
         NCNN_LOGE("invalid queue_family_index %u", queue_family_index);
         return;
     }
@@ -1511,10 +1412,8 @@ void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) con
 
     std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues
                                    : queue_family_index == info.graphics_queue_family_index ? graphics_queues : transfer_queues;
-    for (int i=0; i<(int)queues.size(); i++)
-    {
-        if (!queues[i])
-        {
+    for (int i = 0; i < (int)queues.size(); i++) {
+        if (!queues[i]) {
             queues[i] = queue;
             return;
         }
@@ -1527,11 +1426,9 @@ VkAllocator* VulkanDevice::acquire_blob_allocator() const
 {
     MutexLockGuard lock(blob_allocator_lock);
 
-    for (int i=0; i<(int)blob_allocators.size(); i++)
-    {
+    for (int i = 0; i < (int)blob_allocators.size(); i++) {
         VkAllocator* allocator = blob_allocators[i];
-        if (allocator)
-        {
+        if (allocator) {
             blob_allocators[i] = 0;
             return allocator;
         }
@@ -1545,10 +1442,8 @@ void VulkanDevice::reclaim_blob_allocator(VkAllocator* allocator) const
 {
     MutexLockGuard lock(blob_allocator_lock);
 
-    for (int i=0; i<(int)blob_allocators.size(); i++)
-    {
-        if (!blob_allocators[i])
-        {
+    for (int i = 0; i < (int)blob_allocators.size(); i++) {
+        if (!blob_allocators[i]) {
             blob_allocators[i] = allocator;
             return;
         }
@@ -1561,11 +1456,9 @@ VkAllocator* VulkanDevice::acquire_staging_allocator() const
 {
     MutexLockGuard lock(staging_allocator_lock);
 
-    for (int i=0; i<(int)staging_allocators.size(); i++)
-    {
+    for (int i = 0; i < (int)staging_allocators.size(); i++) {
         VkAllocator* allocator = staging_allocators[i];
-        if (allocator)
-        {
+        if (allocator) {
             staging_allocators[i] = 0;
             return allocator;
         }
@@ -1579,10 +1472,8 @@ void VulkanDevice::reclaim_staging_allocator(VkAllocator* allocator) const
 {
     MutexLockGuard lock(staging_allocator_lock);
 
-    for (int i=0; i<(int)staging_allocators.size(); i++)
-    {
-        if (!staging_allocators[i])
-        {
+    for (int i = 0; i < (int)staging_allocators.size(); i++) {
+        if (!staging_allocators[i]) {
             staging_allocators[i] = allocator;
             return;
         }
@@ -1620,24 +1511,19 @@ bool VulkanDevice::shape_support_image_storage(const Mat& shape) const
     if (elempack == 32) width *= 8;
     if (elempack == 64) width *= 16;
 
-    if (dims == 1)
-    {
-        if (width > (int)info.max_image_dimension_1d)
-        {
+    if (dims == 1) {
+        if (width > (int)info.max_image_dimension_1d) {
             return false;
         }
     }
-    else if (dims == 2)
-    {
-        if (width > (int)info.max_image_dimension_2d || height > (int)info.max_image_dimension_2d)
-        {
+    else if (dims == 2) {
+        if (width > (int)info.max_image_dimension_2d || height > (int)info.max_image_dimension_2d) {
             return false;
         }
     }
     else // if (dims == 3)
     {
-        if (width > (int)info.max_image_dimension_3d || height > (int)info.max_image_dimension_3d || depth > (int)info.max_image_dimension_3d)
-        {
+        if (width > (int)info.max_image_dimension_3d || height > (int)info.max_image_dimension_3d || depth > (int)info.max_image_dimension_3d) {
             return false;
         }
     }
@@ -1650,20 +1536,17 @@ uint32_t VulkanDevice::get_heap_budget() const
     // the first device local heap
     uint32_t device_local_heap_index = 0;
     uint32_t device_local_heap_size = 0;
-    for (uint32_t i=0; i<info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
-    {
+    for (uint32_t i = 0; i < info.physicalDeviceMemoryProperties.memoryTypeCount; i++) {
         const VkMemoryHeap& memoryHeap = info.physicalDeviceMemoryProperties.memoryHeaps[i];
-        if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
-        {
+        if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
             device_local_heap_index = i;
             device_local_heap_size = memoryHeap.size / 1024 / 1024;
             break;
         }
     }
 
-    if (!info.support_VK_EXT_memory_budget)
-    {
-//         NCNN_LOGE("heap budget from assumption\n");
+    if (!info.support_VK_EXT_memory_budget) {
+        //         NCNN_LOGE("heap budget from assumption\n");
 
         // we usually cannot use all heap
         // 70% for 4G+
@@ -1694,18 +1577,15 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
     int cast_type_from_index;
-    if (src.elemsize == src.elempack * 4u)
-    {
+    if (src.elemsize == src.elempack * 4u) {
         cast_type_from_index = 0;
     }
     else // if (src.elemsize == src.elempack * 2u)
     {
-        if (cast_type_to_index != 0)
-        {
+        if (cast_type_to_index != 0) {
             cast_type_from_index = cast_type_to_index;
         }
-        else if (info.support_fp16_storage)
-        {
+        else if (info.support_fp16_storage) {
             cast_type_from_index = 2;
         }
         else // if (info.support_fp16_packed)
@@ -1714,7 +1594,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
         }
     }
 
-//     NCNN_LOGE("convert_packing b2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
+    //     NCNN_LOGE("convert_packing b2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
     const ncnn::Packing_vulkan* uop = uop_packing[0][0][cast_type_from_index][cast_type_to_index][packing_type_to_index];
     uop->forward(src, dst, cmd, opt);
@@ -1722,8 +1602,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
 
 void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    if (info.bug_layout_binding_id_alias)
-    {
+    if (info.bug_layout_binding_id_alias) {
         NCNN_LOGE("cannot convert_packing i2i");
         return;
     }
@@ -1732,18 +1611,15 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int d
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
     int cast_type_from_index;
-    if (src.elemsize == src.elempack * 4u)
-    {
+    if (src.elemsize == src.elempack * 4u) {
         cast_type_from_index = 0;
     }
     else // if (src.elemsize == src.elempack * 2u)
     {
-        if (cast_type_to_index != 0)
-        {
+        if (cast_type_to_index != 0) {
             cast_type_from_index = cast_type_to_index;
         }
-        else if (info.support_fp16_storage)
-        {
+        else if (info.support_fp16_storage) {
             cast_type_from_index = 2;
         }
         else // if (info.support_fp16_packed)
@@ -1752,7 +1628,7 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int d
         }
     }
 
-//     NCNN_LOGE("convert_packing i2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
+    //     NCNN_LOGE("convert_packing i2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
     const ncnn::Packing_vulkan* uop = uop_packing[1][1][cast_type_from_index][cast_type_to_index][packing_type_to_index];
     uop->forward(src, dst, cmd, opt);
@@ -1760,8 +1636,7 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int d
 
 void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    if (info.bug_layout_binding_id_alias)
-    {
+    if (info.bug_layout_binding_id_alias) {
         NCNN_LOGE("cannot convert_packing b2i");
         return;
     }
@@ -1770,18 +1645,15 @@ void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_el
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
     int cast_type_from_index;
-    if (src.elemsize == src.elempack * 4u)
-    {
+    if (src.elemsize == src.elempack * 4u) {
         cast_type_from_index = 0;
     }
     else // if (src.elemsize == src.elempack * 2u)
     {
-        if (cast_type_to_index != 0)
-        {
+        if (cast_type_to_index != 0) {
             cast_type_from_index = cast_type_to_index;
         }
-        else if (info.support_fp16_storage)
-        {
+        else if (info.support_fp16_storage) {
             cast_type_from_index = 2;
         }
         else // if (info.support_fp16_packed)
@@ -1790,7 +1662,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_el
         }
     }
 
-//     NCNN_LOGE("convert_packing b2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
+    //     NCNN_LOGE("convert_packing b2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
     const ncnn::Packing_vulkan* uop = uop_packing[0][1][cast_type_from_index][cast_type_to_index][packing_type_to_index];
     uop->forward(src, dst, cmd, opt);
@@ -1798,8 +1670,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_el
 
 void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    if (info.bug_layout_binding_id_alias)
-    {
+    if (info.bug_layout_binding_id_alias) {
         NCNN_LOGE("cannot convert_packing i2b");
         return;
     }
@@ -1808,18 +1679,15 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_el
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
     int cast_type_from_index;
-    if (src.elemsize == src.elempack * 4u)
-    {
+    if (src.elemsize == src.elempack * 4u) {
         cast_type_from_index = 0;
     }
     else // if (src.elemsize == src.elempack * 2u)
     {
-        if (cast_type_to_index != 0)
-        {
+        if (cast_type_to_index != 0) {
             cast_type_from_index = cast_type_to_index;
         }
-        else if (info.support_fp16_storage)
-        {
+        else if (info.support_fp16_storage) {
             cast_type_from_index = 2;
         }
         else // if (info.support_fp16_packed)
@@ -1828,7 +1696,7 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_el
         }
     }
 
-//     NCNN_LOGE("convert_packing i2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
+    //     NCNN_LOGE("convert_packing i2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
     const ncnn::Packing_vulkan* uop = uop_packing[1][0][cast_type_from_index][cast_type_to_index][packing_type_to_index];
     uop->forward(src, dst, cmd, opt);
@@ -1837,16 +1705,14 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_el
 #if !NCNN_VULKAN_ONLINE_SPIRV
 int VulkanDevice::create_shader_module()
 {
-    if (info.bug_local_size_spec_const)
-    {
+    if (info.bug_local_size_spec_const) {
         // do not cache shader module
         return 0;
     }
 
     shader_modules.resize(layer_shader_registry_entry_count, VK_NULL_HANDLE);
 
-    for (int i=0; i<layer_shader_registry_entry_count; i++)
-    {
+    for (int i = 0; i < layer_shader_registry_entry_count; i++) {
         // ncnn_add_shader cmake macro
         // 0 = fp32
         // 1 = fp16p
@@ -1859,56 +1725,48 @@ int VulkanDevice::create_shader_module()
         // 8 = image_fp16s
         // 9 = image_fp16sa
 
-        if (!info.support_fp16_packed)
-        {
+        if (!info.support_fp16_packed) {
             if (i % 10 == 1)
                 continue;
         }
 
-        if (!info.support_fp16_packed || !info.support_fp16_arithmetic)
-        {
+        if (!info.support_fp16_packed || !info.support_fp16_arithmetic) {
             if (i % 10 == 2)
                 continue;
         }
 
-        if (!info.support_fp16_storage)
-        {
+        if (!info.support_fp16_storage) {
             if (i % 10 == 3)
                 continue;
         }
 
-        if (!info.support_fp16_storage || !info.support_fp16_arithmetic)
-        {
+        if (!info.support_fp16_storage || !info.support_fp16_arithmetic) {
             if (i % 10 == 4)
                 continue;
         }
 
-//         if (!info.support_image_storage)
-//         {
-//             if (i % 10 == 5)
-//                 continue;
-//         }
+        //         if (!info.support_image_storage)
+        //         {
+        //             if (i % 10 == 5)
+        //                 continue;
+        //         }
 
-        if (!info.support_fp16_packed)
-        {
+        if (!info.support_fp16_packed) {
             if (i % 10 == 6)
                 continue;
         }
 
-        if (!info.support_fp16_packed || !info.support_fp16_arithmetic)
-        {
+        if (!info.support_fp16_packed || !info.support_fp16_arithmetic) {
             if (i % 10 == 7)
                 continue;
         }
 
-        if (!info.support_fp16_storage)
-        {
+        if (!info.support_fp16_storage) {
             if (i % 10 == 8)
                 continue;
         }
 
-        if (!info.support_fp16_storage || !info.support_fp16_arithmetic)
-        {
+        if (!info.support_fp16_storage || !info.support_fp16_arithmetic) {
             if (i % 10 == 9)
                 continue;
         }
@@ -1917,15 +1775,14 @@ int VulkanDevice::create_shader_module()
         size_t spv_data_size = layer_shader_registry[i].spv_data_size;
 
         VkShaderModule shader_module = compile_shader_module(spv_data, spv_data_size);
-        if (shader_module == 0)
-        {
+        if (shader_module == 0) {
             NCNN_LOGE("compile_shader_module %d failed", i);
             return -1;
         }
 
         shader_modules[i] = shader_module;
 
-//         NCNN_LOGE("shader_module %d created", i);
+        //         NCNN_LOGE("shader_module %d created", i);
     }
 
     return 0;
@@ -1933,8 +1790,7 @@ int VulkanDevice::create_shader_module()
 
 void VulkanDevice::destroy_shader_module()
 {
-    for (int i=0; i<(int)shader_modules.size(); i++)
-    {
+    for (int i = 0; i < (int)shader_modules.size(); i++) {
         vkDestroyShaderModule(device, shader_modules[i], 0);
     }
 
@@ -1944,49 +1800,41 @@ void VulkanDevice::destroy_shader_module()
 
 int VulkanDevice::init_device_extension()
 {
-    if (info.support_VK_KHR_bind_memory2)
-    {
+    if (info.support_VK_KHR_bind_memory2) {
         vkBindBufferMemory2KHR = (PFN_vkBindBufferMemory2KHR)vkGetDeviceProcAddr(device, "vkBindBufferMemory2KHR");
         vkBindImageMemory2KHR = (PFN_vkBindImageMemory2KHR)vkGetDeviceProcAddr(device, "vkBindImageMemory2KHR");
     }
 
-    if (info.support_VK_KHR_descriptor_update_template)
-    {
+    if (info.support_VK_KHR_descriptor_update_template) {
         vkCreateDescriptorUpdateTemplateKHR = (PFN_vkCreateDescriptorUpdateTemplateKHR)vkGetDeviceProcAddr(device, "vkCreateDescriptorUpdateTemplateKHR");
         vkDestroyDescriptorUpdateTemplateKHR = (PFN_vkDestroyDescriptorUpdateTemplateKHR)vkGetDeviceProcAddr(device, "vkDestroyDescriptorUpdateTemplateKHR");
         vkUpdateDescriptorSetWithTemplateKHR = (PFN_vkUpdateDescriptorSetWithTemplateKHR)vkGetDeviceProcAddr(device, "vkUpdateDescriptorSetWithTemplateKHR");
     }
 
-    if (info.support_VK_KHR_get_memory_requirements2)
-    {
+    if (info.support_VK_KHR_get_memory_requirements2) {
         vkGetImageMemoryRequirements2KHR = (PFN_vkGetImageMemoryRequirements2KHR)vkGetDeviceProcAddr(device, "vkGetImageMemoryRequirements2KHR");
         vkGetBufferMemoryRequirements2KHR = (PFN_vkGetBufferMemoryRequirements2KHR)vkGetDeviceProcAddr(device, "vkGetBufferMemoryRequirements2KHR");
         vkGetImageSparseMemoryRequirements2KHR = (PFN_vkGetImageSparseMemoryRequirements2KHR)vkGetDeviceProcAddr(device, "vkGetImageSparseMemoryRequirements2KHR");
     }
 
-    if (info.support_VK_KHR_maintenance1)
-    {
+    if (info.support_VK_KHR_maintenance1) {
         vkTrimCommandPoolKHR = (PFN_vkTrimCommandPoolKHR)vkGetDeviceProcAddr(device, "vkTrimCommandPoolKHR");
     }
 
-    if (info.support_VK_KHR_push_descriptor)
-    {
-        if (info.support_VK_KHR_descriptor_update_template)
-        {
+    if (info.support_VK_KHR_push_descriptor) {
+        if (info.support_VK_KHR_descriptor_update_template) {
             vkCmdPushDescriptorSetWithTemplateKHR = (PFN_vkCmdPushDescriptorSetWithTemplateKHR)vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetWithTemplateKHR");
         }
 
         vkCmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetKHR");
     }
 
-    if (info.support_VK_KHR_sampler_ycbcr_conversion)
-    {
+    if (info.support_VK_KHR_sampler_ycbcr_conversion) {
         vkCreateSamplerYcbcrConversionKHR = (PFN_vkCreateSamplerYcbcrConversionKHR)vkGetDeviceProcAddr(device, "vkCreateSamplerYcbcrConversionKHR");
         vkDestroySamplerYcbcrConversionKHR = (PFN_vkDestroySamplerYcbcrConversionKHR)vkGetDeviceProcAddr(device, "vkDestroySamplerYcbcrConversionKHR");
     }
 
-    if (info.support_VK_KHR_swapchain)
-    {
+    if (info.support_VK_KHR_swapchain) {
         vkCreateSwapchainKHR = (PFN_vkCreateSwapchainKHR)vkGetDeviceProcAddr(device, "vkCreateSwapchainKHR");
         vkDestroySwapchainKHR = (PFN_vkDestroySwapchainKHR)vkGetDeviceProcAddr(device, "vkDestroySwapchainKHR");
         vkGetSwapchainImagesKHR = (PFN_vkGetSwapchainImagesKHR)vkGetDeviceProcAddr(device, "vkGetSwapchainImagesKHR");
@@ -1995,8 +1843,7 @@ int VulkanDevice::init_device_extension()
     }
 
 #if __ANDROID_API__ >= 26
-    if (info.support_VK_ANDROID_external_memory_android_hardware_buffer)
-    {
+    if (info.support_VK_ANDROID_external_memory_android_hardware_buffer) {
         vkGetAndroidHardwareBufferPropertiesANDROID = (PFN_vkGetAndroidHardwareBufferPropertiesANDROID)vkGetDeviceProcAddr(device, "vkGetAndroidHardwareBufferPropertiesANDROID");
         vkGetMemoryAndroidHardwareBufferANDROID = (PFN_vkGetMemoryAndroidHardwareBufferANDROID)vkGetDeviceProcAddr(device, "vkGetMemoryAndroidHardwareBufferANDROID");
     }
@@ -2008,7 +1855,8 @@ int VulkanDevice::init_device_extension()
 class VkDummyAllocator : public VkBlobAllocator
 {
 public:
-    VkDummyAllocator(const VulkanDevice* _vkdev) : VkBlobAllocator(_vkdev)
+    VkDummyAllocator(const VulkanDevice* _vkdev)
+        : VkBlobAllocator(_vkdev)
     {
         // NOTE 16k is large enough I think ...
         block_size = alignSize(16 * 1024, buffer_offset_alignment);
@@ -2018,11 +1866,14 @@ public:
 class VkDummyCompute : public VkCompute
 {
 public:
-    VkDummyCompute(const VulkanDevice* _vkdev) : VkCompute(_vkdev) {}
+    VkDummyCompute(const VulkanDevice* _vkdev)
+        : VkCompute(_vkdev)
+    {
+    }
 
     void record_dummy(const VkMat& buffer)
     {
-//         NCNN_LOGE("xxx barrier buffer %p +%d ~%d", buffer.buffer(), buffer.buffer_offset(), buffer.buffer_capacity());
+        //         NCNN_LOGE("xxx barrier buffer %p +%d ~%d", buffer.buffer(), buffer.buffer_offset(), buffer.buffer_capacity());
 
         // barrier device any @ compute/null to shader-readwrite @ compute
         VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
@@ -2039,13 +1890,11 @@ public:
         VkPipelineStageFlags src_stage = buffer.data->stage_flags;
         VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
-        if (vkdev->info.support_VK_KHR_push_descriptor)
-        {
+        if (vkdev->info.support_VK_KHR_push_descriptor) {
             vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
             delete[] barriers;
         }
-        else
-        {
+        else {
             record r;
             r.type = record::TYPE_buffer_barrers;
             r.command_buffer = compute_command_buffer;
@@ -2063,7 +1912,7 @@ public:
 
     void record_dummy(const VkImageMat& image)
     {
-//         NCNN_LOGE("xxx barrier image %p +%d ~%d %p", image.image(), image.data->bind_offset, image.data->bind_capacity, image.imageview());
+        //         NCNN_LOGE("xxx barrier image %p +%d ~%d %p", image.image(), image.data->bind_offset, image.data->bind_capacity, image.imageview());
 
         // image layout transform any @ any to shader-write @ compute
         VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
@@ -2085,13 +1934,11 @@ public:
         VkPipelineStageFlags src_stage = image.data->stage_flags;
         VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
-        if (vkdev->info.support_VK_KHR_push_descriptor)
-        {
+        if (vkdev->info.support_VK_KHR_push_descriptor) {
             vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
             delete[] barriers;
         }
-        else
-        {
+        else {
             record r;
             r.type = record::TYPE_image_barrers;
             r.command_buffer = compute_command_buffer;
@@ -2142,22 +1989,17 @@ int VulkanDevice::create_utility_operator()
 
     // from buffer | image
     // to buffer | image
-    for (int i0=0; i0<2; i0++)
-    {
-        for (int i1=0; i1<2; i1++)
-        {
+    for (int i0 = 0; i0 < 2; i0++) {
+        for (int i1 = 0; i1 < 2; i1++) {
             opt.use_image_storage = (i0 == 1 || i1 == 1);
             if (info.bug_layout_binding_id_alias && opt.use_image_storage)
                 continue;
 
             // from fp32-b/i | fp16p-b/i | fp16s-b/i
             // to fp32-b/i | fp16p-b/i | fp16s-b/i
-            for (int j0=0; j0<3; j0++)
-            {
-                for (int j1=0; j1<3; j1++)
-                {
-                    if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
-                    {
+            for (int j0 = 0; j0 < 3; j0++) {
+                for (int j1 = 0; j1 < 3; j1++) {
+                    if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1)) {
                         // no fp16p to/from fp16s conversion
                         continue;
                     }
@@ -2172,8 +2014,7 @@ int VulkanDevice::create_utility_operator()
                         continue;
 
                     // to pack1 | pack4 | pack8
-                    for (int k=0; k<3; k++)
-                    {
+                    for (int k = 0; k < 3; k++) {
                         // enable pack8 for pack8to1/pack8to4
                         opt.use_shader_pack8 = true;
 
@@ -2181,11 +2022,11 @@ int VulkanDevice::create_utility_operator()
                         uop->vkdev = this;
 
                         ncnn::ParamDict pd;
-                        pd.set(0, k == 0 ? 1 : k == 1 ? 4 : 8);// out_elempack
-                        pd.set(2, j0 + 1);// cast_type_from  0=auto 1=fp32 2=fp16p 3=fp16s
-                        pd.set(3, j1 + 1);// cast_type_to
-                        pd.set(4, i0);// storage_type_from  0=buffer 1=image
-                        pd.set(5, i1);// storage_type_to
+                        pd.set(0, k == 0 ? 1 : k == 1 ? 4 : 8); // out_elempack
+                        pd.set(2, j0 + 1);                      // cast_type_from  0=auto 1=fp32 2=fp16p 3=fp16s
+                        pd.set(3, j1 + 1);                      // cast_type_to
+                        pd.set(4, i0);                          // storage_type_from  0=buffer 1=image
+                        pd.set(5, i1);                          // storage_type_to
 
                         uop->load_param(pd);
 
@@ -2207,22 +2048,17 @@ void VulkanDevice::destroy_utility_operator()
 
     // from buffer | image
     // to buffer | image
-    for (int i0=0; i0<2; i0++)
-    {
-        for (int i1=0; i1<2; i1++)
-        {
+    for (int i0 = 0; i0 < 2; i0++) {
+        for (int i1 = 0; i1 < 2; i1++) {
             opt.use_image_storage = (i0 == 1 || i1 == 1);
             if (info.bug_layout_binding_id_alias && opt.use_image_storage)
                 continue;
 
             // from fp32-b/i | fp16p-b/i | fp16s-b/i
             // to fp32-b/i | fp16p-b/i | fp16s-b/i
-            for (int j0=0; j0<3; j0++)
-            {
-                for (int j1=0; j1<3; j1++)
-                {
-                    if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
-                    {
+            for (int j0 = 0; j0 < 3; j0++) {
+                for (int j1 = 0; j1 < 3; j1++) {
+                    if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1)) {
                         // no fp16p to/from fp16s conversion
                         continue;
                     }
@@ -2237,8 +2073,7 @@ void VulkanDevice::destroy_utility_operator()
                         continue;
 
                     // to pack1 | pack4 | pack8
-                    for (int k=0; k<3; k++)
-                    {
+                    for (int k = 0; k < 3; k++) {
                         // enable pack8 for pack8to1/pack8to4
                         opt.use_shader_pack8 = true;
 
@@ -2381,8 +2216,7 @@ const TBuiltInResource default_TBuiltInResource = {
 
 int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<uint32_t>& spirv)
 {
-    if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
-    {
+    if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count) {
         NCNN_LOGE("no such shader module %d", shader_type_index);
         return -1;
     }
@@ -2390,29 +2224,25 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
     const char* comp_data = layer_shader_registry[shader_type_index].comp_data;
     int comp_data_size = layer_shader_registry[shader_type_index].comp_data_size;
 
-    std::vector< std::pair<const char*, const char*> > custom_defines;
+    std::vector<std::pair<const char*, const char*> > custom_defines;
 
-    if (opt.use_fp16_storage)
-    {
+    if (opt.use_fp16_storage) {
         custom_defines.push_back(std::make_pair("sfp", "float16_t"));
         custom_defines.push_back(std::make_pair("sfpvec2", "f16vec2"));
         custom_defines.push_back(std::make_pair("sfpvec4", "f16vec4"));
 
-        if (opt.use_fp16_arithmetic)
-        {
+        if (opt.use_fp16_arithmetic) {
             custom_defines.push_back(std::make_pair("sfpvec8", "f16mat2x4"));
             custom_defines.push_back(std::make_pair("sfpmat4", "f16mat4"));
         }
     }
-    else if (opt.use_fp16_packed)
-    {
+    else if (opt.use_fp16_packed) {
         custom_defines.push_back(std::make_pair("sfp", "float"));
         custom_defines.push_back(std::make_pair("sfpvec2", "uint"));
         custom_defines.push_back(std::make_pair("sfpvec4", "uvec2"));
         custom_defines.push_back(std::make_pair("sfpvec8", "uvec4"));
     }
-    else
-    {
+    else {
         custom_defines.push_back(std::make_pair("sfp", "float"));
         custom_defines.push_back(std::make_pair("sfpvec2", "vec2"));
         custom_defines.push_back(std::make_pair("sfpvec4", "vec4"));
@@ -2420,16 +2250,14 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
         custom_defines.push_back(std::make_pair("sfpmat4", "mat4"));
     }
 
-    if (opt.use_fp16_arithmetic)
-    {
+    if (opt.use_fp16_arithmetic) {
         custom_defines.push_back(std::make_pair("afp", "float16_t"));
         custom_defines.push_back(std::make_pair("afpvec2", "f16vec2"));
         custom_defines.push_back(std::make_pair("afpvec4", "f16vec4"));
         custom_defines.push_back(std::make_pair("afpvec8", "f16mat2x4"));
         custom_defines.push_back(std::make_pair("afpmat4", "f16mat4"));
     }
-    else
-    {
+    else {
         custom_defines.push_back(std::make_pair("afp", "float"));
         custom_defines.push_back(std::make_pair("afpvec2", "vec2"));
         custom_defines.push_back(std::make_pair("afpvec4", "vec4"));
@@ -2437,8 +2265,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
         custom_defines.push_back(std::make_pair("afpmat4", "mat4"));
     }
 
-    if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
-    {
+    if (opt.use_fp16_storage && opt.use_fp16_arithmetic) {
         custom_defines.push_back(std::make_pair("buffer_ld1(buf,i)", "buf[i]"));
         custom_defines.push_back(std::make_pair("buffer_st1(buf,i,v)", "{buf[i]=v;}"));
         custom_defines.push_back(std::make_pair("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}"));
@@ -2460,8 +2287,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
         custom_defines.push_back(std::make_pair("sfp2afpmat4(v)", "v"));
         custom_defines.push_back(std::make_pair("afp2sfpmat4(v)", "v"));
     }
-    else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
-    {
+    else if (opt.use_fp16_packed && opt.use_fp16_arithmetic) {
         custom_defines.push_back(std::make_pair("buffer_ld1(buf,i)", "float16_t(buf[i])"));
         custom_defines.push_back(std::make_pair("buffer_st1(buf,i,v)", "{buf[i]=float(v);}"));
         custom_defines.push_back(std::make_pair("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}"));
@@ -2481,8 +2307,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
         custom_defines.push_back(std::make_pair("buffer_cp8to1(buf,i4,ii4,sbuf,si)", "{uvec4 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.r);vec2 _v1=unpackHalf2x16(_v.g);vec2 _v2=unpackHalf2x16(_v.b);vec2 _v3=unpackHalf2x16(_v.a); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g; buf[ii4.r]=_v2.r;buf[ii4.g]=_v2.g;buf[ii4.b]=_v3.r;buf[ii4.a]=_v3.g;}"));
         custom_defines.push_back(std::make_pair("buffer_cp8to4(buf,i2,sbuf,si)", "{uvec4 _v=sbuf[si]; buf[i2.r]=_v.rg;buf[i2.g]=_v.ba;}"));
     }
-    else if (opt.use_fp16_storage)
-    {
+    else if (opt.use_fp16_storage) {
         custom_defines.push_back(std::make_pair("buffer_ld1(buf,i)", "float(buf[i])"));
         custom_defines.push_back(std::make_pair("buffer_st1(buf,i,v)", "{buf[i]=float16_t(v);}"));
         custom_defines.push_back(std::make_pair("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}"));
@@ -2502,8 +2327,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
         custom_defines.push_back(std::make_pair("buffer_cp8to1(buf,i4,ii4,sbuf,si)", "{buf[i4.r]=sbuf[si].abcd.r;buf[i4.g]=sbuf[si].abcd.g;buf[i4.b]=sbuf[si].abcd.b;buf[i4.a]=sbuf[si].abcd.a; buf[ii4.r]=sbuf[si].efgh.r;buf[ii4.g]=sbuf[si].efgh.g;buf[ii4.b]=sbuf[si].efgh.b;buf[ii4.a]=sbuf[si].efgh.a;}"));
         custom_defines.push_back(std::make_pair("buffer_cp8to4(buf,i2,sbuf,si)", "{buf[i2.r]=sbuf[si].abcd;buf[i2.g]=sbuf[si].efgh;}"));
     }
-    else if (opt.use_fp16_packed)
-    {
+    else if (opt.use_fp16_packed) {
         custom_defines.push_back(std::make_pair("buffer_ld1(buf,i)", "buf[i]"));
         custom_defines.push_back(std::make_pair("buffer_st1(buf,i,v)", "{buf[i]=v;}"));
         custom_defines.push_back(std::make_pair("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}"));
@@ -2523,8 +2347,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
         custom_defines.push_back(std::make_pair("buffer_cp8to1(buf,i4,ii4,sbuf,si)", "{uvec4 _v=sbuf[si]; vec2 _v0=unpackHalf2x16(_v.r);vec2 _v1=unpackHalf2x16(_v.g);vec2 _v2=unpackHalf2x16(_v.b);vec2 _v3=unpackHalf2x16(_v.a); buf[i4.r]=_v0.r;buf[i4.g]=_v0.g;buf[i4.b]=_v1.r;buf[i4.a]=_v1.g; buf[ii4.r]=_v2.r;buf[ii4.g]=_v2.g;buf[ii4.b]=_v3.r;buf[ii4.a]=_v3.g;}"));
         custom_defines.push_back(std::make_pair("buffer_cp8to4(buf,i2,sbuf,si)", "{uvec4 _v=sbuf[si]; buf[i2.r]=_v.rg;buf[i2.g]=_v.ba;}"));
     }
-    else
-    {
+    else {
         custom_defines.push_back(std::make_pair("buffer_ld1(buf,i)", "buf[i]"));
         custom_defines.push_back(std::make_pair("buffer_st1(buf,i,v)", "{buf[i]=v;}"));
         custom_defines.push_back(std::make_pair("buffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}"));
@@ -2547,29 +2370,24 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
         custom_defines.push_back(std::make_pair("afp2sfpmat4(v)", "v"));
     }
 
-    if (opt.use_image_storage)
-    {
-        if (opt.use_fp16_storage)
-        {
+    if (opt.use_image_storage) {
+        if (opt.use_fp16_storage) {
             custom_defines.push_back(std::make_pair("imfmtc1", "r16f"));
             custom_defines.push_back(std::make_pair("imfmtc4", "rgba16f"));
             custom_defines.push_back(std::make_pair("unfp", "mediump"));
         }
-        else if (opt.use_fp16_packed)
-        {
+        else if (opt.use_fp16_packed) {
             custom_defines.push_back(std::make_pair("imfmtc1", "r32f"));
             custom_defines.push_back(std::make_pair("imfmtc4", "rgba16f"));
             custom_defines.push_back(std::make_pair("unfp", "mediump"));
         }
-        else
-        {
+        else {
             custom_defines.push_back(std::make_pair("imfmtc1", "r32f"));
             custom_defines.push_back(std::make_pair("imfmtc4", "rgba32f"));
             custom_defines.push_back(std::make_pair("unfp", "highp"));
         }
 
-        if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
-        {
+        if (opt.use_fp16_storage && opt.use_fp16_arithmetic) {
             custom_defines.push_back(std::make_pair("image1d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)"));
             custom_defines.push_back(std::make_pair("image2d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)"));
             custom_defines.push_back(std::make_pair("image3d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)"));
@@ -2598,8 +2416,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
             custom_defines.push_back(std::make_pair("image2d_cp8(img,p,tex,sp)", "{imageStore(img,ivec2(p.x*2,p.y),texelFetch(tex,ivec2(sp.x*2,sp.y),0));imageStore(img,ivec2(p.x*2+1,p.y),texelFetch(tex,ivec2(sp.x*2+1,sp.y),0));}"));
             custom_defines.push_back(std::make_pair("image3d_cp8(img,p,tex,sp)", "{imageStore(img,ivec3(p.x*2,p.y,p.z),texelFetch(tex,ivec3(sp.x*2,sp.y,sp.z),0));imageStore(img,ivec3(p.x*2+1,p.y,p.z),texelFetch(tex,ivec3(sp.x*2+1,sp.y,sp.z),0));}"));
         }
-        else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
-        {
+        else if (opt.use_fp16_packed && opt.use_fp16_arithmetic) {
             custom_defines.push_back(std::make_pair("image1d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)"));
             custom_defines.push_back(std::make_pair("image2d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)"));
             custom_defines.push_back(std::make_pair("image3d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)"));
@@ -2628,8 +2445,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
             custom_defines.push_back(std::make_pair("image2d_cp8(img,p,tex,sp)", "{imageStore(img,ivec2(p.x*2,p.y),texelFetch(tex,ivec2(sp.x*2,sp.y),0));imageStore(img,ivec2(p.x*2+1,p.y),texelFetch(tex,ivec2(sp.x*2+1,sp.y),0));}"));
             custom_defines.push_back(std::make_pair("image3d_cp8(img,p,tex,sp)", "{imageStore(img,ivec3(p.x*2,p.y,p.z),texelFetch(tex,ivec3(sp.x*2,sp.y,sp.z),0));imageStore(img,ivec3(p.x*2+1,p.y,p.z),texelFetch(tex,ivec3(sp.x*2+1,sp.y,sp.z),0));}"));
         }
-        else if (opt.use_fp16_storage)
-        {
+        else if (opt.use_fp16_storage) {
             custom_defines.push_back(std::make_pair("image1d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
             custom_defines.push_back(std::make_pair("image2d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
             custom_defines.push_back(std::make_pair("image3d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
@@ -2658,8 +2474,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
             custom_defines.push_back(std::make_pair("image2d_cp8(img,p,tex,sp)", "{imageStore(img,ivec2(p.x*2,p.y),texelFetch(tex,ivec2(sp.x*2,sp.y),0));imageStore(img,ivec2(p.x*2+1,p.y),texelFetch(tex,ivec2(sp.x*2+1,sp.y),0));}"));
             custom_defines.push_back(std::make_pair("image3d_cp8(img,p,tex,sp)", "{imageStore(img,ivec3(p.x*2,p.y,p.z),texelFetch(tex,ivec3(sp.x*2,sp.y,sp.z),0));imageStore(img,ivec3(p.x*2+1,p.y,p.z),texelFetch(tex,ivec3(sp.x*2+1,sp.y,sp.z),0));}"));
         }
-        else if (opt.use_fp16_packed)
-        {
+        else if (opt.use_fp16_packed) {
             custom_defines.push_back(std::make_pair("image1d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
             custom_defines.push_back(std::make_pair("image2d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
             custom_defines.push_back(std::make_pair("image3d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
@@ -2688,8 +2503,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
             custom_defines.push_back(std::make_pair("image2d_cp8(img,p,tex,sp)", "{imageStore(img,ivec2(p.x*2,p.y),texelFetch(tex,ivec2(sp.x*2,sp.y),0));imageStore(img,ivec2(p.x*2+1,p.y),texelFetch(tex,ivec2(sp.x*2+1,sp.y),0));}"));
             custom_defines.push_back(std::make_pair("image3d_cp8(img,p,tex,sp)", "{imageStore(img,ivec3(p.x*2,p.y,p.z),texelFetch(tex,ivec3(sp.x*2,sp.y,sp.z),0));imageStore(img,ivec3(p.x*2+1,p.y,p.z),texelFetch(tex,ivec3(sp.x*2+1,sp.y,sp.z),0));}"));
         }
-        else
-        {
+        else {
             custom_defines.push_back(std::make_pair("image1d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
             custom_defines.push_back(std::make_pair("image2d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
             custom_defines.push_back(std::make_pair("image3d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
@@ -2722,22 +2536,18 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
 
     custom_defines.push_back(std::make_pair("psc(x)", "(x==0?p.x:x)"));
 
-    if (opt.use_fp16_storage)
-    {
+    if (opt.use_fp16_storage) {
         custom_defines.push_back(std::make_pair("NCNN_fp16_storage", "1"));
     }
-    else if (opt.use_fp16_packed)
-    {
+    else if (opt.use_fp16_packed) {
         custom_defines.push_back(std::make_pair("NCNN_fp16_packed", "1"));
     }
 
-    if (opt.use_fp16_arithmetic)
-    {
+    if (opt.use_fp16_arithmetic) {
         custom_defines.push_back(std::make_pair("NCNN_fp16_arithmetic", "1"));
     }
 
-    if (opt.use_image_storage)
-    {
+    if (opt.use_image_storage) {
         custom_defines.push_back(std::make_pair("NCNN_image_shader", "1"));
     }
 
@@ -2745,8 +2555,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
     std::vector<std::string> processes;
 
     processes.resize(custom_defines.size());
-    for (size_t i = 0; i < custom_defines.size(); i++)
-    {
+    for (size_t i = 0; i < custom_defines.size(); i++) {
         const char* key = custom_defines[i].first;
         const char* def = custom_defines[i].second;
 
@@ -2775,16 +2584,14 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
         // although vulkan 1.1 accept glsl directly
         // ncnn resolve_shader_info() only works with the intermediate spirv code
         bool pr = s.parse(&resources, 100, false, EShMsgDefault);
-        if (!pr)
-        {
+        if (!pr) {
             NCNN_LOGE("compile spir-v module failed");
             NCNN_LOGE("%s", s.getInfoLog());
             NCNN_LOGE("%s", s.getInfoDebugLog());
 
             compile_success = false;
         }
-        else
-        {
+        else {
             glslang::TIntermediate* ir = s.getIntermediate();
             glslang::GlslangToSpv(*ir, spirv);
         }
@@ -2797,8 +2604,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
 #if !NCNN_VULKAN_ONLINE_SPIRV
 const ShaderInfo& get_shader_info(int shader_type_index)
 {
-    if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
-    {
+    if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count) {
         NCNN_LOGE("no such shader module %d", shader_type_index);
         return layer_shader_infos[0];
     }
@@ -2835,8 +2641,7 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
     p += 5;
 
     // foreach op
-    while ((const unsigned char*)p < (const unsigned char*)spv_data + spv_data_size)
-    {
+    while ((const unsigned char*)p < (const unsigned char*)spv_data + spv_data_size) {
         uint32_t opcode = p[0];
 
         uint16_t wordcount = opcode >> 16;
@@ -2846,16 +2651,14 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
         {
             uint32_t id = p[1];
             const char* name = (const char*)&p[2];
-            if (strcmp(name, "parameter") == 0)
-            {
+            if (strcmp(name, "parameter") == 0) {
                 parameter_id = id;
             }
         }
         else if (op == 6) // OpMemberName
         {
             uint32_t id = p[1];
-            if (id == parameter_id)
-            {
+            if (id == parameter_id) {
                 push_constant_count++;
             }
         }
@@ -2922,8 +2725,7 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
         p += wordcount;
     }
 
-    if (binding_count > 16)
-    {
+    if (binding_count > 16) {
         NCNN_LOGE("too many binding %d", binding_count);
         return -1;
     }
@@ -2933,9 +2735,8 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
     shader_info.push_constant_count = push_constant_count;
 
     // resolve binding_types
-    for (int i=0; i<binding_count; i++)
-    {
-        shader_info.binding_types[i] = id_types[ binding_types[i] ];
+    for (int i = 0; i < binding_count; i++) {
+        shader_info.binding_types[i] = id_types[binding_types[i]];
     }
 
     return 0;

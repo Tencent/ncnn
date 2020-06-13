@@ -12,15 +12,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/softmax.h"
+#include "testutil.h"
 
 static int test_softmax(const ncnn::Mat& a, int axis)
 {
     ncnn::ParamDict pd;
-    pd.set(0, axis);// axis
-    pd.set(1, 1);// fixbug0
+    pd.set(0, axis); // axis
+    pd.set(1, 1);    // fixbug0
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -30,8 +29,7 @@ static int test_softmax(const ncnn::Mat& a, int axis)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Softmax>("Softmax", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_softmax failed a.dims=%d a=(%d %d %d) axis=%d\n", a.dims, a.w, a.h, a.c, axis);
     }
 
@@ -45,8 +43,7 @@ static int test_softmax_0()
     return 0
            || test_softmax(a, 0)
            || test_softmax(a, 1)
-           || test_softmax(a, 2)
-           ;
+           || test_softmax(a, 2);
 }
 
 static int test_softmax_1()
@@ -56,8 +53,7 @@ static int test_softmax_1()
     return 0
            || test_softmax(a, 0)
            || test_softmax(a, 1)
-           || test_softmax(a, 2)
-           ;
+           || test_softmax(a, 2);
 }
 
 static int test_softmax_2()
@@ -66,8 +62,7 @@ static int test_softmax_2()
 
     return 0
            || test_softmax(a, 0)
-           || test_softmax(a, 1)
-           ;
+           || test_softmax(a, 1);
 }
 
 static int test_softmax_3()
@@ -76,8 +71,7 @@ static int test_softmax_3()
 
     return 0
            || test_softmax(a, 0)
-           || test_softmax(a, 1)
-           ;
+           || test_softmax(a, 1);
 }
 
 static int test_softmax_4()
@@ -104,6 +98,5 @@ int main()
            || test_softmax_2()
            || test_softmax_3()
            || test_softmax_4()
-           || test_softmax_5()
-           ;
+           || test_softmax_5();
 }

@@ -13,8 +13,9 @@
 // specific language governing permissions and limitations under the License.
 
 #include "spp.h"
-#include <math.h>
+
 #include <algorithm>
+#include <math.h>
 
 namespace ncnn {
 
@@ -47,8 +48,7 @@ int SPP::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
     float* pyramid_ptr = top_blob;
 
     // all spatial pyramids
-    for (int p = 0; p < pyramid_height; p++)
-    {
+    for (int p = 0; p < pyramid_height; p++) {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
         int channels = bottom_blob.c;
@@ -72,8 +72,7 @@ int SPP::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
         int outh = num_bins;
 
         Mat bottom_blob_bordered = bottom_blob;
-        if (pad_h > 0 || pad_w > 0)
-        {
+        if (pad_h > 0 || pad_w > 0) {
             copy_make_border(bottom_blob, bottom_blob_bordered, pad_h, pad_h, pad_w, pad_w, BORDER_CONSTANT, 0.f, opt);
             if (bottom_blob_bordered.empty())
                 return -100;
@@ -91,10 +90,8 @@ int SPP::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
             int p1 = 0;
             int p2 = 0;
             int gap = w - kernel_w;
-            for (int i = 0; i < kernel_h; i++)
-            {
-                for (int j = 0; j < kernel_w; j++)
-                {
+            for (int i = 0; i < kernel_h; i++) {
+                for (int j = 0; j < kernel_w; j++) {
                     space_ofs[p1] = p2;
                     p1++;
                     p2++;
@@ -103,25 +100,20 @@ int SPP::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
             }
         }
 
-        if (pooling_type == PoolMethod_MAX)
-        {
+        if (pooling_type == PoolMethod_MAX) {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
-            {
+            for (int q = 0; q < channels; q++) {
                 const Mat m(w, h, bottom_blob_bordered.channel(q));
                 float* outptr = pyramid_ptr + outh * outw * q;
 
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        const float* sptr = m.row(i*stride_h) + j*stride_w;
+                for (int i = 0; i < outh; i++) {
+                    for (int j = 0; j < outw; j++) {
+                        const float* sptr = m.row(i * stride_h) + j * stride_w;
 
                         float max = sptr[0];
 
-                        for (int k = 0; k < maxk; k++)
-                        {
-                            float val = sptr[ space_ofs[k] ];
+                        for (int k = 0; k < maxk; k++) {
+                            float val = sptr[space_ofs[k]];
                             max = std::max(max, val);
                         }
 
@@ -132,25 +124,20 @@ int SPP::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
                 }
             }
         }
-        else if (pooling_type == PoolMethod_AVE)
-        {
+        else if (pooling_type == PoolMethod_AVE) {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
-            {
+            for (int q = 0; q < channels; q++) {
                 const Mat m(w, h, bottom_blob_bordered.channel(q));
                 float* outptr = pyramid_ptr + outh * outw * q;
 
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        const float* sptr = m.row(i*stride_h) + j*stride_w;
+                for (int i = 0; i < outh; i++) {
+                    for (int j = 0; j < outw; j++) {
+                        const float* sptr = m.row(i * stride_h) + j * stride_w;
 
                         float sum = 0;
 
-                        for (int k = 0; k < maxk; k++)
-                        {
-                            float val = sptr[ space_ofs[k] ];
+                        for (int k = 0; k < maxk; k++) {
+                            float val = sptr[space_ofs[k]];
                             sum += val;
                         }
 

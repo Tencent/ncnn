@@ -17,31 +17,32 @@
 #pragma once
 #if __aarch64__
 
-#define DECOMPOSE_K\
-    int ktmp = k;\
-    int k8 = k >> 3;\
-    int k8_even = (k8 % 2 == 0) ? 0: 1;\
-    k -= (k8 << 3);\
-    int k4 = k >> 2;\
-    k -= (k4 << 2);\
-    int k2 = k >> 1;\
-    k -= (k2 << 1);\
-    int k1 = k;\
+#define DECOMPOSE_K                      \
+    int ktmp = k;                        \
+    int k8 = k >> 3;                     \
+    int k8_even = (k8 % 2 == 0) ? 0 : 1; \
+    k -= (k8 << 3);                      \
+    int k4 = k >> 2;                     \
+    k -= (k4 << 2);                      \
+    int k2 = k >> 1;                     \
+    k -= (k2 << 1);                      \
+    int k1 = k;                          \
     k = ktmp;
 
-#define DECOMPOSE_N\
-    int ntmp = n;\
-    int n4 = n >> 2;\
-    n -= (n4 << 2);\
-    int n2 = n >> 1;\
-    n -= (n2 << 1);\
-    int n1 = n;\
+#define DECOMPOSE_N  \
+    int ntmp = n;    \
+    int n4 = n >> 2; \
+    n -= (n4 << 2);  \
+    int n2 = n >> 1; \
+    n -= (n2 << 1);  \
+    int n1 = n;      \
     n = ntmp;
 
 #define PRINT_MATRIX 0
 
 #if PRINT_MATRIX
-static void print_int8_matrix(char* name, const int8_t *a, int m, int k, int ldx) {
+static void print_int8_matrix(char* name, const int8_t* a, int m, int k, int ldx)
+{
     fprintf(stdout, "------------- %s \n", name);
     for (int i = 0; i < m; ++i) {
         for (int j = 0; j < k; ++j) {
@@ -51,7 +52,8 @@ static void print_int8_matrix(char* name, const int8_t *a, int m, int k, int ldx
     }
 }
 
-static void print_int32_matrix(char* name, const int32_t *a, int m, int k, int ldx) {
+static void print_int32_matrix(char* name, const int32_t* a, int m, int k, int ldx)
+{
     fprintf(stdout, "------------- %s \n", name);
     for (int i = 0; i < m; ++i) {
         for (int j = 0; j < k; ++j) {
@@ -61,7 +63,8 @@ static void print_int32_matrix(char* name, const int32_t *a, int m, int k, int l
     }
 }
 
-static void print_fp32_vec(char* name, const float *a, int len) {
+static void print_fp32_vec(char* name, const float* a, int len)
+{
     fprintf(stdout, "------------- %s \n", name);
     for (int i = 0; i < len; ++i) {
         fprintf(stdout, "%f \t", a[i]);
@@ -70,36 +73,37 @@ static void print_fp32_vec(char* name, const float *a, int len) {
 }
 #endif
 
-static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, const int ldx) {
+static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, const int ldx)
+{
 #if PRINT_MATRIX
     print_int8_matrix("b", b, k, n, ldx);
-    int8_t *origin = sb;
+    int8_t* origin = sb;
 #endif
     int i = 0;
-    for (; i+3 < n; i += 4) {
-        const int8_t *p0 = b + i;
-        const int8_t *p1 = b + 1 * ldx + i;
-        const int8_t *p2 = b + 2 * ldx + i;
-        const int8_t *p3 = b + 3 * ldx + i;
+    for (; i + 3 < n; i += 4) {
+        const int8_t* p0 = b + i;
+        const int8_t* p1 = b + 1 * ldx + i;
+        const int8_t* p2 = b + 2 * ldx + i;
+        const int8_t* p3 = b + 3 * ldx + i;
 
-        const int8_t *p4 = b + 4 * ldx + i;
-        const int8_t *p5 = b + 5 * ldx + i;
-        const int8_t *p6 = b + 6 * ldx + i;
-        const int8_t *p7 = b + 7 * ldx + i;
+        const int8_t* p4 = b + 4 * ldx + i;
+        const int8_t* p5 = b + 5 * ldx + i;
+        const int8_t* p6 = b + 6 * ldx + i;
+        const int8_t* p7 = b + 7 * ldx + i;
 
         int j = 0;
-        for (; j+7 < k; j += 8) {
-            sb[0]  = p0[0];
-            sb[1]  = p1[0];
-            sb[2]  = p2[0];
-            sb[3]  = p3[0];
-            sb[4]  = p4[0];
-            sb[5]  = p5[0];
-            sb[6]  = p6[0];
-            sb[7]  = p7[0];
+        for (; j + 7 < k; j += 8) {
+            sb[0] = p0[0];
+            sb[1] = p1[0];
+            sb[2] = p2[0];
+            sb[3] = p3[0];
+            sb[4] = p4[0];
+            sb[5] = p5[0];
+            sb[6] = p6[0];
+            sb[7] = p7[0];
 
-            sb[8]  = p0[1];
-            sb[9]  = p1[1];
+            sb[8] = p0[1];
+            sb[9] = p1[1];
             sb[10] = p2[1];
             sb[11] = p3[1];
             sb[12] = p4[1];
@@ -135,21 +139,21 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p6 += 8 * ldx;
             p7 += 8 * ldx;
         }
-        if (j+3 < k) {
+        if (j + 3 < k) {
             j += 4;
 
-            sb[0]  = p0[0];
-            sb[1]  = p1[0];
-            sb[2]  = p2[0];
-            sb[3]  = p3[0];
+            sb[0] = p0[0];
+            sb[1] = p1[0];
+            sb[2] = p2[0];
+            sb[3] = p3[0];
 
-            sb[4]  = p0[1];
-            sb[5]  = p1[1];
-            sb[6]  = p2[1];
-            sb[7]  = p3[1];
+            sb[4] = p0[1];
+            sb[5] = p1[1];
+            sb[6] = p2[1];
+            sb[7] = p3[1];
 
-            sb[8]  = p0[2];
-            sb[9]  = p1[2];
+            sb[8] = p0[2];
+            sb[9] = p1[2];
             sb[10] = p2[2];
             sb[11] = p3[2];
 
@@ -164,7 +168,7 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p2 += 4 * ldx;
             p3 += 4 * ldx;
         }
-        if (j+1 < k) {
+        if (j + 1 < k) {
             j += 2;
 
             sb[0] = p0[0];
@@ -190,30 +194,30 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p0 += ldx;
         }
     }
-    if (i+1 < n) {
-        const int8_t *p0 = b + i;
-        const int8_t *p1 = b + 1 * ldx + i;
-        const int8_t *p2 = b + 2 * ldx + i;
-        const int8_t *p3 = b + 3 * ldx + i;
+    if (i + 1 < n) {
+        const int8_t* p0 = b + i;
+        const int8_t* p1 = b + 1 * ldx + i;
+        const int8_t* p2 = b + 2 * ldx + i;
+        const int8_t* p3 = b + 3 * ldx + i;
 
-        const int8_t *p4 = b + 4 * ldx + i;
-        const int8_t *p5 = b + 5 * ldx + i;
-        const int8_t *p6 = b + 6 * ldx + i;
-        const int8_t *p7 = b + 7 * ldx + i;
+        const int8_t* p4 = b + 4 * ldx + i;
+        const int8_t* p5 = b + 5 * ldx + i;
+        const int8_t* p6 = b + 6 * ldx + i;
+        const int8_t* p7 = b + 7 * ldx + i;
 
         int j = 0;
-        for (; j+7 < k; j += 8) {
-            sb[0]  = p0[0];
-            sb[1]  = p1[0];
-            sb[2]  = p2[0];
-            sb[3]  = p3[0];
-            sb[4]  = p4[0];
-            sb[5]  = p5[0];
-            sb[6]  = p6[0];
-            sb[7]  = p7[0];
+        for (; j + 7 < k; j += 8) {
+            sb[0] = p0[0];
+            sb[1] = p1[0];
+            sb[2] = p2[0];
+            sb[3] = p3[0];
+            sb[4] = p4[0];
+            sb[5] = p5[0];
+            sb[6] = p6[0];
+            sb[7] = p7[0];
 
-            sb[8]  = p0[1];
-            sb[9]  = p1[1];
+            sb[8] = p0[1];
+            sb[9] = p1[1];
             sb[10] = p2[1];
             sb[11] = p3[1];
             sb[12] = p4[1];
@@ -231,18 +235,18 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p6 += 8 * ldx;
             p7 += 8 * ldx;
         }
-        if (j+3 < k) {
+        if (j + 3 < k) {
             j += 4;
 
-            sb[0]  = p0[0];
-            sb[1]  = p1[0];
-            sb[2]  = p2[0];
-            sb[3]  = p3[0];
+            sb[0] = p0[0];
+            sb[1] = p1[0];
+            sb[2] = p2[0];
+            sb[3] = p3[0];
 
-            sb[4]  = p0[1];
-            sb[5]  = p1[1];
-            sb[6]  = p2[1];
-            sb[7]  = p3[1];
+            sb[4] = p0[1];
+            sb[5] = p1[1];
+            sb[6] = p2[1];
+            sb[7] = p3[1];
 
             sb += 8;
             p0 += 4 * ldx;
@@ -250,7 +254,7 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p2 += 4 * ldx;
             p3 += 4 * ldx;
         }
-        if (j+1 < k) {
+        if (j + 1 < k) {
             j += 2;
 
             sb[0] = p0[0];
@@ -272,25 +276,25 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
         i += 2;
     }
     if (i < n) {
-        const int8_t *p0 = b + i;
-        const int8_t *p1 = b + 1 * ldx + i;
-        const int8_t *p2 = b + 2 * ldx + i;
-        const int8_t *p3 = b + 3 * ldx + i;
-        const int8_t *p4 = b + 4 * ldx + i;
-        const int8_t *p5 = b + 5 * ldx + i;
-        const int8_t *p6 = b + 6 * ldx + i;
-        const int8_t *p7 = b + 7 * ldx + i;
+        const int8_t* p0 = b + i;
+        const int8_t* p1 = b + 1 * ldx + i;
+        const int8_t* p2 = b + 2 * ldx + i;
+        const int8_t* p3 = b + 3 * ldx + i;
+        const int8_t* p4 = b + 4 * ldx + i;
+        const int8_t* p5 = b + 5 * ldx + i;
+        const int8_t* p6 = b + 6 * ldx + i;
+        const int8_t* p7 = b + 7 * ldx + i;
 
         int j = 0;
-        for (; j+7 < k; j += 8) {
-            sb[0]  = p0[0];
-            sb[1]  = p1[0];
-            sb[2]  = p2[0];
-            sb[3]  = p3[0];
-            sb[4]  = p4[0];
-            sb[5]  = p5[0];
-            sb[6]  = p6[0];
-            sb[7]  = p7[0];
+        for (; j + 7 < k; j += 8) {
+            sb[0] = p0[0];
+            sb[1] = p1[0];
+            sb[2] = p2[0];
+            sb[3] = p3[0];
+            sb[4] = p4[0];
+            sb[5] = p5[0];
+            sb[6] = p6[0];
+            sb[7] = p7[0];
 
             sb += 8;
             p0 += 8 * ldx;
@@ -302,13 +306,13 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p6 += 8 * ldx;
             p7 += 8 * ldx;
         }
-        if (j+3 < k) {
+        if (j + 3 < k) {
             j += 4;
 
-            sb[0]  = p0[0];
-            sb[1]  = p1[0];
-            sb[2]  = p2[0];
-            sb[3]  = p3[0];
+            sb[0] = p0[0];
+            sb[1] = p1[0];
+            sb[2] = p2[0];
+            sb[3] = p3[0];
 
             sb += 4;
             p0 += 4 * ldx;
@@ -316,7 +320,7 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
             p2 += 4 * ldx;
             p3 += 4 * ldx;
         }
-        if (j+1 < k) {
+        if (j + 1 < k) {
             j += 2;
 
             sb[0] = p0[0];
@@ -338,43 +342,43 @@ static void reorder_b(const int8_t* b, int8_t* sb, const int k, const int n, con
 #endif
 }
 
-static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx) {
+static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx)
+{
 #if PRINT_MATRIX
     print_int8_matrix("a", a, m, k, ldx);
-    int8_t *origin = sa;
+    int8_t* origin = sa;
 #endif
     int i = 0;
     for (; i + 3 < m; i += 4) {
-        int8_t *p0 = a;
-        int8_t *p1 = a + ldx;
-        int8_t *p2 = a + 2 * ldx;
-        int8_t *p3 = a + 3 * ldx;
+        int8_t* p0 = a;
+        int8_t* p1 = a + ldx;
+        int8_t* p2 = a + 2 * ldx;
+        int8_t* p3 = a + 3 * ldx;
 
         int j = 0;
         for (; j + 7 < k; j += 8) {
-            asm volatile (
+            asm volatile(
                 "ld1 {v0.8b}, [%0], #8  \n"
                 "ld1 {v1.8b}, [%1], #8  \n"
                 "ld1 {v2.8b}, [%2], #8  \n"
                 "ld1 {v3.8b}, [%3], #8  \n"
                 "st1 {v0.8b, v1.8b, v2.8b, v3.8b}, [%4], #32\n"
-                :   "=r"(p0),
+                : "=r"(p0),
                 "=r"(p1),
                 "=r"(p2),
                 "=r"(p3),
                 "=r"(sa)
-                :   "0"(p0),
+                : "0"(p0),
                 "1"(p1),
                 "2"(p2),
                 "3"(p3),
                 "4"(sa)
-                : "cc", "memory", "v0", "v1", "v2", "v3"
-            );
+                : "cc", "memory", "v0", "v1", "v2", "v3");
         }
 
         if (j + 3 < k) {
             j += 4;
-            asm volatile (
+            asm volatile(
                 "ld1 {v0.8b}, [%0]  \n"
                 "add %0, %0, #4     \n"
                 "ld1 {v1.8b}, [%1]  \n"
@@ -387,23 +391,22 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx) 
                 "st1 {v0.8b}, [%4], #8      \n"
                 "trn1 v2.2s, v2.2s, v3.2s   \n"
                 "st1 {v2.8b}, [%4], #8      \n"
-                :   "=r"(p0),
+                : "=r"(p0),
                 "=r"(p1),
                 "=r"(p2),
                 "=r"(p3),
                 "=r"(sa)
-                :   "0"(p0),
+                : "0"(p0),
                 "1"(p1),
                 "2"(p2),
                 "3"(p3),
                 "4"(sa)
-                : "cc", "memory", "v0", "v1", "v2", "v3"
-            );
+                : "cc", "memory", "v0", "v1", "v2", "v3");
         }
 
         if (j + 1 < k) {
             j += 2;
-            asm volatile (
+            asm volatile(
                 "ld1 {v0.8b}, [%0]  \n"
                 "add %0, %0, #2     \n"
                 "ld1 {v1.8b}, [%1]  \n"
@@ -416,18 +419,17 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx) 
                 "trn1 v2.4h, v2.4h, v3.4h   \n"
                 "trn1 v0.2s, v0.2s, v2.2s   \n"
                 "st1 {v0.8b}, [%4], #8      \n"
-                :   "=r"(p0),
+                : "=r"(p0),
                 "=r"(p1),
                 "=r"(p2),
                 "=r"(p3),
                 "=r"(sa)
-                :   "0"(p0),
+                : "0"(p0),
                 "1"(p1),
                 "2"(p2),
                 "3"(p3),
                 "4"(sa)
-                : "cc", "memory", "v0", "v1", "v2", "v3"
-            );
+                : "cc", "memory", "v0", "v1", "v2", "v3");
         }
 
         if (j < k) {
@@ -442,42 +444,40 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx) 
 
     if (i + 1 < m) {
         i += 2;
-        int8_t *p0 = a;
-        int8_t *p1 = a + ldx;
+        int8_t* p0 = a;
+        int8_t* p1 = a + ldx;
 
         int j = 0;
         for (; j + 7 < k; j += 8) {
-            asm volatile (
+            asm volatile(
                 "ld1 {v0.8b}, [%0], #8  \n"
                 "ld1 {v1.8b}, [%1], #8  \n"
                 "st1 {v0.8b, v1.8b}, [%2], #16\n"
-                :   "=r"(p0),
+                : "=r"(p0),
                 "=r"(p1),
                 "=r"(sa)
-                :   "0"(p0),
+                : "0"(p0),
                 "1"(p1),
                 "2"(sa)
-                : "cc", "memory", "v0", "v1"
-            );
+                : "cc", "memory", "v0", "v1");
         }
 
         if (j + 3 < k) {
             j += 4;
-            asm volatile (
+            asm volatile(
                 "ld1 {v0.8b}, [%0]  \n"
                 "add %0, %0, #4     \n"
                 "ld1 {v1.8b}, [%1]  \n"
                 "add %1, %1, #4     \n"
                 "trn1 v0.2s, v0.2s, v1.2s   \n"
                 "st1 {v0.8b}, [%2], #8      \n"
-                :   "=r"(p0),
+                : "=r"(p0),
                 "=r"(p1),
                 "=r"(sa)
-                :   "0"(p0),
+                : "0"(p0),
                 "1"(p1),
                 "2"(sa)
-                : "cc", "memory", "v0", "v1"
-            );
+                : "cc", "memory", "v0", "v1");
         }
 
         if (j + 1 < k) {
@@ -508,10 +508,11 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx) 
 #endif
 }
 
-void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, float* scales, float* bias) {
-    void *pc = dst;
-    int8_t *pa = sa;
-    int8_t *pb = sb;
+void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, float* scales, float* bias)
+{
+    void* pc = dst;
+    int8_t* pa = sa;
+    int8_t* pb = sb;
 
     DECOMPOSE_K
     DECOMPOSE_N
@@ -668,17 +669,17 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
             "        subs %w8, %w8, #1  \n"
             "        mov %0, x8         \n"
             "        bne 9b             \n"
-            : "=r"(pa),     // %0
-            "=r"(pb),     // %1
-            "=r"(pc),     // %2
-            "=r"(k8_even),// %3
-            "=r"(k8),     // %4
-            "=r"(k4),     // %5
-            "=r"(k2),     // %6
-            "=r"(k1),     // %7
-            "=r"(n4),     // %8
-            "=r"(scales), // %9
-            "=r"(bias)    // %10
+            : "=r"(pa),      // %0
+            "=r"(pb),      // %1
+            "=r"(pc),      // %2
+            "=r"(k8_even), // %3
+            "=r"(k8),      // %4
+            "=r"(k4),      // %5
+            "=r"(k2),      // %6
+            "=r"(k1),      // %7
+            "=r"(n4),      // %8
+            "=r"(scales),  // %9
+            "=r"(bias)     // %10
             : "0"(pa),
             "1"(pb),
             "2"(pc),
@@ -690,8 +691,7 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
             "8"(n4),
             "9"(scales),
             "10"(bias)
-            : "cc", "memory", "x8", "w19", "w24", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-        );
+            : "cc", "memory", "x8", "w19", "w24", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
     }
 
     if (n2 > 0) {
@@ -828,17 +828,17 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
 
             "   10: \n"
             "        mov %0, x8     \n"
-            : "=r"(pa),     // %0
-            "=r"(pb),     // %1
-            "=r"(pc),     // %2
-            "=r"(k8_even),// %3
-            "=r"(k8),     // %4
-            "=r"(k4),     // %5
-            "=r"(k2),     // %6
-            "=r"(k1),     // %7
-            "=r"(n4),     // %8
-            "=r"(scales), // %9
-            "=r"(bias)    // %10
+            : "=r"(pa),      // %0
+            "=r"(pb),      // %1
+            "=r"(pc),      // %2
+            "=r"(k8_even), // %3
+            "=r"(k8),      // %4
+            "=r"(k4),      // %5
+            "=r"(k2),      // %6
+            "=r"(k1),      // %7
+            "=r"(n4),      // %8
+            "=r"(scales),  // %9
+            "=r"(bias)     // %10
             : "0"(pa),
             "1"(pb),
             "2"(pc),
@@ -850,13 +850,11 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
             "8"(n4),
             "9"(scales),
             "10"(bias)
-            : "cc", "memory", "x8", "w19", "w24", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-        );
+            : "cc", "memory", "x8", "w19", "w24", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
     }
 
     if (n1 > 0) {
-
-        asm volatile (
+        asm volatile(
             "9:                    \n"
             "    eor v8.16b, v8.16b, v8.16b   \n"
             "    eor v9.16b, v9.16b, v9.16b   \n"
@@ -979,17 +977,17 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
             "        st1 {v8.s}[0], [%2]    \n"
             "    10:                        \n"
             "        mov x0, #0             \n"
-            : "=r"(pa),     // %0
-            "=r"(pb),     // %1
-            "=r"(pc),     // %2
-            "=r"(k8_even),// %3
-            "=r"(k8),     // %4
-            "=r"(k4),     // %5
-            "=r"(k2),     // %6
-            "=r"(k1),     // %7
-            "=r"(n4),     // %8
-            "=r"(scales), // %9
-            "=r"(bias)    // %10
+            : "=r"(pa),      // %0
+            "=r"(pb),      // %1
+            "=r"(pc),      // %2
+            "=r"(k8_even), // %3
+            "=r"(k8),      // %4
+            "=r"(k4),      // %5
+            "=r"(k2),      // %6
+            "=r"(k1),      // %7
+            "=r"(n4),      // %8
+            "=r"(scales),  // %9
+            "=r"(bias)     // %10
             : "0"(pa),
             "1"(pb),
             "2"(pc),
@@ -1001,23 +999,23 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
             "8"(n4),
             "9"(scales),
             "10"(bias)
-            : "cc", "memory", "x0", "x8", "w19", "w24", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-        );
-
+            : "cc", "memory", "x0", "x8", "w19", "w24", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
     }
 }
 
-void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc, float* scales, float* bias) {
+void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc, float* scales, float* bias)
+{
     void *pc0, *pc1;
     if (scales == 0) {
         pc0 = (int32_t*)dst;
         pc1 = ((int32_t*)pc0) + ldc;
-    } else {
+    }
+    else {
         pc0 = dst;
         pc1 = ((int8_t*)pc0) + ldc;
     }
-    int8_t *pa = sa;
-    int8_t *pb = sb;
+    int8_t* pa = sa;
+    int8_t* pb = sb;
 
     DECOMPOSE_K
     DECOMPOSE_N
@@ -1260,18 +1258,18 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
             "        subs %w9, %w9, #1    \n"
             "        mov %0, x8           \n"
             "        bne 9b               \n"
-            : "=r"(pa),     // %0
-            "=r"(pb),     // %1
-            "=r"(pc0),    // %2
-            "=r"(pc1),    // %3
-            "=r"(k8_even),// %4
-            "=r"(k8),     // %5
-            "=r"(k4),     // %6
-            "=r"(k2),     // %7
-            "=r"(k1),     // %8
-            "=r"(n4),     // %9
-            "=r"(scales), // %10
-            "=r"(bias)    // %11
+            : "=r"(pa),      // %0
+            "=r"(pb),      // %1
+            "=r"(pc0),     // %2
+            "=r"(pc1),     // %3
+            "=r"(k8_even), // %4
+            "=r"(k8),      // %5
+            "=r"(k4),      // %6
+            "=r"(k2),      // %7
+            "=r"(k1),      // %8
+            "=r"(n4),      // %9
+            "=r"(scales),  // %10
+            "=r"(bias)     // %11
             : "0"(pa),
             "1"(pb),
             "2"(pc0),
@@ -1284,8 +1282,7 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
             "9"(n4),
             "10"(scales),
             "11"(bias)
-            : "cc", "memory", "x8", "w17", "x12", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-        );
+            : "cc", "memory", "x8", "w17", "x12", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
     }
 
     if (n2 > 0) {
@@ -1475,17 +1472,17 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
             "        st1 {v12.2s}, [%3], #8     \n"
             "    10:            \n"
             "        mov %0, x8                 \n"
-            : "=r"(pa),     // %0
-            "=r"(pb),     // %1
-            "=r"(pc0),    // %2
-            "=r"(pc1),    // %3
-            "=r"(k8_even),// %4
-            "=r"(k8),     // %5
-            "=r"(k4),     // %6
-            "=r"(k2),     // %7
-            "=r"(k1),     // %8
-            "=r"(scales), // %9
-            "=r"(bias)    // %10
+            : "=r"(pa),      // %0
+            "=r"(pb),      // %1
+            "=r"(pc0),     // %2
+            "=r"(pc1),     // %3
+            "=r"(k8_even), // %4
+            "=r"(k8),      // %5
+            "=r"(k4),      // %6
+            "=r"(k2),      // %7
+            "=r"(k1),      // %8
+            "=r"(scales),  // %9
+            "=r"(bias)     // %10
             : "0"(pa),
             "1"(pb),
             "2"(pc0),
@@ -1497,8 +1494,7 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
             "8"(k1),
             "9"(scales),
             "10"(bias)
-            : "cc", "memory", "x8", "x12", "w17", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-        );
+            : "cc", "memory", "x8", "x12", "w17", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
     }
 
     if (n1 > 0) {
@@ -1661,17 +1657,17 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
             "        st1 {v12.s}[0], [%3]   \n"
             "    10:                \n"
             "        mov x0, #0             \n"
-            : "=r"(pa),     // %0
-            "=r"(pb),     // %1
-            "=r"(pc0),    // %2
-            "=r"(pc1),    // %3
-            "=r"(k8_even),// %4
-            "=r"(k8),     // %5
-            "=r"(k4),     // %6
-            "=r"(k2),     // %7
-            "=r"(k1),     // %8
-            "=r"(scales), // %9
-            "=r"(bias)    // %10
+            : "=r"(pa),      // %0
+            "=r"(pb),      // %1
+            "=r"(pc0),     // %2
+            "=r"(pc1),     // %3
+            "=r"(k8_even), // %4
+            "=r"(k8),      // %5
+            "=r"(k4),      // %6
+            "=r"(k2),      // %7
+            "=r"(k1),      // %8
+            "=r"(scales),  // %9
+            "=r"(bias)     // %10
             : "0"(pa),
             "1"(pb),
             "2"(pc0),
@@ -1683,28 +1679,27 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
             "8"(k1),
             "9"(scales),
             "10"(bias)
-            : "cc", "memory", "x0", "x8", "w17", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-        );
-
+            : "cc", "memory", "x0", "x8", "w17", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
     }
-
 }
 
-void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc, float* scales, float* bias) {
+void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc, float* scales, float* bias)
+{
     void *pc0, *pc1, *pc2, *pc3;
     if (scales == 0) {
         pc0 = (int32_t*)dst;
         pc1 = ((int32_t*)pc0) + ldc;
         pc2 = ((int32_t*)pc1) + ldc;
         pc3 = ((int32_t*)pc2) + ldc;
-    } else {
+    }
+    else {
         pc0 = dst;
         pc1 = ((int8_t*)pc0) + ldc;
         pc2 = ((int8_t*)pc1) + ldc;
         pc3 = ((int8_t*)pc2) + ldc;
     }
-    int8_t *pa = sa;
-    int8_t *pb = sb;
+    int8_t* pa = sa;
+    int8_t* pb = sb;
 
     DECOMPOSE_K
     DECOMPOSE_N
@@ -2055,20 +2050,20 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
             "        subs %x11, %x11, #1     \n"
             "        mov %x0, x8             \n"
             "        bne 8b                  \n"
-            : "=r"(pa),     // %0
-            "=r"(pb),     // %1
-            "=r"(pc0),    // %2
-            "=r"(pc1),    // %3
-            "=r"(pc2),    // %4
-            "=r"(pc3),    // %5
-            "=r"(k8_even),// %6
-            "=r"(k8),     // %7
-            "=r"(k4),     // %8
-            "=r"(k2),     // %9
-            "=r"(k1),     // %10
-            "=r"(n4),     // %11
-            "=r"(scales), // %12
-            "=r"(bias)    // %13
+            : "=r"(pa),      // %0
+            "=r"(pb),      // %1
+            "=r"(pc0),     // %2
+            "=r"(pc1),     // %3
+            "=r"(pc2),     // %4
+            "=r"(pc3),     // %5
+            "=r"(k8_even), // %6
+            "=r"(k8),      // %7
+            "=r"(k4),      // %8
+            "=r"(k2),      // %9
+            "=r"(k1),      // %10
+            "=r"(n4),      // %11
+            "=r"(scales),  // %12
+            "=r"(bias)     // %13
             : "0"(pa),
             "1"(pb),
             "2"(pc0),
@@ -2083,8 +2078,7 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
             "11"(n4),
             "12"(scales),
             "13"(bias)
-            : "cc", "memory", "x8", "w20", "x14", "x15", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-        );
+            : "cc", "memory", "x8", "w20", "x14", "x15", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
     }
 
     if (n2 > 0) {
@@ -2359,19 +2353,19 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
 
             "    10:            \n"
             "        mov %0, x8                 \n"
-            : "=r"(pa),     // %0
-            "=r"(pb),     // %1
-            "=r"(pc0),    // %2
-            "=r"(pc1),    // %3
-            "=r"(pc2),    // %4
-            "=r"(pc3),    // %5
-            "=r"(k8_even),// %6
-            "=r"(k8),     // %7
-            "=r"(k4),     // %8
-            "=r"(k2),     // %9
-            "=r"(k1),     // %10
-            "=r"(scales), // %11
-            "=r"(bias)    // %12
+            : "=r"(pa),      // %0
+            "=r"(pb),      // %1
+            "=r"(pc0),     // %2
+            "=r"(pc1),     // %3
+            "=r"(pc2),     // %4
+            "=r"(pc3),     // %5
+            "=r"(k8_even), // %6
+            "=r"(k8),      // %7
+            "=r"(k4),      // %8
+            "=r"(k2),      // %9
+            "=r"(k1),      // %10
+            "=r"(scales),  // %11
+            "=r"(bias)     // %12
             : "0"(pa),
             "1"(pb),
             "2"(pc0),
@@ -2385,8 +2379,7 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
             "10"(k1),
             "11"(scales),
             "12"(bias)
-            : "cc", "memory", "x8", "w20", "x14", "x15", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-        );
+            : "cc", "memory", "x8", "w20", "x14", "x15", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
     }
 
     if (n1 > 0) {
@@ -2598,19 +2591,19 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
 
             "    2:                            \n"
             "        mov x0, #0                 \n"
-            : "=r"(pa),     // %0
-            "=r"(pb),     // %1
-            "=r"(pc0),    // %2
-            "=r"(pc1),    // %3
-            "=r"(pc2),    // %4
-            "=r"(pc3),    // %5
-            "=r"(k8_even),// %6
-            "=r"(k8),     // %7
-            "=r"(k4),     // %8
-            "=r"(k2),     // %9
-            "=r"(k1),     // %10
-            "=r"(scales), // %11
-            "=r"(bias)    // %12
+            : "=r"(pa),      // %0
+            "=r"(pb),      // %1
+            "=r"(pc0),     // %2
+            "=r"(pc1),     // %3
+            "=r"(pc2),     // %4
+            "=r"(pc3),     // %5
+            "=r"(k8_even), // %6
+            "=r"(k8),      // %7
+            "=r"(k4),      // %8
+            "=r"(k2),      // %9
+            "=r"(k1),      // %10
+            "=r"(scales),  // %11
+            "=r"(bias)     // %12
             : "0"(pa),
             "1"(pb),
             "2"(pc0),
@@ -2624,14 +2617,14 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
             "10"(k1),
             "11"(scales),
             "12"(bias)
-            : "cc", "memory", "x0", "x8", "w20", "x14", "x15", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-        );
+            : "cc", "memory", "x0", "x8", "w20", "x14", "x15", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
     }
 }
 #undef DECOMPOSE_K
 #undef DECOMPOSE_N
 
-void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int n, int ldc, float* scales, float* bias, const Option& opt) {
+void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int n, int ldc, float* scales, float* bias, const Option& opt)
+{
     int8_t* pa = (int8_t*)sa;
     int8_t* pb = (int8_t*)sb;
     const int nn = (m >> 2) << 2;
@@ -2649,8 +2642,7 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
         pa += nn * k;
         pc += nn * ldc;
 
-        switch(m-nn)
-        {
+        switch (m - nn) {
         case 3:
             int8kernel_m2((void*)pc, pa, pb, m, k, n, ldc, 0, 0);
             pc += 2 * ldc;
@@ -2670,7 +2662,8 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
 #if PRINT_MATRIX
         print_int32_matrix("pc", origin, m, n, ldc);
 #endif
-    } else {
+    }
+    else {
         int8_t* pc = (int8_t*)dst;
 
 #if PRINT_MATRIX
@@ -2678,23 +2671,22 @@ void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int
 #endif
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i += 4) {
-            int8kernel_m4((void*)(pc + i * ldc), pa + i * k, pb, m, k, n, ldc, scales + i, (bias==0)? 0: bias+i);
+            int8kernel_m4((void*)(pc + i * ldc), pa + i * k, pb, m, k, n, ldc, scales + i, (bias == 0) ? 0 : bias + i);
         }
 
         pa += nn * k;
         pc += nn * ldc;
 
         scales += nn;
-        bias = (bias == 0)? 0: bias + nn;
+        bias = (bias == 0) ? 0 : bias + nn;
 
-        switch(m-nn)
-        {
+        switch (m - nn) {
         case 3:
             int8kernel_m2((void*)pc, pa, pb, m, k, n, ldc, scales, bias);
             pc += 2 * ldc;
             pa += 2 * k;
             scales += 2;
-            bias = (bias == 0)? 0: bias + 2;
+            bias = (bias == 0) ? 0 : bias + 2;
             int8kernel_m1((void*)pc, pa, pb, m, k, n, ldc, scales, bias);
             break;
         case 2:

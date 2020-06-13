@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/normalize.h"
+#include "testutil.h"
 
 static int test_normalize(const ncnn::Mat& a, int across_spatial, int across_channel, int channel_shared, float eps, int eps_mode)
 {
@@ -37,8 +36,7 @@ static int test_normalize(const ncnn::Mat& a, int across_spatial, int across_cha
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Normalize>("Normalize", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_normalize failed a.dims=%d a=(%d %d %d) across_spatial=%d across_channel=%d channel_shared=%d eps=%f eps_mode=%d\n", a.dims, a.w, a.h, a.c, across_spatial, across_channel, channel_shared, eps, eps_mode);
     }
 
@@ -62,8 +60,7 @@ static int test_normalize_0()
            || test_normalize(b, 1, 0, 0, 0.002f, 2)
            || test_normalize(b, 1, 0, 1, 0.01f, 0)
            || test_normalize(b, 1, 0, 1, 0.001f, 1)
-           || test_normalize(b, 1, 0, 1, 0.002f, 2)
-           ;
+           || test_normalize(b, 1, 0, 1, 0.002f, 2);
 }
 
 static int test_normalize_1()
@@ -83,8 +80,7 @@ static int test_normalize_1()
            || test_normalize(b, 0, 1, 0, 0.002f, 2)
            || test_normalize(b, 0, 1, 1, 0.01f, 0)
            || test_normalize(b, 0, 1, 1, 0.001f, 1)
-           || test_normalize(b, 0, 1, 1, 0.002f, 2)
-           ;
+           || test_normalize(b, 0, 1, 1, 0.002f, 2);
 }
 
 static int test_normalize_2()
@@ -104,8 +100,7 @@ static int test_normalize_2()
            || test_normalize(b, 1, 1, 0, 0.002f, 2)
            || test_normalize(b, 1, 1, 1, 0.01f, 0)
            || test_normalize(b, 1, 1, 1, 0.001f, 1)
-           || test_normalize(b, 1, 1, 1, 0.002f, 2)
-           ;
+           || test_normalize(b, 1, 1, 1, 0.002f, 2);
 }
 
 int main()
@@ -115,6 +110,5 @@ int main()
     return 0
            || test_normalize_0()
            || test_normalize_1()
-           || test_normalize_2()
-           ;
+           || test_normalize_2();
 }

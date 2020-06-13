@@ -38,7 +38,7 @@ public:
     int bottom;
     int left;
     int right;
-    int type;// 0=CONSTANT 1=REPLICATE 2=REFLECT
+    int type; // 0=CONSTANT 1=REPLICATE 2=REFLECT
     float value;
     int front;
     int behind;

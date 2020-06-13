@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/packing.h"
+#include "testutil.h"
 
 static int test_packing_cpu(const ncnn::Mat& a, int in_elempack, int out_elempack)
 {
@@ -52,8 +51,7 @@ static int test_packing_cpu(const ncnn::Mat& a, int in_elempack, int out_elempac
 
     delete op;
 
-    if (CompareMat(b, c, 0.001) != 0)
-    {
+    if (CompareMat(b, c, 0.001) != 0) {
         fprintf(stderr, "test_packing_cpu failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
         return -1;
     }
@@ -68,10 +66,10 @@ static int test_packing_gpu_buffer(const ncnn::Mat& a, int in_elempack, int out_
 {
     ncnn::ParamDict pd;
     pd.set(0, out_elempack);
-    pd.set(2, 1);// cast_type_from
-    pd.set(3, 1);// cast_type_to
-    pd.set(4, 0);// storage_type_from
-    pd.set(5, 0);// storage_type_to
+    pd.set(2, 1); // cast_type_from
+    pd.set(3, 1); // cast_type_to
+    pd.set(4, 0); // storage_type_from
+    pd.set(5, 0); // storage_type_to
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -142,8 +140,7 @@ static int test_packing_gpu_buffer(const ncnn::Mat& a, int in_elempack, int out_
     vkdev->reclaim_blob_allocator(blob_vkallocator);
     vkdev->reclaim_staging_allocator(staging_vkallocator);
 
-    if (CompareMat(b, d, 0.001) != 0)
-    {
+    if (CompareMat(b, d, 0.001) != 0) {
         fprintf(stderr, "test_packing_gpu_buffer failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
         return -1;
     }
@@ -155,10 +152,10 @@ static int test_packing_gpu_image(const ncnn::Mat& a, int in_elempack, int out_e
 {
     ncnn::ParamDict pd;
     pd.set(0, out_elempack);
-    pd.set(2, 1);// cast_type_from
-    pd.set(3, 1);// cast_type_to
-    pd.set(4, 1);// storage_type_from
-    pd.set(5, 1);// storage_type_to
+    pd.set(2, 1); // cast_type_from
+    pd.set(3, 1); // cast_type_to
+    pd.set(4, 1); // storage_type_from
+    pd.set(5, 1); // storage_type_to
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -232,8 +229,7 @@ static int test_packing_gpu_image(const ncnn::Mat& a, int in_elempack, int out_e
     vkdev->reclaim_blob_allocator(blob_vkallocator);
     vkdev->reclaim_staging_allocator(staging_vkallocator);
 
-    if (CompareMat(b, d, 0.001) != 0)
-    {
+    if (CompareMat(b, d, 0.001) != 0) {
         fprintf(stderr, "test_packing_gpu_image failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
         return -1;
     }
@@ -245,10 +241,10 @@ static int test_packing_gpu_buffer2image(const ncnn::Mat& a, int in_elempack, in
 {
     ncnn::ParamDict pd;
     pd.set(0, out_elempack);
-    pd.set(2, 1);// cast_type_from
-    pd.set(3, 1);// cast_type_to
-    pd.set(4, 0);// storage_type_from
-    pd.set(5, 1);// storage_type_to
+    pd.set(2, 1); // cast_type_from
+    pd.set(3, 1); // cast_type_to
+    pd.set(4, 0); // storage_type_from
+    pd.set(5, 1); // storage_type_to
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -322,8 +318,7 @@ static int test_packing_gpu_buffer2image(const ncnn::Mat& a, int in_elempack, in
     vkdev->reclaim_blob_allocator(blob_vkallocator);
     vkdev->reclaim_staging_allocator(staging_vkallocator);
 
-    if (CompareMat(b, d, 0.001) != 0)
-    {
+    if (CompareMat(b, d, 0.001) != 0) {
         fprintf(stderr, "test_packing_gpu_buffer2image failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
         return -1;
     }
@@ -335,10 +330,10 @@ static int test_packing_gpu_image2buffer(const ncnn::Mat& a, int in_elempack, in
 {
     ncnn::ParamDict pd;
     pd.set(0, out_elempack);
-    pd.set(2, 1);// cast_type_from
-    pd.set(3, 1);// cast_type_to
-    pd.set(4, 1);// storage_type_from
-    pd.set(5, 0);// storage_type_to
+    pd.set(2, 1); // cast_type_from
+    pd.set(3, 1); // cast_type_to
+    pd.set(4, 1); // storage_type_from
+    pd.set(5, 0); // storage_type_to
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -412,8 +407,7 @@ static int test_packing_gpu_image2buffer(const ncnn::Mat& a, int in_elempack, in
     vkdev->reclaim_blob_allocator(blob_vkallocator);
     vkdev->reclaim_staging_allocator(staging_vkallocator);
 
-    if (CompareMat(b, d, 0.001) != 0)
-    {
+    if (CompareMat(b, d, 0.001) != 0) {
         fprintf(stderr, "test_packing_gpu_image2buffer failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
         return -1;
     }
@@ -594,6 +588,5 @@ int main()
     return 0
            || test_packing_0()
            || test_packing_1()
-           || test_packing_2()
-           ;
+           || test_packing_2();
 }

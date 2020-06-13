@@ -12,16 +12,15 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/shufflechannel.h"
+#include "testutil.h"
 
 static int test_shufflechannel(int w, int h, int c, int group)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
     ncnn::ParamDict pd;
-    pd.set(0, group);// group
+    pd.set(0, group); // group
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -31,8 +30,7 @@ static int test_shufflechannel(int w, int h, int c, int group)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::ShuffleChannel>("ShuffleChannel", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_shufflechannel failed w=%d h=%d c=%d group=%d\n", w, h, c, group);
     }
 
@@ -53,8 +51,7 @@ static int test_shufflechannel_0()
            || test_shufflechannel(3, 7, 15, 5)
            || test_shufflechannel(3, 7, 16, 2)
            || test_shufflechannel(3, 7, 16, 4)
-           || test_shufflechannel(3, 7, 16, 8)
-           ;
+           || test_shufflechannel(3, 7, 16, 8);
 }
 
 int main()

@@ -35,16 +35,13 @@ int MemoryData::load_param(const ParamDict& pd)
 
 int MemoryData::load_model(const ModelBin& mb)
 {
-    if (c != 0)
-    {
+    if (c != 0) {
         data = mb.load(w, h, c, 1);
     }
-    else if (h != 0)
-    {
+    else if (h != 0) {
         data = mb.load(w, h, 1);
     }
-    else if (w != 0)
-    {
+    else if (w != 0) {
         data = mb.load(w, 1);
     }
     else // 0 0 0

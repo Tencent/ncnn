@@ -13,12 +13,14 @@
 // specific language governing permissions and limitations under the License.
 
 #include "softmax_arm.h"
+
 #include <float.h>
 #include <math.h>
 
 #if __ARM_NEON
-#include <arm_neon.h>
 #include "neon_mathfun.h"
+
+#include <arm_neon.h>
 #endif // __ARM_NEON
 
 namespace ncnn {
@@ -39,8 +41,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (elempack == 4)
-    {
+    if (elempack == 4) {
         if (dims == 1) // axis == 0
         {
             int w = bottom_top_blob.w;
@@ -48,8 +49,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             float* ptr = bottom_top_blob;
 
             float32x4_t _max = vdupq_n_f32(-FLT_MAX);
-            for (int i=0; i<w; i++)
-            {
+            for (int i = 0; i < w; i++) {
                 float32x4_t _p = vld1q_f32(ptr + i * 4);
                 _max = vmaxq_f32(_max, _p);
             }
@@ -62,8 +62,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif
 
             float32x4_t _sum = vdupq_n_f32(0.f);
-            for (int i=0; i<w; i++)
-            {
+            for (int i = 0; i < w; i++) {
                 float32x4_t _p = vld1q_f32(ptr + i * 4);
                 _p = exp_ps(vsubq_f32(_p, _max));
                 vst1q_f32(ptr + i * 4, _p);
@@ -77,8 +76,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             _sum = vaddq_f32(_sum, vextq_f32(_sum, _sum, 2));
 #endif
 
-            for (int i=0; i<w; i++)
-            {
+            for (int i = 0; i < w; i++) {
                 float32x4_t _p = vld1q_f32(ptr + i * 4);
 #if __aarch64__
                 _p = vdivq_f32(_p, _sum);
@@ -91,8 +89,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return 0;
         }
 
-        if (dims == 2 && axis == 0)
-        {
+        if (dims == 2 && axis == 0) {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
 
@@ -102,11 +99,9 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 return -100;
             max.fill(-FLT_MAX);
 
-            for (int i=0; i<h; i++)
-            {
+            for (int i = 0; i < h; i++) {
                 const float* ptr = bottom_top_blob.row(i);
-                for (int j=0; j<w; j++)
-                {
+                for (int j = 0; j < w; j++) {
                     float32x4_t _p = vld1q_f32(ptr);
 #if __aarch64__
                     float max0 = vmaxvq_f32(_p);
@@ -126,11 +121,9 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 return -100;
             sum.fill(0.f);
 
-            for (int i=0; i<h; i++)
-            {
+            for (int i = 0; i < h; i++) {
                 float* ptr = bottom_top_blob.row(i);
-                for (int j=0; j<w; j++)
-                {
+                for (int j = 0; j < w; j++) {
                     float32x4_t _p = vld1q_f32(ptr);
                     float32x4_t _max = vdupq_n_f32(max[j]);
                     _p = exp_ps(vsubq_f32(_p, _max));
@@ -147,11 +140,9 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 }
             }
 
-            for (int i=0; i<h; i++)
-            {
+            for (int i = 0; i < h; i++) {
                 float* ptr = bottom_top_blob.row(i);
-                for (int j=0; j<w; j++)
-                {
+                for (int j = 0; j < w; j++) {
                     float32x4_t _p = vld1q_f32(ptr);
                     float32x4_t _sum = vdupq_n_f32(sum[j]);
 #if __aarch64__
@@ -167,34 +158,29 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return 0;
         }
 
-        if (dims == 2 && axis == 1)
-        {
+        if (dims == 2 && axis == 1) {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i=0; i<h; i++)
-            {
+            for (int i = 0; i < h; i++) {
                 float* ptr = bottom_top_blob.row(i);
 
                 float32x4_t _max = vdupq_n_f32(-FLT_MAX);
-                for (int j=0; j<w; j++)
-                {
+                for (int j = 0; j < w; j++) {
                     float32x4_t _p = vld1q_f32(ptr + j * 4);
                     _max = vmaxq_f32(_max, _p);
                 }
 
                 float32x4_t _sum = vdupq_n_f32(0.f);
-                for (int j=0; j<w; j++)
-                {
+                for (int j = 0; j < w; j++) {
                     float32x4_t _p = vld1q_f32(ptr + j * 4);
                     _p = exp_ps(vsubq_f32(_p, _max));
                     vst1q_f32(ptr + j * 4, _p);
                     _sum = vaddq_f32(_sum, _p);
                 }
 
-                for (int j=0; j<w; j++)
-                {
+                for (int j = 0; j < w; j++) {
                     float32x4_t _p = vld1q_f32(ptr + j * 4);
 #if __aarch64__
                     _p = vdivq_f32(_p, _sum);
@@ -208,8 +194,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return 0;
         }
 
-        if (dims == 3 && axis == 0)
-        {
+        if (dims == 3 && axis == 0) {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
             int channels = bottom_top_blob.c;
@@ -220,12 +205,10 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             if (max.empty())
                 return -100;
             max.fill(-FLT_MAX);
-            for (int q=0; q<channels; q++)
-            {
+            for (int q = 0; q < channels; q++) {
                 const float* ptr = bottom_top_blob.channel(q);
 
-                for (int i=0; i<size; i++)
-                {
+                for (int i = 0; i < size; i++) {
                     float32x4_t _p = vld1q_f32(ptr);
 #if __aarch64__
                     float max0 = vmaxvq_f32(_p);
@@ -244,12 +227,10 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             if (sum.empty())
                 return -100;
             sum.fill(0.f);
-            for (int q=0; q<channels; q++)
-            {
+            for (int q = 0; q < channels; q++) {
                 float* ptr = bottom_top_blob.channel(q);
 
-                for (int i=0; i<size; i++)
-                {
+                for (int i = 0; i < size; i++) {
                     float32x4_t _p = vld1q_f32(ptr);
                     float32x4_t _max = vdupq_n_f32(max[i]);
                     _p = exp_ps(vsubq_f32(_p, _max));
@@ -267,12 +248,10 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
-            {
+            for (int q = 0; q < channels; q++) {
                 float* ptr = bottom_top_blob.channel(q);
 
-                for (int i=0; i<size; i++)
-                {
+                for (int i = 0; i < size; i++) {
                     float32x4_t _p = vld1q_f32(ptr);
                     float32x4_t _sum = vdupq_n_f32(sum[i]);
 #if __aarch64__
@@ -288,8 +267,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return 0;
         }
 
-        if (dims == 3 && axis == 1)
-        {
+        if (dims == 3 && axis == 1) {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
             int channels = bottom_top_blob.c;
@@ -300,16 +278,13 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 return -100;
             max.fill(vdupq_n_f32(-FLT_MAX));
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
-            {
+            for (int q = 0; q < channels; q++) {
                 const float* ptr = bottom_top_blob.channel(q);
 
-                for (int i=0; i<h; i++)
-                {
+                for (int i = 0; i < h; i++) {
                     float* maxptr = max.row(q);
 
-                    for (int j=0; j<w; j++)
-                    {
+                    for (int j = 0; j < w; j++) {
                         float32x4_t _p = vld1q_f32(ptr);
                         float32x4_t _max = vld1q_f32(maxptr);
                         _max = vmaxq_f32(_max, _p);
@@ -326,17 +301,14 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 return -100;
             sum.fill(vdupq_n_f32(0.f));
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
-            {
+            for (int q = 0; q < channels; q++) {
                 float* ptr = bottom_top_blob.channel(q);
 
-                for (int i=0; i<h; i++)
-                {
+                for (int i = 0; i < h; i++) {
                     float* maxptr = max.row(q);
                     float* sumptr = sum.row(q);
 
-                    for (int j=0; j<w; j++)
-                    {
+                    for (int j = 0; j < w; j++) {
                         float32x4_t _p = vld1q_f32(ptr);
                         float32x4_t _max = vld1q_f32(maxptr);
                         _p = exp_ps(vsubq_f32(_p, _max));
@@ -352,16 +324,13 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
-            {
+            for (int q = 0; q < channels; q++) {
                 float* ptr = bottom_top_blob.channel(q);
 
-                for (int i=0; i<h; i++)
-                {
+                for (int i = 0; i < h; i++) {
                     float* sumptr = sum.row(q);
 
-                    for (int j=0; j<w; j++)
-                    {
+                    for (int j = 0; j < w; j++) {
                         float32x4_t _p = vld1q_f32(ptr);
                         float32x4_t _sum = vld1q_f32(sumptr);
 #if __aarch64__
@@ -379,37 +348,31 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return 0;
         }
 
-        if (dims == 3 && axis == 2)
-        {
+        if (dims == 3 && axis == 2) {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
             int channels = bottom_top_blob.c;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
-            {
+            for (int q = 0; q < channels; q++) {
                 float* ptr = bottom_top_blob.channel(q);
 
-                for (int i=0; i<h; i++)
-                {
+                for (int i = 0; i < h; i++) {
                     float32x4_t _max = vdupq_n_f32(-FLT_MAX);
-                    for (int j=0; j<w; j++)
-                    {
+                    for (int j = 0; j < w; j++) {
                         float32x4_t _p = vld1q_f32(ptr + j * 4);
                         _max = vmaxq_f32(_max, _p);
                     }
 
                     float32x4_t _sum = vdupq_n_f32(0.f);
-                    for (int j=0; j<w; j++)
-                    {
+                    for (int j = 0; j < w; j++) {
                         float32x4_t _p = vld1q_f32(ptr + j * 4);
                         _p = exp_ps(vsubq_f32(_p, _max));
                         vst1q_f32(ptr + j * 4, _p);
                         _sum = vaddq_f32(_sum, _p);
                     }
 
-                    for (int j=0; j<w; j++)
-                    {
+                    for (int j = 0; j < w; j++) {
                         float32x4_t _p = vld1q_f32(ptr + j * 4);
 #if __aarch64__
                         _p = vdivq_f32(_p, _sum);
@@ -447,20 +410,17 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     if (max.empty())
         return -100;
     max.fill(-FLT_MAX);
-    for (int q=0; q<channels; q++)
-    {
+    for (int q = 0; q < channels; q++) {
         float* ptr = bottom_top_blob.channel(q);
         float* maxptr = max;
 
-        for (int i=0; i<size; i++)
-        {
+        for (int i = 0; i < size; i++) {
             maxptr[i] = std::max(maxptr[i], ptr[i]);
         }
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
-    {
+    for (int q = 0; q < channels; q++) {
         float* ptr = bottom_top_blob.channel(q);
         float* maxptr = max;
 
@@ -472,8 +432,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-        for (; nn>0; nn--)
-        {
+        for (; nn > 0; nn--) {
             float32x4_t _p = vld1q_f32(ptr);
             float32x4_t _max = vld1q_f32(maxptr);
 
@@ -486,8 +445,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
 #endif // __ARM_NEON
 
-        for (; remain>0; remain--)
-        {
+        for (; remain > 0; remain--) {
             *ptr = exp(*ptr - *maxptr);
 
             ptr++;
@@ -500,8 +458,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     if (sum.empty())
         return -100;
     sum.fill(0.f);
-    for (int q=0; q<channels; q++)
-    {
+    for (int q = 0; q < channels; q++) {
         float* ptr = bottom_top_blob.channel(q);
         float* sumptr = sum;
 
@@ -513,8 +470,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-        for (; nn>0; nn--)
-        {
+        for (; nn > 0; nn--) {
             float32x4_t _p = vld1q_f32(ptr);
             float32x4_t _sum = vld1q_f32(sumptr);
             _sum = vaddq_f32(_sum, _p);
@@ -525,8 +481,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
 #endif // __ARM_NEON
 
-        for (; remain>0; remain--)
-        {
+        for (; remain > 0; remain--) {
             *sumptr += *ptr;
 
             ptr++;
@@ -535,8 +490,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
-    {
+    for (int q = 0; q < channels; q++) {
         float* ptr = bottom_top_blob.channel(q);
         float* sumptr = sum;
 
@@ -548,8 +502,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-        for (; nn>0; nn--)
-        {
+        for (; nn > 0; nn--) {
             float32x4_t _p = vld1q_f32(ptr);
             float32x4_t _sum = vld1q_f32(sumptr);
 #if __aarch64__
@@ -564,8 +517,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
 #endif // __ARM_NEON
 
-        for (; remain>0; remain--)
-        {
+        for (; remain > 0; remain--) {
             *ptr /= *sumptr;
 
             ptr++;

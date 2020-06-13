@@ -15,8 +15,9 @@
 #include "tanh_arm.h"
 
 #if __ARM_NEON
-#include <arm_neon.h>
 #include "neon_mathfun.h"
+
+#include <arm_neon.h>
 #endif // __ARM_NEON
 
 #include <math.h>
@@ -46,15 +47,12 @@ int TanH_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (elempack == 4)
-    {
+    if (elempack == 4) {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             float* ptr = bottom_top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 float32x4_t _p = vld1q_f32(ptr);
                 _p = tanh_ps(_p);
                 vst1q_f32(ptr, _p);
@@ -67,8 +65,7 @@ int TanH_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
-    {
+    for (int q = 0; q < channels; q++) {
         float* ptr = bottom_top_blob.channel(q);
 
 #if __ARM_NEON
@@ -79,16 +76,14 @@ int TanH_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-        for (; nn>0; nn--)
-        {
+        for (; nn > 0; nn--) {
             float32x4_t _p = vld1q_f32(ptr);
             _p = tanh_ps(_p);
             vst1q_f32(ptr, _p);
             ptr += 4;
         }
 #endif // __ARM_NEON
-        for (; remain>0; remain--)
-        {
+        for (; remain > 0; remain--) {
             *ptr = tanh(*ptr);
             ptr++;
         }
@@ -106,15 +101,12 @@ int TanH_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (elempack == 4)
-    {
+    if (elempack == 4) {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             unsigned short* ptr = bottom_top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                 _p = tanh_ps(_p);
                 vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
@@ -127,8 +119,7 @@ int TanH_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
-    {
+    for (int q = 0; q < channels; q++) {
         unsigned short* ptr = bottom_top_blob.channel(q);
 
 #if __ARM_NEON
@@ -139,16 +130,14 @@ int TanH_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-        for (; nn>0; nn--)
-        {
+        for (; nn > 0; nn--) {
             float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
             _p = tanh_ps(_p);
             vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
             ptr += 4;
         }
 #endif // __ARM_NEON
-        for (; remain>0; remain--)
-        {
+        for (; remain > 0; remain--) {
             float v = bfloat16_to_float32(*ptr);
             v = tanh(v);
             *ptr = float32_to_bfloat16(v);

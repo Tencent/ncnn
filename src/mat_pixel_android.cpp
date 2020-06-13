@@ -17,8 +17,8 @@
 #if NCNN_PIXEL
 
 #if __ANDROID_API__ >= 9
-#include <jni.h>
 #include <android/bitmap.h>
+#include <jni.h>
 #endif // __ANDROID_API__ >= 9
 
 namespace ncnn {
@@ -32,18 +32,15 @@ Mat Mat::from_android_bitmap(JNIEnv* env, jobject bitmap, int type_to, Allocator
     int type_from;
     int elempack;
 
-    if (info.format == ANDROID_BITMAP_FORMAT_A_8)
-    {
+    if (info.format == ANDROID_BITMAP_FORMAT_A_8) {
         type_from = PIXEL_GRAY;
         elempack = 1;
     }
-    else if (info.format == ANDROID_BITMAP_FORMAT_RGBA_8888)
-    {
+    else if (info.format == ANDROID_BITMAP_FORMAT_RGBA_8888) {
         type_from = PIXEL_RGBA;
         elempack = 4;
     }
-    else
-    {
+    else {
         // unsuppored android bitmap format
         return Mat();
     }
@@ -71,18 +68,15 @@ Mat Mat::from_android_bitmap_resize(JNIEnv* env, jobject bitmap, int type_to, in
     int type_from;
     int elempack;
 
-    if (info.format == ANDROID_BITMAP_FORMAT_A_8)
-    {
+    if (info.format == ANDROID_BITMAP_FORMAT_A_8) {
         type_from = PIXEL_GRAY;
         elempack = 1;
     }
-    else if (info.format == ANDROID_BITMAP_FORMAT_RGBA_8888)
-    {
+    else if (info.format == ANDROID_BITMAP_FORMAT_RGBA_8888) {
         type_from = PIXEL_RGBA;
         elempack = 4;
     }
-    else
-    {
+    else {
         // unsuppored android bitmap format
         return Mat();
     }
@@ -110,18 +104,15 @@ void Mat::to_android_bitmap(JNIEnv* env, jobject bitmap, int type_from) const
     int type_to;
     int elempack;
 
-    if (info.format == ANDROID_BITMAP_FORMAT_A_8)
-    {
+    if (info.format == ANDROID_BITMAP_FORMAT_A_8) {
         type_to = PIXEL_GRAY;
         elempack = 1;
     }
-    else if (info.format == ANDROID_BITMAP_FORMAT_RGBA_8888)
-    {
+    else if (info.format == ANDROID_BITMAP_FORMAT_RGBA_8888) {
         type_to = PIXEL_RGBA;
         elempack = 4;
     }
-    else
-    {
+    else {
         // unsuppored android bitmap format
         return;
     }

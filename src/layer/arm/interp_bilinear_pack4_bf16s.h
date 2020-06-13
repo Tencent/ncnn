@@ -25,27 +25,23 @@ static void resize_bilinear_image_pack4_bf16s(const Mat& src, Mat& dst, float* a
 
     int prev_sy1 = -2;
 
-    for (int dy = 0; dy < h; dy++ )
-    {
+    for (int dy = 0; dy < h; dy++) {
         int sy = yofs[dy];
 
-        if (sy == prev_sy1)
-        {
+        if (sy == prev_sy1) {
             // reuse all rows
         }
-        else if (sy == prev_sy1 + 1)
-        {
+        else if (sy == prev_sy1 + 1) {
             // hresize one row
             float* rows0_old = rows0;
             rows0 = rows1;
             rows1 = rows0_old;
-            const unsigned short* S1 = src.row<const unsigned short>(sy+1);
+            const unsigned short* S1 = src.row<const unsigned short>(sy + 1);
 
             const float* alphap = alpha;
             float* rows1p = rows1;
             int dx = 0;
-            for ( ; dx < w; dx++ )
-            {
+            for (; dx < w; dx++) {
                 int sx = xofs[dx] * 4;
                 const unsigned short* S1p = S1 + sx;
 
@@ -60,18 +56,16 @@ static void resize_bilinear_image_pack4_bf16s(const Mat& src, Mat& dst, float* a
                 alphap += 2;
             }
         }
-        else
-        {
+        else {
             // hresize two rows
             const unsigned short* S0 = src.row<const unsigned short>(sy);
-            const unsigned short* S1 = src.row<const unsigned short>(sy+1);
+            const unsigned short* S1 = src.row<const unsigned short>(sy + 1);
 
             const float* alphap = alpha;
             float* rows0p = rows0;
             float* rows1p = rows1;
             int dx = 0;
-            for ( ; dx < w; dx++ )
-            {
+            for (; dx < w; dx++) {
                 int sx = xofs[dx] * 4;
                 const unsigned short* S0p = S0 + sx;
                 const unsigned short* S1p = S1 + sx;
@@ -102,8 +96,7 @@ static void resize_bilinear_image_pack4_bf16s(const Mat& src, Mat& dst, float* a
         float* rows1p = rows1;
         unsigned short* Dp = dst.row<unsigned short>(dy);
 
-        for (int dx = 0; dx < w; dx++)
-        {
+        for (int dx = 0; dx < w; dx++) {
             float32x4_t _rows0 = vld1q_f32(rows0p);
             float32x4_t _rows1 = vld1q_f32(rows1p);
             float32x4_t _D = vmulq_lane_f32(_rows0, _b01, 0);

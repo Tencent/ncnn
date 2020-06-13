@@ -25,29 +25,27 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<outch; p++)
-    {
+    for (int p = 0; p < outch; p++) {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
 
         out.fill(bias0);
 
-        for (int q=0; q<inch; q++)
-        {
+        for (int q = 0; q < inch; q++) {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
 
-            const float* kernel0 = kernel + p*inch*49  + q*49;
+            const float* kernel0 = kernel + p * inch * 49 + q * 49;
 
             const float* r0 = img0;
             const float* r1 = img0 + w;
-            const float* r2 = img0 + w*2;
-            const float* r3 = img0 + w*3;
-            const float* r4 = img0 + w*4;
-            const float* r5 = img0 + w*5;
-            const float* r6 = img0 + w*6;
+            const float* r2 = img0 + w * 2;
+            const float* r3 = img0 + w * 3;
+            const float* r4 = img0 + w * 4;
+            const float* r5 = img0 + w * 5;
+            const float* r6 = img0 + w * 6;
 
             const float* k0 = kernel0;
             const float* k1 = kernel0 + 7;
@@ -59,9 +57,7 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
             int i = 0;
 
-            for (; i < outh; i++)
-            {
-
+            for (; i < outh; i++) {
 #if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw - (nn << 2);
@@ -85,9 +81,8 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 float32x4_t _k39404142 = vld1q_f32(k5 + 4);
                 float32x4_t _k42434445 = vld1q_f32(k6);
                 float32x4_t _k46474849 = vld1q_f32(k6 + 4);
-#ifdef __clang__    // __ARM_NEON && __aarch64__ && __clang__
-                if (nn > 0)
-                {
+#ifdef __clang__ // __ARM_NEON && __aarch64__ && __clang__
+                if (nn > 0) {
                     asm volatile(
                         // v0:  input / final output
                         // v1 v2 v3: = ri0 ri4 ri0n , i <-  1-7
@@ -222,15 +217,15 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "subs       %w0, %w0, #1                   \n"
                         "bne        0b                             \n"
 
-                        : "=r"(nn),         // %0
-                        "=r"(outptr),     // %1
-                        "=r"(r0),         // %2
-                        "=r"(r1),         // %3
-                        "=r"(r2),         // %4
-                        "=r"(r3),         // %5
-                        "=r"(r4),         // %6
-                        "=r"(r5),         // %7
-                        "=r"(r6)          // %8
+                        : "=r"(nn),     // %0
+                        "=r"(outptr), // %1
+                        "=r"(r0),     // %2
+                        "=r"(r1),     // %3
+                        "=r"(r2),     // %4
+                        "=r"(r3),     // %5
+                        "=r"(r4),     // %6
+                        "=r"(r5),     // %7
+                        "=r"(r6)      // %8
                         : "0"(nn),
                         "1"(outptr),
                         "2"(r0),
@@ -254,23 +249,21 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "w"(_k39404142), // %29
                         "w"(_k42434445), // %30
                         "w"(_k46474849)  // %31
-                        : "cc", "memory","v0", "v1", "v2", "v3", "v4", "v5", "v9"
-                    );
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v9");
                 }
-#else   // __ARM_NEON && __aarch64__ defined, but __clang__ not defined
-// When compiled with gcc, gcc does not accept over 30 operands
-                for (; nn>0; nn--)
-                {
+#else  // __ARM_NEON && __aarch64__ defined, but __clang__ not defined
+                // When compiled with gcc, gcc does not accept over 30 operands
+                for (; nn > 0; nn--) {
                     float32x4_t _sum = vld1q_f32(outptr);
 
-                    float32x4_t _r00 = vld1q_f32(r0);// 0 1 2 3
-                    float32x4_t _r04 = vld1q_f32(r0 + 4);// 4 5 6 7
-                    float32x4_t _r00n = vld1q_f32(r0 + 8);// 8 9 10 11
-                    float32x4_t _r01 = vextq_f32(_r00, _r04, 1);// 1 2 3 4
-                    float32x4_t _r02 = vextq_f32(_r00, _r04, 2);// 2 3 4 5
-                    float32x4_t _r03 = vextq_f32(_r00, _r04, 3);// 3 4 5 6
-                    float32x4_t _r05 = vextq_f32(_r04, _r00n, 1);// 5 6 7 8
-                    float32x4_t _r06 = vextq_f32(_r04, _r00n, 2);// 6 7 8 9
+                    float32x4_t _r00 = vld1q_f32(r0);             // 0 1 2 3
+                    float32x4_t _r04 = vld1q_f32(r0 + 4);         // 4 5 6 7
+                    float32x4_t _r00n = vld1q_f32(r0 + 8);        // 8 9 10 11
+                    float32x4_t _r01 = vextq_f32(_r00, _r04, 1);  // 1 2 3 4
+                    float32x4_t _r02 = vextq_f32(_r00, _r04, 2);  // 2 3 4 5
+                    float32x4_t _r03 = vextq_f32(_r00, _r04, 3);  // 3 4 5 6
+                    float32x4_t _r05 = vextq_f32(_r04, _r00n, 1); // 5 6 7 8
+                    float32x4_t _r06 = vextq_f32(_r04, _r00n, 2); // 6 7 8 9
 
                     _sum = vfmaq_laneq_f32(_sum, _r00, _k0123, 0);
                     _sum = vfmaq_laneq_f32(_sum, _r01, _k0123, 1);
@@ -393,46 +386,45 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     r6 += 4;
                     outptr += 4;
                 }
-#endif   // __clang__
-#else //__aarch32__
-                if (nn > 0)
-                {
+#endif // __clang__
+#else  //__aarch32__
+                if (nn > 0) {
                     asm volatile(
                         "0:                             \n"
 
                         "pld        [%1, #256]          \n"
-                        "vld1.f32   {d24-d25}, [%1]     \n"// _sum
-//                     "veor       q13, q13            \n"// _sum2 = 0;
-//                     "veor       q14, q14            \n"// _sum3 = 0;
-//                     "veor       q15, q15            \n"// _sum4 = 0;
+                        "vld1.f32   {d24-d25}, [%1]     \n" // _sum
+                        //                     "veor       q13, q13            \n"// _sum2 = 0;
+                        //                     "veor       q14, q14            \n"// _sum3 = 0;
+                        //                     "veor       q15, q15            \n"// _sum4 = 0;
 
                         "pld        [%9, #256]          \n"
-                        "vld1.f32   {d8-d11}, [%9]      \n"// q4 q5 = k0123 k4567
+                        "vld1.f32   {d8-d11}, [%9]      \n" // q4 q5 = k0123 k4567
                         "add        %9, #28             \n"
 
                         "pld        [%2, #128]          \n"
-                        "vld1.f32   {d0-d1}, [%2]!      \n"// q0 = 0  1  2  3
+                        "vld1.f32   {d0-d1}, [%2]!      \n" // q0 = 0  1  2  3
                         "vmla.f32   q12, q0, d8[0]      \n"
 
                         "pld        [%2, #256]          \n"
-                        "vld1.f32   {d4-d7}, [%2]       \n"// q2 = 4  5  6  7  q3 = 8  9 10 11
+                        "vld1.f32   {d4-d7}, [%2]       \n" // q2 = 4  5  6  7  q3 = 8  9 10 11
                         "vmul.f32   q13, q2, d10[0]     \n"
 
-                        "vext.32    q1, q0, q2, #1      \n"// q1 = 1  2  3  4
-                        "vext.32    q10, q2, q3, #1     \n"// q10= 5  6  7  8
+                        "vext.32    q1, q0, q2, #1      \n" // q1 = 1  2  3  4
+                        "vext.32    q10, q2, q3, #1     \n" // q10= 5  6  7  8
                         "vmul.f32   q14, q1, d8[1]      \n"
                         "vmul.f32   q15, q10, d10[1]    \n"
 
-                        "vext.32    q8, q0, q2, #2      \n"// q8 = 2  3  4  5
-                        "vext.32    q11, q2, q3, #2     \n"// q11= 6  7  8  9
+                        "vext.32    q8, q0, q2, #2      \n" // q8 = 2  3  4  5
+                        "vext.32    q11, q2, q3, #2     \n" // q11= 6  7  8  9
                         "vmla.f32   q12, q8, d9[0]      \n"
                         "vmla.f32   q13, q11, d11[0]    \n"
 
-                        "vext.32    q9, q0, q2, #3      \n"// q9 = 3  4  5  6
+                        "vext.32    q9, q0, q2, #3      \n" // q9 = 3  4  5  6
                         "vmla.f32   q14, q9, d9[1]      \n"
 
                         "pld        [%9, #256]          \n"
-                        "vld1.f32   {d12-d15}, [%9]     \n"// q6 q7 = k78910 k11121314
+                        "vld1.f32   {d12-d15}, [%9]     \n" // q6 q7 = k78910 k11121314
                         "add        %9, #28             \n"
 
                         "pld        [%3, #128]          \n"
@@ -457,7 +449,7 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vmla.f32   q13, q9, d13[1]     \n"
 
                         "pld        [%9, #256]          \n"
-                        "vld1.f32   {d8-d11}, [%9]      \n"// q4 q5 = k14151617 k18192021
+                        "vld1.f32   {d8-d11}, [%9]      \n" // q4 q5 = k14151617 k18192021
                         "add        %9, #28             \n"
 
                         "pld        [%4, #128]          \n"
@@ -482,7 +474,7 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vmla.f32   q12, q9, d9[1]      \n"
 
                         "pld        [%9, #256]          \n"
-                        "vld1.f32   {d12-d15}, [%9]     \n"// q6 q7 = k21222324 k25262728
+                        "vld1.f32   {d12-d15}, [%9]     \n" // q6 q7 = k21222324 k25262728
                         "add        %9, #28             \n"
 
                         "pld        [%5, #128]          \n"
@@ -507,7 +499,7 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vmla.f32   q15, q9, d13[1]     \n"
 
                         "pld        [%9, #256]          \n"
-                        "vld1.f32   {d8-d11}, [%9]      \n"// q4 q5 = k28293031 k32333435
+                        "vld1.f32   {d8-d11}, [%9]      \n" // q4 q5 = k28293031 k32333435
                         "add        %9, #28             \n"
 
                         "pld        [%6, #128]          \n"
@@ -532,7 +524,7 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vmla.f32   q14, q9, d9[1]      \n"
 
                         "pld        [%9, #256]          \n"
-                        "vld1.f32   {d12-d15}, [%9]     \n"// q6 q7 = k35363738 k39404142
+                        "vld1.f32   {d12-d15}, [%9]     \n" // q6 q7 = k35363738 k39404142
                         "add        %9, #28             \n"
 
                         "pld        [%7, #128]          \n"
@@ -557,8 +549,8 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vmla.f32   q13, q9, d13[1]     \n"
 
                         "pld        [%9, #256]          \n"
-                        "vld1.f32   {d8-d11}, [%9]      \n"// q4 q5 = k42434445 k46474849
-                        "sub        %9, #168            \n"// restore k0
+                        "vld1.f32   {d8-d11}, [%9]      \n" // q4 q5 = k42434445 k46474849
+                        "sub        %9, #168            \n" // restore k0
 
                         "pld        [%8, #128]          \n"
                         "vld1.f32   {d0-d1}, [%8]!      \n"
@@ -589,16 +581,16 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                         "subs       %0, #1              \n"
                         "bne        0b                  \n"
-                        : "=r"(nn),         // %0
-                        "=r"(outptr),     // %1
-                        "=r"(r0),         // %2
-                        "=r"(r1),         // %3
-                        "=r"(r2),         // %4
-                        "=r"(r3),         // %5
-                        "=r"(r4),         // %6
-                        "=r"(r5),         // %7
-                        "=r"(r6),         // %8
-                        "=r"(k0)          // %9
+                        : "=r"(nn),     // %0
+                        "=r"(outptr), // %1
+                        "=r"(r0),     // %2
+                        "=r"(r1),     // %3
+                        "=r"(r2),     // %4
+                        "=r"(r3),     // %5
+                        "=r"(r4),     // %6
+                        "=r"(r5),     // %7
+                        "=r"(r6),     // %8
+                        "=r"(k0)      // %9
                         : "0"(nn),
                         "1"(outptr),
                         "2"(r0),
@@ -609,14 +601,12 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "7"(r5),
                         "8"(r6),
                         "9"(k0)
-                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                    );
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
 
-                for (; remain>0; remain--)
-                {
+                for (; remain > 0; remain--) {
                     float sum = 0;
 
                     sum += r0[0] * k0[0];
@@ -694,12 +684,9 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 r4 += 6;
                 r5 += 6;
                 r6 += 6;
-
             }
-
         }
     }
-
 }
 
 static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
@@ -711,35 +698,33 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     int outh = top_blob.h;
     int outch = top_blob.c;
 
-    const int tailstep = w - 2*outw + w;
+    const int tailstep = w - 2 * outw + w;
 
     const float* kernel = _kernel;
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<outch; p++)
-    {
+    for (int p = 0; p < outch; p++) {
         Mat out = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
 
         out.fill(bias0);
 
-        for (int q=0; q<inch; q++)
-        {
+        for (int q = 0; q < inch; q++) {
             float* outptr = out;
 
             const float* img0 = bottom_blob.channel(q);
 
-            const float* kernel0 = kernel + p*inch*49  + q*49;
+            const float* kernel0 = kernel + p * inch * 49 + q * 49;
 
             const float* r0 = img0;
             const float* r1 = img0 + w;
-            const float* r2 = img0 + w*2;
-            const float* r3 = img0 + w*3;
-            const float* r4 = img0 + w*4;
-            const float* r5 = img0 + w*5;
-            const float* r6 = img0 + w*6;
+            const float* r2 = img0 + w * 2;
+            const float* r3 = img0 + w * 3;
+            const float* r4 = img0 + w * 4;
+            const float* r5 = img0 + w * 5;
+            const float* r6 = img0 + w * 6;
 
             const float* k0 = kernel0;
             const float* k1 = kernel0 + 7;
@@ -751,9 +736,7 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
             int i = 0;
 
-            for (; i < outh; i++)
-            {
-
+            for (; i < outh; i++) {
 #if __ARM_NEON
                 int nn = outw >> 2;
                 int remain = outw - (nn << 2);
@@ -777,9 +760,8 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 float32x4_t _k39404142 = vld1q_f32(k5 + 4);
                 float32x4_t _k42434445 = vld1q_f32(k6);
                 float32x4_t _k46474849 = vld1q_f32(k6 + 4);
-#ifdef __clang__    // __ARM_NEON && __aarch64__ && __clang__
-                if (nn > 0)
-                {
+#ifdef __clang__ // __ARM_NEON && __aarch64__ && __clang__
+                if (nn > 0) {
                     asm volatile(
                         // v0:  input / final output
                         // v1 v2: = _ri0/_ri1  first
@@ -921,15 +903,15 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "st1        {v0.4s}, [%1], #16             \n"
                         "subs       %w0, %w0, #1                   \n"
                         "bne        0b                             \n"
-                        : "=r"(nn),         // %0
-                        "=r"(outptr),     // %1
-                        "=r"(r0),         // %2
-                        "=r"(r1),         // %3
-                        "=r"(r2),         // %4
-                        "=r"(r3),         // %5
-                        "=r"(r4),         // %6
-                        "=r"(r5),         // %7
-                        "=r"(r6)          // %8
+                        : "=r"(nn),     // %0
+                        "=r"(outptr), // %1
+                        "=r"(r0),     // %2
+                        "=r"(r1),     // %3
+                        "=r"(r2),     // %4
+                        "=r"(r3),     // %5
+                        "=r"(r4),     // %6
+                        "=r"(r5),     // %7
+                        "=r"(r6)      // %8
                         : "0"(nn),
                         "1"(outptr),
                         "2"(r0),
@@ -953,26 +935,24 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "w"(_k39404142), // %29
                         "w"(_k42434445), // %30
                         "w"(_k46474849)  // %31
-                        : "cc", "memory","v0", "v1", "v2", "v3", "v4", "v5", "v6", "v9"
-                    );
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v9");
                 }
-#else   // __ARM_NEON && __aarch64__ defined, but __clang__ not defined
-// When compiled with gcc, gcc does not accept over 30 operands
-                for (; nn>0; nn--)
-                {
+#else  // __ARM_NEON && __aarch64__ defined, but __clang__ not defined
+                // When compiled with gcc, gcc does not accept over 30 operands
+                for (; nn > 0; nn--) {
                     float32x4_t _sum = vld1q_f32(outptr);
 
                     float32x4x2_t _r00_02461357 = vld2q_f32(r0);
                     float32x4x2_t _r00nx2 = vld2q_f32(r0 + 8);
-                    float32x4_t _r0_8101214 = _r00nx2.val[0];// 8 10 12 14
-                    float32x4_t _r0_9111315 = _r00nx2.val[1];// 9 11 13 15
-                    float32x4_t _r00 = _r00_02461357.val[0];// 0 2 4 6
-                    float32x4_t _r01 = _r00_02461357.val[1];// 1 3 5 7
-                    float32x4_t _r02 = vextq_f32(_r00, _r0_8101214, 1);// 2 4 6 8
-                    float32x4_t _r03 = vextq_f32(_r01, _r0_9111315, 1);// 3 5 7 9
-                    float32x4_t _r04 = vextq_f32(_r00, _r0_8101214, 2);// 4 6 8 10
-                    float32x4_t _r05 = vextq_f32(_r01, _r0_9111315, 2);// 5 7 9 11
-                    float32x4_t _r06 = vextq_f32(_r00, _r0_8101214, 3);// 6 8 10 12
+                    float32x4_t _r0_8101214 = _r00nx2.val[0];           // 8 10 12 14
+                    float32x4_t _r0_9111315 = _r00nx2.val[1];           // 9 11 13 15
+                    float32x4_t _r00 = _r00_02461357.val[0];            // 0 2 4 6
+                    float32x4_t _r01 = _r00_02461357.val[1];            // 1 3 5 7
+                    float32x4_t _r02 = vextq_f32(_r00, _r0_8101214, 1); // 2 4 6 8
+                    float32x4_t _r03 = vextq_f32(_r01, _r0_9111315, 1); // 3 5 7 9
+                    float32x4_t _r04 = vextq_f32(_r00, _r0_8101214, 2); // 4 6 8 10
+                    float32x4_t _r05 = vextq_f32(_r01, _r0_9111315, 2); // 5 7 9 11
+                    float32x4_t _r06 = vextq_f32(_r00, _r0_8101214, 3); // 6 8 10 12
 
                     _sum = vfmaq_laneq_f32(_sum, _r00, _k0123, 0);
                     _sum = vfmaq_laneq_f32(_sum, _r01, _k0123, 1);
@@ -1113,43 +1093,42 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     r6 += 8;
                     outptr += 4;
                 }
-#endif   // __clang__
+#endif // __clang__
 #else
-                if (nn > 0)
-                {
+                if (nn > 0) {
                     asm volatile(
                         "0:                             \n"
 
                         "pld        [%1, #256]          \n"
-                        "vld1.f32   {d26-d27}, [%1]     \n"// _sum
-//                     "veor       q14, q14            \n"// _sum2 = 0;
-//                     "veor       q15, q15            \n"// _sum3 = 0;
+                        "vld1.f32   {d26-d27}, [%1]     \n" // _sum
+                        //                     "veor       q14, q14            \n"// _sum2 = 0;
+                        //                     "veor       q15, q15            \n"// _sum3 = 0;
 
                         "pld        [%9, #256]          \n"
-                        "vld1.f32   {d8-d11}, [%9]      \n"// q4 q5 = k0123 k4567
+                        "vld1.f32   {d8-d11}, [%9]      \n" // q4 q5 = k0123 k4567
                         "add        %9, #28             \n"
 
                         "pld        [%2, #512]          \n"
-                        "vld2.f32   {d0-d3}, [%2]!      \n"// q0 = 0  2  4  6  q1 = 1  3  5  7
+                        "vld2.f32   {d0-d3}, [%2]!      \n" // q0 = 0  2  4  6  q1 = 1  3  5  7
                         "vmla.f32   q13, q0, d8[0]      \n"
                         "vmul.f32   q14, q1, d8[1]      \n"
 
-                        "vld2.f32   {d4-d7}, [%2]       \n"// q2 = 8 10 12 14  q3 = 9 11 13 15
-                        "vext.32    q8, q0, q2, #1      \n"// q8 = 2  4  6  8
-                        "vext.32    q9, q1, q3, #1      \n"// q9 = 3  5  7  9
+                        "vld2.f32   {d4-d7}, [%2]       \n" // q2 = 8 10 12 14  q3 = 9 11 13 15
+                        "vext.32    q8, q0, q2, #1      \n" // q8 = 2  4  6  8
+                        "vext.32    q9, q1, q3, #1      \n" // q9 = 3  5  7  9
                         "vmul.f32   q15, q8, d9[0]      \n"
                         "vmla.f32   q13, q9, d9[1]      \n"
 
-                        "vext.32    q10, q0, q2, #2     \n"// q10= 4  6  8 10
-                        "vext.32    q11, q1, q3, #2     \n"// q11= 5  7  9 11
+                        "vext.32    q10, q0, q2, #2     \n" // q10= 4  6  8 10
+                        "vext.32    q11, q1, q3, #2     \n" // q11= 5  7  9 11
                         "vmla.f32   q14, q10, d10[0]    \n"
                         "vmla.f32   q15, q11, d10[1]    \n"
 
-                        "vext.32    q12, q0, q2, #3     \n"// q12= 6  8 10 12
+                        "vext.32    q12, q0, q2, #3     \n" // q12= 6  8 10 12
                         "vmla.f32   q13, q12, d11[0]    \n"
 
                         "pld        [%9, #256]          \n"
-                        "vld1.f32   {d12-d15}, [%9]     \n"// q6 q7 = k78910 k11121314
+                        "vld1.f32   {d12-d15}, [%9]     \n" // q6 q7 = k78910 k11121314
                         "add        %9, #28             \n"
 
                         "pld        [%3, #512]          \n"
@@ -1172,7 +1151,7 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vmla.f32   q14, q12, d15[0]    \n"
 
                         "pld        [%9, #256]          \n"
-                        "vld1.f32   {d8-d11}, [%9]      \n"// q4 q5 = k14151617 k18192021
+                        "vld1.f32   {d8-d11}, [%9]      \n" // q4 q5 = k14151617 k18192021
                         "add        %9, #28             \n"
 
                         "pld        [%4, #512]          \n"
@@ -1195,7 +1174,7 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vmla.f32   q15, q12, d11[0]    \n"
 
                         "pld        [%9, #256]          \n"
-                        "vld1.f32   {d12-d15}, [%9]     \n"// q6 q7 = k21222324 k25262728
+                        "vld1.f32   {d12-d15}, [%9]     \n" // q6 q7 = k21222324 k25262728
                         "add        %9, #28             \n"
 
                         "pld        [%5, #512]          \n"
@@ -1218,7 +1197,7 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vmla.f32   q13, q12, d15[0]    \n"
 
                         "pld        [%9, #256]          \n"
-                        "vld1.f32   {d8-d11}, [%9]      \n"// q4 q5 = k28293031 k32333435
+                        "vld1.f32   {d8-d11}, [%9]      \n" // q4 q5 = k28293031 k32333435
                         "add        %9, #28             \n"
 
                         "pld        [%6, #512]          \n"
@@ -1241,7 +1220,7 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vmla.f32   q14, q12, d11[0]    \n"
 
                         "pld        [%9, #256]          \n"
-                        "vld1.f32   {d12-d15}, [%9]     \n"// q6 q7 = k35363738 k39404142
+                        "vld1.f32   {d12-d15}, [%9]     \n" // q6 q7 = k35363738 k39404142
                         "add        %9, #28             \n"
 
                         "pld        [%7, #512]          \n"
@@ -1264,8 +1243,8 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vmla.f32   q15, q12, d15[0]    \n"
 
                         "pld        [%9, #256]          \n"
-                        "vld1.f32   {d8-d11}, [%9]      \n"// q4 q5 = k42434445 k46474849
-                        "sub        %9, #168            \n"// restore k0
+                        "vld1.f32   {d8-d11}, [%9]      \n" // q4 q5 = k42434445 k46474849
+                        "sub        %9, #168            \n" // restore k0
 
                         "pld        [%8, #512]          \n"
                         "vld2.f32   {d0-d3}, [%8]!      \n"
@@ -1293,16 +1272,16 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                         "subs       %0, #1              \n"
                         "bne        0b                  \n"
-                        : "=r"(nn),         // %0
-                        "=r"(outptr),     // %1
-                        "=r"(r0),         // %2
-                        "=r"(r1),         // %3
-                        "=r"(r2),         // %4
-                        "=r"(r3),         // %5
-                        "=r"(r4),         // %6
-                        "=r"(r5),         // %7
-                        "=r"(r6),         // %8
-                        "=r"(k0)          // %9
+                        : "=r"(nn),     // %0
+                        "=r"(outptr), // %1
+                        "=r"(r0),     // %2
+                        "=r"(r1),     // %3
+                        "=r"(r2),     // %4
+                        "=r"(r3),     // %5
+                        "=r"(r4),     // %6
+                        "=r"(r5),     // %7
+                        "=r"(r6),     // %8
+                        "=r"(k0)      // %9
                         : "0"(nn),
                         "1"(outptr),
                         "2"(r0),
@@ -1313,14 +1292,12 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "7"(r5),
                         "8"(r6),
                         "9"(k0)
-                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                    );
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON
 
-                for (; remain>0; remain--)
-                {
+                for (; remain > 0; remain--) {
                     float sum = 0;
 
                     sum += r0[0] * k0[0];
@@ -1398,10 +1375,7 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                 r4 += tailstep;
                 r5 += tailstep;
                 r6 += tailstep;
-
             }
-
         }
     }
-
 }

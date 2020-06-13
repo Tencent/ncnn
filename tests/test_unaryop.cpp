@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/unaryop.h"
+#include "testutil.h"
 
 #define OP_TYPE_MAX 17
 
@@ -30,13 +29,11 @@ static int test_unaryop(const ncnn::Mat& _a)
 {
     ncnn::Mat a = _a;
     int op_type = get_op_type();
-    if (op_type == 5 || op_type == 6 || op_type == 8)
-    {
+    if (op_type == 5 || op_type == 6 || op_type == 8) {
         // value must be positive for sqrt rsqrt log
         Randomize(a, 0.001f, 2.f);
     }
-    if (op_type == 11 || op_type == 12 || op_type == 13)
-    {
+    if (op_type == 11 || op_type == 12 || op_type == 13) {
         // smaller range for tan asin acos
         Randomize(a, -1.f, 1.f);
     }
@@ -52,8 +49,7 @@ static int test_unaryop(const ncnn::Mat& _a)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::UnaryOp>("UnaryOp", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_unaryop failed a.dims=%d a=(%d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.c, op_type);
     }
 
@@ -65,8 +61,7 @@ static int test_unaryop_0()
     return 0
            || test_unaryop(RandomMat(6, 7, 16))
            || test_unaryop(RandomMat(5, 4, 12))
-           || test_unaryop(RandomMat(3, 5, 13))
-           ;
+           || test_unaryop(RandomMat(3, 5, 13));
 }
 
 static int test_unaryop_1()
@@ -74,8 +69,7 @@ static int test_unaryop_1()
     return 0
            || test_unaryop(RandomMat(6, 16))
            || test_unaryop(RandomMat(5, 12))
-           || test_unaryop(RandomMat(7, 15))
-           ;
+           || test_unaryop(RandomMat(7, 15));
 }
 
 static int test_unaryop_2()
@@ -83,8 +77,7 @@ static int test_unaryop_2()
     return 0
            || test_unaryop(RandomMat(128))
            || test_unaryop(RandomMat(12))
-           || test_unaryop(RandomMat(15))
-           ;
+           || test_unaryop(RandomMat(15));
 }
 
 int main()
@@ -99,6 +92,5 @@ int main()
            // iterate full OP_TYPE_MAX
            || test_unaryop_0()
            || test_unaryop_1()
-           || test_unaryop_2()
-           ;
+           || test_unaryop_2();
 }

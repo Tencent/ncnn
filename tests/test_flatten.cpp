@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/flatten.h"
+#include "testutil.h"
 
 static int test_flatten(const ncnn::Mat& a)
 {
@@ -28,8 +27,7 @@ static int test_flatten(const ncnn::Mat& a)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Flatten>("Flatten", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_flatten failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
     }
 
@@ -48,8 +46,7 @@ static int test_flatten_0()
            || test_flatten(RandomMat(8, 12))
            || test_flatten(RandomMat(8, 2))
            || test_flatten(RandomMat(32))
-           || test_flatten(RandomMat(17))
-           ;
+           || test_flatten(RandomMat(17));
 }
 
 int main()

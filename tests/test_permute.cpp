@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/permute.h"
+#include "testutil.h"
 
 static int test_permute(const ncnn::Mat& a, int order_type)
 {
@@ -29,8 +28,7 @@ static int test_permute(const ncnn::Mat& a, int order_type)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::Permute>("Permute", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_permute failed a.dims=%d a=(%d %d %d) order_type=%d\n", a.dims, a.w, a.h, a.c, order_type);
     }
 
@@ -44,8 +42,7 @@ static int test_permute_0()
 
     return 0
            || test_permute(a, 0)
-           || test_permute(b, 0)
-           ;
+           || test_permute(b, 0);
 }
 
 static int test_permute_1()
@@ -55,14 +52,12 @@ static int test_permute_1()
     ncnn::Mat c = RandomMat(11, 16);
     ncnn::Mat d = RandomMat(7, 9);
 
-    for (int order_type=0; order_type<2; order_type++)
-    {
+    for (int order_type = 0; order_type < 2; order_type++) {
         int ret = 0
                   || test_permute(a, order_type)
                   || test_permute(b, order_type)
                   || test_permute(c, order_type)
-                  || test_permute(d, order_type)
-                  ;
+                  || test_permute(d, order_type);
 
         if (ret != 0)
             return -1;
@@ -80,16 +75,14 @@ static int test_permute_2()
     ncnn::Mat e = RandomMat(1, 2, 7);
     ncnn::Mat f = RandomMat(8, 5, 6);
 
-    for (int order_type=0; order_type<6; order_type++)
-    {
+    for (int order_type = 0; order_type < 6; order_type++) {
         int ret = 0
                   || test_permute(a, order_type)
                   || test_permute(b, order_type)
                   || test_permute(c, order_type)
                   || test_permute(d, order_type)
                   || test_permute(e, order_type)
-                  || test_permute(f, order_type)
-                  ;
+                  || test_permute(f, order_type);
 
         if (ret != 0)
             return -1;
@@ -105,6 +98,5 @@ int main()
     return 0
            || test_permute_0()
            || test_permute_1()
-           || test_permute_2()
-           ;
+           || test_permute_2();
 }

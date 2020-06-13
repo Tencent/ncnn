@@ -12,26 +12,25 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/innerproduct.h"
+#include "testutil.h"
 
 static int test_innerproduct(const ncnn::Mat& a, int outch, int bias)
 {
     ncnn::ParamDict pd;
-    pd.set(0, outch);// num_output
-    pd.set(1, bias);// bias_term
-    pd.set(2, outch*a.w*a.h*a.c);
+    pd.set(0, outch); // num_output
+    pd.set(1, bias);  // bias_term
+    pd.set(2, outch * a.w * a.h * a.c);
 
-    int activation_type = RAND() % 5;// 0 1 2 3 4
+    int activation_type = RAND() % 5; // 0 1 2 3 4
     ncnn::Mat activation_params(2);
-    activation_params[0] = RandomFloat(-1, 0);// alpha
-    activation_params[1] = RandomFloat(0, 1);// beta
+    activation_params[0] = RandomFloat(-1, 0); // alpha
+    activation_params[1] = RandomFloat(0, 1);  // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
     std::vector<ncnn::Mat> weights(bias ? 2 : 1);
-    weights[0] = RandomMat(outch*a.w*a.h*a.c);
+    weights[0] = RandomMat(outch * a.w * a.h * a.c);
     if (bias)
         weights[1] = RandomMat(outch);
 
@@ -41,8 +40,7 @@ static int test_innerproduct(const ncnn::Mat& a, int outch, int bias)
     opt.use_int8_inference = false;
 
     int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_innerproduct failed a.dims=%d a=(%d %d %d) outch=%d bias=%d act=%d actparams=[%f,%f]\n", a.dims, a.w, a.h, a.c, outch, bias, activation_type, activation_params[0], activation_params[1]);
     }
 
@@ -59,8 +57,7 @@ static int test_innerproduct_0()
            || test_innerproduct(RandomMat(4, 3, 15), 8, 1)
            || test_innerproduct(RandomMat(6, 2, 16), 16, 1)
            || test_innerproduct(RandomMat(6, 2, 16), 7, 1)
-           || test_innerproduct(RandomMat(6, 2, 5), 16, 1)
-           ;
+           || test_innerproduct(RandomMat(6, 2, 5), 16, 1);
 }
 
 static int test_innerproduct_1()
@@ -73,8 +70,7 @@ static int test_innerproduct_1()
            || test_innerproduct(RandomMat(4, 15), 8, 1)
            || test_innerproduct(RandomMat(6, 16), 16, 1)
            || test_innerproduct(RandomMat(6, 16), 7, 1)
-           || test_innerproduct(RandomMat(6, 5), 16, 1)
-           ;
+           || test_innerproduct(RandomMat(6, 5), 16, 1);
 }
 
 static int test_innerproduct_2()
@@ -87,28 +83,25 @@ static int test_innerproduct_2()
            || test_innerproduct(RandomMat(15), 8, 1)
            || test_innerproduct(RandomMat(16), 16, 1)
            || test_innerproduct(RandomMat(16), 7, 1)
-           || test_innerproduct(RandomMat(5), 16, 1)
-           ;
+           || test_innerproduct(RandomMat(5), 16, 1);
 }
 
 static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
 {
     ncnn::ParamDict pd;
-    pd.set(0, outch);// num_output
-    pd.set(1, bias);// bias_term
-    pd.set(2, outch*a.w*a.h*a.c);
-    pd.set(8, 1);// int8_scale_term
+    pd.set(0, outch); // num_output
+    pd.set(1, bias);  // bias_term
+    pd.set(2, outch * a.w * a.h * a.c);
+    pd.set(8, 1); // int8_scale_term
 
     std::vector<ncnn::Mat> weights(bias ? 4 : 3);
-    weights[0] = RandomMat(outch*a.w*a.h*a.c);
-    if (bias)
-    {
+    weights[0] = RandomMat(outch * a.w * a.h * a.c);
+    if (bias) {
         weights[1] = RandomMat(outch);
         weights[2] = RandomMat(outch);
         weights[3] = RandomMat(1);
     }
-    else
-    {
+    else {
         weights[1] = RandomMat(outch);
         weights[2] = RandomMat(1);
     }
@@ -119,8 +112,7 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
     opt.use_int8_inference = true;
 
     int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, opt, a);
-    if (ret != 0)
-    {
+    if (ret != 0) {
         fprintf(stderr, "test_innerproduct_int8 failed a.dims=%d a=(%d %d %d) outch=%d bias=%d\n", a.dims, a.w, a.h, a.c, outch, bias);
     }
 
@@ -140,8 +132,7 @@ static int test_innerproduct_3()
            || test_innerproduct_int8(RandomMat(6, 2, 8), 8, 1)
            || test_innerproduct_int8(RandomMat(8, 3, 15), 15, 1)
            || test_innerproduct_int8(RandomMat(7, 2, 16), 4, 1)
-           || test_innerproduct_int8(RandomMat(6, 3, 16), 16, 1)
-           ;
+           || test_innerproduct_int8(RandomMat(6, 3, 16), 16, 1);
 }
 
 int main()
@@ -152,6 +143,5 @@ int main()
            || test_innerproduct_0()
            || test_innerproduct_1()
            || test_innerproduct_2()
-           || test_innerproduct_3()
-           ;
+           || test_innerproduct_3();
 }

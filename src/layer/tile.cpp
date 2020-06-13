@@ -39,8 +39,7 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
-    if (dim == 0)
-    {
+    if (dim == 0) {
         top_blob.create(w, h, channels * tiles, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
@@ -49,18 +48,15 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         int size = bottom_blob.cstep * channels;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<tiles; p++)
-        {
+        for (int p = 0; p < tiles; p++) {
             float* outptr = top_blob.channel(p * channels);
 
-            for (int i=0; i<size; i++)
-            {
+            for (int i = 0; i < size; i++) {
                 outptr[i] = ptr[i];
             }
         }
     }
-    else if (dim == 1)
-    {
+    else if (dim == 1) {
         top_blob.create(w, h * tiles, channels, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
@@ -68,15 +64,12 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         int size = w * h;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int p=0; p<tiles; p++)
-            {
-                for (int i=0; i<size; i++)
-                {
+            for (int p = 0; p < tiles; p++) {
+                for (int i = 0; i < size; i++) {
                     outptr[i] = ptr[i];
                 }
 
@@ -84,24 +77,19 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
             }
         }
     }
-    else if (dim == 2)
-    {
+    else if (dim == 2) {
         top_blob.create(w * tiles, h, channels, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
-        {
+        for (int q = 0; q < channels; q++) {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int i = 0; i < h; i++)
-            {
-                for (int p=0; p<tiles; p++)
-                {
-                    for (int j = 0; j < w; j++)
-                    {
+            for (int i = 0; i < h; i++) {
+                for (int p = 0; p < tiles; p++) {
+                    for (int j = 0; j < w; j++) {
                         outptr[j] = ptr[j];
                     }
 

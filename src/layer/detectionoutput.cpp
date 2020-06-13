@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "detectionoutput.h"
+
 #include <algorithm>
 #include <math.h>
 
@@ -52,8 +53,7 @@ struct BBoxRect
 
 static inline float intersection_area(const BBoxRect& a, const BBoxRect& b)
 {
-    if (a.xmin > b.xmax || a.xmax < b.xmin || a.ymin > b.ymax || a.ymax < b.ymin)
-    {
+    if (a.xmin > b.xmax || a.xmax < b.xmin || a.ymin > b.ymax || a.ymax < b.ymin) {
         // no intersection
         return 0.f;
     }
@@ -64,23 +64,21 @@ static inline float intersection_area(const BBoxRect& a, const BBoxRect& b)
     return inter_width * inter_height;
 }
 
-template <typename T>
+template<typename T>
 static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& scores, int left, int right)
 {
     int i = left;
     int j = right;
     float p = scores[(left + right) / 2];
 
-    while (i <= j)
-    {
+    while (i <= j) {
         while (scores[i] > p)
             i++;
 
         while (scores[j] < p)
             j--;
 
-        if (i <= j)
-        {
+        if (i <= j) {
             // swap
             std::swap(datas[i], datas[j]);
             std::swap(scores[i], scores[j]);
@@ -97,7 +95,7 @@ static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& sco
         qsort_descent_inplace(datas, scores, i, right);
 }
 
-template <typename T>
+template<typename T>
 static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& scores)
 {
     if (datas.empty() || scores.empty())
@@ -113,8 +111,7 @@ static void nms_sorted_bboxes(const std::vector<BBoxRect>& bboxes, std::vector<s
     const size_t n = bboxes.size();
 
     std::vector<float> areas(n);
-    for (size_t i = 0; i < n; i++)
-    {
+    for (size_t i = 0; i < n; i++) {
         const BBoxRect& r = bboxes[i];
 
         float width = r.xmax - r.xmin;
@@ -123,19 +120,17 @@ static void nms_sorted_bboxes(const std::vector<BBoxRect>& bboxes, std::vector<s
         areas[i] = width * height;
     }
 
-    for (size_t i = 0; i < n; i++)
-    {
+    for (size_t i = 0; i < n; i++) {
         const BBoxRect& a = bboxes[i];
 
         int keep = 1;
-        for (int j = 0; j < (int)picked.size(); j++)
-        {
+        for (int j = 0; j < (int)picked.size(); j++) {
             const BBoxRect& b = bboxes[picked[j]];
 
             // intersection over union
             float inter_area = intersection_area(a, b);
             float union_area = areas[i] + areas[picked[j]] - inter_area;
-//             float IoU = inter_area / union_area
+            //             float IoU = inter_area / union_area
             if (inter_area / union_area > nms_threshold)
                 keep = 0;
         }
@@ -169,8 +164,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     const float* variance_ptr = mxnet_ssd_style ? 0 : priorbox.row(1);
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < num_prior; i++)
-    {
+    for (int i = 0; i < num_prior; i++) {
         const float* loc = location_ptr + i * 4;
         const float* pb = priorbox_ptr + i * 4;
         const float* var = variance_ptr ? variance_ptr + i * 4 : variances;
@@ -195,30 +189,27 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     }
 
     // sort and nms for each class
-    std::vector< std::vector<BBoxRect> > all_class_bbox_rects;
-    std::vector< std::vector<float> > all_class_bbox_scores;
+    std::vector<std::vector<BBoxRect> > all_class_bbox_rects;
+    std::vector<std::vector<float> > all_class_bbox_scores;
     all_class_bbox_rects.resize(num_class_copy);
     all_class_bbox_scores.resize(num_class_copy);
 
-    // start from 1 to ignore background class
+// start from 1 to ignore background class
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 1; i < num_class_copy; i++)
-    {
+    for (int i = 1; i < num_class_copy; i++) {
         // filter by confidence_threshold
         std::vector<BBoxRect> class_bbox_rects;
         std::vector<float> class_bbox_scores;
 
-        for (int j = 0; j < num_prior; j++)
-        {
+        for (int j = 0; j < num_prior; j++) {
             // prob data layout
             // caffe-ssd = num_class x num_prior
             // mxnet-ssd = num_prior x num_class
             float score = mxnet_ssd_style ? confidence[i * num_prior + j] : confidence[j * num_class_copy + i];
 
-            if (score > confidence_threshold)
-            {
+            if (score > confidence_threshold) {
                 const float* bbox = bboxes.row(j);
-                BBoxRect c = { bbox[0], bbox[1], bbox[2], bbox[3], i };
+                BBoxRect c = {bbox[0], bbox[1], bbox[2], bbox[3], i};
                 class_bbox_rects.push_back(c);
                 class_bbox_scores.push_back(score);
             }
@@ -228,8 +219,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
         qsort_descent_inplace(class_bbox_rects, class_bbox_scores);
 
         // keep nms_top_k
-        if (nms_top_k < (int)class_bbox_rects.size())
-        {
+        if (nms_top_k < (int)class_bbox_rects.size()) {
             class_bbox_rects.resize(nms_top_k);
             class_bbox_scores.resize(nms_top_k);
         }
@@ -239,8 +229,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
         nms_sorted_bboxes(class_bbox_rects, picked, nms_threshold);
 
         // select
-        for (size_t j = 0; j < picked.size(); j++)
-        {
+        for (size_t j = 0; j < picked.size(); j++) {
             size_t z = picked[j];
             all_class_bbox_rects[i].push_back(class_bbox_rects[z]);
             all_class_bbox_scores[i].push_back(class_bbox_scores[z]);
@@ -251,8 +240,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     std::vector<BBoxRect> bbox_rects;
     std::vector<float> bbox_scores;
 
-    for (int i = 1; i < num_class_copy; i++)
-    {
+    for (int i = 1; i < num_class_copy; i++) {
         const std::vector<BBoxRect>& class_bbox_rects = all_class_bbox_rects[i];
         const std::vector<float>& class_bbox_scores = all_class_bbox_scores[i];
 
@@ -264,8 +252,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     qsort_descent_inplace(bbox_rects, bbox_scores);
 
     // keep_top_k
-    if (keep_top_k < (int)bbox_rects.size())
-    {
+    if (keep_top_k < (int)bbox_rects.size()) {
         bbox_rects.resize(keep_top_k);
         bbox_scores.resize(keep_top_k);
     }
@@ -280,8 +267,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     if (top_blob.empty())
         return -100;
 
-    for (int i = 0; i < num_detected; i++)
-    {
+    for (int i = 0; i < num_detected; i++) {
         const BBoxRect& r = bbox_rects[i];
         float score = bbox_scores[i];
         float* outptr = top_blob.row(i);
