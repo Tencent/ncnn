@@ -17,9 +17,8 @@
 #include "layer_type.h"
 
 #if __ARM_NEON
-#include "neon_mathfun.h"
-
 #include <arm_neon.h>
+#include "neon_mathfun.h"
 #endif // __ARM_NEON
 
 #include "neon_activation.h"

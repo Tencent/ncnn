@@ -1,6 +1,6 @@
 # See https://github.com/restyled-io/restyled.io/wiki/Configuring-Restyled
 
-enabled: true
+enabled: false
 
 pull_requests: true
 

@@ -103,7 +103,7 @@ NamespaceIndentation: None
 PointerAlignment: Left
 # RawStringFormats:
 ReflowComments: false
-SortIncludes: true
+SortIncludes: false
 SortUsingDeclarations: true
 SpaceAfterCStyleCast: false
 SpaceAfterLogicalNot: false
