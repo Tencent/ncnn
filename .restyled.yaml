@@ -11,4 +11,7 @@ statuses:
 
 restylers:
   - name: astyle
-    arguments: ["-n -r \"benchmark/*.h,*.cpp\" \"src/*.h,*.cpp\" \"tests/*.h,*.cpp\" \"tools/*.h,*.cpp\""]
+    include:
+      - "*.h"
+      - "*.cpp"
+      - "!/glslang/*"
