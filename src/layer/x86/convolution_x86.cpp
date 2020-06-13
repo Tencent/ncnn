@@ -27,14 +27,15 @@
 
 namespace ncnn {
 
+#include "convolution_sgemm.h"
+#include "convolution_sgemm_int8.h"
+
 #include "convolution_1x1.h"
 #include "convolution_1x1_int8.h"
 #include "convolution_3x3.h"
 #include "convolution_3x3_int8.h"
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
-#include "convolution_sgemm.h"
-#include "convolution_sgemm_int8.h"
 
 DEFINE_LAYER_CREATOR(Convolution_x86)
 

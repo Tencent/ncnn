@@ -27,6 +27,9 @@
 
 namespace ncnn {
 
+#include "convolution_sgemm.h"
+#include "convolution_sgemm_int8.h"
+
 #include "convolution_1x1.h"
 #include "convolution_1x1_bf16s.h"
 #include "convolution_1x1_int8.h"
@@ -36,8 +39,6 @@ namespace ncnn {
 #include "convolution_4x4.h"
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
-#include "convolution_sgemm.h"
-#include "convolution_sgemm_int8.h"
 
 #if __ARM_NEON
 #include "convolution_1x1_pack4.h"
