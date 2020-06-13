@@ -68,7 +68,7 @@ IncludeBlocks: Regroup
 # IndentCaseBlocks: false
 IndentCaseLabels: false
 # IndentExternBlock: NoIndent
-IndentGotoLabels: false
+# IndentGotoLabels: false
 IndentPPDirectives: None
 IndentWidth: 4
 # IndentWrappedFunctionNames: 4
