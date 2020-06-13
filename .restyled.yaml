@@ -10,14 +10,5 @@ statuses:
   error: true
 
 restylers:
-  - name: clang-format
-    include:
-      - "**/*.h"
-      - "**/*.cpp"
-      - "!/glslang/*"
-
-  - name: astyle
-    include:
-      - "**/*.h"
-      - "**/*.cpp"
-      - "!/glslang/*"
+  - clang-format
+  - astyle
