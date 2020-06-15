@@ -53,9 +53,16 @@
 #endif
 
 /* __m128 is ugly to write */
-typedef __m256  v8sf; // vector of 8 float (avx)
-typedef __m256i v8si; // vector of 8 int   (avx)
-typedef __m128i v4si; // vector of 8 int   (avx)
+typedef union v8sf {
+    float inside[8];
+}__m256;
+typedef union v8si {
+    float inside[8];
+}__m256i;
+typedef union v4si {
+    float inside[4];
+}__m128i;
+
 
 #define _PI32AVX_CONST(Name, Val)                                            \
   static const ALIGN32_BEG int _pi32avx_##Name[4] = { Val, Val, Val, Val }
