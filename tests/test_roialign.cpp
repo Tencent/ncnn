@@ -12,32 +12,30 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer.h"
 #include "layer/roialign.h"
-
+#include "testutil.h"
 
 static int test_roialign(int w, int h, int c,
-    int pooled_width, int pooled_height, float spatial_scale,
-    int sampling_ratio, bool aligned, int version)
+                         int pooled_width, int pooled_height, float spatial_scale,
+                         int sampling_ratio, bool aligned, int version)
 {
     std::vector<ncnn::Mat> a;
     a.push_back(RandomMat(w, h, c));
     ncnn::Mat b(4);
-    b[0] = RandomFloat(0.001     , w-2.001);    //roi_x1
-    b[2] = RandomFloat(b[0]+1.001, w-1.001);    //roi_x2
-    b[1] = RandomFloat(0.001     , h-2.001);    //roi_y1
-    b[3] = RandomFloat(b[2]+1.001, h-1.001);    //roi_y2
+    b[0] = RandomFloat(0.001, w - 2.001);        //roi_x1
+    b[2] = RandomFloat(b[0] + 1.001, w - 1.001); //roi_x2
+    b[1] = RandomFloat(0.001, h - 2.001);        //roi_y1
+    b[3] = RandomFloat(b[2] + 1.001, h - 1.001); //roi_y2
     a.push_back(b);
 
     ncnn::ParamDict pd;
-    pd.set(0, pooled_width);    // pooled_width
-    pd.set(1, pooled_height);   // pooled_height
-    pd.set(2, spatial_scale);   // spatial_scale
-    pd.set(3, sampling_ratio);  // sampling_ratio
-    pd.set(4, aligned);         // aligned
-    pd.set(5, version);         // version
+    pd.set(0, pooled_width);   // pooled_width
+    pd.set(1, pooled_height);  // pooled_height
+    pd.set(2, spatial_scale);  // spatial_scale
+    pd.set(3, sampling_ratio); // sampling_ratio
+    pd.set(4, aligned);        // aligned
+    pd.set(5, version);        // version
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -64,15 +62,14 @@ static int test_roialign_0()
         {
             for (int version = 0; version <= 1; ++version)
             {
-              bool aligned = aligned_i;
-              int lret = 0
-                  || test_roialign(112, 112, 16 , 56, 56, 0.50000, sampling_ratio, aligned, version)
-                  || test_roialign(56 , 56 , 32 , 28, 28, 0.25000, sampling_ratio, aligned, version)
-                  || test_roialign(28 , 28 , 64 , 14, 14, 0.12500, sampling_ratio, aligned, version)
-                  || test_roialign(14 , 14 , 128, 27, 17, 0.06250, sampling_ratio, aligned, version)
-                  || test_roialign(7  , 7  , 256,  3,  3, 0.03125, sampling_ratio, aligned, version)
-                  ;
-              ret |= lret;
+                bool aligned = aligned_i;
+                int lret = 0
+                           || test_roialign(112, 112, 16, 56, 56, 0.50000, sampling_ratio, aligned, version)
+                           || test_roialign(56, 56, 32, 28, 28, 0.25000, sampling_ratio, aligned, version)
+                           || test_roialign(28, 28, 64, 14, 14, 0.12500, sampling_ratio, aligned, version)
+                           || test_roialign(14, 14, 128, 27, 17, 0.06250, sampling_ratio, aligned, version)
+                           || test_roialign(7, 7, 256, 3, 3, 0.03125, sampling_ratio, aligned, version);
+                ret |= lret;
             }
         }
     }
@@ -88,6 +85,5 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_roialign_0()
-        ;
+           || test_roialign_0();
 }

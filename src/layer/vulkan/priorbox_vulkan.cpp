@@ -13,10 +13,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include "priorbox_vulkan.h"
-#include <algorithm>
-#include <math.h>
+
 #include "layer_shader_type.h"
 #include "platform.h"
+
+#include <algorithm>
+#include <math.h>
 
 namespace ncnn {
 

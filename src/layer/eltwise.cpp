@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "eltwise.h"
+
 #include <algorithm>
 
 namespace ncnn {
@@ -22,7 +23,7 @@ DEFINE_LAYER_CREATOR(Eltwise)
 Eltwise::Eltwise()
 {
     one_blob_only = false;
-    support_inplace = false;// TODO inplace reduction
+    support_inplace = false; // TODO inplace reduction
 }
 
 int Eltwise::load_param(const ParamDict& pd)
@@ -52,28 +53,28 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         // first blob
         const Mat& bottom_blob1 = bottom_blobs[1];
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
             const float* ptr1 = bottom_blob1.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 outptr[i] = ptr[i] * ptr1[i];
             }
         }
 
-        for (size_t b=2; b<bottom_blobs.size(); b++)
+        for (size_t b = 2; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob1 = bottom_blobs[b];
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob1.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     outptr[i] *= ptr[i];
                 }
@@ -87,28 +88,28 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
             // first blob
             const Mat& bottom_blob1 = bottom_blobs[1];
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
                 const float* ptr1 = bottom_blob1.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     outptr[i] = ptr[i] + ptr1[i];
                 }
             }
 
-            for (size_t b=2; b<bottom_blobs.size(); b++)
+            for (size_t b = 2; b < bottom_blobs.size(); b++)
             {
                 const Mat& bottom_blob1 = bottom_blobs[b];
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob1.channel(q);
                     float* outptr = top_blob.channel(q);
 
-                    for (int i=0; i<size; i++)
+                    for (int i = 0; i < size; i++)
                     {
                         outptr[i] += ptr[i];
                     }
@@ -122,29 +123,29 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
             float coeff0 = coeffs[0];
             float coeff1 = coeffs[1];
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
                 const float* ptr1 = bottom_blob1.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     outptr[i] = ptr[i] * coeff0 + ptr1[i] * coeff1;
                 }
             }
 
-            for (size_t b=2; b<bottom_blobs.size(); b++)
+            for (size_t b = 2; b < bottom_blobs.size(); b++)
             {
                 const Mat& bottom_blob1 = bottom_blobs[b];
                 float coeff = coeffs[b];
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob1.channel(q);
                     float* outptr = top_blob.channel(q);
 
-                    for (int i=0; i<size; i++)
+                    for (int i = 0; i < size; i++)
                     {
                         outptr[i] += ptr[i] * coeff;
                     }
@@ -157,28 +158,28 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         // first blob
         const Mat& bottom_blob1 = bottom_blobs[1];
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
             const float* ptr1 = bottom_blob1.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 outptr[i] = std::max(ptr[i], ptr1[i]);
             }
         }
 
-        for (size_t b=2; b<bottom_blobs.size(); b++)
+        for (size_t b = 2; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob1 = bottom_blobs[b];
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob1.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     outptr[i] = std::max(outptr[i], ptr[i]);
                 }

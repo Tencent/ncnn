@@ -13,9 +13,11 @@
 // specific language governing permissions and limitations under the License.
 
 #include "convolution_vulkan.h"
-#include <algorithm>
-#include "layer_type.h"
+
 #include "layer_shader_type.h"
+#include "layer_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -78,7 +80,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         ncnn::ParamDict pd;
         pd.set(0, num_output);
         pd.set(1, bias_term);
-        pd.set(2, weight_data_size);// TODO int8
+        pd.set(2, weight_data_size); // TODO int8
 
         innerproduct->load_param(pd);
 
@@ -106,7 +108,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             shape_bordered = Mat(shape.w + pad_left + pad_right, shape.h + pad_top + pad_bottom, shape.c, (void*)0);
         }
         else if ((pad_left == -233 && pad_right == -233 && pad_top == -233 && pad_bottom == -233)
-            || (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234))
+                 || (pad_left == -234 && pad_right == -234 && pad_top == -234 && pad_bottom == -234))
         {
             const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
             const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -193,9 +195,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
         // check blob shape
         if (!vkdev->shape_support_image_storage(shape_winograd_bordered_packed)
-            || !vkdev->shape_support_image_storage(shape_winograd_input_transformed_packed)
-            || !vkdev->shape_support_image_storage(shape_winograd_gemm_packed)
-            || !vkdev->shape_support_image_storage(shape_winograd_out_bordered_packed))
+                || !vkdev->shape_support_image_storage(shape_winograd_input_transformed_packed)
+                || !vkdev->shape_support_image_storage(shape_winograd_gemm_packed)
+                || !vkdev->shape_support_image_storage(shape_winograd_out_bordered_packed))
         {
             support_image_storage = false;
             opt.use_image_storage = false;
@@ -681,26 +683,25 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     {
         Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
-        weight_data_packed.create(maxk, num_input/elempack, num_output/out_elempack, (size_t)4*elempack*out_elempack, elempack*out_elempack);
+        weight_data_packed.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
 
-        for (int q=0; q+(out_elempack-1)<num_output; q+=out_elempack)
+        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
-            Mat g0 = weight_data_packed.channel(q/out_elempack);
+            Mat g0 = weight_data_packed.channel(q / out_elempack);
 
-            for (int p=0; p+(elempack-1)<num_input; p+=elempack)
+            for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
-                float* g00 = g0.row(p/elempack);
+                float* g00 = g0.row(p / elempack);
 
-                for (int k=0; k<maxk; k++)
+                for (int k = 0; k < maxk; k++)
                 {
-
-                    for (int i=0; i<out_elempack; i++)
+                    for (int i = 0; i < out_elempack; i++)
                     {
-                        const Mat k0 = weight_data_r2.channel(q+i);
+                        const Mat k0 = weight_data_r2.channel(q + i);
 
-                        for (int j=0; j<elempack; j++)
+                        for (int j = 0; j < elempack; j++)
                         {
-                            const float* k00 = k0.row(p+j);
+                            const float* k00 = k0.row(p + j);
 
                             g00[0] = k00[k];
 
@@ -730,22 +731,22 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         {
             // winograd23 transform kernel
             Mat weight_data_tm;
-            weight_data_tm.create(4*4, num_input, num_output);
+            weight_data_tm.create(4 * 4, num_input, num_output);
 
             // G
             const float ktm[4][3] = {
-                {   1.0f,     0.0f,     0.0f},
-                { 1.0f/2,   1.0f/2,   1.0f/2},
-                { 1.0f/2,  -1.0f/2,   1.0f/2},
-                {   0.0f,     0.0f,     1.0f}
+                {1.0f, 0.0f, 0.0f},
+                {1.0f / 2, 1.0f / 2, 1.0f / 2},
+                {1.0f / 2, -1.0f / 2, 1.0f / 2},
+                {0.0f, 0.0f, 1.0f}
             };
 
             #pragma omp parallel for
-            for (int p = 0; p<num_output; p++)
+            for (int p = 0; p < num_output; p++)
             {
-                for (int q = 0; q<num_input; q++)
+                for (int q = 0; q < num_input; q++)
                 {
-                    const float* kernel0 = (const float*)weight_data + p*num_input * 9 + q * 9;
+                    const float* kernel0 = (const float*)weight_data + p * num_input * 9 + q * 9;
                     float* kernel_tm0 = weight_data_tm.channel(p).row(q);
 
                     // transform kernel
@@ -755,7 +756,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
                     // h
                     float tmp[4][3];
-                    for (int i=0; i<4; i++)
+                    for (int i = 0; i < 4; i++)
                     {
                         tmp[i][0] = k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
                         tmp[i][1] = k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
@@ -763,13 +764,13 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
                     }
 
                     // U
-                    for (int j=0; j<4; j++)
+                    for (int j = 0; j < 4; j++)
                     {
                         float* tmpp = &tmp[j][0];
 
-                        for (int i=0; i<4; i++)
+                        for (int i = 0; i < 4; i++)
                         {
-                            kernel_tm0[j*4 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
+                            kernel_tm0[j * 4 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
                         }
                     }
                 }
@@ -779,42 +780,42 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
             // dst = 4a-4b-16-inch/4a-outch/4b
             Mat weight_data_pack4_tm;
             {
-                weight_data_pack4_tm.create(16, num_input/4, num_output/4, (size_t)4*16, 16);
+                weight_data_pack4_tm.create(16, num_input / 4, num_output / 4, (size_t)4 * 16, 16);
 
-                for (int q=0; q+3<num_output; q+=4)
+                for (int q = 0; q + 3 < num_output; q += 4)
                 {
                     const Mat k0 = weight_data_tm.channel(q);
-                    const Mat k1 = weight_data_tm.channel(q+1);
-                    const Mat k2 = weight_data_tm.channel(q+2);
-                    const Mat k3 = weight_data_tm.channel(q+3);
+                    const Mat k1 = weight_data_tm.channel(q + 1);
+                    const Mat k2 = weight_data_tm.channel(q + 2);
+                    const Mat k3 = weight_data_tm.channel(q + 3);
 
-                    Mat g0 = weight_data_pack4_tm.channel(q/4);
+                    Mat g0 = weight_data_pack4_tm.channel(q / 4);
 
-                    for (int p=0; p+3<num_input; p+=4)
+                    for (int p = 0; p + 3 < num_input; p += 4)
                     {
                         const float* k00 = k0.row(p);
-                        const float* k01 = k0.row(p+1);
-                        const float* k02 = k0.row(p+2);
-                        const float* k03 = k0.row(p+3);
+                        const float* k01 = k0.row(p + 1);
+                        const float* k02 = k0.row(p + 2);
+                        const float* k03 = k0.row(p + 3);
 
                         const float* k10 = k1.row(p);
-                        const float* k11 = k1.row(p+1);
-                        const float* k12 = k1.row(p+2);
-                        const float* k13 = k1.row(p+3);
+                        const float* k11 = k1.row(p + 1);
+                        const float* k12 = k1.row(p + 2);
+                        const float* k13 = k1.row(p + 3);
 
                         const float* k20 = k2.row(p);
-                        const float* k21 = k2.row(p+1);
-                        const float* k22 = k2.row(p+2);
-                        const float* k23 = k2.row(p+3);
+                        const float* k21 = k2.row(p + 1);
+                        const float* k22 = k2.row(p + 2);
+                        const float* k23 = k2.row(p + 3);
 
                         const float* k30 = k3.row(p);
-                        const float* k31 = k3.row(p+1);
-                        const float* k32 = k3.row(p+2);
-                        const float* k33 = k3.row(p+3);
+                        const float* k31 = k3.row(p + 1);
+                        const float* k32 = k3.row(p + 2);
+                        const float* k33 = k3.row(p + 3);
 
-                        float* g00 = g0.row(p/4);
+                        float* g00 = g0.row(p / 4);
 
-                        for (int k=0; k<16; k++)
+                        for (int k = 0; k < 16; k++)
                         {
                             g00[0] = k00[k];
                             g00[1] = k01[k];
@@ -860,22 +861,22 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         {
             // winograd23 transform kernel
             Mat weight_data_tm;
-            weight_data_tm.create(4*4, num_input, num_output);
+            weight_data_tm.create(4 * 4, num_input, num_output);
 
             // G
             const float ktm[4][3] = {
-                {   1.0f,     0.0f,     0.0f},
-                { 1.0f/2,   1.0f/2,   1.0f/2},
-                { 1.0f/2,  -1.0f/2,   1.0f/2},
-                {   0.0f,     0.0f,     1.0f}
+                {1.0f, 0.0f, 0.0f},
+                {1.0f / 2, 1.0f / 2, 1.0f / 2},
+                {1.0f / 2, -1.0f / 2, 1.0f / 2},
+                {0.0f, 0.0f, 1.0f}
             };
 
             #pragma omp parallel for
-            for (int p = 0; p<num_output; p++)
+            for (int p = 0; p < num_output; p++)
             {
-                for (int q = 0; q<num_input; q++)
+                for (int q = 0; q < num_input; q++)
                 {
-                    const float* kernel0 = (const float*)weight_data + p*num_input * 9 + q * 9;
+                    const float* kernel0 = (const float*)weight_data + p * num_input * 9 + q * 9;
                     float* kernel_tm0 = weight_data_tm.channel(p).row(q);
 
                     // transform kernel
@@ -885,7 +886,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
                     // h
                     float tmp[4][3];
-                    for (int i=0; i<4; i++)
+                    for (int i = 0; i < 4; i++)
                     {
                         tmp[i][0] = k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
                         tmp[i][1] = k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
@@ -893,13 +894,13 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
                     }
 
                     // U
-                    for (int j=0; j<4; j++)
+                    for (int j = 0; j < 4; j++)
                     {
                         float* tmpp = &tmp[j][0];
 
-                        for (int i=0; i<4; i++)
+                        for (int i = 0; i < 4; i++)
                         {
-                            kernel_tm0[j*4 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
+                            kernel_tm0[j * 4 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
                         }
                     }
                 }
@@ -909,25 +910,25 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
             // dst = 8a-8b-16-inch/8a-outch/8b
             Mat weight_data_pack8_tm;
             {
-                weight_data_pack8_tm.create(16, num_input/8, num_output/8, (size_t)4*64, 64);
+                weight_data_pack8_tm.create(16, num_input / 8, num_output / 8, (size_t)4 * 64, 64);
 
-                for (int q=0; q+7<num_output; q+=8)
+                for (int q = 0; q + 7 < num_output; q += 8)
                 {
-                    Mat g0 = weight_data_pack8_tm.channel(q/8);
+                    Mat g0 = weight_data_pack8_tm.channel(q / 8);
 
-                    for (int p=0; p+7<num_input; p+=8)
+                    for (int p = 0; p + 7 < num_input; p += 8)
                     {
-                        float* g00 = g0.row(p/8);
+                        float* g00 = g0.row(p / 8);
 
-                        for (int k=0; k<16; k++)
+                        for (int k = 0; k < 16; k++)
                         {
-                            for (int i=0; i<8; i++)
+                            for (int i = 0; i < 8; i++)
                             {
-                                const Mat k0 = weight_data_tm.channel(q+i);
+                                const Mat k0 = weight_data_tm.channel(q + i);
 
-                                for (int j=0; j<8; j++)
+                                for (int j = 0; j < 8; j++)
                                 {
-                                    const float* k00 = k0.row(p+j);
+                                    const float* k00 = k0.row(p + j);
 
                                     g00[0] = k00[k];
 
@@ -1068,8 +1069,8 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_elempack == 8) out_elemsize = 8*2u;
-        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
@@ -1554,8 +1555,8 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_elempack == 8) out_elemsize = 8*2u;
-        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
@@ -1612,8 +1613,8 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             constants[0].i = bottom_blob_bordered.w;
             constants[1].i = bottom_blob_bordered.h;
             constants[2].i = bottom_blob_bordered.c;
-            constants[3].i = 0;//bottom_blob_bordered.cstep;
-            constants[4].i = 0;//bottom_tm_blob.cstep;
+            constants[3].i = 0; //bottom_blob_bordered.cstep;
+            constants[4].i = 0; //bottom_tm_blob.cstep;
             constants[5].i = block_x;
             constants[6].i = block_y;
 
@@ -1639,10 +1640,10 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
 
             std::vector<vk_constant_type> constants(5);
             constants[0].i = bottom_tm_blob.c;
-            constants[1].i = 0;//bottom_tm_blob.cstep;
+            constants[1].i = 0; //bottom_tm_blob.cstep;
             constants[2].i = top_tm_blob.h;
             constants[3].i = top_tm_blob.c;
-            constants[4].i = 0;//top_tm_blob.cstep;
+            constants[4].i = 0; //top_tm_blob.cstep;
 
             VkImageMat dispatcher;
             dispatcher.w = top_tm_blob.w;
@@ -1666,12 +1667,12 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
 
             std::vector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.c;
-            constants[1].i = 0;//top_tm_blob.cstep;
+            constants[1].i = 0; //top_tm_blob.cstep;
             constants[2].i = block_x;
             constants[3].i = block_y;
             constants[4].i = top_blob_bordered.w;
             constants[5].i = top_blob_bordered.h;
-            constants[6].i = 0;//top_blob_bordered.cstep;
+            constants[6].i = 0; //top_blob_bordered.cstep;
 
             VkImageMat dispatcher;
             dispatcher.w = block_x;
@@ -1755,8 +1756,8 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             constants[0].i = bottom_blob_bordered.w;
             constants[1].i = bottom_blob_bordered.h;
             constants[2].i = bottom_blob_bordered.c;
-            constants[3].i = 0;//bottom_blob_bordered.cstep;
-            constants[4].i = 0;//bottom_tm_blob.cstep;
+            constants[3].i = 0; //bottom_blob_bordered.cstep;
+            constants[4].i = 0; //bottom_tm_blob.cstep;
             constants[5].i = block_x;
             constants[6].i = block_y;
 
@@ -1782,10 +1783,10 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
 
             std::vector<vk_constant_type> constants(5);
             constants[0].i = bottom_tm_blob.c;
-            constants[1].i = 0;//bottom_tm_blob.cstep;
+            constants[1].i = 0; //bottom_tm_blob.cstep;
             constants[2].i = top_tm_blob.h;
             constants[3].i = top_tm_blob.c;
-            constants[4].i = 0;//top_tm_blob.cstep;
+            constants[4].i = 0; //top_tm_blob.cstep;
 
             VkImageMat dispatcher;
             dispatcher.w = top_tm_blob.w;
@@ -1809,12 +1810,12 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
 
             std::vector<vk_constant_type> constants(7);
             constants[0].i = top_tm_blob.c;
-            constants[1].i = 0;//top_tm_blob.cstep;
+            constants[1].i = 0; //top_tm_blob.cstep;
             constants[2].i = block_x;
             constants[3].i = block_y;
             constants[4].i = top_blob_bordered.w;
             constants[5].i = top_blob_bordered.h;
-            constants[6].i = 0;//top_blob_bordered.cstep;
+            constants[6].i = 0; //top_blob_bordered.cstep;
 
             VkImageMat dispatcher;
             dispatcher.w = block_x;
@@ -1863,12 +1864,12 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
     constants[1].i = bottom_blob_bordered.w;
     constants[2].i = bottom_blob_bordered.h;
     constants[3].i = bottom_blob_bordered.c;
-    constants[4].i = 0;//bottom_blob_bordered.cstep;
+    constants[4].i = 0; //bottom_blob_bordered.cstep;
     constants[5].i = top_blob.dims;
     constants[6].i = top_blob.w;
     constants[7].i = top_blob.h;
     constants[8].i = top_blob.c;
-    constants[9].i = 0;//top_blob.cstep;
+    constants[9].i = 0; //top_blob.cstep;
 
     // record
     if (elempack == 1 && out_elempack == 1 && kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)

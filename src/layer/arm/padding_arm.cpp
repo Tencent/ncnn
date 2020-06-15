@@ -55,7 +55,7 @@ int Padding_arm::destroy_pipeline(const Option& /*opt*/)
 
 int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (top == 0 && bottom == 0 && left == 0 && right == 0  && front == 0 && behind == 0)
+    if (top == 0 && bottom == 0 && left == 0 && right == 0 && front == 0 && behind == 0)
     {
         top_blob = bottom_blob;
         return 0;
@@ -76,27 +76,31 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     int out_elempack = elempack;
     int outc = channels;
     //Check if channel padding is being applied.
-    if (front != 0 || behind != 0 ){
-        int padded_channels = (channels*elempack) + front + behind;
-        if (type == 0){
-            int offset_elempack =  front % 4 == 0 ? 4 : 1;
+    if (front != 0 || behind != 0)
+    {
+        int padded_channels = (channels * elempack) + front + behind;
+        if (type == 0)
+        {
+            int offset_elempack = front % 4 == 0 ? 4 : 1;
             int channel_elempack = padded_channels % 4 == 0 ? 4 : 1;
-            out_elempack = offset_elempack <= channel_elempack? offset_elempack : channel_elempack;
-        } else {
+            out_elempack = offset_elempack <= channel_elempack ? offset_elempack : channel_elempack;
+        }
+        else
+        {
             //Reflective padding and edge padding only supports channel padding in elempack 1
             out_elempack = 1;
         }
-        outc = padded_channels/out_elempack;
-        if (out_elempack != elempack){
+        outc = padded_channels / out_elempack;
+        if (out_elempack != elempack)
+        {
             Option opt_pack = opt;
             opt_pack.blob_allocator = opt.workspace_allocator;
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
         }
     }
-   
+
     if (elempack == 4 && out_elempack == 4)
     {
-
         int outw = w + left + right;
 
         if (dims == 1)
@@ -138,18 +142,21 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             top_blob.create(outw, outh, outc, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
-            int front_ = front/elempack;
+            int front_ = front / elempack;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<outc; q++)
+            for (int q = 0; q < outc; q++)
             {
                 Mat borderm = top_blob.channel(q);
 
                 float32x4_t pad_value = per_channel_pad_data_size ? vld1q_f32((const float*)per_channel_pad_data + q * 4) : vdupq_n_f32(value);
                 //Channel padding
-                if ((q-front_) < 0 || (q-front_) >= channels) {
+                if ((q - front_) < 0 || (q - front_) >= channels)
+                {
                     borderm.fill(pad_value);
-                }else{
-                    const Mat m = bottom_blob.channel(q-front_);
+                }
+                else
+                {
+                    const Mat m = bottom_blob.channel(q - front_);
                     if (type == 0)
                         padding_constant_pack4_neon(m, borderm, top, bottom, left, right, pad_value);
                     if (type == 1)
@@ -177,32 +184,36 @@ int Padding_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     Mat bottom_blob_unpacked = bottom_blob;
-    
+
 #if __ARM_NEON
     int out_elempack = elempack;
     int outc = channels;
     //Check if channel padding is being applied.
-    if (front != 0 || behind != 0 ){
-        int padded_channels = (channels*elempack) + front + behind;
-        if (type == 0){
-            int offset_elempack =  front % 4 == 0 ? 4 : 1;
+    if (front != 0 || behind != 0)
+    {
+        int padded_channels = (channels * elempack) + front + behind;
+        if (type == 0)
+        {
+            int offset_elempack = front % 4 == 0 ? 4 : 1;
             int channel_elempack = padded_channels % 4 == 0 ? 4 : 1;
-            out_elempack = offset_elempack <= channel_elempack? offset_elempack : channel_elempack;
-        } else {
+            out_elempack = offset_elempack <= channel_elempack ? offset_elempack : channel_elempack;
+        }
+        else
+        {
             //Reflective padding and edge padding only supports channel padding in elempack 1
             out_elempack = 1;
         }
-        outc = padded_channels/out_elempack;
-        if (out_elempack != elempack){
+        outc = padded_channels / out_elempack;
+        if (out_elempack != elempack)
+        {
             Option opt_pack = opt;
             opt_pack.blob_allocator = opt.workspace_allocator;
             convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
         }
     }
-    
+
     if (elempack == 4 && out_elempack == 4)
     {
-
         int outw = w + left + right;
 
         if (dims == 1)
@@ -244,19 +255,22 @@ int Padding_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
             top_blob.create(outw, outh, outc, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
-            
-            int front_ = front/elempack;
+
+            int front_ = front / elempack;
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<outc; q++)
+            for (int q = 0; q < outc; q++)
             {
                 Mat borderm = top_blob.channel(q);
 
                 uint16x4_t pad_value = per_channel_pad_data_size ? vld1_u16((const unsigned short*)per_channel_pad_data_bf16 + q * 4) : vdup_n_u16(value_bf16);
-                 //Channel padding
-                if ((q-front_) < 0 || (q-front_) >= channels) {
+                //Channel padding
+                if ((q - front_) < 0 || (q - front_) >= channels)
+                {
                     borderm.fill(pad_value);
-                }else{
-                    const Mat m = bottom_blob.channel(q-front_);
+                }
+                else
+                {
+                    const Mat m = bottom_blob.channel(q - front_);
                     if (type == 0)
                         padding_constant_pack4_bf16_neon(m, borderm, top, bottom, left, right, vcombine_u16(pad_value, pad_value));
                     if (type == 1)

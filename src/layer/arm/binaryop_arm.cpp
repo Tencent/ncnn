@@ -13,12 +13,14 @@
 // specific language governing permissions and limitations under the License.
 
 #include "binaryop_arm.h"
-#include <math.h>
+
 #include <algorithm>
+#include <math.h>
 
 #if __ARM_NEON
-#include <arm_neon.h>
 #include "neon_mathfun.h"
+
+#include <arm_neon.h>
 #endif // __ARM_NEON
 
 namespace ncnn {
@@ -69,7 +71,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     return -100;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = a.channel(q);
                     const float* b0 = b.channel(q);
@@ -124,7 +126,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     return -100;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels1; q++)
+                for (int q = 0; q < channels1; q++)
                 {
                     const float* a0 = a.channel(q);
                     const float* ptr1 = b.channel(q);
@@ -177,13 +179,13 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
                 const float* ptr1 = b.channel(q);
                 float* outptr = c.channel(q);
 
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     float32x4_t _p = vld1q_f32(ptr);
                     float32x4_t _p1 = vld1q_f32(ptr1);
@@ -206,16 +208,16 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
         {
             // type 18
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
                 const float* ptr1 = b.row(q);
                 float* outptr = c.channel(q);
 
-                for (int y=0; y<h; y++)
+                for (int y = 0; y < h; y++)
                 {
                     float32x4_t _b0 = vld1q_f32(ptr1);
-                    for (int x=0; x<w; x++)
+                    for (int x = 0; x < w; x++)
                     {
                         float32x4_t _p = vld1q_f32(ptr);
                         float32x4_t _outp = op(_p, _b0);
@@ -238,12 +240,12 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 // type 16
                 float32x4_t _b0 = vdupq_n_f32(b[0]);
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = a.channel(q);
                     float* outptr = c.channel(q);
 
-                    for (int i=0; i<size; i++)
+                    for (int i = 0; i < size; i++)
                     {
                         float32x4_t _p = vld1q_f32(ptr);
                         float32x4_t _outp = op(_p, _b0);
@@ -258,13 +260,13 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
             // type 17
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
                 float32x4_t _b0 = vld1q_f32((const float*)b + q * 4);
                 float* outptr = c.channel(q);
 
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     float32x4_t _p = vld1q_f32(ptr);
                     float32x4_t _outp = op(_p, _b0);
@@ -287,16 +289,16 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels1; q++)
+            for (int q = 0; q < channels1; q++)
             {
                 const float* ptr = a.row(q);
                 const float* ptr1 = b.channel(q);
                 float* outptr = c.channel(q);
 
-                for (int y=0; y<h1; y++)
+                for (int y = 0; y < h1; y++)
                 {
                     float32x4_t _a0 = vld1q_f32(ptr);
-                    for (int x=0; x<w1; x++)
+                    for (int x = 0; x < w1; x++)
                     {
                         float32x4_t _p1 = vld1q_f32(ptr1);
                         float32x4_t _outp = op(_a0, _p1);
@@ -322,7 +324,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             const float* ptr = a;
             const float* ptr1 = b;
             float* outptr = c;
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 float32x4_t _p = vld1q_f32(ptr);
                 float32x4_t _p1 = vld1q_f32(ptr1);
@@ -348,7 +350,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 float32x4_t _b0 = vdupq_n_f32(b[0]);
                 const float* ptr = a;
                 float* outptr = c;
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     float32x4_t _p = vld1q_f32(ptr);
                     float32x4_t _outp = op(_p, _b0);
@@ -365,10 +367,10 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             const float* ptr1 = b;
             float* outptr = c;
 
-            for (int y=0; y<h; y++)
+            for (int y = 0; y < h; y++)
             {
                 float32x4_t _b0 = vld1q_f32(ptr1);
-                for (int x=0; x<w; x++)
+                for (int x = 0; x < w; x++)
                 {
                     float32x4_t _p = vld1q_f32(ptr);
                     float32x4_t _outp = op(_p, _b0);
@@ -396,12 +398,12 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
                 float32x4_t _a0 = vdupq_n_f32(a[0]);
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels1; q++)
+                for (int q = 0; q < channels1; q++)
                 {
                     const float* ptr1 = b.channel(q);
                     float* outptr = c.channel(q);
 
-                    for (int i=0; i<size1; i++)
+                    for (int i = 0; i < size1; i++)
                     {
                         float32x4_t _p1 = vld1q_f32(ptr1);
                         float32x4_t _outp = op(_a0, _p1);
@@ -424,7 +426,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 float32x4_t _a0 = vdupq_n_f32(a[0]);
                 const float* ptr1 = b;
                 float* outptr = c;
-                for (int i=0; i<size1; i++)
+                for (int i = 0; i < size1; i++)
                 {
                     float32x4_t _p1 = vld1q_f32(ptr1);
                     float32x4_t _outp = op(_a0, _p1);
@@ -446,7 +448,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 float32x4_t _a0 = vdupq_n_f32(a[0]);
                 const float* ptr1 = b;
                 float* outptr = c;
-                for (int i=0; i<w1; i++)
+                for (int i = 0; i < w1; i++)
                 {
                     float32x4_t _p1 = vld1q_f32(ptr1);
                     float32x4_t _outp = op(_a0, _p1);
@@ -467,13 +469,13 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels1; q++)
+            for (int q = 0; q < channels1; q++)
             {
                 float32x4_t _a0 = vld1q_f32((const float*)a + q * 4);
                 const float* ptr1 = b.channel(q);
                 float* outptr = c.channel(q);
 
-                for (int i=0; i<size1; i++)
+                for (int i = 0; i < size1; i++)
                 {
                     float32x4_t _p1 = vld1q_f32(ptr1);
                     float32x4_t _outp = op(_a0, _p1);
@@ -497,10 +499,10 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             const float* ptr1 = b;
             float* outptr = c;
 
-            for (int y=0; y<h1; y++)
+            for (int y = 0; y < h1; y++)
             {
                 float32x4_t _a0 = vld1q_f32(ptr);
-                for (int x=0; x<w1; x++)
+                for (int x = 0; x < w1; x++)
                 {
                     float32x4_t _p1 = vld1q_f32(ptr1);
                     float32x4_t _outp = op(_a0, _p1);
@@ -527,7 +529,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 float32x4_t _b0 = vdupq_n_f32(b[0]);
                 const float* ptr = a;
                 float* outptr = c;
-                for (int i=0; i<w; i++)
+                for (int i = 0; i < w; i++)
                 {
                     float32x4_t _p = vld1q_f32(ptr);
                     float32x4_t _outp = op(_p, _b0);
@@ -543,7 +545,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             const float* ptr = a;
             const float* ptr1 = b;
             float* outptr = c;
-            for (int i=0; i<w; i++)
+            for (int i = 0; i < w; i++)
             {
                 float32x4_t _p = vld1q_f32(ptr);
                 float32x4_t _p1 = vld1q_f32(ptr1);
@@ -572,11 +574,11 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
     float32x4_t _b = vdupq_n_f32(b);
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         float* ptr = a.channel(q);
 
-        for (int i=0; i<size; i++)
+        for (int i = 0; i < size; i++)
         {
             float32x4_t _p = vld1q_f32(ptr);
             _p = op(_p, _b);
@@ -588,49 +590,87 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
     return 0;
 }
 
-struct binary_op_add_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const { return vaddq_f32(x, y); }
+struct binary_op_add_pack4
+{
+    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
+    {
+        return vaddq_f32(x, y);
+    }
 };
 
-struct binary_op_sub_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const { return vsubq_f32(x, y); }
+struct binary_op_sub_pack4
+{
+    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
+    {
+        return vsubq_f32(x, y);
+    }
 };
 
-struct binary_op_mul_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const { return vmulq_f32(x, y); }
+struct binary_op_mul_pack4
+{
+    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
+    {
+        return vmulq_f32(x, y);
+    }
 };
 
-struct binary_op_div_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const
+struct binary_op_div_pack4
+{
+    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
 #if __aarch64__
-    { return vdivq_f32(x, y); }
+    {
+        return vdivq_f32(x, y);
+    }
 #else
-    { return div_ps(x, y); }
+    {
+        return div_ps(x, y);
+    }
 #endif
 };
 
-struct binary_op_max_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const { return vmaxq_f32(x, y); }
+struct binary_op_max_pack4
+{
+    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
+    {
+        return vmaxq_f32(x, y);
+    }
 };
 
-struct binary_op_min_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const { return vminq_f32(x, y); }
+struct binary_op_min_pack4
+{
+    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
+    {
+        return vminq_f32(x, y);
+    }
 };
 
-struct binary_op_pow_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const { return pow_ps(x, y); }
+struct binary_op_pow_pack4
+{
+    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
+    {
+        return pow_ps(x, y);
+    }
 };
 
-struct binary_op_rsub_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const { return vsubq_f32(y, x); }
+struct binary_op_rsub_pack4
+{
+    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
+    {
+        return vsubq_f32(y, x);
+    }
 };
 
-struct binary_op_rdiv_pack4 {
-    float32x4_t operator() (const float32x4_t& x, const float32x4_t& y) const
+struct binary_op_rdiv_pack4
+{
+    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
 #if __aarch64__
-    { return vdivq_f32(y, x); }
+    {
+        return vdivq_f32(y, x);
+    }
 #else
-    { return div_ps(y, x); }
+    {
+        return div_ps(y, x);
+    }
 #endif
 };
 #endif // __ARM_NEON
@@ -757,7 +797,7 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                     return -100;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const unsigned short* ptr = a.channel(q);
                     unsigned short* outptr = c.channel(q);
@@ -812,7 +852,7 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                     return -100;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels1; q++)
+                for (int q = 0; q < channels1; q++)
                 {
                     const unsigned short* a0 = a.channel(q);
                     unsigned short* outptr = c.channel(q);
@@ -865,13 +905,13 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const unsigned short* ptr = a.channel(q);
                 const unsigned short* ptr1 = b.channel(q);
                 unsigned short* outptr = c.channel(q);
 
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                     float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
@@ -894,16 +934,16 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
         {
             // type 18
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const unsigned short* ptr = a.channel(q);
                 const unsigned short* ptr1 = b.row<const unsigned short>(q);
                 unsigned short* outptr = c.channel(q);
 
-                for (int y=0; y<h; y++)
+                for (int y = 0; y < h; y++)
                 {
                     float32x4_t _b0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
-                    for (int x=0; x<w; x++)
+                    for (int x = 0; x < w; x++)
                     {
                         float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                         float32x4_t _outp = op(_p, _b0);
@@ -926,12 +966,12 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                 // type 16
                 float32x4_t _b0 = vdupq_n_f32(bfloat16_to_float32(((const unsigned short*)b)[0]));
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const unsigned short* ptr = a.channel(q);
                     unsigned short* outptr = c.channel(q);
 
-                    for (int i=0; i<size; i++)
+                    for (int i = 0; i < size; i++)
                     {
                         float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                         float32x4_t _outp = op(_p, _b0);
@@ -946,13 +986,13 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
 
             // type 17
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const unsigned short* ptr = a.channel(q);
                 float32x4_t _b0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16((const unsigned short*)b + q * 4), 16));
                 unsigned short* outptr = c.channel(q);
 
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                     float32x4_t _outp = op(_p, _b0);
@@ -975,16 +1015,16 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels1; q++)
+            for (int q = 0; q < channels1; q++)
             {
                 const unsigned short* ptr = a.row<const unsigned short>(q);
                 const unsigned short* ptr1 = b.channel(q);
                 unsigned short* outptr = c.channel(q);
 
-                for (int y=0; y<h1; y++)
+                for (int y = 0; y < h1; y++)
                 {
                     float32x4_t _a0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-                    for (int x=0; x<w1; x++)
+                    for (int x = 0; x < w1; x++)
                     {
                         float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
                         float32x4_t _outp = op(_a0, _p1);
@@ -1010,7 +1050,7 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
             const unsigned short* ptr = a;
             const unsigned short* ptr1 = b;
             unsigned short* outptr = c;
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                 float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
@@ -1036,7 +1076,7 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                 float32x4_t _b0 = vdupq_n_f32(bfloat16_to_float32(((const unsigned short*)b)[0]));
                 const unsigned short* ptr = a;
                 unsigned short* outptr = c;
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                     float32x4_t _outp = op(_p, _b0);
@@ -1053,10 +1093,10 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
             const unsigned short* ptr1 = b;
             unsigned short* outptr = c;
 
-            for (int y=0; y<h; y++)
+            for (int y = 0; y < h; y++)
             {
                 float32x4_t _b0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
-                for (int x=0; x<w; x++)
+                for (int x = 0; x < w; x++)
                 {
                     float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                     float32x4_t _outp = op(_p, _b0);
@@ -1084,12 +1124,12 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
 
                 float32x4_t _a0 = vdupq_n_f32(bfloat16_to_float32(((const unsigned short*)a)[0]));
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels1; q++)
+                for (int q = 0; q < channels1; q++)
                 {
                     const unsigned short* ptr1 = b.channel(q);
                     unsigned short* outptr = c.channel(q);
 
-                    for (int i=0; i<size1; i++)
+                    for (int i = 0; i < size1; i++)
                     {
                         float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
                         float32x4_t _outp = op(_a0, _p1);
@@ -1112,7 +1152,7 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                 float32x4_t _a0 = vdupq_n_f32(bfloat16_to_float32(((const unsigned short*)a)[0]));
                 const unsigned short* ptr1 = b;
                 unsigned short* outptr = c;
-                for (int i=0; i<size1; i++)
+                for (int i = 0; i < size1; i++)
                 {
                     float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
                     float32x4_t _outp = op(_a0, _p1);
@@ -1134,7 +1174,7 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                 float32x4_t _a0 = vdupq_n_f32(bfloat16_to_float32(((const unsigned short*)a)[0]));
                 const unsigned short* ptr1 = b;
                 unsigned short* outptr = c;
-                for (int i=0; i<w1; i++)
+                for (int i = 0; i < w1; i++)
                 {
                     float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
                     float32x4_t _outp = op(_a0, _p1);
@@ -1155,13 +1195,13 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels1; q++)
+            for (int q = 0; q < channels1; q++)
             {
                 float32x4_t _a0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16((const unsigned short*)a + q * 4), 16));
                 const unsigned short* ptr1 = b.channel(q);
                 unsigned short* outptr = c.channel(q);
 
-                for (int i=0; i<size1; i++)
+                for (int i = 0; i < size1; i++)
                 {
                     float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
                     float32x4_t _outp = op(_a0, _p1);
@@ -1185,10 +1225,10 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
             const unsigned short* ptr1 = b;
             unsigned short* outptr = c;
 
-            for (int y=0; y<h1; y++)
+            for (int y = 0; y < h1; y++)
             {
                 float32x4_t _a0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-                for (int x=0; x<w1; x++)
+                for (int x = 0; x < w1; x++)
                 {
                     float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
                     float32x4_t _outp = op(_a0, _p1);
@@ -1215,7 +1255,7 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                 float32x4_t _b0 = vdupq_n_f32(bfloat16_to_float32(((const unsigned short*)b)[0]));
                 const unsigned short* ptr = a;
                 unsigned short* outptr = c;
-                for (int i=0; i<w; i++)
+                for (int i = 0; i < w; i++)
                 {
                     float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                     float32x4_t _outp = op(_p, _b0);
@@ -1231,7 +1271,7 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
             const unsigned short* ptr = a;
             const unsigned short* ptr1 = b;
             unsigned short* outptr = c;
-            for (int i=0; i<w; i++)
+            for (int i = 0; i < w; i++)
             {
                 float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                 float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
@@ -1260,11 +1300,11 @@ static int binary_op_scalar_inplace_pack4_bf16s(Mat& a, float b, const Option& o
     float32x4_t _b = vdupq_n_f32(b);
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         unsigned short* ptr = a.channel(q);
 
-        for (int i=0; i<size; i++)
+        for (int i = 0; i < size; i++)
         {
             float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
             _p = op(_p, _b);
@@ -1391,13 +1431,13 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const unsigned short* ptr = a.channel(q);
                 const unsigned short* ptr1 = b.channel(q);
                 unsigned short* outptr = c.channel(q);
 
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     outptr[i] = float32_to_bfloat16(op(bfloat16_to_float32(ptr[i]), bfloat16_to_float32(ptr1[i])));
                 }
@@ -1414,16 +1454,16 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
         {
             // type 18
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const unsigned short* ptr = a.channel(q);
                 const unsigned short* ptr1 = b.row<const unsigned short>(q);
                 unsigned short* outptr = c.channel(q);
 
-                for (int y=0; y<h; y++)
+                for (int y = 0; y < h; y++)
                 {
                     const float b0 = bfloat16_to_float32(ptr1[y]);
-                    for (int x=0; x<w; x++)
+                    for (int x = 0; x < w; x++)
                     {
                         outptr[x] = float32_to_bfloat16(op(bfloat16_to_float32(ptr[x]), b0));
                     }
@@ -1443,12 +1483,12 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 // type 16
                 const float b0 = bfloat16_to_float32(((const unsigned short*)b)[0]);
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const unsigned short* ptr = a.channel(q);
                     unsigned short* outptr = c.channel(q);
 
-                    for (int i=0; i<size; i++)
+                    for (int i = 0; i < size; i++)
                     {
                         outptr[i] = float32_to_bfloat16(op(bfloat16_to_float32(ptr[i]), b0));
                     }
@@ -1459,13 +1499,13 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
             // type 17
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const unsigned short* ptr = a.channel(q);
                 const float b0 = bfloat16_to_float32(((const unsigned short*)b)[q]);
                 unsigned short* outptr = c.channel(q);
 
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     outptr[i] = float32_to_bfloat16(op(bfloat16_to_float32(ptr[i]), b0));
                 }
@@ -1484,16 +1524,16 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels1; q++)
+            for (int q = 0; q < channels1; q++)
             {
                 const unsigned short* ptr = a.row<const unsigned short>(q);
                 const unsigned short* ptr1 = b.channel(q);
                 unsigned short* outptr = c.channel(q);
 
-                for (int y=0; y<h1; y++)
+                for (int y = 0; y < h1; y++)
                 {
                     const float a0 = bfloat16_to_float32(ptr[y]);
-                    for (int x=0; x<w1; x++)
+                    for (int x = 0; x < w1; x++)
                     {
                         outptr[x] = float32_to_bfloat16(op(a0, bfloat16_to_float32(ptr1[x])));
                     }
@@ -1516,7 +1556,7 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
             const unsigned short* ptr = a;
             const unsigned short* ptr1 = b;
             unsigned short* outptr = c;
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 outptr[i] = float32_to_bfloat16(op(bfloat16_to_float32(ptr[i]), bfloat16_to_float32(ptr1[i])));
             }
@@ -1536,7 +1576,7 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 const float b0 = bfloat16_to_float32(((const unsigned short*)b)[0]);
                 const unsigned short* ptr = a;
                 unsigned short* outptr = c;
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     outptr[i] = float32_to_bfloat16(op(bfloat16_to_float32(ptr[i]), b0));
                 }
@@ -1548,10 +1588,10 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
             const unsigned short* ptr = a;
             unsigned short* outptr = c;
 
-            for (int y=0; y<h; y++)
+            for (int y = 0; y < h; y++)
             {
                 const float b0 = bfloat16_to_float32(((const unsigned short*)b)[y]);
-                for (int x=0; x<w; x++)
+                for (int x = 0; x < w; x++)
                 {
                     outptr[x] = float32_to_bfloat16(op(bfloat16_to_float32(ptr[x]), b0));
                 }
@@ -1576,12 +1616,12 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
                 const float a0 = bfloat16_to_float32(((const unsigned short*)a)[0]);
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels1; q++)
+                for (int q = 0; q < channels1; q++)
                 {
                     const unsigned short* ptr1 = b.channel(q);
                     unsigned short* outptr = c.channel(q);
 
-                    for (int i=0; i<size1; i++)
+                    for (int i = 0; i < size1; i++)
                     {
                         outptr[i] = float32_to_bfloat16(op(a0, bfloat16_to_float32(ptr1[i])));
                     }
@@ -1600,7 +1640,7 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 const float a0 = bfloat16_to_float32(((const unsigned short*)a)[0]);
                 const unsigned short* ptr1 = b;
                 unsigned short* outptr = c;
-                for (int i=0; i<size1; i++)
+                for (int i = 0; i < size1; i++)
                 {
                     outptr[i] = float32_to_bfloat16(op(a0, bfloat16_to_float32(ptr1[i])));
                 }
@@ -1618,7 +1658,7 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 const float a0 = bfloat16_to_float32(((const unsigned short*)a)[0]);
                 const unsigned short* ptr1 = b;
                 unsigned short* outptr = c;
-                for (int i=0; i<w1; i++)
+                for (int i = 0; i < w1; i++)
                 {
                     outptr[i] = float32_to_bfloat16(op(a0, bfloat16_to_float32(ptr1[i])));
                 }
@@ -1635,13 +1675,13 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 return -100;
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels1; q++)
+            for (int q = 0; q < channels1; q++)
             {
                 const float a0 = bfloat16_to_float32(((const unsigned short*)a)[q]);
                 const unsigned short* ptr1 = b.channel(q);
                 unsigned short* outptr = c.channel(q);
 
-                for (int i=0; i<size1; i++)
+                for (int i = 0; i < size1; i++)
                 {
                     outptr[i] = float32_to_bfloat16(op(a0, bfloat16_to_float32(ptr1[i])));
                 }
@@ -1660,10 +1700,10 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
             const unsigned short* ptr1 = b;
             unsigned short* outptr = c;
 
-            for (int y=0; y<h1; y++)
+            for (int y = 0; y < h1; y++)
             {
                 const float a0 = bfloat16_to_float32(((const unsigned short*)a)[y]);
-                for (int x=0; x<w1; x++)
+                for (int x = 0; x < w1; x++)
                 {
                     outptr[x] = float32_to_bfloat16(op(a0, bfloat16_to_float32(ptr1[x])));
                 }
@@ -1687,7 +1727,7 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 const float b0 = bfloat16_to_float32(((const unsigned short*)b)[0]);
                 const unsigned short* ptr = a;
                 unsigned short* outptr = c;
-                for (int i=0; i<w; i++)
+                for (int i = 0; i < w; i++)
                 {
                     outptr[i] = float32_to_bfloat16(op(bfloat16_to_float32(ptr[i]), b0));
                 }
@@ -1699,7 +1739,7 @@ static int binary_op_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
             const unsigned short* ptr = a;
             const unsigned short* ptr1 = b;
             unsigned short* outptr = c;
-            for (int i=0; i<w; i++)
+            for (int i = 0; i < w; i++)
             {
                 outptr[i] = float32_to_bfloat16(op(bfloat16_to_float32(ptr[i]), bfloat16_to_float32(ptr1[i])));
             }
@@ -1720,11 +1760,11 @@ static int binary_op_scalar_inplace_bf16s(Mat& a, float b, const Option& opt)
     int size = w * h;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         unsigned short* ptr = a.channel(q);
 
-        for (int i=0; i<size; i++)
+        for (int i = 0; i < size; i++)
         {
             ptr[i] = float32_to_bfloat16(op(bfloat16_to_float32(ptr[i]), b));
         }
@@ -1733,40 +1773,76 @@ static int binary_op_scalar_inplace_bf16s(Mat& a, float b, const Option& opt)
     return 0;
 }
 
-struct binary_op_add {
-    float operator() (const float& x, const float& y) const { return x + y; }
+struct binary_op_add
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return x + y;
+    }
 };
 
-struct binary_op_sub {
-    float operator() (const float& x, const float& y) const { return x - y; }
+struct binary_op_sub
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return x - y;
+    }
 };
 
-struct binary_op_mul {
-    float operator() (const float& x, const float& y) const { return x * y; }
+struct binary_op_mul
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return x * y;
+    }
 };
 
-struct binary_op_div {
-    float operator() (const float& x, const float& y) const { return x / y; }
+struct binary_op_div
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return x / y;
+    }
 };
 
-struct binary_op_max {
-    float operator() (const float& x, const float& y) const { return std::max(x, y); }
+struct binary_op_max
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return std::max(x, y);
+    }
 };
 
-struct binary_op_min {
-    float operator() (const float& x, const float& y) const { return std::min(x, y); }
+struct binary_op_min
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return std::min(x, y);
+    }
 };
 
-struct binary_op_pow {
-    float operator() (const float& x, const float& y) const { return (float)pow(x, y); }
+struct binary_op_pow
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return (float)pow(x, y);
+    }
 };
 
-struct binary_op_rsub {
-    float operator() (const float& x, const float& y) const { return y - x; }
+struct binary_op_rsub
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return y - x;
+    }
 };
 
-struct binary_op_rdiv {
-    float operator() (const float& x, const float& y) const { return y / x; }
+struct binary_op_rdiv
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return y / x;
+    }
 };
 
 int BinaryOp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const

@@ -40,32 +40,31 @@ int AbsVal_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
-
-    if (elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        if (elempack == 4)
         {
-            float* ptr = bottom_top_blob.channel(q);
-
-            for (int i=0; i<size; i++)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
             {
-                float32x4_t _p = vld1q_f32(ptr);
-                _p = vabsq_f32(_p);
-                vst1q_f32(ptr, _p);
+                float* ptr = bottom_top_blob.channel(q);
 
-                ptr += 4;
+                for (int i = 0; i < size; i++)
+                {
+                    float32x4_t _p = vld1q_f32(ptr);
+                    _p = vabsq_f32(_p);
+                    vst1q_f32(ptr, _p);
+
+                    ptr += 4;
+                }
             }
+
+            return 0;
         }
 
-        return 0;
-    }
-
-    } // opt.use_packing_layout
+    }  // opt.use_packing_layout
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
@@ -80,41 +79,39 @@ int AbsVal_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __aarch64__
         if (nn > 0)
         {
-        asm volatile(
-            "0:                               \n"
-            "prfm       pldl1keep, [%1, #128] \n"
-            "ld1        {v0.4s}, [%1]         \n"
-            "fabs       v0.4s, v0.4s          \n"
-            "subs       %w0, %w0, #1          \n"
-            "st1        {v0.4s}, [%1], #16    \n"
-            "bne        0b                    \n"
-            : "=r"(nn),     // %0
-              "=r"(ptr)     // %1
-            : "0"(nn),
-              "1"(ptr)
-            : "cc", "memory", "v0"
-        );
+            asm volatile(
+                "0:                               \n"
+                "prfm       pldl1keep, [%1, #128] \n"
+                "ld1        {v0.4s}, [%1]         \n"
+                "fabs       v0.4s, v0.4s          \n"
+                "subs       %w0, %w0, #1          \n"
+                "st1        {v0.4s}, [%1], #16    \n"
+                "bne        0b                    \n"
+                : "=r"(nn), // %0
+                "=r"(ptr) // %1
+                : "0"(nn),
+                "1"(ptr)
+                : "cc", "memory", "v0");
         }
 #else
         if (nn > 0)
         {
-        asm volatile(
-            "0:                             \n"
-            "vld1.f32   {d0-d1}, [%1]       \n"
-            "vabs.f32   q0, q0              \n"
-            "subs       %0, #1              \n"
-            "vst1.f32   {d0-d1}, [%1]!      \n"
-            "bne        0b                  \n"
-            : "=r"(nn),     // %0
-              "=r"(ptr)     // %1
-            : "0"(nn),
-              "1"(ptr)
-            : "cc", "memory", "q0"
-        );
+            asm volatile(
+                "0:                             \n"
+                "vld1.f32   {d0-d1}, [%1]       \n"
+                "vabs.f32   q0, q0              \n"
+                "subs       %0, #1              \n"
+                "vst1.f32   {d0-d1}, [%1]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn), // %0
+                "=r"(ptr) // %1
+                : "0"(nn),
+                "1"(ptr)
+                : "cc", "memory", "q0");
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
-        for (; remain>0; remain--)
+        for (; remain > 0; remain--)
         {
             *ptr = *ptr > 0 ? *ptr : -*ptr;
 

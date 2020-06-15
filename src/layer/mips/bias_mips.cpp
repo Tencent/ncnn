@@ -15,8 +15,9 @@
 #include "bias_mips.h"
 
 #if __MIPS_MSA
-#include <msa.h>
 #include "mips_common.h"
+
+#include <msa.h>
 #endif // __MIPS_MSA
 
 namespace ncnn {
@@ -32,7 +33,7 @@ int Bias_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     const float* bias_ptr = bias_data;
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
@@ -47,7 +48,7 @@ int Bias_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
 #if __MIPS_MSA
         v4f32 _bias = (v4f32)__msa_fill_w_f32(bias);
-        for (; nn>0; nn--)
+        for (; nn > 0; nn--)
         {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             v4f32 _outp = __msa_fadd_w(_p, _bias);
@@ -57,7 +58,7 @@ int Bias_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
 #endif // __MIPS_MSA
 
-        for (; remain>0; remain--)
+        for (; remain > 0; remain--)
         {
             *ptr = *ptr + bias;
             ptr++;

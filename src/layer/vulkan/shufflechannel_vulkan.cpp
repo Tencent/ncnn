@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "shufflechannel_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -165,8 +167,8 @@ int ShuffleChannel_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, Vk
     constants[9].i = top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_shufflechannel_pack8
-                             : elempack == 4 ? pipeline_shufflechannel_pack4
-                             : pipeline_shufflechannel;
+                               : elempack == 4 ? pipeline_shufflechannel_pack4
+                               : pipeline_shufflechannel;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -194,16 +196,16 @@ int ShuffleChannel_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& to
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
     constants[3].i = bottom_blob.c;
-    constants[4].i = 0;//bottom_blob.cstep;
+    constants[4].i = 0; //bottom_blob.cstep;
     constants[5].i = top_blob.dims;
     constants[6].i = top_blob.w;
     constants[7].i = top_blob.h;
     constants[8].i = top_blob.c;
-    constants[9].i = 0;//top_blob.cstep;
+    constants[9].i = 0; //top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_shufflechannel_pack8
-                             : elempack == 4 ? pipeline_shufflechannel_pack4
-                             : pipeline_shufflechannel;
+                               : elempack == 4 ? pipeline_shufflechannel_pack4
+                               : pipeline_shufflechannel;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

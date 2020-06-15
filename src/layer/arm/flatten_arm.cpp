@@ -47,141 +47,140 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int channels = bottom_blob.c;
+        size_t elemsize = bottom_blob.elemsize;
+        int elempack = bottom_blob.elempack;
+        int size = w * h;
 
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-    int size = w * h;
+        int total = size * channels * elempack;
 
-    int total = size * channels * elempack;
+        int out_elempack = total % 4 == 0 ? 4 : 1;
+        size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    int out_elempack = total % 4 == 0 ? 4 : 1;
-    size_t out_elemsize = elemsize / elempack * out_elempack;
-
-    if (dims == 2 && elempack == 1)
-    {
-        top_blob = bottom_blob;
-        top_blob.dims = 1;
-        top_blob.w = total / out_elempack;
-        top_blob.h = 1;
-        top_blob.cstep = top_blob.w;
-        top_blob.elemsize = out_elemsize;
-        top_blob.elempack = out_elempack;
-        return 0;
-    }
-
-    top_blob.create(total / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    if (dims == 2 && elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i=0; i<h; i++)
+        if (dims == 2 && elempack == 1)
         {
-            const float* ptr = bottom_blob.row(i);
-            float* outptr0 = (float*)top_blob + w * i*4;
-            float* outptr1 = (float*)top_blob + w * (i*4 + 1);
-            float* outptr2 = (float*)top_blob + w * (i*4 + 2);
-            float* outptr3 = (float*)top_blob + w * (i*4 + 3);
-
-            int j=0;
-            for (; j+3<w; j+=4)
-            {
-                float32x4x4_t _v4 = vld4q_f32(ptr);
-                vst1q_f32(outptr0, _v4.val[0]);
-                vst1q_f32(outptr1, _v4.val[1]);
-                vst1q_f32(outptr2, _v4.val[2]);
-                vst1q_f32(outptr3, _v4.val[3]);
-
-                ptr += 16;
-                outptr0 += 4;
-                outptr1 += 4;
-                outptr2 += 4;
-                outptr3 += 4;
-            }
-            for (; j<w; j++)
-            {
-                *outptr0++ = ptr[0];
-                *outptr1++ = ptr[1];
-                *outptr2++ = ptr[2];
-                *outptr3++ = ptr[3];
-
-                ptr += 4;
-            }
+            top_blob = bottom_blob;
+            top_blob.dims = 1;
+            top_blob.w = total / out_elempack;
+            top_blob.h = 1;
+            top_blob.cstep = top_blob.w;
+            top_blob.elemsize = out_elemsize;
+            top_blob.elempack = out_elempack;
+            return 0;
         }
 
-        return 0;
-    }
+        top_blob.create(total / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
 
-    if (dims == 3 && elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        if (dims == 2 && elempack == 4)
         {
-            const float* ptr = bottom_blob.channel(q);
-            float* outptr0 = (float*)top_blob + size * q*4;
-            float* outptr1 = (float*)top_blob + size * (q*4 + 1);
-            float* outptr2 = (float*)top_blob + size * (q*4 + 2);
-            float* outptr3 = (float*)top_blob + size * (q*4 + 3);
-
-            int i=0;
-            for (; i+3<size; i+=4)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
             {
-                float32x4x4_t _v4 = vld4q_f32(ptr);
-                vst1q_f32(outptr0, _v4.val[0]);
-                vst1q_f32(outptr1, _v4.val[1]);
-                vst1q_f32(outptr2, _v4.val[2]);
-                vst1q_f32(outptr3, _v4.val[3]);
+                const float* ptr = bottom_blob.row(i);
+                float* outptr0 = (float*)top_blob + w * i * 4;
+                float* outptr1 = (float*)top_blob + w * (i * 4 + 1);
+                float* outptr2 = (float*)top_blob + w * (i * 4 + 2);
+                float* outptr3 = (float*)top_blob + w * (i * 4 + 3);
 
-                ptr += 16;
-                outptr0 += 4;
-                outptr1 += 4;
-                outptr2 += 4;
-                outptr3 += 4;
-            }
-            for (; i<size; i++)
-            {
-                *outptr0++ = ptr[0];
-                *outptr1++ = ptr[1];
-                *outptr2++ = ptr[2];
-                *outptr3++ = ptr[3];
+                int j = 0;
+                for (; j + 3 < w; j += 4)
+                {
+                    float32x4x4_t _v4 = vld4q_f32(ptr);
+                    vst1q_f32(outptr0, _v4.val[0]);
+                    vst1q_f32(outptr1, _v4.val[1]);
+                    vst1q_f32(outptr2, _v4.val[2]);
+                    vst1q_f32(outptr3, _v4.val[3]);
 
-                ptr += 4;
+                    ptr += 16;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                    outptr2 += 4;
+                    outptr3 += 4;
+                }
+                for (; j < w; j++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+
+                    ptr += 4;
+                }
             }
+
+            return 0;
         }
 
-        return 0;
-    }
-
-    if (dims == 3 && elempack == 1 && out_elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        if (dims == 3 && elempack == 4)
         {
-            const float* ptr = bottom_blob.channel(q);
-            float* outptr = (float*)top_blob + size * q;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+                float* outptr0 = (float*)top_blob + size * q * 4;
+                float* outptr1 = (float*)top_blob + size * (q * 4 + 1);
+                float* outptr2 = (float*)top_blob + size * (q * 4 + 2);
+                float* outptr3 = (float*)top_blob + size * (q * 4 + 3);
 
-            int i=0;
-            for (; i+3<size; i+=4)
-            {
-                float32x4_t _v = vld1q_f32(ptr);
-                vst1q_f32(outptr, _v);
-                ptr += 4;
-                outptr += 4;
+                int i = 0;
+                for (; i + 3 < size; i += 4)
+                {
+                    float32x4x4_t _v4 = vld4q_f32(ptr);
+                    vst1q_f32(outptr0, _v4.val[0]);
+                    vst1q_f32(outptr1, _v4.val[1]);
+                    vst1q_f32(outptr2, _v4.val[2]);
+                    vst1q_f32(outptr3, _v4.val[3]);
+
+                    ptr += 16;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                    outptr2 += 4;
+                    outptr3 += 4;
+                }
+                for (; i < size; i++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+
+                    ptr += 4;
+                }
             }
-            for (; i<size; i++)
-            {
-                *outptr++ = *ptr++;
-            }
+
+            return 0;
         }
 
-        return 0;
-    }
+        if (dims == 3 && elempack == 1 && out_elempack == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+                float* outptr = (float*)top_blob + size * q;
 
-    } // opt.use_packing_layout
+                int i = 0;
+                for (; i + 3 < size; i += 4)
+                {
+                    float32x4_t _v = vld1q_f32(ptr);
+                    vst1q_f32(outptr, _v);
+                    ptr += 4;
+                    outptr += 4;
+                }
+                for (; i < size; i++)
+                {
+                    *outptr++ = *ptr++;
+                }
+            }
+
+            return 0;
+        }
+
+    }  // opt.use_packing_layout
 #endif // __ARM_NEON
 
     return Flatten::forward(bottom_blob, top_blob, opt);
@@ -200,141 +199,140 @@ int Flatten_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int channels = bottom_blob.c;
+        size_t elemsize = bottom_blob.elemsize;
+        int elempack = bottom_blob.elempack;
+        int size = w * h;
 
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-    int size = w * h;
+        int total = size * channels * elempack;
 
-    int total = size * channels * elempack;
+        int out_elempack = total % 4 == 0 ? 4 : 1;
+        size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    int out_elempack = total % 4 == 0 ? 4 : 1;
-    size_t out_elemsize = elemsize / elempack * out_elempack;
-
-    if (dims == 2 && elempack == 1)
-    {
-        top_blob = bottom_blob;
-        top_blob.dims = 1;
-        top_blob.w = total / out_elempack;
-        top_blob.h = 1;
-        top_blob.cstep = top_blob.w;
-        top_blob.elemsize = out_elemsize;
-        top_blob.elempack = out_elempack;
-        return 0;
-    }
-
-    top_blob.create(total / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    if (dims == 2 && elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i=0; i<h; i++)
+        if (dims == 2 && elempack == 1)
         {
-            const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
-            unsigned short* outptr0 = (unsigned short*)top_blob + w * i*4;
-            unsigned short* outptr1 = (unsigned short*)top_blob + w * (i*4 + 1);
-            unsigned short* outptr2 = (unsigned short*)top_blob + w * (i*4 + 2);
-            unsigned short* outptr3 = (unsigned short*)top_blob + w * (i*4 + 3);
-
-            int j=0;
-            for (; j+3<w; j+=4)
-            {
-                uint16x4x4_t _v4 = vld4_u16(ptr);
-                vst1_u16(outptr0, _v4.val[0]);
-                vst1_u16(outptr1, _v4.val[1]);
-                vst1_u16(outptr2, _v4.val[2]);
-                vst1_u16(outptr3, _v4.val[3]);
-
-                ptr += 16;
-                outptr0 += 4;
-                outptr1 += 4;
-                outptr2 += 4;
-                outptr3 += 4;
-            }
-            for (; j<w; j++)
-            {
-                *outptr0++ = ptr[0];
-                *outptr1++ = ptr[1];
-                *outptr2++ = ptr[2];
-                *outptr3++ = ptr[3];
-
-                ptr += 4;
-            }
+            top_blob = bottom_blob;
+            top_blob.dims = 1;
+            top_blob.w = total / out_elempack;
+            top_blob.h = 1;
+            top_blob.cstep = top_blob.w;
+            top_blob.elemsize = out_elemsize;
+            top_blob.elempack = out_elempack;
+            return 0;
         }
 
-        return 0;
-    }
+        top_blob.create(total / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
 
-    if (dims == 3 && elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        if (dims == 2 && elempack == 4)
         {
-            const unsigned short* ptr = bottom_blob.channel(q);
-            unsigned short* outptr0 = (unsigned short*)top_blob + size * q*4;
-            unsigned short* outptr1 = (unsigned short*)top_blob + size * (q*4 + 1);
-            unsigned short* outptr2 = (unsigned short*)top_blob + size * (q*4 + 2);
-            unsigned short* outptr3 = (unsigned short*)top_blob + size * (q*4 + 3);
-
-            int i=0;
-            for (; i+3<size; i+=4)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
             {
-                uint16x4x4_t _v4 = vld4_u16(ptr);
-                vst1_u16(outptr0, _v4.val[0]);
-                vst1_u16(outptr1, _v4.val[1]);
-                vst1_u16(outptr2, _v4.val[2]);
-                vst1_u16(outptr3, _v4.val[3]);
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
+                unsigned short* outptr0 = (unsigned short*)top_blob + w * i * 4;
+                unsigned short* outptr1 = (unsigned short*)top_blob + w * (i * 4 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + w * (i * 4 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + w * (i * 4 + 3);
 
-                ptr += 16;
-                outptr0 += 4;
-                outptr1 += 4;
-                outptr2 += 4;
-                outptr3 += 4;
-            }
-            for (; i<size; i++)
-            {
-                *outptr0++ = ptr[0];
-                *outptr1++ = ptr[1];
-                *outptr2++ = ptr[2];
-                *outptr3++ = ptr[3];
+                int j = 0;
+                for (; j + 3 < w; j += 4)
+                {
+                    uint16x4x4_t _v4 = vld4_u16(ptr);
+                    vst1_u16(outptr0, _v4.val[0]);
+                    vst1_u16(outptr1, _v4.val[1]);
+                    vst1_u16(outptr2, _v4.val[2]);
+                    vst1_u16(outptr3, _v4.val[3]);
 
-                ptr += 4;
+                    ptr += 16;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                    outptr2 += 4;
+                    outptr3 += 4;
+                }
+                for (; j < w; j++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+
+                    ptr += 4;
+                }
             }
+
+            return 0;
         }
 
-        return 0;
-    }
-
-    if (dims == 3 && elempack == 1 && out_elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        if (dims == 3 && elempack == 4)
         {
-            const unsigned short* ptr = bottom_blob.channel(q);
-            unsigned short* outptr = (unsigned short*)top_blob + size * q;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                unsigned short* outptr0 = (unsigned short*)top_blob + size * q * 4;
+                unsigned short* outptr1 = (unsigned short*)top_blob + size * (q * 4 + 1);
+                unsigned short* outptr2 = (unsigned short*)top_blob + size * (q * 4 + 2);
+                unsigned short* outptr3 = (unsigned short*)top_blob + size * (q * 4 + 3);
 
-            int i=0;
-            for (; i+3<size; i+=4)
-            {
-                uint16x4_t _v = vld1_u16(ptr);
-                vst1_u16(outptr, _v);
-                ptr += 4;
-                outptr += 4;
+                int i = 0;
+                for (; i + 3 < size; i += 4)
+                {
+                    uint16x4x4_t _v4 = vld4_u16(ptr);
+                    vst1_u16(outptr0, _v4.val[0]);
+                    vst1_u16(outptr1, _v4.val[1]);
+                    vst1_u16(outptr2, _v4.val[2]);
+                    vst1_u16(outptr3, _v4.val[3]);
+
+                    ptr += 16;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                    outptr2 += 4;
+                    outptr3 += 4;
+                }
+                for (; i < size; i++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+
+                    ptr += 4;
+                }
             }
-            for (; i<size; i++)
-            {
-                *outptr++ = *ptr++;
-            }
+
+            return 0;
         }
 
-        return 0;
-    }
+        if (dims == 3 && elempack == 1 && out_elempack == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const unsigned short* ptr = bottom_blob.channel(q);
+                unsigned short* outptr = (unsigned short*)top_blob + size * q;
 
-    } // opt.use_packing_layout
+                int i = 0;
+                for (; i + 3 < size; i += 4)
+                {
+                    uint16x4_t _v = vld1_u16(ptr);
+                    vst1_u16(outptr, _v);
+                    ptr += 4;
+                    outptr += 4;
+                }
+                for (; i < size; i++)
+                {
+                    *outptr++ = *ptr++;
+                }
+            }
+
+            return 0;
+        }
+
+    }  // opt.use_packing_layout
 #endif // __ARM_NEON
 
     return Flatten::forward(bottom_blob, top_blob, opt);
