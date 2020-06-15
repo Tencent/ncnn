@@ -53,7 +53,7 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
     // TODO
     return InnerProduct::forward(bottom_blob, top_blob, opt);
   }
-
+#if __AVX__
   int w = bottom_blob.w;
   int h = bottom_blob.h;
   int channels = bottom_blob.c;
@@ -72,32 +72,10 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
 #pragma omp parallel for num_threads(opt.num_threads)
   for (int pp = 0; pp < nn_num_output; pp++) {
     int p = pp * 8;
-#if __AVX__
     __m256 _sum = _mm256_set1_ps(0.f);
     if (bias_term) {
       _sum = _mm256_loadu_ps(&bias_data[p]);
     }
-#else
-    float sum0 = 0.f;
-    float sum1 = 0.f;
-    float sum2 = 0.f;
-    float sum3 = 0.f;
-    float sum4 = 0.f;
-    float sum5 = 0.f;
-    float sum6 = 0.f;
-    float sum7 = 0.f;
-
-    if (bias_term) {
-      sum0 = bias_data[p];
-      sum1 = bias_data[p + 1];
-      sum2 = bias_data[p + 2];
-      sum3 = bias_data[p + 3];
-      sum4 = bias_data[p + 4];
-      sum5 = bias_data[p + 5];
-      sum6 = bias_data[p + 6];
-      sum7 = bias_data[p + 7];
-    }
-#endif
 
     const float *w0 = weight_data_ptr + size * channels * p;
     const float *w1 = weight_data_ptr + size * channels * (p + 1);
@@ -108,7 +86,6 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
     const float *w6 = weight_data_ptr + size * channels * (p + 6);
     const float *w7 = weight_data_ptr + size * channels * (p + 7);
 
-#if __AVX__
     __m256 _sum0 = _mm256_set1_ps(0.f);
     __m256 _sum1 = _mm256_set1_ps(0.f);
     __m256 _sum2 = _mm256_set1_ps(0.f);
@@ -117,23 +94,12 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
     __m256 _sum5 = _mm256_set1_ps(0.f);
     __m256 _sum6 = _mm256_set1_ps(0.f);
     __m256 _sum7 = _mm256_set1_ps(0.f);
-#endif // __AVX__
-
     // channels
     for (int q = 0; q < channels; q++) {
       const float *m = bottom_blob.channel(q);
-
-#if __AVX__
       int nn = size >> 3;
       int remain = size & 7;
-      nn = 0;
-#else
-      int remain = size;
-#endif // __AVX__
 
-      remain = size;
-
-#if __AVX__
       for (; nn > 0; nn--) {
         __m256 _m = _mm256_loadu_ps(m);
 
@@ -196,102 +162,6 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
       sums = activation_ps(_mm256_add_ps(sums, _sum), activation_type,
                            activation_params);
       _mm256_storeu_ps(&top_blob[p], sums);
-#else
-      for (; remain > 0; remain--) {
-        sum0 += *m * *w0;
-        sum1 += *m * *w1;
-        sum2 += *m * *w2;
-        sum3 += *m * *w3;
-        sum4 += *m * *w4;
-        sum5 += *m * *w5;
-        sum6 += *m * *w6;
-        sum7 += *m * *w7;
-
-        m++;
-        w0++;
-        w1++;
-        w2++;
-        w3++;
-        w4++;
-        w5++;
-        w6++;
-        w7++;
-      }
-
-      if (activation_type == 1) {
-        sum0 = std::max(sum0, 0.f);
-        sum1 = std::max(sum1, 0.f);
-        sum2 = std::max(sum2, 0.f);
-        sum3 = std::max(sum3, 0.f);
-        sum4 = std::max(sum4, 0.f);
-        sum5 = std::max(sum5, 0.f);
-        sum6 = std::max(sum6, 0.f);
-        sum7 = std::max(sum7, 0.f);
-      } else if (activation_type == 2) {
-        float slope = activation_params[0];
-        sum0 = sum0 > 0.f ? sum0 : sum0 * slope;
-        sum1 = sum1 > 0.f ? sum1 : sum1 * slope;
-        sum2 = sum2 > 0.f ? sum2 : sum2 * slope;
-        sum3 = sum3 > 0.f ? sum3 : sum3 * slope;
-        sum4 = sum4 > 0.f ? sum4 : sum4 * slope;
-        sum5 = sum5 > 0.f ? sum5 : sum5 * slope;
-        sum6 = sum6 > 0.f ? sum6 : sum6 * slope;
-        sum7 = sum7 > 0.f ? sum7 : sum7 * slope;
-      } else if (activation_type == 3) {
-        float min = activation_params[0];
-        float max = activation_params[1];
-        if (sum0 < min)
-          sum0 = min;
-        if (sum0 > max)
-          sum0 = max;
-        if (sum1 < min)
-          sum1 = min;
-        if (sum1 > max)
-          sum1 = max;
-        if (sum2 < min)
-          sum2 = min;
-        if (sum2 > max)
-          sum2 = max;
-        if (sum3 < min)
-          sum3 = min;
-        if (sum3 > max)
-          sum3 = max;
-        if (sum4 < min)
-          sum4 = min;
-        if (sum4 > max)
-          sum4 = max;
-        if (sum5 < min)
-          sum5 = min;
-        if (sum5 > max)
-          sum5 = max;
-        if (sum6 < min)
-          sum6 = min;
-        if (sum6 > max)
-          sum6 = max;
-        if (sum7 < min)
-          sum7 = min;
-        if (sum7 > max)
-          sum7 = max;
-      } else if (activation_type == 4) {
-        sum0 = static_cast<float>(1.f / (1.f + exp(-sum0)));
-        sum1 = static_cast<float>(1.f / (1.f + exp(-sum1)));
-        sum2 = static_cast<float>(1.f / (1.f + exp(-sum2)));
-        sum3 = static_cast<float>(1.f / (1.f + exp(-sum3)));
-        sum4 = static_cast<float>(1.f / (1.f + exp(-sum4)));
-        sum5 = static_cast<float>(1.f / (1.f + exp(-sum5)));
-        sum6 = static_cast<float>(1.f / (1.f + exp(-sum6)));
-        sum7 = static_cast<float>(1.f / (1.f + exp(-sum7)));
-      }
-
-      top_blob[p] = sum0;
-      top_blob[p + 1] = sum1;
-      top_blob[p + 2] = sum2;
-      top_blob[p + 3] = sum3;
-      top_blob[p + 4] = sum4;
-      top_blob[p + 5] = sum5;
-      top_blob[p + 6] = sum6;
-      top_blob[p + 7] = sum7;
-#endif
     }
   }
 
@@ -305,23 +175,13 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
 
     const float *w = weight_data_ptr + size * channels * p;
 
-#if __AVX__
     __m256 _sum = _mm256_set1_ps(0.f);
-#endif // __AVX__
-
     // channels
     for (int q = 0; q < channels; q++) {
       const float *m = bottom_blob.channel(q);
 
-#if __AVX__
       int nn = size >> 3;
       int remain = size & 7;
-      nn = 0;
-#else
-      int remain = size;
-#endif // __AVX__
-      remain = size;
-#if __AVX__
       for (; nn > 0; nn--) {
         __m256 _m = _mm256_loadu_ps(m);
 
@@ -331,24 +191,22 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
         m += 8;
         w += 8;
       }
-#endif // __AVX__
       for (; remain > 0; remain--) {
         sum += *m * *w;
-
         m++;
         w++;
       }
     }
 
-#if __AVX__
     sum += _mm256_reduce_add_ps(_sum);
-#endif // __AVX__
     sum = activation_ss(sum, activation_type, activation_params);
 
     top_blob[p] = sum;
   }
-
   return 0;
+#else
+  return InnerProduct::forward(bottom_blob, top_blob, opt);
+#endif // __AVX__
 }
 
 } // namespace ncnn

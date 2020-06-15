@@ -57,7 +57,7 @@ static inline __m256 prelu_avx(__m256 inputs, __m256 alphas) {
 static inline float activation_ss(float v, int activation_type,
                                   const ncnn::Mat &activation_params) {
   if (activation_type == 1) {
-    v = std::max(v, 0.f);
+    v = fmax(v, 0.f);
   } else if (activation_type == 2) {
     float slope = activation_params[0];
     v = v > 0.f ? v : v * slope;
