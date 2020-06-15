@@ -2280,113 +2280,118 @@ VulkanDevice* get_gpu_device(int device_index)
 
 #if NCNN_VULKAN_ONLINE_SPIRV
 
-const TBuiltInResource default_TBuiltInResource = {
-    /* .MaxLights = */ 32,
-    /* .MaxClipPlanes = */ 6,
-    /* .MaxTextureUnits = */ 32,
-    /* .MaxTextureCoords = */ 32,
-    /* .MaxVertexAttribs = */ 64,
-    /* .MaxVertexUniformComponents = */ 4096,
-    /* .MaxVaryingFloats = */ 64,
-    /* .MaxVertexTextureImageUnits = */ 32,
-    /* .MaxCombinedTextureImageUnits = */ 80,
-    /* .MaxTextureImageUnits = */ 32,
-    /* .MaxFragmentUniformComponents = */ 4096,
-    /* .MaxDrawBuffers = */ 32,
-    /* .MaxVertexUniformVectors = */ 128,
-    /* .MaxVaryingVectors = */ 8,
-    /* .MaxFragmentUniformVectors = */ 16,
-    /* .MaxVertexOutputVectors = */ 16,
-    /* .MaxFragmentInputVectors = */ 15,
-    /* .MinProgramTexelOffset = */ -8,
-    /* .MaxProgramTexelOffset = */ 7,
-    /* .MaxClipDistances = */ 8,
-    /* .MaxComputeWorkGroupCountX = */ 65535,
-    /* .MaxComputeWorkGroupCountY = */ 65535,
-    /* .MaxComputeWorkGroupCountZ = */ 65535,
-    /* .MaxComputeWorkGroupSizeX = */ 1024,
-    /* .MaxComputeWorkGroupSizeY = */ 1024,
-    /* .MaxComputeWorkGroupSizeZ = */ 64,
-    /* .MaxComputeUniformComponents = */ 1024,
-    /* .MaxComputeTextureImageUnits = */ 16,
-    /* .MaxComputeImageUniforms = */ 8,
-    /* .MaxComputeAtomicCounters = */ 8,
-    /* .MaxComputeAtomicCounterBuffers = */ 1,
-    /* .MaxVaryingComponents = */ 60,
-    /* .MaxVertexOutputComponents = */ 64,
-    /* .MaxGeometryInputComponents = */ 64,
-    /* .MaxGeometryOutputComponents = */ 128,
-    /* .MaxFragmentInputComponents = */ 128,
-    /* .MaxImageUnits = */ 8,
-    /* .MaxCombinedImageUnitsAndFragmentOutputs = */ 8,
-    /* .MaxCombinedShaderOutputResources = */ 8,
-    /* .MaxImageSamples = */ 0,
-    /* .MaxVertexImageUniforms = */ 0,
-    /* .MaxTessControlImageUniforms = */ 0,
-    /* .MaxTessEvaluationImageUniforms = */ 0,
-    /* .MaxGeometryImageUniforms = */ 0,
-    /* .MaxFragmentImageUniforms = */ 8,
-    /* .MaxCombinedImageUniforms = */ 8,
-    /* .MaxGeometryTextureImageUnits = */ 16,
-    /* .MaxGeometryOutputVertices = */ 256,
-    /* .MaxGeometryTotalOutputComponents = */ 1024,
-    /* .MaxGeometryUniformComponents = */ 1024,
-    /* .MaxGeometryVaryingComponents = */ 64,
-    /* .MaxTessControlInputComponents = */ 128,
-    /* .MaxTessControlOutputComponents = */ 128,
-    /* .MaxTessControlTextureImageUnits = */ 16,
-    /* .MaxTessControlUniformComponents = */ 1024,
-    /* .MaxTessControlTotalOutputComponents = */ 4096,
-    /* .MaxTessEvaluationInputComponents = */ 128,
-    /* .MaxTessEvaluationOutputComponents = */ 128,
-    /* .MaxTessEvaluationTextureImageUnits = */ 16,
-    /* .MaxTessEvaluationUniformComponents = */ 1024,
-    /* .MaxTessPatchComponents = */ 120,
-    /* .MaxPatchVertices = */ 32,
-    /* .MaxTessGenLevel = */ 64,
-    /* .MaxViewports = */ 16,
-    /* .MaxVertexAtomicCounters = */ 0,
-    /* .MaxTessControlAtomicCounters = */ 0,
-    /* .MaxTessEvaluationAtomicCounters = */ 0,
-    /* .MaxGeometryAtomicCounters = */ 0,
-    /* .MaxFragmentAtomicCounters = */ 8,
-    /* .MaxCombinedAtomicCounters = */ 8,
-    /* .MaxAtomicCounterBindings = */ 1,
-    /* .MaxVertexAtomicCounterBuffers = */ 0,
-    /* .MaxTessControlAtomicCounterBuffers = */ 0,
-    /* .MaxTessEvaluationAtomicCounterBuffers = */ 0,
-    /* .MaxGeometryAtomicCounterBuffers = */ 0,
-    /* .MaxFragmentAtomicCounterBuffers = */ 1,
-    /* .MaxCombinedAtomicCounterBuffers = */ 1,
-    /* .MaxAtomicCounterBufferSize = */ 16384,
-    /* .MaxTransformFeedbackBuffers = */ 4,
-    /* .MaxTransformFeedbackInterleavedComponents = */ 64,
-    /* .MaxCullDistances = */ 8,
-    /* .MaxCombinedClipAndCullDistances = */ 8,
-    /* .MaxSamples = */ 4,
-    /* .maxMeshOutputVerticesNV = */ 256,
-    /* .maxMeshOutputPrimitivesNV = */ 512,
-    /* .maxMeshWorkGroupSizeX_NV = */ 32,
-    /* .maxMeshWorkGroupSizeY_NV = */ 1,
-    /* .maxMeshWorkGroupSizeZ_NV = */ 1,
-    /* .maxTaskWorkGroupSizeX_NV = */ 32,
-    /* .maxTaskWorkGroupSizeY_NV = */ 1,
-    /* .maxTaskWorkGroupSizeZ_NV = */ 1,
-    /* .maxMeshViewCountNV = */ 4,
-    /* .maxDualSourceDrawBuffersEXT = */ 1,
+static TBuiltInResource get_default_TBuiltInResource()
+{
+    TBuiltInResource resource;
 
-    /* .limits = */ {
-        /* .nonInductiveForLoops = */ 1,
-        /* .whileLoops = */ 1,
-        /* .doWhileLoops = */ 1,
-        /* .generalUniformIndexing = */ 1,
-        /* .generalAttributeMatrixVectorIndexing = */ 1,
-        /* .generalVaryingIndexing = */ 1,
-        /* .generalSamplerIndexing = */ 1,
-        /* .generalVariableIndexing = */ 1,
-        /* .generalConstantMatrixVectorIndexing = */ 1,
-    }
-};
+    resource.maxLights = 32;
+    resource.maxClipPlanes = 6;
+    resource.maxTextureUnits = 32;
+    resource.maxTextureCoords = 32;
+    resource.maxVertexAttribs = 64;
+    resource.maxVertexUniformComponents = 4096;
+    resource.maxVaryingFloats = 64;
+    resource.maxVertexTextureImageUnits = 32;
+    resource.maxCombinedTextureImageUnits = 80;
+    resource.maxTextureImageUnits = 32;
+    resource.maxFragmentUniformComponents = 4096;
+    resource.maxDrawBuffers = 32;
+    resource.maxVertexUniformVectors = 128;
+    resource.maxVaryingVectors = 8;
+    resource.maxFragmentUniformVectors = 16;
+    resource.maxVertexOutputVectors = 16;
+    resource.maxFragmentInputVectors = 15;
+    resource.minProgramTexelOffset = -8;
+    resource.maxProgramTexelOffset = 7;
+    resource.maxClipDistances = 8;
+    resource.maxComputeWorkGroupCountX = 65535;
+    resource.maxComputeWorkGroupCountY = 65535;
+    resource.maxComputeWorkGroupCountZ = 65535;
+    resource.maxComputeWorkGroupSizeX = 1024;
+    resource.maxComputeWorkGroupSizeY = 1024;
+    resource.maxComputeWorkGroupSizeZ = 64;
+    resource.maxComputeUniformComponents = 1024;
+    resource.maxComputeTextureImageUnits = 16;
+    resource.maxComputeImageUniforms = 8;
+    resource.maxComputeAtomicCounters = 8;
+    resource.maxComputeAtomicCounterBuffers = 1;
+    resource.maxVaryingComponents = 60;
+    resource.maxVertexOutputComponents = 64;
+    resource.maxGeometryInputComponents = 64;
+    resource.maxGeometryOutputComponents = 128;
+    resource.maxFragmentInputComponents = 128;
+    resource.maxImageUnits = 8;
+    resource.maxCombinedImageUnitsAndFragmentOutputs = 8;
+    resource.maxCombinedShaderOutputResources = 8;
+    resource.maxImageSamples = 0;
+    resource.maxVertexImageUniforms = 0;
+    resource.maxTessControlImageUniforms = 0;
+    resource.maxTessEvaluationImageUniforms = 0;
+    resource.maxGeometryImageUniforms = 0;
+    resource.maxFragmentImageUniforms = 8;
+    resource.maxCombinedImageUniforms = 8;
+    resource.maxGeometryTextureImageUnits = 16;
+    resource.maxGeometryOutputVertices = 256;
+    resource.maxGeometryTotalOutputComponents = 1024;
+    resource.maxGeometryUniformComponents = 1024;
+    resource.maxGeometryVaryingComponents = 64;
+    resource.maxTessControlInputComponents = 128;
+    resource.maxTessControlOutputComponents = 128;
+    resource.maxTessControlTextureImageUnits = 16;
+    resource.maxTessControlUniformComponents = 1024;
+    resource.maxTessControlTotalOutputComponents = 4096;
+    resource.maxTessEvaluationInputComponents = 128;
+    resource.maxTessEvaluationOutputComponents = 128;
+    resource.maxTessEvaluationTextureImageUnits = 16;
+    resource.maxTessEvaluationUniformComponents = 1024;
+    resource.maxTessPatchComponents = 120;
+    resource.maxPatchVertices = 32;
+    resource.maxTessGenLevel = 64;
+    resource.maxViewports = 16;
+    resource.maxVertexAtomicCounters = 0;
+    resource.maxTessControlAtomicCounters = 0;
+    resource.maxTessEvaluationAtomicCounters = 0;
+    resource.maxGeometryAtomicCounters = 0;
+    resource.maxFragmentAtomicCounters = 8;
+    resource.maxCombinedAtomicCounters = 8;
+    resource.maxAtomicCounterBindings = 1;
+    resource.maxVertexAtomicCounterBuffers = 0;
+    resource.maxTessControlAtomicCounterBuffers = 0;
+    resource.maxTessEvaluationAtomicCounterBuffers = 0;
+    resource.maxGeometryAtomicCounterBuffers = 0;
+    resource.maxFragmentAtomicCounterBuffers = 1;
+    resource.maxCombinedAtomicCounterBuffers = 1;
+    resource.maxAtomicCounterBufferSize = 16384;
+    resource.maxTransformFeedbackBuffers = 4;
+    resource.maxTransformFeedbackInterleavedComponents = 64;
+    resource.maxCullDistances = 8;
+    resource.maxCombinedClipAndCullDistances = 8;
+    resource.maxSamples = 4;
+    resource.maxMeshOutputVerticesNV = 256;
+    resource.maxMeshOutputPrimitivesNV = 512;
+    resource.maxMeshWorkGroupSizeX_NV = 32;
+    resource.maxMeshWorkGroupSizeY_NV = 1;
+    resource.maxMeshWorkGroupSizeZ_NV = 1;
+    resource.maxTaskWorkGroupSizeX_NV = 32;
+    resource.maxTaskWorkGroupSizeY_NV = 1;
+    resource.maxTaskWorkGroupSizeZ_NV = 1;
+    resource.maxMeshViewCountNV = 4;
+
+    // TODO compile-time glslang version check
+    // resource.maxDualSourceDrawBuffersEXT = 1;
+
+    resource.limits.nonInductiveForLoops = 1;
+    resource.limits.whileLoops = 1;
+    resource.limits.doWhileLoops = 1;
+    resource.limits.generalUniformIndexing = 1;
+    resource.limits.generalAttributeMatrixVectorIndexing = 1;
+    resource.limits.generalVaryingIndexing = 1;
+    resource.limits.generalSamplerIndexing = 1;
+    resource.limits.generalVariableIndexing = 1;
+    resource.limits.generalConstantMatrixVectorIndexing = 1;
+
+    return resource;
+}
 
 int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<uint32_t>& spirv)
 {
@@ -2779,7 +2784,7 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
         s.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_0);
         s.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_0);
 
-        TBuiltInResource resources = default_TBuiltInResource;
+        TBuiltInResource resources = get_default_TBuiltInResource();
 
         // although vulkan 1.1 accept glsl directly
         // ncnn resolve_shader_info() only works with the intermediate spirv code
