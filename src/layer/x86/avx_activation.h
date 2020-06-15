@@ -20,8 +20,9 @@
 #include "avx_mathfun.h"
 #endif
 
+#include <math.h>
 #include "mat.h"
-#include "math.h"
+
 #ifdef __AVX__
 
 static inline __m256 sigmoid_avx(__m256 inputs) {

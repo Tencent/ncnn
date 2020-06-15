@@ -16,10 +16,10 @@
 // the License.
 #include <algorithm>
 
-// #ifdef NCNN_AVX2
+#ifdef __AVX__
 #include "avx_activation.h"
 #include "avx_usability.h"
-// #endif // NCNN_AVX2
+#endif // NCNN_AVX2
 
 #include "innerproduct_x86.h"
 
@@ -54,7 +54,7 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
         // TODO
         return InnerProduct::forward(bottom_blob, top_blob, opt);
     }
-#if NCNN_AVX2
+#if __AVX__
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;

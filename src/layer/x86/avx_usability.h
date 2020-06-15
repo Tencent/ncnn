@@ -16,6 +16,7 @@
 // the License.
 #ifndef AVX_USABILITY
 #define AVX_USABILITY
+#include <immintrin.h>
 
 static inline __m256 HorizontalSums(__m256 v0, __m256 v1, __m256 v2, __m256 v3, __m256 v4,
                                     __m256 v5, __m256 v6, __m256 v7) {
