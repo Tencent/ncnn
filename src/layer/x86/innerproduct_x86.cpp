@@ -14,20 +14,17 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
+#include <algorithm>
+
+// #ifdef NCNN_AVX2
+#include "avx_activation.h"
+#include "avx_usability.h"
+// #endif // NCNN_AVX2
 
 #include "innerproduct_x86.h"
 
 #include "layer_type.h"
 
-#include "avx_activation.h"
-
-#if NCNN_AVX2
-
-#include "avx_usability.h"
-#include <emmintrin.h>
-#include <immintrin.h>
-
-#endif // __AVX__
 
 namespace ncnn {
 
@@ -57,7 +54,7 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
         // TODO
         return InnerProduct::forward(bottom_blob, top_blob, opt);
     }
-#if __AVX__
+#if NCNN_AVX2
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
@@ -76,10 +73,19 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++) {
         int p = pp * 8;
-        __m256 _sum = _mm256_set1_ps(0.f);
+
+        float sums[8] = {0.0f};
         if (bias_term) {
-            _sum = _mm256_loadu_ps(&bias_data[p]);
+            sums[0] = bias_data[p];
+            sums[1] = bias_data[p + 1];
+            sums[2] = bias_data[p + 2];
+            sums[3] = bias_data[p + 3];
+            sums[4] = bias_data[p + 4];
+            sums[5] = bias_data[p + 5];
+            sums[6] = bias_data[p + 6];
+            sums[7] = bias_data[p + 7];
         }
+
 
         const float *w0 = weight_data_ptr + size * channels * p;
         const float *w1 = weight_data_ptr + size * channels * (p + 1);
@@ -142,14 +148,14 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
                 w7 += 8;
             }
             for (; remain > 0; remain--) {
-                _sum[0] += *m * *w0;
-                _sum[1] += *m * *w1;
-                _sum[2] += *m * *w2;
-                _sum[3] += *m * *w3;
-                _sum[4] += *m * *w4;
-                _sum[5] += *m * *w5;
-                _sum[6] += *m * *w6;
-                _sum[7] += *m * *w7;
+                sums[0] += *m * *w0;
+                sums[1] += *m * *w1;
+                sums[2] += *m * *w2;
+                sums[3] += *m * *w3;
+                sums[4] += *m * *w4;
+                sums[5] += *m * *w5;
+                sums[6] += *m * *w6;
+                sums[7] += *m * *w7;
 
                 m++;
                 w0++;
@@ -161,11 +167,12 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
                 w6++;
                 w7++;
             }
-            __m256 sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5,
-                                         _sum6, _sum7);
-            sums = activation_ps(_mm256_add_ps(sums, _sum), activation_type,
-                                 activation_params);
-            _mm256_storeu_ps(&top_blob[p], sums);
+            __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5,
+                                          _sum6, _sum7);
+            __m256 _sums_f = _mm256_loadu_ps(&sums[0]);
+            _sums = activation_ps(_mm256_add_ps(_sums_f, _sums), activation_type,
+                                  activation_params);
+            _mm256_storeu_ps(&top_blob[p], _sums);
         }
     }
 

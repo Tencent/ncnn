@@ -14,10 +14,15 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
-
-#if __AVX__
+#ifndef AVX_ACTIVATION
+#define AVX_ACTIVATION
+#ifdef __AVX__
 #include "avx_mathfun.h"
-#include <immintrin.h>
+#endif
+
+#include "mat.h"
+#include "math.h"
+#ifdef __AVX__
 
 static inline __m256 sigmoid_avx(__m256 inputs) {
     const __m256 one = _mm256_set1_ps(1.0f);
@@ -52,32 +57,6 @@ static inline __m256 prelu_avx(__m256 inputs, __m256 alphas) {
     return _mm256_add_ps(pos, neg);
 }
 
-#endif // __AVX__
-
-static inline float activation_ss(float v, int activation_type,
-                                  const ncnn::Mat &activation_params) {
-    if (activation_type == 1) {
-        v = fmax(v, 0.f);
-    } else if (activation_type == 2) {
-        float slope = activation_params[0];
-        v = v > 0.f ? v : v * slope;
-    } else if (activation_type == 3) {
-        float min = activation_params[0];
-        float max = activation_params[1];
-        if (v < min)
-            v = min;
-        if (v > max)
-            v = max;
-    } else if (activation_type == 4) {
-        v = 1.f / (1.f + exp(-v));
-    } else if (activation_type == 5) {
-        v = v * tanh(log(exp(v) + 1.f));
-    }
-
-    return v;
-}
-
-#if __AVX__
 static inline __m256 activation_ps(__m256 _v, int activation_type,
                                    const ncnn::Mat &activation_params) {
     // Process fused activations
@@ -102,4 +81,28 @@ static inline __m256 activation_ps(__m256 _v, int activation_type,
 
     return _v;
 }
-#endif // __AVX__
+#endif
+static inline float activation_ss(float v, int activation_type,
+                                  const ncnn::Mat &activation_params) {
+    if (activation_type == 1) {
+        v = fmax(v, 0.f);
+    } else if (activation_type == 2) {
+        float slope = activation_params[0];
+        v = v > 0.f ? v : v * slope;
+    } else if (activation_type == 3) {
+        float min = activation_params[0];
+        float max = activation_params[1];
+        if (v < min)
+            v = min;
+        if (v > max)
+            v = max;
+    } else if (activation_type == 4) {
+        v = 1.f / (1.f + exp(-v));
+    } else if (activation_type == 5) {
+        v = v * tanh(log(exp(v) + 1.f));
+    }
+
+    return v;
+}
+
+#endif

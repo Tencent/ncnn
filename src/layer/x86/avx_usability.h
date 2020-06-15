@@ -14,13 +14,11 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
+#ifndef AVX_USABILITY
+#define AVX_USABILITY
 
-#if __AVX__
-#include "avx_mathfun.h"
-#include <immintrin.h>
-
-__m256 HorizontalSums(__m256 v0, __m256 v1, __m256 v2, __m256 v3, __m256 v4,
-                      __m256 v5, __m256 v6, __m256 v7) {
+static inline __m256 HorizontalSums(__m256 v0, __m256 v1, __m256 v2, __m256 v3, __m256 v4,
+                                    __m256 v5, __m256 v6, __m256 v7) {
     const __m256 s01 = _mm256_hadd_ps(v0, v1);
     const __m256 s23 = _mm256_hadd_ps(v2, v3);
     const __m256 s45 = _mm256_hadd_ps(v4, v5);
@@ -35,7 +33,7 @@ __m256 HorizontalSums(__m256 v0, __m256 v1, __m256 v2, __m256 v3, __m256 v4,
     return _mm256_add_ps(v0, v1);
 }
 
-__m128 HorizontalSums(__m256 v0, __m256 v1, __m256 v2, __m256 v3) {
+static inline __m128 HorizontalSums(__m256 v0, __m256 v1, __m256 v2, __m256 v3) {
     const __m256 s01 = _mm256_hadd_ps(v0, v1);
     const __m256 s23 = _mm256_hadd_ps(v2, v3);
     const __m256 s0123 = _mm256_hadd_ps(s01, s23);
@@ -54,4 +52,5 @@ static inline float _mm256_reduce_add_ps(__m256 x) {
     /* Conversion to float is a no-op on x86-64 */
     return _mm_cvtss_f32(x32);
 }
-#endif // __AVX__
+
+#endif
