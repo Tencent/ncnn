@@ -118,19 +118,19 @@ static int test_pooling_1()
 static int test_pooling_2()
 {
     return 0
-        || test_pooling(2, 5, 1, 0, 1, 1, 0, 1, 0, 0)
-        || test_pooling(5, 2, 1, 1, 1, 1, 0, 1, 0, 0)
-        || test_pooling(3, 6, 3, 0, 1, 1, 0, 1, 0, 0)
-        || test_pooling(6, 3, 3, 1, 1, 1, 0, 1, 0, 0)
-        || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0)
-        || test_pooling(6, 4, 4, 1, 1, 1, 0, 1, 0, 0)
-        || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0)
-        || test_pooling(7, 8, 8, 1, 1, 1, 0, 1, 0, 0)
-        || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 0)
-        || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 0)
-        || test_pooling(48, 48, 4, 0, 2, 2, 0, 0, 0, 0)
-        || test_pooling(48, 48, 15, 0, 2, 2, 1, 0, 0, 0)
-        ;
+           || test_pooling(2, 5, 1, 0, 1, 1, 0, 1, 0, 0)
+           || test_pooling(5, 2, 1, 1, 1, 1, 0, 1, 0, 0)
+           || test_pooling(3, 6, 3, 0, 1, 1, 0, 1, 0, 0)
+           || test_pooling(6, 3, 3, 1, 1, 1, 0, 1, 0, 0)
+           || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0)
+           || test_pooling(6, 4, 4, 1, 1, 1, 0, 1, 0, 0)
+           || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0)
+           || test_pooling(7, 8, 8, 1, 1, 1, 0, 1, 0, 0)
+           || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 0)
+           || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 0)
+           || test_pooling(48, 48, 4, 0, 2, 2, 0, 0, 0, 0)
+           || test_pooling(48, 48, 15, 0, 2, 2, 1, 0, 0, 0)
+           ;
 }
 
 int main()
