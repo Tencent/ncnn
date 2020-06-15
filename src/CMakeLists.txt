@@ -397,6 +397,7 @@ elseif(NCNN_AVX2)
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC"
         OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
         target_compile_options(ncnn PRIVATE /arch:AVX2 /DAVX2)
+        SET(MSVC_OPT_FLAG "/fp:strict ")
     #Linux
     else()
         target_compile_options(ncnn PRIVATE -mfma -mf16c -mavx2)
