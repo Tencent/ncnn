@@ -57,10 +57,10 @@ typedef union v8sf {
     float inside[8];
 }__m256;
 typedef union v8si {
-    float inside[8];
+    int inside[8];
 }__m256i;
 typedef union v4si {
-    float inside[4];
+    int inside[4];
 }__m128i;
 
 
