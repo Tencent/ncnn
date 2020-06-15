@@ -30,13 +30,14 @@
 */
 #ifndef AVX_MATHFUN
 #define AVX_MATHFUN
-
+#include <immintrin.h>
 #if defined(__clang__) && (defined(__x86_64__) || defined(__i386__))
 /* Clang-compatible compiler, targeting x86/x86-64 */
 #include <x86intrin.h>
 #elif defined(_MSC_VER)
 /* Microsoft C/C++-compatible compiler */
 #include <intrin.h>
+#include <windows.h>
 #if _MSC_VER <= 1900
 #define _mm256_extract_epi64(X, Y) (((uint64_t*)&X)[Y])
 #endif
