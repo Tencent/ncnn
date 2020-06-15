@@ -33,7 +33,7 @@ int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
 
     // max value in NxN window
     // avg value in NxN window
-
+#if __AVX__
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
@@ -54,7 +54,6 @@ int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
     if (pooling_type != PoolMethod_MAX || stride != 2 || global_pooling == 1) {
         return Pooling::forward(bottom_blob, top_blob, opt);
     }
-#if __AVX__
 
     if (kernel_size != 2) {
         return Pooling::forward(bottom_blob, top_blob, opt);
@@ -79,9 +78,7 @@ int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
 
     return 0;
 #else
-    if (kernel_size != 2) {
-        return Pooling::forward(bottom_blob, top_blob, opt);
-    }
+    return Pooling::forward(bottom_blob, top_blob, opt);
 #endif
 }
 
