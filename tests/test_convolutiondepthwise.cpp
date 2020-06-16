@@ -102,6 +102,6 @@ static int test_convolutiondepthwise_0()
 int main()
 {
     SRAND(7767517);
-return 0;
+
     return test_convolutiondepthwise_0();
 }

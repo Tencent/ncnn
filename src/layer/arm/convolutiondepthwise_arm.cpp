@@ -303,6 +303,8 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
         {
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
+                                fprintf(stderr, "%s\n", "TESTINTTN");
+
                 convdw3x3s1_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
                 if (activation)
@@ -314,6 +316,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
             }
             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
+                fprintf(stderr, "%s\n", "TESTINTTN");
                 convdw3x3s2_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
 
                 if (activation)

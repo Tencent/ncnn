@@ -19,7 +19,8 @@
 #include "layer_type.h"
 
 namespace ncnn {
-
+#include "convolutiondepthwise_3x3_pack8.h"
+#include "convolutiondepthwise_5x5_pack8.h"
 #include "convolutiondepthwise_3x3.h"
 #include "convolutiondepthwise_3x3_int8.h"
 
@@ -100,9 +101,19 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
         delete group_ops[i];
 
     group_ops.clear();
-
     if (channels == group && group == num_output)
     {
+        
+        int elempack = (opt.use_packing_layout && channels % 8 == 0) ? 8 : 1;
+        #if __AVX__
+            // pack8
+            if (elempack == 8)
+            {
+                Mat weight_data_r2 = weight_data.reshape(maxk, group);
+                convert_packing(weight_data_r2, weight_data_pack8, 8);
+                return 0;
+            }
+        #endif // __ARM_NEON
         // depth-wise specific
         // special path for both int8 and fp32
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -113,18 +124,6 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
         {
             return 0;
         }
-        int elempack = (opt.use_packing_layout && channels % 8 == 0) ? 8 : 1;
-
-        #if __AVX__
-            // pack8
-            if (elempack == 8)
-            {
-                Mat weight_data_r2 = weight_data.reshape(maxk, group);
-                convert_packing(weight_data_r2, weight_data_pack8, 8);
-
-                return 0;
-            }
-        #endif // __ARM_NEON
     }
 
     const int channels_g = channels / group;
@@ -247,16 +246,17 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = (opt.use_packing_layout && num_output % 8 == 0) ? 8 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
+    // fprintf(stderr, "Depthwise kernel %d x %d elempack=%d group=%d channels = %d stride = %d x %d  \n",kernel_w,kernel_h,elempack,group,channels,stride_w,stride_h );
 
     // depth-wise
-    if (channels == group && group == num_output)
+    if (channels* elempack == group && group == num_output)
     {
         #if __AVX__
         if (elempack == 8)
@@ -272,7 +272,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
                 return 0;
             }
-            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
                 convdw3x3s2_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
 
@@ -283,7 +283,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
                 return 0;
             }
-            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
                 convdw5x5s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
 
@@ -294,7 +294,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
                 return 0;
             }
-            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
                 convdw5x5s2_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
 
