@@ -15,7 +15,7 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 #include <immintrin.h>
-#if (defined _WIN32 && !(defined __MINGW32__))
+#ifdef _WIN32
 #include <windows.h>
 #endif
 static void pooling2x2s2_max_avx(const Mat &bottom_blob, Mat &top_blob,
