@@ -34,6 +34,7 @@ static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int s
     opt.num_threads = 1;
     opt.use_vulkan_compute = true;
     opt.use_int8_inference = false;
+    // fprintf(stderr, "test_pooling failed w=%d h=%d c=%d pooling_type=%d kernel=%d stride=%d pad=%d global_pooling=%d pad_mode=%d avgpool_count_include_pad=%d\n", w, h, c, pooling_type, kernel, stride, pad, global_pooling, pad_mode, avgpool_count_include_pad);
 
     int ret = test_layer<ncnn::Pooling>("Pooling", pd, weights, opt, a);
     if (ret != 0)
@@ -126,7 +127,10 @@ static int test_pooling_2()
            || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0)
            || test_pooling(7, 8, 8, 1, 1, 1, 0, 1, 0, 0)
            || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 0)
-           || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 0);
+           || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 0)
+           || test_pooling(48, 48, 4, 0, 2, 2, 0, 0, 0, 0)
+           || test_pooling(48, 48, 15, 0, 2, 2, 1, 0, 0, 0)
+           ;
 }
 
 int main()
