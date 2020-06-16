@@ -11,10 +11,10 @@ mkdir -p $ANDROIDPKGNAME/arm64-v8a
 mkdir -p $ANDROIDPKGNAME/x86
 mkdir -p $ANDROIDPKGNAME/x86_64
 mkdir -p $ANDROIDPKGNAME/include
-cp build-android-armv7/install/lib/lib${NAME}.a $ANDROIDPKGNAME/armeabi-v7a/
-cp build-android-aarch64/install/lib/lib${NAME}.a $ANDROIDPKGNAME/arm64-v8a/
-cp build-android-x86/install/lib/lib${NAME}.a $ANDROIDPKGNAME/x86/
-cp build-android-x86_64/install/lib/lib${NAME}.a $ANDROIDPKGNAME/x86_64/
+cp build-android-armv7/install/lib/lib*.a $ANDROIDPKGNAME/armeabi-v7a/
+cp build-android-aarch64/install/lib/lib*.a $ANDROIDPKGNAME/arm64-v8a/
+cp build-android-x86/install/lib/lib*.a $ANDROIDPKGNAME/x86/
+cp build-android-x86_64/install/lib/lib*.a $ANDROIDPKGNAME/x86_64/
 cp -r build-android-aarch64/install/include/* $ANDROIDPKGNAME/include/
 rm -f $ANDROIDPKGNAME.zip
 zip -9 -r $ANDROIDPKGNAME.zip $ANDROIDPKGNAME
@@ -38,7 +38,7 @@ rm -f $IOSPKGNAME.zip
 zip -9 -y -r $IOSPKGNAME.zip $IOSPKGNAME
 
 ##### package ios framework bitcode
-IOSPKGNAME=${NAME}-bitcode.framework
+IOSPKGNAME=${NAME}.framework
 rm -rf $IOSPKGNAME
 mkdir -p $IOSPKGNAME/Versions/A/Headers
 mkdir -p $IOSPKGNAME/Versions/A/Resources
@@ -52,8 +52,8 @@ lipo -create \
     -o $IOSPKGNAME/Versions/A/${NAME}
 cp -r build-ios-bitcode/install/include/* $IOSPKGNAME/Versions/A/Headers/
 cp Info.plist ${IOSPKGNAME}/Versions/A/Resources/
-rm -f $IOSPKGNAME.zip
-zip -9 -y -r $IOSPKGNAME.zip $IOSPKGNAME
+rm -f $IOSPKGNAME-bitcode.zip
+zip -9 -y -r $IOSPKGNAME-bitcode.zip $IOSPKGNAME
 
 
 ##### package android lib vulkan
@@ -65,16 +65,16 @@ mkdir -p $ANDROIDPKGNAME/arm64-v8a
 mkdir -p $ANDROIDPKGNAME/x86
 mkdir -p $ANDROIDPKGNAME/x86_64
 mkdir -p $ANDROIDPKGNAME/include
-cp build-android-armv7-vulkan/install/lib/lib${NAME}.a $ANDROIDPKGNAME/armeabi-v7a/
-cp build-android-aarch64-vulkan/install/lib/lib${NAME}.a $ANDROIDPKGNAME/arm64-v8a/
-cp build-android-x86-vulkan/install/lib/lib${NAME}.a $ANDROIDPKGNAME/x86/
-cp build-android-x86_64-vulkan/install/lib/lib${NAME}.a $ANDROIDPKGNAME/x86_64/
+cp build-android-armv7-vulkan/install/lib/lib*.a $ANDROIDPKGNAME/armeabi-v7a/
+cp build-android-aarch64-vulkan/install/lib/lib*.a $ANDROIDPKGNAME/arm64-v8a/
+cp build-android-x86-vulkan/install/lib/lib*.a $ANDROIDPKGNAME/x86/
+cp build-android-x86_64-vulkan/install/lib/lib*.a $ANDROIDPKGNAME/x86_64/
 cp -r build-android-aarch64-vulkan/install/include/* $ANDROIDPKGNAME/include/
 rm -f $ANDROIDPKGNAME.zip
 zip -9 -r $ANDROIDPKGNAME.zip $ANDROIDPKGNAME
 
 ##### package ios framework vulkan
-IOSPKGNAME=${NAME}-vulkan.framework
+IOSPKGNAME=${NAME}.framework
 rm -rf $IOSPKGNAME
 mkdir -p $IOSPKGNAME/Versions/A/Headers
 mkdir -p $IOSPKGNAME/Versions/A/Resources
@@ -88,11 +88,11 @@ lipo -create \
     -o $IOSPKGNAME/Versions/A/${NAME}
 cp -r build-ios-vulkan/install/include/* $IOSPKGNAME/Versions/A/Headers/
 cp Info.plist ${IOSPKGNAME}/Versions/A/Resources/
-rm -f $IOSPKGNAME.zip
-zip -9 -y -r $IOSPKGNAME.zip $IOSPKGNAME
+rm -f $IOSPKGNAME-vulkan.zip
+zip -9 -y -r $IOSPKGNAME-vulkan.zip $IOSPKGNAME
 
 ##### package ios framework vulkan bitcode
-IOSPKGNAME=${NAME}-vulkan-bitcode.framework
+IOSPKGNAME=${NAME}.framework
 rm -rf $IOSPKGNAME
 mkdir -p $IOSPKGNAME/Versions/A/Headers
 mkdir -p $IOSPKGNAME/Versions/A/Resources
@@ -106,5 +106,5 @@ lipo -create \
     -o $IOSPKGNAME/Versions/A/${NAME}
 cp -r build-ios-vulkan-bitcode/install/include/* $IOSPKGNAME/Versions/A/Headers/
 cp Info.plist ${IOSPKGNAME}/Versions/A/Resources/
-rm -f $IOSPKGNAME.zip
-zip -9 -y -r $IOSPKGNAME.zip $IOSPKGNAME
+rm -f $IOSPKGNAME-vulkan-bitcode.zip
+zip -9 -y -r $IOSPKGNAME-vulkan-bitcode.zip $IOSPKGNAME
