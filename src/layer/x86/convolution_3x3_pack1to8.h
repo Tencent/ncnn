@@ -232,8 +232,6 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
     int remain_outch_start = 0;
 
 #if __AVX__
-    fprintf(stderr,"pack 1 to 8 s2 avx\n");
-
     nn_outch = outch >> 1;
     remain_outch_start = nn_outch << 1;
 
