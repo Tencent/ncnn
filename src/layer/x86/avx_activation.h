@@ -84,7 +84,7 @@ static inline __m256 activation_ps(__m256 _v, int activation_type,
         // Sigmoid
         return sigmoid_avx(_v);
     } else if (activation_type == 5) {
-        return tanh_avx(_v);
+        return mish_avx(_v);
     }
 
     return _v;

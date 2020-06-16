@@ -38,7 +38,6 @@ int Mish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int channels = bottom_top_blob.c;
     int size = w * h;
     int elempack = bottom_top_blob.elempack;
-    fprintf(stderr, "mish elempack = %d \n", elempack);
 #if __AVX__
     if (elempack == 8)
     {
@@ -66,7 +65,6 @@ int Mish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
 
         int remain = size;
-
         for (; remain > 0; remain--)
         {
             *ptr = *ptr * tanh(log(exp(*ptr) + 1.f));

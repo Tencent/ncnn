@@ -30,8 +30,8 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
-    // int create_pipeline_int8_x86(const Option& opt);
-    // int forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    int create_pipeline_int8_x86(const Option& opt);
+    int forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:

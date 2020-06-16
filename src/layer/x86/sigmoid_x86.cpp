@@ -40,12 +40,9 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int channels = bottom_top_blob.c;
     int size = w * h;
     int elempack = bottom_top_blob.elempack;
-    fprintf(stderr,"SIGMOID x86 input %d x %d  elempack = %d \n",w,h,elempack);
-
 #if __AVX__
      if (elempack == 8)
     {
-        fprintf(stderr,"SIGMOID ABX\n");
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {

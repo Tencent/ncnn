@@ -41,8 +41,6 @@ int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int elempack = bottom_top_blob.elempack;
 
 #if __AVX__
-                fprintf(stderr, "RELU elempack = %d \n",elempack);
-
     if (elempack == 8)
     {
         if (slope == 0.f)
@@ -62,7 +60,6 @@ int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
         else
         {   
-            fprintf(stderr, "LEAKY RELU\n");
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {

@@ -55,25 +55,25 @@ static void conv3x3s1_pack8to1_avx(const Mat& bottom_blob, Mat& top_blob, const 
             const float* r1 = img0.row(1);
             const float* r2 = img0.row(2);
 
-            float32x4_t _k00_0 = vld1q_f32(k0);
-            float32x4_t _k01_0 = vld1q_f32(k0 + 4);
-            float32x4_t _k02_0 = vld1q_f32(k0 + 8);
-            float32x4_t _k10_0 = vld1q_f32(k0 + 12);
-            float32x4_t _k11_0 = vld1q_f32(k0 + 16);
-            float32x4_t _k12_0 = vld1q_f32(k0 + 20);
-            float32x4_t _k20_0 = vld1q_f32(k0 + 24);
-            float32x4_t _k21_0 = vld1q_f32(k0 + 28);
-            float32x4_t _k22_0 = vld1q_f32(k0 + 32);
+            __m256 _k00_0 = _mm256_loadu_ps(k0);
+            __m256 _k01_0 = _mm256_loadu_ps(k0 + 8);
+            __m256 _k02_0 = _mm256_loadu_ps(k0 + 16);
+            __m256 _k10_0 = _mm256_loadu_ps(k0 + 24);
+            __m256 _k11_0 = _mm256_loadu_ps(k0 + 32);
+            __m256 _k12_0 = _mm256_loadu_ps(k0 + 40);
+            __m256 _k20_0 = _mm256_loadu_ps(k0 + 48);
+            __m256 _k21_0 = _mm256_loadu_ps(k0 + 56);
+            __m256 _k22_0 = _mm256_loadu_ps(k0 + 64);
 
-            float32x4_t _k00_1 = vld1q_f32(k1);
-            float32x4_t _k01_1 = vld1q_f32(k1 + 4);
-            float32x4_t _k02_1 = vld1q_f32(k1 + 8);
-            float32x4_t _k10_1 = vld1q_f32(k1 + 12);
-            float32x4_t _k11_1 = vld1q_f32(k1 + 16);
-            float32x4_t _k12_1 = vld1q_f32(k1 + 20);
-            float32x4_t _k20_1 = vld1q_f32(k1 + 24);
-            float32x4_t _k21_1 = vld1q_f32(k1 + 28);
-            float32x4_t _k22_1 = vld1q_f32(k1 + 32);
+            __m256 _k00_1 = _mm256_loadu_ps(k1);
+            __m256 _k01_1 = _mm256_loadu_ps(k1 + 8);
+            __m256 _k02_1 = _mm256_loadu_ps(k1 + 16);
+            __m256 _k10_1 = _mm256_loadu_ps(k1 + 24);
+            __m256 _k11_1 = _mm256_loadu_ps(k1 + 32);
+            __m256 _k12_1 = _mm256_loadu_ps(k1 + 40);
+            __m256 _k20_1 = _mm256_loadu_ps(k1 + 48);
+            __m256 _k21_1 = _mm256_loadu_ps(k1 + 56);
+            __m256 _k22_1 = _mm256_loadu_ps(k1 + 64);
 
             int i = 0;
 
@@ -81,372 +81,58 @@ static void conv3x3s1_pack8to1_avx(const Mat& bottom_blob, Mat& top_blob, const 
             {
                 int j = 0;
 
-                for (; j + 3 < outw; j += 4)
-                {
-                    asm volatile(
-                        "prfm   pldl1keep, [%2, #512]       \n"
-                        "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2], #64 \n" // r00 r01 r02 r03
-
-                        "fmul   v16.4s, %10.4s, v0.4s       \n"
-                        "fmul   v17.4s, %19.4s, v0.4s       \n"
-                        "fmul   v18.4s, %10.4s, v1.4s       \n"
-                        "fmul   v19.4s, %19.4s, v1.4s       \n"
-
-                        "prfm   pldl1keep, [%2, #256]       \n"
-                        "ld1    {v4.4s, v5.4s}, [%2]        \n" // r04 r05
-
-                        "fmul   v6.4s, %10.4s, v2.4s        \n"
-                        "fmul   v7.4s, %19.4s, v2.4s        \n"
-                        "fmul   v8.4s, %10.4s, v3.4s        \n"
-                        "fmul   v9.4s, %19.4s, v3.4s        \n"
-
-                        "fmla   v16.4s, %11.4s, v1.4s       \n"
-                        "fmla   v17.4s, %20.4s, v1.4s       \n"
-                        "fmla   v18.4s, %11.4s, v2.4s       \n"
-                        "fmla   v19.4s, %20.4s, v2.4s       \n"
-                        "fmla   v6.4s, %11.4s, v3.4s        \n"
-                        "fmla   v7.4s, %20.4s, v3.4s        \n"
-                        "fmla   v8.4s, %11.4s, v4.4s        \n"
-                        "fmla   v9.4s, %20.4s, v4.4s        \n"
-
-                        "fmla   v16.4s, %12.4s, v2.4s       \n"
-                        "fmla   v17.4s, %21.4s, v2.4s       \n"
-                        "fmla   v18.4s, %12.4s, v3.4s       \n"
-                        "fmla   v19.4s, %21.4s, v3.4s       \n"
-
-                        "prfm   pldl1keep, [%3, #512]       \n"
-                        "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%3], #64 \n" // r10 r11 r12 r12
-
-                        "fmla   v6.4s, %12.4s, v4.4s        \n"
-                        "fmla   v7.4s, %21.4s, v4.4s        \n"
-                        "fmla   v8.4s, %12.4s, v5.4s        \n"
-                        "fmla   v9.4s, %21.4s, v5.4s        \n"
-
-                        "fmla   v16.4s, %13.4s, v0.4s       \n"
-                        "fmla   v17.4s, %22.4s, v0.4s       \n"
-                        "fmla   v18.4s, %13.4s, v1.4s       \n"
-                        "fmla   v19.4s, %22.4s, v1.4s       \n"
-
-                        "prfm   pldl1keep, [%3, #256]       \n"
-                        "ld1    {v4.4s, v5.4s}, [%3]        \n" // r14 r15
-
-                        "fmla   v6.4s, %13.4s, v2.4s        \n"
-                        "fmla   v7.4s, %22.4s, v2.4s        \n"
-                        "fmla   v8.4s, %13.4s, v3.4s        \n"
-                        "fmla   v9.4s, %22.4s, v3.4s        \n"
-
-                        "fmla   v16.4s, %14.4s, v1.4s       \n"
-                        "fmla   v17.4s, %23.4s, v1.4s       \n"
-                        "fmla   v18.4s, %14.4s, v2.4s       \n"
-                        "fmla   v19.4s, %23.4s, v2.4s       \n"
-                        "fmla   v6.4s, %14.4s, v3.4s        \n"
-                        "fmla   v7.4s, %23.4s, v3.4s        \n"
-                        "fmla   v8.4s, %14.4s, v4.4s        \n"
-                        "fmla   v9.4s, %23.4s, v4.4s        \n"
-
-                        "fmla   v16.4s, %15.4s, v2.4s       \n"
-                        "fmla   v17.4s, %24.4s, v2.4s       \n"
-                        "fmla   v18.4s, %15.4s, v3.4s       \n"
-                        "fmla   v19.4s, %24.4s, v3.4s       \n"
-
-                        "prfm   pldl1keep, [%4, #512]       \n"
-                        "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%4], #64 \n" // r20 r21 r22 r22
-
-                        "fmla   v6.4s, %15.4s, v4.4s        \n"
-                        "fmla   v7.4s, %24.4s, v4.4s        \n"
-                        "fmla   v8.4s, %15.4s, v5.4s        \n"
-                        "fmla   v9.4s, %24.4s, v5.4s        \n"
-
-                        "fmla   v16.4s, %16.4s, v0.4s       \n"
-                        "fmla   v17.4s, %25.4s, v0.4s       \n"
-                        "fmla   v18.4s, %16.4s, v1.4s       \n"
-                        "fmla   v19.4s, %25.4s, v1.4s       \n"
-
-                        "prfm   pldl1keep, [%4, #256]       \n"
-                        "ld1    {v4.4s, v5.4s}, [%4]        \n" // r24 r25
-
-                        "fmla   v6.4s, %16.4s, v2.4s        \n"
-                        "fmla   v7.4s, %25.4s, v2.4s        \n"
-                        "fmla   v8.4s, %16.4s, v3.4s        \n"
-                        "fmla   v9.4s, %25.4s, v3.4s        \n"
-
-                        "fmla   v16.4s, %17.4s, v1.4s       \n"
-                        "fmla   v17.4s, %26.4s, v1.4s       \n"
-                        "fmla   v18.4s, %17.4s, v2.4s       \n"
-                        "fmla   v19.4s, %26.4s, v2.4s       \n"
-                        "fmla   v6.4s, %17.4s, v3.4s        \n"
-                        "fmla   v7.4s, %26.4s, v3.4s        \n"
-                        "fmla   v8.4s, %17.4s, v4.4s        \n"
-                        "fmla   v9.4s, %26.4s, v4.4s        \n"
-
-                        "fmla   v16.4s, %18.4s, v2.4s       \n"
-                        "fmla   v17.4s, %27.4s, v2.4s       \n"
-                        "fmla   v18.4s, %18.4s, v3.4s       \n"
-                        "fmla   v19.4s, %27.4s, v3.4s       \n"
-                        "fmla   v6.4s, %18.4s, v4.4s        \n"
-                        "fmla   v7.4s, %27.4s, v4.4s        \n"
-                        "fmla   v8.4s, %18.4s, v5.4s        \n"
-                        "fmla   v9.4s, %27.4s, v5.4s        \n"
-
-                        "ld1    {v0.4s}, [%0]               \n" // sum00 sum01 sum02 sum03
-                        "ld1    {v1.4s}, [%1]               \n" // sum10 sum11 sum12 sum13
-
-                        "faddp  v16.4s, v16.4s, v16.4s      \n"
-                        "faddp  v17.4s, v17.4s, v17.4s      \n"
-                        "faddp  v18.4s, v18.4s, v18.4s      \n"
-                        "faddp  v19.4s, v19.4s, v19.4s      \n"
-                        "faddp  v6.4s, v6.4s, v6.4s         \n"
-                        "faddp  v7.4s, v7.4s, v7.4s         \n"
-                        "faddp  v8.4s, v8.4s, v8.4s         \n"
-                        "faddp  v9.4s, v9.4s, v9.4s         \n"
-
-                        "faddp  v16.2s, v16.2s, v18.2s      \n"
-                        "faddp  v17.2s, v17.2s, v19.2s      \n"
-                        "faddp  v6.2s, v6.2s, v8.2s         \n"
-                        "faddp  v7.2s, v7.2s, v9.2s         \n"
-
-                        "trn1   v16.2d, v16.2d, v6.2d       \n"
-                        "trn1   v17.2d, v17.2d, v7.2d       \n"
-
-                        "fadd   v0.4s, v0.4s, v16.4s        \n"
-                        "fadd   v1.4s, v1.4s, v17.4s        \n"
-
-                        "st1    {v0.4s}, [%0], #16          \n"
-                        "st1    {v1.4s}, [%1], #16          \n"
-
-                        : "=r"(outptr0), // %0
-                        "=r"(outptr1), // %1
-                        "=r"(r0),      // %2
-                        "=r"(r1),      // %3
-                        "=r"(r2)       // %4
-                        : "0"(outptr0),
-                        "1"(outptr1),
-                        "2"(r0),
-                        "3"(r1),
-                        "4"(r2),
-                        "w"(_k00_0), // %10
-                        "w"(_k01_0), // %11
-                        "w"(_k02_0), // %12
-                        "w"(_k10_0), // %13
-                        "w"(_k11_0), // %14
-                        "w"(_k12_0), // %15
-                        "w"(_k20_0), // %16
-                        "w"(_k21_0), // %17
-                        "w"(_k22_0), // %18
-                        "w"(_k00_1), // %19
-                        "w"(_k01_1), // %20
-                        "w"(_k02_1), // %21
-                        "w"(_k10_1), // %22
-                        "w"(_k11_1), // %23
-                        "w"(_k12_1), // %24
-                        "w"(_k20_1), // %25
-                        "w"(_k21_1), // %26
-                        "w"(_k22_1)  // %27
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v16", "v17", "v18", "v19");
-                }
-                for (; j + 1 < outw; j += 2)
-                {
-                    asm volatile(
-                        "prfm   pldl1keep, [%2, #512]       \n"
-                        "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%2] \n" // r00 r01 r02 r03
-
-                        "fmul   v16.4s, %10.4s, v0.4s       \n"
-                        "fmul   v17.4s, %19.4s, v0.4s       \n"
-                        "fmul   v18.4s, %10.4s, v1.4s       \n"
-                        "fmul   v19.4s, %19.4s, v1.4s       \n"
-                        "fmla   v16.4s, %11.4s, v1.4s       \n"
-                        "fmla   v17.4s, %20.4s, v1.4s       \n"
-                        "fmla   v18.4s, %11.4s, v2.4s       \n"
-                        "fmla   v19.4s, %20.4s, v2.4s       \n"
-
-                        "prfm   pldl1keep, [%3, #512]       \n"
-                        "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%3] \n" // r10 r11 r12 r12
-
-                        "fmla   v16.4s, %12.4s, v2.4s       \n"
-                        "fmla   v17.4s, %21.4s, v2.4s       \n"
-                        "fmla   v18.4s, %12.4s, v3.4s       \n"
-                        "fmla   v19.4s, %21.4s, v3.4s       \n"
-
-                        "fmla   v16.4s, %13.4s, v4.4s       \n"
-                        "fmla   v17.4s, %22.4s, v4.4s       \n"
-                        "fmla   v18.4s, %13.4s, v5.4s       \n"
-                        "fmla   v19.4s, %22.4s, v5.4s       \n"
-                        "fmla   v16.4s, %14.4s, v5.4s       \n"
-                        "fmla   v17.4s, %23.4s, v5.4s       \n"
-                        "fmla   v18.4s, %14.4s, v6.4s       \n"
-                        "fmla   v19.4s, %23.4s, v6.4s       \n"
-
-                        "prfm   pldl1keep, [%4, #512]       \n"
-                        "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%4] \n" // r20 r21 r22 r22
-
-                        "fmla   v16.4s, %15.4s, v6.4s       \n"
-                        "fmla   v17.4s, %24.4s, v6.4s       \n"
-                        "fmla   v18.4s, %15.4s, v7.4s       \n"
-                        "fmla   v19.4s, %24.4s, v7.4s       \n"
-
-                        "fmla   v16.4s, %16.4s, v0.4s       \n"
-                        "fmla   v17.4s, %25.4s, v0.4s       \n"
-                        "fmla   v18.4s, %16.4s, v1.4s       \n"
-                        "fmla   v19.4s, %25.4s, v1.4s       \n"
-                        "fmla   v16.4s, %17.4s, v1.4s       \n"
-                        "fmla   v17.4s, %26.4s, v1.4s       \n"
-                        "fmla   v18.4s, %17.4s, v2.4s       \n"
-                        "fmla   v19.4s, %26.4s, v2.4s       \n"
-                        "fmla   v16.4s, %18.4s, v2.4s       \n"
-                        "fmla   v17.4s, %27.4s, v2.4s       \n"
-                        "fmla   v18.4s, %18.4s, v3.4s       \n"
-                        "fmla   v19.4s, %27.4s, v3.4s       \n"
-
-                        "ld1    {v4.2s}, [%0]               \n" // sum00 sum01
-                        "ld1    {v5.2s}, [%1]               \n" // sum10 sum11
-
-                        "faddp  v16.4s, v16.4s, v16.4s      \n"
-                        "faddp  v17.4s, v17.4s, v17.4s      \n"
-                        "faddp  v18.4s, v18.4s, v18.4s      \n"
-                        "faddp  v19.4s, v19.4s, v19.4s      \n"
-
-                        "add    %2, %2, #32                 \n"
-
-                        "faddp  v16.2s, v16.2s, v18.2s      \n"
-                        "faddp  v17.2s, v17.2s, v19.2s      \n"
-
-                        "add    %3, %3, #32                 \n"
-
-                        "fadd   v4.2s, v4.2s, v16.2s        \n"
-                        "fadd   v5.2s, v5.2s, v17.2s        \n"
-
-                        "add    %4, %4, #32                 \n"
-
-                        "st1    {v4.2s}, [%0], #8           \n"
-                        "st1    {v5.2s}, [%1], #8           \n"
-
-                        : "=r"(outptr0), // %0
-                        "=r"(outptr1), // %1
-                        "=r"(r0),      // %2
-                        "=r"(r1),      // %3
-                        "=r"(r2)       // %4
-                        : "0"(outptr0),
-                        "1"(outptr1),
-                        "2"(r0),
-                        "3"(r1),
-                        "4"(r2),
-                        "w"(_k00_0), // %10
-                        "w"(_k01_0), // %11
-                        "w"(_k02_0), // %12
-                        "w"(_k10_0), // %13
-                        "w"(_k11_0), // %14
-                        "w"(_k12_0), // %15
-                        "w"(_k20_0), // %16
-                        "w"(_k21_0), // %17
-                        "w"(_k22_0), // %18
-                        "w"(_k00_1), // %19
-                        "w"(_k01_1), // %20
-                        "w"(_k02_1), // %21
-                        "w"(_k10_1), // %22
-                        "w"(_k11_1), // %23
-                        "w"(_k12_1), // %24
-                        "w"(_k20_1), // %25
-                        "w"(_k21_1), // %26
-                        "w"(_k22_1)  // %27
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19");
-                }
                 for (; j < outw; j++)
                 {
-                    asm volatile(
-                        "prfm   pldl1keep, [%2, #384]       \n"
-                        "ld1    {v0.4s, v1.4s, v2.4s}, [%2] \n" // r00 r01 r02
+                    __m256 _sum00 = _mm256_loadu_ps(outptr0);
+                    __m256 _sum10 = _mm256_loadu_ps(outptr1);
 
-                        "fmul   v16.4s, %10.4s, v0.4s       \n"
-                        "fmul   v17.4s, %19.4s, v0.4s       \n"
-                        "fmul   v18.4s, %11.4s, v1.4s       \n"
-                        "fmul   v19.4s, %20.4s, v1.4s       \n"
+                    __m256 _r01 = _mm256_loadu_ps(r0);
+                    __m256 _r02 = _mm256_loadu_ps(r0+8);
+                    __m256 _r03 = _mm256_loadu_ps(r0+16);
+                    __m256 _r11 = _mm256_loadu_ps(r1);
+                    __m256 _r12 = _mm256_loadu_ps(r1+8);
+                    __m256 _r13 = _mm256_loadu_ps(r1+16);
+                    __m256 _r21 = _mm256_loadu_ps(r2);
+                    __m256 _r22 = _mm256_loadu_ps(r2+8);
+                    __m256 _r23 = _mm256_loadu_ps(r2+16);
 
-                        "prfm   pldl1keep, [%3, #384]       \n"
-                        "ld1    {v3.4s, v4.4s, v5.4s}, [%3] \n" // r10 r11 r12
+                    _sum00 = _mm256_fmadd_ps(_r01,_k00_0,_sum00);
+                    _sum00 = _mm256_fmadd_ps(_r02,_k01_0,_sum00);
+                    _sum00 = _mm256_fmadd_ps(_r03,_k02_0,_sum00);
+                    _sum00 = _mm256_fmadd_ps(_r11,_k10_0,_sum00);
+                    _sum00 = _mm256_fmadd_ps(_r12,_k11_0,_sum00);
+                    _sum00 = _mm256_fmadd_ps(_r13,_k12_0,_sum00);
+                    _sum00 = _mm256_fmadd_ps(_r21,_k20_0,_sum00);
+                    _sum00 = _mm256_fmadd_ps(_r22,_k21_0,_sum00);
+                    _sum00 = _mm256_fmadd_ps(_r23,_k22_0,_sum00);
+                  
 
-                        "fmla   v16.4s, %12.4s, v2.4s       \n"
-                        "fmla   v17.4s, %21.4s, v2.4s       \n"
+                    _sum10 = _mm256_fmadd_ps(_r01,_k00_1,_sum10);
+                    _sum10 = _mm256_fmadd_ps(_r02,_k01_1,_sum10);
+                    _sum10 = _mm256_fmadd_ps(_r03,_k02_1,_sum10);
+                    _sum10 = _mm256_fmadd_ps(_r11,_k10_1,_sum10);
+                    _sum10 = _mm256_fmadd_ps(_r12,_k11_1,_sum10);
+                    _sum10 = _mm256_fmadd_ps(_r13,_k12_1,_sum10);
+                    _sum10 = _mm256_fmadd_ps(_r21,_k20_1,_sum10);
+                    _sum10 = _mm256_fmadd_ps(_r22,_k21_1,_sum10);
+                    _sum10 = _mm256_fmadd_ps(_r23,_k22_1,_sum10);
 
-                        "fmla   v18.4s, %13.4s, v3.4s       \n"
-                        "fmla   v19.4s, %22.4s, v3.4s       \n"
-                        "fmla   v16.4s, %14.4s, v4.4s       \n"
-                        "fmla   v17.4s, %23.4s, v4.4s       \n"
-
-                        "prfm   pldl1keep, [%4, #384]       \n"
-                        "ld1    {v0.4s, v1.4s, v2.4s}, [%4] \n" // r20 r21 r22
-
-                        "fmla   v18.4s, %15.4s, v5.4s       \n"
-                        "fmla   v19.4s, %24.4s, v5.4s       \n"
-
-                        "fmla   v16.4s, %16.4s, v0.4s       \n"
-                        "fmla   v17.4s, %25.4s, v0.4s       \n"
-                        "fmla   v18.4s, %17.4s, v1.4s       \n"
-                        "fmla   v19.4s, %26.4s, v1.4s       \n"
-                        "fmla   v16.4s, %18.4s, v2.4s       \n"
-                        "fmla   v17.4s, %27.4s, v2.4s       \n"
-
-                        "ld1    {v3.s}[0], [%0]             \n" // sum00
-                        "ld1    {v4.s}[0], [%1]             \n" // sum10
-
-                        "fadd   v16.4s, v16.4s, v18.4s      \n"
-                        "fadd   v17.4s, v17.4s, v19.4s      \n"
-
-                        "add    %2, %2, #16                 \n"
-
-                        "faddp  v16.4s, v16.4s, v16.4s      \n"
-                        "faddp  v17.4s, v17.4s, v17.4s      \n"
-
-                        "add    %3, %3, #16                 \n"
-
-                        "faddp  v16.2s, v16.2s, v16.2s      \n"
-                        "faddp  v17.2s, v17.2s, v17.2s      \n"
-
-                        "add    %4, %4, #16                 \n"
-
-                        "fadd   v3.2s, v3.2s, v16.2s        \n"
-                        "fadd   v4.2s, v4.2s, v17.2s        \n"
-
-                        "st1    {v3.s}[0], [%0], #4         \n"
-                        "st1    {v4.s}[0], [%1], #4         \n"
-
-                        : "=r"(outptr0), // %0
-                        "=r"(outptr1), // %1
-                        "=r"(r0),      // %2
-                        "=r"(r1),      // %3
-                        "=r"(r2)       // %4
-                        : "0"(outptr0),
-                        "1"(outptr1),
-                        "2"(r0),
-                        "3"(r1),
-                        "4"(r2),
-                        "w"(_k00_0), // %10
-                        "w"(_k01_0), // %11
-                        "w"(_k02_0), // %12
-                        "w"(_k10_0), // %13
-                        "w"(_k11_0), // %14
-                        "w"(_k12_0), // %15
-                        "w"(_k20_0), // %16
-                        "w"(_k21_0), // %17
-                        "w"(_k22_0), // %18
-                        "w"(_k00_1), // %19
-                        "w"(_k01_1), // %20
-                        "w"(_k02_1), // %21
-                        "w"(_k10_1), // %22
-                        "w"(_k11_1), // %23
-                        "w"(_k12_1), // %24
-                        "w"(_k20_1), // %25
-                        "w"(_k21_1), // %26
-                        "w"(_k22_1)  // %27
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v16", "v17", "v18", "v19");
+                    _mm256_storeu_ps(outptr0, _sum00);
+                    _mm256_storeu_ps(outptr1, _sum10);
+                    r0 += 2;
+                    r1 += 2;
+                    r2 += 2;
+                    outptr0 += 8;
+                    outptr1 += 8;
                 }
 
-                r0 += 2 * 4;
-                r1 += 2 * 4;
-                r2 += 2 * 4;
+                r0 += 2 * 8;
+                r1 += 2 * 8;
+                r2 += 2 * 8;
             }
 
-            k0 += 9 * 4;
-            k1 += 9 * 4;
+            k0 += 9 * 8;
+            k1 += 9 * 8;
         }
     }
 #endif // __ARM_NEON && __aarch64__
@@ -471,15 +157,15 @@ static void conv3x3s1_pack8to1_avx(const Mat& bottom_blob, Mat& top_blob, const 
             const float* r1 = img0.row(1);
             const float* r2 = img0.row(2);
 
-            float32x4_t _k00 = vld1q_f32(k0);
-            float32x4_t _k01 = vld1q_f32(k0 + 4);
-            float32x4_t _k02 = vld1q_f32(k0 + 8);
-            float32x4_t _k10 = vld1q_f32(k0 + 12);
-            float32x4_t _k11 = vld1q_f32(k0 + 16);
-            float32x4_t _k12 = vld1q_f32(k0 + 20);
-            float32x4_t _k20 = vld1q_f32(k0 + 24);
-            float32x4_t _k21 = vld1q_f32(k0 + 28);
-            float32x4_t _k22 = vld1q_f32(k0 + 32);
+            __m256 _k00 = _mm256_loadu_ps(k0);
+            __m256 _k01 = _mm256_loadu_ps(k0 + 4);
+            __m256 _k02 = _mm256_loadu_ps(k0 + 8);
+            __m256 _k10 = _mm256_loadu_ps(k0 + 12);
+            __m256 _k11 = _mm256_loadu_ps(k0 + 16);
+            __m256 _k12 = _mm256_loadu_ps(k0 + 20);
+            __m256 _k20 = _mm256_loadu_ps(k0 + 24);
+            __m256 _k21 = _mm256_loadu_ps(k0 + 28);
+            __m256 _k22 = _mm256_loadu_ps(k0 + 32);
 
             int i = 0;
 
