@@ -14,7 +14,10 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
-
+#include <algorithm>
+#if __AVX__
+#include <immintrin.h>
+#endif
 #include "pooling_x86.h"
 #include <float.h>
 
