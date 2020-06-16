@@ -126,7 +126,6 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 sum += m[i] * w[i];
             }
         }
-
         if (activation_type == 1)
         {
             sum = std::max(sum, 0.f);
