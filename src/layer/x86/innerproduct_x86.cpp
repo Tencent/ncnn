@@ -111,30 +111,30 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
             int remain = size & 7;
 
             for (; nn > 0; nn--) {
-                __m256 _m = _mm256_load_ps(m);
+                __m256 _m = _mm256_loadu_ps(m);
 
-                __m256 _w0 = _mm256_load_ps(w0);
+                __m256 _w0 = _mm256_loadu_ps(w0);
                 _sum0 = _mm256_fmadd_ps(_m, _w0, _sum0);
 
-                __m256 _w1 = _mm256_load_ps(w1);
+                __m256 _w1 = _mm256_loadu_ps(w1);
                 _sum1 = _mm256_fmadd_ps(_m, _w1, _sum1);
 
-                __m256 _w2 = _mm256_load_ps(w2);
+                __m256 _w2 = _mm256_loadu_ps(w2);
                 _sum2 = _mm256_fmadd_ps(_m, _w2, _sum2);
 
-                __m256 _w3 = _mm256_load_ps(w3);
+                __m256 _w3 = _mm256_loadu_ps(w3);
                 _sum3 = _mm256_fmadd_ps(_m, _w3, _sum3);
 
-                __m256 _w4 = _mm256_load_ps(w4);
+                __m256 _w4 = _mm256_loadu_ps(w4);
                 _sum4 = _mm256_fmadd_ps(_m, _w4, _sum4);
 
-                __m256 _w5 = _mm256_load_ps(w5);
+                __m256 _w5 = _mm256_loadu_ps(w5);
                 _sum5 = _mm256_fmadd_ps(_m, _w5, _sum5);
 
-                __m256 _w6 = _mm256_load_ps(w6);
+                __m256 _w6 = _mm256_loadu_ps(w6);
                 _sum6 = _mm256_fmadd_ps(_m, _w6, _sum6);
 
-                __m256 _w7 = _mm256_load_ps(w7);
+                __m256 _w7 = _mm256_loadu_ps(w7);
                 _sum7 = _mm256_fmadd_ps(_m, _w7, _sum7);
 
                 m += 8;
@@ -169,10 +169,10 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
             }
             __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5,
                                           _sum6, _sum7);
-            __m256 _sums_f = _mm256_load_ps(&sums[0]);
+            __m256 _sums_f = _mm256_loadu_ps(&sums[0]);
             _sums = activation_ps(_mm256_add_ps(_sums_f, _sums), activation_type,
                                   activation_params);
-            _mm256_store_ps(&top_blob[p], _sums);
+            _mm256_storeu_ps(&top_blob[p], _sums);
         }
     }
 
@@ -194,9 +194,9 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
             int nn = size >> 3;
             int remain = size & 7;
             for (; nn > 0; nn--) {
-                __m256 _m = _mm256_load_ps(m);
+                __m256 _m = _mm256_loadu_ps(m);
 
-                __m256 _w = _mm256_load_ps(w);
+                __m256 _w = _mm256_loadu_ps(w);
                 _sum = _mm256_fmadd_ps(_m, _w, _sum);
 
                 m += 8;

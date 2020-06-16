@@ -141,7 +141,7 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
             for (int i = 0; i < nn; i++)
             {
-                __m256 fp32 = _mm256_load_ps(ptr);
+                __m256 fp32 = _mm256_loadu_ps(ptr);
                 __m128i fp16 = _mm256_cvtps_ph(fp32, _MM_FROUND_TRUNC);
                 _mm_store_si128((__m128i*)outptr, fp16);
                 ptr += 8;
@@ -175,7 +175,7 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             {
                 __m128i fp16 = _mm_lddqu_si128((__m128i const*)ptr);
                 __m256 fp32 = _mm256_cvtph_ps(fp16);
-                _mm256_store_ps(outptr, fp32);
+                _mm256_storeu_ps(outptr, fp32);
                 ptr += 8;
                 outptr += 8;
             }
@@ -201,7 +201,7 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             int remain = size & 7;
             for (; nn > 0; nn--)
             {
-                _mm256_store_ps(outptr, bfloat2float_avx(_mm_lddqu_si128((__m128i const*)ptr)));
+                _mm256_storeu_ps(outptr, bfloat2float_avx(_mm_lddqu_si128((__m128i const*)ptr)));
                 ptr += 8;
                 outptr += 8;
             }
@@ -225,14 +225,14 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             int remain = size & 15;
             for (; nn > 0; nn--)
             {
-                _mm256_store_si256((__m256i*)outptr, float2bfloat_avx(_mm256_load_ps(ptr), _mm256_load_ps(ptr + 8)));
+                _mm256_storeu_si256((__m256i*)outptr, float2bfloat_avx(_mm256_loadu_ps(ptr), _mm256_loadu_ps(ptr + 8)));
                 ptr += 16;
                 outptr += 16;
             }
             if (remain >= 8)
             {
                 remain -= 8;
-                _mm_store_si128((__m128i*)outptr, float2bfloat_avx(_mm256_load_ps(ptr)));
+                _mm_store_si128((__m128i*)outptr, float2bfloat_avx(_mm256_loadu_ps(ptr)));
                 ptr += 8;
                 outptr += 8;
             }
