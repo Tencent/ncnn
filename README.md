@@ -145,12 +145,12 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 * https://github.com/nihui/ncnn-android-squeezenet
 * https://github.com/nihui/ncnn-android-styletransfer
-* https://github.com/chehongshu/ncnnforandroid_objectiondetection_Mobilenetssd
+* https://github.com/nihui/ncnn-android-mobilenetssd
 * https://github.com/moli232777144/mtcnn_ncnn
 
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-2.jpg)
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/4.jpg)
-![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-23.jpg)
+![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-33.jpg)
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-m.png)
 
 ### 技术交流QQ群：637093648(超多大佬)  答案：卷卷卷卷卷
