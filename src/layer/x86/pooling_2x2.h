@@ -43,8 +43,8 @@ static void pooling2x2s2_max_avx(const Mat &bottom_blob, Mat &top_blob,
 #if __AVX2__
             __m256i permute_mask = _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7);
             for (; nn > 0; nn--) {
-                __m256 _r0 = _mm256_load_ps(r0);
-                __m256 _r1 = _mm256_load_ps(r1);
+                __m256 _r0 = _mm256_loadu_ps(r0);
+                __m256 _r1 = _mm256_loadu_ps(r1);
                 __m256 _max_r0_r1 = _mm256_max_ps(_r0, _r1);
                 _max_r0_r1 = _mm256_castsi256_ps(_mm256_permutevar8x32_epi32(
                                                      _mm256_castps_si256(_max_r0_r1), permute_mask));
