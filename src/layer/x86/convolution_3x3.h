@@ -24,7 +24,7 @@ static void conv3x3s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
 
     const float* kernel = _kernel;
     const float* bias = _bias;
-
+    // fprintf(stderr,"SSE CONV 3xw3\n");
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
@@ -949,7 +949,6 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
     int outw = top_blob.w;
     int outh = top_blob.h;
     int outch = top_blob.c;
-
     size_t elemsize = bottom_blob.elemsize;
     const float* bias = _bias;
 

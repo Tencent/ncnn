@@ -32,11 +32,18 @@ static inline __m256 sigmoid_avx(__m256 inputs) {
                one, _mm256_add_ps(one, exp256_ps(_mm256_sub_ps(zero, inputs))));
 }
 
+
 static inline __m256 tanh_avx(__m256 inputs) {
     const __m256 one = _mm256_set1_ps(1.0f);
     const __m256 two = _mm256_set1_ps(2.0f);
     return _mm256_fmsub_ps(sigmoid_avx(_mm256_mul_ps(inputs, two)), two, one);
 }
+
+static inline __m256 mish_avx(__m256 inputs) {
+   return _mm256_mul_ps(inputs, tanh_avx(log256_ps(_mm256_add_ps(exp256_ps(inputs), _mm256_set1_ps(1.f)))));
+}
+
+
 static inline __m256 abs_avx(__m256 inputs) {
     return _mm256_max_ps(_mm256_sub_ps(_mm256_set1_ps(0.0f), inputs), inputs);
 }

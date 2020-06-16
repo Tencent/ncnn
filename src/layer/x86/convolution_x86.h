@@ -30,8 +30,8 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
-    int create_pipeline_int8_x86(const Option& opt);
-    int forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    // int create_pipeline_int8_x86(const Option& opt);
+    // int forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
@@ -43,6 +43,11 @@ public:
 
     // forwardDilation
     Layer* convolution_dilation1;
+
+    // pack4
+    Mat weight_data_pack8;
+    Mat weight_data_pack1to8;
+    Mat weight_data_pack8to1;
 
     // int8
     bool use_winograd3x3_int8;
