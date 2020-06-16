@@ -15,9 +15,8 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 #include <immintrin.h>
-#ifdef _WIN32
-#include <windows.h>
-#endif
+#include <algorithm>
+
 static void pooling2x2s2_max_avx(const Mat &bottom_blob, Mat &top_blob,
                                  const Option &opt) {
     int w = bottom_blob.w;
