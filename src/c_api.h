@@ -1,0 +1,74 @@
+/* Tencent is pleased to support the open source community by making ncnn available.
+ *
+ * Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
+ *
+ * Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ *
+ * https://opensource.org/licenses/BSD-3-Clause
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed
+ * under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+ * CONDITIONS OF ANY KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations under the License.
+ */
+
+#ifndef NCNN_C_API_H
+#define NCNN_C_API_H
+
+#include <stddef.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* mat api */
+typedef void* ncnn_mat_t;
+
+ncnn_mat_t ncnn_mat_create();
+ncnn_mat_t ncnn_mat_create_1d(int w);
+ncnn_mat_t ncnn_mat_create_2d(int w, int h);
+ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c);
+void ncnn_mat_destroy(ncnn_mat_t mat);
+
+int ncnn_mat_get_w(ncnn_mat_t mat);
+int ncnn_mat_get_h(ncnn_mat_t mat);
+int ncnn_mat_get_c(ncnn_mat_t mat);
+size_t ncnn_mat_get_cstep(ncnn_mat_t mat);
+void* ncnn_mat_get_data(ncnn_mat_t mat);
+
+/* mat pixel api */
+#define NCNN_MAT_PIXEL_RGB 1
+#define NCNN_MAT_PIXEL_BGR 2
+#define NCNN_MAT_PIXEL_GRAY 3
+#define NCNN_MAT_PIXEL_RGBA 4
+#define NCNN_MAT_PIXEL_BGRA 5
+#define NCNN_MAT_PIXEL_X2Y(X,Y) (X | (Y << 16))
+ncnn_mat_t ncnn_mat_from_pixels(const unsigned char* pixels, int type, int w, int h, int stride);
+ncnn_mat_t ncnn_mat_from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int stride, int target_width, int target_height);
+void ncnn_mat_to_pixels(ncnn_mat_t mat, unsigned char* pixels, int type, int stride);
+void ncnn_mat_to_pixels_resize(ncnn_mat_t mat, unsigned char* pixels, int type, int target_width, int target_height, int target_stride);
+
+/* net api */
+typedef void* ncnn_net_t;
+
+ncnn_net_t ncnn_net_create();
+void ncnn_net_destroy(ncnn_net_t net);
+
+int ncnn_net_load_param(ncnn_net_t net, const char* path);
+int ncnn_net_load_model(ncnn_net_t net, const char* path);
+
+/* extractor api */
+typedef void* ncnn_extractor_t;
+
+ncnn_extractor_t ncnn_extractor_create(ncnn_net_t net);
+void ncnn_extractor_destroy(ncnn_extractor_t ex);
+
+int ncnn_extractor_input(ncnn_extractor_t ex, const char* name, ncnn_mat_t mat);
+int ncnn_extractor_extract(ncnn_extractor_t ex, const char* name, ncnn_mat_t* mat);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
+#endif // NCNN_C_API_H
