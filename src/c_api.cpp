@@ -15,7 +15,6 @@
 
 #include "c_api.h"
 
-#include <stdlib.h>
 #include <string.h>
 
 #include "mat.h"
@@ -125,14 +124,12 @@ int ncnn_net_load_model(ncnn_net_t net, const char* path)
 /* extractor api */
 ncnn_extractor_t ncnn_extractor_create(ncnn_net_t net)
 {
-    void* ex_mem = malloc(sizeof(Extractor));
-    return (ncnn_extractor_t)(new(ex_mem)Extractor(((Net*)net)->create_extractor()));
+    return (ncnn_extractor_t)(new Extractor(((Net*)net)->create_extractor()));
 }
 
 void ncnn_extractor_destroy(ncnn_extractor_t ex)
 {
-    ((Extractor*)ex)->~Extractor();
-    free(ex);
+    delete (Extractor*)ex;
 }
 
 int ncnn_extractor_input(ncnn_extractor_t ex, const char* name, ncnn_mat_t mat)
