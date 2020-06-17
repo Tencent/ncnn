@@ -42,6 +42,17 @@ static inline __m128 HorizontalSums(__m256 v0, __m256 v1, __m256 v2, __m256 v3) 
     return _mm_add_ps(_mm256_extractf128_ps(s0123, 1),
                       _mm256_castps256_ps128(s0123));
 }
+
+static inline __m128 HorizontalSums(__m256 v0, __m256 v1, __m256 v2) {
+    const __m256 v3 =  _mm256_set1_ps(0.0f);
+    const __m256 s01 = _mm256_hadd_ps(v0, v1);
+    const __m256 s23 = _mm256_hadd_ps(v2, v3);
+    const __m256 s0123 = _mm256_hadd_ps(s01, s23);
+
+    return _mm_add_ps(_mm256_extractf128_ps(s0123, 1),
+                      _mm256_castps256_ps128(s0123));
+}
+
 static inline float _mm256_reduce_add_ps(__m256 x) {
     /* ( x3+x7, x2+x6, x1+x5, x0+x4 ) */
     const __m128 x128 =
@@ -51,6 +62,13 @@ static inline float _mm256_reduce_add_ps(__m256 x) {
     /* ( -, -, -, x0+x1+x2+x3+x4+x5+x6+x7 ) */
     const __m128 x32 = _mm_add_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
     /* Conversion to float is a no-op on x86-64 */
+    return _mm_cvtss_f32(x32);
+}
+
+
+static inline float _mm_reduce_add_ps(__m128 x128) {
+    const __m128 x64 = _mm_add_ps(x128, _mm_movehl_ps(x128, x128));
+    const __m128 x32 = _mm_add_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
     return _mm_cvtss_f32(x32);
 }
 

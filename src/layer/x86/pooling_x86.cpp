@@ -29,6 +29,7 @@ namespace ncnn {
 #if __AVX__
 #include "pooling_2x2.h"
 #include "pooling_2x2_pack8.h"
+#include "pooling_3x3_pack8.h"
 
 #endif
 
@@ -150,6 +151,12 @@ int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
             if (kernel_w == 2 && kernel_h == 2 && stride_w == 2 && stride_h == 2)
             {
                 pooling2x2s2_max_pack8_avx(bottom_blob_bordered, top_blob, opt);
+
+                return 0;
+            }
+            if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2)
+            {
+                pooling3x3s2_max_pack8_avx(bottom_blob_bordered, top_blob, opt);
 
                 return 0;
             }

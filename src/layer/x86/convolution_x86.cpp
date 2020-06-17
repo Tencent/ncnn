@@ -33,7 +33,7 @@ namespace ncnn {
 #include "convolution_sgemm.h"
 #include "convolution_sgemm_int8.h"
 #include "convolution_3x3_pack1to8.h"
-// #include "convolution_3x3_pack8to1.h"
+#include "convolution_3x3_pack8to1.h"
 #include "convolution_1x1_pack8.h"
 
 #include "convolution_1x1.h"
@@ -726,51 +726,61 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }
     if (elempack == 8 && out_elempack == 1)
     {
-
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < num_output; p++)
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            float* outptr = top_blob.channel(p);
+            conv3x3s1_pack8to1_avx(bottom_blob_bordered, top_blob, weight_data_pack8to1, bias_data, opt);
 
-            for (int i = 0; i < outh; i++)
+            if (activation)
             {
-                for (int j = 0; j < outw; j++)
-                {
-                    float sum = 0.f;
-
-                    if (bias_term)
-                    {
-                        sum = bias_data[p];
-                    }
-
-                    const float* kptr = (const float*)weight_data_pack8to1 + maxk * channels * p * 8;
-
-                    // channels
-                    for (int q = 0; q < channels; q++)
-                    {
-                        const Mat m = bottom_blob_bordered.channel(q);
-                        const float* sptr = m.row(i * stride_h) + j * stride_w * 8;
-
-                        for (int k = 0; k < maxk; k++) // 29.23
-                        {
-                            __m256 _val = _mm256_loadu_ps(sptr + (space_ofs[k] * 8));
-                            __m256 _w = _mm256_loadu_ps(kptr);
-                            __m256 _s8 = _mm256_mul_ps(_val, _w);
-                            sum += _mm256_reduce_add_ps(_s8); // dot
-                            kptr += 8;
-                        }
-                    }
-
-                    sum = activation_ss(sum, activation_type, activation_params);
-
-                    outptr[j] = sum;
-                }
-
-                outptr += outw;
+                activation->forward_inplace(top_blob, opt);
             }
         }
+        else
+        {
+            // num_output
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p = 0; p < num_output; p++)
+            {
+                float* outptr = top_blob.channel(p);
 
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        float sum = 0.f;
+
+                        if (bias_term)
+                        {
+                            sum = bias_data[p];
+                        }
+
+                        const float* kptr = (const float*)weight_data_pack8to1 + maxk * channels * p * 8;
+
+                        // channels
+                        for (int q = 0; q < channels; q++)
+                        {
+                            const Mat m = bottom_blob_bordered.channel(q);
+                            const float* sptr = m.row(i * stride_h) + j * stride_w * 8;
+
+                            for (int k = 0; k < maxk; k++) // 29.23
+                            {
+                                __m256 _val = _mm256_loadu_ps(sptr + (space_ofs[k] * 8));
+                                __m256 _w = _mm256_loadu_ps(kptr);
+                                __m256 _s8 = _mm256_mul_ps(_val, _w);
+                                sum += _mm256_reduce_add_ps(_s8); // dot
+                                kptr += 8;
+                            }
+                        }
+
+                        sum = activation_ss(sum, activation_type, activation_params);
+
+                        outptr[j] = sum;
+                    }
+
+                    outptr += outw;
+                }
+            }
+        }
     }
 
     if (elempack == 1 && out_elempack == 1)
