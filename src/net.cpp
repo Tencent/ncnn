@@ -1093,12 +1093,12 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
 
         if (opt.use_packing_layout)
         {
-            #if defined(__x86_64__)
+#if defined(__x86_64__)
             int elempack = layer->support_packing ? 8 : 1;
-            #else
+#else
             int elempack = layer->support_packing ? 4 : 1;
-            #endif
-            
+#endif
+
 
             Mat bottom_blob_packed;
             convert_packing(bottom_blob, bottom_blob_packed, elempack, opt);
@@ -1187,11 +1187,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
 
             if (opt.use_packing_layout)
             {
-                #if defined(__x86_64__)
+#if defined(__x86_64__)
                 int elempack = layer->support_packing ? 8 : 1;
-                #else
+#else
                 int elempack = layer->support_packing ? 4 : 1;
-                #endif
+#endif
 
                 Mat bottom_blob_packed;
                 convert_packing(bottom_blobs[i], bottom_blob_packed, elempack, opt);

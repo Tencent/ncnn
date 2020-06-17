@@ -103,17 +103,17 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
     group_ops.clear();
     if (channels == group && group == num_output)
     {
-        
+
         int elempack = (opt.use_packing_layout && channels % 8 == 0) ? 8 : 1;
-        #if __AVX__
-            // pack8
-            if (elempack == 8)
-            {
-                Mat weight_data_r2 = weight_data.reshape(maxk, group);
-                convert_packing(weight_data_r2, weight_data_pack8, 8);
-                return 0;
-            }
-        #endif // __ARM_NEON
+#if __AVX__
+        // pack8
+        if (elempack == 8)
+        {
+            Mat weight_data_r2 = weight_data.reshape(maxk, group);
+            convert_packing(weight_data_r2, weight_data_pack8, 8);
+            return 0;
+        }
+#endif // __ARM_NEON
         // depth-wise specific
         // special path for both int8 and fp32
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -258,7 +258,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     // depth-wise
     if (channels* elempack == group && group == num_output)
     {
-        #if __AVX__
+#if __AVX__
         if (elempack == 8)
         {
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -368,7 +368,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
             }
         }
 #endif // __ARM_NEON
-        if (elempack == 1){
+        if (elempack == 1) {
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
                 convdw3x3s1_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);

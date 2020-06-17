@@ -40,7 +40,7 @@ static inline __m256 tanh_avx(__m256 inputs) {
 }
 
 static inline __m256 mish_avx(__m256 inputs) {
-   return _mm256_mul_ps(inputs, tanh_avx(log256_ps(_mm256_add_ps(exp256_ps(inputs), _mm256_set1_ps(1.f)))));
+    return _mm256_mul_ps(inputs, tanh_avx(log256_ps(_mm256_add_ps(exp256_ps(inputs), _mm256_set1_ps(1.f)))));
 }
 
 

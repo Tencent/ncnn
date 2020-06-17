@@ -33,6 +33,9 @@ namespace ncnn {
 #include "convolution_sgemm.h"
 #include "convolution_sgemm_int8.h"
 #include "convolution_3x3_pack1to8.h"
+// #include "convolution_3x3_pack8to1.h"
+#include "convolution_1x1_pack8.h"
+
 #include "convolution_1x1.h"
 #include "convolution_1x1_int8.h"
 #include "convolution_3x3.h"
@@ -44,10 +47,10 @@ DEFINE_LAYER_CREATOR(Convolution_x86)
 
 Convolution_x86::Convolution_x86()
 {
-    #ifdef __AVX__ 
-        support_packing = true;
+#ifdef __AVX__
+    support_packing = true;
 
-    #endif
+#endif
     activation = 0;
     convolution_dilation1 = 0;
 }
@@ -566,8 +569,26 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (elempack == 8 && out_elempack == 8)
     {
-       
-        // num_output
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv1x1s1_sgemm_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv1x1s2_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else {
+            // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
@@ -592,16 +613,16 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             const Mat m = bottom_blob_bordered.channel(q);
                             const float* sptr = m.row(i * stride_h) + j * stride_w * 8;
 
-                            for (int k = 0; k < maxk; k++) // 29.23
+                            for (int k = 0; k < maxk; k++)
                             {
-                                __m256 _val0 = _mm256_set1_ps((sptr + space_ofs[k] * 8)[0]);
-                                __m256 _val1 = _mm256_set1_ps((sptr + space_ofs[k] * 8)[1]);
-                                __m256 _val2 = _mm256_set1_ps((sptr + space_ofs[k] * 8)[2]);
-                                __m256 _val3 = _mm256_set1_ps((sptr + space_ofs[k] * 8)[3]);
-                                __m256 _val4 = _mm256_set1_ps((sptr + space_ofs[k] * 8)[4]);
-                                __m256 _val5 = _mm256_set1_ps((sptr + space_ofs[k] * 8)[5]);
-                                __m256 _val6 = _mm256_set1_ps((sptr + space_ofs[k] * 8)[6]);
-                                __m256 _val7 = _mm256_set1_ps((sptr + space_ofs[k] * 8)[7]);
+                                __m256 _val0 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8));
+                                __m256 _val1 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8)+1);
+                                __m256 _val2 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8)+2);
+                                __m256 _val3 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8)+3);
+                                __m256 _val4 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8)+4);
+                                __m256 _val5 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8)+5);
+                                __m256 _val6 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8)+6);
+                                __m256 _val7 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8)+7);
 
                                 __m256 _w0 = _mm256_loadu_ps(kptr);
                                 _sum = _mm256_fmadd_ps(_val0,_w0,_sum);
@@ -631,7 +652,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                     outptr += outw * 8;
                 }
             }
-        
+        }
+
     }
 
     if (elempack == 1 && out_elempack == 8)
@@ -704,7 +726,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }
     if (elempack == 8 && out_elempack == 1)
     {
-        
+
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output; p++)
@@ -748,12 +770,12 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 outptr += outw;
             }
         }
-        
+
     }
 
     if (elempack == 1 && out_elempack == 1)
     {
-         if (kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+        if (kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
         {
             if (outw < dilation_w || outh < dilation_h)
             {
@@ -780,7 +802,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (dilation_w == 1 && dilation_h == 1){
+        else if (dilation_w == 1 && dilation_h == 1) {
             conv_im2col_sgemm_sse(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
 
             if (activation)
@@ -858,10 +880,10 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                     outptr += outw;
                 }
             }
-            
+
         }
     }
-    
+
     return 0;
 }
 

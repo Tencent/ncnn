@@ -47,7 +47,7 @@ static void convdw5x5s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
         {
             int j = 0;
 
-            
+
             for (; j < outw; j++)
             {
                 __m256 _sum0 = _bias0;
@@ -204,7 +204,7 @@ static void convdw5x5s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
         {
             int j = 0;
 
-            
+
             for (; j < outw; j++)
             {
                 __m256 _sum0 = _bias0;

@@ -41,7 +41,7 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int size = w * h;
     int elempack = bottom_top_blob.elempack;
 #if __AVX__
-     if (elempack == 8)
+    if (elempack == 8)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -54,7 +54,7 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 ptr += 8;
             }
         }
-      
+
         return 0;
     }
 #endif // __ARM_NEON

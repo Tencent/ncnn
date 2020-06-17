@@ -241,11 +241,6 @@ int main(int argc, char** argv)
     fprintf(stderr, "gpu_device = %d\n", gpu_device);
     fprintf(stderr, "cooling_down = %d\n", (int)g_enable_cooling_down);
 
-
-    benchmark("det1", ncnn::Mat(12, 12, 3), opt);
-    benchmark("det2", ncnn::Mat(24, 24, 3), opt);
-    benchmark("det3", ncnn::Mat(48, 48, 3), opt);
-    return 0;
     // run
     benchmark("squeezenet", ncnn::Mat(227, 227, 3), opt);
 

@@ -105,7 +105,7 @@ static void conv3x3s1_pack8to1_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum00 = _mm256_fmadd_ps(_r21,_k20_0,_sum00);
                     _sum00 = _mm256_fmadd_ps(_r22,_k21_0,_sum00);
                     _sum00 = _mm256_fmadd_ps(_r23,_k22_0,_sum00);
-                  
+
 
                     _sum10 = _mm256_fmadd_ps(_r01,_k00_1,_sum10);
                     _sum10 = _mm256_fmadd_ps(_r02,_k01_1,_sum10);

@@ -14,8 +14,6 @@
 // WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 // License for the specific language governing permissions and limitations under
 // the License.
-#include <immintrin.h>
-#include <math.h>
 static void pooling2x2s2_max_avx(const Mat &bottom_blob, Mat &top_blob,
                                  const Option &opt) {
     int w = bottom_blob.w;
@@ -23,9 +21,9 @@ static void pooling2x2s2_max_avx(const Mat &bottom_blob, Mat &top_blob,
 
     int outw = top_blob.w;
     int outh = top_blob.h;
-    #if __AVX2__
-        __m256i permute_mask = _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7);
-    #endif // __ARM_NEON
+#if __AVX2__
+    __m256i permute_mask = _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7);
+#endif // __ARM_NEON
 
 
     const int tailstep = w - 2 * outw + w;
@@ -48,7 +46,7 @@ static void pooling2x2s2_max_avx(const Mat &bottom_blob, Mat &top_blob,
             remain = outw;
 
 #if __AVX2__
-            
+
             for (; nn > 0; nn--) {
                 __m256 _r0 = _mm256_loadu_ps(r0);
                 __m256 _r1 = _mm256_loadu_ps(r1);

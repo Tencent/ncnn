@@ -128,6 +128,8 @@ static int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001
                 if (!NearlyEqual(pa[j], pb[j], epsilon))
                 {
                     fprintf(stderr, "value not match  at c:%d h:%d w:%d    expect %f but got %f\n", q, i, j, pa[j], pb[j]);
+                    fprintf(stderr, "value not match  at c:%d h:%d w:%d    expect %f but got %f\n", q, i, j-1, pa[j-1], pb[j-1]);
+                    fprintf(stderr, "value not match  at c:%d h:%d w:%d    expect %f but got %f\n", q, i, j-2, pa[j-2], pb[j-2]);
 
                     return -1;
                 }
@@ -306,11 +308,11 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         {
             for (size_t i = 0; i < a.size(); i++)
             {
-                #if defined(__x86_64__)
+#if defined(__x86_64__)
                 ncnn::convert_packing(a[i], a4[i], 8, opt);
-                #else
+#else
                 ncnn::convert_packing(a[i], a4[i], 4, opt);
-                #endif
+#endif
             }
         }
         else
@@ -548,11 +550,11 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         ncnn::Mat a4;
         if (opt.use_packing_layout)
         {
-            #if defined(__x86_64__)
+#if defined(__x86_64__)
             ncnn::convert_packing(a, a4, 8, opt);
-            #else
+#else
             ncnn::convert_packing(a, a4, 4, opt);
-            #endif
+#endif
         }
         else
         {
