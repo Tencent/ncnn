@@ -34,4 +34,4 @@ public:
 
 } // namespace ncnn
 
-#endif // LAYER_CONCAT_ARM_H
+#endif // LAYER_CONCAT_X86_H

@@ -29,4 +29,4 @@ public:
 
 } // namespace ncnn
 
-#endif // LAYER_ELTWISE_ARM_H
+#endif // LAYER_ELTWISE_X86_H

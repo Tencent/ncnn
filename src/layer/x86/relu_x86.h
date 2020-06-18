@@ -29,4 +29,4 @@ public:
 
 } // namespace ncnn
 
-#endif // LAYER_RELU_ARM_H
+#endif // LAYER_RELU_X86_H

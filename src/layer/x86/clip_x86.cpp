@@ -12,13 +12,12 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 #if __AVX__
-#include "avx_activation.h"
-#endif
-#include "clip_x86.h"
-
-#if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
+
+#include "clip_x86.h"
+
+
 
 namespace ncnn {
 

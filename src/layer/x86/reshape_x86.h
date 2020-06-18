@@ -35,4 +35,4 @@ public:
 
 } // namespace ncnn
 
-#endif // LAYER_RESHAPE_ARM_H
+#endif // LAYER_RESHAPE_X86_H
