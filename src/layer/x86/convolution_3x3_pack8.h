@@ -14,29 +14,29 @@
 
 static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch)
 {
-    // winograd23 transform kernel
+    // winograd63 transform kernel
     Mat kernel_tm;
-    kernel_tm.create(8*8, inch, outch);
+    kernel_tm.create(8 * 8, inch, outch);
 
     const float ktm[8][3] = {
-        {   1.0f,     0.0f,     0.0f},
-        {-2.0f/9,  -2.0f/9,  -2.0f/9},
-        {-2.0f/9,   2.0f/9,  -2.0f/9},
-        {1.0f/90,  1.0f/45,  2.0f/45},
-        {1.0f/90, -1.0f/45,  2.0f/45},
-        {1.0f/45,  1.0f/90, 1.0f/180},
-        {1.0f/45, -1.0f/90, 1.0f/180},
-        {   0.0f,     0.0f,     1.0f}
+        {1.0f, 0.0f, 0.0f},
+        {-2.0f / 9, -2.0f / 9, -2.0f / 9},
+        {-2.0f / 9, 2.0f / 9, -2.0f / 9},
+        {1.0f / 90, 1.0f / 45, 2.0f / 45},
+        {1.0f / 90, -1.0f / 45, 2.0f / 45},
+        {1.0f / 45, 1.0f / 90, 1.0f / 180},
+        {1.0f / 45, -1.0f / 90, 1.0f / 180},
+        {0.0f, 0.0f, 1.0f}
     };
 
     #pragma omp parallel for
-    for (int p = 0; p<outch; p++)
+    for (int p = 0; p < outch; p++)
     {
-        for (int q = 0; q<inch; q++)
+        for (int q = 0; q < inch; q++)
         {
-            const float* kernel0 = (const float*)kernel + p*inch * 9 + q * 9;
+            const float* kernel0 = (const float*)kernel + p * inch * 9 + q * 9;
             float* kernel_tm0 = kernel_tm.channel(p).row(q);
-
+            
             // transform kernel, transposed
             const float* k0 = kernel0;
             const float* k1 = kernel0 + 3;
@@ -44,7 +44,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, M
 
             // h
             float tmp[8][3];
-            for (int i=0; i<8; i++)
+            for (int i = 0; i < 8; i++)
             {
                 tmp[i][0] = k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
                 tmp[i][1] = k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
@@ -52,18 +52,17 @@ static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, M
             }
 
             // v
-            for (int j=0; j<8; j++)
+            for (int j = 0; j < 8; j++)
             {
                 float* tmpp = &tmp[j][0];
 
-                for (int i=0; i<8; i++)
+                for (int i = 0; i < 8; i++)
                 {
-                    kernel_tm0[j*8 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
+                    kernel_tm0[j * 8 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
                 }
             }
         }
     }
-
     // interleave
     // src = 64-inch-outch
     // dst = 8b-8a-inch/8a-64-outch/8b;
@@ -264,7 +263,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
     copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, BORDER_CONSTANT, 0.f, opt);
 
     const float* bias = _bias;
-
+    fprintf(stderr, "bottom_blob_bordered %d x %d x %d elempack = %d  values = %f , %f ,%f \n",bottom_blob_bordered.w,bottom_blob_bordered.h,bottom_blob_bordered.c,bottom_blob_bordered.elempack,bottom_blob_bordered[0],bottom_blob_bordered[1],bottom_blob_bordered[2] );
     // BEGIN transform input
     Mat bottom_blob_tm;
     {
@@ -272,7 +271,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
         int h_tm = outh / 6 * 8;
 
         const int tiles = w_tm / 8 * h_tm / 8;
-
+        fprintf(stderr, "tiles = %d\n", tiles);
         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
 
 //         const float itm[8][8] = {
@@ -468,21 +467,30 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
         }
 
     }
+
     bottom_blob_bordered = Mat();
     // END transform input
-
+    fprintf(stderr, "bottom blob tm %d x %d x %d elempack = %d  values = %f , %f ,%f \n",bottom_blob_tm.w,bottom_blob_tm.h,bottom_blob_tm.c,bottom_blob_tm.elempack,bottom_blob_tm[0],bottom_blob_tm[1],bottom_blob_tm[2] );
     // BEGIN dot
     Mat top_blob_tm;
     {
         int w_tm = outw / 6 * 8;
         int h_tm = outh / 6 * 8;
 
-        const int tiles = h_tm/8 * w_tm/8;
+        const int tiles = h_tm / 8 * w_tm / 8;
 
         // permute
-//         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
-        Mat bottom_blob_tm2(8 * inch, tiles/8 + (tiles%8)/4 + (tiles%4)/2 + tiles%2, 64, elemsize, elempack, opt.workspace_allocator);
-
+        //         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
+        Mat bottom_blob_tm2;
+        if (tiles >= 8)
+            bottom_blob_tm2.create(8 * inch, tiles / 8 + (tiles % 8) / 4 + (tiles % 4) / 2 + tiles % 2, 64, elemsize, elempack, opt.workspace_allocator);
+        else if (tiles >= 4)
+            bottom_blob_tm2.create(4 * inch, tiles / 4 + (tiles % 4) / 2 + tiles % 2, 64, elemsize, elempack, opt.workspace_allocator);
+        else if (tiles >= 2)
+            bottom_blob_tm2.create(2 * inch, tiles / 2 + tiles % 2, 64, elemsize, elempack, opt.workspace_allocator);
+        else // if (tiles >= 1)
+            bottom_blob_tm2.create(1 * inch, tiles, 64, elemsize, elempack, opt.workspace_allocator);
+        fprintf(stderr, "tiles = %d \n", tiles);
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int r=0; r<64; r++)
         {
@@ -588,22 +596,18 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 
         bottom_blob_tm = Mat();
         // permute end
+        fprintf(stderr, "bottom_blob_tm2 %d x %d x %d elempack = %d  values = %f , %f ,%f \n",bottom_blob_tm2.w,bottom_blob_tm2.h,bottom_blob_tm2.c,bottom_blob_tm2.elempack,bottom_blob_tm2[0],bottom_blob_tm2[1],bottom_blob_tm2[2] );
 
         top_blob_tm.create(tiles, 64, outch, elemsize, elempack, opt.workspace_allocator);
-
-        int nn_outch = 0;
-        int remain_outch_start = 0;
-
-
+        fprintf(stderr, "tiles = %d \n",tiles);
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=remain_outch_start; p<outch; p++)
+        for (int p = 0; p < outch; p++)
         {
-            Mat out0_tm = top_blob_tm.channel(p);
+            float* output0_tm = top_blob_tm.channel(p);
+
             const Mat kernel0_tm = kernel_tm.channel(p);
 
-            float* output0_tm = out0_tm;
-
-            for (int r=0; r<64; r++)
+            for (int r = 0; r < 64; r++)
             {
                 const Mat bb2 = bottom_blob_tm2.channel(r);
 
@@ -613,6 +617,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                     const float* r0 = bb2.row(i/8);
 
                     const float* k0 = kernel0_tm.row(r);
+
 
                     __m256 _sum0 = _mm256_set1_ps(0.f);
                     __m256 _sum1 = _mm256_set1_ps(0.f);
@@ -791,6 +796,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                         r0 += 8;
                         k0 += 64;
                     }
+  
 
                     _mm256_storeu_ps(output0_tm + 0, _sum0);
                     _mm256_storeu_ps(output0_tm + 8, _sum1);
@@ -807,6 +813,13 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                     const float* r0 = bb2.row(i/8 + (i%8)/4);
 
                     const float* k0 = kernel0_tm.row(r);
+                    fprintf(stderr, "0 k0 = %f r0 = %f \n", k0[0],r0[0]);
+                    fprintf(stderr, "3 k0 = %f r0 = %f \n", k0[3],r0[3]);
+                    fprintf(stderr, "4 k0 = %f r0 = %f \n", k0[4],r0[4]);
+                    fprintf(stderr, "5 k0 = %f r0 = %f \n", k0[5],r0[5]);
+                    fprintf(stderr, "7 k0 = %f r0 = %f \n", k0[7],r0[7]);
+                    fprintf(stderr, "8 k0 = %f r0 = %f \n", k0[8],r0[8]);
+                    fprintf(stderr, "11 k0 = %f r0 = %f \n", k0[11],r0[11]);
 
                     __m256 _sum0 = _mm256_set1_ps(0.f);
                     __m256 _sum1 = _mm256_set1_ps(0.f);
@@ -903,11 +916,14 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                         r0 += 8;
                         k0 += 32;
                     }
-
+ 
                     _mm256_storeu_ps(output0_tm + 0, _sum0);
                     _mm256_storeu_ps(output0_tm + 8, _sum1);
                     _mm256_storeu_ps(output0_tm + 16, _sum2);
                     _mm256_storeu_ps(output0_tm + 24, _sum3);
+                    fprintf(stderr, "_sum0 = %f _sum1 = %f \n", output0_tm[0],output0_tm[8]);
+                    fprintf(stderr, "_sum0 = %f _sum1 = %f \n", output0_tm[3],output0_tm[11]);
+                    exit(1);
                     output0_tm += 32;
                 }
                 for (; i+1<tiles; i+=2)
@@ -1026,6 +1042,10 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
     }
     bottom_blob_tm = Mat();
     // END dot
+
+    fprintf(stderr, "top_blob_tm %d x %d x %d elempack = %d  values = %f , %f ,%f \n",top_blob_tm.w,top_blob_tm.h,top_blob_tm.c,top_blob_tm.elempack,top_blob_tm[0],top_blob_tm[1],top_blob_tm[2] );
+
+
     // BEGIN transform output
     Mat top_blob_bordered;
     if (outw == top_blob.w && outh == top_blob.h)
@@ -1073,31 +1093,30 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
             {
                 for (int j=0; j<outw/6; j++)
                 {
-//                     top_blob_tm.create(tiles, 64, outch, elemsize, elempack);
+//                     top_blob_bordered.create(tiles, 64, outch, elemsize, elempack);
 
-                    const float* output0_tm_0 = (const float*)out0_tm + (i * w_tm/8 + j) * 8;
+                    const float* output0_tm_0 = (const float*)out0_tm + (i * w_tm / 8 + j) * 8;
+                    const float* output0_tm_1 = output0_tm_0 + tiles * 8;
+                    const float* output0_tm_2 = output0_tm_0 + tiles * 16;
+                    const float* output0_tm_3 = output0_tm_0 + tiles * 24;
+                    const float* output0_tm_4 = output0_tm_0 + tiles * 32;
+                    const float* output0_tm_5 = output0_tm_0 + tiles * 40;
+                    const float* output0_tm_6 = output0_tm_0 + tiles * 48;
+                    const float* output0_tm_7 = output0_tm_0 + tiles * 56;
 
                     float* output0 = out0.row(i * 6) + (j * 6) * 8;
 
                     // TODO neon optimize
-                    for (int m=0; m<8; m++)
+                    for (int m = 0; m < 8; m++)
                     {
                         __m256 _out0tm0 = _mm256_loadu_ps(output0_tm_0);
-                        output0_tm_0 += tiles * 8;
-                        __m256 _out0tm1 = _mm256_loadu_ps(output0_tm_0);
-                        output0_tm_0 += tiles * 8;
-                        __m256 _out0tm2 = _mm256_loadu_ps(output0_tm_0);
-                        output0_tm_0 += tiles * 8;
-                        __m256 _out0tm3 = _mm256_loadu_ps(output0_tm_0);
-                        output0_tm_0 += tiles * 8;
-                        __m256 _out0tm4 = _mm256_loadu_ps(output0_tm_0);
-                        output0_tm_0 += tiles * 8;
-                        __m256 _out0tm5 = _mm256_loadu_ps(output0_tm_0);
-                        output0_tm_0 += tiles * 8;
-                        __m256 _out0tm6 = _mm256_loadu_ps(output0_tm_0);
-                        output0_tm_0 += tiles * 8;
-                        __m256 _out0tm7 = _mm256_loadu_ps(output0_tm_0);
-                        output0_tm_0 += tiles * 8;
+                        __m256 _out0tm1 = _mm256_loadu_ps(output0_tm_1);
+                        __m256 _out0tm2 = _mm256_loadu_ps(output0_tm_2);
+                        __m256 _out0tm3 = _mm256_loadu_ps(output0_tm_3);
+                        __m256 _out0tm4 = _mm256_loadu_ps(output0_tm_4);
+                        __m256 _out0tm5 = _mm256_loadu_ps(output0_tm_5);
+                        __m256 _out0tm6 = _mm256_loadu_ps(output0_tm_6);
+                        __m256 _out0tm7 = _mm256_loadu_ps(output0_tm_7);
 
                         __m256 _tmp024a = _mm256_add_ps(_out0tm1, _out0tm2);
                         __m256 _tmp135a = _mm256_sub_ps(_out0tm1, _out0tm2);
@@ -1138,6 +1157,15 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 //                         tmp[1][m] = tmp135a + tmp135b + tmp135b + tmp135c * 16;
 //                         tmp[3][m] = tmp135a + tmp135b * 8 + tmp135c * 4;
 //                         tmp[5][m] = output0_tm[7] + tmp135a + tmp135b * 32 + tmp135c;
+
+                        output0_tm_0 += tiles * 64;
+                        output0_tm_1 += tiles * 64;
+                        output0_tm_2 += tiles * 64;
+                        output0_tm_3 += tiles * 64;
+                        output0_tm_4 += tiles * 64;
+                        output0_tm_5 += tiles * 64;
+                        output0_tm_6 += tiles * 64;
+                        output0_tm_7 += tiles * 64;
                     }
 
                     for (int m=0; m<6; m++)
@@ -1198,7 +1226,11 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
         }
     }
     // END transform output
+    fprintf(stderr, "top_blob_bordered %d x %d x %d elempack = %d  values = %f , %f ,%f \n",top_blob_bordered.w,top_blob_bordered.h,top_blob_bordered.c,top_blob_bordered.elempack,top_blob_bordered[0],top_blob_bordered[1],top_blob_bordered[2] );
 
     // cut result pad
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
+
+    fprintf(stderr, "top_blob %d x %d x %d elempack = %d  values = %f , %f ,%f \n",top_blob.w,top_blob.h,top_blob.c,top_blob.elempack,top_blob[0],top_blob[1],top_blob[2] );
+
 }

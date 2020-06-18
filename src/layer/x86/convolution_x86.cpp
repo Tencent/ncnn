@@ -184,194 +184,192 @@ int Convolution_x86::create_pipeline(const Option& opt)
     // pack4
     if (elempack == 8 && out_elempack == 8)
     {
-        // src = kw-kh-inch-outch
-        // dst = 8b-8a-kw-kh-inch/8a-outch/8b
-        Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-        weight_data_pack8.create(maxk, num_input / 8, num_output / 8, (size_t)4 * 64, 64);
-
-        for (int q = 0; q + 7 < num_output; q += 8)
+        if (false && kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
-            const Mat k0 = weight_data_r2.channel(q);
-            const Mat k1 = weight_data_r2.channel(q + 1);
-            const Mat k2 = weight_data_r2.channel(q + 2);
-            const Mat k3 = weight_data_r2.channel(q + 3);
-            const Mat k4 = weight_data_r2.channel(q + 4);
-            const Mat k5 = weight_data_r2.channel(q + 5);
-            const Mat k6 = weight_data_r2.channel(q + 6);
-            const Mat k7 = weight_data_r2.channel(q + 7);
+            // conv3x3s1_winograd64_transform_kernel_pack8_avx(weight_data, weight_3x3_winograd64_data_pack8, num_input, num_output);
+        } else {
+            // src = kw-kh-inch-outch
+            // dst = 8b-8a-kw-kh-inch/8a-outch/8b
+            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
-            Mat g0 = weight_data_pack8.channel(q / 8);
+            weight_data_pack8.create(maxk, num_input / 8, num_output / 8, (size_t)4 * 64, 64);
 
-            for (int p = 0; p + 7 < num_input; p += 8)
+            for (int q = 0; q + 7 < num_output; q += 8)
             {
-                const float* k00 = k0.row(p);
-                const float* k01 = k0.row(p + 1);
-                const float* k02 = k0.row(p + 2);
-                const float* k03 = k0.row(p + 3);
-                const float* k04 = k0.row(p + 4);
-                const float* k05 = k0.row(p + 5);
-                const float* k06 = k0.row(p + 6);
-                const float* k07 = k0.row(p + 7);
+                const Mat k0 = weight_data_r2.channel(q);
+                const Mat k1 = weight_data_r2.channel(q + 1);
+                const Mat k2 = weight_data_r2.channel(q + 2);
+                const Mat k3 = weight_data_r2.channel(q + 3);
+                const Mat k4 = weight_data_r2.channel(q + 4);
+                const Mat k5 = weight_data_r2.channel(q + 5);
+                const Mat k6 = weight_data_r2.channel(q + 6);
+                const Mat k7 = weight_data_r2.channel(q + 7);
 
-                const float* k10 = k1.row(p);
-                const float* k11 = k1.row(p + 1);
-                const float* k12 = k1.row(p + 2);
-                const float* k13 = k1.row(p + 3);
-                const float* k14 = k1.row(p + 4);
-                const float* k15 = k1.row(p + 5);
-                const float* k16 = k1.row(p + 6);
-                const float* k17 = k1.row(p + 7);
+                Mat g0 = weight_data_pack8.channel(q / 8);
 
-                const float* k20 = k2.row(p);
-                const float* k21 = k2.row(p + 1);
-                const float* k22 = k2.row(p + 2);
-                const float* k23 = k2.row(p + 3);
-                const float* k24 = k2.row(p + 4);
-                const float* k25 = k2.row(p + 5);
-                const float* k26 = k2.row(p + 6);
-                const float* k27 = k2.row(p + 7);
-
-                const float* k30 = k3.row(p);
-                const float* k31 = k3.row(p + 1);
-                const float* k32 = k3.row(p + 2);
-                const float* k33 = k3.row(p + 3);
-                const float* k34 = k3.row(p + 4);
-                const float* k35 = k3.row(p + 5);
-                const float* k36 = k3.row(p + 6);
-                const float* k37 = k3.row(p + 7);
-
-                const float* k40 = k4.row(p);
-                const float* k41 = k4.row(p + 1);
-                const float* k42 = k4.row(p + 2);
-                const float* k43 = k4.row(p + 3);
-                const float* k44 = k4.row(p + 4);
-                const float* k45 = k4.row(p + 5);
-                const float* k46 = k4.row(p + 6);
-                const float* k47 = k4.row(p + 7);
-
-                const float* k50 = k5.row(p);
-                const float* k51 = k5.row(p + 1);
-                const float* k52 = k5.row(p + 2);
-                const float* k53 = k5.row(p + 3);
-                const float* k54 = k5.row(p + 4);
-                const float* k55 = k5.row(p + 5);
-                const float* k56 = k5.row(p + 6);
-                const float* k57 = k5.row(p + 7);
-
-                const float* k60 = k6.row(p);
-                const float* k61 = k6.row(p + 1);
-                const float* k62 = k6.row(p + 2);
-                const float* k63 = k6.row(p + 3);
-                const float* k64 = k6.row(p + 4);
-                const float* k65 = k6.row(p + 5);
-                const float* k66 = k6.row(p + 6);
-                const float* k67 = k6.row(p + 7);
-
-                const float* k70 = k7.row(p);
-                const float* k71 = k7.row(p + 1);
-                const float* k72 = k7.row(p + 2);
-                const float* k73 = k7.row(p + 3);
-                const float* k74 = k7.row(p + 4);
-                const float* k75 = k7.row(p + 5);
-                const float* k76 = k7.row(p + 6);
-                const float* k77 = k7.row(p + 7);
-
-
-
-                float* g00 = g0.row(p / 8);
-
-                for (int k = 0; k < maxk; k++)
+                for (int p = 0; p + 7 < num_input; p += 8)
                 {
-                    g00[0] = k00[k];
-                    g00[1] = k10[k];
-                    g00[2] = k20[k];
-                    g00[3] = k30[k];
-                    g00[4] = k40[k];
-                    g00[5] = k50[k];
-                    g00[6] = k60[k];
-                    g00[7] = k70[k];
-                    g00 += 8;
-                    g00[0] = k01[k];
-                    g00[1] = k11[k];
-                    g00[2] = k21[k];
-                    g00[3] = k31[k];
-                    g00[4] = k41[k];
-                    g00[5] = k51[k];
-                    g00[6] = k61[k];
-                    g00[7] = k71[k];
+                    const float* k00 = k0.row(p);
+                    const float* k01 = k0.row(p + 1);
+                    const float* k02 = k0.row(p + 2);
+                    const float* k03 = k0.row(p + 3);
+                    const float* k04 = k0.row(p + 4);
+                    const float* k05 = k0.row(p + 5);
+                    const float* k06 = k0.row(p + 6);
+                    const float* k07 = k0.row(p + 7);
 
-                    g00 += 8;
-                    g00[0] = k02[k];
-                    g00[1] = k12[k];
-                    g00[2] = k22[k];
-                    g00[3] = k32[k];
-                    g00[4] = k42[k];
-                    g00[5] = k52[k];
-                    g00[6] = k62[k];
-                    g00[7] = k72[k];
+                    const float* k10 = k1.row(p);
+                    const float* k11 = k1.row(p + 1);
+                    const float* k12 = k1.row(p + 2);
+                    const float* k13 = k1.row(p + 3);
+                    const float* k14 = k1.row(p + 4);
+                    const float* k15 = k1.row(p + 5);
+                    const float* k16 = k1.row(p + 6);
+                    const float* k17 = k1.row(p + 7);
 
-                    g00 += 8;
-                    g00[0] = k03[k];
-                    g00[1] = k13[k];
-                    g00[2] = k23[k];
-                    g00[3] = k33[k];
-                    g00[4] = k43[k];
-                    g00[5] = k53[k];
-                    g00[6] = k63[k];
-                    g00[7] = k73[k];
+                    const float* k20 = k2.row(p);
+                    const float* k21 = k2.row(p + 1);
+                    const float* k22 = k2.row(p + 2);
+                    const float* k23 = k2.row(p + 3);
+                    const float* k24 = k2.row(p + 4);
+                    const float* k25 = k2.row(p + 5);
+                    const float* k26 = k2.row(p + 6);
+                    const float* k27 = k2.row(p + 7);
 
-                    g00 += 8;
-                    g00[0] = k04[k];
-                    g00[1] = k14[k];
-                    g00[2] = k24[k];
-                    g00[3] = k34[k];
-                    g00[4] = k44[k];
-                    g00[5] = k54[k];
-                    g00[6] = k64[k];
-                    g00[7] = k74[k];
+                    const float* k30 = k3.row(p);
+                    const float* k31 = k3.row(p + 1);
+                    const float* k32 = k3.row(p + 2);
+                    const float* k33 = k3.row(p + 3);
+                    const float* k34 = k3.row(p + 4);
+                    const float* k35 = k3.row(p + 5);
+                    const float* k36 = k3.row(p + 6);
+                    const float* k37 = k3.row(p + 7);
 
-                    g00 += 8;
-                    g00[0] = k05[k];
-                    g00[1] = k15[k];
-                    g00[2] = k25[k];
-                    g00[3] = k35[k];
-                    g00[4] = k45[k];
-                    g00[5] = k55[k];
-                    g00[6] = k65[k];
-                    g00[7] = k75[k];
+                    const float* k40 = k4.row(p);
+                    const float* k41 = k4.row(p + 1);
+                    const float* k42 = k4.row(p + 2);
+                    const float* k43 = k4.row(p + 3);
+                    const float* k44 = k4.row(p + 4);
+                    const float* k45 = k4.row(p + 5);
+                    const float* k46 = k4.row(p + 6);
+                    const float* k47 = k4.row(p + 7);
 
-                    g00 += 8;
-                    g00[0] = k06[k];
-                    g00[1] = k16[k];
-                    g00[2] = k26[k];
-                    g00[3] = k36[k];
-                    g00[4] = k46[k];
-                    g00[5] = k56[k];
-                    g00[6] = k66[k];
-                    g00[7] = k76[k];
+                    const float* k50 = k5.row(p);
+                    const float* k51 = k5.row(p + 1);
+                    const float* k52 = k5.row(p + 2);
+                    const float* k53 = k5.row(p + 3);
+                    const float* k54 = k5.row(p + 4);
+                    const float* k55 = k5.row(p + 5);
+                    const float* k56 = k5.row(p + 6);
+                    const float* k57 = k5.row(p + 7);
 
-                    g00 += 8;
-                    g00[0] = k07[k];
-                    g00[1] = k17[k];
-                    g00[2] = k27[k];
-                    g00[3] = k37[k];
-                    g00[4] = k47[k];
-                    g00[5] = k57[k];
-                    g00[6] = k67[k];
-                    g00[7] = k77[k];
+                    const float* k60 = k6.row(p);
+                    const float* k61 = k6.row(p + 1);
+                    const float* k62 = k6.row(p + 2);
+                    const float* k63 = k6.row(p + 3);
+                    const float* k64 = k6.row(p + 4);
+                    const float* k65 = k6.row(p + 5);
+                    const float* k66 = k6.row(p + 6);
+                    const float* k67 = k6.row(p + 7);
 
-                    g00 += 8;
+                    const float* k70 = k7.row(p);
+                    const float* k71 = k7.row(p + 1);
+                    const float* k72 = k7.row(p + 2);
+                    const float* k73 = k7.row(p + 3);
+                    const float* k74 = k7.row(p + 4);
+                    const float* k75 = k7.row(p + 5);
+                    const float* k76 = k7.row(p + 6);
+                    const float* k77 = k7.row(p + 7);
+
+
+
+                    float* g00 = g0.row(p / 8);
+
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        g00[0] = k00[k];
+                        g00[1] = k10[k];
+                        g00[2] = k20[k];
+                        g00[3] = k30[k];
+                        g00[4] = k40[k];
+                        g00[5] = k50[k];
+                        g00[6] = k60[k];
+                        g00[7] = k70[k];
+                        g00 += 8;
+                        g00[0] = k01[k];
+                        g00[1] = k11[k];
+                        g00[2] = k21[k];
+                        g00[3] = k31[k];
+                        g00[4] = k41[k];
+                        g00[5] = k51[k];
+                        g00[6] = k61[k];
+                        g00[7] = k71[k];
+
+                        g00 += 8;
+                        g00[0] = k02[k];
+                        g00[1] = k12[k];
+                        g00[2] = k22[k];
+                        g00[3] = k32[k];
+                        g00[4] = k42[k];
+                        g00[5] = k52[k];
+                        g00[6] = k62[k];
+                        g00[7] = k72[k];
+
+                        g00 += 8;
+                        g00[0] = k03[k];
+                        g00[1] = k13[k];
+                        g00[2] = k23[k];
+                        g00[3] = k33[k];
+                        g00[4] = k43[k];
+                        g00[5] = k53[k];
+                        g00[6] = k63[k];
+                        g00[7] = k73[k];
+
+                        g00 += 8;
+                        g00[0] = k04[k];
+                        g00[1] = k14[k];
+                        g00[2] = k24[k];
+                        g00[3] = k34[k];
+                        g00[4] = k44[k];
+                        g00[5] = k54[k];
+                        g00[6] = k64[k];
+                        g00[7] = k74[k];
+
+                        g00 += 8;
+                        g00[0] = k05[k];
+                        g00[1] = k15[k];
+                        g00[2] = k25[k];
+                        g00[3] = k35[k];
+                        g00[4] = k45[k];
+                        g00[5] = k55[k];
+                        g00[6] = k65[k];
+                        g00[7] = k75[k];
+
+                        g00 += 8;
+                        g00[0] = k06[k];
+                        g00[1] = k16[k];
+                        g00[2] = k26[k];
+                        g00[3] = k36[k];
+                        g00[4] = k46[k];
+                        g00[5] = k56[k];
+                        g00[6] = k66[k];
+                        g00[7] = k76[k];
+
+                        g00 += 8;
+                        g00[0] = k07[k];
+                        g00[1] = k17[k];
+                        g00[2] = k27[k];
+                        g00[3] = k37[k];
+                        g00[4] = k47[k];
+                        g00[5] = k57[k];
+                        g00[6] = k67[k];
+                        g00[7] = k77[k];
+
+                        g00 += 8;
+                    }
                 }
             }
         }
-#if __AVX__
-
-        if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
-        {
-            conv3x3s1_winograd64_transform_kernel_pack8_avx(weight_data, weight_3x3_winograd64_data_pack8, num_input, num_output);
-        }
-#endif
     }
     // pack1to8
     if (elempack == 1 && out_elempack == 8)
@@ -580,14 +578,16 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     {
         if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
-            conv3x3s1_winograd64_pack8_avx(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data_pack8, bias_data, opt);
+
+            conv3x3s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
+            // fprintf(stderr, "top_blob %d x %d x %d elempack = %d  values = %f , %f ,%f \n",top_blob.w,top_blob.h,top_blob.c,top_blob.elempack,top_blob[0],top_blob[1],top_blob[2] );
 
             if (activation)
             {
                 activation->forward_inplace(top_blob, opt);
             }
+            fprintf(stderr, "top_blob %d x %d x %d elempack = %d  values = %f , %f ,%f \n",top_blob.w,top_blob.h,top_blob.c,top_blob.elempack,top_blob[0],top_blob[1],top_blob[2] );
 
-            return 0;
         } else  if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv1x1s1_sgemm_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
