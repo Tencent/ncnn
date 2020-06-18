@@ -37,11 +37,13 @@
 
 namespace ncnn {
 #if __AVX__
+// the alignment of all the allocated buffers
 #define MALLOC_ALIGN 256
 #else
 // the alignment of all the allocated buffers
 #define MALLOC_ALIGN 16
 #endif
+
 // Aligns a pointer to the specified number of bytes
 // ptr Aligned pointer
 // n Alignment size that must be a power of two

@@ -32,10 +32,12 @@ namespace ncnn {
 
 #include "convolution_sgemm.h"
 #include "convolution_sgemm_int8.h"
+#if __AVX__
 #include "convolution_3x3_pack1to8.h"
 #include "convolution_3x3_pack8to1.h"
 #include "convolution_3x3_pack8.h"
 #include "convolution_1x1_pack8.h"
+#endif
 
 #include "convolution_1x1.h"
 #include "convolution_1x1_int8.h"
@@ -50,7 +52,6 @@ Convolution_x86::Convolution_x86()
 {
 #ifdef __AVX__
     support_packing = true;
-
 #endif
     activation = 0;
     convolution_dilation1 = 0;
@@ -364,10 +365,13 @@ int Convolution_x86::create_pipeline(const Option& opt)
                 }
             }
         }
+        #if __AVX__
+
         if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
             conv3x3s1_winograd64_transform_kernel_pack8_avx(weight_data, weight_3x3_winograd64_data_pack8, num_input, num_output);
         }
+        #endif
     }
     // pack1to8
     if (elempack == 1 && out_elempack == 8)
@@ -571,7 +575,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             p2 += gap;
         }
     }
-
+    #if __AVX__
     if (elempack == 8 && out_elempack == 8)
     {
         if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
@@ -797,6 +801,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
         }
     }
+    #endif
 
     if (elempack == 1 && out_elempack == 1)
     {

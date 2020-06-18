@@ -15,12 +15,10 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#if __AVX__
 #include <algorithm>
+#if __AVX__
 #include <immintrin.h>
 #endif
-
-
 #include "pooling_x86.h"
 #include <float.h>
 
@@ -30,7 +28,6 @@ namespace ncnn {
 #include "pooling_2x2.h"
 #include "pooling_2x2_pack8.h"
 #include "pooling_3x3_pack8.h"
-
 #endif
 
 
@@ -41,6 +38,7 @@ Pooling_x86::Pooling_x86() {
     support_packing = true;
 #endif // __AVX__
 }
+
 
 int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
                          const Option &opt) const {
@@ -303,7 +301,7 @@ int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
     {
         return Pooling::forward(bottom_blob, top_blob, opt);
     }
-
+    #if __AVX__
     if (kernel_size != 2)
     {
         return Pooling::forward(bottom_blob, top_blob, opt);
@@ -328,6 +326,9 @@ int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
         pooling2x2s2_max_avx(bottom_blob_bordered, top_blob, opt);
 
     return 0;
+    #else
+    return Pooling::forward(bottom_blob, top_blob, opt);
+    #endif
 }
 
 } // namespace ncnn

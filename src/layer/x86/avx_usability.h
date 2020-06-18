@@ -65,7 +65,6 @@ static inline float _mm256_reduce_add_ps(__m256 x) {
     return _mm_cvtss_f32(x32);
 }
 
-
 static inline float _mm_reduce_add_ps(__m128 x128) {
     const __m128 x64 = _mm_add_ps(x128, _mm_movehl_ps(x128, x128));
     const __m128 x32 = _mm_add_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));

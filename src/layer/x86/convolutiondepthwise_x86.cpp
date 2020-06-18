@@ -19,8 +19,10 @@
 #include "layer_type.h"
 
 namespace ncnn {
+#ifdef __AVX__
 #include "convolutiondepthwise_3x3_pack8.h"
 #include "convolutiondepthwise_5x5_pack8.h"
+#endif
 #include "convolutiondepthwise_3x3.h"
 #include "convolutiondepthwise_3x3_int8.h"
 
@@ -28,7 +30,9 @@ DEFINE_LAYER_CREATOR(ConvolutionDepthWise_x86)
 
 ConvolutionDepthWise_x86::ConvolutionDepthWise_x86()
 {
+    #ifdef __AVX__
     support_packing = true;
+    #endif
     activation = 0;
 }
 
