@@ -16,7 +16,7 @@
 
 #if __AVX__
 #include "avx_activation.h"
-#endif // __ARM_NEON
+#endif // __AVX__
 
 #include <math.h>
 
@@ -28,7 +28,7 @@ Sigmoid_x86::Sigmoid_x86()
 {
 #if __AVX__
     support_packing = true;
-#endif // __ARM_NEON
+#endif // __AVX__
 }
 
 int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -57,7 +57,7 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         return 0;
     }
-#endif // __ARM_NEON
+#endif // __AVX__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)

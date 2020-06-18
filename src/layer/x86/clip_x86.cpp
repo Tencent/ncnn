@@ -18,7 +18,7 @@
 
 #if __AVX__
 #include <immintrin.h>
-#endif // __ARM_NEON
+#endif // __AVX__
 
 namespace ncnn {
 
@@ -28,7 +28,7 @@ Clip_x86::Clip_x86()
 {
 #if __AVX__
     support_packing = true;
-#endif // __ARM_NEON
+#endif // __AVX__
 }
 
 int Clip_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -63,7 +63,7 @@ int Clip_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         return 0;
     }
-#endif // __ARM_NEON
+#endif // __AVX__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)

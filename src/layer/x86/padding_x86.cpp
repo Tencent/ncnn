@@ -16,13 +16,13 @@
 
 #if __AVX__
 #include <immintrin.h>
-#endif // __ARM_NEON
+#endif // __AVX__
 
 namespace ncnn {
 
 #if __AVX__
 #include "padding_pack8.h"
-#endif // __ARM_NEON
+#endif // __AVX__
 
 DEFINE_LAYER_CREATOR(Padding_x86)
 
@@ -30,7 +30,7 @@ Padding_x86::Padding_x86()
 {
 #if __AVX__
     support_packing = true;
-#endif // __ARM_NEON
+#endif // __AVX__
 }
 
 int Padding_x86::create_pipeline(const Option& opt)
@@ -158,7 +158,7 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         return 0;
     }
-#endif // __ARM_NEON
+#endif // __AVX__
     return Padding::forward(bottom_blob_unpacked, top_blob, opt);
 }
 

@@ -117,7 +117,7 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
             convert_packing(weight_data_r2, weight_data_pack8, 8);
             return 0;
         }
-#endif // __ARM_NEON
+#endif // __AVX__
         // depth-wise specific
         // special path for both int8 and fp32
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -371,7 +371,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                 return 0;
             }
         }
-#endif // __ARM_NEON
+#endif // __AVX__
         if (elempack == 1) {
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {

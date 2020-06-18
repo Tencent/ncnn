@@ -24,7 +24,7 @@ static void pooling2x2s2_max_avx(const Mat &bottom_blob, Mat &top_blob,
     int outh = top_blob.h;
 #if __AVX2__
     __m256i permute_mask = _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7);
-#endif // __ARM_NEON
+#endif // __AVX__
 
     const int tailstep = w - 2 * outw + w;
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -41,7 +41,7 @@ static void pooling2x2s2_max_avx(const Mat &bottom_blob, Mat &top_blob,
             int remain = outw - (nn << 2);
 #else
             int remain = outw;
-#endif // __ARM_NEON
+#endif // __AVX__
 
 
 #if __AVX2__
@@ -60,7 +60,7 @@ static void pooling2x2s2_max_avx(const Mat &bottom_blob, Mat &top_blob,
                 outptr += 4;
                 outcount += 4;
             }
-#endif // __ARM_NEON
+#endif // __AVX__
             for (; remain > 0; remain--) {
                 float max0 = std::max(r0[0], r0[1]);
                 float max1 = std::max(r1[0], r1[1]);

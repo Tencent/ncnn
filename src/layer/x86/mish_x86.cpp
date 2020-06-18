@@ -13,7 +13,7 @@
 // specific language governing permissions and limitations under the License.
 #if __AVX__
 #include "avx_activation.h"
-#endif // __ARM_NEON
+#endif // __AVX__
 
 #include "mish_x86.h"
 
@@ -27,7 +27,7 @@ Mish_x86::Mish_x86()
 {
 #if __AVX__
     support_packing = true;
-#endif // __ARM_NEON
+#endif // __AVX__
 }
 
 int Mish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
