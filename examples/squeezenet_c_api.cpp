@@ -24,6 +24,11 @@ static int detect_squeezenet(const cv::Mat& bgr, std::vector<float>& cls_scores)
 {
     ncnn_net_t squeezenet = ncnn_net_create();
 
+    ncnn_option_t opt = ncnn_option_create();
+    ncnn_option_set_use_vulkan_compute(opt, 1);
+
+    ncnn_net_set_option(squeezenet, opt);
+
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
     ncnn_net_load_param(squeezenet, "squeezenet_v1.1.param");
     ncnn_net_load_model(squeezenet, "squeezenet_v1.1.bin");
@@ -53,6 +58,8 @@ static int detect_squeezenet(const cv::Mat& bgr, std::vector<float>& cls_scores)
     ncnn_mat_destroy(out);
 
     ncnn_extractor_destroy(ex);
+
+    ncnn_option_destroy(opt);
 
     ncnn_net_destroy(squeezenet);
 

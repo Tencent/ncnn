@@ -23,7 +23,7 @@ extern "C" {
 #endif
 
 /* mat api */
-typedef void* ncnn_mat_t;
+typedef struct __ncnn_mat_t* ncnn_mat_t;
 
 ncnn_mat_t ncnn_mat_create();
 ncnn_mat_t ncnn_mat_create_1d(int w);
@@ -53,7 +53,7 @@ void ncnn_mat_to_pixels_resize(ncnn_mat_t mat, unsigned char* pixels, int type, 
 void ncnn_mat_substract_mean_normalize(ncnn_mat_t mat, const float* mean_vals, const float* norm_vals);
 
 /* option api */
-typedef void* ncnn_option_t;
+typedef struct __ncnn_option_t* ncnn_option_t;
 
 ncnn_option_t ncnn_option_create();
 void ncnn_option_destroy(ncnn_option_t opt);
@@ -65,7 +65,7 @@ int ncnn_option_get_use_vulkan_compute(ncnn_option_t opt);
 void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute);
 
 /* net api */
-typedef void* ncnn_net_t;
+typedef struct __ncnn_net_t* ncnn_net_t;
 
 ncnn_net_t ncnn_net_create();
 void ncnn_net_destroy(ncnn_net_t net);
@@ -76,7 +76,7 @@ int ncnn_net_load_param(ncnn_net_t net, const char* path);
 int ncnn_net_load_model(ncnn_net_t net, const char* path);
 
 /* extractor api */
-typedef void* ncnn_extractor_t;
+typedef struct __ncnn_extractor_t* ncnn_extractor_t;
 
 ncnn_extractor_t ncnn_extractor_create(ncnn_net_t net);
 void ncnn_extractor_destroy(ncnn_extractor_t ex);

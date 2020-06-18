@@ -217,7 +217,7 @@ int ncnn_extractor_extract(ncnn_extractor_t ex, const char* name, ncnn_mat_t* ma
 #if NCNN_STRING
     Mat mat0;
     int ret = ((Extractor*)ex)->extract(name, mat0);
-    *mat = new Mat(mat0);
+    *mat = (ncnn_mat_t)(new Mat(mat0));
     return ret;
 #else
     return -1;
