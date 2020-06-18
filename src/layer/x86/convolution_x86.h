@@ -44,7 +44,7 @@ public:
     // forwardDilation
     Layer* convolution_dilation1;
 
-    // pack4
+    // pack8
     Mat weight_data_pack8;
     Mat weight_data_pack1to8;
     Mat weight_data_pack8to1;

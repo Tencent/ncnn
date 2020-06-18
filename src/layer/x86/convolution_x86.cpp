@@ -182,7 +182,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
 
     int elempack = (opt.use_packing_layout && num_input % 8 == 0) ? 8 : 1;
     int out_elempack = (opt.use_packing_layout && num_output % 8 == 0) ? 8 : 1;
-    // pack4
+    // pack8
     if (elempack == 8 && out_elempack == 8)
     {
         if (false && kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
@@ -427,7 +427,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
             }
         }
     }
-    // pack4to1
+    // pack8to1
     if (elempack == 8 && out_elempack == 1)
     {
         // src = kw-kh-inch-outch
