@@ -42,7 +42,29 @@ namespace ncnn {
 
 // global
 static Mutex g_instance_lock;
-static VkInstance g_instance = 0;
+
+class __ncnn_vulkan_instance_holder
+{
+public:
+    __ncnn_vulkan_instance_holder()
+    {
+        instance = 0;
+    }
+
+    ~__ncnn_vulkan_instance_holder()
+    {
+        destroy_gpu_instance();
+    }
+
+    operator VkInstance()
+    {
+        return instance;
+    }
+
+    VkInstance instance;
+};
+static __ncnn_vulkan_instance_holder g_instance;
+
 static int g_gpu_count = 0;
 static int g_default_gpu_index = -1;
 
@@ -501,12 +523,15 @@ int create_gpu_instance()
     instanceCreateInfo.enabledExtensionCount = enabledExtensions.size();
     instanceCreateInfo.ppEnabledExtensionNames = enabledExtensions.data();
 
-    ret = vkCreateInstance(&instanceCreateInfo, 0, &g_instance);
+    VkInstance instance = 0;
+    ret = vkCreateInstance(&instanceCreateInfo, 0, &instance);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateInstance failed %d", ret);
         return -1;
     }
+
+    g_instance.instance = instance;
 
 #if ENABLE_VALIDATION_LAYER
     if (support_VK_EXT_debug_utils)
