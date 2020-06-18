@@ -49,6 +49,21 @@ ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c)
     return (ncnn_mat_t)(new Mat(w, h, c));
 }
 
+ncnn_mat_t ncnn_mat_create_1d_packed(int w, size_t elemsize, int elempack)
+{
+    return (ncnn_mat_t)(new Mat(w, elemsize, elempack));
+}
+
+ncnn_mat_t ncnn_mat_create_2d_packed(int w, int h, size_t elemsize, int elempack)
+{
+    return (ncnn_mat_t)(new Mat(w, h, elemsize, elempack));
+}
+
+ncnn_mat_t ncnn_mat_create_3d_packed(int w, int h, int c, size_t elemsize, int elempack)
+{
+    return (ncnn_mat_t)(new Mat(w, h, c, elemsize, elempack));
+}
+
 void ncnn_mat_destroy(ncnn_mat_t mat)
 {
     delete (Mat*)mat;
@@ -72,6 +87,16 @@ int ncnn_mat_get_h(ncnn_mat_t mat)
 int ncnn_mat_get_c(ncnn_mat_t mat)
 {
     return ((Mat*)mat)->c;
+}
+
+size_t ncnn_mat_get_elemsize(ncnn_mat_t mat)
+{
+    return ((Mat*)mat)->elemsize;
+}
+
+int ncnn_mat_get_elempack(ncnn_mat_t mat)
+{
+    return ((Mat*)mat)->elempack;
 }
 
 size_t ncnn_mat_get_cstep(ncnn_mat_t mat)
