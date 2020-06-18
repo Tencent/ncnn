@@ -149,7 +149,7 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 //                 const float* ptr5 = (const float*)bottom_blob_flattened + outw * (i * 8 + 5);
 //                 const float* ptr6 = (const float*)bottom_blob_flattened + outw * (i * 8 + 6);
 //                 const float* ptr7 = (const float*)bottom_blob_flattened + outw * (i * 8 + 7);
-                
+
 //                 float* outptr = (float*)top_blob.row(i);
 
 //                 int j = 0;

@@ -39,7 +39,7 @@ static void conv3x3s1_pack8to1_avx(const Mat& bottom_blob, Mat& top_blob, const 
         {
             float* outptr0 = out0.row(0);
 
-            const Mat img0 = bottom_blob.channel(q);            
+            const Mat img0 = bottom_blob.channel(q);
 
             __m256 _k00 = _mm256_loadu_ps(k0);
             __m256 _k01 = _mm256_loadu_ps(k0 + 8);
@@ -64,7 +64,7 @@ static void conv3x3s1_pack8to1_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m256 _r00 = _mm256_loadu_ps(r0);
                     __m256 _r01 = _mm256_loadu_ps(r0 + 8);
                     __m256 _r02 = _mm256_loadu_ps(r0 + 16);
-                    
+
 
                     __m256 _sum0 = _mm256_mul_ps(_k00,_r00);
                     __m256 _sum1 = _mm256_mul_ps(_k01,_r01);

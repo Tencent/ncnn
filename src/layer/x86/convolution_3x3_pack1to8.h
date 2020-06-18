@@ -23,7 +23,7 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
     int nn_outch = 0;
     int remain_outch_start = 0;
 
-    
+
     nn_outch = outch >> 1;
     remain_outch_start = nn_outch << 1;
 

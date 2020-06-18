@@ -78,7 +78,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, M
         const Mat k5 = kernel_tm.channel(q+5);
         const Mat k6 = kernel_tm.channel(q+6);
         const Mat k7 = kernel_tm.channel(q+7);
-        
+
 
         Mat g0 = kernel_tm_pack8.channel(q/8);
 
@@ -96,7 +96,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, M
                 const float* k05 = k0.row(p+5);
                 const float* k06 = k0.row(p+6);
                 const float* k07 = k0.row(p+7);
-                
+
                 const float* k10 = k1.row(p);
                 const float* k11 = k1.row(p+1);
                 const float* k12 = k1.row(p+2);
@@ -105,7 +105,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, M
                 const float* k15 = k1.row(p+5);
                 const float* k16 = k1.row(p+6);
                 const float* k17 = k0.row(p+7);
-                
+
                 const float* k20 = k2.row(p);
                 const float* k21 = k2.row(p+1);
                 const float* k22 = k2.row(p+2);
@@ -114,7 +114,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, M
                 const float* k25 = k2.row(p+5);
                 const float* k26 = k2.row(p+6);
                 const float* k27 = k2.row(p+7);
-                
+
                 const float* k30 = k3.row(p);
                 const float* k31 = k3.row(p+1);
                 const float* k32 = k3.row(p+2);
@@ -123,7 +123,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, M
                 const float* k35 = k3.row(p+5);
                 const float* k36 = k3.row(p+6);
                 const float* k37 = k3.row(p+7);
-                
+
                 const float* k40 = k4.row(p);
                 const float* k41 = k4.row(p+1);
                 const float* k42 = k4.row(p+2);
@@ -159,7 +159,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, M
                 const float* k75 = k7.row(p+5);
                 const float* k76 = k7.row(p+6);
                 const float* k77 = k7.row(p+7);
-                
+
 
                 g00[0] = k00[k];
                 g00[1] = k10[k];
@@ -626,7 +626,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                     int q=0;
                     for (; q<inch; q++)
                     {
-              
+
 
                         __m256 _w0 = _mm256_loadu_ps( k0 );
                         __m256 _w1 = _mm256_loadu_ps( k0 + 8 );
@@ -1118,7 +1118,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 //                         float tmp135c = output0_tm[5] - output0_tm[6];
 
                         __m256 _tmp0m = _mm256_add_ps(_mm256_add_ps(_out0tm0, _tmp024a), _mm256_fmadd_ps(_tmp024c, _mm256_set1_ps(32.f),_tmp024b));
-                        __m256 _tmp2m = _mm256_fmadd_ps( _tmp024c, _mm256_set1_ps(8.f),_mm256_fmadd_ps(_tmp024b, _mm256_set1_ps(4.f) ,_tmp024a));
+                        __m256 _tmp2m = _mm256_fmadd_ps( _tmp024c, _mm256_set1_ps(8.f),_mm256_fmadd_ps(_tmp024b, _mm256_set1_ps(4.f),_tmp024a));
                         __m256 _tmp4m = _mm256_fmadd_ps( _tmp024c, _mm256_set1_ps(2.f),_mm256_fmadd_ps(_tmp024b, _mm256_set1_ps(16.f),_tmp024a));
                         _mm256_storeu_ps(tmp[0][m], _tmp0m);
                         _mm256_storeu_ps(tmp[2][m], _tmp2m);
@@ -1129,7 +1129,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 //                         tmp[4][m] = tmp024a + tmp024b * 16 + tmp024c + tmp024c;
 
                         __m256 _tmp1m = _mm256_fmadd_ps(_tmp135c, _mm256_set1_ps(16.f),_mm256_fmadd_ps(_tmp135b, _mm256_set1_ps(2.f),_tmp135a));
-                        __m256 _tmp3m = _mm256_fmadd_ps(_tmp135c, _mm256_set1_ps(4.f) ,_mm256_fmadd_ps(_tmp135b, _mm256_set1_ps(8.f),_tmp135a));
+                        __m256 _tmp3m = _mm256_fmadd_ps(_tmp135c, _mm256_set1_ps(4.f),_mm256_fmadd_ps(_tmp135b, _mm256_set1_ps(8.f),_tmp135a));
                         __m256 _tmp5m = _mm256_add_ps(_mm256_add_ps(_out0tm7, _tmp135a), _mm256_fmadd_ps( _tmp135b, _mm256_set1_ps(32.f),_tmp135c));
                         _mm256_storeu_ps(tmp[1][m], _tmp1m);
                         _mm256_storeu_ps(tmp[3][m], _tmp3m);
