@@ -36,6 +36,7 @@
 #endif // __ANDROID_API__ >= 26
 
 namespace ncnn {
+
 #if __AVX__
 // the alignment of all the allocated buffers
 #define MALLOC_ALIGN 256
