@@ -15,12 +15,12 @@
 
 #include "c_api.h"
 
-#include <string.h>
-
 #include "mat.h"
+#include "option.h"
 #include "net.h"
 
 using ncnn::Mat;
+using ncnn::Option;
 using ncnn::Net;
 using ncnn::Extractor;
 
@@ -52,6 +52,11 @@ ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c)
 void ncnn_mat_destroy(ncnn_mat_t mat)
 {
     delete (Mat*)mat;
+}
+
+int ncnn_mat_get_dims(ncnn_mat_t mat)
+{
+    return ((Mat*)mat)->dims;
 }
 
 int ncnn_mat_get_w(ncnn_mat_t mat)
@@ -100,6 +105,51 @@ void ncnn_mat_to_pixels_resize(ncnn_mat_t mat, unsigned char* pixels, int type, 
     ((Mat*)mat)->to_pixels_resize(pixels, type, target_width, target_height, target_stride);
 }
 
+void ncnn_mat_substract_mean_normalize(ncnn_mat_t mat, const float* mean_vals, const float* norm_vals)
+{
+    ((Mat*)mat)->substract_mean_normalize(mean_vals, norm_vals);
+}
+
+/* option api */
+ncnn_option_t ncnn_option_create()
+{
+    return (ncnn_option_t)(new Option());
+}
+
+void ncnn_option_destroy(ncnn_option_t opt)
+{
+    delete (Option*)opt;
+}
+
+int ncnn_option_get_num_threads(ncnn_option_t opt)
+{
+    return ((Option*)opt)->num_threads;
+}
+
+void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads)
+{
+    ((Option*)opt)->num_threads = num_threads;
+}
+
+int ncnn_option_get_use_vulkan_compute(ncnn_option_t opt)
+{
+#if NCNN_VULKAN
+    return ((Option*)opt)->use_vulkan_compute;
+#else
+    return 0;
+#endif
+}
+
+void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute)
+{
+#if NCNN_VULKAN
+    ((Option*)opt)->use_vulkan_compute = use_vulkan_compute;
+#else
+    (void)opt;
+    (void)use_vulkan_compute;
+#endif
+}
+
 /* net api */
 ncnn_net_t ncnn_net_create()
 {
@@ -111,14 +161,27 @@ void ncnn_net_destroy(ncnn_net_t net)
     delete (Net*)net;
 }
 
+void ncnn_net_set_option(ncnn_net_t net, ncnn_option_t opt)
+{
+    ((Net*)net)->opt = *((Option*)opt);
+}
+
 int ncnn_net_load_param(ncnn_net_t net, const char* path)
 {
+#if NCNN_STDIO && NCNN_STRING
     return ((Net*)net)->load_param(path);
+#else
+    return -1;
+#endif
 }
 
 int ncnn_net_load_model(ncnn_net_t net, const char* path)
 {
+#if NCNN_STDIO && NCNN_STRING
     return ((Net*)net)->load_model(path);
+#else
+    return -1;
+#endif
 }
 
 /* extractor api */
@@ -132,17 +195,33 @@ void ncnn_extractor_destroy(ncnn_extractor_t ex)
     delete (Extractor*)ex;
 }
 
+void ncnn_extractor_set_option(ncnn_extractor_t ex, ncnn_option_t opt)
+{
+    ((Extractor*)ex)->set_num_threads(((Option*)opt)->num_threads);
+#if NCNN_VULKAN
+    ((Extractor*)ex)->set_vulkan_compute(((Option*)opt)->use_vulkan_compute);
+#endif
+}
+
 int ncnn_extractor_input(ncnn_extractor_t ex, const char* name, ncnn_mat_t mat)
 {
+#if NCNN_STRING
     return ((Extractor*)ex)->input(name, *((Mat*)mat));
+#else
+    return -1;
+#endif
 }
 
 int ncnn_extractor_extract(ncnn_extractor_t ex, const char* name, ncnn_mat_t* mat)
 {
+#if NCNN_STRING
     Mat mat0;
-    int ret = ((Extractor*)ex)->input(name, mat0);
+    int ret = ((Extractor*)ex)->extract(name, mat0);
     *mat = new Mat(mat0);
     return ret;
+#else
+    return -1;
+#endif
 }
 
 #ifdef __cplusplus

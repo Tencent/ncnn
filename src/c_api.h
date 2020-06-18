@@ -31,6 +31,7 @@ ncnn_mat_t ncnn_mat_create_2d(int w, int h);
 ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c);
 void ncnn_mat_destroy(ncnn_mat_t mat);
 
+int ncnn_mat_get_dims(ncnn_mat_t mat);
 int ncnn_mat_get_w(ncnn_mat_t mat);
 int ncnn_mat_get_h(ncnn_mat_t mat);
 int ncnn_mat_get_c(ncnn_mat_t mat);
@@ -49,11 +50,27 @@ ncnn_mat_t ncnn_mat_from_pixels_resize(const unsigned char* pixels, int type, in
 void ncnn_mat_to_pixels(ncnn_mat_t mat, unsigned char* pixels, int type, int stride);
 void ncnn_mat_to_pixels_resize(ncnn_mat_t mat, unsigned char* pixels, int type, int target_width, int target_height, int target_stride);
 
+void ncnn_mat_substract_mean_normalize(ncnn_mat_t mat, const float* mean_vals, const float* norm_vals);
+
+/* option api */
+typedef void* ncnn_option_t;
+
+ncnn_option_t ncnn_option_create();
+void ncnn_option_destroy(ncnn_option_t opt);
+
+int ncnn_option_get_num_threads(ncnn_option_t opt);
+void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads);
+
+int ncnn_option_get_use_vulkan_compute(ncnn_option_t opt);
+void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute);
+
 /* net api */
 typedef void* ncnn_net_t;
 
 ncnn_net_t ncnn_net_create();
 void ncnn_net_destroy(ncnn_net_t net);
+
+void ncnn_net_set_option(ncnn_net_t net, ncnn_option_t opt);
 
 int ncnn_net_load_param(ncnn_net_t net, const char* path);
 int ncnn_net_load_model(ncnn_net_t net, const char* path);
@@ -63,6 +80,8 @@ typedef void* ncnn_extractor_t;
 
 ncnn_extractor_t ncnn_extractor_create(ncnn_net_t net);
 void ncnn_extractor_destroy(ncnn_extractor_t ex);
+
+void ncnn_extractor_set_option(ncnn_extractor_t ex, ncnn_option_t opt);
 
 int ncnn_extractor_input(ncnn_extractor_t ex, const char* name, ncnn_mat_t mat);
 int ncnn_extractor_extract(ncnn_extractor_t ex, const char* name, ncnn_mat_t* mat);

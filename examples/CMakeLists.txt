@@ -17,6 +17,7 @@ if(OpenCV_FOUND)
     include_directories(${CMAKE_CURRENT_BINARY_DIR}/../src)
 
     ncnn_add_example(squeezenet)
+    ncnn_add_example(squeezenet_c_api)
     ncnn_add_example(fasterrcnn)
     ncnn_add_example(rfcn)
     ncnn_add_example(yolov2)
