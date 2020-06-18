@@ -576,19 +576,20 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 #if __AVX__
     if (elempack == 8 && out_elempack == 8)
     {
-        if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
-        {
+        // if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+        // {
 
-            conv3x3s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
-            // fprintf(stderr, "top_blob %d x %d x %d elempack = %d  values = %f , %f ,%f \n",top_blob.w,top_blob.h,top_blob.c,top_blob.elempack,top_blob[0],top_blob[1],top_blob[2] );
+        //     conv3x3s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
+        //     // fprintf(stderr, "top_blob %d x %d x %d elempack = %d  values = %f , %f ,%f \n",top_blob.w,top_blob.h,top_blob.c,top_blob.elempack,top_blob[0],top_blob[1],top_blob[2] );
 
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-            fprintf(stderr, "top_blob %d x %d x %d elempack = %d  values = %f , %f ,%f \n",top_blob.w,top_blob.h,top_blob.c,top_blob.elempack,top_blob[0],top_blob[1],top_blob[2] );
+        //     if (activation)
+        //     {
+        //         activation->forward_inplace(top_blob, opt);
+        //     }
+        //     fprintf(stderr, "top_blob %d x %d x %d elempack = %d  values = %f , %f ,%f \n",top_blob.w,top_blob.h,top_blob.c,top_blob.elempack,top_blob[0],top_blob[1],top_blob[2] );
 
-        } else  if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        // } else 
+         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv1x1s1_sgemm_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
 

@@ -115,8 +115,8 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum10 = _mm256_fmadd_ps(_r22,_k21_1,_sum10);
                     _sum10 = _mm256_fmadd_ps(_r23,_k22_1,_sum10);
 
-                    _mm256_storeu_ps(outptr0, _sum00);
-                    _mm256_storeu_ps(outptr1, _sum10);
+                    _mm256_store_ps(outptr0, _sum00);
+                    _mm256_store_ps(outptr1, _sum10);
 
                     __m256 _sum01 = _mm256_loadu_ps(outptr0+8);
                     __m256 _sum11 = _mm256_loadu_ps(outptr1+8);
@@ -146,8 +146,8 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum11 = _mm256_fmadd_ps(_r23,_k21_1,_sum11);
                     _sum11 = _mm256_fmadd_ps(_r24,_k22_1,_sum11);
 
-                    _mm256_storeu_ps(outptr0+8, _sum01);
-                    _mm256_storeu_ps(outptr1+8, _sum11);
+                    _mm256_store_ps(outptr0+8, _sum01);
+                    _mm256_store_ps(outptr1+8, _sum11);
 
                     __m256 _sum02 = _mm256_loadu_ps(outptr0+16);
                     __m256 _sum12 = _mm256_loadu_ps(outptr1+16);
@@ -177,8 +177,8 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum12 = _mm256_fmadd_ps(_r24,_k21_1,_sum12);
                     _sum12 = _mm256_fmadd_ps(_r25,_k22_1,_sum12);
 
-                    _mm256_storeu_ps(outptr0+16, _sum02);
-                    _mm256_storeu_ps(outptr1+16, _sum12);
+                    _mm256_store_ps(outptr0+16, _sum02);
+                    _mm256_store_ps(outptr1+16, _sum12);
 
 
                     __m256 _r06 = _mm256_broadcast_ss(r0+5);
@@ -209,8 +209,8 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum13 = _mm256_fmadd_ps(_r25,_k21_1,_sum13);
                     _sum13 = _mm256_fmadd_ps(_r26,_k22_1,_sum13);
 
-                    _mm256_storeu_ps(outptr0+24, _sum03);
-                    _mm256_storeu_ps(outptr1+24, _sum13);
+                    _mm256_store_ps(outptr0+24, _sum03);
+                    _mm256_store_ps(outptr1+24, _sum13);
 
 
 
@@ -258,8 +258,8 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum10 = _mm256_fmadd_ps(_r22,_k21_1,_sum10);
                     _sum10 = _mm256_fmadd_ps(_r23,_k22_1,_sum10);
 
-                    _mm256_storeu_ps(outptr0, _sum00);
-                    _mm256_storeu_ps(outptr1, _sum10);
+                    _mm256_store_ps(outptr0, _sum00);
+                    _mm256_store_ps(outptr1, _sum10);
 
                     __m256 _sum01 = _mm256_loadu_ps(outptr0+8);
                     __m256 _sum11 = _mm256_loadu_ps(outptr1+8);
@@ -289,8 +289,8 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum11 = _mm256_fmadd_ps(_r23,_k21_1,_sum11);
                     _sum11 = _mm256_fmadd_ps(_r24,_k22_1,_sum11);
 
-                    _mm256_storeu_ps(outptr0+8, _sum01);
-                    _mm256_storeu_ps(outptr1+8, _sum11);
+                    _mm256_store_ps(outptr0+8, _sum01);
+                    _mm256_store_ps(outptr1+8, _sum11);
 
                     r0 += 2;
                     r1 += 2;
@@ -336,8 +336,8 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum10 = _mm256_fmadd_ps(_r22,_k21_1,_sum10);
                     _sum10 = _mm256_fmadd_ps(_r23,_k22_1,_sum10);
 
-                    _mm256_storeu_ps(outptr0, _sum00);
-                    _mm256_storeu_ps(outptr1, _sum10);
+                    _mm256_store_ps(outptr0, _sum00);
+                    _mm256_store_ps(outptr1, _sum10);
 
                     r0 += 1;
                     r1 += 1;
@@ -419,7 +419,7 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m256 _r04 = _mm256_broadcast_ss(r0 + 3);
                     __m256 _r14 = _mm256_broadcast_ss(r1 + 3);
                     __m256 _r24 = _mm256_broadcast_ss(r2 + 3);
-                    _mm256_storeu_ps(outptr0, _sum0);
+                    _mm256_store_ps(outptr0, _sum0);
 
                     _sum1 = _mm256_fmadd_ps(_r02,_k00,_sum1);
                     _sum1 = _mm256_fmadd_ps(_r03,_k01,_sum1);
@@ -435,7 +435,7 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m256 _r05 = _mm256_broadcast_ss(r0 + 4);
                     __m256 _r15 = _mm256_broadcast_ss(r1 + 4);
                     __m256 _r25 = _mm256_broadcast_ss(r2 + 4);
-                    _mm256_storeu_ps(outptr0+8, _sum1);
+                    _mm256_store_ps(outptr0+8, _sum1);
 
                     _sum2 = _mm256_fmadd_ps(_r03,_k00,_sum2);
                     _sum2 = _mm256_fmadd_ps(_r04,_k01,_sum2);
@@ -451,7 +451,7 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m256 _r06 = _mm256_broadcast_ss(r0 + 5);
                     __m256 _r16 = _mm256_broadcast_ss(r1 + 5);
                     __m256 _r26 = _mm256_broadcast_ss(r2 + 5);
-                    _mm256_storeu_ps(outptr0+16, _sum2);
+                    _mm256_store_ps(outptr0+16, _sum2);
 
                     _sum3 = _mm256_fmadd_ps(_r04,_k00,_sum3);
                     _sum3 = _mm256_fmadd_ps(_r05,_k01,_sum3);
@@ -463,7 +463,7 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum3 = _mm256_fmadd_ps(_r25,_k21,_sum3);
                     _sum3 = _mm256_fmadd_ps(_r26,_k22,_sum3);
 
-                    _mm256_storeu_ps(outptr0+24, _sum3);
+                    _mm256_store_ps(outptr0+24, _sum3);
 
 
                     r0 += 4;
@@ -499,7 +499,7 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m256 _r04 = _mm256_broadcast_ss(r0 + 3);
                     __m256 _r14 = _mm256_broadcast_ss(r1 + 3);
                     __m256 _r24 = _mm256_broadcast_ss(r2 + 3);
-                    _mm256_storeu_ps(outptr0, _sum0);
+                    _mm256_store_ps(outptr0, _sum0);
 
                     _sum1 = _mm256_fmadd_ps(_r02,_k00,_sum1);
                     _sum1 = _mm256_fmadd_ps(_r03,_k01,_sum1);
@@ -510,7 +510,7 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum1 = _mm256_fmadd_ps(_r22,_k20,_sum1);
                     _sum1 = _mm256_fmadd_ps(_r23,_k21,_sum1);
                     _sum1 = _mm256_fmadd_ps(_r24,_k22,_sum1);
-                    _mm256_storeu_ps(outptr0+8, _sum0);
+                    _mm256_store_ps(outptr0+8, _sum0);
 
 
                     r0 += 2;
@@ -543,7 +543,7 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum0 = _mm256_fmadd_ps(_r23,_k22,_sum0);
 
 
-                    _mm256_storeu_ps(outptr0, _sum0);
+                    _mm256_store_ps(outptr0, _sum0);
 
                     r0 += 1;
                     r1 += 1;
@@ -678,8 +678,8 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m256 _r24 = _mm256_broadcast_ss(r2+3);
                     __m256 _r25 = _mm256_broadcast_ss(r2+4);
 
-                    _mm256_storeu_ps(outptr0, _sum00);
-                    _mm256_storeu_ps(outptr1, _sum10);
+                    _mm256_store_ps(outptr0, _sum00);
+                    _mm256_store_ps(outptr1, _sum10);
 
                     _sum01 = _mm256_fmadd_ps(_r03,_k00_0,_sum01);
                     _sum01 = _mm256_fmadd_ps(_r04,_k01_0,_sum01);
@@ -715,8 +715,8 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m256 _r26 = _mm256_broadcast_ss(r2+5);
                     __m256 _r27 = _mm256_broadcast_ss(r2+6);
 
-                    _mm256_storeu_ps(outptr0+8, _sum01);
-                    _mm256_storeu_ps(outptr1+8, _sum11);
+                    _mm256_store_ps(outptr0+8, _sum01);
+                    _mm256_store_ps(outptr1+8, _sum11);
 
                     _sum02 = _mm256_fmadd_ps(_r05,_k00_0,_sum02);
                     _sum02 = _mm256_fmadd_ps(_r06,_k01_0,_sum02);
@@ -750,8 +750,8 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m256 _r28 = _mm256_broadcast_ss(r2+7);
                     __m256 _r29 = _mm256_broadcast_ss(r2+8);
 
-                    _mm256_storeu_ps(outptr0+16, _sum02);
-                    _mm256_storeu_ps(outptr1+16, _sum12);
+                    _mm256_store_ps(outptr0+16, _sum02);
+                    _mm256_store_ps(outptr1+16, _sum12);
 
                     _sum03 = _mm256_fmadd_ps(_r07,_k00_0,_sum03);
                     _sum03 = _mm256_fmadd_ps(_r08,_k01_0,_sum03);
@@ -773,8 +773,8 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum13 = _mm256_fmadd_ps(_r28,_k21_1,_sum13);
                     _sum13 = _mm256_fmadd_ps(_r29,_k22_1,_sum13);
 
-                    _mm256_storeu_ps(outptr0+24, _sum03);
-                    _mm256_storeu_ps(outptr1+24, _sum13);
+                    _mm256_store_ps(outptr0+24, _sum03);
+                    _mm256_store_ps(outptr1+24, _sum13);
 
                     r0 += 8;
                     r1 += 8;
@@ -818,8 +818,8 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum10 = _mm256_fmadd_ps(_r22,_k21_1,_sum10);
                     _sum10 = _mm256_fmadd_ps(_r23,_k22_1,_sum10);
 
-                    _mm256_storeu_ps(outptr0, _sum00);
-                    _mm256_storeu_ps(outptr1, _sum10);
+                    _mm256_store_ps(outptr0, _sum00);
+                    _mm256_store_ps(outptr1, _sum10);
 
                     r0 += 2;
                     r1 += 2;
@@ -907,7 +907,7 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m256 _r24 = _mm256_broadcast_ss(r2+3);
                     __m256 _r25 = _mm256_broadcast_ss(r2+4);
 
-                    _mm256_storeu_ps(outptr0, _sum00);
+                    _mm256_store_ps(outptr0, _sum00);
 
                     _sum01 = _mm256_fmadd_ps(_r03,_k00,_sum01);
                     _sum01 = _mm256_fmadd_ps(_r04,_k01,_sum01);
@@ -929,7 +929,7 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m256 _r26 = _mm256_broadcast_ss(r2+5);
                     __m256 _r27 = _mm256_broadcast_ss(r2+6);
 
-                    _mm256_storeu_ps(outptr0+8, _sum01);
+                    _mm256_store_ps(outptr0+8, _sum01);
 
                     _sum02 = _mm256_fmadd_ps(_r05,_k00,_sum02);
                     _sum02 = _mm256_fmadd_ps(_r06,_k01,_sum02);
@@ -950,7 +950,7 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m256 _r28 = _mm256_broadcast_ss(r2+7);
                     __m256 _r29 = _mm256_broadcast_ss(r2+8);
 
-                    _mm256_storeu_ps(outptr0+16, _sum02);
+                    _mm256_store_ps(outptr0+16, _sum02);
 
                     _sum03 = _mm256_fmadd_ps(_r07,_k00,_sum03);
                     _sum03 = _mm256_fmadd_ps(_r08,_k01,_sum03);
@@ -962,7 +962,7 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum03 = _mm256_fmadd_ps(_r28,_k21,_sum03);
                     _sum03 = _mm256_fmadd_ps(_r29,_k22,_sum03);
 
-                    _mm256_storeu_ps(outptr0+24, _sum03);
+                    _mm256_store_ps(outptr0+24, _sum03);
 
                     r0 += 8;
                     r1 += 8;
@@ -994,7 +994,7 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum00 = _mm256_fmadd_ps(_r23,_k22,_sum00);
 
 
-                    _mm256_storeu_ps(outptr0, _sum00);
+                    _mm256_store_ps(outptr0, _sum00);
 
                     r0 += 2;
                     r1 += 2;
