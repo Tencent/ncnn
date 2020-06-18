@@ -401,8 +401,10 @@ int create_gpu_instance()
 {
     MutexLockGuard lock(g_instance_lock);
 
-    if (g_instance)
+    if ((VkInstance)g_instance != 0)
         return 0;
+
+    // NCNN_LOGE("create_gpu_instance");
 
     VkResult ret;
 
@@ -971,8 +973,10 @@ void destroy_gpu_instance()
 {
     MutexLockGuard lock(g_instance_lock);
 
-    if (!g_instance)
+    if ((VkInstance)g_instance == 0)
         return;
+
+    // NCNN_LOGE("destroy_gpu_instance");
 
 #if NCNN_VULKAN_ONLINE_SPIRV
     glslang::FinalizeProcess();
@@ -998,7 +1002,7 @@ static bool is_gpu_instance_ready()
 {
     MutexLockGuard lock(g_instance_lock);
 
-    return g_instance != 0;
+    return (VkInstance)g_instance != 0;
 }
 
 static void try_create_gpu_instance()
