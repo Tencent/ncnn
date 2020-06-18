@@ -26,21 +26,6 @@
 #if NCNN_VULKAN
 #include "command.h"
 #include "gpu.h"
-
-class GlobalGpuInstance
-{
-public:
-    GlobalGpuInstance()
-    {
-        ncnn::create_gpu_instance();
-    }
-    ~GlobalGpuInstance()
-    {
-        ncnn::destroy_gpu_instance();
-    }
-};
-// initialize vulkan runtime before main()
-GlobalGpuInstance g_global_gpu_instance;
 #endif // NCNN_VULKAN
 
 static struct prng_rand_t g_prng_rand_state;
