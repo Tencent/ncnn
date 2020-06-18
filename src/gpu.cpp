@@ -41,6 +41,7 @@
 namespace ncnn {
 
 // global
+static Mutex g_instance_lock;
 static VkInstance g_instance = 0;
 static int g_gpu_count = 0;
 static int g_default_gpu_index = -1;
@@ -171,23 +172,16 @@ static int init_instance_extension()
     if (support_VK_KHR_get_surface_capabilities2)
     {
         vkGetPhysicalDeviceSurfaceCapabilities2KHR = (PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceCapabilities2KHR");
-        ;
         vkGetPhysicalDeviceSurfaceFormats2KHR = (PFN_vkGetPhysicalDeviceSurfaceFormats2KHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceFormats2KHR");
-        ;
     }
 
     if (support_VK_KHR_surface)
     {
         vkDestroySurfaceKHR = (PFN_vkDestroySurfaceKHR)vkGetInstanceProcAddr(g_instance, "vkDestroySurfaceKHR");
-        ;
         vkGetPhysicalDeviceSurfaceSupportKHR = (PFN_vkGetPhysicalDeviceSurfaceSupportKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceSupportKHR");
-        ;
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR = (PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR");
-        ;
         vkGetPhysicalDeviceSurfaceFormatsKHR = (PFN_vkGetPhysicalDeviceSurfaceFormatsKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfaceFormatsKHR");
-        ;
         vkGetPhysicalDeviceSurfacePresentModesKHR = (PFN_vkGetPhysicalDeviceSurfacePresentModesKHR)vkGetInstanceProcAddr(g_instance, "vkGetPhysicalDeviceSurfacePresentModesKHR");
-        ;
     }
 
 #if __ANDROID_API__ >= 26
@@ -383,6 +377,11 @@ static int find_default_vulkan_device_index()
 
 int create_gpu_instance()
 {
+    MutexLockGuard lock(g_instance_lock);
+
+    if (g_instance)
+        return 0;
+
     VkResult ret;
 
     std::vector<const char*> enabledLayers;
@@ -945,6 +944,11 @@ int create_gpu_instance()
 
 void destroy_gpu_instance()
 {
+    MutexLockGuard lock(g_instance_lock);
+
+    if (!g_instance)
+        return;
+
 #if NCNN_VULKAN_ONLINE_SPIRV
     glslang::FinalizeProcess();
 #endif
@@ -965,24 +969,45 @@ void destroy_gpu_instance()
     vkDestroyInstance(g_instance, 0);
 }
 
+static bool is_gpu_instance_ready()
+{
+    MutexLockGuard lock(g_instance_lock);
+
+    return g_instance != 0;
+}
+
+static void try_create_gpu_instance()
+{
+    if (!is_gpu_instance_ready())
+        create_gpu_instance();
+}
+
 int get_gpu_count()
 {
+    try_create_gpu_instance();
+
     return g_gpu_count;
 }
 
 int get_default_gpu_index()
 {
+    try_create_gpu_instance();
+
     return g_default_gpu_index;
 }
 
 const GpuInfo& get_gpu_info(int device_index)
 {
+    try_create_gpu_instance();
+
     return g_gpu_infos[device_index];
 }
 
 VulkanDevice::VulkanDevice(int device_index)
     : info(g_gpu_infos[device_index])
 {
+    try_create_gpu_instance();
+
     std::vector<const char*> enabledExtensions;
     if (info.support_VK_KHR_8bit_storage)
         enabledExtensions.push_back("VK_KHR_8bit_storage");
@@ -2267,6 +2292,8 @@ void VulkanDevice::destroy_utility_operator()
 
 VulkanDevice* get_gpu_device(int device_index)
 {
+    try_create_gpu_instance();
+
     if (device_index < 0 || device_index >= g_gpu_count)
         return 0;
 
