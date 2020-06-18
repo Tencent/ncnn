@@ -219,7 +219,7 @@ int main(int argc, char** argv)
 #endif // NCNN_VULKAN
     opt.use_winograd_convolution = true;
     opt.use_sgemm_convolution = true;
-    opt.use_int8_inference = true;
+    opt.use_int8_inference = false;
     opt.use_vulkan_compute = use_vulkan_compute;
     opt.use_fp16_packed = true;
     opt.use_fp16_storage = true;

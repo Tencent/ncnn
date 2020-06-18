@@ -67,7 +67,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                     __m256 _p = _mm256_loadu_ps(ptr);
                     __m256 _p1 = _mm256_loadu_ps(ptr1);
                     _p = _mm256_mul_ps(_p, _p1);
-                    _mm256_store_ps(outptr, _p);
+                    _mm256_storeu_ps(outptr, _p);
 
                     ptr += 8;
                     ptr1 += 8;
@@ -89,7 +89,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                         __m256 _p = _mm256_loadu_ps(outptr);
                         __m256 _p1 = _mm256_loadu_ps(ptr);
                         _p = _mm256_mul_ps(_p, _p1);
-                        _mm256_store_ps(outptr, _p);
+                        _mm256_storeu_ps(outptr, _p);
 
                         ptr += 8;
                         outptr += 8;
@@ -115,7 +115,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                         __m256 _p = _mm256_loadu_ps(ptr);
                         __m256 _p1 = _mm256_loadu_ps(ptr1);
                         _p = _mm256_add_ps(_p, _p1);
-                        _mm256_store_ps(outptr, _p);
+                        _mm256_storeu_ps(outptr, _p);
 
                         ptr += 8;
                         ptr1 += 8;
@@ -137,7 +137,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                             __m256 _p = _mm256_loadu_ps(outptr);
                             __m256 _p1 = _mm256_loadu_ps(ptr);
                             _p = _mm256_add_ps(_p, _p1);
-                            _mm256_store_ps(outptr, _p);
+                            _mm256_storeu_ps(outptr, _p);
 
                             ptr += 8;
                             outptr += 8;
@@ -164,7 +164,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                         __m256 _p1 = _mm256_loadu_ps(ptr1);
                         _p = _mm256_mul_ps(_p, _coeff0);
                         _p = _mm256_fmadd_ps( _p1, _coeff1,_p);
-                        _mm256_store_ps(outptr, _p);
+                        _mm256_storeu_ps(outptr, _p);
 
                         ptr += 8;
                         ptr1 += 8;
@@ -187,7 +187,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                             __m256 _p = _mm256_loadu_ps(outptr);
                             __m256 _p1 = _mm256_loadu_ps(ptr);
                             _p = _mm256_fmadd_ps(_p1, _coeff,_p);
-                            _mm256_store_ps(outptr, _p);
+                            _mm256_storeu_ps(outptr, _p);
 
                             ptr += 8;
                             outptr += 8;
@@ -212,7 +212,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                     __m256 _p = _mm256_loadu_ps(ptr);
                     __m256 _p1 = _mm256_loadu_ps(ptr1);
                     _p = _mm256_max_ps(_p, _p1);
-                    _mm256_store_ps(outptr, _p);
+                    _mm256_storeu_ps(outptr, _p);
 
                     ptr += 8;
                     ptr1 += 8;
@@ -234,7 +234,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                         __m256 _p = _mm256_loadu_ps(outptr);
                         __m256 _p1 = _mm256_loadu_ps(ptr);
                         _p = _mm256_max_ps(_p, _p1);
-                        _mm256_store_ps(outptr, _p);
+                        _mm256_storeu_ps(outptr, _p);
 
                         ptr += 8;
                         outptr += 8;
