@@ -29,7 +29,7 @@ static void convdw3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
     {
         Mat out = top_blob.channel(g);
 
-        __m256 _bias0 = bias ? _mm256_load_ps((const float*)bias + g * 8) : _mm256_set1_ps(0.f);
+        __m256 _bias0 = bias ? _mm256_loadu_ps((const float*)bias + g * 8) : _mm256_set1_ps(0.f);
 
         const float* k0 = kernel.row(g);
 
@@ -42,15 +42,15 @@ static void convdw3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
         const float* r1 = img0.row(1);
         const float* r2 = img0.row(2);
 
-        __m256 _k00 = _mm256_load_ps(k0);
-        __m256 _k01 = _mm256_load_ps(k0 + 8);
-        __m256 _k02 = _mm256_load_ps(k0 + 16);
-        __m256 _k10 = _mm256_load_ps(k0 + 24);
-        __m256 _k11 = _mm256_load_ps(k0 + 32);
-        __m256 _k12 = _mm256_load_ps(k0 + 40);
-        __m256 _k20 = _mm256_load_ps(k0 + 48);
-        __m256 _k21 = _mm256_load_ps(k0 + 56);
-        __m256 _k22 = _mm256_load_ps(k0 + 64);
+        __m256 _k00 = _mm256_loadu_ps(k0);
+        __m256 _k01 = _mm256_loadu_ps(k0 + 8);
+        __m256 _k02 = _mm256_loadu_ps(k0 + 16);
+        __m256 _k10 = _mm256_loadu_ps(k0 + 24);
+        __m256 _k11 = _mm256_loadu_ps(k0 + 32);
+        __m256 _k12 = _mm256_loadu_ps(k0 + 40);
+        __m256 _k20 = _mm256_loadu_ps(k0 + 48);
+        __m256 _k21 = _mm256_loadu_ps(k0 + 56);
+        __m256 _k22 = _mm256_loadu_ps(k0 + 64);
 
         int i = 0;
 
@@ -61,15 +61,15 @@ static void convdw3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
             {
                 __m256 _sum0 = _bias0;
 
-                __m256 _r00 = _mm256_load_ps(r0);
-                __m256 _r01 = _mm256_load_ps(r0 + 8);
-                __m256 _r02 = _mm256_load_ps(r0 + 16);
-                __m256 _r10 = _mm256_load_ps(r1);
-                __m256 _r11 = _mm256_load_ps(r1 + 8);
-                __m256 _r12 = _mm256_load_ps(r1 + 16);
-                __m256 _r20 = _mm256_load_ps(r2);
-                __m256 _r21 = _mm256_load_ps(r2 + 8);
-                __m256 _r22 = _mm256_load_ps(r2 + 16);
+                __m256 _r00 = _mm256_loadu_ps(r0);
+                __m256 _r01 = _mm256_loadu_ps(r0 + 8);
+                __m256 _r02 = _mm256_loadu_ps(r0 + 16);
+                __m256 _r10 = _mm256_loadu_ps(r1);
+                __m256 _r11 = _mm256_loadu_ps(r1 + 8);
+                __m256 _r12 = _mm256_loadu_ps(r1 + 16);
+                __m256 _r20 = _mm256_loadu_ps(r2);
+                __m256 _r21 = _mm256_loadu_ps(r2 + 8);
+                __m256 _r22 = _mm256_loadu_ps(r2 + 16);
 
                 _sum0 = _mm256_fmadd_ps(_k00, _r00,_sum0);
                 _sum0 = _mm256_fmadd_ps(_k01, _r01,_sum0);
@@ -82,9 +82,9 @@ static void convdw3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum0 = _mm256_fmadd_ps(_k22, _r22,_sum0);
 
                 __m256 _sum1 = _bias0;
-                __m256 _r03 = _mm256_load_ps(r0 + 24);
-                __m256 _r13 = _mm256_load_ps(r1 + 24);
-                __m256 _r23 = _mm256_load_ps(r2 + 24);
+                __m256 _r03 = _mm256_loadu_ps(r0 + 24);
+                __m256 _r13 = _mm256_loadu_ps(r1 + 24);
+                __m256 _r23 = _mm256_loadu_ps(r2 + 24);
                 _mm256_store_ps(outptr0, _sum0);
 
                 _sum1 = _mm256_fmadd_ps(_k00, _r01,_sum1);
@@ -98,9 +98,9 @@ static void convdw3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum1 = _mm256_fmadd_ps(_k22, _r23,_sum1);
 
                 __m256 _sum2 = _bias0;
-                __m256 _r04 = _mm256_load_ps(r0 + 32);
-                __m256 _r14 = _mm256_load_ps(r1 + 32);
-                __m256 _r24 = _mm256_load_ps(r2 + 32);
+                __m256 _r04 = _mm256_loadu_ps(r0 + 32);
+                __m256 _r14 = _mm256_loadu_ps(r1 + 32);
+                __m256 _r24 = _mm256_loadu_ps(r2 + 32);
                 _mm256_store_ps(outptr0+8, _sum1);
 
                 _sum2 = _mm256_fmadd_ps(_k00, _r02,_sum2);
@@ -114,9 +114,9 @@ static void convdw3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum2 = _mm256_fmadd_ps(_k22, _r24,_sum2);
 
                 __m256 _sum3 = _bias0;
-                __m256 _r05 = _mm256_load_ps(r0 + 40);
-                __m256 _r15 = _mm256_load_ps(r1 + 40);
-                __m256 _r25 = _mm256_load_ps(r2 + 40);
+                __m256 _r05 = _mm256_loadu_ps(r0 + 40);
+                __m256 _r15 = _mm256_loadu_ps(r1 + 40);
+                __m256 _r25 = _mm256_loadu_ps(r2 + 40);
                 _mm256_store_ps(outptr0+16, _sum2);
 
                 _sum3 = _mm256_fmadd_ps(_k00, _r03,_sum3);
@@ -140,15 +140,15 @@ static void convdw3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
             {
                 __m256 _sum0 = _bias0;
 
-                __m256 _r00 = _mm256_load_ps(r0);
-                __m256 _r01 = _mm256_load_ps(r0 + 8);
-                __m256 _r02 = _mm256_load_ps(r0 + 16);
-                __m256 _r10 = _mm256_load_ps(r1);
-                __m256 _r11 = _mm256_load_ps(r1 + 8);
-                __m256 _r12 = _mm256_load_ps(r1 + 16);
-                __m256 _r20 = _mm256_load_ps(r2);
-                __m256 _r21 = _mm256_load_ps(r2 + 8);
-                __m256 _r22 = _mm256_load_ps(r2 + 16);
+                __m256 _r00 = _mm256_loadu_ps(r0);
+                __m256 _r01 = _mm256_loadu_ps(r0 + 8);
+                __m256 _r02 = _mm256_loadu_ps(r0 + 16);
+                __m256 _r10 = _mm256_loadu_ps(r1);
+                __m256 _r11 = _mm256_loadu_ps(r1 + 8);
+                __m256 _r12 = _mm256_loadu_ps(r1 + 16);
+                __m256 _r20 = _mm256_loadu_ps(r2);
+                __m256 _r21 = _mm256_loadu_ps(r2 + 8);
+                __m256 _r22 = _mm256_loadu_ps(r2 + 16);
 
                 _sum0 = _mm256_fmadd_ps(_k00, _r00,_sum0);
                 _sum0 = _mm256_fmadd_ps(_k01, _r01,_sum0);
@@ -161,9 +161,9 @@ static void convdw3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum0 = _mm256_fmadd_ps(_k22, _r22,_sum0);
 
                 __m256 _sum1 = _bias0;
-                __m256 _r03 = _mm256_load_ps(r0 + 24);
-                __m256 _r13 = _mm256_load_ps(r1 + 24);
-                __m256 _r23 = _mm256_load_ps(r2 + 24);
+                __m256 _r03 = _mm256_loadu_ps(r0 + 24);
+                __m256 _r13 = _mm256_loadu_ps(r1 + 24);
+                __m256 _r23 = _mm256_loadu_ps(r2 + 24);
                 _mm256_store_ps(outptr0, _sum0);
 
                 _sum1 = _mm256_fmadd_ps(_k00, _r01,_sum1);
@@ -187,15 +187,15 @@ static void convdw3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
             {
                 __m256 _sum0 = _bias0;
 
-                __m256 _r00 = _mm256_load_ps(r0);
-                __m256 _r01 = _mm256_load_ps(r0 + 8);
-                __m256 _r02 = _mm256_load_ps(r0 + 16);
-                __m256 _r10 = _mm256_load_ps(r1);
-                __m256 _r11 = _mm256_load_ps(r1 + 8);
-                __m256 _r12 = _mm256_load_ps(r1 + 16);
-                __m256 _r20 = _mm256_load_ps(r2);
-                __m256 _r21 = _mm256_load_ps(r2 + 8);
-                __m256 _r22 = _mm256_load_ps(r2 + 16);
+                __m256 _r00 = _mm256_loadu_ps(r0);
+                __m256 _r01 = _mm256_loadu_ps(r0 + 8);
+                __m256 _r02 = _mm256_loadu_ps(r0 + 16);
+                __m256 _r10 = _mm256_loadu_ps(r1);
+                __m256 _r11 = _mm256_loadu_ps(r1 + 8);
+                __m256 _r12 = _mm256_loadu_ps(r1 + 16);
+                __m256 _r20 = _mm256_loadu_ps(r2);
+                __m256 _r21 = _mm256_loadu_ps(r2 + 8);
+                __m256 _r22 = _mm256_loadu_ps(r2 + 16);
 
                 _sum0 = _mm256_fmadd_ps(_k00, _r00,_sum0);
                 _sum0 = _mm256_fmadd_ps(_k01, _r01,_sum0);
@@ -240,7 +240,7 @@ static void convdw3x3s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
     {
         Mat out = top_blob.channel(g);
 
-        __m256 _bias0 = bias ? _mm256_load_ps((const float*)bias + g * 8) : _mm256_set1_ps(0.f);
+        __m256 _bias0 = bias ? _mm256_loadu_ps((const float*)bias + g * 8) : _mm256_set1_ps(0.f);
 
         const float* k0 = kernel.row(g);
 
@@ -253,15 +253,15 @@ static void convdw3x3s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
         const float* r1 = img0.row(1);
         const float* r2 = img0.row(2);
 
-        __m256 _k00 = _mm256_load_ps(k0);
-        __m256 _k01 = _mm256_load_ps(k0 + 8);
-        __m256 _k02 = _mm256_load_ps(k0 + 16);
-        __m256 _k10 = _mm256_load_ps(k0 + 24);
-        __m256 _k11 = _mm256_load_ps(k0 + 32);
-        __m256 _k12 = _mm256_load_ps(k0 + 40);
-        __m256 _k20 = _mm256_load_ps(k0 + 48);
-        __m256 _k21 = _mm256_load_ps(k0 + 56);
-        __m256 _k22 = _mm256_load_ps(k0 + 64);
+        __m256 _k00 = _mm256_loadu_ps(k0);
+        __m256 _k01 = _mm256_loadu_ps(k0 + 8);
+        __m256 _k02 = _mm256_loadu_ps(k0 + 16);
+        __m256 _k10 = _mm256_loadu_ps(k0 + 24);
+        __m256 _k11 = _mm256_loadu_ps(k0 + 32);
+        __m256 _k12 = _mm256_loadu_ps(k0 + 40);
+        __m256 _k20 = _mm256_loadu_ps(k0 + 48);
+        __m256 _k21 = _mm256_loadu_ps(k0 + 56);
+        __m256 _k22 = _mm256_loadu_ps(k0 + 64);
 
         int i = 0;
 
@@ -272,15 +272,15 @@ static void convdw3x3s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
             {
                 __m256 _sum0 = _bias0;
 
-                __m256 _r00 = _mm256_load_ps(r0);
-                __m256 _r01 = _mm256_load_ps(r0 + 8);
-                __m256 _r02 = _mm256_load_ps(r0 + 16);
-                __m256 _r10 = _mm256_load_ps(r1);
-                __m256 _r11 = _mm256_load_ps(r1 + 8);
-                __m256 _r12 = _mm256_load_ps(r1 + 16);
-                __m256 _r20 = _mm256_load_ps(r2);
-                __m256 _r21 = _mm256_load_ps(r2 + 8);
-                __m256 _r22 = _mm256_load_ps(r2 + 16);
+                __m256 _r00 = _mm256_loadu_ps(r0);
+                __m256 _r01 = _mm256_loadu_ps(r0 + 8);
+                __m256 _r02 = _mm256_loadu_ps(r0 + 16);
+                __m256 _r10 = _mm256_loadu_ps(r1);
+                __m256 _r11 = _mm256_loadu_ps(r1 + 8);
+                __m256 _r12 = _mm256_loadu_ps(r1 + 16);
+                __m256 _r20 = _mm256_loadu_ps(r2);
+                __m256 _r21 = _mm256_loadu_ps(r2 + 8);
+                __m256 _r22 = _mm256_loadu_ps(r2 + 16);
 
                 _sum0 = _mm256_fmadd_ps(_k00, _r00,_sum0);
                 _sum0 = _mm256_fmadd_ps(_k01, _r01,_sum0);
@@ -293,12 +293,12 @@ static void convdw3x3s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum0 = _mm256_fmadd_ps(_k22, _r22,_sum0);
 
                 __m256 _sum1 = _bias0;
-                __m256 _r03 = _mm256_load_ps(r0 + 24);
-                __m256 _r13 = _mm256_load_ps(r1 + 24);
-                __m256 _r23 = _mm256_load_ps(r2 + 24);
-                __m256 _r04 = _mm256_load_ps(r0 + 32);
-                __m256 _r14 = _mm256_load_ps(r1 + 32);
-                __m256 _r24 = _mm256_load_ps(r2 + 32);
+                __m256 _r03 = _mm256_loadu_ps(r0 + 24);
+                __m256 _r13 = _mm256_loadu_ps(r1 + 24);
+                __m256 _r23 = _mm256_loadu_ps(r2 + 24);
+                __m256 _r04 = _mm256_loadu_ps(r0 + 32);
+                __m256 _r14 = _mm256_loadu_ps(r1 + 32);
+                __m256 _r24 = _mm256_loadu_ps(r2 + 32);
                 _mm256_store_ps(outptr0, _sum0);
 
                 _sum1 = _mm256_fmadd_ps(_k00, _r02,_sum1);
@@ -312,12 +312,12 @@ static void convdw3x3s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum1 = _mm256_fmadd_ps(_k22, _r24,_sum1);
 
                 __m256 _sum2 = _bias0;
-                __m256 _r05 = _mm256_load_ps(r0 + 40);
-                __m256 _r15 = _mm256_load_ps(r1 + 40);
-                __m256 _r25 = _mm256_load_ps(r2 + 40);
-                __m256 _r06 = _mm256_load_ps(r0 + 48);
-                __m256 _r16 = _mm256_load_ps(r1 + 48);
-                __m256 _r26 = _mm256_load_ps(r2 + 48);
+                __m256 _r05 = _mm256_loadu_ps(r0 + 40);
+                __m256 _r15 = _mm256_loadu_ps(r1 + 40);
+                __m256 _r25 = _mm256_loadu_ps(r2 + 40);
+                __m256 _r06 = _mm256_loadu_ps(r0 + 48);
+                __m256 _r16 = _mm256_loadu_ps(r1 + 48);
+                __m256 _r26 = _mm256_loadu_ps(r2 + 48);
                 _mm256_store_ps(outptr0+8, _sum1);
 
                 _sum2 = _mm256_fmadd_ps(_k00, _r04,_sum2);
@@ -331,12 +331,12 @@ static void convdw3x3s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum2 = _mm256_fmadd_ps(_k22, _r26,_sum2);
 
                 __m256 _sum3 = _bias0;
-                __m256 _r07 = _mm256_load_ps(r0 + 56);
-                __m256 _r17 = _mm256_load_ps(r1 + 56);
-                __m256 _r27 = _mm256_load_ps(r2 + 56);
-                __m256 _r08 = _mm256_load_ps(r0 + 64);
-                __m256 _r18 = _mm256_load_ps(r1 + 64);
-                __m256 _r28 = _mm256_load_ps(r2 + 64);
+                __m256 _r07 = _mm256_loadu_ps(r0 + 56);
+                __m256 _r17 = _mm256_loadu_ps(r1 + 56);
+                __m256 _r27 = _mm256_loadu_ps(r2 + 56);
+                __m256 _r08 = _mm256_loadu_ps(r0 + 64);
+                __m256 _r18 = _mm256_loadu_ps(r1 + 64);
+                __m256 _r28 = _mm256_loadu_ps(r2 + 64);
                 _mm256_store_ps(outptr0+16, _sum2);
 
                 _sum3 = _mm256_fmadd_ps(_k00, _r06,_sum3);
@@ -360,15 +360,15 @@ static void convdw3x3s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
             {
                 __m256 _sum0 = _bias0;
 
-                __m256 _r00 = _mm256_load_ps(r0);
-                __m256 _r01 = _mm256_load_ps(r0 + 8);
-                __m256 _r02 = _mm256_load_ps(r0 + 16);
-                __m256 _r10 = _mm256_load_ps(r1);
-                __m256 _r11 = _mm256_load_ps(r1 + 8);
-                __m256 _r12 = _mm256_load_ps(r1 + 16);
-                __m256 _r20 = _mm256_load_ps(r2);
-                __m256 _r21 = _mm256_load_ps(r2 + 8);
-                __m256 _r22 = _mm256_load_ps(r2 + 16);
+                __m256 _r00 = _mm256_loadu_ps(r0);
+                __m256 _r01 = _mm256_loadu_ps(r0 + 8);
+                __m256 _r02 = _mm256_loadu_ps(r0 + 16);
+                __m256 _r10 = _mm256_loadu_ps(r1);
+                __m256 _r11 = _mm256_loadu_ps(r1 + 8);
+                __m256 _r12 = _mm256_loadu_ps(r1 + 16);
+                __m256 _r20 = _mm256_loadu_ps(r2);
+                __m256 _r21 = _mm256_loadu_ps(r2 + 8);
+                __m256 _r22 = _mm256_loadu_ps(r2 + 16);
 
                 _sum0 = _mm256_fmadd_ps(_k00, _r00,_sum0);
                 _sum0 = _mm256_fmadd_ps(_k01, _r01,_sum0);
@@ -381,12 +381,12 @@ static void convdw3x3s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum0 = _mm256_fmadd_ps(_k22, _r22,_sum0);
 
                 __m256 _sum1 = _bias0;
-                __m256 _r03 = _mm256_load_ps(r0 + 24);
-                __m256 _r13 = _mm256_load_ps(r1 + 24);
-                __m256 _r23 = _mm256_load_ps(r2 + 24);
-                __m256 _r04 = _mm256_load_ps(r0 + 32);
-                __m256 _r14 = _mm256_load_ps(r1 + 32);
-                __m256 _r24 = _mm256_load_ps(r2 + 32);
+                __m256 _r03 = _mm256_loadu_ps(r0 + 24);
+                __m256 _r13 = _mm256_loadu_ps(r1 + 24);
+                __m256 _r23 = _mm256_loadu_ps(r2 + 24);
+                __m256 _r04 = _mm256_loadu_ps(r0 + 32);
+                __m256 _r14 = _mm256_loadu_ps(r1 + 32);
+                __m256 _r24 = _mm256_loadu_ps(r2 + 32);
                 _mm256_store_ps(outptr0, _sum0);
 
                 _sum1 = _mm256_fmadd_ps(_k00, _r02,_sum1);
@@ -411,15 +411,15 @@ static void convdw3x3s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
             {
                 __m256 _sum0 = _bias0;
 
-                __m256 _r00 = _mm256_load_ps(r0);
-                __m256 _r01 = _mm256_load_ps(r0 + 8);
-                __m256 _r02 = _mm256_load_ps(r0 + 16);
-                __m256 _r10 = _mm256_load_ps(r1);
-                __m256 _r11 = _mm256_load_ps(r1 + 8);
-                __m256 _r12 = _mm256_load_ps(r1 + 16);
-                __m256 _r20 = _mm256_load_ps(r2);
-                __m256 _r21 = _mm256_load_ps(r2 + 8);
-                __m256 _r22 = _mm256_load_ps(r2 + 16);
+                __m256 _r00 = _mm256_loadu_ps(r0);
+                __m256 _r01 = _mm256_loadu_ps(r0 + 8);
+                __m256 _r02 = _mm256_loadu_ps(r0 + 16);
+                __m256 _r10 = _mm256_loadu_ps(r1);
+                __m256 _r11 = _mm256_loadu_ps(r1 + 8);
+                __m256 _r12 = _mm256_loadu_ps(r1 + 16);
+                __m256 _r20 = _mm256_loadu_ps(r2);
+                __m256 _r21 = _mm256_loadu_ps(r2 + 8);
+                __m256 _r22 = _mm256_loadu_ps(r2 + 16);
 
                 _sum0 = _mm256_fmadd_ps(_k00, _r00,_sum0);
                 _sum0 = _mm256_fmadd_ps(_k01, _r01,_sum0);
