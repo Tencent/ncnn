@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd64_transform_kernel_pack4_neon(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch)
+static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch)
 {
     // winograd23 transform kernel
     Mat kernel_tm;
@@ -67,8 +67,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack4_neon(const Mat& kernel, 
     // interleave
     // src = 64-inch-outch
     // dst = 8b-8a-inch/8a-64-outch/8b;
-    kernel_tm_pack4.create(inch/8, 64, outch/8, (size_t)4u*64, 64);
-
+    kernel_tm_pack8.create(inch/8, 64, outch/8, (size_t)4u*64, 64);
     for (int q=0; q+7<outch; q+=8)
     {
         const Mat k0 = kernel_tm.channel(q);
@@ -242,7 +241,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack4_neon(const Mat& kernel, 
     }
 }
 
-static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
+static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -272,7 +271,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
         int w_tm = outw / 6 * 8;
         int h_tm = outh / 6 * 8;
 
-        const int tiles = w_tm/8 * h_tm/8;
+        const int tiles = w_tm / 8 * h_tm / 8;
 
         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
 
@@ -311,150 +310,158 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
             const Mat img0 = bottom_blob_bordered.channel(q);
             Mat img0_tm = bottom_blob_tm.channel(q);
 
-            float tmp[8][8][4];
+            float tmp[8][8][8];
 
             // tile
             for (int i=0; i<h_tm/8; i++)
             {
                 for (int j=0; j<w_tm/8; j++)
                 {
-                    const float* r0 = img0.row(i * 6) + (j * 6) * 4;
+                    const float* r0 = img0.row(i * 6) + (j * 6) * 8;
 
                     for (int m=0; m<8; m++)
                     {
-                        float32x4_t _r00 = vld1q_f32(r0);
-                        float32x4_t _r01 = vld1q_f32(r0 + 4);
-                        float32x4_t _r02 = vld1q_f32(r0 + 8);
-                        float32x4_t _r03 = vld1q_f32(r0 + 12);
-                        float32x4_t _r04 = vld1q_f32(r0 + 16);
-                        float32x4_t _r05 = vld1q_f32(r0 + 20);
-                        float32x4_t _r06 = vld1q_f32(r0 + 24);
-                        float32x4_t _r07 = vld1q_f32(r0 + 28);
+                        __m256 _r00 = _mm256_loadu_ps(r0);
+                        __m256 _r01 = _mm256_loadu_ps(r0 + 8);
+                        __m256 _r02 = _mm256_loadu_ps(r0 + 16);
+                        __m256 _r03 = _mm256_loadu_ps(r0 + 24);
+                        __m256 _r04 = _mm256_loadu_ps(r0 + 32);
+                        __m256 _r05 = _mm256_loadu_ps(r0 + 40);
+                        __m256 _r06 = _mm256_loadu_ps(r0 + 48);
+                        __m256 _r07 = _mm256_loadu_ps(r0 + 56);
 
-                        float32x4_t _tmp0m = vmlaq_n_f32(vsubq_f32(_r00, _r06), vsubq_f32(_r04, _r02), 5.25f);
-                        float32x4_t _tmp7m = vmlaq_n_f32(vsubq_f32(_r07, _r01), vsubq_f32(_r03, _r05), 5.25f);
-                        vst1q_f32(tmp[0][m], _tmp0m);
-                        vst1q_f32(tmp[7][m], _tmp7m);
+                        __m256 _tmp0m = _mm256_fmadd_ps( _mm256_sub_ps(_r04, _r02), _mm256_set1_ps(5.25f),_mm256_sub_ps(_r00, _r06));
+                        __m256 _tmp7m = _mm256_fmadd_ps( _mm256_sub_ps(_r03, _r05), _mm256_set1_ps(5.25f),_mm256_sub_ps(_r07, _r01));
+                        _mm256_storeu_ps(tmp[0][m], _tmp0m);
+                        _mm256_storeu_ps(tmp[7][m], _tmp7m);
 
 //                         tmp[0][m] = r0[0] - r0[6] + (r0[4] - r0[2]) * 5.25;
 //                         tmp[7][m] = r0[7] - r0[1] + (r0[3] - r0[5]) * 5.25;
 
-                        float32x4_t _tmp12a = vmlsq_n_f32(vaddq_f32(_r02, _r06), _r04, 4.25f);
-                        float32x4_t _tmp12b = vmlsq_n_f32(vaddq_f32(_r01, _r05), _r03, 4.25f);
+                        __m256 _tmp12a = _mm256_fmsub_ps(_r04, _mm256_set1_ps(4.25f),_mm256_add_ps(_r02, _r06));
+                        __m256 _tmp12b = _mm256_fmsub_ps(_r03, _mm256_set1_ps(4.25f),_mm256_add_ps(_r01, _r05));
 
 //                         float tmp12a = (r0[2] + r0[6] - r0[4] * 4.25);
 //                         float tmp12b = (r0[1] + r0[5] - r0[3] * 4.25);
 
-                        float32x4_t _tmp1m = vaddq_f32(_tmp12a, _tmp12b);
-                        float32x4_t _tmp2m = vsubq_f32(_tmp12a, _tmp12b);
-                        vst1q_f32(tmp[1][m], _tmp1m);
-                        vst1q_f32(tmp[2][m], _tmp2m);
+                        __m256 _tmp1m = _mm256_add_ps(_tmp12a, _tmp12b);
+                        __m256 _tmp2m = _mm256_sub_ps(_tmp12a, _tmp12b);
+                        _mm256_storeu_ps(tmp[1][m], _tmp1m);
+                        _mm256_storeu_ps(tmp[2][m], _tmp2m);
 
 //                         tmp[1][m] = tmp12a + tmp12b;
 //                         tmp[2][m] = tmp12a - tmp12b;
 
-                        float32x4_t _tmp34a = vmlsq_n_f32(vmlaq_n_f32(_r06, _r02, 0.25f), _r04, 1.25f);
-                        float32x4_t _tmp34b = vmlaq_n_f32(vmlsq_n_f32(vmulq_n_f32(_r01, 0.5f), _r03, 2.5f), _r05, 2.f);
+                        __m256 _tmp34a = _mm256_fmsub_ps(_r04, _mm256_set1_ps(1.25f),_mm256_fmadd_ps(_r02, _mm256_set1_ps(0.25f),_r06));
+                        __m256 _tmp34b = _mm256_fmadd_ps(_r05, _mm256_set1_ps(2.f),_mm256_fmsub_ps( _r03, _mm256_set1_ps(2.5f),_mm256_mul_ps(_r01, _mm256_set1_ps(0.5f))));
 
 //                         float tmp34a = (r0[6] + r0[2] * 0.25 - r0[4] * 1.25);
 //                         float tmp34b = (r0[1] * 0.5 - r0[3] * 2.5 + r0[5] * 2);
 
-                        float32x4_t _tmp3m = vaddq_f32(_tmp34a, _tmp34b);
-                        float32x4_t _tmp4m = vsubq_f32(_tmp34a, _tmp34b);
-                        vst1q_f32(tmp[3][m], _tmp3m);
-                        vst1q_f32(tmp[4][m], _tmp4m);
+                        __m256 _tmp3m = _mm256_add_ps(_tmp34a, _tmp34b);
+                        __m256 _tmp4m = _mm256_sub_ps(_tmp34a, _tmp34b);
+                        _mm256_storeu_ps(tmp[3][m], _tmp3m);
+                        _mm256_storeu_ps(tmp[4][m], _tmp4m);
 
 //                         tmp[3][m] = tmp34a + tmp34b;
 //                         tmp[4][m] = tmp34a - tmp34b;
 
-                        float32x4_t _tmp56a = vmlaq_n_f32(_r06, vmlsq_n_f32(_r02, _r04, 1.25f), 4.f);
-                        float32x4_t _tmp56b = vmlaq_n_f32(vmlsq_n_f32(vmulq_n_f32(_r01, 2.f), _r03, 2.5f), _r05, 0.5f);
+                        __m256 _tmp56a = _mm256_fmadd_ps( _mm256_fmsub_ps( _r04, _mm256_set1_ps(1.25f),_r02),  _mm256_set1_ps(4.f),_r06);
+                        __m256 _tmp56b = _mm256_fmadd_ps( _r05,  _mm256_set1_ps(0.5f),_mm256_fmsub_ps( _r03, _mm256_set1_ps(2.5f),_mm256_mul_ps(_r01, _mm256_set1_ps(2.f))));
 
 //                         float tmp56a = (r0[6] + (r0[2] - r0[4] * 1.25) * 4);
 //                         float tmp56b = (r0[1] * 2 - r0[3] * 2.5 + r0[5] * 0.5);
 
-                        float32x4_t _tmp5m = vaddq_f32(_tmp56a, _tmp56b);
-                        float32x4_t _tmp6m = vsubq_f32(_tmp56a, _tmp56b);
-                        vst1q_f32(tmp[5][m], _tmp5m);
-                        vst1q_f32(tmp[6][m], _tmp6m);
+                        __m256 _tmp5m = _mm256_add_ps(_tmp56a, _tmp56b);
+                        __m256 _tmp6m = _mm256_sub_ps(_tmp56a, _tmp56b);
+                        _mm256_storeu_ps(tmp[5][m], _tmp5m);
+                        _mm256_storeu_ps(tmp[6][m], _tmp6m);
 
 //                         tmp[5][m] = tmp56a + tmp56b;
 //                         tmp[6][m] = tmp56a - tmp56b;
 
-                        r0 += w * 4;
+                        r0 += w * 8;
                     }
 
-                    float* r0_tm_0 = (float*)img0_tm + (i * w_tm/8 + j) * 4;
+                    float* r0_tm_0 = (float*)img0_tm + (i * w_tm / 8 + j) * 8;
+                    float* r0_tm_1 = r0_tm_0 + tiles * 8;
+                    float* r0_tm_2 = r0_tm_0 + tiles * 16;
+                    float* r0_tm_3 = r0_tm_0 + tiles * 24;
+                    float* r0_tm_4 = r0_tm_0 + tiles * 32;
+                    float* r0_tm_5 = r0_tm_0 + tiles * 40;
+                    float* r0_tm_6 = r0_tm_0 + tiles * 48;
+                    float* r0_tm_7 = r0_tm_0 + tiles * 56;
 
                     for (int m=0; m<8; m++)
                     {
-                        float32x4_t _tmp00 = vld1q_f32(tmp[m][0]);
-                        float32x4_t _tmp01 = vld1q_f32(tmp[m][1]);
-                        float32x4_t _tmp02 = vld1q_f32(tmp[m][2]);
-                        float32x4_t _tmp03 = vld1q_f32(tmp[m][3]);
-                        float32x4_t _tmp04 = vld1q_f32(tmp[m][4]);
-                        float32x4_t _tmp05 = vld1q_f32(tmp[m][5]);
-                        float32x4_t _tmp06 = vld1q_f32(tmp[m][6]);
-                        float32x4_t _tmp07 = vld1q_f32(tmp[m][7]);
+                        __m256 _tmp00 = _mm256_loadu_ps(tmp[m][0]);
+                        __m256 _tmp01 = _mm256_loadu_ps(tmp[m][1]);
+                        __m256 _tmp02 = _mm256_loadu_ps(tmp[m][2]);
+                        __m256 _tmp03 = _mm256_loadu_ps(tmp[m][3]);
+                        __m256 _tmp04 = _mm256_loadu_ps(tmp[m][4]);
+                        __m256 _tmp05 = _mm256_loadu_ps(tmp[m][5]);
+                        __m256 _tmp06 = _mm256_loadu_ps(tmp[m][6]);
+                        __m256 _tmp07 = _mm256_loadu_ps(tmp[m][7]);
 
-                        float32x4_t _r0tm0 = vmlaq_n_f32(vsubq_f32(_tmp00, _tmp06), vsubq_f32(_tmp04, _tmp02), 5.25f);
-                        float32x4_t _r0tm7 = vmlaq_n_f32(vsubq_f32(_tmp07, _tmp01), vsubq_f32(_tmp03, _tmp05), 5.25f);
+                        __m256 _r0tm0 = _mm256_fmadd_ps(_mm256_sub_ps(_tmp04, _tmp02), _mm256_set1_ps(5.25f),_mm256_sub_ps(_tmp00, _tmp06));
+                        __m256 _r0tm7 = _mm256_fmadd_ps(_mm256_sub_ps(_tmp03, _tmp05), _mm256_set1_ps(5.25f),_mm256_sub_ps(_tmp07, _tmp01));
 
 //                         r0_tm[0] = tmp0[0] - tmp0[6] + (tmp0[4] - tmp0[2]) * 5.25;
 //                         r0_tm[7] = tmp0[7] - tmp0[1] + (tmp0[3] - tmp0[5]) * 5.25;
 
-                        float32x4_t _tmp12a = vmlsq_n_f32(vaddq_f32(_tmp02, _tmp06), _tmp04, 4.25f);
-                        float32x4_t _tmp12b = vmlsq_n_f32(vaddq_f32(_tmp01, _tmp05), _tmp03, 4.25f);
+                        __m256 _tmp12a = _mm256_fmsub_ps(_tmp04, _mm256_set1_ps(4.25f),_mm256_add_ps(_tmp02, _tmp06));
+                        __m256 _tmp12b = _mm256_fmsub_ps(_tmp03, _mm256_set1_ps(4.25f),_mm256_add_ps(_tmp01, _tmp05));
 
 //                         float tmp12a = (tmp0[2] + tmp0[6] - tmp0[4] * 4.25);
 //                         float tmp12b = (tmp0[1] + tmp0[5] - tmp0[3] * 4.25);
 
-                        float32x4_t _r0tm1 = vaddq_f32(_tmp12a, _tmp12b);
-                        float32x4_t _r0tm2 = vsubq_f32(_tmp12a, _tmp12b);
+                        __m256 _r0tm1 = _mm256_add_ps(_tmp12a, _tmp12b);
+                        __m256 _r0tm2 = _mm256_sub_ps(_tmp12a, _tmp12b);
 
 //                         r0_tm[1] = tmp12a + tmp12b;
 //                         r0_tm[2] = tmp12a - tmp12b;
 
-                        float32x4_t _tmp34a = vmlsq_n_f32(vmlaq_n_f32(_tmp06, _tmp02, 0.25f), _tmp04, 1.25f);
-                        float32x4_t _tmp34b = vmlaq_n_f32(vmlsq_n_f32(vmulq_n_f32(_tmp01, 0.5f), _tmp03, 2.5f), _tmp05, 2.f);
+                        __m256 _tmp34a = _mm256_fmsub_ps( _tmp04, _mm256_set1_ps(1.25f),_mm256_fmadd_ps(_tmp02, _mm256_set1_ps(0.25f),_tmp06));
+                        __m256 _tmp34b = _mm256_fmsub_ps( _tmp05, _mm256_set1_ps(2.f),_mm256_fmadd_ps( _tmp03, _mm256_set1_ps(2.5f),_mm256_mul_ps(_tmp01, _mm256_set1_ps(0.5f))));
 
 //                         float tmp34a = (tmp0[6] + tmp0[2] * 0.25 - tmp0[4] * 1.25);
 //                         float tmp34b = (tmp0[1] * 0.5 - tmp0[3] * 2.5 + tmp0[5] * 2);
 
-                        float32x4_t _r0tm3 = vaddq_f32(_tmp34a, _tmp34b);
-                        float32x4_t _r0tm4 = vsubq_f32(_tmp34a, _tmp34b);
+                        __m256 _r0tm3 = _mm256_add_ps(_tmp34a, _tmp34b);
+                        __m256 _r0tm4 = _mm256_sub_ps(_tmp34a, _tmp34b);
 
 //                         r0_tm[3] = tmp34a + tmp34b;
 //                         r0_tm[4] = tmp34a - tmp34b;
 
-                        float32x4_t _tmp56a = vmlaq_n_f32(_tmp06, vmlsq_n_f32(_tmp02, _tmp04, 1.25f), 4.f);
-                        float32x4_t _tmp56b = vmlaq_n_f32(vmlsq_n_f32(vmulq_n_f32(_tmp01, 2.f), _tmp03, 2.5f), _tmp05, 0.5f);
+                        __m256 _tmp56a = _mm256_fmadd_ps( _mm256_fmsub_ps( _tmp04, _mm256_set1_ps(1.25f),_tmp02), _mm256_set1_ps(4.f),_tmp06);
+                        __m256 _tmp56b = _mm256_fmadd_ps( _tmp05, _mm256_set1_ps(0.5f),_mm256_fmsub_ps( _tmp03, _mm256_set1_ps(2.5f),_mm256_mul_ps(_tmp01, _mm256_set1_ps(2.f))));
 
 //                         float tmp56a = (tmp0[6] + (tmp0[2] - tmp0[4] * 1.25) * 4);
 //                         float tmp56b = (tmp0[1] * 2 - tmp0[3] * 2.5 + tmp0[5] * 0.5);
 
-                        float32x4_t _r0tm5 = vaddq_f32(_tmp56a, _tmp56b);
-                        float32x4_t _r0tm6 = vsubq_f32(_tmp56a, _tmp56b);
+                        __m256 _r0tm5 = _mm256_add_ps(_tmp56a, _tmp56b);
+                        __m256 _r0tm6 = _mm256_sub_ps(_tmp56a, _tmp56b);
 
 //                         r0_tm[5] = tmp56a + tmp56b;
 //                         r0_tm[6] = tmp56a - tmp56b;
 
-                        vst1q_f32(r0_tm_0, _r0tm0);
-                        r0_tm_0 += tiles * 4;
-                        vst1q_f32(r0_tm_0, _r0tm1);
-                        r0_tm_0 += tiles * 4;
-                        vst1q_f32(r0_tm_0, _r0tm2);
-                        r0_tm_0 += tiles * 4;
-                        vst1q_f32(r0_tm_0, _r0tm3);
-                        r0_tm_0 += tiles * 4;
-                        vst1q_f32(r0_tm_0, _r0tm4);
-                        r0_tm_0 += tiles * 4;
-                        vst1q_f32(r0_tm_0, _r0tm5);
-                        r0_tm_0 += tiles * 4;
-                        vst1q_f32(r0_tm_0, _r0tm6);
-                        r0_tm_0 += tiles * 4;
-                        vst1q_f32(r0_tm_0, _r0tm7);
-                        r0_tm_0 += tiles * 4;
+                        _mm256_storeu_ps(r0_tm_0, _r0tm0);
+                        _mm256_storeu_ps(r0_tm_1, _r0tm1);
+                        _mm256_storeu_ps(r0_tm_2, _r0tm2);
+                        _mm256_storeu_ps(r0_tm_3, _r0tm3);
+                        _mm256_storeu_ps(r0_tm_4, _r0tm4);
+                        _mm256_storeu_ps(r0_tm_5, _r0tm5);
+                        _mm256_storeu_ps(r0_tm_6, _r0tm6);
+                        _mm256_storeu_ps(r0_tm_7, _r0tm7);
+
+                        r0_tm_0 += tiles * 64;
+                        r0_tm_1 += tiles * 64;
+                        r0_tm_2 += tiles * 64;
+                        r0_tm_3 += tiles * 64;
+                        r0_tm_4 += tiles * 64;
+                        r0_tm_5 += tiles * 64;
+                        r0_tm_6 += tiles * 64;
+                        r0_tm_7 += tiles * 64;
                     }
                 }
             }
@@ -489,30 +496,30 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
                 const float* r0 = bottom_blob_tm;
 
-                r0 += (r*tiles + i) * 4;
+                r0 += (r*tiles + i) * 8;
 
                 for (int q=0; q<inch; q++)
                 {
-                    float32x4_t _r0 = vld1q_f32(r0);
-                    float32x4_t _r1 = vld1q_f32(r0 + 4);
-                    float32x4_t _r2 = vld1q_f32(r0 + 8);
-                    float32x4_t _r3 = vld1q_f32(r0 + 12);
-                    float32x4_t _r4 = vld1q_f32(r0 + 16);
-                    float32x4_t _r5 = vld1q_f32(r0 + 20);
-                    float32x4_t _r6 = vld1q_f32(r0 + 24);
-                    float32x4_t _r7 = vld1q_f32(r0 + 28);
-                    vst1q_f32(tm2p, _r0);
-                    vst1q_f32(tm2p + 4, _r1);
-                    vst1q_f32(tm2p + 8, _r2);
-                    vst1q_f32(tm2p + 12, _r3);
-                    vst1q_f32(tm2p + 16, _r4);
-                    vst1q_f32(tm2p + 20, _r5);
-                    vst1q_f32(tm2p + 24, _r6);
-                    vst1q_f32(tm2p + 28, _r7);
+                    __m256 _r0 = _mm256_loadu_ps(r0);
+                    __m256 _r1 = _mm256_loadu_ps(r0 + 8);
+                    __m256 _r2 = _mm256_loadu_ps(r0 + 16);
+                    __m256 _r3 = _mm256_loadu_ps(r0 + 24);
+                    __m256 _r4 = _mm256_loadu_ps(r0 + 32);
+                    __m256 _r5 = _mm256_loadu_ps(r0 + 40);
+                    __m256 _r6 = _mm256_loadu_ps(r0 + 48);
+                    __m256 _r7 = _mm256_loadu_ps(r0 + 56);
+                    _mm256_storeu_ps(tm2p, _r0);
+                    _mm256_storeu_ps(tm2p + 8, _r1);
+                    _mm256_storeu_ps(tm2p + 16, _r2);
+                    _mm256_storeu_ps(tm2p + 24, _r3);
+                    _mm256_storeu_ps(tm2p + 32, _r4);
+                    _mm256_storeu_ps(tm2p + 40, _r5);
+                    _mm256_storeu_ps(tm2p + 48, _r6);
+                    _mm256_storeu_ps(tm2p + 56, _r7);
 //                     tm2p[0] = r0[0];
 
-                    r0 += bottom_blob_tm.cstep * 4;
-                    tm2p += 32;
+                    r0 += bottom_blob_tm.cstep * 8;
+                    tm2p += 64;
                 }
             }
             for (; i+3<tiles; i+=4)
@@ -521,22 +528,22 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
                 const float* r0 = bottom_blob_tm;
 
-                r0 += (r*tiles + i) * 4;
+                r0 += (r*tiles + i) * 8;
 
                 for (int q=0; q<inch; q++)
                 {
-                    float32x4_t _r0 = vld1q_f32(r0);
-                    float32x4_t _r1 = vld1q_f32(r0 + 4);
-                    float32x4_t _r2 = vld1q_f32(r0 + 8);
-                    float32x4_t _r3 = vld1q_f32(r0 + 12);
-                    vst1q_f32(tm2p, _r0);
-                    vst1q_f32(tm2p + 4, _r1);
-                    vst1q_f32(tm2p + 8, _r2);
-                    vst1q_f32(tm2p + 12, _r3);
+                    __m256 _r0 = _mm256_loadu_ps(r0);
+                    __m256 _r1 = _mm256_loadu_ps(r0 + 8);
+                    __m256 _r2 = _mm256_loadu_ps(r0 + 16);
+                    __m256 _r3 = _mm256_loadu_ps(r0 + 24);
+                    _mm256_storeu_ps(tm2p, _r0);
+                    _mm256_storeu_ps(tm2p + 8, _r1);
+                    _mm256_storeu_ps(tm2p + 16, _r2);
+                    _mm256_storeu_ps(tm2p + 24, _r3);
 //                     tm2p[0] = r0[0];
 
-                    r0 += bottom_blob_tm.cstep * 4;
-                    tm2p += 16;
+                    r0 += bottom_blob_tm.cstep * 8;
+                    tm2p += 32;
                 }
             }
             for (; i+1<tiles; i+=2)
@@ -545,18 +552,18 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
                 const float* r0 = bottom_blob_tm;
 
-                r0 += (r*tiles + i) * 4;
+                r0 += (r*tiles + i) * 8;
 
                 for (int q=0; q<inch; q++)
                 {
-                    float32x4_t _r0 = vld1q_f32(r0);
-                    float32x4_t _r1 = vld1q_f32(r0 + 4);
-                    vst1q_f32(tm2p, _r0);
-                    vst1q_f32(tm2p + 4, _r1);
+                    __m256 _r0 = _mm256_loadu_ps(r0);
+                    __m256 _r1 = _mm256_loadu_ps(r0 + 8);
+                    _mm256_storeu_ps(tm2p, _r0);
+                    _mm256_storeu_ps(tm2p + 8, _r1);
 //                     tm2p[0] = r0[0];
 
-                    r0 += bottom_blob_tm.cstep * 4;
-                    tm2p += 8;
+                    r0 += bottom_blob_tm.cstep * 8;
+                    tm2p += 16;
                 }
             }
             for (; i<tiles; i++)
@@ -565,16 +572,16 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
                 const float* r0 = bottom_blob_tm;
 
-                r0 += (r*tiles + i) * 4;
+                r0 += (r*tiles + i) * 8;
 
                 for (int q=0; q<inch; q++)
                 {
-                    float32x4_t _r0 = vld1q_f32(r0);
-                    vst1q_f32(tm2p, _r0);
+                    __m256 _r0 = _mm256_loadu_ps(r0);
+                    _mm256_storeu_ps(tm2p, _r0);
 //                     tm2p[0] = r0[0];
 
-                    r0 += bottom_blob_tm.cstep * 4;
-                    tm2p += 4;
+                    r0 += bottom_blob_tm.cstep * 8;
+                    tm2p += 8;
                 }
             }
         }
@@ -582,376 +589,11 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
         bottom_blob_tm = Mat();
         // permute end
 
-        top_blob_tm.create(tiles, 64, outch, elemsize, elempack);
+        top_blob_tm.create(tiles, 64, outch, elemsize, elempack, opt.workspace_allocator);
 
         int nn_outch = 0;
         int remain_outch_start = 0;
 
-#if __ARM_NEON && __aarch64__
-        nn_outch = outch >> 1;
-        remain_outch_start = nn_outch << 1;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int pp=0; pp<nn_outch; pp++)
-        {
-            int p = pp * 2;
-
-            Mat out0_tm = top_blob_tm.channel(p);
-            Mat out1_tm = top_blob_tm.channel(p+1);
-            const Mat kernel0_tm = kernel_tm.channel(p);
-            const Mat kernel1_tm = kernel_tm.channel(p+1);
-
-            float* output0_tm = out0_tm;
-            float* output1_tm = out1_tm;
-
-            for (int r=0; r<64; r++)
-            {
-                const Mat bb2 = bottom_blob_tm2.channel(r);
-
-                int i=0;
-                for (; i+7<tiles; i+=8)
-                {
-                    const float* r0 = bb2.row(i/8);
-
-                    const float* k0 = kernel0_tm.row(r);
-                    const float* k1 = kernel1_tm.row(r);
-
-                    float32x4_t _sum0_0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum1_0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum2_0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum3_0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum4_0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum5_0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum6_0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum7_0 = vdupq_n_f32(0.f);
-
-                    float32x4_t _sum0_1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum1_1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum2_1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum3_1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum4_1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum5_1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum6_1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum7_1 = vdupq_n_f32(0.f);
-
-                    int q=0;
-                    for (; q<inch; q++)
-                    {
-                        float32x4_t _r0 = vld1q_f32( r0 );
-                        float32x4_t _r1 = vld1q_f32( r0 + 4 );
-                        float32x4_t _r2 = vld1q_f32( r0 + 8 );
-                        float32x4_t _r3 = vld1q_f32( r0 + 12 );
-                        float32x4_t _r4 = vld1q_f32( r0 + 16 );
-                        float32x4_t _r5 = vld1q_f32( r0 + 20 );
-                        float32x4_t _r6 = vld1q_f32( r0 + 24 );
-                        float32x4_t _r7 = vld1q_f32( r0 + 28 );
-
-                        float32x4_t _w0_0 = vld1q_f32( k0 );
-                        float32x4_t _w1_0 = vld1q_f32( k0 + 4 );
-                        float32x4_t _w2_0 = vld1q_f32( k0 + 8 );
-                        float32x4_t _w3_0 = vld1q_f32( k0 + 12 );
-
-                        float32x4_t _w0_1 = vld1q_f32( k1 );
-                        float32x4_t _w1_1 = vld1q_f32( k1 + 4 );
-                        float32x4_t _w2_1 = vld1q_f32( k1 + 8 );
-                        float32x4_t _w3_1 = vld1q_f32( k1 + 12 );
-
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w0_0, _r0, 0);
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w1_0, _r0, 1);
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w2_0, _r0, 2);
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w3_0, _r0, 3);
-                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w0_0, _r1, 0);
-                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w1_0, _r1, 1);
-                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w2_0, _r1, 2);
-                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w3_0, _r1, 3);
-                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w0_0, _r2, 0);
-                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w1_0, _r2, 1);
-                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w2_0, _r2, 2);
-                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w3_0, _r2, 3);
-                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w0_0, _r3, 0);
-                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w1_0, _r3, 1);
-                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w2_0, _r3, 2);
-                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w3_0, _r3, 3);
-                        _sum4_0 = vmlaq_laneq_f32(_sum4_0, _w0_0, _r4, 0);
-                        _sum4_0 = vmlaq_laneq_f32(_sum4_0, _w1_0, _r4, 1);
-                        _sum4_0 = vmlaq_laneq_f32(_sum4_0, _w2_0, _r4, 2);
-                        _sum4_0 = vmlaq_laneq_f32(_sum4_0, _w3_0, _r4, 3);
-                        _sum5_0 = vmlaq_laneq_f32(_sum5_0, _w0_0, _r5, 0);
-                        _sum5_0 = vmlaq_laneq_f32(_sum5_0, _w1_0, _r5, 1);
-                        _sum5_0 = vmlaq_laneq_f32(_sum5_0, _w2_0, _r5, 2);
-                        _sum5_0 = vmlaq_laneq_f32(_sum5_0, _w3_0, _r5, 3);
-                        _sum6_0 = vmlaq_laneq_f32(_sum6_0, _w0_0, _r6, 0);
-                        _sum6_0 = vmlaq_laneq_f32(_sum6_0, _w1_0, _r6, 1);
-                        _sum6_0 = vmlaq_laneq_f32(_sum6_0, _w2_0, _r6, 2);
-                        _sum6_0 = vmlaq_laneq_f32(_sum6_0, _w3_0, _r6, 3);
-                        _sum7_0 = vmlaq_laneq_f32(_sum7_0, _w0_0, _r7, 0);
-                        _sum7_0 = vmlaq_laneq_f32(_sum7_0, _w1_0, _r7, 1);
-                        _sum7_0 = vmlaq_laneq_f32(_sum7_0, _w2_0, _r7, 2);
-                        _sum7_0 = vmlaq_laneq_f32(_sum7_0, _w3_0, _r7, 3);
-
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w0_1, _r0, 0);
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w1_1, _r0, 1);
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w2_1, _r0, 2);
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w3_1, _r0, 3);
-                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w0_1, _r1, 0);
-                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w1_1, _r1, 1);
-                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w2_1, _r1, 2);
-                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w3_1, _r1, 3);
-                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w0_1, _r2, 0);
-                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w1_1, _r2, 1);
-                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w2_1, _r2, 2);
-                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w3_1, _r2, 3);
-                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w0_1, _r3, 0);
-                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w1_1, _r3, 1);
-                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w2_1, _r3, 2);
-                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w3_1, _r3, 3);
-                        _sum4_1 = vmlaq_laneq_f32(_sum4_1, _w0_1, _r4, 0);
-                        _sum4_1 = vmlaq_laneq_f32(_sum4_1, _w1_1, _r4, 1);
-                        _sum4_1 = vmlaq_laneq_f32(_sum4_1, _w2_1, _r4, 2);
-                        _sum4_1 = vmlaq_laneq_f32(_sum4_1, _w3_1, _r4, 3);
-                        _sum5_1 = vmlaq_laneq_f32(_sum5_1, _w0_1, _r5, 0);
-                        _sum5_1 = vmlaq_laneq_f32(_sum5_1, _w1_1, _r5, 1);
-                        _sum5_1 = vmlaq_laneq_f32(_sum5_1, _w2_1, _r5, 2);
-                        _sum5_1 = vmlaq_laneq_f32(_sum5_1, _w3_1, _r5, 3);
-                        _sum6_1 = vmlaq_laneq_f32(_sum6_1, _w0_1, _r6, 0);
-                        _sum6_1 = vmlaq_laneq_f32(_sum6_1, _w1_1, _r6, 1);
-                        _sum6_1 = vmlaq_laneq_f32(_sum6_1, _w2_1, _r6, 2);
-                        _sum6_1 = vmlaq_laneq_f32(_sum6_1, _w3_1, _r6, 3);
-                        _sum7_1 = vmlaq_laneq_f32(_sum7_1, _w0_1, _r7, 0);
-                        _sum7_1 = vmlaq_laneq_f32(_sum7_1, _w1_1, _r7, 1);
-                        _sum7_1 = vmlaq_laneq_f32(_sum7_1, _w2_1, _r7, 2);
-                        _sum7_1 = vmlaq_laneq_f32(_sum7_1, _w3_1, _r7, 3);
-
-//                         sum0 += r0[0] * k0[0];
-
-                        r0 += 32;
-                        k0 += 16;
-                        k1 += 16;
-                    }
-
-                    vst1q_f32(output0_tm + 0, _sum0_0);
-                    vst1q_f32(output0_tm + 4, _sum1_0);
-                    vst1q_f32(output0_tm + 8, _sum2_0);
-                    vst1q_f32(output0_tm + 12, _sum3_0);
-                    vst1q_f32(output0_tm + 16, _sum4_0);
-                    vst1q_f32(output0_tm + 20, _sum5_0);
-                    vst1q_f32(output0_tm + 24, _sum6_0);
-                    vst1q_f32(output0_tm + 28, _sum7_0);
-                    output0_tm += 32;
-
-                    vst1q_f32(output1_tm + 0, _sum0_1);
-                    vst1q_f32(output1_tm + 4, _sum1_1);
-                    vst1q_f32(output1_tm + 8, _sum2_1);
-                    vst1q_f32(output1_tm + 12, _sum3_1);
-                    vst1q_f32(output1_tm + 16, _sum4_1);
-                    vst1q_f32(output1_tm + 20, _sum5_1);
-                    vst1q_f32(output1_tm + 24, _sum6_1);
-                    vst1q_f32(output1_tm + 28, _sum7_1);
-                    output1_tm += 32;
-                }
-                for (; i+3<tiles; i+=4)
-                {
-                    const float* r0 = bb2.row(i/8 + (i%8)/4);
-
-                    const float* k0 = kernel0_tm.row(r);
-                    const float* k1 = kernel1_tm.row(r);
-
-                    float32x4_t _sum0_0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum1_0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum2_0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum3_0 = vdupq_n_f32(0.f);
-
-                    float32x4_t _sum0_1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum1_1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum2_1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum3_1 = vdupq_n_f32(0.f);
-
-                    int q=0;
-                    for (; q<inch; q++)
-                    {
-                        float32x4_t _r0 = vld1q_f32( r0 );
-                        float32x4_t _r1 = vld1q_f32( r0 + 4 );
-                        float32x4_t _r2 = vld1q_f32( r0 + 8 );
-                        float32x4_t _r3 = vld1q_f32( r0 + 12 );
-
-                        float32x4_t _w0_0 = vld1q_f32( k0 );
-                        float32x4_t _w1_0 = vld1q_f32( k0 + 4 );
-                        float32x4_t _w2_0 = vld1q_f32( k0 + 8 );
-                        float32x4_t _w3_0 = vld1q_f32( k0 + 12 );
-
-                        float32x4_t _w0_1 = vld1q_f32( k1 );
-                        float32x4_t _w1_1 = vld1q_f32( k1 + 4 );
-                        float32x4_t _w2_1 = vld1q_f32( k1 + 8 );
-                        float32x4_t _w3_1 = vld1q_f32( k1 + 12 );
-
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w0_0, _r0, 0);
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w1_0, _r0, 1);
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w2_0, _r0, 2);
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w3_0, _r0, 3);
-                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w0_0, _r1, 0);
-                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w1_0, _r1, 1);
-                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w2_0, _r1, 2);
-                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w3_0, _r1, 3);
-                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w0_0, _r2, 0);
-                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w1_0, _r2, 1);
-                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w2_0, _r2, 2);
-                        _sum2_0 = vmlaq_laneq_f32(_sum2_0, _w3_0, _r2, 3);
-                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w0_0, _r3, 0);
-                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w1_0, _r3, 1);
-                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w2_0, _r3, 2);
-                        _sum3_0 = vmlaq_laneq_f32(_sum3_0, _w3_0, _r3, 3);
-
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w0_1, _r0, 0);
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w1_1, _r0, 1);
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w2_1, _r0, 2);
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w3_1, _r0, 3);
-                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w0_1, _r1, 0);
-                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w1_1, _r1, 1);
-                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w2_1, _r1, 2);
-                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w3_1, _r1, 3);
-                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w0_1, _r2, 0);
-                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w1_1, _r2, 1);
-                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w2_1, _r2, 2);
-                        _sum2_1 = vmlaq_laneq_f32(_sum2_1, _w3_1, _r2, 3);
-                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w0_1, _r3, 0);
-                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w1_1, _r3, 1);
-                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w2_1, _r3, 2);
-                        _sum3_1 = vmlaq_laneq_f32(_sum3_1, _w3_1, _r3, 3);
-
-//                         sum0 += r0[0] * k0[0];
-
-                        r0 += 16;
-                        k0 += 16;
-                        k1 += 16;
-                    }
-
-                    vst1q_f32(output0_tm + 0, _sum0_0);
-                    vst1q_f32(output0_tm + 4, _sum1_0);
-                    vst1q_f32(output0_tm + 8, _sum2_0);
-                    vst1q_f32(output0_tm + 12, _sum3_0);
-                    output0_tm += 16;
-
-                    vst1q_f32(output1_tm + 0, _sum0_1);
-                    vst1q_f32(output1_tm + 4, _sum1_1);
-                    vst1q_f32(output1_tm + 8, _sum2_1);
-                    vst1q_f32(output1_tm + 12, _sum3_1);
-                    output1_tm += 16;
-                }
-                for (; i+1<tiles; i+=2)
-                {
-                    const float* r0 = bb2.row(i/8 + (i%8)/4 + (i%4)/2);
-
-                    const float* k0 = kernel0_tm.row(r);
-                    const float* k1 = kernel1_tm.row(r);
-
-                    float32x4_t _sum0_0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum1_0 = vdupq_n_f32(0.f);
-
-                    float32x4_t _sum0_1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum1_1 = vdupq_n_f32(0.f);
-
-                    int q=0;
-                    for (; q<inch; q++)
-                    {
-                        float32x4_t _r0 = vld1q_f32( r0 );
-                        float32x4_t _r1 = vld1q_f32( r0 + 4 );
-
-                        float32x4_t _w0_0 = vld1q_f32( k0 );
-                        float32x4_t _w1_0 = vld1q_f32( k0 + 4 );
-                        float32x4_t _w2_0 = vld1q_f32( k0 + 8 );
-                        float32x4_t _w3_0 = vld1q_f32( k0 + 12 );
-
-                        float32x4_t _w0_1 = vld1q_f32( k1 );
-                        float32x4_t _w1_1 = vld1q_f32( k1 + 4 );
-                        float32x4_t _w2_1 = vld1q_f32( k1 + 8 );
-                        float32x4_t _w3_1 = vld1q_f32( k1 + 12 );
-
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w0_0, _r0, 0);
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w1_0, _r0, 1);
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w2_0, _r0, 2);
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w3_0, _r0, 3);
-                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w0_0, _r1, 0);
-                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w1_0, _r1, 1);
-                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w2_0, _r1, 2);
-                        _sum1_0 = vmlaq_laneq_f32(_sum1_0, _w3_0, _r1, 3);
-
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w0_1, _r0, 0);
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w1_1, _r0, 1);
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w2_1, _r0, 2);
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w3_1, _r0, 3);
-                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w0_1, _r1, 0);
-                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w1_1, _r1, 1);
-                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w2_1, _r1, 2);
-                        _sum1_1 = vmlaq_laneq_f32(_sum1_1, _w3_1, _r1, 3);
-
-//                         sum0 += r0[0] * k0[0];
-
-                        r0 += 8;
-                        k0 += 16;
-                        k1 += 16;
-                    }
-
-                    vst1q_f32(output0_tm + 0, _sum0_0);
-                    vst1q_f32(output0_tm + 4, _sum1_0);
-                    output0_tm += 8;
-
-                    vst1q_f32(output1_tm + 0, _sum0_1);
-                    vst1q_f32(output1_tm + 4, _sum1_1);
-                    output1_tm += 8;
-                }
-                for (; i<tiles; i++)
-                {
-                    const float* r0 = bb2.row(i/8 + (i%8)/4 + (i%4)/2 + i%2);
-
-                    const float* k0 = kernel0_tm.row(r);
-                    const float* k1 = kernel1_tm.row(r);
-
-                    float32x4_t _sum0_0 = vdupq_n_f32(0.f);
-
-                    float32x4_t _sum0_1 = vdupq_n_f32(0.f);
-
-                    int q=0;
-                    for (; q<inch; q++)
-                    {
-                        float32x4_t _r0 = vld1q_f32( r0 );
-
-                        float32x4_t _w0_0 = vld1q_f32( k0 );
-                        float32x4_t _w1_0 = vld1q_f32( k0 + 4 );
-                        float32x4_t _w2_0 = vld1q_f32( k0 + 8 );
-                        float32x4_t _w3_0 = vld1q_f32( k0 + 12 );
-
-                        float32x4_t _w0_1 = vld1q_f32( k1 );
-                        float32x4_t _w1_1 = vld1q_f32( k1 + 4 );
-                        float32x4_t _w2_1 = vld1q_f32( k1 + 8 );
-                        float32x4_t _w3_1 = vld1q_f32( k1 + 12 );
-
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w0_0, _r0, 0);
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w1_0, _r0, 1);
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w2_0, _r0, 2);
-                        _sum0_0 = vmlaq_laneq_f32(_sum0_0, _w3_0, _r0, 3);
-
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w0_1, _r0, 0);
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w1_1, _r0, 1);
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w2_1, _r0, 2);
-                        _sum0_1 = vmlaq_laneq_f32(_sum0_1, _w3_1, _r0, 3);
-
-//                         sum0 += r0[0] * k0[0];
-
-                        r0 += 4;
-                        k0 += 16;
-                        k1 += 16;
-                    }
-
-                    vst1q_f32(output0_tm, _sum0_0);
-                    output0_tm += 4;
-
-                    vst1q_f32(output1_tm, _sum0_1);
-                    output1_tm += 4;
-                }
-
-            }
-        }
-#endif // __ARM_NEON && __aarch64__
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p=remain_outch_start; p<outch; p++)
@@ -972,114 +614,193 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
                     const float* k0 = kernel0_tm.row(r);
 
-                    float32x4_t _sum0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum2 = vdupq_n_f32(0.f);
-                    float32x4_t _sum3 = vdupq_n_f32(0.f);
-                    float32x4_t _sum4 = vdupq_n_f32(0.f);
-                    float32x4_t _sum5 = vdupq_n_f32(0.f);
-                    float32x4_t _sum6 = vdupq_n_f32(0.f);
-                    float32x4_t _sum7 = vdupq_n_f32(0.f);
+                    __m256 _sum0 = _mm256_set1_ps(0.f);
+                    __m256 _sum1 = _mm256_set1_ps(0.f);
+                    __m256 _sum2 = _mm256_set1_ps(0.f);
+                    __m256 _sum3 = _mm256_set1_ps(0.f);
+                    __m256 _sum4 = _mm256_set1_ps(0.f);
+                    __m256 _sum5 = _mm256_set1_ps(0.f);
+                    __m256 _sum6 = _mm256_set1_ps(0.f);
+                    __m256 _sum7 = _mm256_set1_ps(0.f);
 
                     int q=0;
                     for (; q<inch; q++)
                     {
-                        float32x4_t _r0 = vld1q_f32( r0 );
-                        float32x4_t _r1 = vld1q_f32( r0 + 4 );
-                        float32x4_t _r2 = vld1q_f32( r0 + 8 );
-                        float32x4_t _r3 = vld1q_f32( r0 + 12 );
-                        float32x4_t _r4 = vld1q_f32( r0 + 16 );
-                        float32x4_t _r5 = vld1q_f32( r0 + 20 );
-                        float32x4_t _r6 = vld1q_f32( r0 + 24 );
-                        float32x4_t _r7 = vld1q_f32( r0 + 28 );
+              
 
-                        float32x4_t _w0 = vld1q_f32( k0 );
-                        float32x4_t _w1 = vld1q_f32( k0 + 4 );
-                        float32x4_t _w2 = vld1q_f32( k0 + 8 );
-                        float32x4_t _w3 = vld1q_f32( k0 + 12 );
+                        __m256 _w0 = _mm256_loadu_ps( k0 );
+                        __m256 _w1 = _mm256_loadu_ps( k0 + 8 );
+                        __m256 _w2 = _mm256_loadu_ps( k0 + 16 );
+                        __m256 _w3 = _mm256_loadu_ps( k0 + 24 );
+                        __m256 _w4 = _mm256_loadu_ps( k0 + 32);
+                        __m256 _w5 = _mm256_loadu_ps( k0 + 40 );
+                        __m256 _w6 = _mm256_loadu_ps( k0 + 48 );
+                        __m256 _w7 = _mm256_loadu_ps( k0 + 56 );
 
-#if __aarch64__
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w0, _r0, 0);
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w1, _r0, 1);
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w2, _r0, 2);
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w3, _r0, 3);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _w0, _r1, 0);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _w1, _r1, 1);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _w2, _r1, 2);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _w3, _r1, 3);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _w0, _r2, 0);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _w1, _r2, 1);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _w2, _r2, 2);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _w3, _r2, 3);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _w0, _r3, 0);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _w1, _r3, 1);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _w2, _r3, 2);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _w3, _r3, 3);
-                        _sum4 = vmlaq_laneq_f32(_sum4, _w0, _r4, 0);
-                        _sum4 = vmlaq_laneq_f32(_sum4, _w1, _r4, 1);
-                        _sum4 = vmlaq_laneq_f32(_sum4, _w2, _r4, 2);
-                        _sum4 = vmlaq_laneq_f32(_sum4, _w3, _r4, 3);
-                        _sum5 = vmlaq_laneq_f32(_sum5, _w0, _r5, 0);
-                        _sum5 = vmlaq_laneq_f32(_sum5, _w1, _r5, 1);
-                        _sum5 = vmlaq_laneq_f32(_sum5, _w2, _r5, 2);
-                        _sum5 = vmlaq_laneq_f32(_sum5, _w3, _r5, 3);
-                        _sum6 = vmlaq_laneq_f32(_sum6, _w0, _r6, 0);
-                        _sum6 = vmlaq_laneq_f32(_sum6, _w1, _r6, 1);
-                        _sum6 = vmlaq_laneq_f32(_sum6, _w2, _r6, 2);
-                        _sum6 = vmlaq_laneq_f32(_sum6, _w3, _r6, 3);
-                        _sum7 = vmlaq_laneq_f32(_sum7, _w0, _r7, 0);
-                        _sum7 = vmlaq_laneq_f32(_sum7, _w1, _r7, 1);
-                        _sum7 = vmlaq_laneq_f32(_sum7, _w2, _r7, 2);
-                        _sum7 = vmlaq_laneq_f32(_sum7, _w3, _r7, 3);
-#else
-                        _sum0 = vmlaq_lane_f32(_sum0, _w0, vget_low_f32(_r0), 0);
-                        _sum0 = vmlaq_lane_f32(_sum0, _w1, vget_low_f32(_r0), 1);
-                        _sum0 = vmlaq_lane_f32(_sum0, _w2, vget_high_f32(_r0), 0);
-                        _sum0 = vmlaq_lane_f32(_sum0, _w3, vget_high_f32(_r0), 1);
-                        _sum1 = vmlaq_lane_f32(_sum1, _w0, vget_low_f32(_r1), 0);
-                        _sum1 = vmlaq_lane_f32(_sum1, _w1, vget_low_f32(_r1), 1);
-                        _sum1 = vmlaq_lane_f32(_sum1, _w2, vget_high_f32(_r1), 0);
-                        _sum1 = vmlaq_lane_f32(_sum1, _w3, vget_high_f32(_r1), 1);
-                        _sum2 = vmlaq_lane_f32(_sum2, _w0, vget_low_f32(_r2), 0);
-                        _sum2 = vmlaq_lane_f32(_sum2, _w1, vget_low_f32(_r2), 1);
-                        _sum2 = vmlaq_lane_f32(_sum2, _w2, vget_high_f32(_r2), 0);
-                        _sum2 = vmlaq_lane_f32(_sum2, _w3, vget_high_f32(_r2), 1);
-                        _sum3 = vmlaq_lane_f32(_sum3, _w0, vget_low_f32(_r3), 0);
-                        _sum3 = vmlaq_lane_f32(_sum3, _w1, vget_low_f32(_r3), 1);
-                        _sum3 = vmlaq_lane_f32(_sum3, _w2, vget_high_f32(_r3), 0);
-                        _sum3 = vmlaq_lane_f32(_sum3, _w3, vget_high_f32(_r3), 1);
-                        _sum4 = vmlaq_lane_f32(_sum4, _w0, vget_low_f32(_r4), 0);
-                        _sum4 = vmlaq_lane_f32(_sum4, _w1, vget_low_f32(_r4), 1);
-                        _sum4 = vmlaq_lane_f32(_sum4, _w2, vget_high_f32(_r4), 0);
-                        _sum4 = vmlaq_lane_f32(_sum4, _w3, vget_high_f32(_r4), 1);
-                        _sum5 = vmlaq_lane_f32(_sum5, _w0, vget_low_f32(_r5), 0);
-                        _sum5 = vmlaq_lane_f32(_sum5, _w1, vget_low_f32(_r5), 1);
-                        _sum5 = vmlaq_lane_f32(_sum5, _w2, vget_high_f32(_r5), 0);
-                        _sum5 = vmlaq_lane_f32(_sum5, _w3, vget_high_f32(_r5), 1);
-                        _sum6 = vmlaq_lane_f32(_sum6, _w0, vget_low_f32(_r6), 0);
-                        _sum6 = vmlaq_lane_f32(_sum6, _w1, vget_low_f32(_r6), 1);
-                        _sum6 = vmlaq_lane_f32(_sum6, _w2, vget_high_f32(_r6), 0);
-                        _sum6 = vmlaq_lane_f32(_sum6, _w3, vget_high_f32(_r6), 1);
-                        _sum7 = vmlaq_lane_f32(_sum7, _w0, vget_low_f32(_r7), 0);
-                        _sum7 = vmlaq_lane_f32(_sum7, _w1, vget_low_f32(_r7), 1);
-                        _sum7 = vmlaq_lane_f32(_sum7, _w2, vget_high_f32(_r7), 0);
-                        _sum7 = vmlaq_lane_f32(_sum7, _w3, vget_high_f32(_r7), 1);
-#endif
-//                         sum0 += r0[0] * k0[0];
+                        __m256 _r0 = _mm256_broadcast_ss( r0 );
+                        __m256 _r1 = _mm256_broadcast_ss( r0 + 1 );
+                        __m256 _r2 = _mm256_broadcast_ss( r0 + 2 );
+                        __m256 _r3 = _mm256_broadcast_ss( r0 + 3 );
+                        __m256 _r4 = _mm256_broadcast_ss( r0 + 4 );
+                        __m256 _r5 = _mm256_broadcast_ss( r0 + 5 );
+                        __m256 _r6 = _mm256_broadcast_ss( r0 + 6 );
+                        __m256 _r7 = _mm256_broadcast_ss( r0 + 7 );
 
-                        r0 += 32;
-                        k0 += 16;
+                        _sum0 = _mm256_fmadd_ps( _w0, _r0, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w1, _r1, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w2, _r2, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w3, _r3, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w4, _r4, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w5, _r5, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w6, _r6, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w7, _r7, _sum0);
+
+                        r0 += 8;
+                        _r0 = _mm256_broadcast_ss( r0 );
+                        _r1 = _mm256_broadcast_ss( r0 + 1 );
+                        _r2 = _mm256_broadcast_ss( r0 + 2 );
+                        _r3 = _mm256_broadcast_ss( r0 + 3 );
+                        _r4 = _mm256_broadcast_ss( r0 + 4 );
+                        _r5 = _mm256_broadcast_ss( r0 + 5 );
+                        _r6 = _mm256_broadcast_ss( r0 + 6 );
+                        _r7 = _mm256_broadcast_ss( r0 + 7 );
+
+                        _sum1 = _mm256_fmadd_ps( _w0, _r0, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w1, _r1, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w2, _r2, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w3, _r3, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w4, _r4, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w5, _r5, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w6, _r6, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w7, _r7, _sum1);
+
+                        r0 += 8;
+                        _r0 = _mm256_broadcast_ss( r0 );
+                        _r1 = _mm256_broadcast_ss( r0 + 1 );
+                        _r2 = _mm256_broadcast_ss( r0 + 2 );
+                        _r3 = _mm256_broadcast_ss( r0 + 3 );
+                        _r4 = _mm256_broadcast_ss( r0 + 4 );
+                        _r5 = _mm256_broadcast_ss( r0 + 5 );
+                        _r6 = _mm256_broadcast_ss( r0 + 6 );
+                        _r7 = _mm256_broadcast_ss( r0 + 7 );
+
+                        _sum2 = _mm256_fmadd_ps( _w0, _r0, _sum2);
+                        _sum2 = _mm256_fmadd_ps( _w1, _r1, _sum2);
+                        _sum2 = _mm256_fmadd_ps( _w2, _r2, _sum2);
+                        _sum2 = _mm256_fmadd_ps( _w3, _r3, _sum2);
+                        _sum2 = _mm256_fmadd_ps( _w4, _r4, _sum2);
+                        _sum2 = _mm256_fmadd_ps( _w5, _r5, _sum2);
+                        _sum2 = _mm256_fmadd_ps( _w6, _r6, _sum2);
+                        _sum2 = _mm256_fmadd_ps( _w7, _r7, _sum2);
+
+                        r0 += 8;
+                        _r0 = _mm256_broadcast_ss( r0 );
+                        _r1 = _mm256_broadcast_ss( r0 + 1 );
+                        _r2 = _mm256_broadcast_ss( r0 + 2 );
+                        _r3 = _mm256_broadcast_ss( r0 + 3 );
+                        _r4 = _mm256_broadcast_ss( r0 + 4 );
+                        _r5 = _mm256_broadcast_ss( r0 + 5 );
+                        _r6 = _mm256_broadcast_ss( r0 + 6 );
+                        _r7 = _mm256_broadcast_ss( r0 + 7 );
+
+                        _sum3 = _mm256_fmadd_ps( _w0, _r0, _sum3);
+                        _sum3 = _mm256_fmadd_ps( _w1, _r1, _sum3);
+                        _sum3 = _mm256_fmadd_ps( _w2, _r2, _sum3);
+                        _sum3 = _mm256_fmadd_ps( _w3, _r3, _sum3);
+                        _sum3 = _mm256_fmadd_ps( _w4, _r4, _sum3);
+                        _sum3 = _mm256_fmadd_ps( _w5, _r5, _sum3);
+                        _sum3 = _mm256_fmadd_ps( _w6, _r6, _sum3);
+                        _sum3 = _mm256_fmadd_ps( _w7, _r7, _sum3);
+
+                        r0 += 8;
+                        _r0 = _mm256_broadcast_ss( r0 );
+                        _r1 = _mm256_broadcast_ss( r0 + 1 );
+                        _r2 = _mm256_broadcast_ss( r0 + 2 );
+                        _r3 = _mm256_broadcast_ss( r0 + 3 );
+                        _r4 = _mm256_broadcast_ss( r0 + 4 );
+                        _r5 = _mm256_broadcast_ss( r0 + 5 );
+                        _r6 = _mm256_broadcast_ss( r0 + 6 );
+                        _r7 = _mm256_broadcast_ss( r0 + 7 );
+
+                        _sum4 = _mm256_fmadd_ps( _w0, _r0, _sum4);
+                        _sum4 = _mm256_fmadd_ps( _w1, _r1, _sum4);
+                        _sum4 = _mm256_fmadd_ps( _w2, _r2, _sum4);
+                        _sum4 = _mm256_fmadd_ps( _w3, _r3, _sum4);
+                        _sum4 = _mm256_fmadd_ps( _w4, _r4, _sum4);
+                        _sum4 = _mm256_fmadd_ps( _w5, _r5, _sum4);
+                        _sum4 = _mm256_fmadd_ps( _w6, _r6, _sum4);
+                        _sum4 = _mm256_fmadd_ps( _w7, _r7, _sum4);
+
+                        r0 += 8;
+                        _r0 = _mm256_broadcast_ss( r0 );
+                        _r1 = _mm256_broadcast_ss( r0 + 1 );
+                        _r2 = _mm256_broadcast_ss( r0 + 2 );
+                        _r3 = _mm256_broadcast_ss( r0 + 3 );
+                        _r4 = _mm256_broadcast_ss( r0 + 4 );
+                        _r5 = _mm256_broadcast_ss( r0 + 5 );
+                        _r6 = _mm256_broadcast_ss( r0 + 6 );
+                        _r7 = _mm256_broadcast_ss( r0 + 7 );
+
+                        _sum5 = _mm256_fmadd_ps( _w0, _r0, _sum5);
+                        _sum5 = _mm256_fmadd_ps( _w1, _r1, _sum5);
+                        _sum5 = _mm256_fmadd_ps( _w2, _r2, _sum5);
+                        _sum5 = _mm256_fmadd_ps( _w3, _r3, _sum5);
+                        _sum5 = _mm256_fmadd_ps( _w4, _r4, _sum5);
+                        _sum5 = _mm256_fmadd_ps( _w5, _r5, _sum5);
+                        _sum5 = _mm256_fmadd_ps( _w6, _r6, _sum5);
+                        _sum5 = _mm256_fmadd_ps( _w7, _r7, _sum5);
+
+                        r0 += 8;
+                        _r0 = _mm256_broadcast_ss( r0 );
+                        _r1 = _mm256_broadcast_ss( r0 + 1 );
+                        _r2 = _mm256_broadcast_ss( r0 + 2 );
+                        _r3 = _mm256_broadcast_ss( r0 + 3 );
+                        _r4 = _mm256_broadcast_ss( r0 + 4 );
+                        _r5 = _mm256_broadcast_ss( r0 + 5 );
+                        _r6 = _mm256_broadcast_ss( r0 + 6 );
+                        _r7 = _mm256_broadcast_ss( r0 + 7 );
+
+                        _sum6 = _mm256_fmadd_ps( _w0, _r0, _sum6);
+                        _sum6 = _mm256_fmadd_ps( _w1, _r1, _sum6);
+                        _sum6 = _mm256_fmadd_ps( _w2, _r2, _sum6);
+                        _sum6 = _mm256_fmadd_ps( _w3, _r3, _sum6);
+                        _sum6 = _mm256_fmadd_ps( _w4, _r4, _sum6);
+                        _sum6 = _mm256_fmadd_ps( _w5, _r5, _sum6);
+                        _sum6 = _mm256_fmadd_ps( _w6, _r6, _sum6);
+                        _sum6 = _mm256_fmadd_ps( _w7, _r7, _sum6);
+
+                        r0 += 8;
+                        _r0 = _mm256_broadcast_ss( r0 );
+                        _r1 = _mm256_broadcast_ss( r0 + 1 );
+                        _r2 = _mm256_broadcast_ss( r0 + 2 );
+                        _r3 = _mm256_broadcast_ss( r0 + 3 );
+                        _r4 = _mm256_broadcast_ss( r0 + 4 );
+                        _r5 = _mm256_broadcast_ss( r0 + 5 );
+                        _r6 = _mm256_broadcast_ss( r0 + 6 );
+                        _r7 = _mm256_broadcast_ss( r0 + 7 );
+
+                        _sum7 = _mm256_fmadd_ps( _w0, _r0, _sum7);
+                        _sum7 = _mm256_fmadd_ps( _w1, _r1, _sum7);
+                        _sum7 = _mm256_fmadd_ps( _w2, _r2, _sum7);
+                        _sum7 = _mm256_fmadd_ps( _w3, _r3, _sum7);
+                        _sum7 = _mm256_fmadd_ps( _w0, _r4, _sum7);
+                        _sum7 = _mm256_fmadd_ps( _w1, _r5, _sum7);
+                        _sum7 = _mm256_fmadd_ps( _w2, _r6, _sum7);
+                        _sum7 = _mm256_fmadd_ps( _w3, _r7, _sum7);
+
+                        r0 += 8;
+                        k0 += 64;
                     }
 
-                    vst1q_f32(output0_tm + 0, _sum0);
-                    vst1q_f32(output0_tm + 4, _sum1);
-                    vst1q_f32(output0_tm + 8, _sum2);
-                    vst1q_f32(output0_tm + 12, _sum3);
-                    vst1q_f32(output0_tm + 16, _sum4);
-                    vst1q_f32(output0_tm + 20, _sum5);
-                    vst1q_f32(output0_tm + 24, _sum6);
-                    vst1q_f32(output0_tm + 28, _sum7);
-                    output0_tm += 32;
+                    _mm256_storeu_ps(output0_tm + 0, _sum0);
+                    _mm256_storeu_ps(output0_tm + 8, _sum1);
+                    _mm256_storeu_ps(output0_tm + 16, _sum2);
+                    _mm256_storeu_ps(output0_tm + 24, _sum3);
+                    _mm256_storeu_ps(output0_tm + 32, _sum4);
+                    _mm256_storeu_ps(output0_tm + 40, _sum5);
+                    _mm256_storeu_ps(output0_tm + 48, _sum6);
+                    _mm256_storeu_ps(output0_tm + 56, _sum7);
+                    output0_tm += 64;
                 }
                 for (; i+3<tiles; i+=4)
                 {
@@ -1087,70 +808,107 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
                     const float* k0 = kernel0_tm.row(r);
 
-                    float32x4_t _sum0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum1 = vdupq_n_f32(0.f);
-                    float32x4_t _sum2 = vdupq_n_f32(0.f);
-                    float32x4_t _sum3 = vdupq_n_f32(0.f);
+                    __m256 _sum0 = _mm256_set1_ps(0.f);
+                    __m256 _sum1 = _mm256_set1_ps(0.f);
+                    __m256 _sum2 = _mm256_set1_ps(0.f);
+                    __m256 _sum3 = _mm256_set1_ps(0.f);
 
                     int q=0;
                     for (; q<inch; q++)
                     {
-                        float32x4_t _r0 = vld1q_f32( r0 );
-                        float32x4_t _r1 = vld1q_f32( r0 + 4 );
-                        float32x4_t _r2 = vld1q_f32( r0 + 8 );
-                        float32x4_t _r3 = vld1q_f32( r0 + 12 );
+                        __m256 _w0 = _mm256_loadu_ps( k0 );
+                        __m256 _w1 = _mm256_loadu_ps( k0 + 8 );
+                        __m256 _w2 = _mm256_loadu_ps( k0 + 16 );
+                        __m256 _w3 = _mm256_loadu_ps( k0 + 24 );
+                        __m256 _w4 = _mm256_loadu_ps( k0 + 32);
+                        __m256 _w5 = _mm256_loadu_ps( k0 + 40 );
+                        __m256 _w6 = _mm256_loadu_ps( k0 + 48 );
+                        __m256 _w7 = _mm256_loadu_ps( k0 + 56 );
 
-                        float32x4_t _w0 = vld1q_f32( k0 );
-                        float32x4_t _w1 = vld1q_f32( k0 + 4 );
-                        float32x4_t _w2 = vld1q_f32( k0 + 8 );
-                        float32x4_t _w3 = vld1q_f32( k0 + 12 );
+                        __m256 _r0 = _mm256_broadcast_ss( r0 );
+                        __m256 _r1 = _mm256_broadcast_ss( r0 + 1 );
+                        __m256 _r2 = _mm256_broadcast_ss( r0 + 2 );
+                        __m256 _r3 = _mm256_broadcast_ss( r0 + 3 );
+                        __m256 _r4 = _mm256_broadcast_ss( r0 + 4 );
+                        __m256 _r5 = _mm256_broadcast_ss( r0 + 5 );
+                        __m256 _r6 = _mm256_broadcast_ss( r0 + 6 );
+                        __m256 _r7 = _mm256_broadcast_ss( r0 + 7 );
 
-#if __aarch64__
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w0, _r0, 0);
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w1, _r0, 1);
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w2, _r0, 2);
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w3, _r0, 3);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _w0, _r1, 0);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _w1, _r1, 1);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _w2, _r1, 2);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _w3, _r1, 3);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _w0, _r2, 0);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _w1, _r2, 1);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _w2, _r2, 2);
-                        _sum2 = vmlaq_laneq_f32(_sum2, _w3, _r2, 3);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _w0, _r3, 0);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _w1, _r3, 1);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _w2, _r3, 2);
-                        _sum3 = vmlaq_laneq_f32(_sum3, _w3, _r3, 3);
-#else
-                        _sum0 = vmlaq_lane_f32(_sum0, _w0, vget_low_f32(_r0), 0);
-                        _sum0 = vmlaq_lane_f32(_sum0, _w1, vget_low_f32(_r0), 1);
-                        _sum0 = vmlaq_lane_f32(_sum0, _w2, vget_high_f32(_r0), 0);
-                        _sum0 = vmlaq_lane_f32(_sum0, _w3, vget_high_f32(_r0), 1);
-                        _sum1 = vmlaq_lane_f32(_sum1, _w0, vget_low_f32(_r1), 0);
-                        _sum1 = vmlaq_lane_f32(_sum1, _w1, vget_low_f32(_r1), 1);
-                        _sum1 = vmlaq_lane_f32(_sum1, _w2, vget_high_f32(_r1), 0);
-                        _sum1 = vmlaq_lane_f32(_sum1, _w3, vget_high_f32(_r1), 1);
-                        _sum2 = vmlaq_lane_f32(_sum2, _w0, vget_low_f32(_r2), 0);
-                        _sum2 = vmlaq_lane_f32(_sum2, _w1, vget_low_f32(_r2), 1);
-                        _sum2 = vmlaq_lane_f32(_sum2, _w2, vget_high_f32(_r2), 0);
-                        _sum2 = vmlaq_lane_f32(_sum2, _w3, vget_high_f32(_r2), 1);
-                        _sum3 = vmlaq_lane_f32(_sum3, _w0, vget_low_f32(_r3), 0);
-                        _sum3 = vmlaq_lane_f32(_sum3, _w1, vget_low_f32(_r3), 1);
-                        _sum3 = vmlaq_lane_f32(_sum3, _w2, vget_high_f32(_r3), 0);
-                        _sum3 = vmlaq_lane_f32(_sum3, _w3, vget_high_f32(_r3), 1);
-#endif
-//                         sum0 += r0[0] * k0[0];
+                        _sum0 = _mm256_fmadd_ps( _w0, _r0, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w1, _r1, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w2, _r2, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w3, _r3, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w4, _r4, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w5, _r5, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w6, _r6, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w7, _r7, _sum0);
 
-                        r0 += 16;
-                        k0 += 16;
+                        r0 += 8;
+                        _r0 = _mm256_broadcast_ss( r0 );
+                        _r1 = _mm256_broadcast_ss( r0 + 1 );
+                        _r2 = _mm256_broadcast_ss( r0 + 2 );
+                        _r3 = _mm256_broadcast_ss( r0 + 3 );
+                        _r4 = _mm256_broadcast_ss( r0 + 4 );
+                        _r5 = _mm256_broadcast_ss( r0 + 5 );
+                        _r6 = _mm256_broadcast_ss( r0 + 6 );
+                        _r7 = _mm256_broadcast_ss( r0 + 7 );
+
+                        _sum1 = _mm256_fmadd_ps( _w0, _r0, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w1, _r1, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w2, _r2, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w3, _r3, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w4, _r4, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w5, _r5, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w6, _r6, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w7, _r7, _sum1);
+
+                        r0 += 8;
+                        _r0 = _mm256_broadcast_ss( r0 );
+                        _r1 = _mm256_broadcast_ss( r0 + 1 );
+                        _r2 = _mm256_broadcast_ss( r0 + 2 );
+                        _r3 = _mm256_broadcast_ss( r0 + 3 );
+                        _r4 = _mm256_broadcast_ss( r0 + 4 );
+                        _r5 = _mm256_broadcast_ss( r0 + 5 );
+                        _r6 = _mm256_broadcast_ss( r0 + 6 );
+                        _r7 = _mm256_broadcast_ss( r0 + 7 );
+
+                        _sum2 = _mm256_fmadd_ps( _w0, _r0, _sum2);
+                        _sum2 = _mm256_fmadd_ps( _w1, _r1, _sum2);
+                        _sum2 = _mm256_fmadd_ps( _w2, _r2, _sum2);
+                        _sum2 = _mm256_fmadd_ps( _w3, _r3, _sum2);
+                        _sum2 = _mm256_fmadd_ps( _w4, _r4, _sum2);
+                        _sum2 = _mm256_fmadd_ps( _w5, _r5, _sum2);
+                        _sum2 = _mm256_fmadd_ps( _w6, _r6, _sum2);
+                        _sum2 = _mm256_fmadd_ps( _w7, _r7, _sum2);
+
+                        r0 += 8;
+                        _r0 = _mm256_broadcast_ss( r0 );
+                        _r1 = _mm256_broadcast_ss( r0 + 1 );
+                        _r2 = _mm256_broadcast_ss( r0 + 2 );
+                        _r3 = _mm256_broadcast_ss( r0 + 3 );
+                        _r4 = _mm256_broadcast_ss( r0 + 4 );
+                        _r5 = _mm256_broadcast_ss( r0 + 5 );
+                        _r6 = _mm256_broadcast_ss( r0 + 6 );
+                        _r7 = _mm256_broadcast_ss( r0 + 7 );
+
+                        _sum3 = _mm256_fmadd_ps( _w0, _r0, _sum3);
+                        _sum3 = _mm256_fmadd_ps( _w1, _r1, _sum3);
+                        _sum3 = _mm256_fmadd_ps( _w2, _r2, _sum3);
+                        _sum3 = _mm256_fmadd_ps( _w3, _r3, _sum3);
+                        _sum3 = _mm256_fmadd_ps( _w4, _r4, _sum3);
+                        _sum3 = _mm256_fmadd_ps( _w5, _r5, _sum3);
+                        _sum3 = _mm256_fmadd_ps( _w6, _r6, _sum3);
+                        _sum3 = _mm256_fmadd_ps( _w7, _r7, _sum3);
+
+                        r0 += 8;
+                        k0 += 32;
                     }
 
-                    vst1q_f32(output0_tm + 0, _sum0);
-                    vst1q_f32(output0_tm + 4, _sum1);
-                    vst1q_f32(output0_tm + 8, _sum2);
-                    vst1q_f32(output0_tm + 12, _sum3);
-                    output0_tm += 16;
+                    _mm256_storeu_ps(output0_tm + 0, _sum0);
+                    _mm256_storeu_ps(output0_tm + 8, _sum1);
+                    _mm256_storeu_ps(output0_tm + 16, _sum2);
+                    _mm256_storeu_ps(output0_tm + 24, _sum3);
+                    output0_tm += 32;
                 }
                 for (; i+1<tiles; i+=2)
                 {
@@ -1158,48 +916,64 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
                     const float* k0 = kernel0_tm.row(r);
 
-                    float32x4_t _sum0 = vdupq_n_f32(0.f);
-                    float32x4_t _sum1 = vdupq_n_f32(0.f);
+                    __m256 _sum0 = _mm256_set1_ps(0.f);
+                    __m256 _sum1 = _mm256_set1_ps(0.f);
 
                     int q=0;
                     for (; q<inch; q++)
                     {
-                        float32x4_t _r0 = vld1q_f32( r0 );
-                        float32x4_t _r1 = vld1q_f32( r0 + 4 );
+                        __m256 _w0 = _mm256_loadu_ps( k0 );
+                        __m256 _w1 = _mm256_loadu_ps( k0 + 8 );
+                        __m256 _w2 = _mm256_loadu_ps( k0 + 16 );
+                        __m256 _w3 = _mm256_loadu_ps( k0 + 24 );
+                        __m256 _w4 = _mm256_loadu_ps( k0 + 32);
+                        __m256 _w5 = _mm256_loadu_ps( k0 + 40 );
+                        __m256 _w6 = _mm256_loadu_ps( k0 + 48 );
+                        __m256 _w7 = _mm256_loadu_ps( k0 + 56 );
 
-                        float32x4_t _w0 = vld1q_f32( k0 );
-                        float32x4_t _w1 = vld1q_f32( k0 + 4 );
-                        float32x4_t _w2 = vld1q_f32( k0 + 8 );
-                        float32x4_t _w3 = vld1q_f32( k0 + 12 );
+                        __m256 _r0 = _mm256_broadcast_ss( r0 );
+                        __m256 _r1 = _mm256_broadcast_ss( r0 + 1 );
+                        __m256 _r2 = _mm256_broadcast_ss( r0 + 2 );
+                        __m256 _r3 = _mm256_broadcast_ss( r0 + 3 );
+                        __m256 _r4 = _mm256_broadcast_ss( r0 + 4 );
+                        __m256 _r5 = _mm256_broadcast_ss( r0 + 5 );
+                        __m256 _r6 = _mm256_broadcast_ss( r0 + 6 );
+                        __m256 _r7 = _mm256_broadcast_ss( r0 + 7 );
 
-#if __aarch64__
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w0, _r0, 0);
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w1, _r0, 1);
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w2, _r0, 2);
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w3, _r0, 3);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _w0, _r1, 0);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _w1, _r1, 1);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _w2, _r1, 2);
-                        _sum1 = vmlaq_laneq_f32(_sum1, _w3, _r1, 3);
-#else
-                        _sum0 = vmlaq_lane_f32(_sum0, _w0, vget_low_f32(_r0), 0);
-                        _sum0 = vmlaq_lane_f32(_sum0, _w1, vget_low_f32(_r0), 1);
-                        _sum0 = vmlaq_lane_f32(_sum0, _w2, vget_high_f32(_r0), 0);
-                        _sum0 = vmlaq_lane_f32(_sum0, _w3, vget_high_f32(_r0), 1);
-                        _sum1 = vmlaq_lane_f32(_sum1, _w0, vget_low_f32(_r1), 0);
-                        _sum1 = vmlaq_lane_f32(_sum1, _w1, vget_low_f32(_r1), 1);
-                        _sum1 = vmlaq_lane_f32(_sum1, _w2, vget_high_f32(_r1), 0);
-                        _sum1 = vmlaq_lane_f32(_sum1, _w3, vget_high_f32(_r1), 1);
-#endif
-//                         sum0 += r0[0] * k0[0];
+                        _sum0 = _mm256_fmadd_ps( _w0, _r0, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w1, _r1, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w2, _r2, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w3, _r3, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w4, _r4, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w5, _r5, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w6, _r6, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w7, _r7, _sum0);
 
+                        r0 += 8;
+                        _r0 = _mm256_broadcast_ss( r0 );
+                        _r1 = _mm256_broadcast_ss( r0 + 1 );
+                        _r2 = _mm256_broadcast_ss( r0 + 2 );
+                        _r3 = _mm256_broadcast_ss( r0 + 3 );
+                        _r4 = _mm256_broadcast_ss( r0 + 4 );
+                        _r5 = _mm256_broadcast_ss( r0 + 5 );
+                        _r6 = _mm256_broadcast_ss( r0 + 6 );
+                        _r7 = _mm256_broadcast_ss( r0 + 7 );
+
+                        _sum1 = _mm256_fmadd_ps( _w0, _r0, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w1, _r1, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w2, _r2, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w3, _r3, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w4, _r4, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w5, _r5, _sum1);
+                        _sum1 = _mm256_fmadd_ps( _w6, _r6, _sum1);
+                        _sum0 = _mm256_fmadd_ps( _w7, _r7, _sum1);
                         r0 += 8;
                         k0 += 16;
                     }
 
-                    vst1q_f32(output0_tm + 0, _sum0);
-                    vst1q_f32(output0_tm + 4, _sum1);
-                    output0_tm += 8;
+                    _mm256_storeu_ps(output0_tm + 0, _sum0);
+                    _mm256_storeu_ps(output0_tm + 8, _sum1);
+                    output0_tm += 16;
                 }
                 for (; i<tiles; i++)
                 {
@@ -1207,37 +981,43 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
                     const float* k0 = kernel0_tm.row(r);
 
-                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                    __m256 _sum0 = _mm256_set1_ps(0.f);
 
                     int q=0;
                     for (; q<inch; q++)
                     {
-                        float32x4_t _r0 = vld1q_f32( r0 );
+                        __m256 _w0 = _mm256_loadu_ps( k0 );
+                        __m256 _w1 = _mm256_loadu_ps( k0 + 8 );
+                        __m256 _w2 = _mm256_loadu_ps( k0 + 16 );
+                        __m256 _w3 = _mm256_loadu_ps( k0 + 24 );
+                        __m256 _w4 = _mm256_loadu_ps( k0 + 32);
+                        __m256 _w5 = _mm256_loadu_ps( k0 + 40 );
+                        __m256 _w6 = _mm256_loadu_ps( k0 + 48 );
+                        __m256 _w7 = _mm256_loadu_ps( k0 + 56 );
 
-                        float32x4_t _w0 = vld1q_f32( k0 );
-                        float32x4_t _w1 = vld1q_f32( k0 + 4 );
-                        float32x4_t _w2 = vld1q_f32( k0 + 8 );
-                        float32x4_t _w3 = vld1q_f32( k0 + 12 );
+                        __m256 _r0 = _mm256_broadcast_ss( r0 );
+                        __m256 _r1 = _mm256_broadcast_ss( r0 + 1 );
+                        __m256 _r2 = _mm256_broadcast_ss( r0 + 2 );
+                        __m256 _r3 = _mm256_broadcast_ss( r0 + 3 );
+                        __m256 _r4 = _mm256_broadcast_ss( r0 + 4 );
+                        __m256 _r5 = _mm256_broadcast_ss( r0 + 5 );
+                        __m256 _r6 = _mm256_broadcast_ss( r0 + 6 );
+                        __m256 _r7 = _mm256_broadcast_ss( r0 + 7 );
 
-#if __aarch64__
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w0, _r0, 0);
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w1, _r0, 1);
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w2, _r0, 2);
-                        _sum0 = vmlaq_laneq_f32(_sum0, _w3, _r0, 3);
-#else
-                        _sum0 = vmlaq_lane_f32(_sum0, _w0, vget_low_f32(_r0), 0);
-                        _sum0 = vmlaq_lane_f32(_sum0, _w1, vget_low_f32(_r0), 1);
-                        _sum0 = vmlaq_lane_f32(_sum0, _w2, vget_high_f32(_r0), 0);
-                        _sum0 = vmlaq_lane_f32(_sum0, _w3, vget_high_f32(_r0), 1);
-#endif
-//                         sum0 += r0[0] * k0[0];
-
-                        r0 += 4;
-                        k0 += 16;
+                        _sum0 = _mm256_fmadd_ps( _w0, _r0, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w1, _r1, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w2, _r2, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w3, _r3, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w4, _r4, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w5, _r5, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w6, _r6, _sum0);
+                        _sum0 = _mm256_fmadd_ps( _w7, _r7, _sum0);
+                        r0 += 8;
+                        k0 += 8;
                     }
 
-                    vst1q_f32(output0_tm, _sum0);
-                    output0_tm += 4;
+                    _mm256_storeu_ps(output0_tm, _sum0);
+                    output0_tm += 8;
                 }
 
             }
@@ -1246,10 +1026,16 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
     }
     bottom_blob_tm = Mat();
     // END dot
-
     // BEGIN transform output
     Mat top_blob_bordered;
-    top_blob_bordered.create(outw, outh, outch, elemsize, elempack);
+    if (outw == top_blob.w && outh == top_blob.h)
+    {
+        top_blob_bordered = top_blob;
+    }
+    else
+    {
+        top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
+    }
     {
 //         const float otm[6][8] = {
 //             {1.0f,  1.0f,   1.0f,   1.0f,   1.0f,  32.0f, 32.0f, 0.0f},
@@ -1278,9 +1064,9 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
             Mat out0 = top_blob_bordered.channel(p);
 
 //             const float bias0 = bias ? bias[p] : 0.f;
-            float32x4_t _bias0 = bias ? vld1q_f32( (const float*)bias + p * 4) : vdupq_n_f32(0.f);
+            __m256 _bias0 = bias ? _mm256_loadu_ps( (const float*)bias + p * 8) : _mm256_set1_ps(0.f);
 
-            float tmp[6][8][4];
+            float tmp[6][8][8];
 
             // tile
             for (int i=0; i<outh/6; i++)
@@ -1289,65 +1075,65 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                 {
 //                     top_blob_tm.create(tiles, 64, outch, elemsize, elempack);
 
-                    const float* output0_tm_0 = (const float*)out0_tm + (i * w_tm/8 + j) * 4;
+                    const float* output0_tm_0 = (const float*)out0_tm + (i * w_tm/8 + j) * 8;
 
-                    float* output0 = out0.row(i * 6) + (j * 6) * 4;
+                    float* output0 = out0.row(i * 6) + (j * 6) * 8;
 
                     // TODO neon optimize
                     for (int m=0; m<8; m++)
                     {
-                        float32x4_t _out0tm0 = vld1q_f32(output0_tm_0);
-                        output0_tm_0 += tiles * 4;
-                        float32x4_t _out0tm1 = vld1q_f32(output0_tm_0);
-                        output0_tm_0 += tiles * 4;
-                        float32x4_t _out0tm2 = vld1q_f32(output0_tm_0);
-                        output0_tm_0 += tiles * 4;
-                        float32x4_t _out0tm3 = vld1q_f32(output0_tm_0);
-                        output0_tm_0 += tiles * 4;
-                        float32x4_t _out0tm4 = vld1q_f32(output0_tm_0);
-                        output0_tm_0 += tiles * 4;
-                        float32x4_t _out0tm5 = vld1q_f32(output0_tm_0);
-                        output0_tm_0 += tiles * 4;
-                        float32x4_t _out0tm6 = vld1q_f32(output0_tm_0);
-                        output0_tm_0 += tiles * 4;
-                        float32x4_t _out0tm7 = vld1q_f32(output0_tm_0);
-                        output0_tm_0 += tiles * 4;
+                        __m256 _out0tm0 = _mm256_loadu_ps(output0_tm_0);
+                        output0_tm_0 += tiles * 8;
+                        __m256 _out0tm1 = _mm256_loadu_ps(output0_tm_0);
+                        output0_tm_0 += tiles * 8;
+                        __m256 _out0tm2 = _mm256_loadu_ps(output0_tm_0);
+                        output0_tm_0 += tiles * 8;
+                        __m256 _out0tm3 = _mm256_loadu_ps(output0_tm_0);
+                        output0_tm_0 += tiles * 8;
+                        __m256 _out0tm4 = _mm256_loadu_ps(output0_tm_0);
+                        output0_tm_0 += tiles * 8;
+                        __m256 _out0tm5 = _mm256_loadu_ps(output0_tm_0);
+                        output0_tm_0 += tiles * 8;
+                        __m256 _out0tm6 = _mm256_loadu_ps(output0_tm_0);
+                        output0_tm_0 += tiles * 8;
+                        __m256 _out0tm7 = _mm256_loadu_ps(output0_tm_0);
+                        output0_tm_0 += tiles * 8;
 
-                        float32x4_t _tmp024a = vaddq_f32(_out0tm1, _out0tm2);
-                        float32x4_t _tmp135a = vsubq_f32(_out0tm1, _out0tm2);
+                        __m256 _tmp024a = _mm256_add_ps(_out0tm1, _out0tm2);
+                        __m256 _tmp135a = _mm256_sub_ps(_out0tm1, _out0tm2);
 
 //                         float tmp024a = output0_tm[1] + output0_tm[2];
 //                         float tmp135a = output0_tm[1] - output0_tm[2];
 
-                        float32x4_t _tmp024b = vaddq_f32(_out0tm3, _out0tm4);
-                        float32x4_t _tmp135b = vsubq_f32(_out0tm3, _out0tm4);
+                        __m256 _tmp024b = _mm256_add_ps(_out0tm3, _out0tm4);
+                        __m256 _tmp135b = _mm256_sub_ps(_out0tm3, _out0tm4);
 
 //                         float tmp024b = output0_tm[3] + output0_tm[4];
 //                         float tmp135b = output0_tm[3] - output0_tm[4];
 
-                        float32x4_t _tmp024c = vaddq_f32(_out0tm5, _out0tm6);
-                        float32x4_t _tmp135c = vsubq_f32(_out0tm5, _out0tm6);
+                        __m256 _tmp024c = _mm256_add_ps(_out0tm5, _out0tm6);
+                        __m256 _tmp135c = _mm256_sub_ps(_out0tm5, _out0tm6);
 
 //                         float tmp024c = output0_tm[5] + output0_tm[6];
 //                         float tmp135c = output0_tm[5] - output0_tm[6];
 
-                        float32x4_t _tmp0m = vaddq_f32(vaddq_f32(_out0tm0, _tmp024a), vmlaq_n_f32(_tmp024b, _tmp024c, 32.f));
-                        float32x4_t _tmp2m = vmlaq_n_f32(vmlaq_n_f32(_tmp024a, _tmp024b, 4.f), _tmp024c, 8.f);
-                        float32x4_t _tmp4m = vmlaq_n_f32(vmlaq_n_f32(_tmp024a, _tmp024b, 16.f), _tmp024c, 2.f);
-                        vst1q_f32(tmp[0][m], _tmp0m);
-                        vst1q_f32(tmp[2][m], _tmp2m);
-                        vst1q_f32(tmp[4][m], _tmp4m);
+                        __m256 _tmp0m = _mm256_add_ps(_mm256_add_ps(_out0tm0, _tmp024a), _mm256_fmadd_ps(_tmp024c, _mm256_set1_ps(32.f),_tmp024b));
+                        __m256 _tmp2m = _mm256_fmadd_ps( _tmp024c, _mm256_set1_ps(8.f),_mm256_fmadd_ps(_tmp024b, _mm256_set1_ps(4.f) ,_tmp024a));
+                        __m256 _tmp4m = _mm256_fmadd_ps( _tmp024c, _mm256_set1_ps(2.f),_mm256_fmadd_ps(_tmp024b, _mm256_set1_ps(16.f),_tmp024a));
+                        _mm256_storeu_ps(tmp[0][m], _tmp0m);
+                        _mm256_storeu_ps(tmp[2][m], _tmp2m);
+                        _mm256_storeu_ps(tmp[4][m], _tmp4m);
 
 //                         tmp[0][m] = output0_tm[0] + tmp024a + tmp024b + tmp024c * 32;
 //                         tmp[2][m] = tmp024a + tmp024b * 4 + tmp024c * 8;
 //                         tmp[4][m] = tmp024a + tmp024b * 16 + tmp024c + tmp024c;
 
-                        float32x4_t _tmp1m = vmlaq_n_f32(vmlaq_n_f32(_tmp135a, _tmp135b, 2.f), _tmp135c, 16.f);
-                        float32x4_t _tmp3m = vmlaq_n_f32(vmlaq_n_f32(_tmp135a, _tmp135b, 8.f), _tmp135c, 4.f);
-                        float32x4_t _tmp5m = vaddq_f32(vaddq_f32(_out0tm7, _tmp135a), vmlaq_n_f32(_tmp135c, _tmp135b, 32.f));
-                        vst1q_f32(tmp[1][m], _tmp1m);
-                        vst1q_f32(tmp[3][m], _tmp3m);
-                        vst1q_f32(tmp[5][m], _tmp5m);
+                        __m256 _tmp1m = _mm256_fmadd_ps(_tmp135c, _mm256_set1_ps(16.f),_mm256_fmadd_ps(_tmp135b, _mm256_set1_ps(2.f),_tmp135a));
+                        __m256 _tmp3m = _mm256_fmadd_ps(_tmp135c, _mm256_set1_ps(4.f) ,_mm256_fmadd_ps(_tmp135b, _mm256_set1_ps(8.f),_tmp135a));
+                        __m256 _tmp5m = _mm256_add_ps(_mm256_add_ps(_out0tm7, _tmp135a), _mm256_fmadd_ps( _tmp135b, _mm256_set1_ps(32.f),_tmp135c));
+                        _mm256_storeu_ps(tmp[1][m], _tmp1m);
+                        _mm256_storeu_ps(tmp[3][m], _tmp3m);
+                        _mm256_storeu_ps(tmp[5][m], _tmp5m);
 
 //                         tmp[1][m] = tmp135a + tmp135b + tmp135b + tmp135c * 16;
 //                         tmp[3][m] = tmp135a + tmp135b * 8 + tmp135c * 4;
@@ -1356,56 +1142,56 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 
                     for (int m=0; m<6; m++)
                     {
-                        float32x4_t _tmp00 = vld1q_f32(tmp[m][0]);
-                        float32x4_t _tmp01 = vld1q_f32(tmp[m][1]);
-                        float32x4_t _tmp02 = vld1q_f32(tmp[m][2]);
-                        float32x4_t _tmp03 = vld1q_f32(tmp[m][3]);
-                        float32x4_t _tmp04 = vld1q_f32(tmp[m][4]);
-                        float32x4_t _tmp05 = vld1q_f32(tmp[m][5]);
-                        float32x4_t _tmp06 = vld1q_f32(tmp[m][6]);
-                        float32x4_t _tmp07 = vld1q_f32(tmp[m][7]);
+                        __m256 _tmp00 = _mm256_loadu_ps(tmp[m][0]);
+                        __m256 _tmp01 = _mm256_loadu_ps(tmp[m][1]);
+                        __m256 _tmp02 = _mm256_loadu_ps(tmp[m][2]);
+                        __m256 _tmp03 = _mm256_loadu_ps(tmp[m][3]);
+                        __m256 _tmp04 = _mm256_loadu_ps(tmp[m][4]);
+                        __m256 _tmp05 = _mm256_loadu_ps(tmp[m][5]);
+                        __m256 _tmp06 = _mm256_loadu_ps(tmp[m][6]);
+                        __m256 _tmp07 = _mm256_loadu_ps(tmp[m][7]);
 
-                        float32x4_t _tmp024a = vaddq_f32(_tmp01, _tmp02);
-                        float32x4_t _tmp135a = vsubq_f32(_tmp01, _tmp02);
+                        __m256 _tmp024a = _mm256_add_ps(_tmp01, _tmp02);
+                        __m256 _tmp135a = _mm256_sub_ps(_tmp01, _tmp02);
 
 //                         float tmp024a = tmp0[1] + tmp0[2];
 //                         float tmp135a = tmp0[1] - tmp0[2];
 
-                        float32x4_t _tmp024b = vaddq_f32(_tmp03, _tmp04);
-                        float32x4_t _tmp135b = vsubq_f32(_tmp03, _tmp04);
+                        __m256 _tmp024b = _mm256_add_ps(_tmp03, _tmp04);
+                        __m256 _tmp135b = _mm256_sub_ps(_tmp03, _tmp04);
 
 //                         float tmp024b = tmp0[3] + tmp0[4];
 //                         float tmp135b = tmp0[3] - tmp0[4];
 
-                        float32x4_t _tmp024c = vaddq_f32(_tmp05, _tmp06);
-                        float32x4_t _tmp135c = vsubq_f32(_tmp05, _tmp06);
+                        __m256 _tmp024c = _mm256_add_ps(_tmp05, _tmp06);
+                        __m256 _tmp135c = _mm256_sub_ps(_tmp05, _tmp06);
 
 //                         float tmp024c = tmp0[5] + tmp0[6];
 //                         float tmp135c = tmp0[5] - tmp0[6];
 
-                        float32x4_t _out00 = vaddq_f32(_bias0, vaddq_f32(vaddq_f32(_tmp00, _tmp024a), vmlaq_n_f32(_tmp024b, _tmp024c, 32.f)));
-                        float32x4_t _out02 = vaddq_f32(_bias0, vmlaq_n_f32(vmlaq_n_f32(_tmp024a, _tmp024b, 4.f), _tmp024c, 8.f));
-                        float32x4_t _out04 = vaddq_f32(_bias0, vmlaq_n_f32(vmlaq_n_f32(_tmp024a, _tmp024b, 16.f), _tmp024c, 2.f));
-                        vst1q_f32(output0, _out00);
-                        vst1q_f32(output0 + 8, _out02);
-                        vst1q_f32(output0 + 16, _out04);
+                        __m256 _out00 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_add_ps(_tmp00, _tmp024a), _mm256_fmadd_ps( _tmp024c, _mm256_set1_ps(32.f),_tmp024b)));
+                        __m256 _out02 = _mm256_add_ps(_bias0, _mm256_fmadd_ps(_tmp024c, _mm256_set1_ps(8.f),_mm256_fmadd_ps(_tmp024b, _mm256_set1_ps(4.f),_tmp024a )));
+                        __m256 _out04 = _mm256_add_ps(_bias0, _mm256_fmadd_ps(_tmp024c, _mm256_set1_ps(2.f),_mm256_fmadd_ps(_tmp024b, _mm256_set1_ps(16.f),_tmp024a)));
+                        _mm256_storeu_ps(output0, _out00);
+                        _mm256_storeu_ps(output0 + 16, _out02);
+                        _mm256_storeu_ps(output0 + 32, _out04);
 
 //                         output0[0] = bias0 + tmp0[0] + tmp024a + tmp024b + tmp024c * 32;
 //                         output0[2] = bias0 + tmp024a + tmp024b * 4 + tmp024c * 8;
 //                         output0[4] = bias0 + tmp024a + tmp024b * 16 + tmp024c + tmp024c;
 
-                        float32x4_t _out01 = vaddq_f32(_bias0, vmlaq_n_f32(vmlaq_n_f32(_tmp135a, _tmp135b, 2.f), _tmp135c, 16.f));
-                        float32x4_t _out03 = vaddq_f32(_bias0, vmlaq_n_f32(vmlaq_n_f32(_tmp135a, _tmp135b, 8.f), _tmp135c, 4.f));
-                        float32x4_t _out05 = vaddq_f32(_bias0, vaddq_f32(vaddq_f32(_tmp07, _tmp135a), vmlaq_n_f32(_tmp135c, _tmp135b, 32.f)));
-                        vst1q_f32(output0 + 4, _out01);
-                        vst1q_f32(output0 + 12, _out03);
-                        vst1q_f32(output0 + 20, _out05);
+                        __m256 _out01 = _mm256_add_ps(_bias0, _mm256_fmadd_ps( _tmp135c, _mm256_set1_ps(16.f),_mm256_fmadd_ps(_tmp135b, _mm256_set1_ps(2.f),_tmp135a)));
+                        __m256 _out03 = _mm256_add_ps(_bias0, _mm256_fmadd_ps( _tmp135c, _mm256_set1_ps(4.f),_mm256_fmadd_ps(_tmp135b, _mm256_set1_ps(8.f),_tmp135a)));
+                        __m256 _out05 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_add_ps(_tmp07, _tmp135a), _mm256_fmadd_ps(_tmp135b, _mm256_set1_ps(32.f),_tmp135c)));
+                        _mm256_storeu_ps(output0 + 8, _out01);
+                        _mm256_storeu_ps(output0 + 24, _out03);
+                        _mm256_storeu_ps(output0 + 40, _out05);
 
 //                         output0[1] = bias0 + tmp135a + tmp135b + tmp135b + tmp135c * 16;
 //                         output0[3] = bias0 + tmp135a + tmp135b * 8 + tmp135c * 4;
 //                         output0[5] = bias0 + tmp0[7] + tmp135a + tmp135b * 32 + tmp135c;
 
-                        output0 += outw * 4;
+                        output0 += outw * 8;
                     }
                 }
             }
