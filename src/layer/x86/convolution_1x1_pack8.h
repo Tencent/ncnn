@@ -45,22 +45,22 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
 
             for (int q=0; q<inch; q++)
             {
-                __m256 _r0 = _mm256_load_ps(img0);
-                __m256 _r1 = _mm256_load_ps(img0+8);
-                __m256 _r2 = _mm256_load_ps(img0+16);
-                __m256 _r3 = _mm256_load_ps(img0+24);
-                __m256 _r4 = _mm256_load_ps(img0+32);
-                __m256 _r5 = _mm256_load_ps(img0+40);
-                __m256 _r6 = _mm256_load_ps(img0+48);
-                __m256 _r7 = _mm256_load_ps(img0+56);
-                _mm256_store_ps(tmpptr, _r0);
-                _mm256_store_ps(tmpptr+8, _r1);
-                _mm256_store_ps(tmpptr+16, _r2);
-                _mm256_store_ps(tmpptr+24, _r3);
-                _mm256_store_ps(tmpptr+32, _r4);
-                _mm256_store_ps(tmpptr+40, _r5);
-                _mm256_store_ps(tmpptr+48, _r6);
-                _mm256_store_ps(tmpptr+56, _r7);
+                __m256 _r0 = _mm256_loadu_ps(img0);
+                __m256 _r1 = _mm256_loadu_ps(img0+8);
+                __m256 _r2 = _mm256_loadu_ps(img0+16);
+                __m256 _r3 = _mm256_loadu_ps(img0+24);
+                __m256 _r4 = _mm256_loadu_ps(img0+32);
+                __m256 _r5 = _mm256_loadu_ps(img0+40);
+                __m256 _r6 = _mm256_loadu_ps(img0+48);
+                __m256 _r7 = _mm256_loadu_ps(img0+56);
+                _mm256_storeu_ps(tmpptr, _r0);
+                _mm256_storeu_ps(tmpptr+8, _r1);
+                _mm256_storeu_ps(tmpptr+16, _r2);
+                _mm256_storeu_ps(tmpptr+24, _r3);
+                _mm256_storeu_ps(tmpptr+32, _r4);
+                _mm256_storeu_ps(tmpptr+40, _r5);
+                _mm256_storeu_ps(tmpptr+48, _r6);
+                _mm256_storeu_ps(tmpptr+56, _r7);
 
                 tmpptr += 64;
                 img0 += bottom_blob.cstep * 8;
@@ -79,14 +79,14 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
 
             for (int q=0; q<inch; q++)
             {
-                __m256 _r0 = _mm256_load_ps(img0);
-                __m256 _r1 = _mm256_load_ps(img0+8);
-                __m256 _r2 = _mm256_load_ps(img0+16);
-                __m256 _r3 = _mm256_load_ps(img0+24);
-                _mm256_store_ps(tmpptr, _r0);
-                _mm256_store_ps(tmpptr+8, _r1);
-                _mm256_store_ps(tmpptr+16, _r2);
-                _mm256_store_ps(tmpptr+24, _r3);
+                __m256 _r0 = _mm256_loadu_ps(img0);
+                __m256 _r1 = _mm256_loadu_ps(img0+8);
+                __m256 _r2 = _mm256_loadu_ps(img0+16);
+                __m256 _r3 = _mm256_loadu_ps(img0+24);
+                _mm256_storeu_ps(tmpptr, _r0);
+                _mm256_storeu_ps(tmpptr+8, _r1);
+                _mm256_storeu_ps(tmpptr+16, _r2);
+                _mm256_storeu_ps(tmpptr+24, _r3);
 
                 tmpptr += 32;
                 img0 += bottom_blob.cstep * 8;
@@ -106,10 +106,10 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
 
             for (int q=0; q<inch; q++)
             {
-                __m256 _r0 = _mm256_load_ps(img0);
-                __m256 _r1 = _mm256_load_ps(img0+8);
-                _mm256_store_ps(tmpptr, _r0);
-                _mm256_store_ps(tmpptr+8, _r1);
+                __m256 _r0 = _mm256_loadu_ps(img0);
+                __m256 _r1 = _mm256_loadu_ps(img0+8);
+                _mm256_storeu_ps(tmpptr, _r0);
+                _mm256_storeu_ps(tmpptr+8, _r1);
 
                 tmpptr += 16;
                 img0 += bottom_blob.cstep * 8;
@@ -125,8 +125,8 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
             float* tmpptr = tmp.channel(i/8 + (i%8)/4 + (i%4)/2 + i%2);
             for (int q=0; q<inch; q++)
             {
-                __m256 _r0 = _mm256_load_ps(img0);
-                _mm256_store_ps(tmpptr, _r0);
+                __m256 _r0 = _mm256_loadu_ps(img0);
+                _mm256_storeu_ps(tmpptr, _r0);
 
                 tmpptr += 8;
                 img0 += bottom_blob.cstep * 8;
@@ -139,7 +139,7 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
     {
         Mat out = top_blob.channel(p);
 
-        __m256 _bias0 = bias ? _mm256_load_ps((const float*)bias + p * 8) : _mm256_set1_ps(0.f);
+        __m256 _bias0 = bias ? _mm256_loadu_ps((const float*)bias + p * 8) : _mm256_set1_ps(0.f);
 
         float* outptr = out;
         int i=0;
@@ -161,14 +161,14 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
             {
 
 
-                __m256 _w0 = _mm256_load_ps( kptr );
-                __m256 _w1 = _mm256_load_ps( kptr + 8 );
-                __m256 _w2 = _mm256_load_ps( kptr + 16 );
-                __m256 _w3 = _mm256_load_ps( kptr + 24 );
-                __m256 _w4 = _mm256_load_ps( kptr + 32 );
-                __m256 _w5 = _mm256_load_ps( kptr + 40 );
-                __m256 _w6 = _mm256_load_ps( kptr + 48 );
-                __m256 _w7 = _mm256_load_ps( kptr + 56 );
+                __m256 _w0 = _mm256_loadu_ps( kptr );
+                __m256 _w1 = _mm256_loadu_ps( kptr + 8 );
+                __m256 _w2 = _mm256_loadu_ps( kptr + 16 );
+                __m256 _w3 = _mm256_loadu_ps( kptr + 24 );
+                __m256 _w4 = _mm256_loadu_ps( kptr + 32 );
+                __m256 _w5 = _mm256_loadu_ps( kptr + 40 );
+                __m256 _w6 = _mm256_loadu_ps( kptr + 48 );
+                __m256 _w7 = _mm256_loadu_ps( kptr + 56 );
 
                 __m256 _val00 = _mm256_broadcast_ss( tmpptr );
                 __m256 _val01 = _mm256_broadcast_ss( tmpptr + 1);
@@ -313,14 +313,14 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
 
                 kptr += 64;
             }
-            _mm256_store_ps(outptr, _sum0);
-            _mm256_store_ps(outptr+8, _sum1);
-            _mm256_store_ps(outptr+16, _sum2);
-            _mm256_store_ps(outptr+24, _sum3);
-            _mm256_store_ps(outptr+32, _sum4);
-            _mm256_store_ps(outptr+40, _sum5);
-            _mm256_store_ps(outptr+48, _sum6);
-            _mm256_store_ps(outptr+56, _sum7);
+            _mm256_storeu_ps(outptr, _sum0);
+            _mm256_storeu_ps(outptr+8, _sum1);
+            _mm256_storeu_ps(outptr+16, _sum2);
+            _mm256_storeu_ps(outptr+24, _sum3);
+            _mm256_storeu_ps(outptr+32, _sum4);
+            _mm256_storeu_ps(outptr+40, _sum5);
+            _mm256_storeu_ps(outptr+48, _sum6);
+            _mm256_storeu_ps(outptr+56, _sum7);
 
             outptr += 64;
         }
@@ -337,14 +337,14 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
             for (int q=0; q<inch; q++)
             {
 
-                __m256 _w0 = _mm256_load_ps( kptr );
-                __m256 _w1 = _mm256_load_ps( kptr + 8 );
-                __m256 _w2 = _mm256_load_ps( kptr + 16 );
-                __m256 _w3 = _mm256_load_ps( kptr + 24 );
-                __m256 _w4 = _mm256_load_ps( kptr + 32 );
-                __m256 _w5 = _mm256_load_ps( kptr + 40 );
-                __m256 _w6 = _mm256_load_ps( kptr + 48 );
-                __m256 _w7 = _mm256_load_ps( kptr + 56 );
+                __m256 _w0 = _mm256_loadu_ps( kptr );
+                __m256 _w1 = _mm256_loadu_ps( kptr + 8 );
+                __m256 _w2 = _mm256_loadu_ps( kptr + 16 );
+                __m256 _w3 = _mm256_loadu_ps( kptr + 24 );
+                __m256 _w4 = _mm256_loadu_ps( kptr + 32 );
+                __m256 _w5 = _mm256_loadu_ps( kptr + 40 );
+                __m256 _w6 = _mm256_loadu_ps( kptr + 48 );
+                __m256 _w7 = _mm256_loadu_ps( kptr + 56 );
 
 
                 __m256 _val00 = _mm256_broadcast_ss( tmpptr );
@@ -425,10 +425,10 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
 
                 kptr += 64;
             }
-            _mm256_store_ps(outptr, _sum0);
-            _mm256_store_ps(outptr+8, _sum1);
-            _mm256_store_ps(outptr+16, _sum2);
-            _mm256_store_ps(outptr+24, _sum3);
+            _mm256_storeu_ps(outptr, _sum0);
+            _mm256_storeu_ps(outptr+8, _sum1);
+            _mm256_storeu_ps(outptr+16, _sum2);
+            _mm256_storeu_ps(outptr+24, _sum3);
 
             outptr += 32;
         }
@@ -459,14 +459,14 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
                 __m256 _val16 = _mm256_broadcast_ss( tmpptr + 14);
                 __m256 _val17 = _mm256_broadcast_ss( tmpptr + 15);
 
-                __m256 _w0 = _mm256_load_ps( kptr );
-                __m256 _w1 = _mm256_load_ps( kptr + 8 );
-                __m256 _w2 = _mm256_load_ps( kptr + 16 );
-                __m256 _w3 = _mm256_load_ps( kptr + 24 );
-                __m256 _w4 = _mm256_load_ps( kptr + 32 );
-                __m256 _w5 = _mm256_load_ps( kptr + 40 );
-                __m256 _w6 = _mm256_load_ps( kptr + 48 );
-                __m256 _w7 = _mm256_load_ps( kptr + 56 );
+                __m256 _w0 = _mm256_loadu_ps( kptr );
+                __m256 _w1 = _mm256_loadu_ps( kptr + 8 );
+                __m256 _w2 = _mm256_loadu_ps( kptr + 16 );
+                __m256 _w3 = _mm256_loadu_ps( kptr + 24 );
+                __m256 _w4 = _mm256_loadu_ps( kptr + 32 );
+                __m256 _w5 = _mm256_loadu_ps( kptr + 40 );
+                __m256 _w6 = _mm256_loadu_ps( kptr + 48 );
+                __m256 _w7 = _mm256_loadu_ps( kptr + 56 );
 
 
                 _sum0 = _mm256_fmadd_ps(_w0, _val00, _sum0);
@@ -491,8 +491,8 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
 
                 kptr += 64;
             }
-            _mm256_store_ps(outptr, _sum0);
-            _mm256_store_ps(outptr+8, _sum1);
+            _mm256_storeu_ps(outptr, _sum0);
+            _mm256_storeu_ps(outptr+8, _sum1);
 
             outptr += 16;
         }
@@ -513,14 +513,14 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
                 __m256 _val6 = _mm256_broadcast_ss( tmpptr + 6);
                 __m256 _val7 = _mm256_broadcast_ss( tmpptr + 7);
 
-                __m256 _w0 = _mm256_load_ps( kptr );
-                __m256 _w1 = _mm256_load_ps( kptr + 8 );
-                __m256 _w2 = _mm256_load_ps( kptr + 16 );
-                __m256 _w3 = _mm256_load_ps( kptr + 24 );
-                __m256 _w4 = _mm256_load_ps( kptr + 32 );
-                __m256 _w5 = _mm256_load_ps( kptr + 40 );
-                __m256 _w6 = _mm256_load_ps( kptr + 48 );
-                __m256 _w7 = _mm256_load_ps( kptr + 56 );
+                __m256 _w0 = _mm256_loadu_ps( kptr );
+                __m256 _w1 = _mm256_loadu_ps( kptr + 8 );
+                __m256 _w2 = _mm256_loadu_ps( kptr + 16 );
+                __m256 _w3 = _mm256_loadu_ps( kptr + 24 );
+                __m256 _w4 = _mm256_loadu_ps( kptr + 32 );
+                __m256 _w5 = _mm256_loadu_ps( kptr + 40 );
+                __m256 _w6 = _mm256_loadu_ps( kptr + 48 );
+                __m256 _w7 = _mm256_loadu_ps( kptr + 56 );
 
 
                 _sum = _mm256_fmadd_ps(_w0, _val0, _sum);
@@ -538,7 +538,7 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
 
                 kptr += 64;
             }
-            _mm256_store_ps(outptr, _sum);
+            _mm256_storeu_ps(outptr, _sum);
 
             outptr += 8;
         }
@@ -571,8 +571,8 @@ static void conv1x1s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const Mat
         {
             for (int j = 0; j < outw; j++)
             {
-                __m256 _v = _mm256_load_ps(r0);
-                _mm256_store_ps(outptr, _v);
+                __m256 _v = _mm256_loadu_ps(r0);
+                _mm256_storeu_ps(outptr, _v);
 
                 r0 += 16;
                 outptr += 8;
