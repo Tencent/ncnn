@@ -30,9 +30,9 @@ DEFINE_LAYER_CREATOR(ConvolutionDepthWise_x86)
 
 ConvolutionDepthWise_x86::ConvolutionDepthWise_x86()
 {
-    #ifdef __AVX__
+#ifdef __AVX__
     support_packing = true;
-    #endif
+#endif
     activation = 0;
 }
 

@@ -301,7 +301,7 @@ int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
     {
         return Pooling::forward(bottom_blob, top_blob, opt);
     }
-    #if __AVX__
+#if __AVX__
     if (kernel_size != 2)
     {
         return Pooling::forward(bottom_blob, top_blob, opt);
@@ -326,9 +326,9 @@ int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
         pooling2x2s2_max_avx(bottom_blob_bordered, top_blob, opt);
 
     return 0;
-    #else
+#else
     return Pooling::forward(bottom_blob, top_blob, opt);
-    #endif
+#endif
 }
 
 } // namespace ncnn

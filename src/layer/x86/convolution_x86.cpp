@@ -365,13 +365,13 @@ int Convolution_x86::create_pipeline(const Option& opt)
                 }
             }
         }
-        #if __AVX__
+#if __AVX__
 
         if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
             conv3x3s1_winograd64_transform_kernel_pack8_avx(weight_data, weight_3x3_winograd64_data_pack8, num_input, num_output);
         }
-        #endif
+#endif
     }
     // pack1to8
     if (elempack == 1 && out_elempack == 8)
@@ -575,7 +575,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             p2 += gap;
         }
     }
-    #if __AVX__
+#if __AVX__
     if (elempack == 8 && out_elempack == 8)
     {
         if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
@@ -801,7 +801,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
         }
     }
-    #endif
+#endif
 
     if (elempack == 1 && out_elempack == 1)
     {
