@@ -358,7 +358,7 @@ static void convdw3x3s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
             }
             for (; j+1 < outw; j+=2)
             {
-                 __m256 _sum0 = _bias0;
+                __m256 _sum0 = _bias0;
 
                 __m256 _r00 = _mm256_load_ps(r0);
                 __m256 _r01 = _mm256_load_ps(r0 + 8);

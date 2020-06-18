@@ -184,19 +184,19 @@ int ShuffleChannel_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             // }
             // else
             // {
-                // slow path for too large group or shuffle inside elempack
-                Option opt_pack = opt;
-                opt_pack.blob_allocator = opt.workspace_allocator;
+            // slow path for too large group or shuffle inside elempack
+            Option opt_pack = opt;
+            opt_pack.blob_allocator = opt.workspace_allocator;
 
-                Mat bottom_blob_unpacked;
-                convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
+            Mat bottom_blob_unpacked;
+            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
 
-                Mat top_blob_unpacked;
-                int ret = ShuffleChannel::forward(bottom_blob_unpacked, top_blob_unpacked, opt_pack);
-                if (ret != 0)
-                    return ret;
+            Mat top_blob_unpacked;
+            int ret = ShuffleChannel::forward(bottom_blob_unpacked, top_blob_unpacked, opt_pack);
+            if (ret != 0)
+                return ret;
 
-                convert_packing(top_blob_unpacked, top_blob, 8, opt);
+            convert_packing(top_blob_unpacked, top_blob, 8, opt);
             // }
 
             return 0;

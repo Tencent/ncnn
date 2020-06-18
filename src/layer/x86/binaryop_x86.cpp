@@ -641,7 +641,7 @@ struct binary_op_pow_pack8
 {
     __m256 operator()(const __m256& x, const __m256& y) const
     {
-        return exp256_ps(y*log256_ps(x));
+        return exp256_ps(_mm256_mul_ps(y,log256_ps(x)));
     }
 };
 

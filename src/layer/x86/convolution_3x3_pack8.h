@@ -36,7 +36,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, M
         {
             const float* kernel0 = (const float*)kernel + p * inch * 9 + q * 9;
             float* kernel_tm0 = kernel_tm.channel(p).row(q);
-            
+
             // transform kernel, transposed
             const float* k0 = kernel0;
             const float* k1 = kernel0 + 3;
@@ -796,7 +796,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                         r0 += 8;
                         k0 += 64;
                     }
-  
+
 
                     _mm256_storeu_ps(output0_tm + 0, _sum0);
                     _mm256_storeu_ps(output0_tm + 8, _sum1);
@@ -916,7 +916,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                         r0 += 8;
                         k0 += 32;
                     }
- 
+
                     _mm256_storeu_ps(output0_tm + 0, _sum0);
                     _mm256_storeu_ps(output0_tm + 8, _sum1);
                     _mm256_storeu_ps(output0_tm + 16, _sum2);
