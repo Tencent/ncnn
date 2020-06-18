@@ -147,16 +147,8 @@ int main(int argc, char** argv)
         return -1;
     }
 
-#if NCNN_VULKAN
-    ncnn::create_gpu_instance();
-#endif // NCNN_VULKAN
-
     std::vector<Object> objects;
     detect_yolov3(m, objects);
-
-#if NCNN_VULKAN
-    ncnn::destroy_gpu_instance();
-#endif // NCNN_VULKAN
 
     draw_objects(m, objects);
 
