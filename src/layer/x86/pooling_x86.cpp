@@ -30,19 +30,18 @@ namespace ncnn {
 #include "pooling_3x3_pack8.h"
 #endif
 
-
 DEFINE_LAYER_CREATOR(Pooling_x86)
 
-Pooling_x86::Pooling_x86() {
+Pooling_x86::Pooling_x86()
+{
 #if __AVX__
     support_packing = true;
 #endif // __AVX__
 }
 
-
-int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
-                         const Option &opt) const {
-
+int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob,
+                         const Option& opt) const
+{
     // max value in NxN window
     // avg value in NxN window
 

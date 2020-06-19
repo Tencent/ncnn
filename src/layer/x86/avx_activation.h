@@ -25,58 +25,72 @@
 
 #ifdef __AVX__
 
-static inline __m256 sigmoid_avx(__m256 inputs) {
+static inline __m256 sigmoid_avx(__m256 inputs)
+{
     const __m256 one = _mm256_set1_ps(1.0f);
     return _mm256_div_ps(
                one, _mm256_add_ps(one, exp256_ps(_mm256_sub_ps(_mm256_setzero_ps(), inputs))));
 }
 
-
-static inline __m256 tanh_avx(__m256 inputs) {
+static inline __m256 tanh_avx(__m256 inputs)
+{
     const __m256 one = _mm256_set1_ps(1.0f);
     const __m256 two = _mm256_set1_ps(2.0f);
     return _mm256_fmsub_ps(sigmoid_avx(_mm256_mul_ps(inputs, two)), two, one);
 }
 
-static inline __m256 mish_avx(__m256 inputs) {
+static inline __m256 mish_avx(__m256 inputs)
+{
     return _mm256_mul_ps(inputs, tanh_avx(log256_ps(_mm256_add_ps(exp256_ps(inputs), _mm256_set1_ps(1.f)))));
 }
 
-
-static inline __m256 abs_avx(__m256 inputs) {
+static inline __m256 abs_avx(__m256 inputs)
+{
     return _mm256_max_ps(_mm256_sub_ps(_mm256_setzero_ps(), inputs), inputs);
 }
 
-static inline __m256 lrelu_avx(__m256 inputs, float slope) {
+static inline __m256 lrelu_avx(__m256 inputs, float slope)
+{
     __m256 pos = _mm256_max_ps(_mm256_setzero_ps(), inputs);
     __m256 neg = _mm256_min_ps(_mm256_setzero_ps(), inputs);
-    return  _mm256_add_ps(pos, _mm256_mul_ps(_mm256_set1_ps(slope), neg));
+    return _mm256_add_ps(pos, _mm256_mul_ps(_mm256_set1_ps(slope), neg));
 }
 
-static inline __m256 prelu_avx(__m256 inputs, __m256 alphas) {
+static inline __m256 prelu_avx(__m256 inputs, __m256 alphas)
+{
     __m256 pos = _mm256_max_ps(_mm256_setzero_ps(), inputs);
     __m256 neg = _mm256_min_ps(_mm256_setzero_ps(), inputs);
-    return  _mm256_add_ps(pos, _mm256_mul_ps(alphas, neg));
+    return _mm256_add_ps(pos, _mm256_mul_ps(alphas, neg));
 }
 
 static inline __m256 activation_ps(__m256 _v, int activation_type,
-                                   const ncnn::Mat &activation_params) {
+                                   const ncnn::Mat& activation_params)
+{
     // Process fused activations
-    if (activation_type == 1) {
+    if (activation_type == 1)
+    {
         // Relu
         return _mm256_max_ps(_v, _mm256_setzero_ps());
-    } else if (activation_type == 2) {
+    }
+    else if (activation_type == 2)
+    {
         // Leaky relu
         return lrelu_avx(_v, activation_params[0]);
-    } else if (activation_type == 3) {
+    }
+    else if (activation_type == 3)
+    {
         // min max clip
         __m256 min = _mm256_set1_ps(activation_params[0]);
         __m256 max = _mm256_set1_ps(activation_params[1]);
         return _mm256_min_ps(_mm256_max_ps(_v, min), max);
-    } else if (activation_type == 4) {
+    }
+    else if (activation_type == 4)
+    {
         // Sigmoid
         return sigmoid_avx(_v);
-    } else if (activation_type == 5) {
+    }
+    else if (activation_type == 5)
+    {
         return mish_avx(_v);
     }
 
@@ -84,22 +98,32 @@ static inline __m256 activation_ps(__m256 _v, int activation_type,
 }
 #endif
 static inline float activation_ss(float v, int activation_type,
-                                  const ncnn::Mat &activation_params) {
-    if (activation_type == 1) {
+                                  const ncnn::Mat& activation_params)
+{
+    if (activation_type == 1)
+    {
         v = fmax(v, 0.f);
-    } else if (activation_type == 2) {
+    }
+    else if (activation_type == 2)
+    {
         float slope = activation_params[0];
         v = v > 0.f ? v : v * slope;
-    } else if (activation_type == 3) {
+    }
+    else if (activation_type == 3)
+    {
         float min = activation_params[0];
         float max = activation_params[1];
         if (v < min)
             v = min;
         if (v > max)
             v = max;
-    } else if (activation_type == 4) {
+    }
+    else if (activation_type == 4)
+    {
         v = 1.f / (1.f + exp(-v));
-    } else if (activation_type == 5) {
+    }
+    else if (activation_type == 5)
+    {
         v = v * tanh(log(exp(v) + 1.f));
     }
 

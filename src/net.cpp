@@ -1099,7 +1099,6 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             int elempack = layer->support_packing ? 4 : 1;
 #endif
 
-
             Mat bottom_blob_packed;
             convert_packing(bottom_blob, bottom_blob_packed, elempack, opt);
             bottom_blob = bottom_blob_packed;

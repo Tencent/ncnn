@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-
 #if __AVX__
 #include "avx_mathfun.h"
 #endif // __AVX__
@@ -21,8 +20,6 @@
 
 #include <algorithm>
 #include <math.h>
-
-
 
 namespace ncnn {
 
@@ -641,7 +638,7 @@ struct binary_op_pow_pack8
 {
     __m256 operator()(const __m256& x, const __m256& y) const
     {
-        return exp256_ps(_mm256_mul_ps(y,log256_ps(x)));
+        return exp256_ps(_mm256_mul_ps(y, log256_ps(x)));
     }
 };
 
@@ -664,7 +661,6 @@ struct binary_op_rdiv_pack8
 
 int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& bottom_blob1 = bottom_blobs[1];
 
@@ -707,7 +703,6 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
     return BinaryOp::forward(bottom_blobs, top_blobs, opt);
 }
-
 
 int BinaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {

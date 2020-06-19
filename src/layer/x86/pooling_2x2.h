@@ -15,8 +15,9 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-static void pooling2x2s2_max_avx(const Mat &bottom_blob, Mat &top_blob,
-                                 const Option &opt) {
+static void pooling2x2s2_max_avx(const Mat& bottom_blob, Mat& top_blob,
+                                 const Option& opt)
+{
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
 
@@ -28,14 +29,16 @@ static void pooling2x2s2_max_avx(const Mat &bottom_blob, Mat &top_blob,
 
     const int tailstep = w - 2 * outw + w;
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < inch; q++) {
-        const float *img0 = bottom_blob.channel(q);
-        float *outptr = top_blob.channel(q);
+    for (int q = 0; q < inch; q++)
+    {
+        const float* img0 = bottom_blob.channel(q);
+        float* outptr = top_blob.channel(q);
         int outcount = 0;
-        const float *r0 = img0;
-        const float *r1 = img0 + w;
+        const float* r0 = img0;
+        const float* r1 = img0 + w;
 
-        for (int i = 0; i < outh; i++) {
+        for (int i = 0; i < outh; i++)
+        {
 #if __AVX2__
             int nn = outw >> 2;
             int remain = outw - (nn << 2);
@@ -43,9 +46,9 @@ static void pooling2x2s2_max_avx(const Mat &bottom_blob, Mat &top_blob,
             int remain = outw;
 #endif // __AVX__
 
-
 #if __AVX2__
-            for (; nn > 0; nn--) {
+            for (; nn > 0; nn--)
+            {
                 __m256 _r0 = _mm256_loadu_ps(r0);
                 __m256 _r1 = _mm256_loadu_ps(r1);
                 __m256 _max_r0_r1 = _mm256_max_ps(_r0, _r1);
@@ -61,7 +64,8 @@ static void pooling2x2s2_max_avx(const Mat &bottom_blob, Mat &top_blob,
                 outcount += 4;
             }
 #endif // __AVX__
-            for (; remain > 0; remain--) {
+            for (; remain > 0; remain--)
+            {
                 float max0 = std::max(r0[0], r0[1]);
                 float max1 = std::max(r1[0], r1[1]);
 

@@ -16,7 +16,6 @@
 #include <immintrin.h>
 #endif // __AVX__
 
-
 #include "dropout_x86.h"
 
 namespace ncnn {

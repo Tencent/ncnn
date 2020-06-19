@@ -18,8 +18,6 @@
 
 #include "prelu_x86.h"
 
-
-
 namespace ncnn {
 
 DEFINE_LAYER_CREATOR(PReLU_x86)
@@ -55,7 +53,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                         float* ptr = (float*)bottom_top_blob + i * 8;
                         __m256 _p = _mm256_loadu_ps(ptr);
                         __m256 _slope = _mm256_loadu_ps(slope + i * 8);
-                        _mm256_storeu_ps(ptr, prelu_avx(_p,_slope));
+                        _mm256_storeu_ps(ptr, prelu_avx(_p, _slope));
                     }
                 }
                 else
@@ -67,7 +65,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     {
                         float* ptr = (float*)bottom_top_blob + i * 8;
                         __m256 _p = _mm256_loadu_ps(ptr);
-                        _mm256_storeu_ps(ptr, prelu_avx(_p,_slope));
+                        _mm256_storeu_ps(ptr, prelu_avx(_p, _slope));
                     }
                 }
             }
@@ -86,7 +84,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     for (int j = 0; j < w; j++)
                     {
                         __m256 _p = _mm256_loadu_ps(ptr);
-                        _mm256_storeu_ps(ptr, prelu_avx(_p,_slope));
+                        _mm256_storeu_ps(ptr, prelu_avx(_p, _slope));
                         ptr += 8;
                     }
                 }
@@ -108,7 +106,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     for (int i = 0; i < size; i++)
                     {
                         __m256 _p = _mm256_loadu_ps(ptr);
-                        _mm256_storeu_ps(ptr, prelu_avx(_p,_slope));
+                        _mm256_storeu_ps(ptr, prelu_avx(_p, _slope));
                         ptr += 8;
                     }
                 }
@@ -147,7 +145,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (; nn > 0; nn--)
         {
             __m256 _p = _mm256_loadu_ps(ptr);
-            _mm256_storeu_ps(ptr, prelu_avx(_p,_mm256_set1_ps(slope)));
+            _mm256_storeu_ps(ptr, prelu_avx(_p, _mm256_set1_ps(slope)));
             ptr += 8;
         }
 #endif // __AVX__

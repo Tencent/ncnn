@@ -32,7 +32,6 @@ Mish_x86::Mish_x86()
 
 int Mish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;

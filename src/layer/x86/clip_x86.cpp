@@ -17,8 +17,6 @@
 
 #include "clip_x86.h"
 
-
-
 namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Clip_x86)
