@@ -539,7 +539,7 @@ static void reorder_a(int8_t* a, int8_t* sa, int m, const int k, const int ldx)
 #endif
 }
 
-void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, float* scales, float* bias)
+static void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, float* scales, float* bias)
 {
     void* pc = dst;
     int8_t* pa = sa;
@@ -1037,7 +1037,7 @@ void int8kernel_m1(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int, fl
     }
 }
 
-void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc, float* scales, float* bias)
+static void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc, float* scales, float* bias)
 {
     void *pc0, *pc1;
     if (scales == 0)
@@ -1722,7 +1722,7 @@ void int8kernel_m2(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
     }
 }
 
-void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc, float* scales, float* bias)
+static void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc, float* scales, float* bias)
 {
     void *pc0, *pc1, *pc2, *pc3;
     if (scales == 0)
@@ -2667,7 +2667,7 @@ void int8kernel_m4(void* dst, int8_t* sa, int8_t* sb, int, int k, int n, int ldc
 #undef DECOMPOSE_K
 #undef DECOMPOSE_N
 
-void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int n, int ldc, float* scales, float* bias, const Option& opt)
+static void int8kernel(void* dst, const int8_t* sa, const int8_t* sb, int m, int k, int n, int ldc, float* scales, float* bias, const Option& opt)
 {
     int8_t* pa = (int8_t*)sa;
     int8_t* pb = (int8_t*)sb;
