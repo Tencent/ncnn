@@ -733,10 +733,10 @@ inline void Mat::fill(float _v)
             "st1        {%4.4s}, [%1], #16  \n"
             "bne        0b                  \n"
             : "=r"(nn), // %0
-            "=r"(ptr) // %1
+              "=r"(ptr) // %1
             : "0"(nn),
-            "1"(ptr),
-            "w"(_c) // %4
+              "1"(ptr),
+              "w"(_c) // %4
             : "cc", "memory");
     }
 #else
@@ -748,10 +748,10 @@ inline void Mat::fill(float _v)
             "vst1.f32   {%e4-%f4}, [%1 :128]!\n"
             "bne        0b                  \n"
             : "=r"(nn), // %0
-            "=r"(ptr) // %1
+              "=r"(ptr) // %1
             : "0"(nn),
-            "1"(ptr),
-            "w"(_c) // %4
+              "1"(ptr),
+              "w"(_c) // %4
             : "cc", "memory");
     }
 #endif // __aarch64__
@@ -785,10 +785,10 @@ inline void Mat::fill(int _v)
             "st1        {%4.4s}, [%1], #16  \n"
             "bne        0b                  \n"
             : "=r"(nn), // %0
-            "=r"(ptr) // %1
+              "=r"(ptr) // %1
             : "0"(nn),
-            "1"(ptr),
-            "w"(_c) // %4
+              "1"(ptr),
+              "w"(_c) // %4
             : "cc", "memory");
     }
 #else
@@ -800,10 +800,10 @@ inline void Mat::fill(int _v)
             "vst1.s32   {%e4-%f4}, [%1 :128]!\n"
             "bne        0b                  \n"
             : "=r"(nn), // %0
-            "=r"(ptr) // %1
+              "=r"(ptr) // %1
             : "0"(nn),
-            "1"(ptr),
-            "w"(_c) // %4
+              "1"(ptr),
+              "w"(_c) // %4
             : "cc", "memory");
     }
 #endif // __aarch64__

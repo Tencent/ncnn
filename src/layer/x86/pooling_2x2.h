@@ -28,7 +28,7 @@ static void pooling2x2s2_max_avx(const Mat& bottom_blob, Mat& top_blob,
 #endif // __AVX__
 
     const int tailstep = w - 2 * outw + w;
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < inch; q++)
     {
         const float* img0 = bottom_blob.channel(q);
@@ -53,7 +53,7 @@ static void pooling2x2s2_max_avx(const Mat& bottom_blob, Mat& top_blob,
                 __m256 _r1 = _mm256_loadu_ps(r1);
                 __m256 _max_r0_r1 = _mm256_max_ps(_r0, _r1);
                 _max_r0_r1 = _mm256_castsi256_ps(_mm256_permutevar8x32_epi32(
-                                                     _mm256_castps_si256(_max_r0_r1), permute_mask));
+                    _mm256_castps_si256(_max_r0_r1), permute_mask));
                 __m128 _max_0 = _mm256_extractf128_ps(_max_r0_r1, 0);
                 __m128 _max_1 = _mm256_extractf128_ps(_max_r0_r1, 1);
                 __m128 _max = _mm_max_ps(_max_0, _max_1);

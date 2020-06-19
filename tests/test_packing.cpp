@@ -483,7 +483,7 @@ static int test_packing_0()
            || test_packing_gpu_image2buffer(a, 4, 8)
            || test_packing_gpu_image2buffer(a, 8, 4)
 #endif // NCNN_VULKAN
-           ;
+        ;
 }
 
 static int test_packing_1()
@@ -538,7 +538,7 @@ static int test_packing_1()
            || test_packing_gpu_image2buffer(a, 4, 8)
            || test_packing_gpu_image2buffer(a, 8, 4)
 #endif // NCNN_VULKAN
-           ;
+        ;
 }
 
 static int test_packing_2()
@@ -593,7 +593,7 @@ static int test_packing_2()
            || test_packing_gpu_image2buffer(a, 4, 8)
            || test_packing_gpu_image2buffer(a, 8, 4)
 #endif // NCNN_VULKAN
-           ;
+        ;
 }
 
 int main()
