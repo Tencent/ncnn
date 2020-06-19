@@ -19,10 +19,10 @@
 #include "option.h"
 #include "net.h"
 
-using ncnn::Mat;
-using ncnn::Option;
-using ncnn::Net;
 using ncnn::Extractor;
+using ncnn::Mat;
+using ncnn::Net;
+using ncnn::Option;
 
 #ifdef __cplusplus
 extern "C" {
