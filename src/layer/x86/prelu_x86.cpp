@@ -47,7 +47,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 {
                     const float* slope = slope_data;
 
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
                     {
                         float* ptr = (float*)bottom_top_blob + i * 8;
@@ -60,7 +60,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 {
                     __m256 _slope = _mm256_set1_ps(slope_data[0]);
 
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
                     {
                         float* ptr = (float*)bottom_top_blob + i * 8;
@@ -75,7 +75,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 int w = bottom_top_blob.w;
                 int h = bottom_top_blob.h;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     float* ptr = bottom_top_blob.row(i);
@@ -97,7 +97,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 int channels = bottom_top_blob.c;
                 int size = w * h;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     float* ptr = bottom_top_blob.channel(q);
@@ -128,7 +128,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     const float* slope_data_ptr = slope_data;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
