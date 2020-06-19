@@ -29,12 +29,17 @@ ncnn_mat_t ncnn_mat_create();
 ncnn_mat_t ncnn_mat_create_1d(int w);
 ncnn_mat_t ncnn_mat_create_2d(int w, int h);
 ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c);
+ncnn_mat_t ncnn_mat_create_1d_packed(int w, size_t elemsize, int elempack);
+ncnn_mat_t ncnn_mat_create_2d_packed(int w, int h, size_t elemsize, int elempack);
+ncnn_mat_t ncnn_mat_create_3d_packed(int w, int h, int c, size_t elemsize, int elempack);
 void ncnn_mat_destroy(ncnn_mat_t mat);
 
 int ncnn_mat_get_dims(ncnn_mat_t mat);
 int ncnn_mat_get_w(ncnn_mat_t mat);
 int ncnn_mat_get_h(ncnn_mat_t mat);
 int ncnn_mat_get_c(ncnn_mat_t mat);
+size_t ncnn_mat_get_elemsize(ncnn_mat_t mat);
+int ncnn_mat_get_elempack(ncnn_mat_t mat);
 size_t ncnn_mat_get_cstep(ncnn_mat_t mat);
 void* ncnn_mat_get_data(ncnn_mat_t mat);
 
