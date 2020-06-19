@@ -472,6 +472,12 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
     }
     bottom_blob_bordered = Mat();
     // END transform input
+    fprintf(stderr, "bottom_blob_tm = %d x %d x %d elempack = %d \n",bottom_blob_tm.w,bottom_blob_tm.h,bottom_blob_tm.c,bottom_blob_tm.elempack);
+
+    fprintf(stderr, "bottom_blob_tm = %f %f %f %f \n", bottom_blob_tm[0],bottom_blob_tm[1],bottom_blob_tm[2],bottom_blob_tm[3]);
+    fprintf(stderr, "bottom_blob_tm = %f %f %f %f \n", bottom_blob_tm[4],bottom_blob_tm[5],bottom_blob_tm[6],bottom_blob_tm[7]);
+    fprintf(stderr, "bottom_blob_tm = %f %f %f %f \n", bottom_blob_tm.channel(1)[0],bottom_blob_tm.channel(1)[1],bottom_blob_tm.channel(1)[2],bottom_blob_tm.channel(1)[3]);
+    fprintf(stderr, "bottom_blob_tm = %f %f %f %f \n", bottom_blob_tm.channel(1)[4],bottom_blob_tm.channel(1)[5],bottom_blob_tm.channel(1)[6],bottom_blob_tm.channel(1)[7]);
 
     // BEGIN dot
     Mat top_blob_tm;
@@ -480,7 +486,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
         int h_tm = outh / 6 * 8;
 
         const int tiles = h_tm / 8 * w_tm / 8;
-
+        fprintf(stderr, "Tiles = %d\n", tiles);
         // permute
         //         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
         Mat bottom_blob_tm2;
@@ -1223,6 +1229,13 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                         "3"(r0),
                         "4"(k01)
                         : "cc", "memory", "v0", "v1", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19");
+                        if (r < 5){
+                            output0_tm -= 8;
+                            output1_tm -= 8;
+                        fprintf(stderr, "2 sum %d r0 = %f = %f %f %f %f %f %f %f %f\n",r,r0[-16], output0_tm[0],output0_tm[1], output0_tm[2],output0_tm[3], output1_tm[0],output1_tm[1], output1_tm[2],output1_tm[3]);
+                            output0_tm += 8;
+                            output1_tm += 8;
+                        }
                 }
                 for (; i < tiles; i++)
                 {
@@ -1231,57 +1244,59 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
                     const float* k01 = kernel01_tm.row(r);
 
                     int nn = inch; // inch always > 0
+                    if (r < 1){
 
-                    asm volatile(
-                        "eor    v16.16b, v16.16b, v16.16b   \n"
-                        "eor    v17.16b, v17.16b, v17.16b   \n"
+                    fprintf(stderr, " inch = %d \n k01 = %f %f %f %f %f %f %f %f  \n",inch, k01[0],k01[1],k01[2],k01[3],k01[4],k01[5],k01[6],k01[7]);
 
-                        "0:                                 \n"
+                    fprintf(stderr, "r0 = %f %f\n", r0[0],r0[1]);
 
-                        "prfm   pldl1keep, [%3, #128]       \n"
-                        "ld1    {v0.4s}, [%3], #16          \n" // r0
+                    }
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1 = vdupq_n_f32(0.f);
 
-                        "prfm   pldl1keep, [%4, #512]       \n"
-                        "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%4], #64 \n" // w0011_01
+                    for (;nn>0;nn--){
 
-                        "fmla   v16.4s, v8.4s, v0.s[0]      \n"
-                        "fmla   v17.4s, v9.4s, v0.s[0]      \n"
+                        float32x4_t _k01 = vld1q_f32(k01);
+                        float32x4_t _k02 = vld1q_f32(k01+4);
+                        float32x4_t _r0 = vdupq_n_f32(r0[0]);
+                        _sum0 = vmlaq_f32(_sum0, _k01, _r0);
+                        _sum1 = vmlaq_f32(_sum1, _k02, _r0);
 
-                        "prfm   pldl1keep, [%4, #512]       \n"
-                        "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%4], #64 \n" // w2233_01
+                        _k01 = vld1q_f32(k01+8);
+                        _k02 = vld1q_f32(k01+12);
+                        _r0 = vdupq_n_f32(r0[1]);
+                        _sum0 = vmlaq_f32(_sum0, _k01, _r0);
+                        _sum1 = vmlaq_f32(_sum1, _k02, _r0);
 
-                        "fmla   v16.4s, v10.4s, v0.s[1]     \n"
-                        "fmla   v17.4s, v11.4s, v0.s[1]     \n"
+                        _k01 = vld1q_f32(k01+16);
+                        _k02 = vld1q_f32(k01+20);
+                        _r0 = vdupq_n_f32(r0[2]);
+                        _sum0 = vmlaq_f32(_sum0, _k01, _r0);
+                        _sum1 = vmlaq_f32(_sum1, _k02, _r0);
 
-                        "fmla   v16.4s, v12.4s, v0.s[2]     \n"
-                        "fmla   v17.4s, v13.4s, v0.s[2]     \n"
+                        _k01 = vld1q_f32(k01+24);
+                        _k02 = vld1q_f32(k01+28);
+                        _r0 = vdupq_n_f32(r0[3]);
+                        _sum0 = vmlaq_f32(_sum0, _k01, _r0);
+                        _sum1 = vmlaq_f32(_sum1, _k02, _r0);
+                        k01 += 32;
+                        r0 += 4;
 
-                        "subs   %w0, %w0, #1                \n"
+                    }
+                    vst1q_f32(output0_tm, _sum0);
+                    vst1q_f32(output1_tm, _sum1);
+                    
+                    if (r < 5){
+                    fprintf(stderr, "1 sum %d r0 = %f = %f %f %f %f %f %f %f %f\n",r,r0[-8], output0_tm[0],output0_tm[1], output0_tm[2],output0_tm[3], output1_tm[0],output1_tm[1], output1_tm[2],output1_tm[3]);
+                    }
+                    output0_tm += 4;
+                    output1_tm += 4;
 
-                        "fmla   v16.4s, v14.4s, v0.s[3]     \n"
-                        "fmla   v17.4s, v15.4s, v0.s[3]     \n"
-
-                        "bne    0b                          \n"
-
-                        "st1    {v16.4s}, [%1], #16         \n"
-                        "st1    {v17.4s}, [%2], #16         \n"
-
-                        : "=r"(nn),         // %0
-                        "=r"(output0_tm), // %1
-                        "=r"(output1_tm), // %2
-                        "=r"(r0),         // %3
-                        "=r"(k01)         // %4
-                        : "0"(nn),
-                        "1"(output0_tm),
-                        "2"(output1_tm),
-                        "3"(r0),
-                        "4"(k01)
-                        : "cc", "memory", "v0", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17");
                 }
             }
         }
 #endif // __ARM_NEON && __aarch64__
-
+    
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = remain_outch_start; p < outch; p++)
         {
@@ -1862,6 +1877,9 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
     }
     bottom_blob_tm = Mat();
     // END dot
+    fprintf(stderr, "top_blob_tm 0 = %f %f %f %f %f %f %f %f\n", top_blob_tm.channel(0)[0],top_blob_tm.channel(0)[1],top_blob_tm.channel(0)[2],top_blob_tm.channel(0)[3],top_blob_tm.channel(1)[0],top_blob_tm.channel(1)[1],top_blob_tm.channel(1)[2],top_blob_tm.channel(1)[3]);
+    fprintf(stderr, "top_blob_tm 1 = %f %f %f %f %f %f %f %f\n", top_blob_tm.channel(0)[4],top_blob_tm.channel(0)[5],top_blob_tm.channel(0)[6],top_blob_tm.channel(0)[7],top_blob_tm.channel(1)[4],top_blob_tm.channel(1)[5],top_blob_tm.channel(1)[6],top_blob_tm.channel(1)[7]);
+    fprintf(stderr, "top_blob_tm 5 = %f %f %f %f %f %f %f %f\n", top_blob_tm.channel(0).row(5)[0],top_blob_tm.channel(0).row(5)[1],top_blob_tm.channel(0).row(5)[2],top_blob_tm.channel(0).row(5)[3],top_blob_tm.channel(1).row(5)[0],top_blob_tm.channel(1).row(5)[1],top_blob_tm.channel(1).row(5)[2],top_blob_tm.channel(1).row(5)[3]);
 
     // BEGIN transform output
     Mat top_blob_bordered;
@@ -2043,6 +2061,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
         }
     }
     // END transform output
+    fprintf(stderr, "top_blob_bordered = %f %f %f %f\n", top_blob_bordered[0],top_blob_bordered[1],top_blob_bordered[2],top_blob_bordered[3]);
 
     // cut result pad
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);

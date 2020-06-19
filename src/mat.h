@@ -92,7 +92,7 @@ public:
 #if __AVX__
     void fill(__m256 _v);
     void fill(__m128i _v);
-#endif // __ARM_NEON
+#endif // __AVX__
     template<typename T>
     void fill(T v);
     // deep copy
@@ -857,7 +857,7 @@ inline void Mat::fill(__m128i _v)
         ptr += 8;
     }
 }
-#endif // __ARM_NEON
+#endif // __AVX__
 
 template<typename T>
 inline void Mat::fill(T _v)

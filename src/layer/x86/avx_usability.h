@@ -18,6 +18,36 @@
 #define AVX_USABILITY
 #include <immintrin.h>
 
+// From: https://stackoverflow.com/a/25627536
+static inline void transpose8_ps(__m256 &row0, __m256 &row1, __m256 &row2, __m256 &row3, __m256 &row4, __m256 &row5, __m256 &row6, __m256 &row7) {
+    __m256 __t0, __t1, __t2, __t3, __t4, __t5, __t6, __t7;
+    __m256 __tt0, __tt1, __tt2, __tt3, __tt4, __tt5, __tt6, __tt7;
+    __t0 = _mm256_unpacklo_ps(row0, row1);
+    __t1 = _mm256_unpackhi_ps(row0, row1);
+    __t2 = _mm256_unpacklo_ps(row2, row3);
+    __t3 = _mm256_unpackhi_ps(row2, row3);
+    __t4 = _mm256_unpacklo_ps(row4, row5);
+    __t5 = _mm256_unpackhi_ps(row4, row5);
+    __t6 = _mm256_unpacklo_ps(row6, row7);
+    __t7 = _mm256_unpackhi_ps(row6, row7);
+    __tt0 = _mm256_shuffle_ps(__t0,__t2,_MM_SHUFFLE(1,0,1,0));
+    __tt1 = _mm256_shuffle_ps(__t0,__t2,_MM_SHUFFLE(3,2,3,2));
+    __tt2 = _mm256_shuffle_ps(__t1,__t3,_MM_SHUFFLE(1,0,1,0));
+    __tt3 = _mm256_shuffle_ps(__t1,__t3,_MM_SHUFFLE(3,2,3,2));
+    __tt4 = _mm256_shuffle_ps(__t4,__t6,_MM_SHUFFLE(1,0,1,0));
+    __tt5 = _mm256_shuffle_ps(__t4,__t6,_MM_SHUFFLE(3,2,3,2));
+    __tt6 = _mm256_shuffle_ps(__t5,__t7,_MM_SHUFFLE(1,0,1,0));
+    __tt7 = _mm256_shuffle_ps(__t5,__t7,_MM_SHUFFLE(3,2,3,2));
+    row0 = _mm256_permute2f128_ps(__tt0, __tt4, 0x20);
+    row1 = _mm256_permute2f128_ps(__tt1, __tt5, 0x20);
+    row2 = _mm256_permute2f128_ps(__tt2, __tt6, 0x20);
+    row3 = _mm256_permute2f128_ps(__tt3, __tt7, 0x20);
+    row4 = _mm256_permute2f128_ps(__tt0, __tt4, 0x31);
+    row5 = _mm256_permute2f128_ps(__tt1, __tt5, 0x31);
+    row6 = _mm256_permute2f128_ps(__tt2, __tt6, 0x31);
+    row7 = _mm256_permute2f128_ps(__tt3, __tt7, 0x31);
+}
+
 static inline __m256 HorizontalSums(__m256 v0, __m256 v1, __m256 v2, __m256 v3, __m256 v4,
                                     __m256 v5, __m256 v6, __m256 v7)
 {
@@ -74,5 +104,3 @@ static inline float _mm_reduce_add_ps(__m128 x128)
     const __m128 x32 = _mm_add_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
     return _mm_cvtss_f32(x32);
 }
-
-#endif
