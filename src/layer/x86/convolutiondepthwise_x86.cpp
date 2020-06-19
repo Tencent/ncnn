@@ -107,7 +107,6 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
     group_ops.clear();
     if (channels == group && group == num_output)
     {
-
         int elempack = (opt.use_packing_layout && channels % 8 == 0) ? 8 : 1;
 #if __AVX__
         // pack8
@@ -117,9 +116,9 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
             convert_packing(weight_data_r2, weight_data_pack8, 8);
             return 0;
         }
-#endif // __AVX__
-        // depth-wise specific
-        // special path for both int8 and fp32
+#endif // __AVX__          \
+    // depth-wise specific \
+    // special path for both int8 and fp32
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             return 0;
@@ -260,7 +259,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     // fprintf(stderr, "Depthwise kernel %d x %d elempack=%d group=%d channels = %d stride = %d x %d  \n",kernel_w,kernel_h,elempack,group,channels,stride_w,stride_h );
 
     // depth-wise
-    if (channels* elempack == group && group == num_output)
+    if (channels * elempack == group && group == num_output)
     {
 #if __AVX__
         if (elempack == 8)
@@ -332,7 +331,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                     }
                 }
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int g = 0; g < channels; g++)
                 {
                     float* outptr = top_blob.channel(g);
@@ -356,7 +355,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                             {
                                 __m256 _val = _mm256_loadu_ps(sptr + space_ofs[k] * 8);
                                 __m256 _w = _mm256_loadu_ps(kptr + k * 8);
-                                _sum = _mm256_fmadd_ps(_val,_w,_sum);
+                                _sum = _mm256_fmadd_ps(_val, _w, _sum);
                             }
 
                             _sum = activation_ps(_sum, activation_type, activation_params);
@@ -372,7 +371,8 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
             }
         }
 #endif // __AVX__
-        if (elempack == 1) {
+        if (elempack == 1)
+        {
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
                 convdw3x3s1_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
@@ -468,8 +468,8 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
 
         const int channels_g = channels / group;
 
-        // quantize, scale and round to nearest
-        #pragma omp parallel for num_threads(opt.num_threads)
+// quantize, scale and round to nearest
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
         {
             Option opt_g = opt;
@@ -583,7 +583,7 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
     const int channels_g = channels / group;
     const int num_output_g = num_output / group;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int g = 0; g < group; g++)
     {
         const Mat bottom_blob_bordered_g = bottom_blob_bordered.channel_range(channels_g * g, channels_g);

@@ -23,7 +23,7 @@ static void pooling3x3s2_max_pack8_avx(const Mat& bottom_blob, Mat& top_blob, co
 
     const int tailstep = (w - 2 * outw + w) * 8;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < inch; q++)
     {
         const Mat img0 = bottom_blob.channel(q);
@@ -35,7 +35,7 @@ static void pooling3x3s2_max_pack8_avx(const Mat& bottom_blob, Mat& top_blob, co
         for (int i = 0; i < outh; i++)
         {
             int j = 0;
-            for (; j+3 < outw; j+=4)
+            for (; j + 3 < outw; j += 4)
             {
                 __m256 _r00 = _mm256_loadu_ps(r0);
                 __m256 _r01 = _mm256_loadu_ps(r0 + 8);
@@ -72,7 +72,6 @@ static void pooling3x3s2_max_pack8_avx(const Mat& bottom_blob, Mat& top_blob, co
                 _max10 = _mm256_max_ps(_max10, _r24);
                 _max10 = _mm256_max_ps(_max10, _r22);
 
-
                 __m256 _r05 = _mm256_loadu_ps(r0 + 40);
                 __m256 _r06 = _mm256_loadu_ps(r0 + 48);
                 __m256 _r15 = _mm256_loadu_ps(r1 + 40);
@@ -80,8 +79,7 @@ static void pooling3x3s2_max_pack8_avx(const Mat& bottom_blob, Mat& top_blob, co
                 __m256 _r25 = _mm256_loadu_ps(r2 + 40);
                 __m256 _r26 = _mm256_loadu_ps(r2 + 48);
 
-                _mm256_storeu_ps(outptr+8, _mm256_max_ps(_max10, _max11));
-
+                _mm256_storeu_ps(outptr + 8, _mm256_max_ps(_max10, _max11));
 
                 __m256 _max20 = _mm256_max_ps(_r05, _r06);
                 _max20 = _mm256_max_ps(_max20, _r04);
@@ -98,7 +96,7 @@ static void pooling3x3s2_max_pack8_avx(const Mat& bottom_blob, Mat& top_blob, co
                 __m256 _r27 = _mm256_loadu_ps(r2 + 56);
                 __m256 _r28 = _mm256_loadu_ps(r2 + 64);
 
-                _mm256_storeu_ps(outptr+16, _mm256_max_ps(_max20, _max21));
+                _mm256_storeu_ps(outptr + 16, _mm256_max_ps(_max20, _max21));
 
                 __m256 _max30 = _mm256_max_ps(_r07, _r08);
                 _max30 = _mm256_max_ps(_max30, _r06);
@@ -108,15 +106,14 @@ static void pooling3x3s2_max_pack8_avx(const Mat& bottom_blob, Mat& top_blob, co
                 _max30 = _mm256_max_ps(_max30, _r28);
                 _max30 = _mm256_max_ps(_max30, _r26);
 
-                _mm256_storeu_ps(outptr+24, _mm256_max_ps(_max30, _max31));
-
+                _mm256_storeu_ps(outptr + 24, _mm256_max_ps(_max30, _max31));
 
                 r0 += 64;
                 r1 += 64;
                 r2 += 64;
                 outptr += 32;
             }
-            for (; j+1 < outw; j+=2)
+            for (; j + 1 < outw; j += 2)
             {
                 __m256 _r00 = _mm256_loadu_ps(r0);
                 __m256 _r01 = _mm256_loadu_ps(r0 + 8);
@@ -153,8 +150,7 @@ static void pooling3x3s2_max_pack8_avx(const Mat& bottom_blob, Mat& top_blob, co
                 _max10 = _mm256_max_ps(_max10, _r24);
                 _max10 = _mm256_max_ps(_max10, _r22);
 
-                _mm256_storeu_ps(outptr+8, _mm256_max_ps(_max10, _max11));
-
+                _mm256_storeu_ps(outptr + 8, _mm256_max_ps(_max10, _max11));
 
                 r0 += 32;
                 r1 += 32;

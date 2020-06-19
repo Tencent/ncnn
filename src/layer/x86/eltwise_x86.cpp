@@ -19,8 +19,6 @@
 
 #include "eltwise_x86.h"
 
-
-
 namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Eltwise_x86)
@@ -30,7 +28,6 @@ Eltwise_x86::Eltwise_x86()
 #if __AVX__
     support_packing = true;
 #endif // __AVX__
-
 }
 
 int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -55,7 +52,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         {
             // first blob
             const Mat& bottom_blob1 = bottom_blobs[1];
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -78,7 +75,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             for (size_t b = 2; b < bottom_blobs.size(); b++)
             {
                 const Mat& bottom_blob1 = bottom_blobs[b];
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob1.channel(q);
@@ -103,7 +100,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             {
                 // first blob
                 const Mat& bottom_blob1 = bottom_blobs[1];
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob.channel(q);
@@ -126,7 +123,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                 for (size_t b = 2; b < bottom_blobs.size(); b++)
                 {
                     const Mat& bottom_blob1 = bottom_blobs[b];
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         const float* ptr = bottom_blob1.channel(q);
@@ -151,7 +148,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                 const Mat& bottom_blob1 = bottom_blobs[1];
                 __m256 _coeff0 = _mm256_set1_ps(coeffs[0]);
                 __m256 _coeff1 = _mm256_set1_ps(coeffs[1]);
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob.channel(q);
@@ -163,7 +160,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                         __m256 _p = _mm256_loadu_ps(ptr);
                         __m256 _p1 = _mm256_loadu_ps(ptr1);
                         _p = _mm256_mul_ps(_p, _coeff0);
-                        _p = _mm256_fmadd_ps( _p1, _coeff1,_p);
+                        _p = _mm256_fmadd_ps(_p1, _coeff1, _p);
                         _mm256_storeu_ps(outptr, _p);
 
                         ptr += 8;
@@ -176,7 +173,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                 {
                     const Mat& bottom_blob1 = bottom_blobs[b];
                     __m256 _coeff = _mm256_set1_ps(coeffs[b]);
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         const float* ptr = bottom_blob1.channel(q);
@@ -186,7 +183,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                         {
                             __m256 _p = _mm256_loadu_ps(outptr);
                             __m256 _p1 = _mm256_loadu_ps(ptr);
-                            _p = _mm256_fmadd_ps(_p1, _coeff,_p);
+                            _p = _mm256_fmadd_ps(_p1, _coeff, _p);
                             _mm256_storeu_ps(outptr, _p);
 
                             ptr += 8;
@@ -200,7 +197,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         {
             // first blob
             const Mat& bottom_blob1 = bottom_blobs[1];
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -223,7 +220,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             for (size_t b = 2; b < bottom_blobs.size(); b++)
             {
                 const Mat& bottom_blob1 = bottom_blobs[b];
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob1.channel(q);
@@ -251,7 +248,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     {
         // first blob
         const Mat& bottom_blob1 = bottom_blobs[1];
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
@@ -271,7 +268,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         for (size_t b = 2; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob1 = bottom_blobs[b];
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob1.channel(q);
@@ -294,7 +291,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         {
             // first blob
             const Mat& bottom_blob1 = bottom_blobs[1];
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -315,7 +312,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             for (size_t b = 2; b < bottom_blobs.size(); b++)
             {
                 const Mat& bottom_blob1 = bottom_blobs[b];
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob1.channel(q);
@@ -338,7 +335,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             const Mat& bottom_blob1 = bottom_blobs[1];
             float coeff0 = coeffs[0];
             float coeff1 = coeffs[1];
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -359,7 +356,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             {
                 const Mat& bottom_blob1 = bottom_blobs[b];
                 float coeff = coeffs[b];
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob1.channel(q);
@@ -381,7 +378,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     {
         // first blob
         const Mat& bottom_blob1 = bottom_blobs[1];
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
@@ -402,7 +399,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         for (size_t b = 2; b < bottom_blobs.size(); b++)
         {
             const Mat& bottom_blob1 = bottom_blobs[b];
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob1.channel(q);

@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-
 #if __AVX__
 #include "avx_mathfun.h"
 #endif // __AVX__
@@ -21,8 +20,6 @@
 
 #include <algorithm>
 #include <math.h>
-
-
 
 namespace ncnn {
 
@@ -69,7 +66,7 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 if (c.empty())
                     return -100;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = a.channel(q);
@@ -96,7 +93,7 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 if (c.empty())
                     return -100;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = a.channel(q);
@@ -124,7 +121,7 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 if (c.empty())
                     return -100;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels1; q++)
                 {
                     const float* a0 = a.channel(q);
@@ -151,7 +148,7 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 if (c.empty())
                     return -100;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels1; q++)
                 {
                     const float* ptr = a;
@@ -177,7 +174,7 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (c.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -205,8 +202,8 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
         if (b.dims == 2)
         {
-            // type 18
-            #pragma omp parallel for num_threads(opt.num_threads)
+// type 18
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -238,7 +235,7 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
             {
                 // type 16
                 __m256 _b0 = _mm256_set1_ps(b[0]);
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = a.channel(q);
@@ -257,8 +254,8 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 return 0;
             }
 
-            // type 17
-            #pragma omp parallel for num_threads(opt.num_threads)
+// type 17
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -287,7 +284,7 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (c.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels1; q++)
             {
                 const float* ptr = a.row(q);
@@ -396,7 +393,7 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     return -100;
 
                 __m256 _a0 = _mm256_set1_ps(a[0]);
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels1; q++)
                 {
                     const float* ptr1 = b.channel(q);
@@ -467,7 +464,7 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (c.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels1; q++)
             {
                 __m256 _a0 = _mm256_loadu_ps((const float*)a + q * 8);
@@ -572,7 +569,7 @@ static int binary_op_scalar_inplace_pack8(Mat& a, float b, const Option& opt)
 
     __m256 _b = _mm256_set1_ps(b);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = a.channel(q);
@@ -641,7 +638,7 @@ struct binary_op_pow_pack8
 {
     __m256 operator()(const __m256& x, const __m256& y) const
     {
-        return exp256_ps(_mm256_mul_ps(y,log256_ps(x)));
+        return exp256_ps(_mm256_mul_ps(y, log256_ps(x)));
     }
 };
 
@@ -664,7 +661,6 @@ struct binary_op_rdiv_pack8
 
 int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& bottom_blob1 = bottom_blobs[1];
 
@@ -707,7 +703,6 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
     return BinaryOp::forward(bottom_blobs, top_blobs, opt);
 }
-
 
 int BinaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {

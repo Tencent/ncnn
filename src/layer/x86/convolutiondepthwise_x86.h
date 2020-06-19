@@ -38,7 +38,6 @@ public:
 
     // packing
     Mat weight_data_pack8;
-
 };
 
 } // namespace ncnn

@@ -30,19 +30,18 @@ namespace ncnn {
 #include "pooling_3x3_pack8.h"
 #endif
 
-
 DEFINE_LAYER_CREATOR(Pooling_x86)
 
-Pooling_x86::Pooling_x86() {
+Pooling_x86::Pooling_x86()
+{
 #if __AVX__
     support_packing = true;
 #endif // __AVX__
 }
 
-
-int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
-                         const Option &opt) const {
-
+int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob,
+                         const Option& opt) const
+{
     // max value in NxN window
     // avg value in NxN window
 
@@ -66,7 +65,7 @@ int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
 
             if (pooling_type == PoolMethod_MAX)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob.channel(q);
@@ -85,7 +84,7 @@ int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
             }
             else if (pooling_type == PoolMethod_AVE)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob.channel(q);
@@ -159,7 +158,7 @@ int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
                 return 0;
             }
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat m = bottom_blob_bordered.channel(q);
@@ -199,7 +198,7 @@ int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
                     htailpad = bottom_blob_bordered.h - bottom_blob.h - pad_top - pad_bottom;
                 }
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -253,7 +252,7 @@ int Pooling_x86::forward(const Mat &bottom_blob, Mat &top_blob,
             }
             else // if (avgpool_count_include_pad == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);

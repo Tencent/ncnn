@@ -185,7 +185,6 @@ int Convolution_x86::create_pipeline(const Option& opt)
     // pack8
     if (elempack == 8 && out_elempack == 8)
     {
-
         // src = kw-kh-inch-outch
         // dst = 8b-8a-kw-kh-inch/8a-outch/8b
         Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
@@ -279,8 +278,6 @@ int Convolution_x86::create_pipeline(const Option& opt)
                 const float* k76 = k7.row(p + 6);
                 const float* k77 = k7.row(p + 7);
 
-
-
                 float* g00 = g0.row(p / 8);
 
                 for (int k = 0; k < maxk; k++)
@@ -371,7 +368,6 @@ int Convolution_x86::create_pipeline(const Option& opt)
     // pack1to8
     if (elempack == 1 && out_elempack == 8)
     {
-
         // src = kw-kh-inch-outch
         // dst = 8b-kw-kh-inch-outch/8
         {
@@ -402,7 +398,6 @@ int Convolution_x86::create_pipeline(const Option& opt)
                     const float* k50 = k5.row(p);
                     const float* k60 = k6.row(p);
                     const float* k70 = k7.row(p);
-
 
                     float* g00 = g0.row(p);
 
@@ -466,7 +461,6 @@ int Convolution_x86::create_pipeline(const Option& opt)
             }
         }
     }
-
 
     return 0;
 }
@@ -591,9 +585,10 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+        else
+        {
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -620,30 +615,30 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             for (int k = 0; k < maxk; k++)
                             {
                                 __m256 _val0 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8));
-                                __m256 _val1 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8)+1);
-                                __m256 _val2 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8)+2);
-                                __m256 _val3 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8)+3);
-                                __m256 _val4 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8)+4);
-                                __m256 _val5 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8)+5);
-                                __m256 _val6 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8)+6);
-                                __m256 _val7 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8)+7);
+                                __m256 _val1 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8) + 1);
+                                __m256 _val2 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8) + 2);
+                                __m256 _val3 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8) + 3);
+                                __m256 _val4 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8) + 4);
+                                __m256 _val5 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8) + 5);
+                                __m256 _val6 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8) + 6);
+                                __m256 _val7 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8) + 7);
 
                                 __m256 _w0 = _mm256_loadu_ps(kptr);
-                                _sum = _mm256_fmadd_ps(_val0,_w0,_sum);
-                                __m256 _w1 = _mm256_loadu_ps(kptr+8);
-                                _sum = _mm256_fmadd_ps(_val1,_w1,_sum);
-                                __m256 _w2 = _mm256_loadu_ps(kptr+16);
-                                _sum = _mm256_fmadd_ps(_val2,_w2,_sum);
-                                __m256 _w3 = _mm256_loadu_ps(kptr+24);
-                                _sum = _mm256_fmadd_ps(_val3,_w3,_sum);
-                                __m256 _w4 = _mm256_loadu_ps(kptr+32);
-                                _sum = _mm256_fmadd_ps(_val4,_w4,_sum);
-                                __m256 _w5 = _mm256_loadu_ps(kptr+40);
-                                _sum = _mm256_fmadd_ps(_val5,_w5,_sum);
-                                __m256 _w6 = _mm256_loadu_ps(kptr+48);
-                                _sum = _mm256_fmadd_ps(_val6,_w6,_sum);
-                                __m256 _w7 = _mm256_loadu_ps(kptr+56);
-                                _sum = _mm256_fmadd_ps(_val7,_w7,_sum);
+                                _sum = _mm256_fmadd_ps(_val0, _w0, _sum);
+                                __m256 _w1 = _mm256_loadu_ps(kptr + 8);
+                                _sum = _mm256_fmadd_ps(_val1, _w1, _sum);
+                                __m256 _w2 = _mm256_loadu_ps(kptr + 16);
+                                _sum = _mm256_fmadd_ps(_val2, _w2, _sum);
+                                __m256 _w3 = _mm256_loadu_ps(kptr + 24);
+                                _sum = _mm256_fmadd_ps(_val3, _w3, _sum);
+                                __m256 _w4 = _mm256_loadu_ps(kptr + 32);
+                                _sum = _mm256_fmadd_ps(_val4, _w4, _sum);
+                                __m256 _w5 = _mm256_loadu_ps(kptr + 40);
+                                _sum = _mm256_fmadd_ps(_val5, _w5, _sum);
+                                __m256 _w6 = _mm256_loadu_ps(kptr + 48);
+                                _sum = _mm256_fmadd_ps(_val6, _w6, _sum);
+                                __m256 _w7 = _mm256_loadu_ps(kptr + 56);
+                                _sum = _mm256_fmadd_ps(_val7, _w7, _sum);
                                 kptr += 64;
                             }
                         }
@@ -657,7 +652,6 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
             }
         }
-
     }
 
     if (elempack == 1 && out_elempack == 8)
@@ -675,7 +669,6 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         {
             conv3x3s2_pack1to8_avx(bottom_blob_bordered, top_blob, weight_data_pack1to8, bias_data, opt);
 
-
             if (activation)
             {
                 activation->forward_inplace(top_blob, opt);
@@ -683,8 +676,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -712,7 +705,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             {
                                 __m256 _val = _mm256_set1_ps(sptr[space_ofs[k]]);
                                 __m256 _w = _mm256_loadu_ps(kptr);
-                                _sum = _mm256_fmadd_ps(_val,_w,_sum);
+                                _sum = _mm256_fmadd_ps(_val, _w, _sum);
 
                                 kptr += 8;
                             }
@@ -741,8 +734,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -817,7 +810,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (dilation_w == 1 && dilation_h == 1) {
+        else if (dilation_w == 1 && dilation_h == 1)
+        {
             conv_im2col_sgemm_sse(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, opt);
 
             if (activation)
@@ -827,8 +821,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -895,7 +889,6 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                     outptr += outw;
                 }
             }
-
         }
     }
 
@@ -910,7 +903,7 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
     use_winograd3x3_int8 = false;
 
     if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1
-            && num_input >= 16 && num_output >= 16)
+        && num_input >= 16 && num_output >= 16)
     {
         // winograd is slow on small channel count
         use_winograd3x3_int8 = true;
@@ -978,10 +971,10 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         if (use_winograd3x3_int8)
         {
             conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data_int8, opt);
-            //             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data_int8, opt);
+//             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data_int8, opt);
 
-            // requantize, reverse scale inplace
-            #pragma omp parallel for num_threads(opt.num_threads)
+// requantize, reverse scale inplace
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 Option opt_g = opt;
@@ -1028,10 +1021,10 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         if (use_winograd3x3_int8)
         {
             conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data_int8, opt);
-            //             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data_int8, opt);
+//             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data_int8, opt);
 
-            // dequantize, reverse scale inplace
-            #pragma omp parallel for num_threads(opt.num_threads)
+// dequantize, reverse scale inplace
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 Option opt_g = opt;
@@ -1115,7 +1108,7 @@ int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, 
             if (inner_top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < bottom_blob.c; c++)
             {
                 float* outptr = inner_bottom_blob.channel(c);
@@ -1135,7 +1128,7 @@ int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, 
             opt_g.blob_allocator = inner_top_blob.allocator;
             convolution_dilation1->forward(inner_bottom_blob, inner_top_blob, opt_g);
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < num_output; c++)
             {
                 float* outptr = (float*)top_blob.channel(c) + x * outw + y;

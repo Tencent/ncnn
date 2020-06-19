@@ -19,7 +19,8 @@
 
 #if __AVX__
 // From: https://stackoverflow.com/a/25627536
-inline void transpose8_ps(__m256 &row0, __m256 &row1, __m256 &row2, __m256 &row3, __m256 &row4, __m256 &row5, __m256 &row6, __m256 &row7) {
+inline void transpose8_ps(__m256& row0, __m256& row1, __m256& row2, __m256& row3, __m256& row4, __m256& row5, __m256& row6, __m256& row7)
+{
     __m256 __t0, __t1, __t2, __t3, __t4, __t5, __t6, __t7;
     __m256 __tt0, __tt1, __tt2, __tt3, __tt4, __tt5, __tt6, __tt7;
     __t0 = _mm256_unpacklo_ps(row0, row1);
@@ -30,14 +31,14 @@ inline void transpose8_ps(__m256 &row0, __m256 &row1, __m256 &row2, __m256 &row3
     __t5 = _mm256_unpackhi_ps(row4, row5);
     __t6 = _mm256_unpacklo_ps(row6, row7);
     __t7 = _mm256_unpackhi_ps(row6, row7);
-    __tt0 = _mm256_shuffle_ps(__t0,__t2,_MM_SHUFFLE(1,0,1,0));
-    __tt1 = _mm256_shuffle_ps(__t0,__t2,_MM_SHUFFLE(3,2,3,2));
-    __tt2 = _mm256_shuffle_ps(__t1,__t3,_MM_SHUFFLE(1,0,1,0));
-    __tt3 = _mm256_shuffle_ps(__t1,__t3,_MM_SHUFFLE(3,2,3,2));
-    __tt4 = _mm256_shuffle_ps(__t4,__t6,_MM_SHUFFLE(1,0,1,0));
-    __tt5 = _mm256_shuffle_ps(__t4,__t6,_MM_SHUFFLE(3,2,3,2));
-    __tt6 = _mm256_shuffle_ps(__t5,__t7,_MM_SHUFFLE(1,0,1,0));
-    __tt7 = _mm256_shuffle_ps(__t5,__t7,_MM_SHUFFLE(3,2,3,2));
+    __tt0 = _mm256_shuffle_ps(__t0, __t2, _MM_SHUFFLE(1, 0, 1, 0));
+    __tt1 = _mm256_shuffle_ps(__t0, __t2, _MM_SHUFFLE(3, 2, 3, 2));
+    __tt2 = _mm256_shuffle_ps(__t1, __t3, _MM_SHUFFLE(1, 0, 1, 0));
+    __tt3 = _mm256_shuffle_ps(__t1, __t3, _MM_SHUFFLE(3, 2, 3, 2));
+    __tt4 = _mm256_shuffle_ps(__t4, __t6, _MM_SHUFFLE(1, 0, 1, 0));
+    __tt5 = _mm256_shuffle_ps(__t4, __t6, _MM_SHUFFLE(3, 2, 3, 2));
+    __tt6 = _mm256_shuffle_ps(__t5, __t7, _MM_SHUFFLE(1, 0, 1, 0));
+    __tt7 = _mm256_shuffle_ps(__t5, __t7, _MM_SHUFFLE(3, 2, 3, 2));
     row0 = _mm256_permute2f128_ps(__tt0, __tt4, 0x20);
     row1 = _mm256_permute2f128_ps(__tt1, __tt5, 0x20);
     row2 = _mm256_permute2f128_ps(__tt2, __tt6, 0x20);
@@ -135,7 +136,7 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             return -100;
         if (pack1to8)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < outh; i++)
             {
                 const float* r0 = bottom_blob.row(i * 8);
@@ -162,15 +163,15 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     __m256 _row5 = _mm256_loadu_ps(r5);
                     __m256 _row6 = _mm256_loadu_ps(r6);
                     __m256 _row7 = _mm256_loadu_ps(r7);
-                    transpose8_ps(_row0,_row1,_row2,_row3,_row4,_row5,_row6,_row7);
-                    _mm256_storeu_ps(outptr,_row0);
-                    _mm256_storeu_ps(outptr+8,_row1);
-                    _mm256_storeu_ps(outptr+16,_row2);
-                    _mm256_storeu_ps(outptr+24,_row3);
-                    _mm256_storeu_ps(outptr+32,_row4);
-                    _mm256_storeu_ps(outptr+40,_row5);
-                    _mm256_storeu_ps(outptr+48,_row6);
-                    _mm256_storeu_ps(outptr+56,_row7);
+                    transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
+                    _mm256_storeu_ps(outptr, _row0);
+                    _mm256_storeu_ps(outptr + 8, _row1);
+                    _mm256_storeu_ps(outptr + 16, _row2);
+                    _mm256_storeu_ps(outptr + 24, _row3);
+                    _mm256_storeu_ps(outptr + 32, _row4);
+                    _mm256_storeu_ps(outptr + 40, _row5);
+                    _mm256_storeu_ps(outptr + 48, _row6);
+                    _mm256_storeu_ps(outptr + 56, _row7);
                     r0 += 8;
                     r1 += 8;
                     r2 += 8;
@@ -184,7 +185,6 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 #else
                 int remain = w;
 #endif
-
 
                 for (; remain > 0; remain--)
                 {
@@ -203,7 +203,7 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
         if (pack8to1)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 const float* r0 = bottom_blob.row(i);
@@ -227,22 +227,22 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 for (; nn > 0; nn--)
                 {
                     __m256 _row0 = _mm256_loadu_ps(r0);
-                    __m256 _row1 = _mm256_loadu_ps(r0+8);
-                    __m256 _row2 = _mm256_loadu_ps(r0+16);
-                    __m256 _row3 = _mm256_loadu_ps(r0+24);
-                    __m256 _row4 = _mm256_loadu_ps(r0+32);
-                    __m256 _row5 = _mm256_loadu_ps(r0+40);
-                    __m256 _row6 = _mm256_loadu_ps(r0+48);
-                    __m256 _row7 = _mm256_loadu_ps(r0+56);
-                    transpose8_ps(_row0,_row1,_row2,_row3,_row4,_row5,_row6,_row7);
-                    _mm256_storeu_ps(outptr0,_row0);
-                    _mm256_storeu_ps(outptr1,_row1);
-                    _mm256_storeu_ps(outptr2,_row2);
-                    _mm256_storeu_ps(outptr3,_row3);
-                    _mm256_storeu_ps(outptr4,_row4);
-                    _mm256_storeu_ps(outptr5,_row5);
-                    _mm256_storeu_ps(outptr6,_row6);
-                    _mm256_storeu_ps(outptr7,_row7);
+                    __m256 _row1 = _mm256_loadu_ps(r0 + 8);
+                    __m256 _row2 = _mm256_loadu_ps(r0 + 16);
+                    __m256 _row3 = _mm256_loadu_ps(r0 + 24);
+                    __m256 _row4 = _mm256_loadu_ps(r0 + 32);
+                    __m256 _row5 = _mm256_loadu_ps(r0 + 40);
+                    __m256 _row6 = _mm256_loadu_ps(r0 + 48);
+                    __m256 _row7 = _mm256_loadu_ps(r0 + 56);
+                    transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
+                    _mm256_storeu_ps(outptr0, _row0);
+                    _mm256_storeu_ps(outptr1, _row1);
+                    _mm256_storeu_ps(outptr2, _row2);
+                    _mm256_storeu_ps(outptr3, _row3);
+                    _mm256_storeu_ps(outptr4, _row4);
+                    _mm256_storeu_ps(outptr5, _row5);
+                    _mm256_storeu_ps(outptr6, _row6);
+                    _mm256_storeu_ps(outptr7, _row7);
 
                     r0 += 64;
                     outptr0 += 8;
@@ -286,7 +286,7 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (pack1to8)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < outc; q++)
             {
                 const float* r0 = bottom_blob.channel(q * 8);
@@ -318,15 +318,15 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     __m256 _row5 = _mm256_loadu_ps(r5);
                     __m256 _row6 = _mm256_loadu_ps(r6);
                     __m256 _row7 = _mm256_loadu_ps(r7);
-                    transpose8_ps(_row0,_row1,_row2,_row3,_row4,_row5,_row6,_row7);
-                    _mm256_storeu_ps(outptr,_row0);
-                    _mm256_storeu_ps(outptr+8,_row1);
-                    _mm256_storeu_ps(outptr+16,_row2);
-                    _mm256_storeu_ps(outptr+24,_row3);
-                    _mm256_storeu_ps(outptr+32,_row4);
-                    _mm256_storeu_ps(outptr+40,_row5);
-                    _mm256_storeu_ps(outptr+48,_row6);
-                    _mm256_storeu_ps(outptr+56,_row7);
+                    transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
+                    _mm256_storeu_ps(outptr, _row0);
+                    _mm256_storeu_ps(outptr + 8, _row1);
+                    _mm256_storeu_ps(outptr + 16, _row2);
+                    _mm256_storeu_ps(outptr + 24, _row3);
+                    _mm256_storeu_ps(outptr + 32, _row4);
+                    _mm256_storeu_ps(outptr + 40, _row5);
+                    _mm256_storeu_ps(outptr + 48, _row6);
+                    _mm256_storeu_ps(outptr + 56, _row7);
                     r0 += 8;
                     r1 += 8;
                     r2 += 8;
@@ -355,7 +355,7 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
         if (pack8to1)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* r0 = bottom_blob.channel(q);
@@ -379,22 +379,22 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 for (; nn > 0; nn--)
                 {
                     __m256 _row0 = _mm256_loadu_ps(r0);
-                    __m256 _row1 = _mm256_loadu_ps(r0+8);
-                    __m256 _row2 = _mm256_loadu_ps(r0+16);
-                    __m256 _row3 = _mm256_loadu_ps(r0+24);
-                    __m256 _row4 = _mm256_loadu_ps(r0+32);
-                    __m256 _row5 = _mm256_loadu_ps(r0+40);
-                    __m256 _row6 = _mm256_loadu_ps(r0+48);
-                    __m256 _row7 = _mm256_loadu_ps(r0+56);
-                    transpose8_ps(_row0,_row1,_row2,_row3,_row4,_row5,_row6,_row7);
-                    _mm256_storeu_ps(outptr0,_row0);
-                    _mm256_storeu_ps(outptr1,_row1);
-                    _mm256_storeu_ps(outptr2,_row2);
-                    _mm256_storeu_ps(outptr3,_row3);
-                    _mm256_storeu_ps(outptr4,_row4);
-                    _mm256_storeu_ps(outptr5,_row5);
-                    _mm256_storeu_ps(outptr6,_row6);
-                    _mm256_storeu_ps(outptr7,_row7);
+                    __m256 _row1 = _mm256_loadu_ps(r0 + 8);
+                    __m256 _row2 = _mm256_loadu_ps(r0 + 16);
+                    __m256 _row3 = _mm256_loadu_ps(r0 + 24);
+                    __m256 _row4 = _mm256_loadu_ps(r0 + 32);
+                    __m256 _row5 = _mm256_loadu_ps(r0 + 40);
+                    __m256 _row6 = _mm256_loadu_ps(r0 + 48);
+                    __m256 _row7 = _mm256_loadu_ps(r0 + 56);
+                    transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
+                    _mm256_storeu_ps(outptr0, _row0);
+                    _mm256_storeu_ps(outptr1, _row1);
+                    _mm256_storeu_ps(outptr2, _row2);
+                    _mm256_storeu_ps(outptr3, _row3);
+                    _mm256_storeu_ps(outptr4, _row4);
+                    _mm256_storeu_ps(outptr5, _row5);
+                    _mm256_storeu_ps(outptr6, _row6);
+                    _mm256_storeu_ps(outptr7, _row7);
 
                     r0 += 64;
                     outptr0 += 8;
