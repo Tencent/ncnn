@@ -210,4 +210,80 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
     return 0;
 }
 
+int Clip_arm::forward_inplace_fp16a(Mat& bottom_top_blob, const Option& opt) const
+{
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#pragma message("build with __ARM_FEATURE_FP16_VECTOR_ARITHMETIC !!")
+
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    int size = w * h;
+    int elempack = bottom_top_blob.elempack;
+
+    if (elempack == 8)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr = bottom_top_blob.channel(q);
+
+            float16x8_t _max = vdupq_n_f16(max);
+            float16x8_t _min = vdupq_n_f16(min);
+
+            for (int i = 0; i < size; i++)
+            {
+                float16x8_t _ptr = vld1q_f16(ptr);
+                _ptr = vmaxq_f16(_ptr, _min);
+                _ptr = vmaxq_f16(_ptr, _max);
+                vst1q_f16(ptr, _ptr);
+
+                ptr += 8;
+            }
+        }
+
+        return 0;
+    }
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        __fp16* ptr = bottom_top_blob.channel(q);
+
+        int nn = size >> 3;
+        int remain = size & 7;
+
+        float16x8_t _max = vdupq_n_f16(max);
+        float16x8_t _min = vdupq_n_f16(min);
+        for (; nn > 0; nn--)
+        {
+            float16x8_t _ptr = vld1q_f16(ptr);
+            _ptr = vmaxq_f16(_ptr, _min);
+            _ptr = vmaxq_f16(_ptr, _max);
+            vst1q_f16(ptr, _ptr);
+
+            ptr += 8;
+        }
+
+        for (; remain > 0; remain--)
+        {
+            float v = *ptr;
+            if (v < min)
+                v = min;
+
+            if (v > max)
+                v = max;
+
+            *ptr = v;
+            ptr++;
+        }
+    }
+
+    return 0;
+#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    // FIXME fallback to fp32
+    return -200;
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+}
+
 } // namespace ncnn

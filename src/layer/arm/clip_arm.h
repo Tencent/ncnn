@@ -28,6 +28,7 @@ public:
 
 protected:
     int forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const;
+    int forward_inplace_fp16a(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn
