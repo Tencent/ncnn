@@ -305,7 +305,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         {
             for (size_t i = 0; i < a.size(); i++)
             {
-#if defined(__x86_64__)
+#if (defined(__x86_64__) || (defined _WIN32 && !(defined __MINGW32__)))
                 ncnn::convert_packing(a[i], a4[i], 8, opt);
 #else
                 ncnn::convert_packing(a[i], a4[i], 4, opt);
@@ -547,7 +547,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         ncnn::Mat a4;
         if (opt.use_packing_layout)
         {
-#if defined(__x86_64__)
+#if (defined(__x86_64__) || (defined _WIN32 && !(defined __MINGW32__)))
             ncnn::convert_packing(a, a4, 8, opt);
 #else
             ncnn::convert_packing(a, a4, 4, opt);
