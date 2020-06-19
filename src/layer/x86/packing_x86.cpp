@@ -103,7 +103,7 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             return -100;
         if (pack1to8)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < outh; i++)
             {
                 const float* r0 = bottom_blob.row(i * 8);
@@ -170,7 +170,7 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
         if (pack8to1)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 const float* r0 = bottom_blob.row(i);
@@ -253,7 +253,7 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (pack1to8)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < outc; q++)
             {
                 const float* r0 = bottom_blob.channel(q * 8);
@@ -322,7 +322,7 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
         if (pack8to1)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* r0 = bottom_blob.channel(q);
