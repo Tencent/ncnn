@@ -22,7 +22,7 @@ static void convdw5x5s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
     const int group = bottom_blob.c;
 
     const float* bias = _bias;
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int g = 0; g < group; g++)
     {
         Mat out = top_blob.channel(g);
@@ -177,7 +177,7 @@ static void convdw5x5s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
     const int tailstep = (w - 2 * outw + w) * 8;
 
     const float* bias = _bias;
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int g = 0; g < group; g++)
     {
         Mat out = top_blob.channel(g);

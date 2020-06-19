@@ -26,7 +26,7 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
     nn_outch = outch >> 1;
     remain_outch_start = nn_outch << 1;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
         int p = pp * 2;
@@ -343,7 +343,7 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
         }
     }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
     {
         Mat out0 = top_blob.channel(p);
@@ -559,7 +559,7 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
 
     int nn_outch = outch >> 1;
     int remain_outch_start = nn_outch << 1;
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
         int p = pp * 2;
@@ -810,7 +810,7 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
         }
     }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
     {
         Mat out0 = top_blob.channel(p);
