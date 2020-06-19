@@ -27,9 +27,8 @@
 
 static inline __m256 sigmoid_avx(__m256 inputs) {
     const __m256 one = _mm256_set1_ps(1.0f);
-    const __m256 zero = _mm256_set1_ps(0.0f);
     return _mm256_div_ps(
-               one, _mm256_add_ps(one, exp256_ps(_mm256_sub_ps(zero, inputs))));
+               one, _mm256_add_ps(one, exp256_ps(_mm256_sub_ps(_mm256_setzero_ps(), inputs))));
 }
 
 
@@ -45,24 +44,19 @@ static inline __m256 mish_avx(__m256 inputs) {
 
 
 static inline __m256 abs_avx(__m256 inputs) {
-    return _mm256_max_ps(_mm256_sub_ps(_mm256_set1_ps(0.0f), inputs), inputs);
+    return _mm256_max_ps(_mm256_sub_ps(_mm256_setzero_ps(), inputs), inputs);
 }
 
 static inline __m256 lrelu_avx(__m256 inputs, float slope) {
-    const __m256 zero = _mm256_set1_ps(0.0f);
-    const __m256 avx_slope = _mm256_set1_ps(slope * 0.5);
-    __m256 pos = _mm256_max_ps(inputs, zero);
-    __m256 neg = _mm256_mul_ps(avx_slope, _mm256_sub_ps(inputs, abs_avx(inputs)));
-    return _mm256_add_ps(pos, neg);
+    __m256 pos = _mm256_max_ps(_mm256_setzero_ps(), inputs);
+    __m256 neg = _mm256_min_ps(_mm256_setzero_ps(), inputs);
+    return  _mm256_add_ps(pos, _mm256_mul_ps(_mm256_set1_ps(slope), neg));
 }
 
 static inline __m256 prelu_avx(__m256 inputs, __m256 alphas) {
-    const __m256 zero = _mm256_set1_ps(0.0f);
-    const __m256 half = _mm256_set1_ps(0.5f);
-    __m256 pos = _mm256_max_ps(inputs, zero);
-    __m256 neg = _mm256_mul_ps(_mm256_mul_ps(alphas, half),
-                               _mm256_sub_ps(inputs, abs_avx(inputs)));
-    return _mm256_add_ps(pos, neg);
+    __m256 pos = _mm256_max_ps(_mm256_setzero_ps(), inputs);
+    __m256 neg = _mm256_min_ps(_mm256_setzero_ps(), inputs);
+    return  _mm256_add_ps(pos, _mm256_mul_ps(alphas, neg));
 }
 
 static inline __m256 activation_ps(__m256 _v, int activation_type,
@@ -70,8 +64,7 @@ static inline __m256 activation_ps(__m256 _v, int activation_type,
     // Process fused activations
     if (activation_type == 1) {
         // Relu
-        __m256 zero = _mm256_set1_ps(0.0f);
-        return _mm256_max_ps(_v, zero);
+        return _mm256_max_ps(_v, _mm256_setzero_ps());
     } else if (activation_type == 2) {
         // Leaky relu
         return lrelu_avx(_v, activation_params[0]);

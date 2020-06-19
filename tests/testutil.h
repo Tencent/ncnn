@@ -128,9 +128,6 @@ static int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001
                 if (!NearlyEqual(pa[j], pb[j], epsilon))
                 {
                     fprintf(stderr, "value not match  at c:%d h:%d w:%d    expect %f but got %f\n", q, i, j, pa[j], pb[j]);
-                    fprintf(stderr, "value not match  at c:%d h:%d w:%d    expect %f but got %f\n", q, i, j-1, pa[j-1], pb[j-1]);
-                    fprintf(stderr, "value not match  at c:%d h:%d w:%d    expect %f but got %f\n", q, i, j-2, pa[j-2], pb[j-2]);
-
                     return -1;
                 }
             }

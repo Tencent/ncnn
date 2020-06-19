@@ -16,6 +16,7 @@
 #if __AVX__
 #include "avx_activation.h"
 #endif // __AVX__
+
 #include "relu_x86.h"
 
 
