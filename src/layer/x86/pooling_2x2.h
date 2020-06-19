@@ -34,7 +34,7 @@ static void pooling2x2s2_max_avx(const Mat& bottom_blob, Mat& top_blob,
         const float* r0 = img0;
         const float* r1 = img0 + w;
 #if __AVX2__
-            __m256i permute_mask = _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7);
+        __m256i permute_mask = _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7);
 #endif // __AVX__
 
         for (int i = 0; i < outh; i++)
