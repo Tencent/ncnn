@@ -40,7 +40,7 @@ int Mish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __AVX__
     if (elempack == 8)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -58,7 +58,7 @@ int Mish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
 #endif // __AVX__
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
