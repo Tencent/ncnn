@@ -24,7 +24,7 @@ static void conv3x3s1_pack8to1_avx(const Mat& bottom_blob, Mat& top_blob, const 
     int nn_outch = 0;
     int remain_outch_start = 0;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
     {
         Mat out0 = top_blob.channel(p);

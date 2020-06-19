@@ -53,7 +53,7 @@ int Dropout_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             if (dims == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     float* ptr = (float*)bottom_top_blob + i * 8;
@@ -65,7 +65,7 @@ int Dropout_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             if (dims == 2)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     float* ptr = bottom_top_blob.row(i);
@@ -82,7 +82,7 @@ int Dropout_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             if (dims == 3)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     float* ptr = bottom_top_blob.channel(q);
