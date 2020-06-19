@@ -187,9 +187,11 @@ static const layer_registry_entry layer_registry[] = {
 #include "layer_registry.h"
 };
 
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 static const layer_registry_entry layer_registry_arm82[] = {
 #include "layer_registry_arm82.h"
 };
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 static const int layer_registry_entry_count = sizeof(layer_registry) / sizeof(layer_registry_entry);
 
@@ -221,11 +223,13 @@ Layer* create_layer(int index)
         return 0;
 
     layer_creator_func layer_creator = 0;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (ncnn::cpu_support_arm_asimdhp())
     {
         layer_creator = layer_registry_arm82[index].creator;
     }
     else
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     {
         layer_creator = layer_registry[index].creator;
     }
