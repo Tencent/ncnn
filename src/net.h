@@ -123,6 +123,10 @@ public:
     // construct an Extractor from network
     Extractor create_extractor() const;
 
+public:
+    std::vector<Blob> blobs;
+    std::vector<Layer*> layers;
+
 protected:
     // parse the structure of network
     // fuse int8 op dequantize and quantize by requantize
@@ -154,9 +158,6 @@ protected:
 #endif // NCNN_VULKAN
 
 protected:
-    std::vector<Blob> blobs;
-    std::vector<Layer*> layers;
-
     std::vector<layer_registry_entry> custom_layer_registry;
 
 #if NCNN_VULKAN

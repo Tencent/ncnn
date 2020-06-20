@@ -23,6 +23,7 @@ set(ncnn_SRCS
     allocator.cpp
     benchmark.cpp
     blob.cpp
+    c_api.cpp
     command.cpp
     cpu.cpp
     datareader.cpp
@@ -425,6 +426,7 @@ if(NCNN_INSTALL_SDK)
     install(FILES
         allocator.h
         blob.h
+        c_api.h
         command.h
         cpu.h
         datareader.h
