@@ -44,12 +44,12 @@ size_t ncnn_mat_get_cstep(ncnn_mat_t mat);
 void* ncnn_mat_get_data(ncnn_mat_t mat);
 
 /* mat pixel api */
-#define NCNN_MAT_PIXEL_RGB 1
-#define NCNN_MAT_PIXEL_BGR 2
-#define NCNN_MAT_PIXEL_GRAY 3
-#define NCNN_MAT_PIXEL_RGBA 4
-#define NCNN_MAT_PIXEL_BGRA 5
-#define NCNN_MAT_PIXEL_X2Y(X,Y) (X | (Y << 16))
+#define NCNN_MAT_PIXEL_RGB       1
+#define NCNN_MAT_PIXEL_BGR       2
+#define NCNN_MAT_PIXEL_GRAY      3
+#define NCNN_MAT_PIXEL_RGBA      4
+#define NCNN_MAT_PIXEL_BGRA      5
+#define NCNN_MAT_PIXEL_X2Y(X, Y) (X | (Y << 16))
 ncnn_mat_t ncnn_mat_from_pixels(const unsigned char* pixels, int type, int w, int h, int stride);
 ncnn_mat_t ncnn_mat_from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int stride, int target_width, int target_height);
 void ncnn_mat_to_pixels(ncnn_mat_t mat, unsigned char* pixels, int type, int stride);
@@ -69,6 +69,33 @@ void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads);
 int ncnn_option_get_use_vulkan_compute(ncnn_option_t opt);
 void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute);
 
+/* blob api */
+typedef struct __ncnn_blob_t* ncnn_blob_t;
+
+const char* ncnn_blob_get_name(ncnn_blob_t blob);
+
+int ncnn_blob_get_producer(ncnn_blob_t blob);
+int ncnn_blob_get_consumer_count(ncnn_blob_t blob);
+int ncnn_blob_get_consumer(ncnn_blob_t blob, int i);
+
+void ncnn_blob_get_shape(ncnn_blob_t blob, int* dims, int* w, int* h, int* c);
+
+/* layer api */
+typedef struct __ncnn_layer_t* ncnn_layer_t;
+
+const char* ncnn_layer_get_name(ncnn_layer_t layer);
+
+int ncnn_layer_get_typeindex(ncnn_layer_t layer);
+const char* ncnn_layer_get_type(ncnn_layer_t layer);
+
+int ncnn_layer_get_bottom_count(ncnn_layer_t layer);
+int ncnn_layer_get_bottom(ncnn_layer_t layer, int i);
+int ncnn_layer_get_top_count(ncnn_layer_t layer);
+int ncnn_layer_get_top(ncnn_layer_t layer, int i);
+
+void ncnn_blob_get_bottom_shape(ncnn_layer_t layer, int i, int* dims, int* w, int* h, int* c);
+void ncnn_blob_get_top_shape(ncnn_layer_t layer, int i, int* dims, int* w, int* h, int* c);
+
 /* net api */
 typedef struct __ncnn_net_t* ncnn_net_t;
 
@@ -79,6 +106,11 @@ void ncnn_net_set_option(ncnn_net_t net, ncnn_option_t opt);
 
 int ncnn_net_load_param(ncnn_net_t net, const char* path);
 int ncnn_net_load_model(ncnn_net_t net, const char* path);
+
+int ncnn_net_get_layer_count(ncnn_net_t net);
+ncnn_layer_t ncnn_net_get_layer(ncnn_net_t net, int i);
+int ncnn_net_get_blob_count(ncnn_net_t net);
+ncnn_blob_t ncnn_net_get_blob(ncnn_net_t net, int i);
 
 /* extractor api */
 typedef struct __ncnn_extractor_t* ncnn_extractor_t;

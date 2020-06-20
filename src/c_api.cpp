@@ -19,10 +19,12 @@
 #include "option.h"
 #include "net.h"
 
-using ncnn::Mat;
-using ncnn::Option;
-using ncnn::Net;
+using ncnn::Blob;
 using ncnn::Extractor;
+using ncnn::Layer;
+using ncnn::Mat;
+using ncnn::Net;
+using ncnn::Option;
 
 #ifdef __cplusplus
 extern "C" {
@@ -175,6 +177,90 @@ void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_comput
 #endif
 }
 
+/* blob api */
+const char* ncnn_blob_get_name(ncnn_blob_t blob)
+{
+    return ((Blob*)blob)->name.c_str();
+}
+
+int ncnn_blob_get_producer(ncnn_blob_t blob)
+{
+    return ((Blob*)blob)->producer;
+}
+
+int ncnn_blob_get_consumer_count(ncnn_blob_t blob)
+{
+    return (int)((Blob*)blob)->consumers.size();
+}
+
+int ncnn_blob_get_consumer(ncnn_blob_t blob, int i)
+{
+    return ((Blob*)blob)->consumers[i];
+}
+
+void ncnn_blob_get_shape(ncnn_blob_t blob, int* dims, int* w, int* h, int* c)
+{
+    const Mat& shape = ((Blob*)blob)->shape;
+    *dims = shape.dims;
+    *w = shape.w;
+    *h = shape.h;
+    *c = shape.c;
+}
+
+/* layer api */
+const char* ncnn_layer_get_name(ncnn_layer_t layer)
+{
+    return ((Layer*)layer)->name.c_str();
+}
+
+int ncnn_layer_get_typeindex(ncnn_layer_t layer)
+{
+    return ((Layer*)layer)->typeindex;
+}
+
+const char* ncnn_layer_get_type(ncnn_layer_t layer)
+{
+    return ((Layer*)layer)->type.c_str();
+}
+
+int ncnn_layer_get_bottom_count(ncnn_layer_t layer)
+{
+    return (int)((Layer*)layer)->bottoms.size();
+}
+
+int ncnn_layer_get_bottom(ncnn_layer_t layer, int i)
+{
+    return ((Layer*)layer)->bottoms[i];
+}
+
+int ncnn_layer_get_top_count(ncnn_layer_t layer)
+{
+    return (int)((Layer*)layer)->tops.size();
+}
+
+int ncnn_layer_get_top(ncnn_layer_t layer, int i)
+{
+    return ((Layer*)layer)->tops[i];
+}
+
+void ncnn_blob_get_bottom_shape(ncnn_layer_t layer, int i, int* dims, int* w, int* h, int* c)
+{
+    const Mat& shape = ((Layer*)layer)->bottom_shapes[i];
+    *dims = shape.dims;
+    *w = shape.w;
+    *h = shape.h;
+    *c = shape.c;
+}
+
+void ncnn_blob_get_top_shape(ncnn_layer_t layer, int i, int* dims, int* w, int* h, int* c)
+{
+    const Mat& shape = ((Layer*)layer)->top_shapes[i];
+    *dims = shape.dims;
+    *w = shape.w;
+    *h = shape.h;
+    *c = shape.c;
+}
+
 /* net api */
 ncnn_net_t ncnn_net_create()
 {
@@ -207,6 +293,26 @@ int ncnn_net_load_model(ncnn_net_t net, const char* path)
 #else
     return -1;
 #endif
+}
+
+int ncnn_net_get_layer_count(ncnn_net_t net)
+{
+    return (int)((Net*)net)->layers.size();
+}
+
+ncnn_layer_t ncnn_net_get_layer(ncnn_net_t net, int i)
+{
+    return (ncnn_layer_t)((Net*)net)->layers[i];
+}
+
+int ncnn_net_get_blob_count(ncnn_net_t net)
+{
+    return (int)((Net*)net)->blobs.size();
+}
+
+ncnn_blob_t ncnn_net_get_blob(ncnn_net_t net, int i)
+{
+    return (ncnn_blob_t) & ((Net*)net)->blobs[i];
 }
 
 /* extractor api */
