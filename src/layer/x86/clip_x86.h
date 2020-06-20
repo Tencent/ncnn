@@ -12,34 +12,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_CONVOLUTIONDEPTHWISE_X86_H
-#define LAYER_CONVOLUTIONDEPTHWISE_X86_H
+#ifndef LAYER_CLIP_X86_H
+#define LAYER_CLIP_X86_H
 
-#include "convolutiondepthwise.h"
+#include "clip.h"
 
 namespace ncnn {
 
-class ConvolutionDepthWise_x86 : virtual public ConvolutionDepthWise
+class Clip_x86 : virtual public Clip
 {
 public:
-    ConvolutionDepthWise_x86();
+    Clip_x86();
 
-    virtual int create_pipeline(const Option& opt);
-    virtual int destroy_pipeline(const Option& opt);
-
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-
-protected:
-    int forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-
-public:
-    Layer* activation;
-    std::vector<ncnn::Layer*> group_ops;
-
-    // packing
-    Mat weight_data_pack8;
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_CONVOLUTIONDEPTHWISE_X86_H
+#endif // LAYER_CLIP_X86_H
