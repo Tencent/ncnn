@@ -64,7 +64,7 @@ void benchmark(const Layer* layer, double start, double end)
 void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, double start, double end)
 {
     fprintf(stderr, "%-24s %-30s %8.2lfms", layer->type.c_str(), layer->name.c_str(), end - start);
-    fprintf(stderr, "    |    feature_map: %4d x %-4d    inch: %4d    outch: %4d", bottom_blob.w, bottom_blob.h, bottom_blob.c, top_blob.c);
+    fprintf(stderr, "    |    feature_map: %4d x %-4d    inch: %4d    outch: %4d elempack: %d", bottom_blob.w, bottom_blob.h, bottom_blob.c, top_blob.c, top_blob.elempack);
     if (layer->type == "Convolution")
     {
         fprintf(stderr, "     kernel: %1d x %1d     stride: %1d x %1d",

@@ -11,13 +11,18 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-
+#if __AVX__
+#include "avx_activation.h"
+#endif
 #include "convolutiondepthwise_x86.h"
 
 #include "layer_type.h"
 
 namespace ncnn {
-
+#ifdef __AVX__
+#include "convolutiondepthwise_3x3_pack8.h"
+#include "convolutiondepthwise_5x5_pack8.h"
+#endif
 #include "convolutiondepthwise_3x3.h"
 #include "convolutiondepthwise_3x3_int8.h"
 
@@ -25,6 +30,9 @@ DEFINE_LAYER_CREATOR(ConvolutionDepthWise_x86)
 
 ConvolutionDepthWise_x86::ConvolutionDepthWise_x86()
 {
+#ifdef __AVX__
+    support_packing = true;
+#endif
     activation = 0;
 }
 
@@ -97,11 +105,20 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
         delete group_ops[i];
 
     group_ops.clear();
-
     if (channels == group && group == num_output)
     {
-        // depth-wise specific
-        // special path for both int8 and fp32
+        int elempack = (opt.use_packing_layout && channels % 8 == 0) ? 8 : 1;
+#if __AVX__
+        // pack8
+        if (elempack == 8)
+        {
+            Mat weight_data_r2 = weight_data.reshape(maxk, group);
+            convert_packing(weight_data_r2, weight_data_pack8, 8);
+            return 0;
+        }
+#endif // __AVX__          \
+// depth-wise specific \
+// special path for both int8 and fp32
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             return 0;
@@ -217,6 +234,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -231,55 +249,201 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
+    int out_elempack = (opt.use_packing_layout && num_output % 8 == 0) ? 8 : 1;
+    size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    // float32
-    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
+    // fprintf(stderr, "Depthwise kernel %d x %d elempack=%d group=%d channels = %d stride = %d x %d  \n",kernel_w,kernel_h,elempack,group,channels,stride_w,stride_h );
+
     // depth-wise
-    if (channels == group && group == num_output)
+    if (channels * elempack == group && group == num_output)
     {
-        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+#if __AVX__
+        if (elempack == 8)
         {
-            convdw3x3s1_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-
-            if (activation)
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
-                activation->forward_inplace(top_blob, opt);
-            }
+                convdw3x3s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
 
-            return 0;
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw3x3s2_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
+            if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                convdw5x5s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
+            if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw5x5s2_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
+            else
+            {
+                const int maxk = kernel_w * kernel_h;
+
+                // kernel offsets
+                std::vector<int> _space_ofs(maxk);
+                int* space_ofs = &_space_ofs[0];
+                {
+                    int p1 = 0;
+                    int p2 = 0;
+                    int gap = w * dilation_h - kernel_w * dilation_w;
+                    for (int i = 0; i < kernel_h; i++)
+                    {
+                        for (int j = 0; j < kernel_w; j++)
+                        {
+                            space_ofs[p1] = p2;
+                            p1++;
+                            p2 += dilation_w;
+                        }
+                        p2 += gap;
+                    }
+                }
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int g = 0; g < channels; g++)
+                {
+                    float* outptr = top_blob.channel(g);
+                    const float* kptr = (const float*)weight_data_pack8 + maxk * g * 8;
+                    const Mat m = bottom_blob_bordered.channel(g);
+
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
+                            __m256 _sum = _mm256_set1_ps(0.f);
+
+                            if (bias_term)
+                            {
+                                _sum = _mm256_loadu_ps(((const float*)bias_data) + g * 8);
+                            }
+
+                            const float* sptr = m.row(i * stride_h) + j * stride_w * 8;
+
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                __m256 _val = _mm256_loadu_ps(sptr + space_ofs[k] * 8);
+                                __m256 _w = _mm256_loadu_ps(kptr + k * 8);
+                                _sum = _mm256_fmadd_ps(_val, _w, _sum);
+                            }
+
+                            _sum = activation_ps(_sum, activation_type, activation_params);
+
+                            _mm256_storeu_ps(outptr + j * 8, _sum);
+                        }
+
+                        outptr += outw * 8;
+                    }
+                }
+
+                return 0;
+            }
         }
-        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+#endif // __AVX__
+        if (elempack == 1)
         {
-            convdw3x3s2_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
-
-            if (activation)
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
-                activation->forward_inplace(top_blob, opt);
-            }
+                convdw3x3s1_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
 
-            return 0;
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw3x3s2_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
         }
     }
 
     // group convolution
-    const int channels_g = channels / group;
+    const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
+
+    int g_elempack = (opt.use_packing_layout && channels_g % 8 == 0) ? 8 : 1;
+    int out_g_elempack = (opt.use_packing_layout && num_output_g % 8 == 0) ? 8 : 1;
+
+    // unpacking
+    Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
+    if (elempack == 8 && g_elempack == 1)
+    {
+        Option opt_p = opt;
+        opt_p.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_blob_bordered, bottom_blob_bordered_unpacked, 1, opt_p);
+    }
+
+    Mat top_blob_unpacked = top_blob;
+    if (out_g_elempack == 1 && out_elempack == 8)
+    {
+        top_blob_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
+        if (top_blob_unpacked.empty())
+            return -100;
+    }
 
     for (int g = 0; g < group; g++)
     {
-        const Mat bottom_blob_bordered_g = bottom_blob_bordered.channel_range(channels_g * g, channels_g);
-        Mat top_blob_g = top_blob.channel_range(num_output_g * g, num_output_g);
+        const Mat bottom_blob_bordered_g = bottom_blob_bordered_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
+        Mat top_blob_g = top_blob_unpacked.channel_range(num_output_g * g / out_g_elempack, num_output_g / out_g_elempack);
 
         const ncnn::Layer* op = group_ops[g];
 
         Option opt_g = opt;
-        opt_g.blob_allocator = top_blob.allocator;
+        opt_g.blob_allocator = top_blob_unpacked.allocator;
 
         // forward
         op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);
+    }
+
+    // packing
+    if (out_g_elempack == 1 && out_elempack == 8)
+    {
+        convert_packing(top_blob_unpacked, top_blob, 8, opt);
+    }
+    else
+    {
+        top_blob = top_blob_unpacked;
     }
 
     return 0;
