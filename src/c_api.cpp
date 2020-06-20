@@ -180,7 +180,11 @@ void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_comput
 /* blob api */
 const char* ncnn_blob_get_name(ncnn_blob_t blob)
 {
+#if NCNN_STRING
     return ((Blob*)blob)->name.c_str();
+#else
+    return "";
+#endif
 }
 
 int ncnn_blob_get_producer(ncnn_blob_t blob)
@@ -210,7 +214,11 @@ void ncnn_blob_get_shape(ncnn_blob_t blob, int* dims, int* w, int* h, int* c)
 /* layer api */
 const char* ncnn_layer_get_name(ncnn_layer_t layer)
 {
+#if NCNN_STRING
     return ((Layer*)layer)->name.c_str();
+#else
+    return "";
+#endif
 }
 
 int ncnn_layer_get_typeindex(ncnn_layer_t layer)
@@ -220,7 +228,11 @@ int ncnn_layer_get_typeindex(ncnn_layer_t layer)
 
 const char* ncnn_layer_get_type(ncnn_layer_t layer)
 {
+#if NCNN_STRING
     return ((Layer*)layer)->type.c_str();
+#else
+    return "";
+#endif
 }
 
 int ncnn_layer_get_bottom_count(ncnn_layer_t layer)
