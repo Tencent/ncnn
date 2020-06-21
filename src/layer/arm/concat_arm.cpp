@@ -38,16 +38,14 @@ int Concat_arm::create_pipeline(const Option& opt)
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
-        {
-            packing_pack4 = ncnn::create_layer(ncnn::LayerType::Packing);
+        packing_pack4 = ncnn::create_layer(ncnn::LayerType::Packing);
 
-            ncnn::ParamDict pd;
-            pd.set(0, 4);
+        ncnn::ParamDict pd;
+        pd.set(0, 4);
 
-            packing_pack4->load_param(pd);
+        packing_pack4->load_param(pd);
 
-            packing_pack4->create_pipeline(opt);
-        }
+        packing_pack4->create_pipeline(opt);
     }
 #endif // __ARM_NEON
 

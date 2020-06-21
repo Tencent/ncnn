@@ -35,87 +35,83 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int elempack = bottom_top_blob.elempack;
 
 #if __AVX__
-    if (opt.use_packing_layout)
+    if (elempack == 8)
     {
-        if (elempack == 8)
+        if (dims == 1)
         {
-            if (dims == 1)
+            int w = bottom_top_blob.w;
+
+            if (num_slope > 1)
             {
-                int w = bottom_top_blob.w;
-
-                if (num_slope > 1)
-                {
-                    const float* slope = slope_data;
-
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        float* ptr = (float*)bottom_top_blob + i * 8;
-                        __m256 _p = _mm256_loadu_ps(ptr);
-                        __m256 _slope = _mm256_loadu_ps(slope + i * 8);
-                        _mm256_storeu_ps(ptr, prelu_avx(_p, _slope));
-                    }
-                }
-                else
-                {
-                    __m256 _slope = _mm256_set1_ps(slope_data[0]);
-
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        float* ptr = (float*)bottom_top_blob + i * 8;
-                        __m256 _p = _mm256_loadu_ps(ptr);
-                        _mm256_storeu_ps(ptr, prelu_avx(_p, _slope));
-                    }
-                }
-            }
-
-            if (dims == 2)
-            {
-                int w = bottom_top_blob.w;
-                int h = bottom_top_blob.h;
+                const float* slope = slope_data;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < h; i++)
+                for (int i = 0; i < w; i++)
                 {
-                    float* ptr = bottom_top_blob.row(i);
-                    __m256 _slope = num_slope > 1 ? _mm256_loadu_ps((const float*)slope_data + i * 8) : _mm256_set1_ps(slope_data[0]);
-
-                    for (int j = 0; j < w; j++)
-                    {
-                        __m256 _p = _mm256_loadu_ps(ptr);
-                        _mm256_storeu_ps(ptr, prelu_avx(_p, _slope));
-                        ptr += 8;
-                    }
+                    float* ptr = (float*)bottom_top_blob + i * 8;
+                    __m256 _p = _mm256_loadu_ps(ptr);
+                    __m256 _slope = _mm256_loadu_ps(slope + i * 8);
+                    _mm256_storeu_ps(ptr, prelu_avx(_p, _slope));
                 }
             }
-
-            if (dims == 3)
+            else
             {
-                int w = bottom_top_blob.w;
-                int h = bottom_top_blob.h;
-                int channels = bottom_top_blob.c;
-                int size = w * h;
+                __m256 _slope = _mm256_set1_ps(slope_data[0]);
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                for (int i = 0; i < w; i++)
                 {
-                    float* ptr = bottom_top_blob.channel(q);
-                    __m256 _slope = num_slope > 1 ? _mm256_loadu_ps((const float*)slope_data + q * 8) : _mm256_set1_ps(slope_data[0]);
-
-                    for (int i = 0; i < size; i++)
-                    {
-                        __m256 _p = _mm256_loadu_ps(ptr);
-                        _mm256_storeu_ps(ptr, prelu_avx(_p, _slope));
-                        ptr += 8;
-                    }
+                    float* ptr = (float*)bottom_top_blob + i * 8;
+                    __m256 _p = _mm256_loadu_ps(ptr);
+                    _mm256_storeu_ps(ptr, prelu_avx(_p, _slope));
                 }
             }
-
-            return 0;
         }
 
-    }  // opt.use_packing_layout
+        if (dims == 2)
+        {
+            int w = bottom_top_blob.w;
+            int h = bottom_top_blob.h;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                float* ptr = bottom_top_blob.row(i);
+                __m256 _slope = num_slope > 1 ? _mm256_loadu_ps((const float*)slope_data + i * 8) : _mm256_set1_ps(slope_data[0]);
+
+                for (int j = 0; j < w; j++)
+                {
+                    __m256 _p = _mm256_loadu_ps(ptr);
+                    _mm256_storeu_ps(ptr, prelu_avx(_p, _slope));
+                    ptr += 8;
+                }
+            }
+        }
+
+        if (dims == 3)
+        {
+            int w = bottom_top_blob.w;
+            int h = bottom_top_blob.h;
+            int channels = bottom_top_blob.c;
+            int size = w * h;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+                __m256 _slope = num_slope > 1 ? _mm256_loadu_ps((const float*)slope_data + q * 8) : _mm256_set1_ps(slope_data[0]);
+
+                for (int i = 0; i < size; i++)
+                {
+                    __m256 _p = _mm256_loadu_ps(ptr);
+                    _mm256_storeu_ps(ptr, prelu_avx(_p, _slope));
+                    ptr += 8;
+                }
+            }
+        }
+
+        return 0;
+    }
 #endif // __AVX__
 
     if (dims != 3)
