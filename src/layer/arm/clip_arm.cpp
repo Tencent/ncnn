@@ -280,7 +280,7 @@ int Clip_arm::forward_inplace_fp16a(Mat& bottom_top_blob, const Option& opt) con
     }
 
     return 0;
-#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#else  // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     // FIXME fallback to fp32
     return -200;
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
