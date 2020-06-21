@@ -40,16 +40,14 @@ int Slice_arm::create_pipeline(const Option& opt)
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
-        {
-            packing_pack1 = ncnn::create_layer(ncnn::LayerType::Packing);
+        packing_pack1 = ncnn::create_layer(ncnn::LayerType::Packing);
 
-            ncnn::ParamDict pd;
-            pd.set(0, 1);
+        ncnn::ParamDict pd;
+        pd.set(0, 1);
 
-            packing_pack1->load_param(pd);
+        packing_pack1->load_param(pd);
 
-            packing_pack1->create_pipeline(opt);
-        }
+        packing_pack1->create_pipeline(opt);
     }
 #endif // __ARM_NEON
 

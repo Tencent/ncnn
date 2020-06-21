@@ -43,7 +43,7 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
     // depth-wise
     if (channels == group && group == num_output)
     {
-        int elempack = (opt.use_packing_layout && channels % 4 == 0) ? 4 : 1;
+        int elempack = (support_packing && opt.use_packing_layout && channels % 4 == 0) ? 4 : 1;
 
         Mat weight_data_transposed(weight_data.w);
         {
@@ -171,7 +171,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
 
     int outw = (w - 1) * stride_w + kernel_extent_w;
     int outh = (h - 1) * stride_h + kernel_extent_h;
-    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
@@ -345,8 +345,8 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
         const int channels_g = channels * elempack / group;
         const int num_output_g = num_output / group;
 
-        int g_elempack = (opt.use_packing_layout && channels_g % 4 == 0) ? 4 : 1;
-        int out_g_elempack = (opt.use_packing_layout && num_output_g % 4 == 0) ? 4 : 1;
+        int g_elempack = (support_packing && opt.use_packing_layout && channels_g % 4 == 0) ? 4 : 1;
+        int out_g_elempack = (support_packing && opt.use_packing_layout && num_output_g % 4 == 0) ? 4 : 1;
 
         // unpacking
         Mat bottom_blob_unpacked = bottom_blob;

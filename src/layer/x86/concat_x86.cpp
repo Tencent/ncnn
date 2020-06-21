@@ -36,16 +36,14 @@ int Concat_x86::create_pipeline(const Option& opt)
 #if __AVX__
     if (opt.use_packing_layout)
     {
-        {
-            packing_pack8 = ncnn::create_layer(ncnn::LayerType::Packing);
+        packing_pack8 = ncnn::create_layer(ncnn::LayerType::Packing);
 
-            ncnn::ParamDict pd;
-            pd.set(0, 8);
+        ncnn::ParamDict pd;
+        pd.set(0, 8);
 
-            packing_pack8->load_param(pd);
+        packing_pack8->load_param(pd);
 
-            packing_pack8->create_pipeline(opt);
-        }
+        packing_pack8->create_pipeline(opt);
     }
 #endif // __AVX__
 

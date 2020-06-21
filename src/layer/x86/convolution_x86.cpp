@@ -180,8 +180,8 @@ int Convolution_x86::create_pipeline(const Option& opt)
     }
     const int maxk = kernel_w * kernel_h;
 
-    int elempack = (opt.use_packing_layout && num_input % 8 == 0) ? 8 : 1;
-    int out_elempack = (opt.use_packing_layout && num_output % 8 == 0) ? 8 : 1;
+    int elempack = (support_packing && opt.use_packing_layout && num_input % 8 == 0) ? 8 : 1;
+    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 8 == 0) ? 8 : 1;
     // pack8
     if (elempack == 8 && out_elempack == 8)
     {
@@ -499,12 +499,12 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         return forward_int8_x86(bottom_blob, top_blob, opt);
     }
 
-    if (opt.use_packing_layout == false && (dilation_w > 1 || dilation_h > 1) && (stride_w > 1 || stride_h > 1))
+    if ((!support_packing || !opt.use_packing_layout) && (dilation_w > 1 || dilation_h > 1) && (stride_w > 1 || stride_h > 1))
     {
         return Convolution::forward(bottom_blob, top_blob, opt);
     }
 
-    if (opt.use_packing_layout == false && (dilation_w > 1 || dilation_h > 1) && dilation_w != dilation_h)
+    if ((!support_packing || !opt.use_packing_layout) && (dilation_w > 1 || dilation_h > 1) && dilation_w != dilation_h)
     {
         return Convolution::forward(bottom_blob, top_blob, opt);
     }
@@ -528,7 +528,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (opt.use_packing_layout && num_output % 8 == 0) ? 8 : 1;
+    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 8 == 0) ? 8 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
     // fprintf(stderr, "elempack = %d out_elempack = %d ACTIVATION TYPE = %d \n",elempack,out_elempack,activation_type );
 
@@ -536,7 +536,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (top_blob.empty())
         return -100;
 
-    if (opt.use_packing_layout == false && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+    if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     {
         if (outw >= dilation_w && outh >= dilation_h)
         {

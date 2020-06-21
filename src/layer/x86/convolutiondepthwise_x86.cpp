@@ -107,7 +107,7 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
     group_ops.clear();
     if (channels == group && group == num_output)
     {
-        int elempack = (opt.use_packing_layout && channels % 8 == 0) ? 8 : 1;
+        int elempack = (support_packing && opt.use_packing_layout && channels % 8 == 0) ? 8 : 1;
 #if __AVX__
         // pack8
         if (elempack == 8)
@@ -249,7 +249,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (opt.use_packing_layout && num_output % 8 == 0) ? 8 : 1;
+    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 8 == 0) ? 8 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -402,8 +402,8 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
 
-    int g_elempack = (opt.use_packing_layout && channels_g % 8 == 0) ? 8 : 1;
-    int out_g_elempack = (opt.use_packing_layout && num_output_g % 8 == 0) ? 8 : 1;
+    int g_elempack = (support_packing && opt.use_packing_layout && channels_g % 8 == 0) ? 8 : 1;
+    int out_g_elempack = (support_packing && opt.use_packing_layout && num_output_g % 8 == 0) ? 8 : 1;
 
     // unpacking
     Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;

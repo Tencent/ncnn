@@ -273,63 +273,59 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
-    if (opt.use_packing_layout)
+    if (elempack == 4)
     {
-        if (elempack == 4)
-        {
-            if (op_type == Operation_ABS)
-                return unary_op_inplace<unary_op_abs<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_ABS)
+            return unary_op_inplace<unary_op_abs<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_NEG)
-                return unary_op_inplace<unary_op_neg<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_NEG)
+            return unary_op_inplace<unary_op_neg<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_FLOOR)
-                return unary_op_inplace<unary_op_floor<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_FLOOR)
+            return unary_op_inplace<unary_op_floor<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_CEIL)
-                return unary_op_inplace<unary_op_ceil<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_CEIL)
+            return unary_op_inplace<unary_op_ceil<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_SQUARE)
-                return unary_op_inplace<unary_op_square<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_SQUARE)
+            return unary_op_inplace<unary_op_square<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_SQRT)
-                return unary_op_inplace<unary_op_sqrt<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_SQRT)
+            return unary_op_inplace<unary_op_sqrt<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_RSQRT)
-                return unary_op_inplace<unary_op_rsqrt<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_RSQRT)
+            return unary_op_inplace<unary_op_rsqrt<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_EXP)
-                return unary_op_inplace<unary_op_exp<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_EXP)
+            return unary_op_inplace<unary_op_exp<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_LOG)
-                return unary_op_inplace<unary_op_log<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_LOG)
+            return unary_op_inplace<unary_op_log<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_SIN)
-                return unary_op_inplace<unary_op_sin<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_SIN)
+            return unary_op_inplace<unary_op_sin<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_COS)
-                return unary_op_inplace<unary_op_cos<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_COS)
+            return unary_op_inplace<unary_op_cos<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_TAN)
-                return unary_op_inplace<unary_op_tan<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_TAN)
+            return unary_op_inplace<unary_op_tan<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_ASIN)
-                return unary_op_inplace<unary_op_asin<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_ASIN)
+            return unary_op_inplace<unary_op_asin<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_ACOS)
-                return unary_op_inplace<unary_op_acos<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_ACOS)
+            return unary_op_inplace<unary_op_acos<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_ATAN)
-                return unary_op_inplace<unary_op_atan<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_ATAN)
+            return unary_op_inplace<unary_op_atan<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_RECIPROCAL)
-                return unary_op_inplace<unary_op_reciprocal<float32x4_t> >(bottom_top_blob, opt);
+        if (op_type == Operation_RECIPROCAL)
+            return unary_op_inplace<unary_op_reciprocal<float32x4_t> >(bottom_top_blob, opt);
 
-            if (op_type == Operation_TANH)
-                return unary_op_inplace<unary_op_tanh<float32x4_t> >(bottom_top_blob, opt);
-        }
-
-    }  // opt.use_packing_layout
+        if (op_type == Operation_TANH)
+            return unary_op_inplace<unary_op_tanh<float32x4_t> >(bottom_top_blob, opt);
+    }
 #endif // __ARM_NEON
 
     return UnaryOp::forward_inplace(bottom_top_blob, opt);

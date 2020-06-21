@@ -98,8 +98,8 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
         }
     }
 
-    int elempack = (opt.use_packing_layout && num_input % 4 == 0) ? 4 : 1;
-    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int elempack = (support_packing && opt.use_packing_layout && num_input % 4 == 0) ? 4 : 1;
+    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
 
 #if __ARM_NEON
     // pack4
@@ -294,7 +294,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     int outw = (w - 1) * stride_w + kernel_extent_w;
     int outh = (h - 1) * stride_h + kernel_extent_h;
-    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
