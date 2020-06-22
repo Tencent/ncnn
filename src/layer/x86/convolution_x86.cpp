@@ -18,6 +18,13 @@
 #include "avx_usability.h"
 #endif
 
+#if __SSE2__
+#include <emmintrin.h>
+#endif
+#if __AVX__
+#include <immintrin.h>
+#endif
+
 #include "convolution_x86.h"
 
 #include "benchmark.h"
