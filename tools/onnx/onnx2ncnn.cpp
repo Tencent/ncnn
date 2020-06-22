@@ -3007,8 +3007,10 @@ int main(int argc, char** argv)
             {
                 starts = get_node_attr_from_input_ai(weights[node.input(1)]);
                 ends = get_node_attr_from_input_ai(weights[node.input(2)]);
-                axes = get_node_attr_from_input_ai(weights[node.input(3)]);
-                steps = get_node_attr_from_input_ai(weights[node.input(4)]);
+                if (node.input_size() >= 4)
+                    axes = get_node_attr_from_input_ai(weights[node.input(3)]);
+                if (node.input_size() >= 5)
+                    steps = get_node_attr_from_input_ai(weights[node.input(4)]);
             }
 
             // assert step == 1
