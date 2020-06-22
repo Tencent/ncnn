@@ -96,6 +96,10 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
     {
         activation->create_pipeline(opt);
     }
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+    {
+        support_packing = false;
+    }
 
     // create Convolution op for each group
     const int maxk = kernel_w * kernel_h;
