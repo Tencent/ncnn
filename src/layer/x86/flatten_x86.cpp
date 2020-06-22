@@ -17,8 +17,6 @@
 
 #include "flatten_x86.h"
 
-
-
 namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Flatten_x86)
@@ -87,26 +85,26 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
                 int j = 0;
                 for (; j + 7 < w; j += 8)
-                {   
+                {
                     __m256 _row0 = _mm256_loadu_ps(ptr);
-                    __m256 _row1 = _mm256_loadu_ps(ptr+8);
-                    __m256 _row2 = _mm256_loadu_ps(ptr+16);
-                    __m256 _row3 = _mm256_loadu_ps(ptr+24);
-                    __m256 _row4 = _mm256_loadu_ps(ptr+32);
-                    __m256 _row5 = _mm256_loadu_ps(ptr+40);
-                    __m256 _row6 = _mm256_loadu_ps(ptr+48);
-                    __m256 _row7 = _mm256_loadu_ps(ptr+56);
+                    __m256 _row1 = _mm256_loadu_ps(ptr + 8);
+                    __m256 _row2 = _mm256_loadu_ps(ptr + 16);
+                    __m256 _row3 = _mm256_loadu_ps(ptr + 24);
+                    __m256 _row4 = _mm256_loadu_ps(ptr + 32);
+                    __m256 _row5 = _mm256_loadu_ps(ptr + 40);
+                    __m256 _row6 = _mm256_loadu_ps(ptr + 48);
+                    __m256 _row7 = _mm256_loadu_ps(ptr + 56);
 
-                    transpose8_ps(_row0,_row1,_row2,_row3,_row4,_row5,_row6,_row7);
+                    transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
 
-                    _mm256_storeu_ps(outptr0,_row0);
-                    _mm256_storeu_ps(outptr1,_row1);
-                    _mm256_storeu_ps(outptr2,_row2);
-                    _mm256_storeu_ps(outptr3,_row3);
-                    _mm256_storeu_ps(outptr4,_row4);
-                    _mm256_storeu_ps(outptr5,_row5);
-                    _mm256_storeu_ps(outptr6,_row6);
-                    _mm256_storeu_ps(outptr7,_row7);
+                    _mm256_storeu_ps(outptr0, _row0);
+                    _mm256_storeu_ps(outptr1, _row1);
+                    _mm256_storeu_ps(outptr2, _row2);
+                    _mm256_storeu_ps(outptr3, _row3);
+                    _mm256_storeu_ps(outptr4, _row4);
+                    _mm256_storeu_ps(outptr5, _row5);
+                    _mm256_storeu_ps(outptr6, _row6);
+                    _mm256_storeu_ps(outptr7, _row7);
 
                     outptr0 += 8;
                     outptr1 += 8;
@@ -153,26 +151,26 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
                 int i = 0;
                 for (; i + 7 < size; i += 8)
-                {   
+                {
                     __m256 _row0 = _mm256_loadu_ps(ptr);
-                    __m256 _row1 = _mm256_loadu_ps(ptr+8);
-                    __m256 _row2 = _mm256_loadu_ps(ptr+16);
-                    __m256 _row3 = _mm256_loadu_ps(ptr+24);
-                    __m256 _row4 = _mm256_loadu_ps(ptr+32);
-                    __m256 _row5 = _mm256_loadu_ps(ptr+40);
-                    __m256 _row6 = _mm256_loadu_ps(ptr+48);
-                    __m256 _row7 = _mm256_loadu_ps(ptr+56);
+                    __m256 _row1 = _mm256_loadu_ps(ptr + 8);
+                    __m256 _row2 = _mm256_loadu_ps(ptr + 16);
+                    __m256 _row3 = _mm256_loadu_ps(ptr + 24);
+                    __m256 _row4 = _mm256_loadu_ps(ptr + 32);
+                    __m256 _row5 = _mm256_loadu_ps(ptr + 40);
+                    __m256 _row6 = _mm256_loadu_ps(ptr + 48);
+                    __m256 _row7 = _mm256_loadu_ps(ptr + 56);
 
-                    transpose8_ps(_row0,_row1,_row2,_row3,_row4,_row5,_row6,_row7);
+                    transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
 
-                    _mm256_storeu_ps(outptr0,_row0);
-                    _mm256_storeu_ps(outptr1,_row1);
-                    _mm256_storeu_ps(outptr2,_row2);
-                    _mm256_storeu_ps(outptr3,_row3);
-                    _mm256_storeu_ps(outptr4,_row4);
-                    _mm256_storeu_ps(outptr5,_row5);
-                    _mm256_storeu_ps(outptr6,_row6);
-                    _mm256_storeu_ps(outptr7,_row7);
+                    _mm256_storeu_ps(outptr0, _row0);
+                    _mm256_storeu_ps(outptr1, _row1);
+                    _mm256_storeu_ps(outptr2, _row2);
+                    _mm256_storeu_ps(outptr3, _row3);
+                    _mm256_storeu_ps(outptr4, _row4);
+                    _mm256_storeu_ps(outptr5, _row5);
+                    _mm256_storeu_ps(outptr6, _row6);
+                    _mm256_storeu_ps(outptr7, _row7);
 
                     outptr0 += 8;
                     outptr1 += 8;
