@@ -27,6 +27,7 @@ ShuffleChannel::ShuffleChannel()
 int ShuffleChannel::load_param(const ParamDict& pd)
 {
     group = pd.get(0, 1);
+    reverse = pd.get(1, 0);
 
     return 0;
 }
@@ -35,30 +36,33 @@ int ShuffleChannel::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int c = bottom_blob.c;
+    int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int chs_per_group = c / group;
 
-    if (c != chs_per_group * group)
+    if (channels % group != 0)
     {
         // reject invalid group
         return -100;
     }
 
-    top_blob.create(w, h, c, elemsize, opt.blob_allocator);
+    int _group = reverse ? channels / group : group;
+    int channels_per_group = channels / _group;
+
+    top_blob.create(w, h, channels, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
     const size_t feature_sz = w * h * elemsize;
-    for (int i = 0; i != group; i++)
+    for (int i = 0; i < _group; i++)
     {
-        for (int j = 0; j != chs_per_group; j++)
+        for (int j = 0; j < channels_per_group; j++)
         {
-            int src_q = chs_per_group * i + j;
-            int dst_q = group * j + i;
+            int src_q = channels_per_group * i + j;
+            int dst_q = _group * j + i;
             memcpy(top_blob.channel(dst_q), bottom_blob.channel(src_q), feature_sz);
         }
     }
+
     return 0;
 }
 

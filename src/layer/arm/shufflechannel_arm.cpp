@@ -38,34 +38,36 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     if (opt.use_bf16_storage)
         return forward_bf16s(bottom_blob, top_blob, opt);
 
-    if (group == 1)
+    int channels = bottom_blob.c;
+    int elempack = bottom_blob.elempack;
+
+    int _group = reverse ? channels * elempack / group : group;
+
+    if (_group == 1)
     {
         top_blob = bottom_blob;
         return 0;
     }
-
-    int elempack = bottom_blob.elempack;
 
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
-        int channels = bottom_blob.c;
         int size = w * h;
         size_t elemsize = bottom_blob.elemsize;
 
         if (elempack == 4)
         {
-            if (group <= 4 && channels % group == 0)
+            if (_group <= 4 && channels % _group == 0)
             {
                 top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
                 if (top_blob.empty())
                     return -100;
 
-                int channels_per_group = channels / group;
+                int channels_per_group = channels / _group;
 
-                if (group == 2)
+                if (_group == 2)
                 {
                     for (int q = 0; q < channels_per_group; q++)
                     {
@@ -91,7 +93,7 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                         }
                     }
                 }
-                else if (group == 3)
+                else if (_group == 3)
                 {
                     for (int q = 0; q < channels_per_group; q++)
                     {
@@ -141,7 +143,7 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                         }
                     }
                 }
-                else // group == 4
+                else // _group == 4
                 {
                     for (int q = 0; q < channels_per_group; q++)
                     {
@@ -214,34 +216,36 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
 int ShuffleChannel_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (group == 1)
+    int channels = bottom_blob.c;
+    int elempack = bottom_blob.elempack;
+
+    int _group = reverse ? channels * elempack / group : group;
+
+    if (_group == 1)
     {
         top_blob = bottom_blob;
         return 0;
     }
-
-    int elempack = bottom_blob.elempack;
 
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
-        int channels = bottom_blob.c;
         int size = w * h;
         size_t elemsize = bottom_blob.elemsize;
 
         if (elempack == 4)
         {
-            if (group <= 4 && channels % group == 0)
+            if (_group <= 4 && channels % _group == 0)
             {
                 top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
                 if (top_blob.empty())
                     return -100;
 
-                int channels_per_group = channels / group;
+                int channels_per_group = channels / _group;
 
-                if (group == 2)
+                if (_group == 2)
                 {
                     for (int q = 0; q < channels_per_group; q++)
                     {
@@ -267,7 +271,7 @@ int ShuffleChannel_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
                         }
                     }
                 }
-                else if (group == 3)
+                else if (_group == 3)
                 {
                     for (int q = 0; q < channels_per_group; q++)
                     {
@@ -318,7 +322,7 @@ int ShuffleChannel_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, con
                         }
                     }
                 }
-                else // group == 4
+                else // _group == 4
                 {
                     for (int q = 0; q < channels_per_group; q++)
                     {

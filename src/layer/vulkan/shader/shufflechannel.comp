@@ -21,7 +21,7 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
-layout (constant_id = 0) const int group = 1;
+layout (constant_id = 0) const int group = 0;
 layout (constant_id = 1) const int bugihfa = 0;
 
 #define shape_constant_id_offset 2
@@ -62,6 +62,8 @@ layout (push_constant) uniform parameter
     int outh;
     int outc;
     int outcstep;
+
+    int group;
 } p;
 
 void main()
@@ -73,9 +75,9 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    const int channels_g = psc(c) / group;
+    const int channels_g = psc(c) / psc(group);
 
-    int z = (gz % group) * channels_g + (gz / group);
+    int z = (gz % psc(group)) * channels_g + (gz / psc(group));
 
 #if NCNN_image_shader
     image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(gx, gy, z));

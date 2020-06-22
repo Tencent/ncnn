@@ -22,7 +22,7 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
-layout (constant_id = 0) const int group = 1;
+layout (constant_id = 0) const int group = 0;
 layout (constant_id = 1) const int bugihfa = 0;
 
 #define shape_constant_id_offset 2
@@ -63,6 +63,8 @@ layout (push_constant) uniform parameter
     int outh;
     int outc;
     int outcstep;
+
+    int group;
 } p;
 
 void main()
@@ -74,13 +76,13 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    const int channels_g = psc(c) * 8 / group;
+    const int channels_g = psc(c) * 8 / psc(group);
 
     ivec4 gz4 = ivec4(gz * 8) + ivec4(0, 1, 2, 3);
     ivec4 gzz4 = gz4 + 4;
 
-    ivec4 z4 = (gz4 % group) * channels_g + (gz4 / group);
-    ivec4 zz4 = (gzz4 % group) * channels_g + (gzz4 / group);
+    ivec4 z4 = (gz4 % psc(group)) * channels_g + (gz4 / psc(group));
+    ivec4 zz4 = (gzz4 % psc(group)) * channels_g + (gzz4 / psc(group));
 
 #if NCNN_image_shader
     ivec4 sz8 = z4 / 8;
