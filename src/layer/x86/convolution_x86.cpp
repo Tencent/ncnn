@@ -37,6 +37,7 @@ namespace ncnn {
 #include "convolution_3x3_pack1to8.h"
 #include "convolution_3x3_pack8to1.h"
 #include "convolution_3x3_pack8.h"
+#include "convolution_2x2_pack8.h"
 #include "convolution_1x1_pack8.h"
 #endif
 
@@ -592,6 +593,14 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 activation->forward_inplace(top_blob, opt);
             }
         }
+        else if (kernel_w == 2 && kernel_h == 2 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv2x2s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv3x3s1_winograd64_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
@@ -603,6 +612,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
+            fprintf(stderr, "num_output / out_elempack = %d, channels = %d ,maxk = %d \n",num_output / out_elempack,channels );
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
