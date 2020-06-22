@@ -649,6 +649,7 @@ int Net::load_model(const unsigned char* _mem)
 }
 
 #if __ANDROID_API__ >= 9
+#if NOT_TERMUX
 #if NCNN_STRING
 int Net::load_param(AAsset* asset)
 {
@@ -710,6 +711,7 @@ int Net::load_model(AAssetManager* mgr, const char* assetpath)
     AAsset_close(asset);
     return ret;
 }
+#endif  // NOT_TERMUX
 #endif // __ANDROID_API__ >= 9
 
 int Net::fuse_network()
