@@ -612,7 +612,6 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            fprintf(stderr, "num_output / out_elempack = %d, channels = %d ,maxk = %d \n",num_output / out_elempack,channels );
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
