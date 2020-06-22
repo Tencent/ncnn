@@ -342,10 +342,11 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
             }
 
             // 1 groups channels_per_group, height, width
-            if (shape.size() != 5)
+            // reverse style = channels_per_group, groups, height * width
+            if (shape.size() != 5 && shape.size() != 3)
                 continue;
 
-            if (shape[0] != 1)
+            if (shape.size() == 5 && shape[0] != 1)
                 continue;
 
             if (i + 2 >= node_count)
@@ -369,11 +370,15 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
                 continue;
 
             // 0 2 1 3 4
+            // reverse style = 1 0 2
             std::vector<int> perm = get_node_attr_ai(*node2, "perm");
-            if (perm.size() != 5)
+            if (perm.size() != 5 && perm.size() != 3)
                 continue;
 
-            if (perm[0] != 0 || perm[1] != 2 || perm[2] != 1 || perm[3] != 3 || perm[4] != 4)
+            if (perm.size() == 5 && (perm[0] != 0 || perm[1] != 2 || perm[2] != 1 || perm[3] != 3 || perm[4] != 4))
+                continue;
+
+            if (perm.size() == 3 && (perm[0] != 1 || perm[1] != 0 || perm[2] != 2))
                 continue;
 
             std::vector<int> shape3;
@@ -391,10 +396,14 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
             }
 
             // 1, -1, height, width
-            if (shape3.size() != 4)
+            // reverse style = group, -1, channels_per_group, height, width
+            if (shape3.size() != 4 && shape3.size() != 5)
                 continue;
 
-            if (shape3[0] != 1 || (shape3[1] != -1 && shape3[1] != shape[1] * shape[2]))
+            if (shape3.size() == 4 && (shape3[0] != 1 || (shape3[1] != -1 && shape3[1] != shape[1] * shape[2])))
+                continue;
+
+            if (shape3.size() == 5 && (shape3[0] != shape[1] || shape3[2] != shape[0] || shape3[3] * shape3[4] != shape[2]))
                 continue;
 
             // reduce
@@ -412,6 +421,10 @@ static void fuse_shufflechannel(onnx::GraphProto* mutable_graph, std::map<std::s
             onnx::AttributeProto* attr_group = node3->add_attribute();
             attr_group->set_name("group");
             attr_group->set_i(shape[1]);
+
+            onnx::AttributeProto* attr_reverse = node3->add_attribute();
+            attr_reverse->set_name("reverse");
+            attr_reverse->set_i(shape.size() == 3);
 
             reduced_node_count += 2;
             i += 2;
@@ -2980,7 +2993,9 @@ int main(int argc, char** argv)
         else if (op == "ShuffleChannel")
         {
             int group = get_node_attr_i(node, "group", 1);
+            int reverse = get_node_attr_i(node, "reverse", 0);
             fprintf(pp, " 0=%d", group);
+            fprintf(pp, " 1=%d", reverse);
         }
         else if (op == "Sigmoid")
         {
