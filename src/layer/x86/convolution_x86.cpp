@@ -186,12 +186,14 @@ int Convolution_x86::create_pipeline(const Option& opt)
     // pack8
     if (elempack == 8 && out_elempack == 8)
     {
+#if __AVX__
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv3x3s1_winograd64_transform_kernel_pack8_avx(weight_data, weight_data_pack8, num_input, num_output);
         }
         else
         {
+#endif
             // src = kw-kh-inch-outch
             // dst = 8b-8a-kw-kh-inch/8a-outch/8b
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
@@ -371,7 +373,9 @@ int Convolution_x86::create_pipeline(const Option& opt)
                     }
                 }
             }
+#if __AVX__
         }
+#endif
     }
     // pack1to8
     if (elempack == 1 && out_elempack == 8)
