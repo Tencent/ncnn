@@ -136,7 +136,7 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             // assert out_elempack == 8
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < outh; i++)
             {
                 const float* ptr0 = (const float*)bottom_blob_flattened + outw * i * 8;
@@ -248,7 +248,7 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (out_elempack == 8)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < top_blob.c; q++)
                 {
                     const float* ptr0 = (const float*)bottom_blob_flattened + size * q * 8;
@@ -312,7 +312,7 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (out_elempack == 1)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < top_blob.c; q++)
                 {
                     const float* ptr = (const float*)bottom_blob_flattened + size * q;
