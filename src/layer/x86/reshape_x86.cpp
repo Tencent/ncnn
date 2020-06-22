@@ -19,8 +19,6 @@
 
 #include "layer_type.h"
 
-
-
 namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Reshape_x86)
@@ -138,10 +136,10 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             // assert out_elempack == 8
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < outh; i++)
             {
-                const float* ptr0 = (const float*)bottom_blob_flattened + outw * i *  8;
+                const float* ptr0 = (const float*)bottom_blob_flattened + outw * i * 8;
                 const float* ptr1 = (const float*)bottom_blob_flattened + outw * (i * 8 + 1);
                 const float* ptr2 = (const float*)bottom_blob_flattened + outw * (i * 8 + 2);
                 const float* ptr3 = (const float*)bottom_blob_flattened + outw * (i * 8 + 3);
@@ -163,16 +161,16 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     __m256 _row6 = _mm256_loadu_ps(ptr6);
                     __m256 _row7 = _mm256_loadu_ps(ptr7);
 
-                    transpose8_ps(_row0,_row1,_row2,_row3,_row4,_row5,_row6,_row7);
+                    transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
 
-                    _mm256_storeu_ps(outptr,_row0);
-                    _mm256_storeu_ps(outptr+8,_row1);
-                    _mm256_storeu_ps(outptr+16,_row2);
-                    _mm256_storeu_ps(outptr+24,_row3);
-                    _mm256_storeu_ps(outptr+32,_row4);
-                    _mm256_storeu_ps(outptr+40,_row5);
-                    _mm256_storeu_ps(outptr+48,_row6);
-                    _mm256_storeu_ps(outptr+56,_row7);
+                    _mm256_storeu_ps(outptr, _row0);
+                    _mm256_storeu_ps(outptr + 8, _row1);
+                    _mm256_storeu_ps(outptr + 16, _row2);
+                    _mm256_storeu_ps(outptr + 24, _row3);
+                    _mm256_storeu_ps(outptr + 32, _row4);
+                    _mm256_storeu_ps(outptr + 40, _row5);
+                    _mm256_storeu_ps(outptr + 48, _row6);
+                    _mm256_storeu_ps(outptr + 56, _row7);
 
                     ptr0 += 8;
                     ptr1 += 8;
@@ -250,7 +248,7 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (out_elempack == 8)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < top_blob.c; q++)
                 {
                     const float* ptr0 = (const float*)bottom_blob_flattened + size * q * 8;
@@ -274,15 +272,15 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         __m256 _row5 = _mm256_loadu_ps(ptr5);
                         __m256 _row6 = _mm256_loadu_ps(ptr6);
                         __m256 _row7 = _mm256_loadu_ps(ptr7);
-                        transpose8_ps(_row0,_row1,_row2,_row3,_row4,_row5,_row6,_row7);
-                        _mm256_storeu_ps(outptr,_row0);
-                        _mm256_storeu_ps(outptr+8,_row1);
-                        _mm256_storeu_ps(outptr+16,_row2);
-                        _mm256_storeu_ps(outptr+24,_row3);
-                        _mm256_storeu_ps(outptr+32,_row4);
-                        _mm256_storeu_ps(outptr+40,_row5);
-                        _mm256_storeu_ps(outptr+48,_row6);
-                        _mm256_storeu_ps(outptr+56,_row7);
+                        transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
+                        _mm256_storeu_ps(outptr, _row0);
+                        _mm256_storeu_ps(outptr + 8, _row1);
+                        _mm256_storeu_ps(outptr + 16, _row2);
+                        _mm256_storeu_ps(outptr + 24, _row3);
+                        _mm256_storeu_ps(outptr + 32, _row4);
+                        _mm256_storeu_ps(outptr + 40, _row5);
+                        _mm256_storeu_ps(outptr + 48, _row6);
+                        _mm256_storeu_ps(outptr + 56, _row7);
 
                         ptr0 += 8;
                         ptr1 += 8;
@@ -314,7 +312,7 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < top_blob.c; q++)
                 {
                     const float* ptr = (const float*)bottom_blob_flattened + size * q;
