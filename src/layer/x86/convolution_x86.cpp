@@ -17,6 +17,7 @@
 #include "avx_activation.h"
 #include "avx_usability.h"
 #endif
+
 #include "convolution_x86.h"
 
 #include "benchmark.h"
@@ -26,7 +27,6 @@ namespace ncnn {
 
 #include "convolution_sgemm.h"
 #include "convolution_sgemm_int8.h"
-
 #if __AVX__
 #include "convolution_3x3_pack1to8.h"
 #include "convolution_3x3_pack8to1.h"
@@ -177,10 +177,10 @@ int Convolution_x86::create_pipeline(const Option& opt)
 
     int elempack = (support_packing && opt.use_packing_layout && num_input % 8 == 0) ? 8 : 1;
     int out_elempack = (support_packing && opt.use_packing_layout && num_output % 8 == 0) ? 8 : 1;
+#if __AVX__
     // pack8
     if (elempack == 8 && out_elempack == 8)
     {
-#if __AVX__
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv3x3s1_winograd64_transform_kernel_pack8_avx(weight_data, weight_data_pack8, num_input, num_output);
@@ -367,7 +367,6 @@ int Convolution_x86::create_pipeline(const Option& opt)
                 }
             }
         }
-#endif
     }
     // pack1to8
     if (elempack == 1 && out_elempack == 8)
@@ -465,6 +464,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
             }
         }
     }
+#endif
 
     return 0;
 }

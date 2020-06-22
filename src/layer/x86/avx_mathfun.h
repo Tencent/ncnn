@@ -32,6 +32,7 @@
 #define AVX_MATHFUN
 
 #include <immintrin.h>
+#include <emmintrin.h>
 
 /* yes I know, the top of this file is quite ugly */
 #if defined(__GNUC__)
