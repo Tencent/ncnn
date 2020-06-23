@@ -298,10 +298,12 @@ int InnerProduct_x86::forward_fp16(const Mat &bottom_blob, Mat &top_blob,
 
     const unsigned short *weight_data_ptr = (const unsigned short *)weight_data_fp16;
     
-    int p = 0;
+    int nn_num_output = num_output >> 3;
+    int remain_num_output_start = nn_num_output << 3;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (; p+7 < num_output; p+=8) {
+    for (int pp = 0; pp < nn_num_output; pp++) {
+        int p = pp*8;
         float sums[8] = {0.0f};
         if (bias_term) {
             sums[0] = bias_data[p];
@@ -381,56 +383,10 @@ int InnerProduct_x86::forward_fp16(const Mat &bottom_blob, Mat &top_blob,
             _mm256_storeu_ps(&top_blob[p], _sums);
         }
     }
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (; p+3 < num_output; p+=4) {
-        __m256 _sum0 = _mm256_set1_ps(0.f);
-        __m256 _sum1 = _mm256_set1_ps(0.f);
-        __m256 _sum2 = _mm256_set1_ps(0.f);
-        __m256 _sum3 = _mm256_set1_ps(0.f);
-        const unsigned short *w0 = weight_data_ptr + size * channels * p;
-        const unsigned short *w1 = weight_data_ptr + size * channels * (p + 1);
-        const unsigned short *w2 = weight_data_ptr + size * channels * (p + 2);
-        const unsigned short *w3 = weight_data_ptr + size * channels * (p + 3);
-        // channels
-        for (int q = 0; q < channels; q++) {
-            const float *m = bottom_blob.channel(q);
-            int nn = size >> 3;
-            for (; nn > 0; nn--) {
-                __m256 _m = _mm256_loadu_ps(m);
-
-                __m256 _w0 = loadfp16(w0);
-                _sum0 = _mm256_fmadd_ps(_m, _w0, _sum0);
-
-                __m256 _w1 = loadfp16(w1);
-                _sum1 = _mm256_fmadd_ps(_m, _w1, _sum1);
-
-                __m256 _w2 = loadfp16(w2);
-                _sum2 = _mm256_fmadd_ps(_m, _w2, _sum2);
-
-                __m256 _w3 = loadfp16(w3);
-                _sum3 = _mm256_fmadd_ps(_m, _w3, _sum3);
-
-                m += 8;
-                w0 += 8;
-                w1 += 8;
-                w2 += 8;
-                w3 += 8;
-            }
-
-            __m256 _biases = _mm256_set1_ps(0.f);
-            if (bias_term) {
-                _biases = _mm256_loadu_ps(&bias_data[p]);
-            }
-            __m256 _sums = _mm256_castps128_ps256(HorizontalSums(_sum0, _sum1, _sum2, _sum3));
-            _sums = activation_ps(_mm256_add_ps(_biases, _sums), activation_type,
-                                  activation_params);
-            _mm_storeu_ps(&top_blob[p], _mm256_castps256_ps128(_sums));
-        }
-    }
 
 // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (; p < num_output; p++) {
+    for (int p = remain_num_output_start; p < num_output; p++) {
         float sum = 0.f;
 
         if (bias_term)
