@@ -11,126 +11,181 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-static void conv1x1s1_sgemm_transform_kernel_fp16_pack8_avx(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch)
+static void conv1x1s1_sgemm_transform_kernel_fp16_pack8_avx(const Mat& kernel, Mat& weight_data_pack8, int num_input, int num_output)
 {
-    // interleave
-    // src = inch-outch
-    // dst = 4b-4a-inch/4a-outch/4b
-    kernel_tm_pack8.create(1, inch / 4, (outch / 4) / 2 + (outch / 4) % 2, (size_t)2u * 64, 64);
+     // src = kw-kh-inch-outch
+    // dst = 8b-8a-kw-kh-inch/8a-outch/8b
+    Mat weight_data_r2 = kernel.reshape(1, num_input, num_output);
 
-    for (int q = 0; q + 7 < outch; q += 8)
+    weight_data_pack8.create(1, num_input / 8, num_output / 8, (size_t)2 * 64, 64);
+
+    for (int q = 0; q + 7 < num_output; q += 8)
     {
-        const float* k0 = (const float*)kernel + (q + 0) * inch;
-        const float* k1 = (const float*)kernel + (q + 1) * inch;
-        const float* k2 = (const float*)kernel + (q + 2) * inch;
-        const float* k3 = (const float*)kernel + (q + 3) * inch;
-        const float* k4 = (const float*)kernel + (q + 4) * inch;
-        const float* k5 = (const float*)kernel + (q + 5) * inch;
-        const float* k6 = (const float*)kernel + (q + 6) * inch;
-        const float* k7 = (const float*)kernel + (q + 7) * inch;
+        const Mat k0 = weight_data_r2.channel(q);
+        const Mat k1 = weight_data_r2.channel(q + 1);
+        const Mat k2 = weight_data_r2.channel(q + 2);
+        const Mat k3 = weight_data_r2.channel(q + 3);
+        const Mat k4 = weight_data_r2.channel(q + 4);
+        const Mat k5 = weight_data_r2.channel(q + 5);
+        const Mat k6 = weight_data_r2.channel(q + 6);
+        const Mat k7 = weight_data_r2.channel(q + 7);
 
-        unsigned short* g0 = kernel_tm_pack8.channel(q / 8);
+        Mat g0 = weight_data_pack8.channel(q / 8);
 
-        for (int p = 0; p + 7 < inch; p += 8)
+        for (int p = 0; p + 7 < num_input; p += 8)
         {
-            g0[0] = float32_to_float16(k0[0]);
-            g0[1] = float32_to_float16(k1[0]);
-            g0[2] = float32_to_float16(k2[0]);
-            g0[3] = float32_to_float16(k3[0]);
+            const float* k00 = k0.row(p);
+            const float* k01 = k0.row(p + 1);
+            const float* k02 = k0.row(p + 2);
+            const float* k03 = k0.row(p + 3);
+            const float* k04 = k0.row(p + 4);
+            const float* k05 = k0.row(p + 5);
+            const float* k06 = k0.row(p + 6);
+            const float* k07 = k0.row(p + 7);
 
-            g0[4] = float32_to_float16(k4[0]);
-            g0[5] = float32_to_float16(k5[0]);
-            g0[6] = float32_to_float16(k6[0]);
-            g0[7] = float32_to_float16(k7[0]);
+            const float* k10 = k1.row(p);
+            const float* k11 = k1.row(p + 1);
+            const float* k12 = k1.row(p + 2);
+            const float* k13 = k1.row(p + 3);
+            const float* k14 = k1.row(p + 4);
+            const float* k15 = k1.row(p + 5);
+            const float* k16 = k1.row(p + 6);
+            const float* k17 = k1.row(p + 7);
 
-            g0[8] = float32_to_float16(k0[1]);
-            g0[9] = float32_to_float16(k1[1]);
-            g0[10] = float32_to_float16(k2[1]);
-            g0[11] = float32_to_float16(k3[1]);
+            const float* k20 = k2.row(p);
+            const float* k21 = k2.row(p + 1);
+            const float* k22 = k2.row(p + 2);
+            const float* k23 = k2.row(p + 3);
+            const float* k24 = k2.row(p + 4);
+            const float* k25 = k2.row(p + 5);
+            const float* k26 = k2.row(p + 6);
+            const float* k27 = k2.row(p + 7);
 
-            g0[12] = float32_to_float16(k4[1]);
-            g0[13] = float32_to_float16(k5[1]);
-            g0[14] = float32_to_float16(k6[1]);
-            g0[15] = float32_to_float16(k7[1]);
+            const float* k30 = k3.row(p);
+            const float* k31 = k3.row(p + 1);
+            const float* k32 = k3.row(p + 2);
+            const float* k33 = k3.row(p + 3);
+            const float* k34 = k3.row(p + 4);
+            const float* k35 = k3.row(p + 5);
+            const float* k36 = k3.row(p + 6);
+            const float* k37 = k3.row(p + 7);
 
-            g0[16] = float32_to_float16(k0[2]);
-            g0[17] = float32_to_float16(k1[2]);
-            g0[18] = float32_to_float16(k2[2]);
-            g0[19] = float32_to_float16(k3[2]);
+            const float* k40 = k4.row(p);
+            const float* k41 = k4.row(p + 1);
+            const float* k42 = k4.row(p + 2);
+            const float* k43 = k4.row(p + 3);
+            const float* k44 = k4.row(p + 4);
+            const float* k45 = k4.row(p + 5);
+            const float* k46 = k4.row(p + 6);
+            const float* k47 = k4.row(p + 7);
 
-            g0[20] = float32_to_float16(k4[2]);
-            g0[21] = float32_to_float16(k5[2]);
-            g0[22] = float32_to_float16(k6[2]);
-            g0[23] = float32_to_float16(k7[2]);
+            const float* k50 = k5.row(p);
+            const float* k51 = k5.row(p + 1);
+            const float* k52 = k5.row(p + 2);
+            const float* k53 = k5.row(p + 3);
+            const float* k54 = k5.row(p + 4);
+            const float* k55 = k5.row(p + 5);
+            const float* k56 = k5.row(p + 6);
+            const float* k57 = k5.row(p + 7);
 
-            g0[24] = float32_to_float16(k0[3]);
-            g0[25] = float32_to_float16(k1[3]);
-            g0[26] = float32_to_float16(k2[3]);
-            g0[27] = float32_to_float16(k3[3]);
+            const float* k60 = k6.row(p);
+            const float* k61 = k6.row(p + 1);
+            const float* k62 = k6.row(p + 2);
+            const float* k63 = k6.row(p + 3);
+            const float* k64 = k6.row(p + 4);
+            const float* k65 = k6.row(p + 5);
+            const float* k66 = k6.row(p + 6);
+            const float* k67 = k6.row(p + 7);
 
-            g0[28] = float32_to_float16(k4[3]);
-            g0[29] = float32_to_float16(k5[3]);
-            g0[30] = float32_to_float16(k6[3]);
-            g0[31] = float32_to_float16(k7[3]);
+            const float* k70 = k7.row(p);
+            const float* k71 = k7.row(p + 1);
+            const float* k72 = k7.row(p + 2);
+            const float* k73 = k7.row(p + 3);
+            const float* k74 = k7.row(p + 4);
+            const float* k75 = k7.row(p + 5);
+            const float* k76 = k7.row(p + 6);
+            const float* k77 = k7.row(p + 7);
 
-            k0 += 4;
-            k1 += 4;
-            k2 += 4;
-            k3 += 4;
-            k4 += 4;
-            k5 += 4;
-            k6 += 4;
-            k7 += 4;
-            g0 += 32;
-            g0[0] = float32_to_float16(k0[0]);
-            g0[1] = float32_to_float16(k1[0]);
-            g0[2] = float32_to_float16(k2[0]);
-            g0[3] = float32_to_float16(k3[0]);
+            unsigned short* g00 =(unsigned short*) g0.row(p / 8);
+                g00[0] = float32_to_float16(k00[0]);
+                g00[1] = float32_to_float16(k10[0]);
+                g00[2] = float32_to_float16(k20[0]);
+                g00[3] = float32_to_float16(k30[0]);
+                g00[4] = float32_to_float16(k40[0]);
+                g00[5] = float32_to_float16(k50[0]);
+                g00[6] = float32_to_float16(k60[0]);
+                g00[7] = float32_to_float16(k70[0]);
+                g00 += 8;
+                g00[0] = float32_to_float16(k01[0]);
+                g00[1] = float32_to_float16(k11[0]);
+                g00[2] = float32_to_float16(k21[0]);
+                g00[3] = float32_to_float16(k31[0]);
+                g00[4] = float32_to_float16(k41[0]);
+                g00[5] = float32_to_float16(k51[0]);
+                g00[6] = float32_to_float16(k61[0]);
+                g00[7] = float32_to_float16(k71[0]);
 
-            g0[4] = float32_to_float16(k4[0]);
-            g0[5] = float32_to_float16(k5[0]);
-            g0[6] = float32_to_float16(k6[0]);
-            g0[7] = float32_to_float16(k7[0]);
+                g00 += 8;
+                g00[0] = float32_to_float16(k02[0]);
+                g00[1] = float32_to_float16(k12[0]);
+                g00[2] = float32_to_float16(k22[0]);
+                g00[3] = float32_to_float16(k32[0]);
+                g00[4] = float32_to_float16(k42[0]);
+                g00[5] = float32_to_float16(k52[0]);
+                g00[6] = float32_to_float16(k62[0]);
+                g00[7] = float32_to_float16(k72[0]);
 
-            g0[8] = float32_to_float16(k0[1]);
-            g0[9] = float32_to_float16(k1[1]);
-            g0[10] = float32_to_float16(k2[1]);
-            g0[11] = float32_to_float16(k3[1]);
+                g00 += 8;
+                g00[0] = float32_to_float16(k03[0]);
+                g00[1] = float32_to_float16(k13[0]);
+                g00[2] = float32_to_float16(k23[0]);
+                g00[3] = float32_to_float16(k33[0]);
+                g00[4] = float32_to_float16(k43[0]);
+                g00[5] = float32_to_float16(k53[0]);
+                g00[6] = float32_to_float16(k63[0]);
+                g00[7] = float32_to_float16(k73[0]);
 
-            g0[12] = float32_to_float16(k4[1]);
-            g0[13] = float32_to_float16(k5[1]);
-            g0[14] = float32_to_float16(k6[1]);
-            g0[15] = float32_to_float16(k7[1]);
+                g00 += 8;
+                g00[0] = float32_to_float16(k04[0]);
+                g00[1] = float32_to_float16(k14[0]);
+                g00[2] = float32_to_float16(k24[0]);
+                g00[3] = float32_to_float16(k34[0]);
+                g00[4] = float32_to_float16(k44[0]);
+                g00[5] = float32_to_float16(k54[0]);
+                g00[6] = float32_to_float16(k64[0]);
+                g00[7] = float32_to_float16(k74[0]);
 
-            g0[16] = float32_to_float16(k0[2]);
-            g0[17] = float32_to_float16(k1[2]);
-            g0[18] = float32_to_float16(k2[2]);
-            g0[19] = float32_to_float16(k3[2]);
+                g00 += 8;
+                g00[0] = float32_to_float16(k05[0]);
+                g00[1] = float32_to_float16(k15[0]);
+                g00[2] = float32_to_float16(k25[0]);
+                g00[3] = float32_to_float16(k35[0]);
+                g00[4] = float32_to_float16(k45[0]);
+                g00[5] = float32_to_float16(k55[0]);
+                g00[6] = float32_to_float16(k65[0]);
+                g00[7] = float32_to_float16(k75[0]);
 
-            g0[20] = float32_to_float16(k4[2]);
-            g0[21] = float32_to_float16(k5[2]);
-            g0[22] = float32_to_float16(k6[2]);
-            g0[23] = float32_to_float16(k7[2]);
+                g00 += 8;
+                g00[0] = float32_to_float16(k06[0]);
+                g00[1] = float32_to_float16(k16[0]);
+                g00[2] = float32_to_float16(k26[0]);
+                g00[3] = float32_to_float16(k36[0]);
+                g00[4] = float32_to_float16(k46[0]);
+                g00[5] = float32_to_float16(k56[0]);
+                g00[6] = float32_to_float16(k66[0]);
+                g00[7] = float32_to_float16(k76[0]);
 
-            g0[24] = float32_to_float16(k0[3]);
-            g0[25] = float32_to_float16(k1[3]);
-            g0[26] = float32_to_float16(k2[3]);
-            g0[27] = float32_to_float16(k3[3]);
+                g00 += 8;
+                g00[0] = float32_to_float16(k07[0]);
+                g00[1] = float32_to_float16(k17[0]);
+                g00[2] = float32_to_float16(k27[0]);
+                g00[3] = float32_to_float16(k37[0]);
+                g00[4] = float32_to_float16(k47[0]);
+                g00[5] = float32_to_float16(k57[0]);
+                g00[6] = float32_to_float16(k67[0]);
+                g00[7] = float32_to_float16(k77[0]);
 
-            g0[28] = float32_to_float16(k4[3]);
-            g0[29] = float32_to_float16(k5[3]);
-            g0[30] = float32_to_float16(k6[3]);
-            g0[31] = float32_to_float16(k7[3]);
-
-            k0 += 4;
-            k1 += 4;
-            k2 += 4;
-            k3 += 4;
-            k4 += 4;
-            k5 += 4;
-            k6 += 4;
-            k7 += 4;
-            g0 += 32;
+                g00 += 8;
         }
     }
 }

@@ -632,7 +632,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 2 && kernel_h == 2 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             if (opt.use_fp16_weight_storage) {
                 conv1x1s2_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);

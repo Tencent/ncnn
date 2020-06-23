@@ -53,12 +53,12 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
 
         flatten->create_pipeline(opt);
     }
-#endif // __AVX__
-
     if (opt.use_fp16_weight_storage)
     {
         ncnn::cast_float32_to_float16(weight_data, weight_data_fp16, opt);
     }
+#endif // __AVX__
+
 
     return 0;
 }
@@ -291,7 +291,6 @@ int InnerProduct_x86::forward_fp16(const Mat &bottom_blob, Mat &top_blob,
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     int size = w * h;
-    // fprintf(stderr, "FP16 input blob = %d x %d x %d elempack = %d size = %d num_output = %d \n", w,h,channels,elempack,size,num_output);
 
     top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
@@ -300,8 +299,23 @@ int InnerProduct_x86::forward_fp16(const Mat &bottom_blob, Mat &top_blob,
     const unsigned short *weight_data_ptr = (const unsigned short *)weight_data_fp16;
 
     int p = 0;
+    int nn_num_output = num_output >> 3;
+    int remain_num_output_start = nn_num_output << 3;
+    fprintf(stderr, "remain_num_output_start=%d num_output=%d \n", remain_num_output_start,num_output);
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (; p < num_output; p+=8) {
+    for (int pp = 0; pp < nn_num_output; pp++) {
+        int p = pp * 8;
+        float sums[8] = {0.0f};
+        if (bias_term) {
+            sums[0] = bias_data[p];
+            sums[1] = bias_data[p + 1];
+            sums[2] = bias_data[p + 2];
+            sums[3] = bias_data[p + 3];
+            sums[4] = bias_data[p + 4];
+            sums[5] = bias_data[p + 5];
+            sums[6] = bias_data[p + 6];
+            sums[7] = bias_data[p + 7];
+        }
         __m256 _sum0 = _mm256_set1_ps(0.f);
         __m256 _sum1 = _mm256_set1_ps(0.f);
         __m256 _sum2 = _mm256_set1_ps(0.f);
@@ -362,20 +376,20 @@ int InnerProduct_x86::forward_fp16(const Mat &bottom_blob, Mat &top_blob,
                 w6 += 8;
                 w7 += 8;
             }
-
-            __m256 _biases = _mm256_set1_ps(0.f);
-            if (bias_term) {
-                _biases = _mm256_loadu_ps(&bias_data[p]);
-            }
             __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5,
                                           _sum6, _sum7);
-            _sums = activation_ps(_mm256_add_ps(_biases, _sums), activation_type,
+            __m256 _sums_f = _mm256_loadu_ps(&sums[0]);
+            _sums = activation_ps(_mm256_add_ps(_sums_f, _sums), activation_type,
                                   activation_params);
             _mm256_storeu_ps(&top_blob[p], _sums);
         }
     }
+    int remain_num_output = num_output-remain_num_output_start;
+    nn_num_output = remain_num_output >> 2;
+    remain_num_output_start = nn_num_output << 2;
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (; p < num_output; p+=4) {
+    for (int pp = 0; pp < nn_num_output; pp++) {
+        int p = pp * 4;
         __m256 _sum0 = _mm256_set1_ps(0.f);
         __m256 _sum1 = _mm256_set1_ps(0.f);
         __m256 _sum2 = _mm256_set1_ps(0.f);
@@ -421,11 +435,11 @@ int InnerProduct_x86::forward_fp16(const Mat &bottom_blob, Mat &top_blob,
         }
     }
 
-
 // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (; p < num_output; p++) {
+    for (int p = remain_num_output_start; p < num_output; p++) {
         float sum = 0.f;
+
         if (bias_term)
             sum = bias_data[p];
 
