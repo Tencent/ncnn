@@ -465,7 +465,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
     }
     bottom_blob_bordered = Mat();
     // END transform input
-
+    
     // BEGIN dot
     Mat top_blob_tm;
     {
