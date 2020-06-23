@@ -31,9 +31,14 @@ public:
 
     virtual int forward(const Mat &bottom_blob, Mat &top_blob,
                         const Option &opt) const;
+protected:
+    int forward_fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     ncnn::Layer *flatten;
+
+    // fp16 weight data
+    Mat weight_data_fp16;
 };
 
 } // namespace ncnn

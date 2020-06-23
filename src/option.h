@@ -78,6 +78,9 @@ public:
     // enable vulkan compute
     bool use_vulkan_compute;
 
+    // Use fp16 weight storage on x86
+    bool use_fp16_weight_storage;
+
     // enable options for gpu inference
     bool use_fp16_packed;
     bool use_fp16_storage;
