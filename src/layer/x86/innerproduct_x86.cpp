@@ -297,14 +297,11 @@ int InnerProduct_x86::forward_fp16(const Mat &bottom_blob, Mat &top_blob,
         return -100;
 
     const unsigned short *weight_data_ptr = (const unsigned short *)weight_data_fp16;
-
+    
     int p = 0;
-    int nn_num_output = num_output >> 3;
-    int remain_num_output_start = nn_num_output << 3;
-    fprintf(stderr, "remain_num_output_start=%d num_output=%d \n", remain_num_output_start,num_output);
+
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_num_output; pp++) {
-        int p = pp * 8;
+    for (; p+7 < num_output; p+=8) {
         float sums[8] = {0.0f};
         if (bias_term) {
             sums[0] = bias_data[p];
@@ -384,12 +381,8 @@ int InnerProduct_x86::forward_fp16(const Mat &bottom_blob, Mat &top_blob,
             _mm256_storeu_ps(&top_blob[p], _sums);
         }
     }
-    int remain_num_output = num_output-remain_num_output_start;
-    nn_num_output = remain_num_output >> 2;
-    remain_num_output_start = nn_num_output << 2;
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_num_output; pp++) {
-        int p = pp * 4;
+    for (; p+3 < num_output; p+=4) {
         __m256 _sum0 = _mm256_set1_ps(0.f);
         __m256 _sum1 = _mm256_set1_ps(0.f);
         __m256 _sum2 = _mm256_set1_ps(0.f);
@@ -437,7 +430,7 @@ int InnerProduct_x86::forward_fp16(const Mat &bottom_blob, Mat &top_blob,
 
 // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = remain_num_output_start; p < num_output; p++) {
+    for (; p < num_output; p++) {
         float sum = 0.f;
 
         if (bias_term)
