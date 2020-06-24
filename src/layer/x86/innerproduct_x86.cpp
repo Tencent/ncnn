@@ -131,7 +131,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
     int nn_num_output = num_output >> 3;
     int remain_num_output_start = nn_num_output << 3;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = pp * 8;
@@ -243,7 +243,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
     }
 
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++)
     {
         float sum = 0.f;
@@ -310,7 +310,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
     int nn_num_output = num_output >> 3;
     int remain_num_output_start = nn_num_output << 3;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = pp * 8;
@@ -397,7 +397,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
     }
 
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++)
     {
         float sum = 0.f;
