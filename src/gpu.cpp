@@ -1596,8 +1596,10 @@ VkAllocator* VulkanDevice::acquire_blob_allocator() const
         }
     }
 
-    NCNN_LOGE("out of blob allocator");
-    return 0;
+    // pre-allocated allcator exhausted, create new
+    VkAllocator* allocator = new VkBlobAllocator(this);
+    blob_allocators.push_back(allocator);
+    return allocator;
 }
 
 void VulkanDevice::reclaim_blob_allocator(VkAllocator* allocator) const
@@ -1630,8 +1632,10 @@ VkAllocator* VulkanDevice::acquire_staging_allocator() const
         }
     }
 
-    NCNN_LOGE("out of staging allocator");
-    return 0;
+    // pre-allocated allcator exhausted, create new
+    VkAllocator* allocator = new VkStagingAllocator(this);
+    staging_allocators.push_back(allocator);
+    return allocator;
 }
 
 void VulkanDevice::reclaim_staging_allocator(VkAllocator* allocator) const
