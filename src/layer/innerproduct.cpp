@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "innerproduct.h"
-#include <algorithm>
+
 #include "layer_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -71,7 +73,7 @@ int InnerProduct::create_pipeline(const Option& opt)
 
         const int weight_data_size_output = weight_data_size / num_output;
 
-        for (int p=0; p<num_output; p++)
+        for (int p = 0; p < num_output; p++)
         {
             Option opt_q = opt;
             opt_q.blob_allocator = int8_weight_data.allocator;
@@ -106,7 +108,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
     // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<num_output; p++)
+    for (int p = 0; p < num_output; p++)
     {
         float sum = 0.f;
 
@@ -114,7 +116,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             sum = bias_data[p];
 
         // channels
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* w = (const float*)weight_data + size * channels * p + size * q;
             const float* m = bottom_blob.channel(q);
@@ -124,7 +126,6 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 sum += m[i] * w[i];
             }
         }
-
         if (activation_type == 1)
         {
             sum = std::max(sum, 0.f);
@@ -177,14 +178,14 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<num_output; p++)
+    for (int p = 0; p < num_output; p++)
     {
         float* outptr = top_blob;
 
         int sum = 0;
 
         // channels
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const signed char* w = (const signed char*)weight_data + size * channels * p + size * q;
             const signed char* m = bottom_blob_tm.channel(q);

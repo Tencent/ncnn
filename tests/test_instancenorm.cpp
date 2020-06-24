@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/instancenorm.h"
+#include "testutil.h"
 
 static int test_instancenorm(const ncnn::Mat& a, float eps)
 {
@@ -45,9 +44,8 @@ static int test_instancenorm(const ncnn::Mat& a, float eps)
 static int test_instancenorm_0()
 {
     return 0
-        || test_instancenorm(RandomMat(6, 4, 2), 0.01f)
-        || test_instancenorm(RandomMat(3, 3, 8), 0.002f)
-        ;
+           || test_instancenorm(RandomMat(6, 4, 2), 0.01f)
+           || test_instancenorm(RandomMat(3, 3, 8), 0.002f);
 }
 
 int main()
@@ -55,6 +53,5 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_instancenorm_0()
-        ;
+           || test_instancenorm_0();
 }

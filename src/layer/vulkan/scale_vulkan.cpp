@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "scale_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -243,8 +245,8 @@ int Scale_vulkan::forward_inplace(std::vector<VkMat>& bottom_top_blobs, VkComput
     constants[4].i = bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_scale_pack8
-                             : elempack == 4 ? pipeline_scale_pack4
-                             : pipeline_scale;
+                               : elempack == 4 ? pipeline_scale_pack4
+                               : pipeline_scale;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
@@ -278,11 +280,11 @@ int Scale_vulkan::forward_inplace(std::vector<VkImageMat>& bottom_top_blobs, VkC
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;
     constants[3].i = bottom_top_blob.c;
-    constants[4].i = 0;//bottom_top_blob.cstep;
+    constants[4].i = 0; //bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_scale_pack8
-                             : elempack == 4 ? pipeline_scale_pack4
-                             : pipeline_scale;
+                               : elempack == 4 ? pipeline_scale_pack4
+                               : pipeline_scale;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

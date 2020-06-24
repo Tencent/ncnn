@@ -19,8 +19,9 @@
 
 #if NCNN_VULKAN
 
-#include <vulkan/vulkan.h>
 #include "mat.h"
+
+#include <vulkan/vulkan.h>
 
 namespace ncnn {
 
@@ -142,27 +143,105 @@ protected:
 
         union
         {
-        struct { VkBuffer src; VkBuffer dst; uint32_t region_count; const VkBufferCopy* regions; } copy_buffer;
-        struct { VkImage src; VkImageLayout src_layout; VkImage dst; VkImageLayout dst_layout; uint32_t region_count; const VkImageCopy* regions; } copy_image;
-        struct { VkBuffer src; VkImage dst; VkImageLayout layout; uint32_t region_count; const VkBufferImageCopy* regions; } copy_buffer_to_image;
-        struct { VkImage src; VkImageLayout layout; VkBuffer dst; uint32_t region_count; const VkBufferImageCopy* regions; } copy_image_to_buffer;
+            struct
+            {
+                VkBuffer src;
+                VkBuffer dst;
+                uint32_t region_count;
+                const VkBufferCopy* regions;
+            } copy_buffer;
+            struct
+            {
+                VkImage src;
+                VkImageLayout src_layout;
+                VkImage dst;
+                VkImageLayout dst_layout;
+                uint32_t region_count;
+                const VkImageCopy* regions;
+            } copy_image;
+            struct
+            {
+                VkBuffer src;
+                VkImage dst;
+                VkImageLayout layout;
+                uint32_t region_count;
+                const VkBufferImageCopy* regions;
+            } copy_buffer_to_image;
+            struct
+            {
+                VkImage src;
+                VkImageLayout layout;
+                VkBuffer dst;
+                uint32_t region_count;
+                const VkBufferImageCopy* regions;
+            } copy_image_to_buffer;
 
-        struct { VkPipelineBindPoint bind_point; VkPipeline pipeline; } bind_pipeline;
-        struct { VkPipelineBindPoint bind_point; VkPipelineLayout pipeline_layout; uint32_t descriptorset_count; uint32_t descriptorset_offset; } bind_descriptorsets;
-        struct { VkPipelineLayout pipeline_layout; VkShaderStageFlags stage_flags; uint32_t size; const void* values; } push_constants;
+            struct
+            {
+                VkPipelineBindPoint bind_point;
+                VkPipeline pipeline;
+            } bind_pipeline;
+            struct
+            {
+                VkPipelineBindPoint bind_point;
+                VkPipelineLayout pipeline_layout;
+                uint32_t descriptorset_count;
+                uint32_t descriptorset_offset;
+            } bind_descriptorsets;
+            struct
+            {
+                VkPipelineLayout pipeline_layout;
+                VkShaderStageFlags stage_flags;
+                uint32_t size;
+                const void* values;
+            } push_constants;
 
-        struct { uint32_t group_count_x; uint32_t group_count_y; uint32_t group_count_z; } dispatch;
+            struct
+            {
+                uint32_t group_count_x;
+                uint32_t group_count_y;
+                uint32_t group_count_z;
+            } dispatch;
 
-        struct { VkPipelineStageFlags src_stage; VkPipelineStageFlags dst_stage; uint32_t barrier_count; const VkMemoryBarrier* barriers; } memory_barrers;
-        struct { VkPipelineStageFlags src_stage; VkPipelineStageFlags dst_stage; uint32_t barrier_count; const VkBufferMemoryBarrier* barriers; } buffer_barrers;
-        struct { VkPipelineStageFlags src_stage; VkPipelineStageFlags dst_stage; uint32_t barrier_count; const VkImageMemoryBarrier* barriers; } image_barrers;
+            struct
+            {
+                VkPipelineStageFlags src_stage;
+                VkPipelineStageFlags dst_stage;
+                uint32_t barrier_count;
+                const VkMemoryBarrier* barriers;
+            } memory_barrers;
+            struct
+            {
+                VkPipelineStageFlags src_stage;
+                VkPipelineStageFlags dst_stage;
+                uint32_t barrier_count;
+                const VkBufferMemoryBarrier* barriers;
+            } buffer_barrers;
+            struct
+            {
+                VkPipelineStageFlags src_stage;
+                VkPipelineStageFlags dst_stage;
+                uint32_t barrier_count;
+                const VkImageMemoryBarrier* barriers;
+            } image_barrers;
 
 #if NCNN_BENCHMARK
-        struct { uint32_t query; } write_timestamp;
+            struct
+            {
+                uint32_t query;
+            } write_timestamp;
 #endif // NCNN_BENCHMARK
 
-        struct { uint32_t download_post_buffer_mat_offset; uint32_t download_post_mat_fp16_offset; } post_download;
-        struct { uint32_t download_post_mat_fp16_offset; uint32_t download_post_mat_offset; } post_cast_float16_to_float32;
+            struct
+            {
+                uint32_t download_post_buffer_mat_offset;
+                uint32_t download_post_mat_fp16_offset;
+            } post_download;
+            struct
+            {
+                uint32_t download_post_mat_fp16_offset;
+                uint32_t download_post_mat_offset;
+            } post_cast_float16_to_float32;
         };
     };
 
@@ -181,7 +260,7 @@ public:
     ~VkTransfer();
 
 public:
-    void record_upload(const Mat& src, VkMat& dst, const Option& opt);
+    void record_upload(const Mat& src, VkMat& dst, const Option& opt, bool flatten = true);
 
     void record_upload(const Mat& src, VkImageMat& dst, const Option& opt);
 

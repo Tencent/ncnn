@@ -33,4 +33,3 @@ protected:
 } // namespace ncnn
 
 #endif // LAYER_FLATTEN_ARM_H
-

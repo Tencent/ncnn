@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "lrn.h"
+
 #include <math.h>
 
 namespace ncnn {
@@ -51,12 +52,12 @@ int LRN::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return -100;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         const float* ptr = bottom_top_blob.channel(q);
         float* outptr = square_blob.channel(q);
 
-        for (int i=0; i<size; i++)
+        for (int i = 0; i < size; i++)
         {
             outptr[i] = ptr[i] * ptr[i];
         }
@@ -73,24 +74,24 @@ int LRN::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         const float alpha_div_size = alpha / local_size;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             // square sum
             float* ssptr = square_sum.channel(q);
-            for (int p=q - local_size / 2; p<=q + local_size / 2; p++)
+            for (int p = q - local_size / 2; p <= q + local_size / 2; p++)
             {
                 if (p < 0 || p >= channels)
                     continue;
 
                 const float* sptr = square_blob.channel(p);
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     ssptr[i] += sptr[i];
                 }
             }
 
             float* ptr = bottom_top_blob.channel(q);
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 ptr[i] = static_cast<float>(ptr[i] * pow(bias + alpha_div_size * ssptr[i], -beta));
             }
@@ -139,7 +140,7 @@ int LRN::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
             const Mat m = square_blob_bordered.channel(q);
@@ -154,7 +155,7 @@ int LRN::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                     for (int k = 0; k < maxk; k++)
                     {
-                        float val = sptr[ space_ofs[k] ];
+                        float val = sptr[space_ofs[k]];
                         ss += val;
                     }
 

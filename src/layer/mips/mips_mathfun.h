@@ -28,11 +28,12 @@
 #ifndef LAYER_MIPS_MATHFUN_H
 #define LAYER_MIPS_MATHFUN_H
 
-#include <msa.h>
 #include "mips_common.h"
 
-_MIPS_FLOAT_CONST(c_1  , 1.0f);
-_MIPS_FLOAT_CONST(c_n1 , -1.0f);
+#include <msa.h>
+
+_MIPS_FLOAT_CONST(c_1, 1.0f);
+_MIPS_FLOAT_CONST(c_n1, -1.0f);
 _MIPS_FLOAT_CONST(c_0p5, 0.5f);
 
 _MIPS_FLOAT_CONST(c_exp_hi, 88.3762626647949f);
@@ -109,7 +110,6 @@ static inline v4f32 exp_ps(v4f32 x)
     y = __msa_fmul_w(y, (v4f32)mm);
     return y;
 }
-
 
 _MIPS_FLOAT_CONST(c_cephes_HALFMAXLOGF, 44.014845935754205f);
 _MIPS_FLOAT_CONST(c_cephes_tanh_C1, 0.625f);

@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "detectionoutput.h"
+
 #include <algorithm>
 #include <math.h>
 
@@ -64,7 +65,7 @@ static inline float intersection_area(const BBoxRect& a, const BBoxRect& b)
     return inter_width * inter_height;
 }
 
-template <typename T>
+template<typename T>
 static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& scores, int left, int right)
 {
     int i = left;
@@ -97,7 +98,7 @@ static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& sco
         qsort_descent_inplace(datas, scores, i, right);
 }
 
-template <typename T>
+template<typename T>
 static void qsort_descent_inplace(std::vector<T>& datas, std::vector<float>& scores)
 {
     if (datas.empty() || scores.empty())
@@ -135,7 +136,7 @@ static void nms_sorted_bboxes(const std::vector<BBoxRect>& bboxes, std::vector<s
             // intersection over union
             float inter_area = intersection_area(a, b);
             float union_area = areas[i] + areas[picked[j]] - inter_area;
-//             float IoU = inter_area / union_area
+            //             float IoU = inter_area / union_area
             if (inter_area / union_area > nms_threshold)
                 keep = 0;
         }
@@ -195,8 +196,8 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     }
 
     // sort and nms for each class
-    std::vector< std::vector<BBoxRect> > all_class_bbox_rects;
-    std::vector< std::vector<float> > all_class_bbox_scores;
+    std::vector<std::vector<BBoxRect> > all_class_bbox_rects;
+    std::vector<std::vector<float> > all_class_bbox_scores;
     all_class_bbox_rects.resize(num_class_copy);
     all_class_bbox_scores.resize(num_class_copy);
 
@@ -218,7 +219,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
             if (score > confidence_threshold)
             {
                 const float* bbox = bboxes.row(j);
-                BBoxRect c = { bbox[0], bbox[1], bbox[2], bbox[3], i };
+                BBoxRect c = {bbox[0], bbox[1], bbox[2], bbox[3], i};
                 class_bbox_rects.push_back(c);
                 class_bbox_scores.push_back(score);
             }

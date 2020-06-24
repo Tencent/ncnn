@@ -14,9 +14,10 @@
 
 #include "allocator.h"
 
-#include <algorithm>
 #include "gpu.h"
 #include "pipeline.h"
+
+#include <algorithm>
 
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
@@ -24,14 +25,13 @@
 
 namespace ncnn {
 
-Allocator::~Allocator() 
+Allocator::~Allocator()
 {
-
 }
 
 PoolAllocator::PoolAllocator()
 {
-    size_compare_ratio = 192;// 0.75f * 256
+    size_compare_ratio = 192; // 0.75f * 256
 }
 
 PoolAllocator::~PoolAllocator()
@@ -41,7 +41,7 @@ PoolAllocator::~PoolAllocator()
     if (!payouts.empty())
     {
         NCNN_LOGE("FATAL ERROR! pool allocator destroyed too early");
-        std::list< std::pair<size_t, void*> >::iterator it = payouts.begin();
+        std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
         for (; it != payouts.end(); it++)
         {
             void* ptr = it->second;
@@ -54,7 +54,7 @@ void PoolAllocator::clear()
 {
     budgets_lock.lock();
 
-    std::list< std::pair<size_t, void*> >::iterator it = budgets.begin();
+    std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
     for (; it != budgets.end(); it++)
     {
         void* ptr = it->second;
@@ -81,7 +81,7 @@ void* PoolAllocator::fastMalloc(size_t size)
     budgets_lock.lock();
 
     // find free budget
-    std::list< std::pair<size_t, void*> >::iterator it = budgets.begin();
+    std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
     for (; it != budgets.end(); it++)
     {
         size_t bs = it->first;
@@ -124,7 +124,7 @@ void PoolAllocator::fastFree(void* ptr)
     payouts_lock.lock();
 
     // return to budgets
-    std::list< std::pair<size_t, void*> >::iterator it = payouts.begin();
+    std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
     for (; it != payouts.end(); it++)
     {
         if (it->second == ptr)
@@ -153,7 +153,7 @@ void PoolAllocator::fastFree(void* ptr)
 
 UnlockedPoolAllocator::UnlockedPoolAllocator()
 {
-    size_compare_ratio = 192;// 0.75f * 256
+    size_compare_ratio = 192; // 0.75f * 256
 }
 
 UnlockedPoolAllocator::~UnlockedPoolAllocator()
@@ -163,7 +163,7 @@ UnlockedPoolAllocator::~UnlockedPoolAllocator()
     if (!payouts.empty())
     {
         NCNN_LOGE("FATAL ERROR! unlocked pool allocator destroyed too early");
-        std::list< std::pair<size_t, void*> >::iterator it = payouts.begin();
+        std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
         for (; it != payouts.end(); it++)
         {
             void* ptr = it->second;
@@ -174,7 +174,7 @@ UnlockedPoolAllocator::~UnlockedPoolAllocator()
 
 void UnlockedPoolAllocator::clear()
 {
-    std::list< std::pair<size_t, void*> >::iterator it = budgets.begin();
+    std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
     for (; it != budgets.end(); it++)
     {
         void* ptr = it->second;
@@ -197,7 +197,7 @@ void UnlockedPoolAllocator::set_size_compare_ratio(float scr)
 void* UnlockedPoolAllocator::fastMalloc(size_t size)
 {
     // find free budget
-    std::list< std::pair<size_t, void*> >::iterator it = budgets.begin();
+    std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
     for (; it != budgets.end(); it++)
     {
         size_t bs = it->first;
@@ -226,7 +226,7 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
 void UnlockedPoolAllocator::fastFree(void* ptr)
 {
     // return to budgets
-    std::list< std::pair<size_t, void*> >::iterator it = payouts.begin();
+    std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
     for (; it != payouts.end(); it++)
     {
         if (it->second == ptr)
@@ -246,7 +246,8 @@ void UnlockedPoolAllocator::fastFree(void* ptr)
 }
 
 #if NCNN_VULKAN
-VkAllocator::VkAllocator(const VulkanDevice* _vkdev) : vkdev(_vkdev)
+VkAllocator::VkAllocator(const VulkanDevice* _vkdev)
+    : vkdev(_vkdev)
 {
     buffer_memory_type_index = (uint32_t)-1;
     image_memory_type_index = (uint32_t)-1;
@@ -455,7 +456,8 @@ static inline size_t least_common_multiple(size_t a, size_t b)
     return lcm;
 }
 
-VkBlobAllocator::VkBlobAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
+VkBlobAllocator::VkBlobAllocator(const VulkanDevice* _vkdev)
+    : VkAllocator(_vkdev)
 {
     buffer_offset_alignment = vkdev->info.buffer_offset_alignment;
     bind_memory_offset_alignment = vkdev->info.buffer_image_granularity;
@@ -470,7 +472,7 @@ VkBlobAllocator::VkBlobAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkde
         buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, vkdev->info.non_coherent_atom_size);
     }
 
-    block_size = alignSize(16 * 1024 * 1024, buffer_offset_alignment);// 16M
+    block_size = alignSize(16 * 1024 * 1024, buffer_offset_alignment); // 16M
 }
 
 VkBlobAllocator::~VkBlobAllocator()
@@ -480,18 +482,18 @@ VkBlobAllocator::~VkBlobAllocator()
 
 void VkBlobAllocator::clear()
 {
-//     NCNN_LOGE("VkBlobAllocator %lu", buffer_blocks.size());
+    //     NCNN_LOGE("VkBlobAllocator %lu", buffer_blocks.size());
 
-    for (size_t i=0; i<buffer_blocks.size(); i++)
+    for (size_t i = 0; i < buffer_blocks.size(); i++)
     {
         VkBufferMemory* ptr = buffer_blocks[i];
 
-//         std::list< std::pair<size_t, size_t> >::iterator it = buffer_budgets[i].begin();
-//         while (it != buffer_budgets[i].end())
-//         {
-//             NCNN_LOGE("VkBlobAllocator budget %p %lu %lu", ptr->buffer, it->first, it->second);
-//             it++;
-//         }
+        //         std::list< std::pair<size_t, size_t> >::iterator it = buffer_budgets[i].begin();
+        //         while (it != buffer_budgets[i].end())
+        //         {
+        //             NCNN_LOGE("VkBlobAllocator budget %p %lu %lu", ptr->buffer, it->first, it->second);
+        //             it++;
+        //         }
 
         if (mappable)
             vkUnmapMemory(vkdev->vkdevice(), ptr->memory);
@@ -505,16 +507,16 @@ void VkBlobAllocator::clear()
 
     buffer_budgets.clear();
 
-    for (size_t i=0; i<image_memory_blocks.size(); i++)
+    for (size_t i = 0; i < image_memory_blocks.size(); i++)
     {
         VkDeviceMemory memory = image_memory_blocks[i];
 
-//         std::list< std::pair<size_t, size_t> >::iterator it = image_memory_budgets[i].begin();
-//         while (it != image_memory_budgets[i].end())
-//         {
-//             NCNN_LOGE("VkBlobAllocator budget %p %lu %lu", memory, it->first, it->second);
-//             it++;
-//         }
+        //         std::list< std::pair<size_t, size_t> >::iterator it = image_memory_budgets[i].begin();
+        //         while (it != image_memory_budgets[i].end())
+        //         {
+        //             NCNN_LOGE("VkBlobAllocator budget %p %lu %lu", memory, it->first, it->second);
+        //             it++;
+        //         }
 
         vkFreeMemory(vkdev->vkdevice(), memory, 0);
     }
@@ -530,9 +532,9 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     const int buffer_block_count = buffer_blocks.size();
 
     // find first spare space in buffer_blocks
-    for (int i=0; i<buffer_block_count; i++)
+    for (int i = 0; i < buffer_block_count; i++)
     {
-        std::list< std::pair<size_t, size_t> >::iterator it = buffer_budgets[i].begin();
+        std::list<std::pair<size_t, size_t> >::iterator it = buffer_budgets[i].begin();
         while (it != buffer_budgets[i].end())
         {
             size_t budget_size = it->second;
@@ -564,7 +566,7 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
                 it->second -= aligned_size;
             }
 
-//             NCNN_LOGE("VkBlobAllocator M %p +%lu %lu", ptr->buffer, ptr->offset, ptr->capacity);
+            //             NCNN_LOGE("VkBlobAllocator M %p +%lu %lu", ptr->buffer, ptr->offset, ptr->capacity);
 
             return ptr;
         }
@@ -626,26 +628,26 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
     // adjust buffer_budgets
-    std::list< std::pair<size_t, size_t> > budget;
+    std::list<std::pair<size_t, size_t> > budget;
     if (new_block_size > aligned_size)
     {
         budget.push_back(std::make_pair(aligned_size, new_block_size - aligned_size));
     }
     buffer_budgets.push_back(budget);
 
-//     NCNN_LOGE("VkBlobAllocator M %p +%lu %lu", ptr->buffer, ptr->offset, ptr->capacity);
+    //     NCNN_LOGE("VkBlobAllocator M %p +%lu %lu", ptr->buffer, ptr->offset, ptr->capacity);
 
     return ptr;
 }
 
 void VkBlobAllocator::fastFree(VkBufferMemory* ptr)
 {
-//     NCNN_LOGE("VkBlobAllocator F %p +%lu %lu", ptr->buffer, ptr->offset, ptr->capacity);
+    //     NCNN_LOGE("VkBlobAllocator F %p +%lu %lu", ptr->buffer, ptr->offset, ptr->capacity);
 
     const int buffer_block_count = buffer_blocks.size();
 
     int block_index = -1;
-    for (int i=0; i<buffer_block_count; i++)
+    for (int i = 0; i < buffer_block_count; i++)
     {
         if (buffer_blocks[i]->buffer == ptr->buffer && buffer_blocks[i]->memory == ptr->memory)
         {
@@ -664,10 +666,10 @@ void VkBlobAllocator::fastFree(VkBufferMemory* ptr)
     }
 
     // merge
-    std::list< std::pair<size_t, size_t> >::iterator it_merge_left = buffer_budgets[block_index].end();
-    std::list< std::pair<size_t, size_t> >::iterator it_merge_right = buffer_budgets[block_index].end();
-    std::list< std::pair<size_t, size_t> >::iterator it = buffer_budgets[block_index].begin();
-    for ( ; it != buffer_budgets[block_index].end(); it++)
+    std::list<std::pair<size_t, size_t> >::iterator it_merge_left = buffer_budgets[block_index].end();
+    std::list<std::pair<size_t, size_t> >::iterator it_merge_right = buffer_budgets[block_index].end();
+    std::list<std::pair<size_t, size_t> >::iterator it = buffer_budgets[block_index].begin();
+    for (; it != buffer_budgets[block_index].end(); it++)
     {
         if (it->first + it->second == ptr->offset)
         {
@@ -802,9 +804,9 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int w, int h, int c, size_t
     const int image_memory_block_count = image_memory_blocks.size();
 
     // find first spare space in image_memory_blocks
-    for (int i=0; i<image_memory_block_count; i++)
+    for (int i = 0; i < image_memory_block_count; i++)
     {
-        std::list< std::pair<size_t, size_t> >::iterator it = image_memory_budgets[i].begin();
+        std::list<std::pair<size_t, size_t> >::iterator it = image_memory_budgets[i].begin();
         while (it != image_memory_budgets[i].end())
         {
             // we cannot use it->first directly for base offset alignment
@@ -856,7 +858,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int w, int h, int c, size_t
                 it->second -= aligned_size;
             }
 
-//             NCNN_LOGE("VkBlobAllocator M %p +%lu %lu", ptr->memory, ptr->bind_offset, ptr->bind_capacity);
+            //             NCNN_LOGE("VkBlobAllocator M %p +%lu %lu", ptr->memory, ptr->bind_offset, ptr->bind_capacity);
 
             return ptr;
         }
@@ -904,26 +906,26 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int w, int h, int c, size_t
     // adjust image_memory_budgets
     image_memory_blocks.push_back(ptr->memory);
 
-    std::list< std::pair<size_t, size_t> > budget;
+    std::list<std::pair<size_t, size_t> > budget;
     if (new_block_size > aligned_size)
     {
         budget.push_back(std::make_pair(aligned_size, new_block_size - aligned_size));
     }
     image_memory_budgets.push_back(budget);
 
-//     NCNN_LOGE("VkBlobAllocator M %p +%lu %lu", ptr->memory, ptr->bind_offset, ptr->bind_capacity);
+    //     NCNN_LOGE("VkBlobAllocator M %p +%lu %lu", ptr->memory, ptr->bind_offset, ptr->bind_capacity);
 
     return ptr;
 }
 
 void VkBlobAllocator::fastFree(VkImageMemory* ptr)
 {
-//     NCNN_LOGE("VkBlobAllocator F %p +%lu %lu", ptr->memory, ptr->bind_offset, ptr->bind_capacity);
+    //     NCNN_LOGE("VkBlobAllocator F %p +%lu %lu", ptr->memory, ptr->bind_offset, ptr->bind_capacity);
 
     const int image_memory_block_count = image_memory_blocks.size();
 
     int block_index = -1;
-    for (int i=0; i<image_memory_block_count; i++)
+    for (int i = 0; i < image_memory_block_count; i++)
     {
         if (image_memory_blocks[i] == ptr->memory)
         {
@@ -948,10 +950,10 @@ void VkBlobAllocator::fastFree(VkImageMemory* ptr)
     }
 
     // merge
-    std::list< std::pair<size_t, size_t> >::iterator it_merge_left = image_memory_budgets[block_index].end();
-    std::list< std::pair<size_t, size_t> >::iterator it_merge_right = image_memory_budgets[block_index].end();
-    std::list< std::pair<size_t, size_t> >::iterator it = image_memory_budgets[block_index].begin();
-    for ( ; it != image_memory_budgets[block_index].end(); it++)
+    std::list<std::pair<size_t, size_t> >::iterator it_merge_left = image_memory_budgets[block_index].end();
+    std::list<std::pair<size_t, size_t> >::iterator it_merge_right = image_memory_budgets[block_index].end();
+    std::list<std::pair<size_t, size_t> >::iterator it = image_memory_budgets[block_index].begin();
+    for (; it != image_memory_budgets[block_index].end(); it++)
     {
         if (it->first + it->second == ptr->bind_offset)
         {
@@ -999,7 +1001,8 @@ void VkBlobAllocator::fastFree(VkImageMemory* ptr)
     }
 }
 
-VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
+VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev)
+    : VkAllocator(_vkdev)
 {
     buffer_offset_alignment = vkdev->info.buffer_offset_alignment;
     bind_memory_offset_alignment = vkdev->info.buffer_image_granularity;
@@ -1014,7 +1017,7 @@ VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev) : VkAllocator(_
         buffer_offset_alignment = least_common_multiple(buffer_offset_alignment, vkdev->info.non_coherent_atom_size);
     }
 
-    block_size = alignSize(8 * 1024 * 1024, buffer_offset_alignment);// 8M
+    block_size = alignSize(8 * 1024 * 1024, buffer_offset_alignment); // 8M
 }
 
 VkWeightAllocator::~VkWeightAllocator()
@@ -1024,11 +1027,11 @@ VkWeightAllocator::~VkWeightAllocator()
 
 void VkWeightAllocator::clear()
 {
-//     NCNN_LOGE("VkWeightAllocator %lu %lu", buffer_blocks.size(), dedicated_buffer_blocks.size());
+    //     NCNN_LOGE("VkWeightAllocator %lu %lu", buffer_blocks.size(), dedicated_buffer_blocks.size());
 
     buffer_block_free_spaces.clear();
 
-    for (size_t i=0; i<buffer_blocks.size(); i++)
+    for (size_t i = 0; i < buffer_blocks.size(); i++)
     {
         VkBufferMemory* ptr = buffer_blocks[i];
 
@@ -1042,7 +1045,7 @@ void VkWeightAllocator::clear()
     }
     buffer_blocks.clear();
 
-    for (size_t i=0; i<dedicated_buffer_blocks.size(); i++)
+    for (size_t i = 0; i < dedicated_buffer_blocks.size(); i++)
     {
         VkBufferMemory* ptr = dedicated_buffer_blocks[i];
 
@@ -1058,7 +1061,7 @@ void VkWeightAllocator::clear()
 
     image_memory_block_free_spaces.clear();
 
-    for (size_t i=0; i<image_memory_blocks.size(); i++)
+    for (size_t i = 0; i < image_memory_blocks.size(); i++)
     {
         VkDeviceMemory memory = image_memory_blocks[i];
 
@@ -1066,7 +1069,7 @@ void VkWeightAllocator::clear()
     }
     image_memory_blocks.clear();
 
-    for (size_t i=0; i<dedicated_image_memory_blocks.size(); i++)
+    for (size_t i = 0; i < dedicated_image_memory_blocks.size(); i++)
     {
         VkDeviceMemory memory = dedicated_image_memory_blocks[i];
 
@@ -1077,14 +1080,14 @@ void VkWeightAllocator::clear()
 
 VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
 {
-//     NCNN_LOGE("VkWeightAllocator fastMalloc %lu", size);
+    //     NCNN_LOGE("VkWeightAllocator fastMalloc %lu", size);
 
     size_t aligned_size = alignSize(size, buffer_offset_alignment);
 
     const int buffer_block_count = buffer_blocks.size();
 
     // find first spare space in buffer_blocks
-    for (int i=0; i<buffer_block_count; i++)
+    for (int i = 0; i < buffer_block_count; i++)
     {
         size_t free_size = buffer_block_free_spaces[i];
         if (free_size >= aligned_size)
@@ -1210,7 +1213,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     // ignore memoryRequirements.alignment as we always bind at zero offset
     vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
 
-//     NCNN_LOGE("VkWeightAllocator M %p", block->buffer);
+    //     NCNN_LOGE("VkWeightAllocator M %p", block->buffer);
 
     block->mapped_ptr = 0;
     if (mappable)
@@ -1238,7 +1241,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
 
 void VkWeightAllocator::fastFree(VkBufferMemory* ptr)
 {
-//     NCNN_LOGE("VkWeightAllocator F %p", ptr->buffer);
+    //     NCNN_LOGE("VkWeightAllocator F %p", ptr->buffer);
 
     delete ptr;
 }
@@ -1408,7 +1411,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int w, int h, int c, size
     const int image_memory_block_count = image_memory_blocks.size();
 
     // find first spare space in buffer_blocks
-    for (int i=0; i<image_memory_block_count; i++)
+    for (int i = 0; i < image_memory_block_count; i++)
     {
         // we cannot use image_memory_block_free_spaces[i] directly for base offset alignment
         size_t bind_base_offset = block_size - image_memory_block_free_spaces[i];
@@ -1496,7 +1499,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int w, int h, int c, size
 
 void VkWeightAllocator::fastFree(VkImageMemory* ptr)
 {
-//     NCNN_LOGE("VkWeightAllocator F %p", ptr->memory);
+    //     NCNN_LOGE("VkWeightAllocator F %p", ptr->memory);
 
     if (!ptr->command_refcount)
     {
@@ -1507,12 +1510,13 @@ void VkWeightAllocator::fastFree(VkImageMemory* ptr)
     }
 }
 
-VkStagingAllocator::VkStagingAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
+VkStagingAllocator::VkStagingAllocator(const VulkanDevice* _vkdev)
+    : VkAllocator(_vkdev)
 {
     mappable = true;
     coherent = true;
 
-    size_compare_ratio = 192;// 0.75f * 256
+    size_compare_ratio = 192; // 0.75f * 256
 }
 
 VkStagingAllocator::~VkStagingAllocator()
@@ -1533,13 +1537,13 @@ void VkStagingAllocator::set_size_compare_ratio(float scr)
 
 void VkStagingAllocator::clear()
 {
-//     NCNN_LOGE("VkStagingAllocator %lu", buffer_budgets.size());
+    //     NCNN_LOGE("VkStagingAllocator %lu", buffer_budgets.size());
 
     for (std::list<VkBufferMemory*>::iterator it = buffer_budgets.begin(); it != buffer_budgets.end(); it++)
     {
         VkBufferMemory* ptr = *it;
 
-//         NCNN_LOGE("VkStagingAllocator F %p", ptr->buffer);
+        //         NCNN_LOGE("VkStagingAllocator F %p", ptr->buffer);
 
         vkUnmapMemory(vkdev->vkdevice(), ptr->memory);
         vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
@@ -1565,7 +1569,7 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
         {
             buffer_budgets.erase(it);
 
-//             NCNN_LOGE("VkStagingAllocator M %p %lu reused %lu", ptr->buffer, size, capacity);
+            //             NCNN_LOGE("VkStagingAllocator M %p %lu reused %lu", ptr->buffer, size, capacity);
 
             return ptr;
         }
@@ -1597,14 +1601,14 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
-//     NCNN_LOGE("VkStagingAllocator M %p %lu", ptr->buffer, size);
+    //     NCNN_LOGE("VkStagingAllocator M %p %lu", ptr->buffer, size);
 
     return ptr;
 }
 
 void VkStagingAllocator::fastFree(VkBufferMemory* ptr)
 {
-//     NCNN_LOGE("VkStagingAllocator F %p", ptr->buffer);
+    //     NCNN_LOGE("VkStagingAllocator F %p", ptr->buffer);
 
     // return to buffer_budgets
     buffer_budgets.push_back(ptr);
@@ -1657,21 +1661,22 @@ VkImageMemory* VkStagingAllocator::fastMalloc(int dims, int w, int h, int c, siz
     ptr->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
     ptr->command_refcount = 0;
 
-//     NCNN_LOGE("VkStagingAllocator M %p %d %d %d %d %d", ptr->image, dims, width, height, depth, format);
+    //     NCNN_LOGE("VkStagingAllocator M %p %d %d %d %d %d", ptr->image, dims, width, height, depth, format);
 
     return ptr;
 }
 
 void VkStagingAllocator::fastFree(VkImageMemory* ptr)
 {
-//     NCNN_LOGE("VkStagingAllocator F %p", ptr->image);
+    //     NCNN_LOGE("VkStagingAllocator F %p", ptr->image);
 
     free(ptr->mapped_ptr);
 
     delete ptr;
 }
 
-VkWeightStagingAllocator::VkWeightStagingAllocator(const VulkanDevice* _vkdev) : VkAllocator(_vkdev)
+VkWeightStagingAllocator::VkWeightStagingAllocator(const VulkanDevice* _vkdev)
+    : VkAllocator(_vkdev)
 {
     mappable = true;
     coherent = true;
@@ -1709,14 +1714,14 @@ VkBufferMemory* VkWeightStagingAllocator::fastMalloc(size_t size)
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
-//     NCNN_LOGE("VkWeightStagingAllocator M %p %lu", ptr->buffer, size);
+    //     NCNN_LOGE("VkWeightStagingAllocator M %p %lu", ptr->buffer, size);
 
     return ptr;
 }
 
 void VkWeightStagingAllocator::fastFree(VkBufferMemory* ptr)
 {
-//     NCNN_LOGE("VkWeightStagingAllocator F %p", ptr->buffer);
+    //     NCNN_LOGE("VkWeightStagingAllocator F %p", ptr->buffer);
 
     vkUnmapMemory(vkdev->vkdevice(), ptr->memory);
     vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
@@ -1726,7 +1731,8 @@ void VkWeightStagingAllocator::fastFree(VkBufferMemory* ptr)
 }
 
 #if __ANDROID_API__ >= 26
-VkAndroidHardwareBufferImageAllocator::VkAndroidHardwareBufferImageAllocator(const VulkanDevice* _vkdev, AHardwareBuffer* _hb) : VkAllocator(_vkdev), hb(_hb)
+VkAndroidHardwareBufferImageAllocator::VkAndroidHardwareBufferImageAllocator(const VulkanDevice* _vkdev, AHardwareBuffer* _hb)
+    : VkAllocator(_vkdev), hb(_hb)
 {
     samplerYcbcrConversion = 0;
 

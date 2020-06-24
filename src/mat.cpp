@@ -17,12 +17,11 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
-#include <math.h>
-
 #include "cpu.h"
-
-#include "layer_type.h"
 #include "layer.h"
+#include "layer_type.h"
+
+#include <math.h>
 
 #if NCNN_VULKAN
 #if __ANDROID_API__ >= 26
@@ -48,7 +47,7 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
 
         Mat weights[1];
         weights[0] = Mat(c);
-        for (int q=0; q<c; q++)
+        for (int q = 0; q < c; q++)
         {
             weights[0][q] = -mean_vals[q];
         }
@@ -67,7 +66,7 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
 
         Mat weights[1];
         weights[0] = Mat(c);
-        for (int q=0; q<c; q++)
+        for (int q = 0; q < c; q++)
         {
             weights[0][q] = norm_vals[q];
         }
@@ -88,10 +87,10 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
         Mat weights[2];
         weights[0] = Mat(c);
         weights[1] = Mat(c);
-        for (int q=0; q<c; q++)
+        for (int q = 0; q < c; q++)
         {
             weights[0][q] = norm_vals[q];
-            weights[1][q] = - mean_vals[q] * norm_vals[q];
+            weights[1][q] = -mean_vals[q] * norm_vals[q];
         }
 
         op->load_model(ModelBinFromMatArray(weights));
@@ -102,7 +101,7 @@ void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_val
     }
 
     Option opt;
-    opt.num_threads = 1;// TODO
+    opt.num_threads = 1; // TODO
 
     op->create_pipeline(opt);
 
@@ -119,7 +118,7 @@ Mat Mat::from_float16(const unsigned short* data, int size)
     if (m.empty())
         return m;
 
-    float* ptr = m;//.data;
+    float* ptr = m; //.data;
 
 #if __ARM_NEON && (__ARM_FP & 2)
     int nn = cpu_support_arm_vfpv4() ? size >> 2 : 0;
@@ -132,45 +131,43 @@ Mat Mat::from_float16(const unsigned short* data, int size)
 #if __aarch64__
     if (nn > 0)
     {
-    asm volatile(
-        "0:                             \n"
-        "ld1    {v0.4h}, [%1], #8       \n"
-        "fcvtl  v1.4s, v0.4h            \n"
-        "subs   %w0, %w0, #1            \n"
-        "st1    {v1.4s}, [%2], #16      \n"
-        "bne    0b                      \n"
-        : "=r"(nn),     // %0
-          "=r"(data),   // %1
-          "=r"(ptr)     // %2
-        : "0"(nn),
-          "1"(data),
-          "2"(ptr)
-        : "cc", "memory", "v0", "v1"
-    );
+        asm volatile(
+            "0:                             \n"
+            "ld1    {v0.4h}, [%1], #8       \n"
+            "fcvtl  v1.4s, v0.4h            \n"
+            "subs   %w0, %w0, #1            \n"
+            "st1    {v1.4s}, [%2], #16      \n"
+            "bne    0b                      \n"
+            : "=r"(nn),   // %0
+            "=r"(data), // %1
+            "=r"(ptr)   // %2
+            : "0"(nn),
+            "1"(data),
+            "2"(ptr)
+            : "cc", "memory", "v0", "v1");
     }
 #else
     if (nn > 0)
     {
-    asm volatile(
-        "0:                             \n"
-        "pld        [%1, #64]           \n"
-        "vld1.s16   {d0}, [%1 :64]!     \n"
-        "vcvt.f32.f16 q1, d0            \n"
-        "subs       %0, #1              \n"
-        "vst1.f32   {d2-d3}, [%2 :128]! \n"
-        "bne        0b                  \n"
-        : "=r"(nn),     // %0
-          "=r"(data),   // %1
-          "=r"(ptr)     // %2
-        : "0"(nn),
-          "1"(data),
-          "2"(ptr)
-        : "cc", "memory", "q0", "q1"
-    );
+        asm volatile(
+            "0:                             \n"
+            "pld        [%1, #64]           \n"
+            "vld1.s16   {d0}, [%1 :64]!     \n"
+            "vcvt.f32.f16 q1, d0            \n"
+            "subs       %0, #1              \n"
+            "vst1.f32   {d2-d3}, [%2 :128]! \n"
+            "bne        0b                  \n"
+            : "=r"(nn),   // %0
+            "=r"(data), // %1
+            "=r"(ptr)   // %2
+            : "0"(nn),
+            "1"(data),
+            "2"(ptr)
+            : "cc", "memory", "q0", "q1");
     }
 #endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain>0; remain--)
+    for (; remain > 0; remain--)
     {
         *ptr = float16_to_float32(*data);
 
@@ -226,7 +223,7 @@ unsigned short float32_to_float16(float value)
     else
     {
         // normalized
-        short newexp = exponent + (- 127 + 15);
+        short newexp = exponent + (-127 + 15);
         if (newexp >= 31)
         {
             // overflow, return infinity
@@ -332,6 +329,11 @@ void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, i
 
 void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, const Option& opt)
 {
+    if (left + right > src.w || top + bottom > src.h)
+    {
+        NCNN_LOGE("copy_cut_border parameter error, top: %d, bottom: %d, left: %d, right: %d, src.w: %d, src.h: %d", top, bottom, left, right, src.w, src.h);
+        return;
+    }
     Layer* crop = create_layer(LayerType::Crop);
 
     ParamDict pd;

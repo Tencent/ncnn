@@ -13,18 +13,20 @@
 // specific language governing permissions and limitations under the License.
 
 #include "deconvolution_arm.h"
+
 #include "layer_type.h"
 
 #if __ARM_NEON
 #include <arm_neon.h>
 #include "neon_mathfun.h"
-#include "neon_activation.h"
 #endif // __ARM_NEON
+
+#include "neon_activation.h"
 
 namespace ncnn {
 
-#include "deconvolution_4x4.h"
 #include "deconvolution_3x3.h"
+#include "deconvolution_4x4.h"
 
 DEFINE_LAYER_CREATOR(Deconvolution_arm)
 
@@ -51,7 +53,7 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
         activation = ncnn::create_layer(ncnn::LayerType::ReLU);
 
         ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]);// slope
+        pd.set(0, activation_params[0]); // slope
         activation->load_param(pd);
     }
     else if (activation_type == 3)
@@ -59,8 +61,8 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
         activation = ncnn::create_layer(ncnn::LayerType::Clip);
 
         ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]);// min
-        pd.set(1, activation_params[1]);// max
+        pd.set(0, activation_params[0]); // min
+        pd.set(1, activation_params[1]); // max
         activation->load_param(pd);
     }
     else if (activation_type == 4)
@@ -84,11 +86,11 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
         float* pt = weight_data_transposed;
         const float* p = weight_data;
 
-        for (int i=0; i<num_input*num_output; i++)
+        for (int i = 0; i < num_input * num_output; i++)
         {
-            for (int k=0; k<maxk; k++)
+            for (int k = 0; k < maxk; k++)
             {
-                pt[maxk-1 - k] = p[k];
+                pt[maxk - 1 - k] = p[k];
             }
 
             p += maxk;
@@ -96,8 +98,8 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
         }
     }
 
-    int elempack = (opt.use_packing_layout && num_input % 4 == 0) ? 4 : 1;
-    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int elempack = (support_packing && opt.use_packing_layout && num_input % 4 == 0) ? 4 : 1;
+    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
 
 #if __ARM_NEON
     // pack4
@@ -108,42 +110,42 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
-            weight_data_pack4.create(maxk, num_input/4, num_output/4, (size_t)4*16, 16);
+            weight_data_pack4.create(maxk, num_input / 4, num_output / 4, (size_t)4 * 16, 16);
 
-            for (int q=0; q+3<num_output; q+=4)
+            for (int q = 0; q + 3 < num_output; q += 4)
             {
                 const Mat k0 = weight_data_r2.channel(q);
-                const Mat k1 = weight_data_r2.channel(q+1);
-                const Mat k2 = weight_data_r2.channel(q+2);
-                const Mat k3 = weight_data_r2.channel(q+3);
+                const Mat k1 = weight_data_r2.channel(q + 1);
+                const Mat k2 = weight_data_r2.channel(q + 2);
+                const Mat k3 = weight_data_r2.channel(q + 3);
 
-                Mat g0 = weight_data_pack4.channel(q/4);
+                Mat g0 = weight_data_pack4.channel(q / 4);
 
-                for (int p=0; p+3<num_input; p+=4)
+                for (int p = 0; p + 3 < num_input; p += 4)
                 {
                     const float* k00 = k0.row(p);
-                    const float* k01 = k0.row(p+1);
-                    const float* k02 = k0.row(p+2);
-                    const float* k03 = k0.row(p+3);
+                    const float* k01 = k0.row(p + 1);
+                    const float* k02 = k0.row(p + 2);
+                    const float* k03 = k0.row(p + 3);
 
                     const float* k10 = k1.row(p);
-                    const float* k11 = k1.row(p+1);
-                    const float* k12 = k1.row(p+2);
-                    const float* k13 = k1.row(p+3);
+                    const float* k11 = k1.row(p + 1);
+                    const float* k12 = k1.row(p + 2);
+                    const float* k13 = k1.row(p + 3);
 
                     const float* k20 = k2.row(p);
-                    const float* k21 = k2.row(p+1);
-                    const float* k22 = k2.row(p+2);
-                    const float* k23 = k2.row(p+3);
+                    const float* k21 = k2.row(p + 1);
+                    const float* k22 = k2.row(p + 2);
+                    const float* k23 = k2.row(p + 3);
 
                     const float* k30 = k3.row(p);
-                    const float* k31 = k3.row(p+1);
-                    const float* k32 = k3.row(p+2);
-                    const float* k33 = k3.row(p+3);
+                    const float* k31 = k3.row(p + 1);
+                    const float* k32 = k3.row(p + 2);
+                    const float* k33 = k3.row(p + 3);
 
-                    float* g00 = g0.row(p/4);
+                    float* g00 = g0.row(p / 4);
 
-                    for (int k=0; k<maxk; k++)
+                    for (int k = 0; k < maxk; k++)
                     {
                         g00[0] = k00[k];
                         g00[1] = k10[k];
@@ -180,18 +182,18 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
-            weight_data_pack1to4.create(maxk, num_input, num_output/4, (size_t)4*4, 4);
+            weight_data_pack1to4.create(maxk, num_input, num_output / 4, (size_t)4 * 4, 4);
 
-            for (int q=0; q+3<num_output; q+=4)
+            for (int q = 0; q + 3 < num_output; q += 4)
             {
                 const Mat k0 = weight_data_r2.channel(q);
-                const Mat k1 = weight_data_r2.channel(q+1);
-                const Mat k2 = weight_data_r2.channel(q+2);
-                const Mat k3 = weight_data_r2.channel(q+3);
+                const Mat k1 = weight_data_r2.channel(q + 1);
+                const Mat k2 = weight_data_r2.channel(q + 2);
+                const Mat k3 = weight_data_r2.channel(q + 3);
 
-                Mat g0 = weight_data_pack1to4.channel(q/4);
+                Mat g0 = weight_data_pack1to4.channel(q / 4);
 
-                for (int p=0; p<num_input; p++)
+                for (int p = 0; p < num_input; p++)
                 {
                     const float* k00 = k0.row(p);
                     const float* k10 = k1.row(p);
@@ -200,7 +202,7 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
 
                     float* g00 = g0.row(p);
 
-                    for (int k=0; k<maxk; k++)
+                    for (int k = 0; k < maxk; k++)
                     {
                         g00[0] = k00[k];
                         g00[1] = k10[k];
@@ -222,23 +224,23 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
-            weight_data_pack4to1.create(maxk, num_input/4, num_output, (size_t)4*4, 4);
+            weight_data_pack4to1.create(maxk, num_input / 4, num_output, (size_t)4 * 4, 4);
 
-            for (int q=0; q<num_output; q++)
+            for (int q = 0; q < num_output; q++)
             {
                 const Mat k0 = weight_data_r2.channel(q);
                 Mat g0 = weight_data_pack4to1.channel(q);
 
-                for (int p=0; p+3<num_input; p+=4)
+                for (int p = 0; p + 3 < num_input; p += 4)
                 {
                     const float* k00 = k0.row(p);
-                    const float* k01 = k0.row(p+1);
-                    const float* k02 = k0.row(p+2);
-                    const float* k03 = k0.row(p+3);
+                    const float* k01 = k0.row(p + 1);
+                    const float* k02 = k0.row(p + 2);
+                    const float* k03 = k0.row(p + 3);
 
-                    float* g00 = g0.row(p/4);
+                    float* g00 = g0.row(p / 4);
 
-                    for (int k=0; k<maxk; k++)
+                    for (int k = 0; k < maxk; k++)
                     {
                         g00[0] = k00[k];
                         g00[1] = k01[k];
@@ -285,14 +287,14 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-//     NCNN_LOGE("Deconvolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
+    //     NCNN_LOGE("Deconvolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
     int outw = (w - 1) * stride_w + kernel_extent_w;
     int outh = (h - 1) * stride_h + kernel_extent_h;
-    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
@@ -315,7 +317,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<num_output / out_elempack; p++)
+        for (int p = 0; p < num_output / out_elempack; p++)
         {
             float* outptr = top_blob_bordered.channel(p);
 
@@ -333,7 +335,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     const float* kptr = (const float*)weight_data_pack4 + maxk * channels * p * 16;
 
                     // channels
-                    for (int q=0; q<channels; q++)
+                    for (int q = 0; q < channels; q++)
                     {
                         const Mat m = bottom_blob.channel(q);
 
@@ -359,14 +361,14 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                                 const float* sptr = m.row(sy) + sx * 4;
 
-                                float32x4_t _val = vld1q_f32( sptr );
+                                float32x4_t _val = vld1q_f32(sptr);
 
                                 int k = y * kernel_w + x;
 
-                                float32x4_t _w0 = vld1q_f32( kptr + k * 16 );
-                                float32x4_t _w1 = vld1q_f32( kptr + k * 16 + 4 );
-                                float32x4_t _w2 = vld1q_f32( kptr + k * 16 + 8 );
-                                float32x4_t _w3 = vld1q_f32( kptr + k * 16 + 12 );
+                                float32x4_t _w0 = vld1q_f32(kptr + k * 16);
+                                float32x4_t _w1 = vld1q_f32(kptr + k * 16 + 4);
+                                float32x4_t _w2 = vld1q_f32(kptr + k * 16 + 8);
+                                float32x4_t _w3 = vld1q_f32(kptr + k * 16 + 12);
 
 #if __aarch64__
                                 _sum = vmlaq_laneq_f32(_sum, _w0, _val, 0);
@@ -399,7 +401,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<num_output / out_elempack; p++)
+        for (int p = 0; p < num_output / out_elempack; p++)
         {
             float* outptr = top_blob_bordered.channel(p);
 
@@ -417,7 +419,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     const float* kptr = (const float*)weight_data_pack1to4 + maxk * channels * p * 4;
 
                     // channels
-                    for (int q=0; q<channels; q++)
+                    for (int q = 0; q < channels; q++)
                     {
                         const Mat m = bottom_blob.channel(q);
 
@@ -443,11 +445,11 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                                 if (sx >= w)
                                     continue;
 
-                                float32x4_t _val = vdupq_n_f32( sptr[ sx ] );
+                                float32x4_t _val = vdupq_n_f32(sptr[sx]);
 
                                 int k = y * kernel_w + x;
 
-                                float32x4_t _w = vld1q_f32( kptr + k * 4 );
+                                float32x4_t _w = vld1q_f32(kptr + k * 4);
 
                                 _sum = vmlaq_f32(_sum, _val, _w);
                             }
@@ -470,7 +472,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p=0; p<num_output / out_elempack; p++)
+        for (int p = 0; p < num_output / out_elempack; p++)
         {
             float* outptr = top_blob_bordered.channel(p);
 
@@ -488,7 +490,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     const float* kptr = (const float*)weight_data_pack4to1 + maxk * channels * p * 4;
 
                     // channels
-                    for (int q=0; q<channels; q++)
+                    for (int q = 0; q < channels; q++)
                     {
                         const Mat m = bottom_blob.channel(q);
 
@@ -514,11 +516,11 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                                 const float* sptr = m.row(sy) + sx * 4;
 
-                                float32x4_t _val = vld1q_f32( sptr );
+                                float32x4_t _val = vld1q_f32(sptr);
 
                                 int k = y * kernel_w + x;
 
-                                float32x4_t _w = vld1q_f32( kptr + k * 4 );
+                                float32x4_t _w = vld1q_f32(kptr + k * 4);
 
                                 float32x4_t _s4 = vmulq_f32(_val, _w);
 #if __aarch64__
@@ -587,7 +589,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p=0; p<num_output; p++)
+            for (int p = 0; p < num_output; p++)
             {
                 float* outptr = top_blob_bordered.channel(p);
 
@@ -605,7 +607,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         const float* kptr = (const float*)weight_data_pack1 + maxk * channels * p;
 
                         // channels
-                        for (int q=0; q<channels; q++)
+                        for (int q = 0; q < channels; q++)
                         {
                             const Mat m = bottom_blob.channel(q);
 
@@ -631,11 +633,11 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                                     if (sx >= w)
                                         continue;
 
-                                    float val = sptr[ sx ];
+                                    float val = sptr[sx];
 
                                     int k = y * kernel_w + x;
 
-                                    float w = kptr[ k ];
+                                    float w = kptr[k];
 
                                     sum += val * w;
                                 }

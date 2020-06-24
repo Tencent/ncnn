@@ -13,12 +13,14 @@
 // specific language governing permissions and limitations under the License.
 
 #include "pipeline.h"
-#include <math.h>
-#include <algorithm>
+
+#include "layer_shader_type.h"
 #include "mat.h"
 #include "cache.h"
 #include "option.h"
-#include "layer_shader_type.h"
+
+#include <algorithm>
+#include <math.h>
 
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
@@ -27,7 +29,8 @@
 namespace ncnn {
 
 #if NCNN_VULKAN
-Pipeline::Pipeline(const VulkanDevice* _vkdev) : vkdev(_vkdev)
+Pipeline::Pipeline(const VulkanDevice* _vkdev)
+    : vkdev(_vkdev)
 {
     local_shader_module = 0;
 
@@ -73,7 +76,7 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::
         local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size);
     }
 
-//     NCNN_LOGE("local_shader_module %p created", local_shader_module);
+    //     NCNN_LOGE("local_shader_module %p created", local_shader_module);
 
     return create(local_shader_module, si, specializations);
 }
@@ -123,7 +126,7 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
         local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size);
     }
 
-//     NCNN_LOGE("local_shader_module %p created", local_shader_module);
+    //     NCNN_LOGE("local_shader_module %p created", local_shader_module);
 
     return create(local_shader_module, si, specializations, pipeline_cache);
 #else
@@ -139,23 +142,23 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
     // 8 = image_fp16s
     // 9 = image_fp16sa
 
-    if (opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
         shader_type_index += 9;
     }
-    else if (opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
         shader_type_index += 7;
     }
-    else if (opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage)
     {
         shader_type_index += 8;
     }
-    else if (opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed)
     {
         shader_type_index += 6;
     }
-    else if (opt.use_image_storage)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage)
     {
         shader_type_index += 5;
     }
@@ -299,7 +302,7 @@ void Pipeline::set_local_size_xyz(int w, int h, int c)
     local_size_y = h;
     local_size_z = c;
 
-//     NCNN_LOGE("local size = %d %d %d", local_size_x, local_size_y, local_size_z);
+    //     NCNN_LOGE("local size = %d %d %d", local_size_x, local_size_y, local_size_z);
 }
 
 int Pipeline::create_descriptorset_layout()
@@ -313,7 +316,7 @@ int Pipeline::create_descriptorset_layout()
     }
 
     std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings(binding_count);
-    for (int i=0; i<binding_count; i++)
+    for (int i = 0; i < binding_count; i++)
     {
         int binding_type = shader_info.binding_types[i];
 
@@ -334,7 +337,7 @@ int Pipeline::create_descriptorset_layout()
         else // if (binding_type == 3)
         {
             descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorSetLayoutBindings[i].pImmutableSamplers = vkdev->immutable_texelfetch_sampler();// we always use texelfetch
+            descriptorSetLayoutBindings[i].pImmutableSamplers = vkdev->immutable_texelfetch_sampler(); // we always use texelfetch
         }
     }
 
@@ -376,24 +379,24 @@ int Pipeline::create_pipeline_layout()
 
     if (descriptorset_layout)
     {
-    pipelineLayoutCreateInfo.setLayoutCount = 1;
-    pipelineLayoutCreateInfo.pSetLayouts = &descriptorset_layout;
+        pipelineLayoutCreateInfo.setLayoutCount = 1;
+        pipelineLayoutCreateInfo.pSetLayouts = &descriptorset_layout;
     }
     else
     {
-    pipelineLayoutCreateInfo.setLayoutCount = 0;
-    pipelineLayoutCreateInfo.pSetLayouts = 0;
+        pipelineLayoutCreateInfo.setLayoutCount = 0;
+        pipelineLayoutCreateInfo.pSetLayouts = 0;
     }
 
     if (push_constant_count > 0)
     {
-    pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-    pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
+        pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+        pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
     }
     else
     {
-    pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
-    pipelineLayoutCreateInfo.pPushConstantRanges = 0;
+        pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+        pipelineLayoutCreateInfo.pPushConstantRanges = 0;
     }
 
     VkResult ret = vkCreatePipelineLayout(vkdev->vkdevice(), &pipelineLayoutCreateInfo, 0, &pipeline_layout);
@@ -414,7 +417,7 @@ int Pipeline::create_pipeline(VkShaderModule shader_module, const std::vector<vk
     std::vector<VkSpecializationMapEntry> specializationMapEntries;
     specializationMapEntries.resize(specialization_count + 3);
 
-    for (int i=0; i<specialization_count; i++)
+    for (int i = 0; i < specialization_count; i++)
     {
         specializationMapEntries[i].constantID = i;
         specializationMapEntries[i].offset = i * sizeof(vk_specialization_type);
@@ -429,21 +432,21 @@ int Pipeline::create_pipeline(VkShaderModule shader_module, const std::vector<vk
         VkSpecializationMapEntry* local_size_xyz_entries = specializationMapEntries.data() + specialization_count;
 
         local_size_xyz_entries[0].constantID = 233;
-        local_size_xyz_entries[0].offset = (specialization_count+0) * sizeof(vk_specialization_type);
+        local_size_xyz_entries[0].offset = (specialization_count + 0) * sizeof(vk_specialization_type);
         local_size_xyz_entries[0].size = sizeof(vk_specialization_type);
 
         local_size_xyz_entries[1].constantID = 234;
-        local_size_xyz_entries[1].offset = (specialization_count+1) * sizeof(vk_specialization_type);
+        local_size_xyz_entries[1].offset = (specialization_count + 1) * sizeof(vk_specialization_type);
         local_size_xyz_entries[1].size = sizeof(vk_specialization_type);
 
         local_size_xyz_entries[2].constantID = 235;
-        local_size_xyz_entries[2].offset = (specialization_count+2) * sizeof(vk_specialization_type);
+        local_size_xyz_entries[2].offset = (specialization_count + 2) * sizeof(vk_specialization_type);
         local_size_xyz_entries[2].size = sizeof(vk_specialization_type);
 
         specialization_data.resize(specialization_count + 3);
-        specialization_data[ specialization_count+0 ].u32 = local_size_x;
-        specialization_data[ specialization_count+1 ].u32 = local_size_y;
-        specialization_data[ specialization_count+2 ].u32 = local_size_z;
+        specialization_data[specialization_count + 0].u32 = local_size_x;
+        specialization_data[specialization_count + 1].u32 = local_size_y;
+        specialization_data[specialization_count + 2].u32 = local_size_z;
     }
 
     VkSpecializationInfo specializationInfo;
@@ -492,7 +495,7 @@ int Pipeline::create_descriptor_update_template()
 
     std::vector<VkDescriptorUpdateTemplateEntryKHR> descriptorUpdateTemplateEntries(binding_count);
     size_t offset = 0;
-    for (int i=0; i<binding_count; i++)// TODO do not update weights
+    for (int i = 0; i < binding_count; i++) // TODO do not update weights
     {
         int binding_type = shader_info.binding_types[i];
 
@@ -524,15 +527,15 @@ int Pipeline::create_descriptor_update_template()
     descriptorUpdateTemplateCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO_KHR;
     descriptorUpdateTemplateCreateInfo.pNext = 0;
     descriptorUpdateTemplateCreateInfo.flags = 0;
-    descriptorUpdateTemplateCreateInfo.descriptorUpdateEntryCount = binding_count;// TODO do not update weights
+    descriptorUpdateTemplateCreateInfo.descriptorUpdateEntryCount = binding_count; // TODO do not update weights
     descriptorUpdateTemplateCreateInfo.pDescriptorUpdateEntries = descriptorUpdateTemplateEntries.data();
     if (vkdev->info.support_VK_KHR_push_descriptor)
     {
-    descriptorUpdateTemplateCreateInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR;
+        descriptorUpdateTemplateCreateInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR;
     }
     else
     {
-    descriptorUpdateTemplateCreateInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_DESCRIPTOR_SET_KHR;
+        descriptorUpdateTemplateCreateInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_DESCRIPTOR_SET_KHR;
     }
     // descriptorSetLayout should be ignored if VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR
     // FIXME HACK WARNING TODO NOTE but crash on radv if set NULL  :(
@@ -552,7 +555,8 @@ int Pipeline::create_descriptor_update_template()
 }
 
 #if __ANDROID_API__ >= 26
-ImportAndroidHardwareBufferPipeline::ImportAndroidHardwareBufferPipeline(const VulkanDevice* _vkdev) : Pipeline(_vkdev)
+ImportAndroidHardwareBufferPipeline::ImportAndroidHardwareBufferPipeline(const VulkanDevice* _vkdev)
+    : Pipeline(_vkdev)
 {
     sampler = 0;
 }
@@ -601,24 +605,24 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
             need_resize = true;
     }
 
-//     if (type_to == 1 || type_to == 2)
-//     {
-//         outc = 3;
-//         out_elemsize = vkdev->info.support_fp16_storage && opt.use_fp16_storage ? 2u : 4u;
-//         out_elempack = 1;
-//     }
-//     else if (type_to == 3)
-//     {
-//         outc = 1;
-//         out_elemsize = vkdev->info.support_fp16_storage && opt.use_fp16_storage ? 2u : 4u;
-//         out_elempack = 1;
-//     }
-//     else // if (type_to == 4 || type_to == 5)
-//     {
-//         outc = 1;
-//         out_elemsize = ((vkdev->info.support_fp16_packed && opt.use_fp16_packed) || (vkdev->info.support_fp16_storage && opt.use_fp16_storage)) ? 8u : 16u;
-//         out_elempack = 4;
-//     }
+    //     if (type_to == 1 || type_to == 2)
+    //     {
+    //         outc = 3;
+    //         out_elemsize = vkdev->info.support_fp16_storage && opt.use_fp16_storage ? 2u : 4u;
+    //         out_elempack = 1;
+    //     }
+    //     else if (type_to == 3)
+    //     {
+    //         outc = 1;
+    //         out_elemsize = vkdev->info.support_fp16_storage && opt.use_fp16_storage ? 2u : 4u;
+    //         out_elempack = 1;
+    //     }
+    //     else // if (type_to == 4 || type_to == 5)
+    //     {
+    //         outc = 1;
+    //         out_elemsize = ((vkdev->info.support_fp16_packed && opt.use_fp16_packed) || (vkdev->info.support_fp16_storage && opt.use_fp16_storage)) ? 8u : 16u;
+    //         out_elempack = 4;
+    //     }
 
     set_local_size_xyz(8, 8, 1);
 
@@ -689,23 +693,23 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
     // 8 = image_fp16s
     // 9 = image_fp16sa
 
-    if (opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
         shader_type_index += 9;
     }
-    else if (opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
     {
         shader_type_index += 7;
     }
-    else if (opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage)
     {
         shader_type_index += 8;
     }
-    else if (opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed)
     {
         shader_type_index += 6;
     }
-    else if (opt.use_image_storage)
+    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage)
     {
         shader_type_index += 5;
     }
@@ -779,8 +783,8 @@ int ImportAndroidHardwareBufferPipeline::create_sampler(VkAndroidHardwareBufferI
     samplerCreateInfo.compareOp = VK_COMPARE_OP_NEVER;
     samplerCreateInfo.minLod = 0.0f;
     samplerCreateInfo.maxLod = 0.0f;
-    samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;//VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE; FIXME
-    samplerCreateInfo.unnormalizedCoordinates = VK_TRUE;//VK_FALSE; FIXME ?
+    samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK; //VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE; FIXME
+    samplerCreateInfo.unnormalizedCoordinates = VK_TRUE;                     //VK_FALSE; FIXME ?
 
     ret = vkCreateSampler(vkdev->vkdevice(), &samplerCreateInfo, 0, &sampler);
     if (ret != VK_SUCCESS)

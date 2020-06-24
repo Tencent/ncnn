@@ -13,13 +13,15 @@
 // specific language governing permissions and limitations under the License.
 
 #include "deconvolutiondepthwise_arm.h"
+
 #include "layer_type.h"
 
 #if __ARM_NEON
 #include <arm_neon.h>
 #include "neon_mathfun.h"
-#include "neon_activation.h"
 #endif // __ARM_NEON
+
+#include "neon_activation.h"
 
 namespace ncnn {
 
@@ -41,18 +43,18 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
     // depth-wise
     if (channels == group && group == num_output)
     {
-        int elempack = (opt.use_packing_layout && channels % 4 == 0) ? 4 : 1;
+        int elempack = (support_packing && opt.use_packing_layout && channels % 4 == 0) ? 4 : 1;
 
         Mat weight_data_transposed(weight_data.w);
         {
             float* pt = weight_data_transposed;
             const float* p = weight_data;
 
-            for (int i=0; i<(channels/group)*(num_output/group)*group; i++)
+            for (int i = 0; i < (channels / group) * (num_output / group) * group; i++)
             {
-                for (int k=0; k<maxk; k++)
+                for (int k = 0; k < maxk; k++)
                 {
-                    pt[maxk-1 - k] = p[k];
+                    pt[maxk - 1 - k] = p[k];
                 }
 
                 p += maxk;
@@ -78,7 +80,7 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
     else
     {
         // group deconvolution
-        for (int i=0; i<(int)group_ops.size(); i++)
+        for (int i = 0; i < (int)group_ops.size(); i++)
             delete group_ops[i];
 
         group_ops.clear();
@@ -88,7 +90,7 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
 
         group_ops.resize(group);
 
-        for (int g=0; g<group; g++)
+        for (int g = 0; g < group; g++)
         {
             Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
             Mat bias_data_g;
@@ -99,17 +101,17 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
 
             // set param
             ncnn::ParamDict pd;
-            pd.set(0, num_output_g);// num_output
+            pd.set(0, num_output_g); // num_output
             pd.set(1, kernel_w);
             pd.set(11, kernel_h);
             pd.set(2, dilation_w);
             pd.set(12, dilation_h);
             pd.set(3, stride_w);
             pd.set(13, stride_h);
-            pd.set(4, 0);// pad_w
-            pd.set(14, 0);// pad_h
+            pd.set(4, 0);  // pad_w
+            pd.set(14, 0); // pad_h
             pd.set(5, bias_term);
-            pd.set(6, maxk * channels_g * num_output_g);// weight_data_size
+            pd.set(6, maxk * channels_g * num_output_g); // weight_data_size
             pd.set(9, activation_type);
             pd.set(10, activation_params);
 
@@ -143,7 +145,7 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
 
 int DeconvolutionDepthWise_arm::destroy_pipeline(const Option& opt)
 {
-    for (int i=0; i<(int)group_ops.size(); i++)
+    for (int i = 0; i < (int)group_ops.size(); i++)
     {
         group_ops[i]->destroy_pipeline(opt);
         delete group_ops[i];
@@ -169,7 +171,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
 
     int outw = (w - 1) * stride_w + kernel_extent_w;
     int outh = (h - 1) * stride_h + kernel_extent_h;
-    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
@@ -194,7 +196,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
         if (elempack == 4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int g=0; g<channels; g++)
+            for (int g = 0; g < channels; g++)
             {
                 float* outptr = top_blob_bordered.channel(g);
                 const float* kptr = (const float*)weight_data_pack4 + maxk * g * 4;
@@ -233,11 +235,11 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
 
                                 const float* sptr = m.row(sy) + sx * 4;
 
-                                float32x4_t _val = vld1q_f32( sptr );
+                                float32x4_t _val = vld1q_f32(sptr);
 
                                 int k = y * kernel_w + x;
 
-                                float32x4_t _w = vld1q_f32( kptr + k * 4 );
+                                float32x4_t _w = vld1q_f32(kptr + k * 4);
 
                                 _sum = vmlaq_f32(_sum, _val, _w);
                             }
@@ -257,7 +259,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
         if (elempack == 1)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int g=0; g<channels; g++)
+            for (int g = 0; g < channels; g++)
             {
                 float* outptr = top_blob_bordered.channel(g);
                 const float* kptr = (const float*)weight_data_pack1 + maxk * g;
@@ -296,11 +298,11 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
                                 if (sx >= w)
                                     continue;
 
-                                float val = sptr[ sx ];
+                                float val = sptr[sx];
 
                                 int k = y * kernel_w + x;
 
-                                float w = kptr[ k ];
+                                float w = kptr[k];
 
                                 sum += val * w;
                             }
@@ -343,8 +345,8 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
         const int channels_g = channels * elempack / group;
         const int num_output_g = num_output / group;
 
-        int g_elempack = (opt.use_packing_layout && channels_g % 4 == 0) ? 4 : 1;
-        int out_g_elempack = (opt.use_packing_layout && num_output_g % 4 == 0) ? 4 : 1;
+        int g_elempack = (support_packing && opt.use_packing_layout && channels_g % 4 == 0) ? 4 : 1;
+        int out_g_elempack = (support_packing && opt.use_packing_layout && num_output_g % 4 == 0) ? 4 : 1;
 
         // unpacking
         Mat bottom_blob_unpacked = bottom_blob;
@@ -363,7 +365,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
                 return -100;
         }
 
-        for (int g=0; g<group; g++)
+        for (int g = 0; g < group; g++)
         {
             const Mat bottom_blob_g = bottom_blob_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);
             Mat top_blob_bordered_g = top_blob_bordered_unpacked.channel_range(num_output_g * g / out_g_elempack, num_output_g / out_g_elempack);

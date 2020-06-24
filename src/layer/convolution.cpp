@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "convolution.h"
-#include <algorithm>
+
 #include "layer_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -85,7 +87,7 @@ int Convolution::create_pipeline(const Option& opt)
 
         const int weight_data_size_output = weight_data_size / num_output;
 
-        for (int p=0; p<num_output; p++)
+        for (int p = 0; p < num_output; p++)
         {
             Option opt_q = opt;
             opt_q.blob_allocator = int8_weight_data.allocator;
@@ -158,7 +160,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
-//     NCNN_LOGE("Convolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
+    //     NCNN_LOGE("Convolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -202,7 +204,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<num_output; p++)
+    for (int p = 0; p < num_output; p++)
     {
         float* outptr = top_blob.channel(p);
 
@@ -218,14 +220,14 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 const float* kptr = (const float*)weight_data + maxk * channels * p;
 
                 // channels
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
-                    const float* sptr = m.row(i*stride_h) + j*stride_w;
+                    const float* sptr = m.row(i * stride_h) + j * stride_w;
 
                     for (int k = 0; k < maxk; k++) // 29.23
                     {
-                        float val = sptr[ space_ofs[k] ]; // 20.72
+                        float val = sptr[space_ofs[k]]; // 20.72
                         float w = kptr[k];
                         sum += val * w; // 41.45
                     }
@@ -334,7 +336,7 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
-//     NCNN_LOGE("Convolution input %d x %d  ksize=%d %d  stride=%d %d", w, h, kernel_w, kernel_h, stride_w, stride_h);
+    //     NCNN_LOGE("Convolution input %d x %d  ksize=%d %d  stride=%d %d", w, h, kernel_w, kernel_h, stride_w, stride_h);
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -389,7 +391,7 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<num_output; p++)
+    for (int p = 0; p < num_output; p++)
     {
         signed char* outptr = top_blob.channel(p);
 
@@ -402,14 +404,14 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                 const signed char* kptr = (const signed char*)weight_data + maxk * channels * p;
 
                 // channels
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
-                    const signed char* sptr = m.row<signed char>(i*stride_h) + j*stride_w;
+                    const signed char* sptr = m.row<signed char>(i * stride_h) + j * stride_w;
 
                     for (int k = 0; k < maxk; k++)
                     {
-                        int val = sptr[ space_ofs[k] ];
+                        int val = sptr[space_ofs[k]];
                         int w = kptr[k];
                         sum += val * w;
                     }
@@ -431,7 +433,7 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                     if (bias_term)
                         sumfp32 += bias_data[p];
 
-                    float scale_out = top_blob_int8_scale;//FIXME load param
+                    float scale_out = top_blob_int8_scale; //FIXME load param
 
                     signed char sums8 = float2int8(sumfp32 * scale_out);
 

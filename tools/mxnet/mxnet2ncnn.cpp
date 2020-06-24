@@ -13,12 +13,11 @@
 // specific language governing permissions and limitations under the License.
 
 #include <limits.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-
 #include <map>
 #include <set>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 #include <string>
 #include <vector>
 
@@ -32,16 +31,38 @@ public:
     {
         MXNetNode const* _n;
         const char* const _key;
+
     public:
-        AttrProxy( MXNetNode const* n, const char* key ) : _n(n), _key(key) {}
-        operator int() const { return _n->attr_i(_key); }
-        operator float() const { return _n->attr_f(_key); }
-        operator std::string() const { return _n->attr_s(_key); }
-        operator std::vector<int>() const { return _n->attr_ai(_key); }
-        operator std::vector<float>() const { return _n->attr_af(_key); }
+        AttrProxy(MXNetNode const* n, const char* key)
+            : _n(n), _key(key)
+        {
+        }
+        operator int() const
+        {
+            return _n->attr_i(_key);
+        }
+        operator float() const
+        {
+            return _n->attr_f(_key);
+        }
+        operator std::string() const
+        {
+            return _n->attr_s(_key);
+        }
+        operator std::vector<int>() const
+        {
+            return _n->attr_ai(_key);
+        }
+        operator std::vector<float>() const
+        {
+            return _n->attr_af(_key);
+        }
     };
 
-    AttrProxy attr(const char* key) const { return AttrProxy(this, key); }
+    AttrProxy attr(const char* key) const
+    {
+        return AttrProxy(this, key);
+    }
 
     int attr_i(const char* key) const;
     float attr_f(const char* key) const;
@@ -54,8 +75,8 @@ public:
     bool has_weight(int i) const;
     std::vector<float> weight(int i, int init_len = 0) const;
 
-    std::vector<MXNetNode>* nodes;// reference
-    std::vector<MXNetParam>* params;// reference
+    std::vector<MXNetNode>* nodes;   // reference
+    std::vector<MXNetParam>* params; // reference
 
 public:
     std::string op;
@@ -150,7 +171,7 @@ std::vector<int> MXNetNode::attr_ai(const char* key) const
     while (nscan == 1)
     {
         list.push_back(i);
-//         fprintf(stderr, "%d\n", i);
+        //         fprintf(stderr, "%d\n", i);
 
         i = 0;
         c += nconsumed;
@@ -186,7 +207,7 @@ std::vector<float> MXNetNode::attr_af(const char* key) const
     while (nscan == 1)
     {
         list.push_back(i);
-//         fprintf(stderr, "%f\n", i);
+        //         fprintf(stderr, "%f\n", i);
 
         i = 0.f;
         c += nconsumed;
@@ -198,7 +219,7 @@ std::vector<float> MXNetNode::attr_af(const char* key) const
 
 bool MXNetNode::is_weight() const
 {
-    for (int i=0; i<(int)(*params).size(); i++)
+    for (int i = 0; i < (int)(*params).size(); i++)
     {
         const MXNetParam& p = (*params)[i];
         if (p.name == name)
@@ -213,9 +234,9 @@ bool MXNetNode::has_weight(int i) const
     if (i < 0 || i >= (int)weights.size())
         return false;
 
-    const std::string& name = (*nodes)[ weights[i] ].name;
+    const std::string& name = (*nodes)[weights[i]].name;
 
-    for (int i=0; i<(int)(*params).size(); i++)
+    for (int i = 0; i < (int)(*params).size(); i++)
     {
         const MXNetParam& p = (*params)[i];
         if (p.name == name)
@@ -230,9 +251,9 @@ std::vector<float> MXNetNode::weight(int i, int init_len) const
     if (i < 0 || i >= (int)weights.size())
         return std::vector<float>();
 
-    const std::string& name = (*nodes)[ weights[i] ].name;
+    const std::string& name = (*nodes)[weights[i]].name;
 
-    for (int i=0; i<(int)(*params).size(); i++)
+    for (int i = 0; i < (int)(*params).size(); i++)
     {
         const MXNetParam& p = (*params)[i];
         if (p.name != name)
@@ -264,7 +285,7 @@ std::vector<float> MXNetNode::weight(int i, int init_len) const
 static void replace_backslash_doublequote_dollar(char* s)
 {
     char* a = s;
-    char* b = s+1;
+    char* b = s + 1;
     while (*a && *b)
     {
         if (*a == '\\' && *b == '\"')
@@ -291,13 +312,13 @@ static void parse_input_list(const char* s, std::vector<int>& inputs, std::vecto
     int id;
     int subid;
 
-    int c = 1;// skip leading [
+    int c = 1; // skip leading [
     nscan = sscanf(s + c, "[%d, %d%n", &id, &subid, &nconsumed);
     while (nscan == 2)
     {
         inputs.push_back(id);
         subinputs.push_back(subid);
-//         fprintf(stderr, "%d %d\n", id, subid);
+        //         fprintf(stderr, "%d %d\n", id, subid);
 
         c += nconsumed;
         nscan = sscanf(s + c, "%*[^[][%d, %d%n", &id, &subid, &nconsumed);
@@ -378,7 +399,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
             if (nscan == 2)
             {
                 n.attrs[key] = value;
-//                 fprintf(stderr, "# %s = %s\n", key, value);
+                //                 fprintf(stderr, "# %s = %s\n", key, value);
                 continue;
             }
         }
@@ -423,7 +444,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
             if (nscan == 1)
             {
                 n.op = op;
-//                 fprintf(stderr, "op = %s\n", op);
+                //                 fprintf(stderr, "op = %s\n", op);
                 continue;
             }
 
@@ -433,7 +454,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
             if (nscan == 1)
             {
                 n.name = name;
-//                 fprintf(stderr, "name = %s\n", name);
+                //                 fprintf(stderr, "name = %s\n", name);
                 continue;
             }
 
@@ -450,7 +471,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
             if (nscan == 1)
             {
                 parse_input_list(inputs, n.inputs, n.subinputs);
-//                 fprintf(stderr, "inputs = %s\n", inputs);
+                //                 fprintf(stderr, "inputs = %s\n", inputs);
                 continue;
             }
 
@@ -470,7 +491,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
             if (nscan == 2)
             {
                 n.attrs[key] = value;
-//                 fprintf(stderr, "# %s = %s\n", key, value);
+                //                 fprintf(stderr, "# %s = %s\n", key, value);
                 continue;
             }
 
@@ -479,7 +500,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
             if (nscan == 2)
             {
                 n.attrs[key] = value;
-//                 fprintf(stderr, "# %s = %s\n", key, value);
+                //                 fprintf(stderr, "# %s = %s\n", key, value);
                 continue;
             }
 
@@ -488,7 +509,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
             if (nscan == 2)
             {
                 n.attrs[key] = value;
-//                 fprintf(stderr, "# %s = %s\n", key, value);
+                //                 fprintf(stderr, "# %s = %s\n", key, value);
                 continue;
             }
 
@@ -512,7 +533,6 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
                 in_attr_block = true;
                 continue;
             }
-
         }
 
         if (in_nodes_list)
@@ -533,7 +553,6 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
                 in_node_block = true;
                 continue;
             }
-
         }
 
         //  "nodes": [
@@ -542,7 +561,6 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
             in_nodes_list = true;
             continue;
         }
-
     }
 
     fclose(fp);
@@ -586,11 +604,11 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         return false;
     }
 
-//     fprintf(stderr, "data count = %d\n", (int)data_count);
+    //     fprintf(stderr, "data count = %d\n", (int)data_count);
 
     for (int i = 0; i < (int)data_count; i++)
     {
-        uint32_t magic;// 0xF993FAC9
+        uint32_t magic; // 0xF993FAC9
         nread = fread(&magic, sizeof(uint32_t), 1, fp);
         if (nread != 1)
         {
@@ -659,7 +677,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
                 return false;
             }
 
-            for (int j=0; j<(int)ndim; j++)
+            for (int j = 0; j < (int)ndim; j++)
             {
                 shape[j] = shape32[j];
             }
@@ -708,7 +726,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
 
         params.push_back(p);
 
-//         fprintf(stderr, "%u read\n", len);
+        //         fprintf(stderr, "%u read\n", len);
     }
 
     // each name
@@ -720,7 +738,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
         return false;
     }
 
-//     fprintf(stderr, "name count = %d\n", (int)name_count);
+    //     fprintf(stderr, "name count = %d\n", (int)name_count);
 
     for (int i = 0; i < (int)name_count; i++)
     {
@@ -752,7 +770,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
             p.name = std::string(p.name.c_str() + 4);
         }
 
-//         fprintf(stderr, "%s read\n", p.name.c_str());
+        //         fprintf(stderr, "%s read\n", p.name.c_str());
     }
 
     fclose(fp);
@@ -763,7 +781,7 @@ static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& par
 static void fuse_shufflechannel(std::vector<MXNetNode>& nodes, std::vector<MXNetParam>& params, std::map<size_t, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
 {
     size_t node_count = nodes.size();
-    for (size_t i=0; i<node_count; i++)
+    for (size_t i = 0; i < node_count; i++)
     {
         const MXNetNode& n = nodes[i];
 
@@ -783,16 +801,16 @@ static void fuse_shufflechannel(std::vector<MXNetNode>& nodes, std::vector<MXNet
             if (shape[0] != 0 || shape[1] != -4 || shape[3] != -1 || shape[4] != -2)
                 continue;
 
-            if (i+2 >= node_count)
+            if (i + 2 >= node_count)
                 continue;
 
-            const MXNetNode& n2 = nodes[i+1];
-            const MXNetNode& n3 = nodes[i+2];
+            const MXNetNode& n2 = nodes[i + 1];
+            const MXNetNode& n3 = nodes[i + 2];
 
             if (n2.op != "SwapAxis" || n3.op != "Reshape")
                 continue;
 
-            if (node_reference.find(i+1) == node_reference.end() || node_reference[i+1] != 1)
+            if (node_reference.find(i + 1) == node_reference.end() || node_reference[i + 1] != 1)
                 continue;
 
             // "dim1": "1", "dim2": "2"
@@ -810,10 +828,10 @@ static void fuse_shufflechannel(std::vector<MXNetNode>& nodes, std::vector<MXNet
 
             // reduce
             nodes[i].op = "noop_reducedncnn";
-            nodes[i+1].op = "noop_reducedncnn";
+            nodes[i + 1].op = "noop_reducedncnn";
 
             node_reference.erase(node_reference.find(i));
-            node_reference.erase(node_reference.find(i+1));
+            node_reference.erase(node_reference.find(i + 1));
             blob_names.erase(n.name);
             blob_names.erase(n2.name);
 
@@ -821,7 +839,7 @@ static void fuse_shufflechannel(std::vector<MXNetNode>& nodes, std::vector<MXNet
             new_node.nodes = &nodes;
             new_node.params = &params;
             new_node.op = "ShuffleChannel";
-//             new_node.name = n.name + "_" + n2.name + "_" + n3.name;
+            //             new_node.name = n.name + "_" + n2.name + "_" + n3.name;
             new_node.name = n3.name;
             new_node.output_size = n3.output_size;
             char group[16];
@@ -830,7 +848,7 @@ static void fuse_shufflechannel(std::vector<MXNetNode>& nodes, std::vector<MXNet
             new_node.inputs = n.inputs;
             new_node.subinputs = n.subinputs;
 
-            nodes[i+2] = new_node;
+            nodes[i + 2] = new_node;
 
             reduced_node_count += 2;
             i += 2;
@@ -841,7 +859,7 @@ static void fuse_shufflechannel(std::vector<MXNetNode>& nodes, std::vector<MXNet
 static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vector<MXNetParam>& params, std::map<size_t, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
 {
     size_t node_count = nodes.size();
-    for (size_t i=0; i<node_count; i++)
+    for (size_t i = 0; i < node_count; i++)
     {
         const MXNetNode& n = nodes[i];
 
@@ -851,9 +869,9 @@ static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vecto
         if (n.op == "_plus_scalar")
         {
             // HardSigmoid <= _plus_scalar(+3) - clip(0,6) - _div_scalar(/6)
-            const MXNetNode& n1 = nodes[i+1];
-            const MXNetNode& n2 = nodes[i+2];
-            const MXNetNode& n3 = nodes[i+3];
+            const MXNetNode& n1 = nodes[i + 1];
+            const MXNetNode& n2 = nodes[i + 2];
+            const MXNetNode& n3 = nodes[i + 3];
 
             if ((float)n.attr("scalar") != 3.f)
                 continue;
@@ -866,10 +884,10 @@ static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vecto
 
             // reduce
             nodes[i].op = "noop_reducedncnn";
-            nodes[i+1].op = "noop_reducedncnn";
+            nodes[i + 1].op = "noop_reducedncnn";
 
             node_reference.erase(node_reference.find(i));
-            node_reference.erase(node_reference.find(i+1));
+            node_reference.erase(node_reference.find(i + 1));
             blob_names.erase(n.name);
             blob_names.erase(n1.name);
 
@@ -882,23 +900,23 @@ static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vecto
                 new_node.name = n2.name;
                 new_node.output_size = n2.output_size;
                 char alpha[16], beta[16];
-                sprintf(alpha, "%f", 1.f/6.f);
-                sprintf(beta, "%f", 3.f/6.f);
+                sprintf(alpha, "%f", 1.f / 6.f);
+                sprintf(beta, "%f", 3.f / 6.f);
                 new_node.attrs["alpha"] = alpha;
                 new_node.attrs["beta"] = beta;
                 new_node.inputs = n.inputs;
                 new_node.subinputs = n.subinputs;
 
-                nodes[i+2] = new_node;
+                nodes[i + 2] = new_node;
 
                 reduced_node_count += 2;
                 i += 2;
             }
             else // HardSwish <= HardSigmoid - Mul
             {
-                nodes[i+2].op = "noop_reducedncnn";
-                node_reference[i-1]--;
-                node_reference.erase(node_reference.find(i+2));
+                nodes[i + 2].op = "noop_reducedncnn";
+                node_reference[i - 1]--;
+                node_reference.erase(node_reference.find(i + 2));
                 blob_names.erase(n2.name);
 
                 MXNetNode new_node;
@@ -908,14 +926,14 @@ static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vecto
                 new_node.name = n3.name;
                 new_node.output_size = n3.output_size;
                 char alpha[16], beta[16];
-                sprintf(alpha, "%f", 1.f/6.f);
-                sprintf(beta, "%f", 3.f/6.f);
+                sprintf(alpha, "%f", 1.f / 6.f);
+                sprintf(beta, "%f", 3.f / 6.f);
                 new_node.attrs["alpha"] = alpha;
                 new_node.attrs["beta"] = beta;
                 new_node.inputs = n.inputs;
                 new_node.subinputs = n.subinputs;
 
-                nodes[i+3] = new_node;
+                nodes[i + 3] = new_node;
 
                 reduced_node_count += 3;
                 i += 3;
@@ -954,7 +972,7 @@ int main(int argc, char** argv)
     // global definition line
     // [layer count] [blob count]
     std::set<std::string> blob_names;
-    for (int i=0; i<node_count; i++)
+    for (int i = 0; i < node_count; i++)
     {
         MXNetNode& n = nodes[i];
 
@@ -1002,7 +1020,7 @@ int main(int argc, char** argv)
         // distinguish weights and inputs
         std::vector<int> weights;
         std::vector<int> inputs;
-        for (int j=0; j<(int)n.inputs.size(); j++)
+        for (int j = 0; j < (int)n.inputs.size(); j++)
         {
             int input_index = n.inputs[j];
             if (nodes[input_index].is_weight())
@@ -1025,13 +1043,13 @@ int main(int argc, char** argv)
         }
 
         // input
-        for (int j=0; j<(int)n.inputs.size(); j++)
+        for (int j = 0; j < (int)n.inputs.size(); j++)
         {
             int input_index = n.inputs[j];
             int subinput_index = n.subinputs[j];
 
             std::string input_name = nodes[input_index].name;
-//             fprintf(stderr, "input = %s\n", input_name.c_str());
+            //             fprintf(stderr, "input = %s\n", input_name.c_str());
 
             if (subinput_index != 0)
             {
@@ -1054,10 +1072,10 @@ int main(int argc, char** argv)
         }
 
         // output
-//         fprintf(stderr, "output = %s\n", output_name.c_str());
+        //         fprintf(stderr, "output = %s\n", output_name.c_str());
         blob_names.insert(output_name);
 
-        for (int j=1; j<n.output_size; j++)
+        for (int j = 1; j < n.output_size; j++)
         {
             char subinputsuffix[256];
             sprintf(subinputsuffix, "_%d", j);
@@ -1066,14 +1084,14 @@ int main(int argc, char** argv)
         }
     }
 
-//     for (std::map<int, int>::iterator it = node_reference.begin(); it != node_reference.end(); it++)
-//     {
-//         fprintf(stderr, "ref %d %d\n", it->first, it->second);
-//     }
+    //     for (std::map<int, int>::iterator it = node_reference.begin(); it != node_reference.end(); it++)
+    //     {
+    //         fprintf(stderr, "ref %d %d\n", it->first, it->second);
+    //     }
 
     // op chain fusion
     int reduced_node_count = 0;
-    fuse_shufflechannel (nodes, params, node_reference, blob_names, reduced_node_count);
+    fuse_shufflechannel(nodes, params, node_reference, blob_names, reduced_node_count);
     fuse_hardsigmoid_hardswish(nodes, params, node_reference, blob_names, reduced_node_count);
 
     // remove node_reference entry with reference equals to one
@@ -1088,18 +1106,18 @@ int main(int argc, char** argv)
         else
         {
             splitncnn_blob_count += it->second;
-//             fprintf(stderr, "%s %d\n", it->first.c_str(), it->second);
+            //             fprintf(stderr, "%s %d\n", it->first.c_str(), it->second);
             ++it;
         }
     }
 
-//     fprintf(stderr, "%d %d %d %d, %d %d\n", node_count, reduced_node_count, node_reference.size(), weight_nodes.size(), blob_names.size(), splitncnn_blob_count);
+    //     fprintf(stderr, "%d %d %d %d, %d %d\n", node_count, reduced_node_count, node_reference.size(), weight_nodes.size(), blob_names.size(), splitncnn_blob_count);
 
     fprintf(pp, "%zu %zu\n", node_count - reduced_node_count + node_reference.size() - weight_nodes.size(), blob_names.size() + splitncnn_blob_count);
 
     int internal_split = 0;
 
-    for (int i=0; i<node_count; i++)
+    for (int i = 0; i < node_count; i++)
     {
         const MXNetNode& n = nodes[i];
 
@@ -1240,9 +1258,12 @@ int main(int argc, char** argv)
         else if (n.op == "Convolution")
         {
             int num_group = n.attr("num_group");
-            if (num_group > 1) {
+            if (num_group > 1)
+            {
                 fprintf(pp, "%-16s", "ConvolutionDepthWise");
-            } else {
+            }
+            else
+            {
                 fprintf(pp, "%-16s", "Convolution");
             }
         }
@@ -1257,9 +1278,12 @@ int main(int argc, char** argv)
         else if (n.op == "Deconvolution")
         {
             int num_group = n.attr("num_group");
-            if (num_group > 1) {
+            if (num_group > 1)
+            {
                 fprintf(pp, "%-16s", "DeconvolutionDepthWise");
-            } else {
+            }
+            else
+            {
                 fprintf(pp, "%-16s", "Deconvolution");
             }
         }
@@ -1470,7 +1494,7 @@ int main(int argc, char** argv)
         }
 
         size_t input_size = n.inputs.size();
-        for (int j=0; j<(int)n.inputs.size(); j++)
+        for (int j = 0; j < (int)n.inputs.size(); j++)
         {
             int input_index = n.inputs[j];
             if (nodes[input_index].is_weight())
@@ -1487,7 +1511,7 @@ int main(int argc, char** argv)
 
         fprintf(pp, " %-32s %zd %d", n.name.c_str(), input_size, n.output_size);
 
-        for (int j=0; j<(int)n.inputs.size(); j++)
+        for (int j = 0; j < (int)n.inputs.size(); j++)
         {
             int input_index = n.inputs[j];
             int subinput_index = n.subinputs[j];
@@ -1527,7 +1551,7 @@ int main(int argc, char** argv)
         }
 
         fprintf(pp, " %s", n.name.c_str());
-        for (int j=1; j<n.output_size; j++)
+        for (int j = 1; j < n.output_size; j++)
         {
             fprintf(pp, " %s_subncnn_%d", n.name.c_str(), j);
         }
@@ -1535,7 +1559,7 @@ int main(int argc, char** argv)
         if (n.op == "null")
         {
             // dummy input shape
-//             fprintf(pp, " 0 0 0");
+            //             fprintf(pp, " 0 0 0");
         }
         else if (n.op == "_contrib_BilinearResize2D")
         {
@@ -1585,14 +1609,14 @@ int main(int argc, char** argv)
             // mxnet-ssd encode size as scale factor, fill min_size
             std::vector<float> sizes = n.attr("sizes");
             fprintf(pp, " -23300=%d", (int)sizes.size());
-            for (int j=0; j<(int)sizes.size(); j++)
+            for (int j = 0; j < (int)sizes.size(); j++)
             {
                 fprintf(pp, ",%e", sizes[j]);
             }
 
             std::vector<float> aspect_ratios = n.attr("ratios");
             fprintf(pp, " -23302=%d", (int)aspect_ratios.size());
-            for (int j=0; j<(int)aspect_ratios.size(); j++)
+            for (int j = 0; j < (int)aspect_ratios.size(); j++)
             {
                 fprintf(pp, ",%e", aspect_ratios[j]);
             }
@@ -1724,7 +1748,7 @@ int main(int argc, char** argv)
             std::string type = n.attr("act_type");
             if (type == "relu")
             {
-//                 fprintf(pp, " 0=%e", 0.f);
+                //                 fprintf(pp, " 0=%e", 0.f);
             }
         }
         else if (n.op == "add_n" || n.op == "ElementWiseSum")
@@ -1750,7 +1774,8 @@ int main(int argc, char** argv)
         else if (n.op == "BatchNorm")
         {
             float eps = 1e-3f;
-            if (n.has_attr("eps")) {
+            if (n.has_attr("eps"))
+            {
                 eps = n.attr("eps");
             }
 
@@ -1762,7 +1787,7 @@ int main(int argc, char** argv)
             std::vector<float> mean_data = n.weight(2, channels);
             std::vector<float> var_data = n.weight(3, channels);
 
-            for (int j=0; j<(int)var_data.size(); j++)
+            for (int j = 0; j < (int)var_data.size(); j++)
             {
                 var_data[j] += eps;
             }
@@ -1773,7 +1798,7 @@ int main(int argc, char** argv)
             if (fix_gamma)
             {
                 // slope data are all 0 here, force set 1
-                for (int j=0; j<channels; j++)
+                for (int j = 0; j < channels; j++)
                 {
                     slope_data[j] = 1.f;
                 }
@@ -1819,7 +1844,7 @@ int main(int argc, char** argv)
         else if (n.op == "Concat")
         {
             int dim = n.has_attr("dim") ? n.attr("dim") : 1;
-            fprintf(pp, " 0=%d", dim-1);
+            fprintf(pp, " 0=%d", dim - 1);
         }
         else if (n.op == "Convolution")
         {
@@ -1835,37 +1860,50 @@ int main(int argc, char** argv)
             std::vector<float> bias_data = n.weight(1);
 
             fprintf(pp, " 0=%d", num_filter);
-            if (kernel.size() == 1) {
+            if (kernel.size() == 1)
+            {
                 fprintf(pp, " 1=%d", kernel[0]);
-            } else if (kernel.size() == 2) {
+            }
+            else if (kernel.size() == 2)
+            {
                 fprintf(pp, " 1=%d", kernel[1]);
                 fprintf(pp, " 11=%d", kernel[0]);
             }
 
-            if (dilate.size() == 1) {
+            if (dilate.size() == 1)
+            {
                 fprintf(pp, " 2=%d", dilate[0]);
-            } else if (dilate.size() == 2) {
+            }
+            else if (dilate.size() == 2)
+            {
                 fprintf(pp, " 2=%d", dilate[1]);
                 fprintf(pp, " 12=%d", dilate[0]);
             }
 
-            if (stride.size() == 1) {
+            if (stride.size() == 1)
+            {
                 fprintf(pp, " 3=%d", stride[0]);
-            } else if (stride.size() == 2) {
+            }
+            else if (stride.size() == 2)
+            {
                 fprintf(pp, " 3=%d", stride[1]);
                 fprintf(pp, " 13=%d", stride[0]);
             }
 
-            if (pad.size() == 1) {
+            if (pad.size() == 1)
+            {
                 fprintf(pp, " 4=%d", pad[0]);
-            } else if (pad.size() == 2) {
+            }
+            else if (pad.size() == 2)
+            {
                 fprintf(pp, " 4=%d", pad[1]);
                 fprintf(pp, " 14=%d", pad[0]);
             }
 
             fprintf(pp, " 5=%d", no_bias == 1 ? 0 : 1);
             fprintf(pp, " 6=%d", (int)weight_data.size());
-            if (num_group > 1) {
+            if (num_group > 1)
+            {
                 fprintf(pp, " 7=%d", num_group);
             }
 
@@ -1890,39 +1928,54 @@ int main(int argc, char** argv)
             std::vector<float> bias_data = n.weight(1);
 
             fprintf(pp, " 0=%d", num_filter);
-            if (kernel.size() == 1) {
+            if (kernel.size() == 1)
+            {
                 fprintf(pp, " 1=%d", kernel[0]);
-            } else if (kernel.size() == 2) {
+            }
+            else if (kernel.size() == 2)
+            {
                 fprintf(pp, " 1=%d", kernel[1]);
                 fprintf(pp, " 11=%d", kernel[0]);
             }
 
-            if (dilate.size() == 1) {
+            if (dilate.size() == 1)
+            {
                 fprintf(pp, " 2=%d", dilate[0]);
-            } else if (dilate.size() == 2) {
+            }
+            else if (dilate.size() == 2)
+            {
                 fprintf(pp, " 2=%d", dilate[1]);
                 fprintf(pp, " 12=%d", dilate[0]);
             }
 
-            if (stride.size() == 1) {
+            if (stride.size() == 1)
+            {
                 fprintf(pp, " 3=%d", stride[0]);
-            } else if (stride.size() == 2) {
+            }
+            else if (stride.size() == 2)
+            {
                 fprintf(pp, " 3=%d", stride[1]);
                 fprintf(pp, " 13=%d", stride[0]);
             }
 
             if (target_shape.size() == 0)
             {
-                if (pad.size() == 1) {
+                if (pad.size() == 1)
+                {
                     fprintf(pp, " 4=%d", pad[0]);
-                } else if (pad.size() == 2) {
+                }
+                else if (pad.size() == 2)
+                {
                     fprintf(pp, " 4=%d", pad[1]);
                     fprintf(pp, " 14=%d", pad[0]);
                 }
 
-                if (adj.size() == 1) {
+                if (adj.size() == 1)
+                {
                     fprintf(pp, " 18=%d", adj[0]);
-                } else if (adj.size() == 2) {
+                }
+                else if (adj.size() == 2)
+                {
                     fprintf(pp, " 18=%d", adj[1]);
                     fprintf(pp, " 19=%d", adj[0]);
                 }
@@ -1931,9 +1984,12 @@ int main(int argc, char** argv)
             {
                 fprintf(pp, " 4=-233");
 
-                if (target_shape.size() == 1) {
+                if (target_shape.size() == 1)
+                {
                     fprintf(pp, " 20=%d", target_shape[0]);
-                } else if (target_shape.size() == 2) {
+                }
+                else if (target_shape.size() == 2)
+                {
                     fprintf(pp, " 20=%d", target_shape[1]);
                     fprintf(pp, " 21=%d", target_shape[0]);
                 }
@@ -1941,7 +1997,8 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 5=%d", no_bias == 1 ? 0 : 1);
             fprintf(pp, " 6=%d", (int)weight_data.size());
-            if (num_group > 1) {
+            if (num_group > 1)
+            {
                 fprintf(pp, " 7=%d", num_group);
             }
 
@@ -1957,19 +2014,19 @@ int main(int argc, char** argv)
             {
                 maxk = kernel[0] * kernel[0];
             }
-            for (int g=0; g<num_group; g++)
+            for (int g = 0; g < num_group; g++)
             {
-            // reorder weight from inch-outch to outch-inch
-            int num_filter_g = num_filter / num_group;
-            int num_input = static_cast<int>(weight_data.size() / maxk / num_filter_g / num_group);
-            const float* weight_data_ptr = weight_data.data() + g * maxk * num_filter_g * num_input;
-            for (int k=0; k<num_filter_g; k++)
-            {
-                for (int j=0; j<num_input; j++)
+                // reorder weight from inch-outch to outch-inch
+                int num_filter_g = num_filter / num_group;
+                int num_input = static_cast<int>(weight_data.size() / maxk / num_filter_g / num_group);
+                const float* weight_data_ptr = weight_data.data() + g * maxk * num_filter_g * num_input;
+                for (int k = 0; k < num_filter_g; k++)
                 {
-                    fwrite(weight_data_ptr + (j*num_filter_g + k) * maxk, sizeof(float), maxk, bp);
+                    for (int j = 0; j < num_input; j++)
+                    {
+                        fwrite(weight_data_ptr + (j * num_filter_g + k) * maxk, sizeof(float), maxk, bp);
+                    }
                 }
-            }
             }
 
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
@@ -2006,8 +2063,8 @@ int main(int argc, char** argv)
         }
         else if (n.op == "Dropout")
         {
-//             float p = n.attr("p");
-//             fprintf(pp, " 0=%d", p);
+            //             float p = n.attr("p");
+            //             fprintf(pp, " 0=%d", p);
         }
         else if (n.op == "elemwise_add" || n.op == "_add" || n.op == "_plus" || n.op == "_Plus")
         {
@@ -2067,7 +2124,7 @@ int main(int argc, char** argv)
         {
             int num_hidden = n.attr("num_hidden");
             int no_bias = n.attr("no_bias");
-//             int flatten = n.attr("flatten");
+            //             int flatten = n.attr("flatten");
 
             // TODO flatten
 
@@ -2144,7 +2201,7 @@ int main(int argc, char** argv)
             fprintf(pp, " 2=%e", eps);
             fprintf(pp, " 3=%d", scale_data_size);
 
-            const float scale_data[1] = { 1.f };
+            const float scale_data[1] = {1.f};
             fwrite(scale_data, sizeof(float), 1, bp);
         }
         else if (n.op == "LeakyReLU")
@@ -2206,7 +2263,7 @@ int main(int argc, char** argv)
                 // if axis set, reduce according to axis
                 fprintf(pp, " 1=%d", 0);
                 fprintf(pp, " -23303=%zd", axis.size());
-                for (int i=0; i< axis.size(); i++)
+                for (int i = 0; i < axis.size(); i++)
                 {
                     if (axis[i] == 0 || axis[i] > 3 || axis[i] < -3)
                         fprintf(stderr, "Unsupported reduction axis !\n");
@@ -2306,23 +2363,32 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 0=%d", pool);
 
-            if (kernel.size() == 1) {
+            if (kernel.size() == 1)
+            {
                 fprintf(pp, " 1=%d", kernel[0]);
-            } else if (kernel.size() == 2) {
+            }
+            else if (kernel.size() == 2)
+            {
                 fprintf(pp, " 1=%d", kernel[1]);
                 fprintf(pp, " 11=%d", kernel[0]);
             }
 
-            if (stride.size() == 1) {
+            if (stride.size() == 1)
+            {
                 fprintf(pp, " 2=%d", stride[0]);
-            } else if (stride.size() == 2) {
+            }
+            else if (stride.size() == 2)
+            {
                 fprintf(pp, " 2=%d", stride[1]);
                 fprintf(pp, " 12=%d", stride[0]);
             }
 
-            if (pad.size() == 1) {
+            if (pad.size() == 1)
+            {
                 fprintf(pp, " 3=%d", pad[0]);
-            } else if (pad.size() == 2) {
+            }
+            else if (pad.size() == 2)
+            {
                 fprintf(pp, " 3=%d", pad[1]);
                 fprintf(pp, " 13=%d", pad[0]);
             }
@@ -2348,18 +2414,27 @@ int main(int argc, char** argv)
         {
             std::vector<int> shape = n.attr("shape");
 
-            if (shape.size() == 1) {
-                fprintf(pp, " 0=%d", shape[0]);// should never reach here
-            } else if (shape.size() == 2) {
+            if (shape.size() == 1)
+            {
+                fprintf(pp, " 0=%d", shape[0]); // should never reach here
+            }
+            else if (shape.size() == 2)
+            {
                 fprintf(pp, " 0=%d", shape[1]);
-            } else if (shape.size() == 3) {
+            }
+            else if (shape.size() == 3)
+            {
                 fprintf(pp, " 0=%d", shape[2]);
                 fprintf(pp, " 1=%d", shape[1]);
-            } else if (shape.size() == 4) {
+            }
+            else if (shape.size() == 4)
+            {
                 fprintf(pp, " 0=%d", shape[3]);
                 fprintf(pp, " 1=%d", shape[2]);
                 fprintf(pp, " 2=%d", shape[1]);
-            } else if (shape.size() == 5) {
+            }
+            else if (shape.size() == 5)
+            {
                 fprintf(pp, " 0=%d", shape[4] * shape[3]);
                 fprintf(pp, " 1=%d", shape[2]);
                 fprintf(pp, " 2=%d", shape[1]);
@@ -2382,28 +2457,28 @@ int main(int argc, char** argv)
         {
             std::vector<int> begin = n.attr("begin");
             std::vector<int> end = n.attr("end");
-            std::vector<int> step = n.attr("step");// TODO
+            std::vector<int> step = n.attr("step"); // TODO
 
             // skip N-dim
             begin.erase(begin.begin());
             end.erase(end.begin());
-            if(step.size() != 0)
+            if (step.size() != 0)
                 step.erase(step.begin());
 
             // assert step == 1
-            for (int i=0; i<(int)step.size(); i++)
+            for (int i = 0; i < (int)step.size(); i++)
             {
                 if (step[i] != 1)
                     fprintf(stderr, "Unsupported slice step !\n");
             }
 
             fprintf(pp, " -23309=%d", (int)begin.size());
-            for (int i=0; i<(int)begin.size(); i++)
+            for (int i = 0; i < (int)begin.size(); i++)
             {
                 fprintf(pp, ",%d", begin[i]);
             }
             fprintf(pp, " -23310=%d", (int)end.size());
-            for (int i=0; i<(int)end.size(); i++)
+            for (int i = 0; i < (int)end.size(); i++)
             {
                 fprintf(pp, ",%d", end[i]);
             }
@@ -2418,7 +2493,7 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Unsupported slice_axis axes !\n");
 
             if (axis > 0)
-                axis = axis - 1;// -1 for skip N-dim
+                axis = axis - 1; // -1 for skip N-dim
 
             fprintf(pp, " -23309=1,%d", begin);
             fprintf(pp, " -23310=1,%d", end);
@@ -2427,14 +2502,14 @@ int main(int argc, char** argv)
         else if (n.op == "SliceChannel")
         {
             int num_outputs = n.attr("num_outputs");
-            int squeeze_axis = n.attr("squeeze_axis");// TODO
+            int squeeze_axis = n.attr("squeeze_axis"); // TODO
             if (squeeze_axis)
             {
                 fprintf(stderr, "Unsupported SliceChannel squeeze_axis !\n");
             }
 
             fprintf(pp, " -23300=%d", num_outputs);
-            for (int j=0; j<num_outputs; j++)
+            for (int j = 0; j < num_outputs; j++)
             {
                 fprintf(pp, ",-233");
             }
@@ -2479,7 +2554,7 @@ int main(int argc, char** argv)
             else
             {
                 fprintf(pp, " -23303=%zd", axis.size());
-                for (int i=0; i<(int)axis.size(); i++)
+                for (int i = 0; i < (int)axis.size(); i++)
                 {
                     fprintf(pp, ",%d", axis[i]);
                 }
@@ -2497,38 +2572,42 @@ int main(int argc, char** argv)
         {
             std::vector<int> axes = n.attr("axes");
 
-            if (axes.size() == 3) {
+            if (axes.size() == 3)
+            {
                 if (axes[1] == 2 && axes[2] == 1)
-                    fprintf(pp, " 0=1");// h w c
+                    fprintf(pp, " 0=1"); // h w c
                 else
                     fprintf(stderr, "Unsupported transpose type !\n");
             }
-            else if (axes.size() == 4) {
+            else if (axes.size() == 4)
+            {
                 if (axes[1] == 1 && axes[2] == 2 && axes[3] == 3)
-                    fprintf(pp, " 0=0");// w h c
+                    fprintf(pp, " 0=0"); // w h c
                 else if (axes[1] == 1 && axes[2] == 3 && axes[3] == 2)
-                    fprintf(pp, " 0=1");// h w c
+                    fprintf(pp, " 0=1"); // h w c
                 else if (axes[1] == 2 && axes[2] == 1 && axes[3] == 3)
-                    fprintf(pp, " 0=2");// w c h
+                    fprintf(pp, " 0=2"); // w c h
                 else if (axes[1] == 2 && axes[2] == 3 && axes[3] == 1)
-                    fprintf(pp, " 0=3");// c w h
+                    fprintf(pp, " 0=3"); // c w h
                 else if (axes[1] == 3 && axes[2] == 1 && axes[3] == 2)
-                    fprintf(pp, " 0=4");// h c w
+                    fprintf(pp, " 0=4"); // h c w
                 else if (axes[1] == 3 && axes[2] == 2 && axes[3] == 1)
-                    fprintf(pp, " 0=5");// c h w
-            } else if (axes.size() == 5) {
+                    fprintf(pp, " 0=5"); // c h w
+            }
+            else if (axes.size() == 5)
+            {
                 if (axes[1] == 1 && axes[2] == 2 && axes[3] == 3 && axes[4] == 4)
-                    fprintf(pp, " 0=0");// wx h c
+                    fprintf(pp, " 0=0"); // wx h c
                 else if (axes[1] == 1 && axes[2] == 3 && axes[3] == 4 && axes[4] == 2)
-                    fprintf(pp, " 0=1");// h wx c
+                    fprintf(pp, " 0=1"); // h wx c
                 else if (axes[1] == 2 && axes[2] == 1 && axes[3] == 3 && axes[4] == 4)
-                    fprintf(pp, " 0=2");// wx c h
+                    fprintf(pp, " 0=2"); // wx c h
                 else if (axes[1] == 2 && axes[2] == 3 && axes[3] == 4 && axes[4] == 1)
-                    fprintf(pp, " 0=3");// c wx h
+                    fprintf(pp, " 0=3"); // c wx h
                 else if (axes[1] == 3 && axes[2] == 4 && axes[3] == 1 && axes[4] == 2)
-                    fprintf(pp, " 0=4");// h c wx
+                    fprintf(pp, " 0=4"); // h c wx
                 else if (axes[1] == 3 && axes[2] == 4 && axes[3] == 2 && axes[4] == 1)
-                    fprintf(pp, " 0=5");// c h wx
+                    fprintf(pp, " 0=5"); // c h wx
                 else
                     fprintf(stderr, "Unsupported transpose type !\n");
             }
@@ -2581,13 +2660,13 @@ int main(int argc, char** argv)
             for (; it != n.attrs.end(); it++)
             {
                 fprintf(stderr, "# %s=%s\n", it->first.c_str(), it->second.c_str());
-//                 fprintf(pp, " %s=%s", it->first.c_str(), it->second.c_str());
+                //                 fprintf(pp, " %s=%s", it->first.c_str(), it->second.c_str());
             }
         }
 
         fprintf(pp, "\n");
 
-        for (int j=0; j<n.output_size; j++)
+        for (int j = 0; j < n.output_size; j++)
         {
             int input_uid = i | (j << 16);
             if (node_reference.find(input_uid) != node_reference.end())
@@ -2609,7 +2688,7 @@ int main(int argc, char** argv)
                         fprintf(pp, " %s_subncnn_%d", output_name.c_str(), j);
                     }
 
-                    for (int k=0; k<refcount; k++)
+                    for (int k = 0; k < refcount; k++)
                     {
                         if (j == 0)
                         {

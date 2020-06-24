@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/mish.h"
+#include "testutil.h"
 
 static int test_mish(const ncnn::Mat& a)
 {
@@ -39,25 +38,22 @@ static int test_mish(const ncnn::Mat& a)
 static int test_mish_0()
 {
     return 0
-        || test_mish(RandomMat(6, 7, 16))
-        || test_mish(RandomMat(3, 5, 13))
-        ;
+           || test_mish(RandomMat(6, 7, 16))
+           || test_mish(RandomMat(3, 5, 13));
 }
 
 static int test_mish_1()
 {
     return 0
-        || test_mish(RandomMat(6, 16))
-        || test_mish(RandomMat(7, 15))
-        ;
+           || test_mish(RandomMat(6, 16))
+           || test_mish(RandomMat(7, 15));
 }
 
 static int test_mish_2()
 {
     return 0
-        || test_mish(RandomMat(128))
-        || test_mish(RandomMat(127))
-        ;
+           || test_mish(RandomMat(128))
+           || test_mish(RandomMat(127));
 }
 
 int main()
@@ -65,8 +61,7 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_mish_0()
-        || test_mish_1()
-        || test_mish_2()
-        ;
+           || test_mish_0()
+           || test_mish_1()
+           || test_mish_2();
 }

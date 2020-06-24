@@ -93,3 +93,14 @@ For recent ndk >= 21
 ```
 -fstatic-openmp
 ```
+
+### dlopen failed: library "libomp.so" not found
+
+Newer android ndk defaults to dynamic openmp runtime
+
+modify the link flags as
+
+```
+-fstatic-openmp -fopenmp
+```
+

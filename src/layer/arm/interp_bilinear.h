@@ -35,8 +35,8 @@ static void linear_coeffs(int w, int outw, int* xofs, float* alpha)
 
         xofs[dx] = sx;
 
-        alpha[dx*2    ] = 1.f - fx;
-        alpha[dx*2 + 1] = fx;
+        alpha[dx * 2] = 1.f - fx;
+        alpha[dx * 2 + 1] = fx;
     }
 }
 
@@ -53,7 +53,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
 
     int prev_sy1 = -2;
 
-    for (int dy = 0; dy < h; dy++ )
+    for (int dy = 0; dy < h; dy++)
     {
         int sy = yofs[dy];
 
@@ -67,16 +67,16 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             float* rows0_old = rows0;
             rows0 = rows1;
             rows1 = rows0_old;
-            const float* S1 = src.row(sy+1);
+            const float* S1 = src.row(sy + 1);
 
             const float* alphap = alpha;
             float* rows1p = rows1;
             int dx = 0;
 #if __ARM_NEON
-            for ( ; dx+1 < w; dx += 2 )
+            for (; dx + 1 < w; dx += 2)
             {
                 int sx = xofs[dx];
-                int sxn = xofs[dx+1];
+                int sxn = xofs[dx + 1];
                 const float* S1p = S1 + sx;
                 const float* S1np = S1 + sxn;
 
@@ -93,14 +93,14 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
                 alphap += 4;
             }
 #endif // __ARM_NEON
-            for ( ; dx < w; dx++ )
+            for (; dx < w; dx++)
             {
                 int sx = xofs[dx];
                 const float* S1p = S1 + sx;
 
                 float a0 = alphap[0];
                 float a1 = alphap[1];
-                rows1p[dx] = S1p[0]*a0 + S1p[1]*a1;
+                rows1p[dx] = S1p[0] * a0 + S1p[1] * a1;
 
                 alphap += 2;
             }
@@ -109,17 +109,17 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
         {
             // hresize two rows
             const float* S0 = src.row(sy);
-            const float* S1 = src.row(sy+1);
+            const float* S1 = src.row(sy + 1);
 
             const float* alphap = alpha;
             float* rows0p = rows0;
             float* rows1p = rows1;
             int dx = 0;
 #if __ARM_NEON
-            for ( ; dx+1 < w; dx += 2 )
+            for (; dx + 1 < w; dx += 2)
             {
                 int sx = xofs[dx];
-                int sxn = xofs[dx+1];
+                int sxn = xofs[dx + 1];
                 const float* S0p = S0 + sx;
                 const float* S1p = S1 + sx;
                 const float* S0np = S0 + sxn;
@@ -144,7 +144,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
                 alphap += 4;
             }
 #endif // __ARM_NEON
-            for ( ; dx < w; dx++ )
+            for (; dx < w; dx++)
             {
                 int sx = xofs[dx];
                 const float* S0p = S0 + sx;
@@ -152,8 +152,8 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
 
                 float a0 = alphap[0];
                 float a1 = alphap[1];
-                rows0p[dx] = S0p[0]*a0 + S0p[1]*a1;
-                rows1p[dx] = S1p[0]*a0 + S1p[1]*a1;
+                rows0p[dx] = S0p[0] * a0 + S0p[1] * a1;
+                rows1p[dx] = S1p[0] * a0 + S1p[1] * a1;
 
                 alphap += 2;
             }
@@ -179,7 +179,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
 #if __ARM_NEON
         float32x4_t _b0 = vdupq_n_f32(b0);
         float32x4_t _b1 = vdupq_n_f32(b1);
-        for (; nn>0; nn--)
+        for (; nn > 0; nn--)
         {
             float32x4_t _rows0 = vld1q_f32(rows0p);
             float32x4_t _rows1 = vld1q_f32(rows1p);
@@ -189,22 +189,22 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
 
             vst1q_f32(Dp, _D);
 
-            float32x4_t _rows0n = vld1q_f32(rows0p+4);
-            float32x4_t _rows1n = vld1q_f32(rows1p+4);
+            float32x4_t _rows0n = vld1q_f32(rows0p + 4);
+            float32x4_t _rows1n = vld1q_f32(rows1p + 4);
 
             float32x4_t _Dn = vmulq_f32(_rows0n, _b0);
             _Dn = vmlaq_f32(_Dn, _rows1n, _b1);
 
-            vst1q_f32(Dp+4, _Dn);
+            vst1q_f32(Dp + 4, _Dn);
 
             Dp += 8;
             rows0p += 8;
             rows1p += 8;
         }
 #endif // __ARM_NEON
-        for ( ; remain; --remain )
+        for (; remain; --remain)
         {
-//             D[x] = rows0[x]*b0 + rows1[x]*b1;
+            //             D[x] = rows0[x]*b0 + rows1[x]*b1;
             *Dp++ = *rows0p++ * b0 + *rows1p++ * b1;
         }
 

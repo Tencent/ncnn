@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/dropout.h"
+#include "testutil.h"
 
 static int test_dropout(const ncnn::Mat& a, float scale)
 {
@@ -40,31 +39,28 @@ static int test_dropout(const ncnn::Mat& a, float scale)
 static int test_dropout_0()
 {
     return 0
-        || test_dropout(RandomMat(6, 7, 16), 1.f)
-        || test_dropout(RandomMat(6, 7, 16), 0.2f)
-        || test_dropout(RandomMat(3, 5, 13), 1.f)
-        || test_dropout(RandomMat(3, 5, 13), 0.5f)
-        ;
+           || test_dropout(RandomMat(6, 7, 16), 1.f)
+           || test_dropout(RandomMat(6, 7, 16), 0.2f)
+           || test_dropout(RandomMat(3, 5, 13), 1.f)
+           || test_dropout(RandomMat(3, 5, 13), 0.5f);
 }
 
 static int test_dropout_1()
 {
     return 0
-        || test_dropout(RandomMat(6, 16), 1.f)
-        || test_dropout(RandomMat(6, 16), 0.6f)
-        || test_dropout(RandomMat(7, 15), 1.f)
-        || test_dropout(RandomMat(7, 15), 0.7f)
-        ;
+           || test_dropout(RandomMat(6, 16), 1.f)
+           || test_dropout(RandomMat(6, 16), 0.6f)
+           || test_dropout(RandomMat(7, 15), 1.f)
+           || test_dropout(RandomMat(7, 15), 0.7f);
 }
 
 static int test_dropout_2()
 {
     return 0
-        || test_dropout(RandomMat(128), 1.f)
-        || test_dropout(RandomMat(128), 0.4f)
-        || test_dropout(RandomMat(127), 1.f)
-        || test_dropout(RandomMat(127), 0.5f)
-        ;
+           || test_dropout(RandomMat(128), 1.f)
+           || test_dropout(RandomMat(128), 0.4f)
+           || test_dropout(RandomMat(127), 1.f)
+           || test_dropout(RandomMat(127), 0.5f);
 }
 
 int main()
@@ -72,8 +68,7 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_dropout_0()
-        || test_dropout_1()
-        || test_dropout_2()
-        ;
+           || test_dropout_0()
+           || test_dropout_1()
+           || test_dropout_2();
 }

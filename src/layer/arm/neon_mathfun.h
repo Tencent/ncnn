@@ -30,14 +30,14 @@
 #define c_inv_mant_mask ~0x7f800000u
 #define c_cephes_SQRTHF 0.707106781186547524
 #define c_cephes_log_p0 7.0376836292E-2
-#define c_cephes_log_p1 - 1.1514610310E-1
+#define c_cephes_log_p1 -1.1514610310E-1
 #define c_cephes_log_p2 1.1676998740E-1
-#define c_cephes_log_p3 - 1.2420140846E-1
-#define c_cephes_log_p4 + 1.4249322787E-1
-#define c_cephes_log_p5 - 1.6668057665E-1
-#define c_cephes_log_p6 + 2.0000714765E-1
-#define c_cephes_log_p7 - 2.4999993993E-1
-#define c_cephes_log_p8 + 3.3333331174E-1
+#define c_cephes_log_p3 -1.2420140846E-1
+#define c_cephes_log_p4 +1.4249322787E-1
+#define c_cephes_log_p5 -1.6668057665E-1
+#define c_cephes_log_p6 +2.0000714765E-1
+#define c_cephes_log_p7 -2.4999993993E-1
+#define c_cephes_log_p8 +3.3333331174E-1
 #define c_cephes_log_q1 -2.12194440e-4
 #define c_cephes_log_q2 0.693359375
 
@@ -77,7 +77,7 @@ static inline float32x4_t log_ps(float32x4_t x)
     e = vsubq_f32(e, vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(one), mask)));
     x = vaddq_f32(x, tmp);
 
-    float32x4_t z = vmulq_f32(x,x);
+    float32x4_t z = vmulq_f32(x, x);
 
     float32x4_t y = vdupq_n_f32(c_cephes_log_p0);
     y = vmulq_f32(y, x);
@@ -100,10 +100,8 @@ static inline float32x4_t log_ps(float32x4_t x)
 
     y = vmulq_f32(y, z);
 
-
     tmp = vmulq_f32(e, vdupq_n_f32(c_cephes_log_q1));
     y = vaddq_f32(y, tmp);
-
 
     tmp = vmulq_f32(z, vdupq_n_f32(0.5f));
     y = vsubq_f32(y, tmp);
@@ -148,7 +146,6 @@ static inline float32x4_t exp_ps(float32x4_t x)
     uint32x4_t mask = vcgtq_f32(tmp, fx);
     mask = vandq_u32(mask, vreinterpretq_u32_f32(one));
 
-
     fx = vsubq_f32(tmp, vreinterpretq_f32_u32(mask));
 
     tmp = vmulq_f32(fx, vdupq_n_f32(c_cephes_exp_C1));
@@ -156,13 +153,13 @@ static inline float32x4_t exp_ps(float32x4_t x)
     x = vsubq_f32(x, tmp);
     x = vsubq_f32(x, z);
 
-    static const float cephes_exp_p[6] = { c_cephes_exp_p0, c_cephes_exp_p1, c_cephes_exp_p2, c_cephes_exp_p3, c_cephes_exp_p4, c_cephes_exp_p5 };
-    float32x4_t y = vld1q_dup_f32(cephes_exp_p+0);
-    float32x4_t c1 = vld1q_dup_f32(cephes_exp_p+1);
-    float32x4_t c2 = vld1q_dup_f32(cephes_exp_p+2);
-    float32x4_t c3 = vld1q_dup_f32(cephes_exp_p+3);
-    float32x4_t c4 = vld1q_dup_f32(cephes_exp_p+4);
-    float32x4_t c5 = vld1q_dup_f32(cephes_exp_p+5);
+    static const float cephes_exp_p[6] = {c_cephes_exp_p0, c_cephes_exp_p1, c_cephes_exp_p2, c_cephes_exp_p3, c_cephes_exp_p4, c_cephes_exp_p5};
+    float32x4_t y = vld1q_dup_f32(cephes_exp_p + 0);
+    float32x4_t c1 = vld1q_dup_f32(cephes_exp_p + 1);
+    float32x4_t c2 = vld1q_dup_f32(cephes_exp_p + 2);
+    float32x4_t c3 = vld1q_dup_f32(cephes_exp_p + 3);
+    float32x4_t c4 = vld1q_dup_f32(cephes_exp_p + 4);
+    float32x4_t c5 = vld1q_dup_f32(cephes_exp_p + 5);
 
     y = vmulq_f32(y, x);
     z = vmulq_f32(x, x);
@@ -195,13 +192,13 @@ static inline float32x4_t exp_ps(float32x4_t x)
 #define c_minus_cephes_DP1 -0.78515625
 #define c_minus_cephes_DP2 -2.4187564849853515625e-4
 #define c_minus_cephes_DP3 -3.77489497744594108e-8
-#define c_sincof_p0 -1.9515295891E-4
-#define c_sincof_p1  8.3321608736E-3
-#define c_sincof_p2 -1.6666654611E-1
-#define c_coscof_p0  2.443315711809948E-005
-#define c_coscof_p1 -1.388731625493765E-003
-#define c_coscof_p2  4.166664568298827E-002
-#define c_cephes_FOPI 1.27323954473516 // 4 / M_PI
+#define c_sincof_p0        -1.9515295891E-4
+#define c_sincof_p1        8.3321608736E-3
+#define c_sincof_p2        -1.6666654611E-1
+#define c_coscof_p0        2.443315711809948E-005
+#define c_coscof_p1        -1.388731625493765E-003
+#define c_coscof_p2        4.166664568298827E-002
+#define c_cephes_FOPI      1.27323954473516 // 4 / M_PI
 
 /* evaluation of 4 sines & cosines at once.
  *
@@ -218,7 +215,7 @@ static inline float32x4_t exp_ps(float32x4_t x)
  *   almost no extra price so both sin_ps and cos_ps make use of
  *   sincos_ps..
  */
-static inline void sincos_ps(float32x4_t x, float32x4_t *ysin, float32x4_t *ycos)
+static inline void sincos_ps(float32x4_t x, float32x4_t* ysin, float32x4_t* ycos)
 {
     // any x
     float32x4_t xmm1, xmm2, xmm3, y;
@@ -261,7 +258,7 @@ static inline void sincos_ps(float32x4_t x, float32x4_t *ysin, float32x4_t *ycos
 
     /* Evaluate the first polynom  (0 <= x <= Pi/4) in y1,
      *     and the second polynom      (Pi/4 <= x <= 0) in y2 */
-    float32x4_t z = vmulq_f32(x,x);
+    float32x4_t z = vmulq_f32(x, x);
     float32x4_t y1, y2;
 
     y1 = vmulq_n_f32(z, c_coscof_p0);
@@ -305,7 +302,7 @@ static inline float32x4_t div_ps(float32x4_t a, float32x4_t b)
 {
     float32x4_t reciprocal = vrecpeq_f32(b);
     reciprocal = vmulq_f32(vrecpsq_f32(b, reciprocal), reciprocal);
-//     reciprocal = vmulq_f32(vrecpsq_f32(b, reciprocal), reciprocal);
+    //     reciprocal = vmulq_f32(vrecpsq_f32(b, reciprocal), reciprocal);
     return vmulq_f32(a, reciprocal);
 }
 

@@ -14,8 +14,9 @@
 
 #include "modelbin.h"
 
-#include <string.h>
 #include "datareader.h"
+
+#include <string.h>
 
 namespace ncnn {
 
@@ -41,7 +42,8 @@ Mat ModelBin::load(int w, int h, int c, int type) const
     return m.reshape(w, h, c);
 }
 
-ModelBinFromDataReader::ModelBinFromDataReader(const DataReader& _dr) : dr(_dr)
+ModelBinFromDataReader::ModelBinFromDataReader(const DataReader& _dr)
+    : dr(_dr)
 {
 }
 
@@ -153,7 +155,7 @@ Mat ModelBinFromDataReader::load(int w, int type) const
             float* ptr = m;
             for (int i = 0; i < w; i++)
             {
-                ptr[i] = quantization_value[ index_array[i] ];
+                ptr[i] = quantization_value[index_array[i]];
             }
         }
         else if (flag_struct.f0 == 0)
@@ -194,7 +196,8 @@ Mat ModelBinFromDataReader::load(int w, int type) const
     return Mat();
 }
 
-ModelBinFromMatArray::ModelBinFromMatArray(const Mat* _weights) : weights(_weights)
+ModelBinFromMatArray::ModelBinFromMatArray(const Mat* _weights)
+    : weights(_weights)
 {
 }
 

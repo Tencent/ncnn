@@ -13,9 +13,11 @@
 // specific language governing permissions and limitations under the License.
 
 #include "pooling.h"
-#include <float.h>
-#include <algorithm>
+
 #include "layer_type.h"
+
+#include <algorithm>
+#include <float.h>
 
 namespace ncnn {
 
@@ -55,7 +57,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
-//     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
+    //     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
     if (global_pooling)
     {
         top_blob.create(channels, elemsize, opt.blob_allocator);
@@ -67,12 +69,12 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         if (pooling_type == PoolMethod_MAX)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
 
                 float max = ptr[0];
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     max = std::max(max, ptr[i]);
                 }
@@ -83,12 +85,12 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         else if (pooling_type == PoolMethod_AVE)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
 
                 float sum = 0.f;
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     sum += ptr[i];
                 }
@@ -139,7 +141,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     if (pooling_type == PoolMethod_MAX)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const Mat m = bottom_blob_bordered.channel(q);
             float* outptr = top_blob.channel(q);
@@ -148,13 +150,13 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             {
                 for (int j = 0; j < outw; j++)
                 {
-                    const float* sptr = m.row(i*stride_h) + j*stride_w;
+                    const float* sptr = m.row(i * stride_h) + j * stride_w;
 
                     float max = sptr[0];
 
                     for (int k = 0; k < maxk; k++)
                     {
-                        float val = sptr[ space_ofs[k] ];
+                        float val = sptr[space_ofs[k]];
                         max = std::max(max, val);
                     }
 
@@ -179,7 +181,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             }
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const Mat m = bottom_blob_bordered.channel(q);
                 float* outptr = top_blob.channel(q);
@@ -231,7 +233,7 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         else // if (avgpool_count_include_pad == 1)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const Mat m = bottom_blob_bordered.channel(q);
                 float* outptr = top_blob.channel(q);
@@ -240,13 +242,13 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 {
                     for (int j = 0; j < outw; j++)
                     {
-                        const float* sptr = m.row(i*stride_h) + j*stride_w;
+                        const float* sptr = m.row(i * stride_h) + j * stride_w;
 
                         float sum = 0;
 
                         for (int k = 0; k < maxk; k++)
                         {
-                            float val = sptr[ space_ofs[k] ];
+                            float val = sptr[space_ofs[k]];
                             sum += val;
                         }
 

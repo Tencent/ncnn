@@ -55,11 +55,11 @@ int PixelShuffle::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         {
             for (int sw = 0; sw < upscale_factor; sw++)
             {
-                const float* sptr = bottom_blob.channel(p*upscale_factor*upscale_factor + sh*upscale_factor + sw);
+                const float* sptr = bottom_blob.channel(p * upscale_factor * upscale_factor + sh * upscale_factor + sw);
 
                 for (int i = 0; i < h; i++)
                 {
-                    float* outptr = m.row(i*upscale_factor + sh) + sw;
+                    float* outptr = m.row(i * upscale_factor + sh) + sw;
                     for (int j = 0; j < w; j++)
                     {
                         outptr[0] = sptr[0];

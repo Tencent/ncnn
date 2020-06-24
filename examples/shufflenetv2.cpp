@@ -12,14 +12,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <stdio.h>
+#include "net.h"
+#include "platform.h"
+
 #include <algorithm>
-#include <vector>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
-
-#include "platform.h"
-#include "net.h"
+#include <stdio.h>
+#include <vector>
 #if NCNN_VULKAN
 #include "gpu.h"
 #endif // NCNN_VULKAN
@@ -39,7 +39,7 @@ static int detect_shufflenetv2(const cv::Mat& bgr, std::vector<float>& cls_score
 
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, 224, 224);
 
-    const float norm_vals[3] = {1/255.f, 1/255.f, 1/255.f};
+    const float norm_vals[3] = {1 / 255.f, 1 / 255.f, 1 / 255.f};
     in.substract_mean_normalize(0, norm_vals);
 
     ncnn::Extractor ex = shufflenetv2.create_extractor();
@@ -66,7 +66,7 @@ static int detect_shufflenetv2(const cv::Mat& bgr, std::vector<float>& cls_score
     out = out.reshape(out.w * out.h * out.c);
 
     cls_scores.resize(out.w);
-    for (int j=0; j<out.w; j++)
+    for (int j = 0; j < out.w; j++)
     {
         cls_scores[j] = out[j];
     }
@@ -78,18 +78,18 @@ static int print_topk(const std::vector<float>& cls_scores, int topk)
 {
     // partial sort topk with index
     int size = cls_scores.size();
-    std::vector< std::pair<float, int> > vec;
+    std::vector<std::pair<float, int> > vec;
     vec.resize(size);
-    for (int i=0; i<size; i++)
+    for (int i = 0; i < size; i++)
     {
         vec[i] = std::make_pair(cls_scores[i], i);
     }
 
     std::partial_sort(vec.begin(), vec.begin() + topk, vec.end(),
-                      std::greater< std::pair<float, int> >());
+                      std::greater<std::pair<float, int> >());
 
     // print topk and score
-    for (int i=0; i<topk; i++)
+    for (int i = 0; i < topk; i++)
     {
         float score = vec[i].first;
         int index = vec[i].second;
@@ -116,16 +116,8 @@ int main(int argc, char** argv)
         return -1;
     }
 
-#if NCNN_VULKAN
-    ncnn::create_gpu_instance();
-#endif // NCNN_VULKAN
-
     std::vector<float> cls_scores;
     detect_shufflenetv2(m, cls_scores);
-
-#if NCNN_VULKAN
-    ncnn::destroy_gpu_instance();
-#endif // NCNN_VULKAN
 
     print_topk(cls_scores, 3);
 

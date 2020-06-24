@@ -13,8 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "interp_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -308,8 +310,8 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
         constants[11].f = h / (float)outh;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
-                                 : elempack == 4 ? pipeline_interp_pack4
-                                 : pipeline_interp;
+                                   : elempack == 4 ? pipeline_interp_pack4
+                                   : pipeline_interp;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
@@ -380,8 +382,8 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
         constants[9].i = top_blob.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_interp_bicubic_pack8
-                                 : elempack == 4 ? pipeline_interp_bicubic_pack4
-                                 : pipeline_interp_bicubic;
+                                   : elempack == 4 ? pipeline_interp_bicubic_pack4
+                                   : pipeline_interp_bicubic;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
@@ -426,18 +428,18 @@ int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, 
         constants[1].i = bottom_blob.w;
         constants[2].i = bottom_blob.h;
         constants[3].i = bottom_blob.c;
-        constants[4].i = 0;//bottom_blob.cstep;
+        constants[4].i = 0; //bottom_blob.cstep;
         constants[5].i = top_blob.dims;
         constants[6].i = top_blob.w;
         constants[7].i = top_blob.h;
         constants[8].i = top_blob.c;
-        constants[9].i = 0;//top_blob.cstep;
+        constants[9].i = 0; //top_blob.cstep;
         constants[10].f = w / (float)outw;
         constants[11].f = h / (float)outh;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
-                                 : elempack == 4 ? pipeline_interp_pack4
-                                 : pipeline_interp;
+                                   : elempack == 4 ? pipeline_interp_pack4
+                                   : pipeline_interp;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
@@ -502,16 +504,16 @@ int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, 
         constants[1].i = bottom_blob.w;
         constants[2].i = bottom_blob.h;
         constants[3].i = bottom_blob.c;
-        constants[4].i = 0;//bottom_blob.cstep;
+        constants[4].i = 0; //bottom_blob.cstep;
         constants[5].i = top_blob.dims;
         constants[6].i = top_blob.w;
         constants[7].i = top_blob.h;
         constants[8].i = top_blob.c;
-        constants[9].i = 0;//top_blob.cstep;
+        constants[9].i = 0; //top_blob.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_interp_bicubic_pack8
-                                 : elempack == 4 ? pipeline_interp_bicubic_pack4
-                                 : pipeline_interp_bicubic;
+                                   : elempack == 4 ? pipeline_interp_bicubic_pack4
+                                   : pipeline_interp_bicubic;
 
         cmd.record_pipeline(pipeline, buffer_bindings, image_bindings, constants, top_blob);
     }
