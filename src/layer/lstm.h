@@ -30,6 +30,7 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 public:
     int num_output;
     int weight_data_size;
@@ -38,6 +39,11 @@ public:
     Mat weight_hc_data;
     Mat weight_xc_data;
     Mat bias_c_data;
+
+    mutable Mat hidden;
+    mutable Mat cell;
+protected:
+    int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc,const Mat& cont_blob, const Option& opt) const;
 };
 
 } // namespace ncnn
