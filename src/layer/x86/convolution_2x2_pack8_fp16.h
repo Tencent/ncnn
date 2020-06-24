@@ -106,7 +106,7 @@ static void conv2x2s1_weight_fp16_pack8_avx(const Mat& kernel, Mat& kernel_tm_pa
             const float* k76 = k7.row(p + 6);
             const float* k77 = k7.row(p + 7);
 
-            unsigned short* g00 =(unsigned short*) g0.row(p / 8);
+            unsigned short* g00 = (unsigned short*)g0.row(p / 8);
 
             for (int k = 0; k < 4; k++)
             {
@@ -201,7 +201,7 @@ static void conv2x2s1_fp16_pack8_avx(const Mat& bottom_blob, Mat& top_blob, cons
     int outch = top_blob.c;
     const float* bias = _bias;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         Mat out0 = top_blob.channel(p);

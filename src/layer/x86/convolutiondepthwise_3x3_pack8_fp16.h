@@ -23,7 +23,7 @@ static void convdw3x3s1_fp16_pack8_avx(const Mat& bottom_blob, Mat& top_blob, co
 
     const float* bias = _bias;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int g = 0; g < group; g++)
     {
         Mat out = top_blob.channel(g);
@@ -234,14 +234,14 @@ static void convdw3x3s2_fp16_pack8_avx(const Mat& bottom_blob, Mat& top_blob, co
 
     const float* bias = _bias;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int g = 0; g < group; g++)
     {
         Mat out = top_blob.channel(g);
 
         __m256 _bias0 = bias ? _mm256_loadu_ps((const float*)bias + g * 8) : _mm256_set1_ps(0.f);
 
-        const unsigned short* k0 =(const unsigned short* )kernel.row(g);
+        const unsigned short* k0 = (const unsigned short*)kernel.row(g);
 
         float* outptr0 = out.row(0);
         float* outptr1 = out.row(1);

@@ -14,7 +14,6 @@
 
 static void conv1x1s1_sgemm_transform_kernel_pack8_avx(const Mat& kernel, Mat& weight_data_pack8, int num_input, int num_output)
 {
-   
     // src = kw-kh-inch-outch
     // dst = 8b-8a-kw-kh-inch/8a-outch/8b
     Mat weight_data_r2 = kernel.reshape(1, num_input, num_output);
@@ -109,89 +108,88 @@ static void conv1x1s1_sgemm_transform_kernel_pack8_avx(const Mat& kernel, Mat& w
             const float* k77 = k7.row(p + 7);
 
             float* g00 = g0.row(p / 8);
-                g00[0] = k00[0];
-                g00[1] = k10[0];
-                g00[2] = k20[0];
-                g00[3] = k30[0];
-                g00[4] = k40[0];
-                g00[5] = k50[0];
-                g00[6] = k60[0];
-                g00[7] = k70[0];
-                g00 += 8;
-                g00[0] = k01[0];
-                g00[1] = k11[0];
-                g00[2] = k21[0];
-                g00[3] = k31[0];
-                g00[4] = k41[0];
-                g00[5] = k51[0];
-                g00[6] = k61[0];
-                g00[7] = k71[0];
+            g00[0] = k00[0];
+            g00[1] = k10[0];
+            g00[2] = k20[0];
+            g00[3] = k30[0];
+            g00[4] = k40[0];
+            g00[5] = k50[0];
+            g00[6] = k60[0];
+            g00[7] = k70[0];
+            g00 += 8;
+            g00[0] = k01[0];
+            g00[1] = k11[0];
+            g00[2] = k21[0];
+            g00[3] = k31[0];
+            g00[4] = k41[0];
+            g00[5] = k51[0];
+            g00[6] = k61[0];
+            g00[7] = k71[0];
 
-                g00 += 8;
-                g00[0] = k02[0];
-                g00[1] = k12[0];
-                g00[2] = k22[0];
-                g00[3] = k32[0];
-                g00[4] = k42[0];
-                g00[5] = k52[0];
-                g00[6] = k62[0];
-                g00[7] = k72[0];
+            g00 += 8;
+            g00[0] = k02[0];
+            g00[1] = k12[0];
+            g00[2] = k22[0];
+            g00[3] = k32[0];
+            g00[4] = k42[0];
+            g00[5] = k52[0];
+            g00[6] = k62[0];
+            g00[7] = k72[0];
 
-                g00 += 8;
-                g00[0] = k03[0];
-                g00[1] = k13[0];
-                g00[2] = k23[0];
-                g00[3] = k33[0];
-                g00[4] = k43[0];
-                g00[5] = k53[0];
-                g00[6] = k63[0];
-                g00[7] = k73[0];
+            g00 += 8;
+            g00[0] = k03[0];
+            g00[1] = k13[0];
+            g00[2] = k23[0];
+            g00[3] = k33[0];
+            g00[4] = k43[0];
+            g00[5] = k53[0];
+            g00[6] = k63[0];
+            g00[7] = k73[0];
 
-                g00 += 8;
-                g00[0] = k04[0];
-                g00[1] = k14[0];
-                g00[2] = k24[0];
-                g00[3] = k34[0];
-                g00[4] = k44[0];
-                g00[5] = k54[0];
-                g00[6] = k64[0];
-                g00[7] = k74[0];
+            g00 += 8;
+            g00[0] = k04[0];
+            g00[1] = k14[0];
+            g00[2] = k24[0];
+            g00[3] = k34[0];
+            g00[4] = k44[0];
+            g00[5] = k54[0];
+            g00[6] = k64[0];
+            g00[7] = k74[0];
 
-                g00 += 8;
-                g00[0] = k05[0];
-                g00[1] = k15[0];
-                g00[2] = k25[0];
-                g00[3] = k35[0];
-                g00[4] = k45[0];
-                g00[5] = k55[0];
-                g00[6] = k65[0];
-                g00[7] = k75[0];
+            g00 += 8;
+            g00[0] = k05[0];
+            g00[1] = k15[0];
+            g00[2] = k25[0];
+            g00[3] = k35[0];
+            g00[4] = k45[0];
+            g00[5] = k55[0];
+            g00[6] = k65[0];
+            g00[7] = k75[0];
 
-                g00 += 8;
-                g00[0] = k06[0];
-                g00[1] = k16[0];
-                g00[2] = k26[0];
-                g00[3] = k36[0];
-                g00[4] = k46[0];
-                g00[5] = k56[0];
-                g00[6] = k66[0];
-                g00[7] = k76[0];
+            g00 += 8;
+            g00[0] = k06[0];
+            g00[1] = k16[0];
+            g00[2] = k26[0];
+            g00[3] = k36[0];
+            g00[4] = k46[0];
+            g00[5] = k56[0];
+            g00[6] = k66[0];
+            g00[7] = k76[0];
 
-                g00 += 8;
-                g00[0] = k07[0];
-                g00[1] = k17[0];
-                g00[2] = k27[0];
-                g00[3] = k37[0];
-                g00[4] = k47[0];
-                g00[5] = k57[0];
-                g00[6] = k67[0];
-                g00[7] = k77[0];
+            g00 += 8;
+            g00[0] = k07[0];
+            g00[1] = k17[0];
+            g00[2] = k27[0];
+            g00[3] = k37[0];
+            g00[4] = k47[0];
+            g00[5] = k57[0];
+            g00[6] = k67[0];
+            g00[7] = k77[0];
 
-                g00 += 8;
+            g00 += 8;
         }
     }
 }
-
 
 static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
@@ -212,7 +210,7 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
     {
         int nn_size = size / 12;
         int remain_size_start = nn_size * 12;
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = ii * 12;
@@ -253,7 +251,7 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
             }
         }
         nn_size = (size - remain_size_start) >> 3;
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 8;
@@ -290,7 +288,7 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
         remain_size_start += nn_size << 3;
         nn_size = (size - remain_size_start) >> 2;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 4;
@@ -317,7 +315,7 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
 
         remain_size_start += nn_size << 2;
         nn_size = (size - remain_size_start) >> 1;
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 2;
@@ -339,7 +337,7 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
         }
 
         remain_size_start += nn_size << 1;
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < size; i++)
         {
             const float* img0 = bottom_blob.channel(0);
@@ -355,7 +353,7 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
             }
         }
     }
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         Mat out = top_blob.channel(p);
@@ -1016,7 +1014,7 @@ static void conv1x1s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const Mat
     Mat bottom_blob_shrinked;
     bottom_blob_shrinked.create(outw, outh, channels, elemsize, elempack, opt.workspace_allocator);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < channels; p++)
     {
         const float* r0 = bottom_blob.channel(p);
