@@ -115,11 +115,11 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
     {
         int elempack = (support_packing && opt.use_packing_layout && channels % 8 == 0) ? 8 : 1;
 #if __AVX__
-        // pack4
+        // pack8
         if (elempack == 8)
         {
 
-            if (opt.use_fp16_weight_storage && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            if (opt.use_fp16_storage && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
                 Mat weight_data_r2 = weight_data.reshape(maxk, group);
                 Mat weight_data_tmp;
@@ -127,7 +127,7 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
                 ncnn::cast_float32_to_float16(weight_data_tmp, weight_data_pack8, opt);
                 return 0;
             }
-            if (opt.use_fp16_weight_storage &&  kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            if (opt.use_fp16_storage &&  kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
                 Mat weight_data_r2 = weight_data.reshape(maxk, group);
                 Mat weight_data_tmp;
@@ -289,7 +289,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
         {
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
-                if (opt.use_fp16_weight_storage) {
+                if (opt.use_fp16_storage) {
                     convdw3x3s1_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
                 } else {
                     convdw3x3s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
@@ -304,7 +304,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
             }
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
-                if (opt.use_fp16_weight_storage) {
+                if (opt.use_fp16_storage) {
                     convdw3x3s2_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
                 } else {
                     convdw3x3s2_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);

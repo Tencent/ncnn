@@ -53,7 +53,7 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
 
         flatten->create_pipeline(opt);
     }
-    if (opt.use_fp16_weight_storage)
+    if (opt.use_fp16_storage && weight_data.elemsize == 4u)
     {
         ncnn::cast_float32_to_float16(weight_data, weight_data_fp16, opt);
     }
@@ -110,18 +110,20 @@ int InnerProduct_x86::forward(const Mat &bottom_blob, Mat &top_blob,
             bottom_blob_flattened.elemsize = 4u;
             bottom_blob_flattened.elempack = 1;
         }
-        if ( opt.use_fp16_weight_storage) {
+        if ( opt.use_fp16_storage) {
             return forward_fp16(bottom_blob_flattened, top_blob, opt);
         } else {
             return forward(bottom_blob_flattened, top_blob, opt);
         }
     }
-#endif // __ARM_NEON
-#if __AVX__
 
+    if (size % 8 == 0 &&  opt.use_fp16_storage) {
+            return forward_fp16(bottom_blob, top_blob, opt);
+    }
     top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
+    
 
     const float *weight_data_ptr = weight_data;
 
