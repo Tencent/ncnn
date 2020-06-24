@@ -241,7 +241,7 @@ static void convdw3x3s2_fp16_pack8_avx(const Mat& bottom_blob, Mat& top_blob, co
 
         __m256 _bias0 = bias ? _mm256_loadu_ps((const float*)bias + g * 8) : _mm256_set1_ps(0.f);
 
-        const unsigned short* k0 =(const unsigned short* )kernel.row(g);
+        const unsigned short* k0 = (const unsigned short*)kernel.row(g);
 
         float* outptr0 = out.row(0);
         float* outptr1 = out.row(1);
