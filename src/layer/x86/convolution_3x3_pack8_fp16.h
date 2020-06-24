@@ -26,10 +26,9 @@ static void conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(const Mat& kern
         {1.0f / 90, -1.0f / 45, 2.0f / 45},
         {1.0f / 45, 1.0f / 90, 1.0f / 180},
         {1.0f / 45, -1.0f / 90, 1.0f / 180},
-        {0.0f, 0.0f, 1.0f}
-    };
+        {0.0f, 0.0f, 1.0f}};
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -299,7 +298,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
         // 5 = (r06 + (r02 - r04 * 1.25) * 4) + (r01 * 2 - r03 * 2.5 + r05 * 0.5)
         // 6 = (r06 + (r02 - r04 * 1.25) * 4) - (r01 * 2 - r03 * 2.5 + r05 * 0.5)
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < inch; q++)
         {
             const Mat img0 = bottom_blob_bordered.channel(q);
@@ -486,7 +485,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
         else // if (tiles >= 1)
             bottom_blob_tm2.create(1 * inch, tiles, 64, elemsize, elempack, opt.workspace_allocator);
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int r = 0; r < 64; r++)
         {
             Mat tm2 = bottom_blob_tm2.channel(r);
@@ -624,7 +623,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
         // permute end
         top_blob_tm.create(tiles, 64, outch, elemsize, elempack, opt.workspace_allocator);
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outch; p++)
         {
             float* output0_tm = top_blob_tm.channel(p);
@@ -1332,7 +1331,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
         int h_tm = outh / 6 * 8;
         const int tiles = w_tm / 8 * h_tm / 8;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outch; p++)
         {
             const Mat out0_tm = top_blob_tm.channel(p);
