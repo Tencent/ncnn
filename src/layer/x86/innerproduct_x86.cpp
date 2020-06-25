@@ -127,7 +127,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
         return -100;
 
     const float* weight_data_ptr = weight_data;
-
+    float* output_ptr = top_blob;
     int nn_num_output = num_output >> 3;
     int remain_num_output_start = nn_num_output << 3;
 
@@ -233,13 +233,92 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
                 w6++;
                 w7++;
             }
-            __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5,
-                                          _sum6, _sum7);
-            __m256 _sums_f = _mm256_loadu_ps(&sums[0]);
-            _sums = activation_ps(_mm256_add_ps(_sums_f, _sums), activation_type,
-                                  activation_params);
-            _mm256_storeu_ps(&top_blob[p], _sums);
         }
+        __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5,
+                                      _sum6, _sum7);
+        __m256 _sums_f = _mm256_loadu_ps(sums);
+        _sums = activation_ps(_mm256_add_ps(_sums_f, _sums), activation_type,
+                              activation_params);
+        _mm256_storeu_ps(output_ptr, _sums);
+        output_ptr += 8;
+    }
+
+    nn_num_output = (num_output - remain_num_output_start) >> 2;
+    int nn_offset = remain_num_output_start;
+    remain_num_output_start += (nn_num_output << 2);
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int pp = 0; pp < nn_num_output; pp++)
+    {
+        int p = nn_offset + (pp * 4);
+
+        float sums[4] = {0.0f};
+        if (bias_term)
+        {
+            sums[0] = bias_data[p];
+            sums[1] = bias_data[p + 1];
+            sums[2] = bias_data[p + 2];
+            sums[3] = bias_data[p + 3];
+        }
+        __m256 _sum0 = _mm256_set1_ps(0.f);
+        __m256 _sum1 = _mm256_set1_ps(0.f);
+        __m256 _sum2 = _mm256_set1_ps(0.f);
+        __m256 _sum3 = _mm256_set1_ps(0.f);
+
+        const float* w0 = weight_data_ptr + size * channels * p;
+        const float* w1 = weight_data_ptr + size * channels * (p + 1);
+        const float* w2 = weight_data_ptr + size * channels * (p + 2);
+        const float* w3 = weight_data_ptr + size * channels * (p + 3);
+
+        // channels
+        for (int q = 0; q < channels; q++)
+        {
+            const float* m = bottom_blob.channel(q);
+            int nn = size >> 3;
+            int remain = size & 7;
+
+            for (; nn > 0; nn--)
+            {
+                __m256 _m = _mm256_loadu_ps(m);
+
+                __m256 _w0 = _mm256_loadu_ps(w0);
+                _sum0 = _mm256_fmadd_ps(_m, _w0, _sum0);
+
+                __m256 _w1 = _mm256_loadu_ps(w1);
+                _sum1 = _mm256_fmadd_ps(_m, _w1, _sum1);
+
+                __m256 _w2 = _mm256_loadu_ps(w2);
+                _sum2 = _mm256_fmadd_ps(_m, _w2, _sum2);
+
+                __m256 _w3 = _mm256_loadu_ps(w3);
+                _sum3 = _mm256_fmadd_ps(_m, _w3, _sum3);
+
+                m += 8;
+                w0 += 8;
+                w1 += 8;
+                w2 += 8;
+                w3 += 8;
+            }
+
+            for (; remain > 0; remain--)
+            {
+                sums[0] += *m * *w0;
+                sums[1] += *m * *w1;
+                sums[2] += *m * *w2;
+                sums[3] += *m * *w3;
+
+                m++;
+                w0++;
+                w1++;
+                w2++;
+                w3++;
+            }
+        }
+        __m128 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3);
+        __m256 _sums_a = activation_ps(_mm256_castps128_ps256(_mm_add_ps(_mm_loadu_ps(sums), _sums)), activation_type,
+                                       activation_params);
+        _mm_storeu_ps(output_ptr, _mm256_castps256_ps128(_sums_a));
+        output_ptr += 4;
     }
 
 // num_output
@@ -282,7 +361,8 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
         sum += _mm256_reduce_add_ps(_sum);
         sum = activation_ss(sum, activation_type, activation_params);
 
-        top_blob[p] = sum;
+        *output_ptr = sum;
+        output_ptr++;
     }
     return 0;
 #else
@@ -306,7 +386,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
         return -100;
 
     const unsigned short* weight_data_ptr = (const unsigned short*)weight_data_fp16;
-
+    float* output_ptr = top_blob;
     int nn_num_output = num_output >> 3;
     int remain_num_output_start = nn_num_output << 3;
 
@@ -314,6 +394,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = pp * 8;
+
         float sums[8] = {0.0f};
         if (bias_term)
         {
@@ -335,20 +416,22 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
         __m256 _sum6 = _mm256_set1_ps(0.f);
         __m256 _sum7 = _mm256_set1_ps(0.f);
 
-        const unsigned short* w0 = weight_data_ptr + size * channels * p;
-        const unsigned short* w1 = weight_data_ptr + size * channels * (p + 1);
-        const unsigned short* w2 = weight_data_ptr + size * channels * (p + 2);
-        const unsigned short* w3 = weight_data_ptr + size * channels * (p + 3);
-        const unsigned short* w4 = weight_data_ptr + size * channels * (p + 4);
-        const unsigned short* w5 = weight_data_ptr + size * channels * (p + 5);
-        const unsigned short* w6 = weight_data_ptr + size * channels * (p + 6);
-        const unsigned short* w7 = weight_data_ptr + size * channels * (p + 7);
+        const unsigned short* w0 = (const unsigned short*)weight_data_ptr + size * channels * p;
+        const unsigned short* w1 = (const unsigned short*)weight_data_ptr + size * channels * (p + 1);
+        const unsigned short* w2 = (const unsigned short*)weight_data_ptr + size * channels * (p + 2);
+        const unsigned short* w3 = (const unsigned short*)weight_data_ptr + size * channels * (p + 3);
+        const unsigned short* w4 = (const unsigned short*)weight_data_ptr + size * channels * (p + 4);
+        const unsigned short* w5 = (const unsigned short*)weight_data_ptr + size * channels * (p + 5);
+        const unsigned short* w6 = (const unsigned short*)weight_data_ptr + size * channels * (p + 6);
+        const unsigned short* w7 = (const unsigned short*)weight_data_ptr + size * channels * (p + 7);
 
         // channels
         for (int q = 0; q < channels; q++)
         {
             const float* m = bottom_blob.channel(q);
             int nn = size >> 3;
+            int remain = size & 7;
+
             for (; nn > 0; nn--)
             {
                 __m256 _m = _mm256_loadu_ps(m);
@@ -387,13 +470,78 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
                 w6 += 8;
                 w7 += 8;
             }
-            __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5,
-                                          _sum6, _sum7);
-            __m256 _sums_f = _mm256_loadu_ps(&sums[0]);
-            _sums = activation_ps(_mm256_add_ps(_sums_f, _sums), activation_type,
-                                  activation_params);
-            _mm256_storeu_ps(&top_blob[p], _sums);
         }
+        __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5,
+                                      _sum6, _sum7);
+        __m256 _sums_f = _mm256_loadu_ps(sums);
+        _sums = activation_ps(_mm256_add_ps(_sums_f, _sums), activation_type,
+                              activation_params);
+        _mm256_storeu_ps(output_ptr, _sums);
+        output_ptr += 8;
+    }
+
+    nn_num_output = (num_output - remain_num_output_start) >> 2;
+    int nn_offset = remain_num_output_start;
+    remain_num_output_start += (nn_num_output << 2);
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int pp = 0; pp < nn_num_output; pp++)
+    {
+        int p = nn_offset + (pp * 4);
+
+        float sums[4] = {0.0f};
+        if (bias_term)
+        {
+            sums[0] = bias_data[p];
+            sums[1] = bias_data[p + 1];
+            sums[2] = bias_data[p + 2];
+            sums[3] = bias_data[p + 3];
+        }
+        __m256 _sum0 = _mm256_set1_ps(0.f);
+        __m256 _sum1 = _mm256_set1_ps(0.f);
+        __m256 _sum2 = _mm256_set1_ps(0.f);
+        __m256 _sum3 = _mm256_set1_ps(0.f);
+
+        const unsigned short* w0 = (const unsigned short*)weight_data_ptr + size * channels * p;
+        const unsigned short* w1 = (const unsigned short*)weight_data_ptr + size * channels * (p + 1);
+        const unsigned short* w2 = (const unsigned short*)weight_data_ptr + size * channels * (p + 2);
+        const unsigned short* w3 = (const unsigned short*)weight_data_ptr + size * channels * (p + 3);
+
+        // channels
+        for (int q = 0; q < channels; q++)
+        {
+            const float* m = bottom_blob.channel(q);
+            int nn = size >> 3;
+            int remain = size & 7;
+
+            for (; nn > 0; nn--)
+            {
+                __m256 _m = _mm256_loadu_ps(m);
+
+                __m256 _w0 = loadfp16(w0);
+                _sum0 = _mm256_fmadd_ps(_m, _w0, _sum0);
+
+                __m256 _w1 = loadfp16(w1);
+                _sum1 = _mm256_fmadd_ps(_m, _w1, _sum1);
+
+                __m256 _w2 = loadfp16(w2);
+                _sum2 = _mm256_fmadd_ps(_m, _w2, _sum2);
+
+                __m256 _w3 = loadfp16(w3);
+                _sum3 = _mm256_fmadd_ps(_m, _w3, _sum3);
+
+                m += 8;
+                w0 += 8;
+                w1 += 8;
+                w2 += 8;
+                w3 += 8;
+            }
+        }
+        __m128 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3);
+        __m256 _sums_a = activation_ps(_mm256_castps128_ps256(_mm_add_ps(_mm_loadu_ps(sums), _sums)), activation_type,
+                                       activation_params);
+        _mm_storeu_ps(output_ptr, _mm256_castps256_ps128(_sums_a));
+        output_ptr += 4;
     }
 
 // num_output
@@ -405,7 +553,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
         if (bias_term)
             sum = bias_data[p];
 
-        const unsigned short* w = weight_data_ptr + size * channels * p;
+        const unsigned short* w = (const unsigned short*)weight_data_ptr + size * channels * p;
 
         __m256 _sum = _mm256_set1_ps(0.f);
         // channels
@@ -414,6 +562,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
             const float* m = bottom_blob.channel(q);
 
             int nn = size >> 3;
+            int remain = size & 7;
             for (; nn > 0; nn--)
             {
                 __m256 _m = _mm256_loadu_ps(m);
@@ -429,7 +578,8 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
         sum += _mm256_reduce_add_ps(_sum);
         sum = activation_ss(sum, activation_type, activation_params);
 
-        top_blob[p] = sum;
+        *output_ptr = sum;
+        output_ptr++;
     }
     return 0;
 }
