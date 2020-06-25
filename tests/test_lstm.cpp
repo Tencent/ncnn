@@ -281,6 +281,5 @@ static int test_lstm_4()
 int main()
 {
     SRAND(7767517);
-    // return test_lstm_layer(RandomMat(8,2), 2, 1);
     return 0 || test_lstm_0() ||  test_lstm_1() || test_lstm_2() || test_lstm_3() || test_lstm_4() || test_lstm_5();
 }

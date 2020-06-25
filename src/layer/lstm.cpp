@@ -45,6 +45,7 @@ int LSTM::load_model(const ModelBin& mb)
     if (weight_xc_data.empty())
         return -100;
 
+
     bias_c_data = mb.load(num_output, 4, num_directions, 0);
     if (bias_c_data.empty())
         return -100;
@@ -182,13 +183,6 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     Mat cont_blob(T,4u, opt.workspace_allocator);
     cont_blob.fill((int)1);
 
-    if (direction == 0) {
-        cont_blob[0] = 0;
-    }
-    if (direction == 1) {
-        cont_blob[cont_blob.w-1] = 0;
-    }
-
     // initial hidden state
     if (hidden.empty())
     {
@@ -197,9 +191,8 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         {
             return -100;
         }
-        hidden.fill(0.f);
     }
-
+    hidden.fill(0.f);
     // internal cell state
     if (cell.empty())
     {
@@ -208,8 +201,8 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         {
             return -100;
         }
-        cell.fill(0.f);
     }
+    cell.fill(0.f);
 
 
 
@@ -235,9 +228,6 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         Mat top_blob_reverse(num_output, T, 4u, opt.workspace_allocator);
         if (top_blob_reverse.empty())
             return -100;
-
-        hidden.fill(0.0f);
-        cell.fill(0.0f);
 
         int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0),cont_blob, opt);
         if (ret0 != 0)
