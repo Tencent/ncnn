@@ -414,7 +414,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 
     int nn_num_output = num_output >> 2;
     int remain_num_output_start = nn_num_output << 2;
-    fprintf(stderr, "nn_num_output = %d , remain_num_output_start=%d , num_output = %d \n",nn_num_output,remain_num_output_start,num_output );
+    fprintf(stderr, "nn_num_output = %d , remain_num_output_start=%d , num_output = %d \n", nn_num_output, remain_num_output_start, num_output);
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
