@@ -42,7 +42,7 @@ int LSTM_x86::create_pipeline(const Option& opt)
 
     reshape->create_pipeline(opt);
 #if __AVX__
-    if (opt.use_fp16_weight_storage)
+    if (opt.use_fp16_storage)
     {
         ncnn::cast_float32_to_float16(weight_xc_data, weight_xc_data_fp16, opt);
         ncnn::cast_float32_to_float16(weight_hc_data, weight_hc_data_fp16, opt);
@@ -64,6 +64,8 @@ int LSTM_x86::destroy_pipeline(const Option& opt)
 
     return 0;
 }
+#ifdef __AVX__
+
 int LSTM_x86::lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc,const Mat& cont_blob, const Option& opt) const
 {
     int size = bottom_blob.w;
@@ -107,23 +109,23 @@ int LSTM_x86::lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, cons
             float* gates_data_O = gates.row(2);
             float* gates_data_G = gates.row(3);
             // gate I F O G
-            const float* weight_xc_I_0 = weight_xc.row(num_output * 0 + q);
-            const float* weight_xc_F_0 = weight_xc.row(num_output * 1 + q);
-            const float* weight_xc_O_0 = weight_xc.row(num_output * 2 + q);
-            const float* weight_xc_G_0 = weight_xc.row(num_output * 3 + q);
-            const float* weight_xc_I_1 = weight_xc.row(num_output * 0 + (q+1));
-            const float* weight_xc_F_1 = weight_xc.row(num_output * 1 + (q+1));
-            const float* weight_xc_O_1 = weight_xc.row(num_output * 2 + (q+1));
-            const float* weight_xc_G_1 = weight_xc.row(num_output * 3 + (q+1));
+            const unsigned short* weight_xc_I_0 = (const unsigned short*)weight_xc.row(num_output * 0 + q);
+            const unsigned short* weight_xc_F_0 = (const unsigned short*)weight_xc.row(num_output * 1 + q);
+            const unsigned short* weight_xc_O_0 = (const unsigned short*)weight_xc.row(num_output * 2 + q);
+            const unsigned short* weight_xc_G_0 = (const unsigned short*)weight_xc.row(num_output * 3 + q);
+            const unsigned short* weight_xc_I_1 = (const unsigned short*)weight_xc.row(num_output * 0 + (q+1));
+            const unsigned short* weight_xc_F_1 = (const unsigned short*)weight_xc.row(num_output * 1 + (q+1));
+            const unsigned short* weight_xc_O_1 = (const unsigned short*)weight_xc.row(num_output * 2 + (q+1));
+            const unsigned short* weight_xc_G_1 = (const unsigned short*)weight_xc.row(num_output * 3 + (q+1));
 
-            const float* weight_hc_I_0 = weight_hc.row(num_output * 0 + q);
-            const float* weight_hc_F_0 = weight_hc.row(num_output * 1 + q);
-            const float* weight_hc_O_0 = weight_hc.row(num_output * 2 + q);
-            const float* weight_hc_G_0 = weight_hc.row(num_output * 3 + q);
-            const float* weight_hc_I_1 = weight_hc.row(num_output * 0 + (q+1));
-            const float* weight_hc_F_1 = weight_hc.row(num_output * 1 + (q+1));
-            const float* weight_hc_O_1 = weight_hc.row(num_output * 2 + (q+1));
-            const float* weight_hc_G_1 = weight_hc.row(num_output * 3 + (q+1));
+            const unsigned short* weight_hc_I_0 = (const unsigned short*)weight_hc.row(num_output * 0 + q);
+            const unsigned short* weight_hc_F_0 = (const unsigned short*)weight_hc.row(num_output * 1 + q);
+            const unsigned short* weight_hc_O_0 = (const unsigned short*)weight_hc.row(num_output * 2 + q);
+            const unsigned short* weight_hc_G_0 = (const unsigned short*)weight_hc.row(num_output * 3 + q);
+            const unsigned short* weight_hc_I_1 = (const unsigned short*)weight_hc.row(num_output * 0 + (q+1));
+            const unsigned short* weight_hc_F_1 = (const unsigned short*)weight_hc.row(num_output * 1 + (q+1));
+            const unsigned short* weight_hc_O_1 = (const unsigned short*)weight_hc.row(num_output * 2 + (q+1));
+            const unsigned short* weight_hc_G_1 = (const unsigned short*)weight_hc.row(num_output * 3 + (q+1));
 
 
             // float I = bias_c_I[q];
@@ -222,15 +224,15 @@ int LSTM_x86::lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, cons
             float* gates_data_O = gates.row(2);
             float* gates_data_G = gates.row(3);
             // gate I F O G
-            const float* weight_xc_I = weight_xc.row(num_output * 0 + q);
-            const float* weight_xc_F = weight_xc.row(num_output * 1 + q);
-            const float* weight_xc_O = weight_xc.row(num_output * 2 + q);
-            const float* weight_xc_G = weight_xc.row(num_output * 3 + q);
+            const unsigned short* weight_xc_I = (const unsigned short*)weight_xc.row(num_output * 0 + q);
+            const unsigned short* weight_xc_F = (const unsigned short*)weight_xc.row(num_output * 1 + q);
+            const unsigned short* weight_xc_O = (const unsigned short*)weight_xc.row(num_output * 2 + q);
+            const unsigned short* weight_xc_G = (const unsigned short*)weight_xc.row(num_output * 3 + q);
 
-            const float* weight_hc_I = weight_hc.row(num_output * 0 + q);
-            const float* weight_hc_F = weight_hc.row(num_output * 1 + q);
-            const float* weight_hc_O = weight_hc.row(num_output * 2 + q);
-            const float* weight_hc_G = weight_hc.row(num_output * 3 + q);
+            const unsigned short* weight_hc_I = (const unsigned short*)weight_hc.row(num_output * 0 + q);
+            const unsigned short* weight_hc_F = (const unsigned short*)weight_hc.row(num_output * 1 + q);
+            const unsigned short* weight_hc_O = (const unsigned short*)weight_hc.row(num_output * 2 + q);
+            const unsigned short* weight_hc_G = (const unsigned short*)weight_hc.row(num_output * 3 + q);
 
             // float I = bias_c_I[q];
             // float F = bias_c_F[q];
@@ -351,6 +353,7 @@ int LSTM_x86::lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, cons
 
     return 0;
 }
+
 int LSTM_x86::lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc,const Mat& cont_blob, const Option& opt) const
 {
     int size = bottom_blob.w;
@@ -710,20 +713,21 @@ int LSTM_x86::lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat
 
     return 0;
 }
-
+#endif
 
 int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
 #if __AVX__
     Mat bottom_blob_reshaped;
     bottom_blob_reshaped = bottom_blob;
-    if (bottom_blob.dims == 3){
+    if (bottom_blob.dims == 3) {
         Option opt_reshape = opt;
         opt_reshape.blob_allocator = opt.workspace_allocator;
         reshape->forward(bottom_blob, bottom_blob_reshaped, opt_reshape);
     }
 
     int T = bottom_blob_reshaped.h;
+    int size = bottom_blob_reshaped.w;
 
     int num_directions = direction == 2 ? 2 : 1;
 
@@ -760,10 +764,20 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = lstm(bottom_blob_reshaped, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0),cont_blob, opt);
-        if (ret != 0)
-            return ret;
+        if (opt.use_fp16_storage && size%8==0 && num_output%8==0) {
+            // Uni directional
+            int ret = lstm_fp16(bottom_blob_reshaped, top_blob, direction, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0),cont_blob, opt);
+            if (ret != 0)
+                return ret;
+        } else {
+            // Uni directional
+            int ret = lstm(bottom_blob_reshaped, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0),cont_blob, opt);
+            if (ret != 0)
+                return ret;
+
+        }
     }
+
 
     if (direction == 2)
     {
@@ -776,16 +790,33 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (top_blob_reverse.empty())
             return -100;
 
-        int ret0 = lstm(bottom_blob_reshaped, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0),cont_blob, opt);
-        if (ret0 != 0)
-            return ret0;
+        if (opt.use_fp16_storage && size%8==0 && num_output%8==0) {
+            // Uni directional
+            int ret0 = lstm_fp16(bottom_blob_reshaped, top_blob_forward, 0, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0),cont_blob, opt);
+            if (ret0 != 0)
+                return ret0;
+        } else {
+            // Uni directional
+            int ret0 = lstm(bottom_blob_reshaped, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0),cont_blob, opt);
+            if (ret0 != 0)
+                return ret0;
+
+        }
 
         hidden.fill(0.0f);
         cell.fill(0.0f);
+        if (opt.use_fp16_storage && size%8==0 && num_output%8==0) {
+            // Uni directional
+            int ret1 = lstm_fp16(bottom_blob_reshaped, top_blob_reverse, 1, weight_xc_data_fp16.channel(1), bias_c_data.channel(1), weight_hc_data_fp16.channel(1),cont_blob, opt);
+            if (ret1 != 0)
+                return ret1;
+        } else {
+            // Uni directional
+            int ret1 = lstm(bottom_blob_reshaped, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1),cont_blob, opt);
+            if (ret1 != 0)
+                return ret1;
 
-        int ret1 = lstm(bottom_blob_reshaped, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1),cont_blob, opt);
-        if (ret1 != 0)
-            return ret1;
+        }
 
         // concat w
         for (int i = 0; i < T; i++)
@@ -810,8 +841,16 @@ int LSTM_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 {
 #if __AVX__
 
+
+
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& cont_blob = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    if (cont_blob.empty() || direction == 2) {
+        return forward(bottom_blob,top_blob,opt);
+    }
+
 
     Mat bottom_blob_reshaped;
     bottom_blob_reshaped = bottom_blob;
@@ -823,11 +862,9 @@ int LSTM_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
 
     int T = bottom_blob_reshaped.h;
-    Mat& top_blob = top_blobs[0];
+    int size = bottom_blob_reshaped.w;
 
-    if (cont_blob.empty() || direction == 2) {
-        return forward(bottom_blob_reshaped,top_blob,opt);
-    }
+
 
     // initial hidden state
     if (hidden.empty())
@@ -854,11 +891,19 @@ int LSTM_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     top_blob.create(num_output, T, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
-    if (opt.use_)
-    // Uni directional
-    int ret = lstm(bottom_blob_reshaped, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0),cont_blob, opt);
-    if (ret != 0)
-        return ret;
+    if (opt.use_fp16_storage && size%8==0 && num_output%8==0) {
+        // Uni directional
+        int ret = lstm_fp16(bottom_blob_reshaped, top_blob, direction, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0),cont_blob, opt);
+        if (ret != 0)
+            return ret;
+    } else {
+        // Uni directional
+        int ret = lstm(bottom_blob_reshaped, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0),cont_blob, opt);
+        if (ret != 0)
+            return ret;
+
+    }
+
 
 
     return 0;
