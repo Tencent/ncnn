@@ -131,7 +131,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
     int nn_num_output = num_output >> 3;
     int remain_num_output_start = nn_num_output << 3;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = pp * 8;
@@ -243,14 +243,14 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
         output_ptr += 8;
     }
 
-    nn_num_output = (num_output-remain_num_output_start) >> 2;
+    nn_num_output = (num_output - remain_num_output_start) >> 2;
     int nn_offset = remain_num_output_start;
-    remain_num_output_start += (nn_num_output<<2);
+    remain_num_output_start += (nn_num_output << 2);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
-        int p = nn_offset+(pp * 4);
+        int p = nn_offset + (pp * 4);
 
         float sums[4] = {0.0f};
         if (bias_term)
@@ -318,11 +318,11 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
         __m256 _sums_a = activation_ps(_mm256_castps128_ps256(_mm_add_ps(_mm_loadu_ps(sums), _sums)), activation_type,
                                        activation_params);
         _mm_storeu_ps(output_ptr, _mm256_castps256_ps128(_sums_a));
-        output_ptr+=4;
+        output_ptr += 4;
     }
 
-// num_output
-    #pragma omp parallel for num_threads(opt.num_threads)
+    // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++)
     {
         float sum = 0.f;
@@ -390,7 +390,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
     int nn_num_output = num_output >> 3;
     int remain_num_output_start = nn_num_output << 3;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = pp * 8;
@@ -470,7 +470,6 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
                 w6 += 8;
                 w7 += 8;
             }
-
         }
         __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5,
                                       _sum6, _sum7);
@@ -481,14 +480,14 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
         output_ptr += 8;
     }
 
-    nn_num_output = (num_output-remain_num_output_start) >> 2;
+    nn_num_output = (num_output - remain_num_output_start) >> 2;
     int nn_offset = remain_num_output_start;
-    remain_num_output_start += (nn_num_output<<2);
+    remain_num_output_start += (nn_num_output << 2);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
-        int p = nn_offset+(pp * 4);
+        int p = nn_offset + (pp * 4);
 
         float sums[4] = {0.0f};
         if (bias_term)
@@ -542,11 +541,11 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
         __m256 _sums_a = activation_ps(_mm256_castps128_ps256(_mm_add_ps(_mm_loadu_ps(sums), _sums)), activation_type,
                                        activation_params);
         _mm_storeu_ps(output_ptr, _mm256_castps256_ps128(_sums_a));
-        output_ptr+=4;
+        output_ptr += 4;
     }
 
-// num_output
-    #pragma omp parallel for num_threads(opt.num_threads)
+    // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++)
     {
         float sum = 0.f;
@@ -554,7 +553,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
         if (bias_term)
             sum = bias_data[p];
 
-        const unsigned short* w = (const unsigned short*) weight_data_ptr + size * channels * p;
+        const unsigned short* w = (const unsigned short*)weight_data_ptr + size * channels * p;
 
         __m256 _sum = _mm256_set1_ps(0.f);
         // channels
