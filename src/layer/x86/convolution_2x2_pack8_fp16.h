@@ -106,7 +106,7 @@ static void conv2x2s1_weight_fp16_pack8_avx(const Mat& kernel, Mat& kernel_tm_pa
             const float* k76 = k7.row(p + 6);
             const float* k77 = k7.row(p + 7);
 
-            unsigned short* g00 =(unsigned short*) g0.row(p / 8);
+            unsigned short* g00 = (unsigned short*)g0.row(p / 8);
 
             for (int k = 0; k < 4; k++)
             {

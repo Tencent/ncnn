@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-
 static void conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch)
 {
     // winograd63 transform kernel
@@ -465,7 +464,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
     }
     bottom_blob_bordered = Mat();
     // END transform input
-    
+
     // BEGIN dot
     Mat top_blob_tm;
     {
