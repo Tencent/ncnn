@@ -121,7 +121,6 @@ static inline void fastFree(void* ptr)
 #endif
 #endif
 #elif defined _MSC_VER && !defined RC_INVOKED
-#elif !defined RC_INVOKED
 #define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd((long volatile*)addr, delta)
 #else
 // thread-unsafe branch
