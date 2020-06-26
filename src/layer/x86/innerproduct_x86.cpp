@@ -19,7 +19,7 @@
 #ifdef __AVX__
 #include "avx_activation.h"
 #include "avx_usability.h"
-#endif // NCNN_AVX2
+#endif // __AVX__
 
 #include "innerproduct_x86.h"
 
@@ -117,7 +117,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
         }
     }
 
-    if (size % 8 == 0 && opt.use_fp16_storage)
+    if (opt.use_fp16_storage)
     {
         return forward_fp16(bottom_blob, top_blob, opt);
     }
@@ -379,7 +379,6 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     int size = w * h;
-
     top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
@@ -469,6 +468,61 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
                 w6 += 8;
                 w7 += 8;
             }
+            if (remain != 0)
+            {
+                unsigned short fp16_weights[8][8] = {{0}};
+                float _m_f[8] = {0};
+                int i = 0;
+                // No fast way to convert to fp32 one element at the time
+                // so batch an 8 lane vector.
+                for (; remain > 0; remain--)
+                {
+                    _m_f[i] = *m;
+                    fp16_weights[0][i] = *w0;
+                    fp16_weights[1][i] = *w1;
+                    fp16_weights[2][i] = *w2;
+                    fp16_weights[3][i] = *w3;
+                    fp16_weights[4][i] = *w4;
+                    fp16_weights[5][i] = *w5;
+                    fp16_weights[6][i] = *w6;
+                    fp16_weights[7][i] = *w7;
+                    i++;
+                    m++;
+                    w0++;
+                    w1++;
+                    w2++;
+                    w3++;
+                    w4++;
+                    w5++;
+                    w6++;
+                    w7++;
+                }
+                __m256 _m = _mm256_loadu_ps(_m_f);
+
+                __m256 _w0 = loadfp16(fp16_weights[0]);
+                _sum0 = _mm256_fmadd_ps(_m, _w0, _sum0);
+
+                __m256 _w1 = loadfp16(fp16_weights[1]);
+                _sum1 = _mm256_fmadd_ps(_m, _w1, _sum1);
+
+                __m256 _w2 = loadfp16(fp16_weights[2]);
+                _sum2 = _mm256_fmadd_ps(_m, _w2, _sum2);
+
+                __m256 _w3 = loadfp16(fp16_weights[3]);
+                _sum3 = _mm256_fmadd_ps(_m, _w3, _sum3);
+
+                __m256 _w4 = loadfp16(fp16_weights[4]);
+                _sum4 = _mm256_fmadd_ps(_m, _w4, _sum4);
+
+                __m256 _w5 = loadfp16(fp16_weights[5]);
+                _sum5 = _mm256_fmadd_ps(_m, _w5, _sum5);
+
+                __m256 _w6 = loadfp16(fp16_weights[6]);
+                _sum6 = _mm256_fmadd_ps(_m, _w6, _sum6);
+
+                __m256 _w7 = loadfp16(fp16_weights[7]);
+                _sum7 = _mm256_fmadd_ps(_m, _w7, _sum7);
+            }
         }
         __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5,
                                       _sum6, _sum7);
@@ -535,6 +589,39 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
                 w2 += 8;
                 w3 += 8;
             }
+            if (remain != 0)
+            {
+                unsigned short fp16_weights[4][8] = {{0}};
+                float _m_f[8] = {0};
+                int i = 0;
+                for (; remain > 0; remain--)
+                {
+                    _m_f[i] = *m;
+                    fp16_weights[0][i] = *w0;
+                    fp16_weights[1][i] = *w1;
+                    fp16_weights[2][i] = *w2;
+                    fp16_weights[3][i] = *w3;
+                    i++;
+                    m++;
+                    w0++;
+                    w1++;
+                    w2++;
+                    w3++;
+                }
+                __m256 _m = _mm256_loadu_ps(_m_f);
+
+                __m256 _w0 = loadfp16(fp16_weights[0]);
+                _sum0 = _mm256_fmadd_ps(_m, _w0, _sum0);
+
+                __m256 _w1 = loadfp16(fp16_weights[1]);
+                _sum1 = _mm256_fmadd_ps(_m, _w1, _sum1);
+
+                __m256 _w2 = loadfp16(fp16_weights[2]);
+                _sum2 = _mm256_fmadd_ps(_m, _w2, _sum2);
+
+                __m256 _w3 = loadfp16(fp16_weights[3]);
+                _sum3 = _mm256_fmadd_ps(_m, _w3, _sum3);
+            }
         }
         __m128 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3);
         __m256 _sums_a = activation_ps(_mm256_castps128_ps256(_mm_add_ps(_mm_loadu_ps(sums), _sums)), activation_type,
@@ -572,6 +659,24 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
                 m += 8;
                 w += 8;
             }
+            if (remain != 0)
+            {
+                unsigned short fp16_weights[8] = {0};
+                float _m_f[8] = {0};
+                int i = 0;
+                for (; remain > 0; remain--)
+                {
+                    _m_f[i] = *m;
+                    fp16_weights[i] = *w;
+                    i++;
+                    m++;
+                    w++;
+                }
+                __m256 _m = _mm256_loadu_ps(_m_f);
+
+                __m256 _w = loadfp16(fp16_weights);
+                _sum = _mm256_fmadd_ps(_m, _w, _sum);
+            }
         }
 
         sum += _mm256_reduce_add_ps(_sum);
@@ -582,6 +687,6 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
     }
     return 0;
 }
-#endif // __ARM_NEON
+#endif // __AVX__
 
 } // namespace ncnn
