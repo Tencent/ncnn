@@ -72,7 +72,7 @@ int LSTM_x86::lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, cons
     int T = bottom_blob.h;
 
     int num_output = top_blob.w;
-
+    // fprintf(stderr, "bottom_blob = %d x %d x %d num_output = %d \n", bottom_blob.w,bottom_blob.h,bottom_blob.c,num_output);
     // 4 x num_output
     Mat gates(num_output,4, 4u, opt.workspace_allocator);
     if (gates.empty())
@@ -167,7 +167,6 @@ int LSTM_x86::lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, cons
             int remain_num_output = num_output&7;
             for (; nn_num_output > 0; nn_num_output--)
             {
-
                 __m256 h_cont = _mm256_loadu_ps(hidden_ptr_r);
 
                 _sumI_0 = _mm256_fmadd_ps(loadfp16(weight_hc_I_0),h_cont,_sumI_0);
@@ -187,6 +186,81 @@ int LSTM_x86::lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, cons
                 weight_hc_F_1 += 8;
                 weight_hc_O_1 += 8;
                 weight_hc_G_1 += 8;
+            }
+            if (remain_size != 0)
+            {
+                unsigned short fp16_weights[8][8] = {{0}};
+                float _xi_f[8] = {0};
+                // No fast way to convert to fp32 one element at the time
+                // so batch an 8 lane vector.
+                for (int i = 0; i < remain_size; i++)
+                {
+                    _xi_f[i] = *x;
+                    fp16_weights[0][i] = *weight_xc_I_0;
+                    fp16_weights[1][i] = *weight_xc_F_0;
+                    fp16_weights[2][i] = *weight_xc_O_0;
+                    fp16_weights[3][i] = *weight_xc_G_0;
+                    fp16_weights[4][i] = *weight_xc_I_1;
+                    fp16_weights[5][i] = *weight_xc_F_1;
+                    fp16_weights[6][i] = *weight_xc_O_1;
+                    fp16_weights[7][i] = *weight_xc_G_1;
+                    x++;
+                    weight_xc_I_0++;
+                    weight_xc_F_0++;
+                    weight_xc_O_0++;
+                    weight_xc_G_0++;
+                    weight_xc_I_1++;
+                    weight_xc_F_1++;
+                    weight_xc_O_1++;
+                    weight_xc_G_1++;
+                }
+                __m256 xi = _mm256_loadu_ps(_xi_f);
+                _sumI_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[0]),xi,_sumI_0);
+                _sumF_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[1]),xi,_sumF_0);
+                _sumO_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[2]),xi,_sumO_0);
+                _sumG_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[3]),xi,_sumG_0);
+                _sumI_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[4]),xi,_sumI_1);
+                _sumF_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[5]),xi,_sumF_1);
+                _sumO_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[6]),xi,_sumO_1);
+                _sumG_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[7]),xi,_sumG_1);
+            }
+            if (remain_num_output != 0)
+            {
+
+                unsigned short fp16_weights[8][8] = {{0}};
+                float _hcont_f[8] = {0};
+                // No fast way to convert to fp32 one element at the time
+                // so batch an 8 lane vector.
+                for (int i =0; i < remain_num_output; i++)
+                {
+                    _hcont_f[i] = *hidden_ptr_r;
+                    fp16_weights[0][i] = *weight_hc_I_0;
+                    fp16_weights[1][i] = *weight_hc_F_0;
+                    fp16_weights[2][i] = *weight_hc_O_0;
+                    fp16_weights[3][i] = *weight_hc_G_0;
+                    fp16_weights[4][i] = *weight_hc_I_1;
+                    fp16_weights[5][i] = *weight_hc_F_1;
+                    fp16_weights[6][i] = *weight_hc_O_1;
+                    fp16_weights[7][i] = *weight_hc_G_1;
+                    hidden_ptr_r++;
+                    weight_hc_I_0++;
+                    weight_hc_F_0++;
+                    weight_hc_O_0++;
+                    weight_hc_G_0++;
+                    weight_hc_I_1++;
+                    weight_hc_F_1++;
+                    weight_hc_O_1++;
+                    weight_hc_G_1++;
+                }
+                __m256 h_cont = _mm256_loadu_ps(_hcont_f);
+                _sumI_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[0]),h_cont,_sumI_0);
+                _sumF_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[1]),h_cont,_sumF_0);
+                _sumO_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[2]),h_cont,_sumO_0);
+                _sumG_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[3]),h_cont,_sumG_0);
+                _sumI_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[4]),h_cont,_sumI_1);
+                _sumF_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[5]),h_cont,_sumF_1);
+                _sumO_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[6]),h_cont,_sumO_1);
+                _sumG_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[7]),h_cont,_sumG_1);
             }
             float sums[8];
             _mm256_storeu_ps(sums,HorizontalSums(_sumI_0,_sumF_0,_sumO_0,_sumG_0,_sumI_1,_sumF_1,_sumO_1,_sumG_1));
@@ -261,7 +335,6 @@ int LSTM_x86::lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, cons
             int remain_num_output = num_output&7;
             for (; nn_num_output > 0; nn_num_output--)
             {
-
                 __m256 h_cont = _mm256_loadu_ps(hidden_ptr_r);
 
                 _sumI = _mm256_fmadd_ps(loadfp16(weight_hc_I),h_cont,_sumI);
@@ -274,6 +347,57 @@ int LSTM_x86::lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, cons
                 weight_hc_O += 8;
                 weight_hc_G += 8;
             }
+            if (remain_size != 0)
+            {
+                unsigned short fp16_weights[4][8] = {{0}};
+                float _xi_f[8] = {0};
+                // No fast way to convert to fp32 one element at the time
+                // so batch an 8 lane vector.
+                for (int i =0; i < remain_size; i++)
+                {
+                    _xi_f[i] = *x;
+                    fp16_weights[0][i] = *weight_xc_I;
+                    fp16_weights[1][i] = *weight_xc_F;
+                    fp16_weights[2][i] = *weight_xc_O;
+                    fp16_weights[3][i] = *weight_xc_G;
+                    x++;
+                    weight_xc_I++;
+                    weight_xc_F++;
+                    weight_xc_O++;
+                    weight_xc_G++;
+                }
+                __m256 xi = _mm256_loadu_ps(_xi_f);
+                _sumI = _mm256_fmadd_ps(loadfp16(fp16_weights[0]),xi,_sumI);
+                _sumF = _mm256_fmadd_ps(loadfp16(fp16_weights[1]),xi,_sumF);
+                _sumO = _mm256_fmadd_ps(loadfp16(fp16_weights[2]),xi,_sumO);
+                _sumG = _mm256_fmadd_ps(loadfp16(fp16_weights[3]),xi,_sumG);
+            }
+            if (remain_num_output != 0)
+            {
+                unsigned short fp16_weights[4][8] = {{0}};
+                float _hcont_f[8] = {0};
+                // No fast way to convert to fp32 one element at the time
+                // so batch an 8 lane vector.
+                for (int i =0; i < remain_num_output; i++)
+                {
+                    _hcont_f[i] = *hidden_ptr_r;
+                    fp16_weights[0][i] = *weight_hc_I;
+                    fp16_weights[1][i] = *weight_hc_F;
+                    fp16_weights[2][i] = *weight_hc_O;
+                    fp16_weights[3][i] = *weight_hc_G;
+                    hidden_ptr_r++;
+                    weight_hc_I++;
+                    weight_hc_F++;
+                    weight_hc_O++;
+                    weight_hc_G++;
+                }
+                __m256 h_cont = _mm256_loadu_ps(_hcont_f);
+                _sumI = _mm256_fmadd_ps(loadfp16(fp16_weights[0]),h_cont,_sumI);
+                _sumF = _mm256_fmadd_ps(loadfp16(fp16_weights[1]),h_cont,_sumF);
+                _sumO = _mm256_fmadd_ps(loadfp16(fp16_weights[2]),h_cont,_sumO);
+                _sumG = _mm256_fmadd_ps(loadfp16(fp16_weights[3]),h_cont,_sumG);
+            }
+
             float sums[4];
             _mm_storeu_ps(sums,HorizontalSums(_sumI,_sumF,_sumO,_sumG));
             sums[0] += bias_c_I[q];
@@ -763,7 +887,7 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        if (opt.use_fp16_storage && size%8==0 && num_output%8==0) {
+        if (opt.use_fp16_storage) {
             // Uni directional
             int ret = lstm_fp16(bottom_blob_reshaped, top_blob, direction, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0),cont_blob, opt);
             if (ret != 0)
@@ -789,7 +913,7 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (top_blob_reverse.empty())
             return -100;
 
-        if (opt.use_fp16_storage && size%8==0 && num_output%8==0) {
+        if (opt.use_fp16_storage) {
             // Uni directional
             int ret0 = lstm_fp16(bottom_blob_reshaped, top_blob_forward, 0, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0),cont_blob, opt);
             if (ret0 != 0)
@@ -804,7 +928,7 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
         hidden.fill(0.0f);
         cell.fill(0.0f);
-        if (opt.use_fp16_storage && size%8==0 && num_output%8==0) {
+        if (opt.use_fp16_storage) {
             // Uni directional
             int ret1 = lstm_fp16(bottom_blob_reshaped, top_blob_reverse, 1, weight_xc_data_fp16.channel(1), bias_c_data.channel(1), weight_hc_data_fp16.channel(1),cont_blob, opt);
             if (ret1 != 0)
@@ -890,7 +1014,7 @@ int LSTM_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     top_blob.create(num_output, T, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
-    if (opt.use_fp16_storage && size%8==0 && num_output%8==0) {
+    if (opt.use_fp16_storage) {
         // Uni directional
         int ret = lstm_fp16(bottom_blob_reshaped, top_blob, direction, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0),cont_blob, opt);
         if (ret != 0)

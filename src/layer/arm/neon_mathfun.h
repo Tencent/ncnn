@@ -41,6 +41,10 @@
 #define c_cephes_log_q1 -2.12194440e-4
 #define c_cephes_log_q2 0.693359375
 
+
+static inline float32x4_t loadfp16(const void* ptr) {
+    return vcvt_f32_f16(vld1_f16((const __fp16 *)ptr));
+}
 /* natural logarithm computed for 4 simultaneous float
  *   return NaN for x <= 0
  */

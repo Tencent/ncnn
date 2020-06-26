@@ -86,7 +86,7 @@ static int test_lstm_cont(const ncnn::Mat& a, int outch, int direction)
     return ret;
 }
 
-int test_lstm_layer(const ncnn::Mat& a, int outch, int direction, float epsilon = 0.001)
+int test_lstm_layer(const ncnn::Mat& a, int outch, int direction, float epsilon = 0.01)
 {
     int input_size = a.w * a.h * a.c;
     ncnn::ParamDict pd;
@@ -238,7 +238,7 @@ static int test_lstm_5()
 static int test_lstm_0()
 {
     return 0
-           || test_lstm(RandomMat(4,1), 1, 2)
+           || test_lstm(RandomMat(4,1), 2, 2)
            || test_lstm(RandomMat(8,2), 2, 2)
            || test_lstm(RandomMat(16,8), 7, 2)
            || test_lstm(RandomMat(17,8), 8, 2)
