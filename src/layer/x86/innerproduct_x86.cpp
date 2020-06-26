@@ -131,7 +131,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
     int nn_num_output = num_output >> 3;
     int remain_num_output_start = nn_num_output << 3;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = pp * 8;
@@ -247,7 +247,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
     int nn_offset = remain_num_output_start;
     remain_num_output_start += (nn_num_output << 2);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = nn_offset + (pp * 4);
@@ -321,8 +321,8 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
         output_ptr += 4;
     }
 
-// num_output
-    #pragma omp parallel for num_threads(opt.num_threads)
+    // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++)
     {
         float sum = 0.f;
@@ -389,7 +389,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
     int nn_num_output = num_output >> 3;
     int remain_num_output_start = nn_num_output << 3;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = pp * 8;
@@ -469,7 +469,8 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
                 w6 += 8;
                 w7 += 8;
             }
-            if (remain != 0){
+            if (remain != 0)
+            {
                 unsigned short fp16_weights[8][8] = {{0}};
                 float _m_f[8] = {0};
                 int i = 0;
@@ -523,8 +524,6 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
                 __m256 _w7 = loadfp16(fp16_weights[7]);
                 _sum7 = _mm256_fmadd_ps(_m, _w7, _sum7);
             }
-            
-
         }
         __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5,
                                       _sum6, _sum7);
@@ -539,7 +538,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
     int nn_offset = remain_num_output_start;
     remain_num_output_start += (nn_num_output << 2);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = nn_offset + (pp * 4);
@@ -591,7 +590,8 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
                 w2 += 8;
                 w3 += 8;
             }
-            if (remain != 0){
+            if (remain != 0)
+            {
                 unsigned short fp16_weights[4][8] = {{0}};
                 float _m_f[8] = {0};
                 int i = 0;
@@ -631,8 +631,8 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
         output_ptr += 4;
     }
 
-// num_output
-    #pragma omp parallel for num_threads(opt.num_threads)
+    // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++)
     {
         float sum = 0.f;
@@ -660,7 +660,8 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
                 m += 8;
                 w += 8;
             }
-            if (remain != 0){
+            if (remain != 0)
+            {
                 unsigned short fp16_weights[8] = {0};
                 float _m_f[8] = {0};
                 int i = 0;
@@ -676,7 +677,6 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
 
                 __m256 _w = loadfp16(fp16_weights);
                 _sum = _mm256_fmadd_ps(_m, _w, _sum);
-
             }
         }
 
