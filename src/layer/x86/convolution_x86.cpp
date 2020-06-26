@@ -128,7 +128,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
 
     use_winograd3x3 = false;
 
-    if (kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+    if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     {
         convolution_dilation1 = ncnn::create_layer(ncnn::LayerType::Convolution);
 
@@ -166,27 +166,15 @@ int Convolution_x86::create_pipeline(const Option& opt)
         }
 
         convolution_dilation1->create_pipeline(opt);
-    }
-    else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1
-             && num_input >= 16 && num_output >= 16)
-    {
-        // winograd is slow on small channel count
-        use_winograd3x3 = true;
 
-        conv3x3s1_winograd23_transform_kernel_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
-        //         conv3x3s1_winograd43_transform_kernel_sse(weight_data, weight_3x3_winograd43_data, num_input, num_output);
+        return 0;
+    }
 
-        // for small size
-        conv_im2col_sgemm_transform_kernel_sse(weight_data, weight_sgemm_data, num_input, num_output, kernel_size);
-    }
-    else
-    {
-        conv_im2col_sgemm_transform_kernel_sse(weight_data, weight_sgemm_data, num_input, num_output, kernel_size);
-    }
     const int maxk = kernel_w * kernel_h;
 
     int elempack = (support_packing && opt.use_packing_layout && num_input % 8 == 0) ? 8 : 1;
     int out_elempack = (support_packing && opt.use_packing_layout && num_output % 8 == 0) ? 8 : 1;
+
 #if __AVX__
     // pack8
     if (elempack == 8 && out_elempack == 8)
@@ -495,6 +483,26 @@ int Convolution_x86::create_pipeline(const Option& opt)
         }
     }
 #endif
+
+    // pack1
+    if (elempack == 1 && out_elempack == 1)
+    {
+        if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
+        {
+            // winograd is slow on small channel count
+            use_winograd3x3 = true;
+
+            conv3x3s1_winograd23_transform_kernel_sse(weight_data, weight_3x3_winograd23_data, num_input, num_output);
+            // conv3x3s1_winograd43_transform_kernel_sse(weight_data, weight_3x3_winograd43_data, num_input, num_output);
+
+            // for small size
+            conv_im2col_sgemm_transform_kernel_sse(weight_data, weight_sgemm_data, num_input, num_output, kernel_size);
+        }
+        else
+        {
+            conv_im2col_sgemm_transform_kernel_sse(weight_data, weight_sgemm_data, num_input, num_output, kernel_size);
+        }
+    }
 
     return 0;
 }
@@ -863,17 +871,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (elempack == 1 && out_elempack == 1)
     {
-        if (kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
-        {
-            if (outw < dilation_w || outh < dilation_h)
-            {
-                return Convolution::forward(bottom_blob, top_blob, opt);
-            }
-
-            return forwardDilation_x86(bottom_blob_bordered, top_blob, opt);
-        }
-
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             if (use_winograd3x3 && outw >= 8 && outh >= 8)
             {
