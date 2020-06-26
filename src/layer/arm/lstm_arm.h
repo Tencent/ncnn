@@ -32,6 +32,10 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 public:
     ncnn::Layer *reshape;
+
+    Mat weight_hc_data_fp16;
+    Mat weight_xc_data_fp16;
+
 protected:
     int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc,const Mat& cont_blob, const Option& opt) const;
 

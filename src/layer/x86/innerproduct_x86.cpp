@@ -87,7 +87,6 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     int size = w * h;
-    // fprintf(stderr, "bottom_blob %d x %d x %d, elempack = %d \n", w,h,channels,elempack);
 #if __AVX__
     if (elempack == 8)
     {

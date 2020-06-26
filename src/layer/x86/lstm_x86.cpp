@@ -77,7 +77,6 @@ int LSTM_x86::lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, cons
     Mat gates(num_output,4, 4u, opt.workspace_allocator);
     if (gates.empty())
         return -100;
-
     // unroll
     for (int t = 0; t < T; t++)
     {

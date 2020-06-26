@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -11,33 +11,35 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-
-#include "sigmoid_x86.h"
-
 #if __AVX__
 #include "avx_activation.h"
 #endif // __AVX__
+
+#include "tanh_x86.h"
+
+
 
 #include <math.h>
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Sigmoid_x86)
+DEFINE_LAYER_CREATOR(TanH_x86)
 
-Sigmoid_x86::Sigmoid_x86()
+TanH_x86::TanH_x86()
 {
 #if __AVX__
     support_packing = true;
 #endif // __AVX__
 }
 
-int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+int TanH_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int size = w * h;
     int elempack = bottom_top_blob.elempack;
+
 #if __AVX__
     if (elempack == 8)
     {
@@ -45,10 +47,12 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
+
             for (int i = 0; i < size; i++)
             {
                 __m256 _p = _mm256_loadu_ps(ptr);
-                _mm256_storeu_ps(ptr, sigmoid_avx(_p));
+                _p = tanh_avx(_p);
+                _mm256_storeu_ps(ptr, _p);
                 ptr += 8;
             }
         }
@@ -57,31 +61,30 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
 #endif // __AVX__
 
-
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
-        float * ptr = bottom_top_blob.channel(q);
+        float* ptr = bottom_top_blob.channel(q);
 
 #if __AVX__
         int nn = size >> 3;
         int remain = size - (nn << 3);
 #else
         int remain = size;
-#endif // __ARM_NEON
+#endif // __AVX__
 
 #if __AVX__
         for (; nn > 0; nn--)
         {
             __m256 _p = _mm256_loadu_ps(ptr);
-            _mm256_storeu_ps(ptr, sigmoid_avx(_p));
+            _p = tanh_avx(_p);
+            _mm256_storeu_ps(ptr, _p);
             ptr += 8;
         }
 #endif // __AVX__
-       for (; remain > 0; remain--)
+        for (; remain > 0; remain--)
         {
-            *ptr = 1.f / (1.f + exp(-*ptr));
-
+            *ptr = tanh(*ptr);
             ptr++;
         }
     }
