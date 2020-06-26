@@ -65,8 +65,8 @@ static void conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(const Mat& kern
     }
     // interleave
     // src = 64-inch-outch
-    // dst = 8b-8a-inch/8a-84-outch/8b;
-    kernel_tm_pack8.create(inch / 8, 64, (outch / 4) / 2 + (outch / 4) % 2, (size_t)2u * 64, 64);
+    // dst = 8b-8a-inch/8a-64-outch/8b;
+    kernel_tm_pack8.create(inch / 8, 64, outch / 8, (size_t)2u * 64, 64);
     int q = 0;
     for (; q + 7 < outch; q += 8)
     {
