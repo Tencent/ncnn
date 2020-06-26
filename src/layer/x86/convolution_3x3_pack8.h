@@ -68,7 +68,6 @@ static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, M
     // dst = 8b-8a-inch/8a-64-outch/8b;
     kernel_tm_pack8.create(inch / 8, 64, outch / 8, (size_t)4u * 64, 64);
 
-    // kernel_tm_pack8.create(inch / 8, 64, (outch / 4) / 2 + (outch / 4) % 2, (size_t)4u * 64, 64);
     int q = 0;
     for (; q + 7 < outch; q += 8)
     {
