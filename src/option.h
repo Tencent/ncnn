@@ -80,7 +80,7 @@ public:
 
     // enable options for gpu inference
     bool use_fp16_packed;
-    bool use_fp16_storage;
+    bool use_fp16_storage; //Also used for fp16 weight storage in AVX
     bool use_fp16_arithmetic;
     bool use_int8_storage;
     bool use_int8_arithmetic;

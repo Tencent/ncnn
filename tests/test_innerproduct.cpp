@@ -84,7 +84,11 @@ static int test_innerproduct_2()
            || test_innerproduct(RandomMat(15), 8, 1)
            || test_innerproduct(RandomMat(16), 16, 1)
            || test_innerproduct(RandomMat(16), 7, 1)
-           || test_innerproduct(RandomMat(5), 16, 1);
+           || test_innerproduct(RandomMat(5), 16, 1)
+           || test_innerproduct(RandomMat(32), 16, 1)
+           || test_innerproduct(RandomMat(12), 16, 1)
+           || test_innerproduct(RandomMat(16), 12, 1)
+           || test_innerproduct(RandomMat(24), 32, 1);
 }
 
 static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)

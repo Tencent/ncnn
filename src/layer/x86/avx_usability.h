@@ -18,6 +18,19 @@
 #define AVX_USABILITY
 #include <immintrin.h>
 
+static inline __m256 loadfp16(const unsigned short* ptr)
+{
+    return _mm256_cvtph_ps(_mm_lddqu_si128((__m128i*)(ptr)));
+}
+static inline __m256 _mm256_fmadd_1_ps(__m256 a, __m256 b, float c)
+{
+    return _mm256_fmadd_ps(b, _mm256_set1_ps(c), a);
+}
+
+static inline __m256 _mm256_fmrsub_1_ps(__m256 a, __m256 b, float c)
+{
+    return _mm256_sub_ps(a, _mm256_mul_ps(b, _mm256_set1_ps(c)));
+}
 // From: https://stackoverflow.com/a/25627536
 static inline void transpose8_ps(__m256& row0, __m256& row1, __m256& row2, __m256& row3, __m256& row4, __m256& row5, __m256& row6, __m256& row7)
 {
