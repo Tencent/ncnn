@@ -144,6 +144,15 @@ void main()
     {
         max_value = buffer_ld8(max_workspace_data, gz * psc(h) + gy);
     }
+
+#if NCNN_fp16_packed || NCNN_fp16_storage
+    // NOTE reduce max may produce (X, undef, X, undef) on nvidia fp16p/fp16s
+    // TODO only enable this workaround for some nvidia driver
+    if (axis == 0)
+    {
+        max_value = afpvec8(afpvec4(max_value[0].r), afpvec4(max_value[0].r));
+    }
+#endif
 #endif
 
     v[0] = exp(v[0] - max_value[0]);
