@@ -68,7 +68,7 @@ int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
-        #if __AVX__
+#if __AVX__
         int nn_size = size >> 3;
         int remain = size&7;
 
@@ -84,9 +84,9 @@ int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
             ptr += 8;
         }
-        #else
+#else
         int remain = size;
-        #endif
+#endif
         for (; remain > 0; remain--)
         {
             if (*ptr < lower)

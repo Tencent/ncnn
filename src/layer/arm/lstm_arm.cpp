@@ -269,6 +269,10 @@ static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
     return 0;
 }
+#else
+static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, Mat& cell_state, const Option& opt) {
+    return lstm(bottom_blob,top_blob, reverse,weight_xc,bias_c, weight_hc, hidden_state, cell_state,opt);
+}
 #endif
 static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, Mat& cell_state, const Option& opt)
 {
@@ -480,7 +484,7 @@ int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     // initial hidden state
     Mat hidden(num_output, 4u, opt.workspace_allocator);
     if (hidden.empty())
-            return -100;    
+        return -100;
     hidden.fill(0.f);
     // internal cell state
     Mat cell(num_output, 4u, opt.workspace_allocator);
@@ -577,7 +581,7 @@ int LSTM_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     int T = bottom_blob.h;
     Mat& top_blob = top_blobs[0];
     Mat& hidden_state = top_blobs[1];
-    Mat& cell_state = top_blobs[2]; 
+    Mat& cell_state = top_blobs[2];
 
     //Copy previous states
     hidden_state = bottom_blobs[1].clone(opt.blob_allocator);

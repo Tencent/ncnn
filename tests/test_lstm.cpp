@@ -83,14 +83,14 @@ int test_lstm_layer(const ncnn::Mat& a, int outch, int direction, float epsilon 
     std::vector<ncnn::Mat> _c2(3);
     std::vector<ncnn::Mat> a1(3);
     std::vector<ncnn::Mat> a2(3);
-    if (direction == 0){
-      a1[0] = a.row_range(0,a.h/2).clone();
-      a2[0] = a.row_range(a.h/2,a.h-a.h/2).clone();
+    if (direction == 0) {
+        a1[0] = a.row_range(0,a.h/2).clone();
+        a2[0] = a.row_range(a.h/2,a.h-a.h/2).clone();
     } else {
-      a2[0] = a.row_range(0,a.h/2).clone();
-      a1[0] = a.row_range(a.h/2,a.h-a.h/2).clone();
+        a2[0] = a.row_range(0,a.h/2).clone();
+        a1[0] = a.row_range(a.h/2,a.h-a.h/2).clone();
     }
-    
+
     // initial hidden state
     ncnn::Mat hidden(outch);
     if (hidden.empty())
@@ -112,14 +112,14 @@ int test_lstm_layer(const ncnn::Mat& a, int outch, int direction, float epsilon 
 
     ncnn::Mat c1 = _c1[0];
     ncnn::Mat c2 = _c2[0];
-    
-    if (direction == 1){
-      c2 = _c1[0];
-      c1 = _c2[0];
-    } 
-    
 
-    
+    if (direction == 1) {
+        c2 = _c1[0];
+        c1 = _c2[0];
+    }
+
+
+
 
     // total height
     ncnn::Mat c;
