@@ -96,7 +96,7 @@ int InnerProduct_arm::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
 
     int nn_num_output = num_output >> 2;
     int remain_num_output_start = nn_num_output << 2;
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = pp * 4;
@@ -246,7 +246,7 @@ int InnerProduct_arm::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
         top_blob[p + 3] = sum3;
     }
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++)
     {
         float sum0 = 0.f;
@@ -374,7 +374,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     int nn_num_output = num_output >> 2;
     int remain_num_output_start = nn_num_output << 2;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = pp * 4;
@@ -514,7 +514,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     }
 
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++)
     {
         float sum = 0.f;
@@ -556,15 +556,15 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     "fmla       %4.4s, v1.4s, v3.4s       \n"
                     "bne        0b                        \n"
                     : "=r"(nn),   // %0
-                      "=r"(m),    // %1
-                      "=r"(w),    // %2
-                      "=w"(_sum), // %3
-                      "=w"(_sum2) // %4
+                    "=r"(m),    // %1
+                    "=r"(w),    // %2
+                    "=w"(_sum), // %3
+                    "=w"(_sum2) // %4
                     : "0"(nn),
-                      "1"(m),
-                      "2"(w),
-                      "3"(_sum),
-                      "4"(_sum2)
+                    "1"(m),
+                    "2"(w),
+                    "3"(_sum),
+                    "4"(_sum2)
                     : "cc", "memory", "v0", "v1", "v2", "v3");
             }
 #else
@@ -581,15 +581,15 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     "vmla.f32   %q4, q1, q3         \n"
                     "bne        0b                  \n"
                     : "=r"(nn),   // %0
-                      "=r"(m),    // %1
-                      "=r"(w),    // %2
-                      "=w"(_sum), // %3
-                      "=w"(_sum2) // %4
+                    "=r"(m),    // %1
+                    "=r"(w),    // %2
+                    "=w"(_sum), // %3
+                    "=w"(_sum2) // %4
                     : "0"(nn),
-                      "1"(m),
-                      "2"(w),
-                      "3"(_sum),
-                      "4"(_sum2)
+                    "1"(m),
+                    "2"(w),
+                    "3"(_sum),
+                    "4"(_sum2)
                     : "cc", "memory", "q0", "q1", "q2", "q3");
             }
 #endif // __aarch64__
@@ -664,7 +664,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
     int nn_num_output = num_output >> 2;
     int remain_num_output_start = nn_num_output << 2;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = pp * 4;
@@ -802,7 +802,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
     }
 
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++)
     {
         float sum = 0.f;
