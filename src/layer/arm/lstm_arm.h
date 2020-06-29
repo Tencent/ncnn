@@ -24,16 +24,14 @@ class LSTM_arm : virtual public LSTM
 public:
     LSTM_arm();
 
-    virtual int create_pipeline(const Option &opt);
+    virtual int create_pipeline(const Option& opt);
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
 public:
-
-
     Mat weight_hc_data_fp16;
     Mat weight_xc_data_fp16;
-
 };
 
 } // namespace ncnn

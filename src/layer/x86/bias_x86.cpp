@@ -17,8 +17,6 @@
 
 #include "bias_x86.h"
 
-
-
 namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Bias_x86)
@@ -31,7 +29,7 @@ int Bias_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int size = w * h;
 
     const float* bias_ptr = bias_data;
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);

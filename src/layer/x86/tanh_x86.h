@@ -25,7 +25,6 @@ public:
     TanH_x86();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
-
 };
 
 } // namespace ncnn

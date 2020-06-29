@@ -45,7 +45,6 @@ int LSTM::load_model(const ModelBin& mb)
     if (weight_xc_data.empty())
         return -100;
 
-
     bias_c_data = mb.load(num_output, 4, num_directions, 0);
     if (bias_c_data.empty())
         return -100;
@@ -185,8 +184,6 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         return -100;
     cell.fill(0.f);
 
-
-
     top_blob.create(num_output * num_directions, T, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
@@ -194,14 +191,13 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0),hidden,cell, opt);
+        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, cell, opt);
         if (ret != 0)
             return ret;
     }
 
     if (direction == 2)
     {
-
         Mat top_blob_forward(num_output, T, 4u, opt.workspace_allocator);
         if (top_blob_forward.empty())
             return -100;
@@ -210,14 +206,14 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         if (top_blob_reverse.empty())
             return -100;
 
-        int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0),hidden,cell, opt);
+        int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, cell, opt);
         if (ret0 != 0)
             return ret0;
 
         hidden.fill(0.0f);
         cell.fill(0.0f);
 
-        int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1),hidden,cell, opt);
+        int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1), hidden, cell, opt);
         if (ret1 != 0)
             return ret1;
 
@@ -235,7 +231,6 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
     return 0;
 }
-
 
 int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
@@ -257,7 +252,7 @@ int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0),hidden_state,cell_state, opt);
+        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden_state, cell_state, opt);
         if (ret != 0)
             return ret;
     }

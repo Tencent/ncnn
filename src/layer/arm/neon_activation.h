@@ -60,7 +60,6 @@ static inline float32x4_t sigmoid_ps(float32x4_t _v)
     return vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
 }
 
-
 static inline float32x4_t activation_ps(float32x4_t _v, int activation_type, const ncnn::Mat& activation_params)
 {
     if (activation_type == 1)
