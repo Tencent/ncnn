@@ -52,7 +52,7 @@ static int detect_yolov4(const cv::Mat& bgr, std::vector<Object>& objects)
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, target_size, target_size);
 
     const float mean_vals[3] = {0, 0, 0};
-    const float norm_vals[3] = {1/255.f, 1/255.f, 1/255.f};
+    const float norm_vals[3] = {1 / 255.f, 1 / 255.f, 1 / 255.f};
     in.substract_mean_normalize(mean_vals, norm_vals);
 
     ncnn::Extractor ex = yolov4.create_extractor();
@@ -85,22 +85,22 @@ static int detect_yolov4(const cv::Mat& bgr, std::vector<Object>& objects)
 
 static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 {
-    static const char* class_names[] = { "background", "person", "bicycle",
-        "car", "motorbike", "aeroplane", "bus", "train", "truck",
-        "boat", "traffic light", "fire hydrant", "stop sign",
-        "parking meter", "bench", "bird", "cat", "dog", "horse",
-        "sheep", "cow", "elephant", "bear", "zebra", "giraffe",
-        "backpack", "umbrella", "handbag", "tie", "suitcase",
-        "frisbee", "skis", "snowboard", "sports ball", "kite",
-        "baseball bat", "baseball glove", "skateboard", "surfboard",
-        "tennis racket", "bottle", "wine glass", "cup", "fork",
-        "knife", "spoon", "bowl", "banana", "apple", "sandwich",
-        "orange", "broccoli", "carrot", "hot dog", "pizza", "donut",
-        "cake", "chair", "sofa", "pottedplant", "bed", "diningtable",
-        "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard",
-        "cell phone", "microwave", "oven", "toaster", "sink",
-        "refrigerator", "book", "clock", "vase", "scissors",
-        "teddy bear", "hair drier", "toothbrush"};
+    static const char* class_names[] = {"background", "person", "bicycle",
+                                        "car", "motorbike", "aeroplane", "bus", "train", "truck",
+                                        "boat", "traffic light", "fire hydrant", "stop sign",
+                                        "parking meter", "bench", "bird", "cat", "dog", "horse",
+                                        "sheep", "cow", "elephant", "bear", "zebra", "giraffe",
+                                        "backpack", "umbrella", "handbag", "tie", "suitcase",
+                                        "frisbee", "skis", "snowboard", "sports ball", "kite",
+                                        "baseball bat", "baseball glove", "skateboard", "surfboard",
+                                        "tennis racket", "bottle", "wine glass", "cup", "fork",
+                                        "knife", "spoon", "bowl", "banana", "apple", "sandwich",
+                                        "orange", "broccoli", "carrot", "hot dog", "pizza", "donut",
+                                        "cake", "chair", "sofa", "pottedplant", "bed", "diningtable",
+                                        "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard",
+                                        "cell phone", "microwave", "oven", "toaster", "sink",
+                                        "refrigerator", "book", "clock", "vase", "scissors",
+                                        "teddy bear", "hair drier", "toothbrush"};
 
     cv::Mat image = bgr.clone();
 
