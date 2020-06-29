@@ -69,12 +69,12 @@ typedef struct Section
 static inline std::string& trim(std::string& s)
 {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
-                return !std::isspace(ch);
-            }));
+        return !std::isspace(ch);
+    }));
     s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
-                return !std::isspace(ch);
-            }).base(),
-            s.end());
+        return !std::isspace(ch);
+    }).base(),
+    s.end());
     return s;
 }
 
@@ -626,7 +626,7 @@ void parse_cfg(std::deque<Section*>& dnet, int merge_output)
             if (s->ignore_thresh > 0.25)
             {
                 fprintf(stderr, "WARNING: The ignore_thresh=%f of yolo%d is too high. "
-                                "An alternative value 0.25 is written instead.\n",
+                        "An alternative value 0.25 is written instead.\n",
                         s->ignore_thresh, yolo_count);
                 s->ignore_thresh = 0.25;
             }
@@ -837,11 +837,11 @@ int main(int argc, char** argv)
     if (!(argc == 3 || argc == 5 || argc == 6))
     {
         fprintf(stderr, "Usage: %s [darknetcfg] [darknetweights] [ncnnparam] [ncnnbin] [merge_output]\n"
-                        "\t[darknetcfg]     .cfg file of input darknet model.\n"
-                        "\t[darknetweights] .weights file of input darknet model.\n"
-                        "\t[cnnparam]       .param file of output ncnn model.\n"
-                        "\t[ncnnbin]        .bin file of output ncnn model.\n"
-                        "\t[merge_output]   merge all output yolo layers into one, enabled by default.\n",
+                "\t[darknetcfg]     .cfg file of input darknet model.\n"
+                "\t[darknetweights] .weights file of input darknet model.\n"
+                "\t[cnnparam]       .param file of output ncnn model.\n"
+                "\t[ncnnbin]        .bin file of output ncnn model.\n"
+                "\t[merge_output]   merge all output yolo layers into one, enabled by default.\n",
                 argv[0]);
         return -1;
     }
