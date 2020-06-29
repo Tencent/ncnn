@@ -1069,6 +1069,11 @@ int main(int argc, char** argv)
         }
         else if (op == "tf.Conv2DBackpropInput")
         {
+            std::string output_shape_name = get_mlir_value_uniq_id(operation.getOperand(0));
+            const std::vector<int> output_shape = get_attr_ai(weights[output_shape_name]);
+
+//             assert(output_shape.size() == 4)
+
             std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
             const mlir::Attribute& W = weights[weight_name];
 
@@ -1119,6 +1124,9 @@ int main(int argc, char** argv)
             else if (padding == "SAME")
             {
                 fprintf(pp, " 4=%d", -233);
+
+                fprintf(pp, " 20=%d", output_shape[2]);
+                fprintf(pp, " 21=%d", output_shape[1]);
             }
 
             std::vector<float> v = get_attr_af(W);
