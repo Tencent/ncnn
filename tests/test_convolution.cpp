@@ -94,7 +94,6 @@ static int test_convolution_0()
     return 0;
 }
 
-
 static int test_convolution_2()
 {
     static const int kdsp[16][4] = {
@@ -258,5 +257,5 @@ static int test_convolution_1()
 int main()
 {
     SRAND(7767517);
-    return test_convolution_0() || test_convolution_1() || test_convolution_2() ;
+    return test_convolution_0() || test_convolution_1() || test_convolution_2();
 }

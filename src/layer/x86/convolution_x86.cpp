@@ -638,7 +638,6 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-
             conv3x3s1_winograd64_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
 
             if (activation)
