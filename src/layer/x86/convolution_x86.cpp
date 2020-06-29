@@ -119,6 +119,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
 
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
+        support_packing = false;
         return create_pipeline_int8_x86(opt);
     }
 
@@ -126,48 +127,48 @@ int Convolution_x86::create_pipeline(const Option& opt)
     int num_input = weight_data_size / kernel_size / num_output;
 
     use_winograd3x3 = false;
+    // TODO: FIX ME
+    // if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+    // {
+    //     convolution_dilation1 = ncnn::create_layer(ncnn::LayerType::Convolution);
 
-    if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
-    {
-        convolution_dilation1 = ncnn::create_layer(ncnn::LayerType::Convolution);
+    //     // set param
+    //     ncnn::ParamDict pd;
+    //     pd.set(0, num_output); // num_output
+    //     pd.set(1, kernel_w);
+    //     pd.set(11, kernel_h);
+    //     pd.set(2, 1);
+    //     pd.set(12, 1);
+    //     pd.set(3, 1);  // stride_w
+    //     pd.set(13, 1); // stride_h
+    //     pd.set(4, 0);  // pad_w
+    //     pd.set(14, 0); // pad_h
+    //     pd.set(5, bias_term);
+    //     pd.set(6, weight_data_size);
 
-        // set param
-        ncnn::ParamDict pd;
-        pd.set(0, num_output); // num_output
-        pd.set(1, kernel_w);
-        pd.set(11, kernel_h);
-        pd.set(2, 1);
-        pd.set(12, 1);
-        pd.set(3, 1);  // stride_w
-        pd.set(13, 1); // stride_h
-        pd.set(4, 0);  // pad_w
-        pd.set(14, 0); // pad_h
-        pd.set(5, bias_term);
-        pd.set(6, weight_data_size);
+    //     convolution_dilation1->load_param(pd);
 
-        convolution_dilation1->load_param(pd);
+    //     // set weights
+    //     if (bias_term)
+    //     {
+    //         ncnn::Mat weights[2];
+    //         weights[0] = weight_data;
+    //         weights[1] = bias_data;
 
-        // set weights
-        if (bias_term)
-        {
-            ncnn::Mat weights[2];
-            weights[0] = weight_data;
-            weights[1] = bias_data;
+    //         convolution_dilation1->load_model(ModelBinFromMatArray(weights));
+    //     }
+    //     else
+    //     {
+    //         ncnn::Mat weights[1];
+    //         weights[0] = weight_data;
 
-            convolution_dilation1->load_model(ModelBinFromMatArray(weights));
-        }
-        else
-        {
-            ncnn::Mat weights[1];
-            weights[0] = weight_data;
+    //         convolution_dilation1->load_model(ModelBinFromMatArray(weights));
+    //     }
 
-            convolution_dilation1->load_model(ModelBinFromMatArray(weights));
-        }
+    //     convolution_dilation1->create_pipeline(opt);
 
-        convolution_dilation1->create_pipeline(opt);
-
-        return 0;
-    }
+    //     return 0;
+    // }
 
     const int maxk = kernel_w * kernel_h;
 
@@ -571,14 +572,14 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
-
-    if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
-    {
-        if (outw >= dilation_w && outh >= dilation_h)
-        {
-            return forwardDilation_x86(bottom_blob_bordered, top_blob, opt);
-        }
-    }
+    // TODO: FIX ME
+    // if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+    // {
+    //     if (outw >= dilation_w && outh >= dilation_h)
+    //     {
+    //         return forwardDilation_x86(bottom_blob_bordered, top_blob, opt);
+    //     }
+    // }
 
     const int maxk = kernel_w * kernel_h;
 
@@ -1134,88 +1135,88 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
     return 0;
 }
 
-int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    size_t elemsize = bottom_blob.elemsize;
+// TODO: FIX ME
+// int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+// {
+//     int w = bottom_blob.w;
+//     int h = bottom_blob.h;
+//     size_t elemsize = bottom_blob.elemsize;
 
-    const int kernel_size = kernel_w;
-    const int stride = stride_w;
-    const int dilation = dilation_w;
-    const int kernel_extent = dilation * (kernel_size - 1) + 1;
+//     const int kernel_size = kernel_w;
+//     const int stride = stride_w;
+//     const int dilation = dilation_w;
+//     const int kernel_extent = dilation * (kernel_size - 1) + 1;
 
-    int outw = (w - kernel_extent) / stride + 1;
-    int outh = (h - kernel_extent) / stride + 1;
+//     int outw = (w - kernel_extent) / stride + 1;
+//     int outh = (h - kernel_extent) / stride + 1;
 
-    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
+//     top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+//     if (top_blob.empty())
+//         return -100;
 
-    // Make (dilation * dilation) batches
-    Mat inner_bottom_blob;
-    Mat inner_top_blob;
-    for (int x = 0; x < dilation; x++)
-    {
-        for (int y = 0; y < dilation; y++)
-        {
-            int inner_w = (w - y + dilation - 1) / dilation;
-            int inner_h = (h - x + dilation - 1) / dilation;
+//     // Make (dilation * dilation) batches
+//     Mat inner_bottom_blob;
+//     Mat inner_top_blob;
+//     for (int x = 0; x < dilation; x++)
+//     {
+//         for (int y = 0; y < dilation; y++)
+//         {
+//             int inner_w = (w - y + dilation - 1) / dilation;
+//             int inner_h = (h - x + dilation - 1) / dilation;
 
-            int inner_outw = (inner_w - kernel_size) / stride + 1;
-            int inner_outh = (inner_h - kernel_size) / stride + 1;
+//             int inner_outw = (inner_w - kernel_size) / stride + 1;
+//             int inner_outh = (inner_h - kernel_size) / stride + 1;
 
-            inner_bottom_blob.create(inner_w, inner_h, bottom_blob.c, elemsize, opt.workspace_allocator);
-            if (inner_bottom_blob.empty())
-                return -100;
+//             inner_bottom_blob.create(inner_w, inner_h, bottom_blob.c, elemsize, opt.workspace_allocator);
+//             if (inner_bottom_blob.empty())
+//                 return -100;
 
-            inner_top_blob.create(inner_outw, inner_outh, num_output, elemsize, opt.workspace_allocator);
-            if (inner_top_blob.empty())
-                return -100;
+//             inner_top_blob.create(inner_outw, inner_outh, num_output, elemsize, opt.workspace_allocator);
+//             if (inner_top_blob.empty())
+//                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int c = 0; c < bottom_blob.c; c++)
-            {
-                float* outptr = inner_bottom_blob.channel(c);
+//             #pragma omp parallel for num_threads(opt.num_threads)
+//             for (int c = 0; c < bottom_blob.c; c++)
+//             {
+//                 float* outptr = inner_bottom_blob.channel(c);
 
-                for (int i = 0; i < inner_h; i++)
-                {
-                    const float* ptr = (const float*)bottom_blob.channel(c) + dilation * i * w + x * w + y;
-                    for (int j = 0; j < inner_w; j++)
-                    {
-                        outptr[j] = ptr[j * dilation];
-                    }
-                    outptr += inner_w;
-                }
-            }
+//                 for (int i = 0; i < inner_h; i++)
+//                 {
+//                     const float* ptr = (const float*)bottom_blob.channel(c) + dilation * i * w + x * w + y;
+//                     for (int j = 0; j < inner_w; j++)
+//                     {
+//                         outptr[j] = ptr[j * dilation];
+//                     }
+//                     outptr += inner_w;
+//                 }
+//             }
 
-            Option opt_g = opt;
-            opt_g.blob_allocator = inner_top_blob.allocator;
-            convolution_dilation1->forward(inner_bottom_blob, inner_top_blob, opt_g);
+//             Option opt_g = opt;
+//             opt_g.blob_allocator = inner_top_blob.allocator;
+//             convolution_dilation1->forward(inner_bottom_blob, inner_top_blob, opt_g);
 
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int c = 0; c < num_output; c++)
-            {
-                float* outptr = (float*)top_blob.channel(c) + x * outw + y;
-                for (int i = 0; i < inner_outh; i++)
-                {
-                    const float* ptr = (const float*)inner_top_blob.channel(c) + i * inner_outw;
-                    for (int j = 0; j < inner_outw; j++)
-                    {
-                        outptr[j * dilation] = ptr[j];
-                    }
-                    outptr += dilation * outw;
-                }
-            }
-        }
-    }
+//             #pragma omp parallel for num_threads(opt.num_threads)
+//             for (int c = 0; c < num_output; c++)
+//             {
+//                 float* outptr = (float*)top_blob.channel(c) + x * outw + y;
+//                 for (int i = 0; i < inner_outh; i++)
+//                 {
+//                     const float* ptr = (const float*)inner_top_blob.channel(c) + i * inner_outw;
+//                     for (int j = 0; j < inner_outw; j++)
+//                     {
+//                         outptr[j * dilation] = ptr[j];
+//                     }
+//                     outptr += dilation * outw;
+//                 }
+//             }
+//         }
+//     }
 
-    if (activation)
-    {
-        activation->forward_inplace(top_blob, opt);
-    }
+//     if (activation)
+//     {
+//         activation->forward_inplace(top_blob, opt);
+//     }
 
-    return 0;
-}
-
+//     return 0;
+// }
 } // namespace ncnn
