@@ -179,11 +179,11 @@ int Convolution_x86::create_pipeline(const Option& opt)
     // pack8
     if (elempack == 8 && out_elempack == 8)
     {
-        if (opt.use_fp16_storage && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        /*if (opt.use_fp16_storage && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(weight_data, weight_data_pack8, num_input, num_output);
         }
-        else if (opt.use_fp16_storage && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        else */if (opt.use_fp16_storage && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv1x1s1_sgemm_transform_kernel_fp16_pack8_avx(weight_data, weight_data_pack8, num_input, num_output);
         }
@@ -195,10 +195,10 @@ int Convolution_x86::create_pipeline(const Option& opt)
         {
             conv2x2s1_weight_fp16_pack8_avx(weight_data, weight_data_pack8, num_input, num_output);
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        /* else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv3x3s1_winograd64_transform_kernel_pack8_avx(weight_data, weight_data_pack8, num_input, num_output);
-        }
+        } */
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv1x1s1_sgemm_transform_kernel_pack8_avx(weight_data, weight_data_pack8, num_input, num_output);
@@ -641,7 +641,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
         }
 
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        /* else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             if (opt.use_fp16_storage)
             {
@@ -656,7 +656,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
                 activation->forward_inplace(top_blob, opt);
             }
-        }
+        } */
         else if (kernel_w == 2 && kernel_h == 2 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             if (opt.use_fp16_storage)
