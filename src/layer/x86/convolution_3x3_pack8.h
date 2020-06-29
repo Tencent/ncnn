@@ -1264,42 +1264,34 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                     {
                         __m256 _k01 = _mm256_loadu_ps(k01);
                         __m256 _r0 = _mm256_broadcast_ss(r0);
-                        __m256 _r01 = _mm256_broadcast_ss(r0 + 8);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         _k01 = _mm256_loadu_ps(k01 + 8);
                         _r0 = _mm256_broadcast_ss(r0 + 1);
-                        _r01 = _mm256_broadcast_ss(r0 + 9);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         _k01 = _mm256_loadu_ps(k01 + 16);
                         _r0 = _mm256_broadcast_ss(r0 + 2);
-                        _r01 = _mm256_broadcast_ss(r0 + 10);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         _k01 = _mm256_loadu_ps(k01 + 24);
                         _r0 = _mm256_broadcast_ss(r0 + 3);
-                        _r01 = _mm256_broadcast_ss(r0 + 11);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         _k01 = _mm256_loadu_ps(k01 + 32);
                         _r0 = _mm256_broadcast_ss(r0 + 4);
-                        _r01 = _mm256_broadcast_ss(r0 + 12);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         _k01 = _mm256_loadu_ps(k01 + 40);
                         _r0 = _mm256_broadcast_ss(r0 + 5);
-                        _r01 = _mm256_broadcast_ss(r0 + 13);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         _k01 = _mm256_loadu_ps(k01 + 48);
                         _r0 = _mm256_broadcast_ss(r0 + 6);
-                        _r01 = _mm256_broadcast_ss(r0 + 14);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         _k01 = _mm256_loadu_ps(k01 + 56);
                         _r0 = _mm256_broadcast_ss(r0 + 7);
-                        _r01 = _mm256_broadcast_ss(r0 + 15);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         k01 += 64;
