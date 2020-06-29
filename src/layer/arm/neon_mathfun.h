@@ -27,6 +27,12 @@
 
 #include <arm_neon.h>
 
+#if (__ARM_FP & 2)
+static inline float32x4_t loadfp16(const void* ptr) {
+    return vcvt_f32_f16(vld1_f16((const __fp16 *)ptr));
+}
+#endif
+
 #define c_inv_mant_mask ~0x7f800000u
 #define c_cephes_SQRTHF 0.707106781186547524
 #define c_cephes_log_p0 7.0376836292E-2
@@ -41,10 +47,6 @@
 #define c_cephes_log_q1 -2.12194440e-4
 #define c_cephes_log_q2 0.693359375
 
-
-static inline float32x4_t loadfp16(const void* ptr) {
-    return vcvt_f32_f16(vld1_f16((const __fp16 *)ptr));
-}
 /* natural logarithm computed for 4 simultaneous float
  *   return NaN for x <= 0
  */
