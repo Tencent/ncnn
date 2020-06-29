@@ -124,6 +124,8 @@ public:
     int fuse_convolutiondepthwise_mul();
     int fuse_convolutiondepthwise_add();
     int fuse_deconvolution_batchnorm();
+    int fuse_deconvolution_mul();
+    int fuse_deconvolution_add();
     int fuse_deconvolutiondepthwise_batchnorm();
     int fuse_innerproduct_batchnorm();
     int fuse_innerproduct_add();
@@ -989,6 +991,181 @@ int NetOptimize::fuse_deconvolution_batchnorm()
         deconvolution->tops[0] = top_blob_index_final;
         blobs[top_blob_index_final].producer = i;
         batchnorm->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
+int NetOptimize::fuse_deconvolution_mul()
+{
+    const size_t layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "Deconvolution")
+            continue;
+
+        // Deconvolution - BinaryOp
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j<layer_count; j++)
+        {
+            if (layers[j]->type != "BinaryOp")
+                continue;
+
+            if (layers[j]->bottoms.size() != 2)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        // fuse Deconvolution - BinaryOp to Deconvolution
+        ncnn::Deconvolution* deconvolution = (ncnn::Deconvolution*)layers[i];
+        ncnn::BinaryOp* binaryop = (ncnn::BinaryOp*)layers[j];
+
+        if (binaryop->op_type != 2 || binaryop->with_scalar)
+            continue;
+
+        // MemoryData - ..... - BinaryOp
+        int k = 0;
+        for (; k<j; k++)
+        {
+            if (layers[k]->type != "MemoryData")
+                continue;
+
+            if (layers[k]->tops[0] == binaryop->bottoms[1])
+                break;
+        }
+
+        if (k == j)
+            continue;
+
+        ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
+
+        int channels = deconvolution->num_output;
+
+        if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
+        {
+            // not bias-like broadcasting type
+            continue;
+        }
+
+        fprintf(stderr, "fuse_deconvolution_mul %s %s\n", deconvolution->name.c_str(), binaryop->name.c_str());
+
+        {
+            const int weight_per_outch = deconvolution->weight_data_size / channels;
+
+            float* weight = deconvolution->weight_data;
+            float* bias = deconvolution->bias_data;
+            for (int i=0; i<channels; i++)
+            {
+                float* conv_weight_outch = weight + weight_per_outch * i;
+                for (int j=0; j<weight_per_outch; j++)
+                {
+                    conv_weight_outch[j] *= memorydata->data[i];
+                }
+
+                if (bias)
+                {
+                    bias[i] = bias[i] * memorydata->data[i];
+                }
+            }
+        }
+
+        int top_blob_index_final = binaryop->tops[0];
+        deconvolution->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        binaryop->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
+int NetOptimize::fuse_deconvolution_add()
+{
+    const size_t layer_count = layers.size();
+    for (int i=0; i<layer_count; i++)
+    {
+        if (layers[i]->type != "Deconvolution")
+            continue;
+
+        // Deconvolution - BinaryOp
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j<layer_count; j++)
+        {
+            if (layers[j]->type != "BinaryOp")
+                continue;
+
+            if (layers[j]->bottoms.size() != 2)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        // fuse Deconvolution - BinaryOp to Deconvolution
+        ncnn::Deconvolution* deconvolution = (ncnn::Deconvolution*)layers[i];
+        ncnn::BinaryOp* binaryop = (ncnn::BinaryOp*)layers[j];
+
+        if (binaryop->op_type != 0 || binaryop->with_scalar)
+            continue;
+
+        // MemoryData - ..... - BinaryOp
+        int k = 0;
+        for (; k<j; k++)
+        {
+            if (layers[k]->type != "MemoryData")
+                continue;
+
+            if (layers[k]->tops[0] == binaryop->bottoms[1])
+                break;
+        }
+
+        if (k == j)
+            continue;
+
+        ncnn::MemoryData* memorydata = (ncnn::MemoryData*)layers[k];
+
+        int channels = deconvolution->num_output;
+
+        if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
+        {
+            // not bias-like broadcasting type
+            continue;
+        }
+
+        fprintf(stderr, "fuse_deconvolution_add %s %s\n", deconvolution->name.c_str(), binaryop->name.c_str());
+
+        {
+            if (deconvolution->bias_term == 0)
+            {
+                // init bias
+                deconvolution->bias_term = 1;
+                deconvolution->bias_data = memorydata->data;
+            }
+            else
+            {
+                float* bias = deconvolution->bias_data;
+                for (int i=0; i<channels; i++)
+                {
+                    bias[i] = bias[i] + memorydata->data[i];
+                }
+            }
+        }
+
+        int top_blob_index_final = binaryop->tops[0];
+        deconvolution->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        binaryop->type = "ncnnfused";
     }
 
     return 0;
@@ -3487,6 +3664,8 @@ int main(int argc, char** argv)
     optimizer.fuse_convolutiondepthwise_mul();
     optimizer.fuse_convolutiondepthwise_add();
     optimizer.fuse_deconvolution_batchnorm();
+    optimizer.fuse_deconvolution_mul();
+    optimizer.fuse_deconvolution_add();
     optimizer.fuse_deconvolutiondepthwise_batchnorm();
     optimizer.fuse_innerproduct_batchnorm();
     optimizer.fuse_innerproduct_add();
