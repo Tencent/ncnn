@@ -12,6 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+
 static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch)
 {
     // winograd63 transform kernel
@@ -245,7 +246,6 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
     int inch = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-
     int outw = top_blob.w;
     int outh = top_blob.h;
     int outch = top_blob.c;
@@ -465,7 +465,6 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
     }
     bottom_blob_bordered = Mat();
     // END transform input
-
     // BEGIN dot
     Mat top_blob_tm;
     {
@@ -545,18 +544,18 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                 {
                     __m256 _r0 = _mm256_loadu_ps(r0);
                     __m256 _r1 = _mm256_loadu_ps(r0 + 8);
-                    __m256 _r2 = _mm256_loadu_ps(r0 + 16);
-                    __m256 _r3 = _mm256_loadu_ps(r0 + 24);
                     _mm256_storeu_ps(tm2p, _r0);
                     _mm256_storeu_ps(tm2p + 8, _r1);
+                    __m256 _r2 = _mm256_loadu_ps(r0 + 16);
+                    __m256 _r3 = _mm256_loadu_ps(r0 + 24);
                     _mm256_storeu_ps(tm2p + 16, _r2);
                     _mm256_storeu_ps(tm2p + 24, _r3);
                     __m256 _r4 = _mm256_loadu_ps(r0 + 32);
                     __m256 _r5 = _mm256_loadu_ps(r0 + 40);
-                    __m256 _r6 = _mm256_loadu_ps(r0 + 48);
-                    __m256 _r7 = _mm256_loadu_ps(r0 + 56);
                     _mm256_storeu_ps(tm2p + 32, _r4);
                     _mm256_storeu_ps(tm2p + 40, _r5);
+                    __m256 _r6 = _mm256_loadu_ps(r0 + 48);
+                    __m256 _r7 = _mm256_loadu_ps(r0 + 56);
                     _mm256_storeu_ps(tm2p + 48, _r6);
                     _mm256_storeu_ps(tm2p + 56, _r7);
                     tm2p += 64;
@@ -1252,7 +1251,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                     output0_tm += 16;
                 }
 
-                for (; i < tiles; i++)
+                for (; i < tiles; i ++)
                 {
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
 
@@ -1265,37 +1264,49 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                     {
                         __m256 _k01 = _mm256_loadu_ps(k01);
                         __m256 _r0 = _mm256_broadcast_ss(r0);
+                        __m256 _r01 = _mm256_broadcast_ss(r0 + 8);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         _k01 = _mm256_loadu_ps(k01 + 8);
                         _r0 = _mm256_broadcast_ss(r0 + 1);
+                        _r01 = _mm256_broadcast_ss(r0 + 9);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         _k01 = _mm256_loadu_ps(k01 + 16);
                         _r0 = _mm256_broadcast_ss(r0 + 2);
+                        _r01 = _mm256_broadcast_ss(r0 + 10);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         _k01 = _mm256_loadu_ps(k01 + 24);
                         _r0 = _mm256_broadcast_ss(r0 + 3);
+                        _r01 = _mm256_broadcast_ss(r0 + 11);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
+
                         _k01 = _mm256_loadu_ps(k01 + 32);
                         _r0 = _mm256_broadcast_ss(r0 + 4);
+                        _r01 = _mm256_broadcast_ss(r0 + 12);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
+
                         _k01 = _mm256_loadu_ps(k01 + 40);
                         _r0 = _mm256_broadcast_ss(r0 + 5);
+                        _r01 = _mm256_broadcast_ss(r0 + 13);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         _k01 = _mm256_loadu_ps(k01 + 48);
                         _r0 = _mm256_broadcast_ss(r0 + 6);
+                        _r01 = _mm256_broadcast_ss(r0 + 14);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         _k01 = _mm256_loadu_ps(k01 + 56);
                         _r0 = _mm256_broadcast_ss(r0 + 7);
+                        _r01 = _mm256_broadcast_ss(r0 + 15);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         k01 += 64;
                         r0 += 8;
                     }
+                    _mm256_storeu_ps(output0_tm, _sum0);
+                    output0_tm += 8;
                 }
             }
         }
@@ -1333,7 +1344,6 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
         int w_tm = outw / 6 * 8;
         int h_tm = outh / 6 * 8;
         const int tiles = w_tm / 8 * h_tm / 8;
-
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outch; p++)
         {
