@@ -70,11 +70,12 @@ int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
         float* ptr = bottom_top_blob.channel(q);
 #if __AVX__
         int nn_size = size >> 3;
-        int remain = size&7;
+        int remain = size & 7;
 
         __m256 _zero = _mm256_set1_ps(0.f);
         __m256 _one = _mm256_set1_ps(1.f);
-        for(; nn_size>0; nn_size--) {
+        for (; nn_size > 0; nn_size--)
+        {
             __m256 _p = _mm256_loadu_ps(ptr);
             __m256 _ans = _mm256_set1_ps(beta);
             _ans = _mm256_fmadd_ps(_p, _mm256_set1_ps(alpha), _ans);

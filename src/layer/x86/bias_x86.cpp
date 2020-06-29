@@ -17,8 +17,6 @@
 
 #include "bias_x86.h"
 
-
-
 namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Bias_x86)

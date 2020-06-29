@@ -21,7 +21,6 @@
 
 #include "layer_type.h"
 
-
 namespace ncnn {
 
 DEFINE_LAYER_CREATOR(Slice_x86)
@@ -73,7 +72,6 @@ int Slice_x86::destroy_pipeline(const Option& opt)
 
 int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-
     const Mat& bottom_blob = bottom_blobs[0];
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;

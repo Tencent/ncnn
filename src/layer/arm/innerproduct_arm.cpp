@@ -114,10 +114,10 @@ int InnerProduct_arm::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
             sum3 = bias_data[p + 3];
         }
 
-        const unsigned short* w0 =(const unsigned short*) weight_data_ptr + size * channels * p;
-        const unsigned short* w1 =(const unsigned short*) weight_data_ptr + size * channels * (p + 1);
-        const unsigned short* w2 =(const unsigned short*) weight_data_ptr + size * channels * (p + 2);
-        const unsigned short* w3 =(const unsigned short*) weight_data_ptr + size * channels * (p + 3);
+        const unsigned short* w0 = (const unsigned short*)weight_data_ptr + size * channels * p;
+        const unsigned short* w1 = (const unsigned short*)weight_data_ptr + size * channels * (p + 1);
+        const unsigned short* w2 = (const unsigned short*)weight_data_ptr + size * channels * (p + 2);
+        const unsigned short* w3 = (const unsigned short*)weight_data_ptr + size * channels * (p + 3);
 
         float32x4_t _sum0 = vdupq_n_f32(0.f);
         float32x4_t _sum1 = vdupq_n_f32(0.f);
@@ -255,7 +255,7 @@ int InnerProduct_arm::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
             sum0 = bias_data[p];
         }
 
-        const unsigned short* w0 = (const unsigned short*) weight_data_ptr + size * channels * p;
+        const unsigned short* w0 = (const unsigned short*)weight_data_ptr + size * channels * p;
 
         float32x4_t _sum0 = vdupq_n_f32(0.f);
         // channels
@@ -272,7 +272,6 @@ int InnerProduct_arm::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
 
                 float32x4_t _w0 = loadfp16(w0);
                 _sum0 = vmlaq_f32(_sum0, _m, _w0);
-
 
                 m += 4;
                 w0 += 4;
@@ -296,14 +295,12 @@ int InnerProduct_arm::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
 
                 float32x4_t _w0 = loadfp16(fp16_weights);
                 _sum0 = vmlaq_f32(_sum0, _m, _w0);
-
             }
         }
 
         float32x2_t _sum0ss = vadd_f32(vget_low_f32(_sum0), vget_high_f32(_sum0));
 
-
-        sum0 += vget_lane_f32(_sum0ss, 0)+ vget_lane_f32(_sum0ss, 1);
+        sum0 += vget_lane_f32(_sum0ss, 0) + vget_lane_f32(_sum0ss, 1);
 
         sum0 = activation_ss(sum0, activation_type, activation_params);
 
@@ -311,14 +308,13 @@ int InnerProduct_arm::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
     }
     return 0;
 #else
-    forward(bottom_blob,top_blob,opt);
+    forward(bottom_blob, top_blob, opt);
 #endif
 }
 #endif
 
 int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         // TODO

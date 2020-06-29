@@ -24,7 +24,7 @@ class LSTM_x86 : virtual public LSTM
 public:
     LSTM_x86();
 
-    virtual int create_pipeline(const Option &opt);
+    virtual int create_pipeline(const Option& opt);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
@@ -33,7 +33,6 @@ public:
 public:
     Mat weight_hc_data_fp16;
     Mat weight_xc_data_fp16;
-
 };
 
 } // namespace ncnn

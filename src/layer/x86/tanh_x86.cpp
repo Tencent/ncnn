@@ -17,8 +17,6 @@
 
 #include "tanh_x86.h"
 
-
-
 #include <math.h>
 
 namespace ncnn {

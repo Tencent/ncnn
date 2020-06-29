@@ -28,8 +28,9 @@
 #include <arm_neon.h>
 
 #if (__ARM_FP & 2)
-static inline float32x4_t loadfp16(const void* ptr) {
-    return vcvt_f32_f16(vld1_f16((const __fp16 *)ptr));
+static inline float32x4_t loadfp16(const void* ptr)
+{
+    return vcvt_f32_f16(vld1_f16((const __fp16*)ptr));
 }
 #endif
 
