@@ -54,6 +54,7 @@ typedef struct Section
     std::string activation;
     int from, reverse;
     std::vector<int> layers, mask, anchors;
+    int group_id = -1;
     int classes = 0, num = 0;
     float ignore_thresh = 0.45f, scale_x_y = 1.f;
 
@@ -144,6 +145,7 @@ void update_field(Section* section, std::string key, std::string value)
         {"reverse", INT, FIELD_OFFSET(reverse)},
         //route
         {"layers", IARRAY, FIELD_OFFSET(layers)},
+        {"group_id", INT, FIELD_OFFSET(group_id)},
         //yolo
         {"mask", IARRAY, FIELD_OFFSET(mask)},
         {"anchors", IARRAY, FIELD_OFFSET(anchors)},
@@ -571,14 +573,31 @@ void parse_cfg(std::deque<Section*>& dnet, int merge_output)
                 for (auto blob : q->real_output_blobs)
                     s->input_blobs.push_back(blob);
             }
+            if (s->input_blobs.size() == 1)
+            {
+                if (s->groups <= 1 || s->group_id == -1)
+                    s->layer_type = "Noop";
+                else
+                {
+                    s->out_c /= s->groups;
+#if OUTPUT_LAYER_MAP
+                    printf("%31d/%d -> %4d x%4d x%4d", 1, s->groups, s->out_w, s->out_h, s->out_c);
+#endif
+
+                    s->layer_type = "Crop";
+                    s->param.push_back(format("2=%d", s->out_c * s->group_id));
+                    s->param.push_back(format("3=%d", s->out_w));
+                    s->param.push_back(format("4=%d", s->out_h));
+                    s->param.push_back(format("5=%d", s->out_c));
+                }
+            }
+            else
+            {
+                s->layer_type = "Concat";
+            }
 #if OUTPUT_LAYER_MAP
             printf("\n");
 #endif
-
-            if (s->input_blobs.size() == 1)
-                s->layer_type = "Noop";
-            else
-                s->layer_type = "Concat";
         }
         else if (s->name == "upsample")
         {
