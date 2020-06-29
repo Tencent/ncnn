@@ -12,44 +12,45 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include <algorithm>
+#include <assert.h>
+#include <cctype>
+#include <deque>
+#include <fstream>
+#include <iostream>
+#include <locale>
+#include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
-#include <iostream>
-#include <fstream>
-#include <sstream>
 #include <string>
-#include <vector>
-#include <deque>
-#include <algorithm>
 #include <unordered_map>
-#include <cctype>
-#include <locale>
+#include <vector>
 
-#define OUTPUT_LAYER_MAP        0       //enable this to generate darknet style layer output
+#define OUTPUT_LAYER_MAP 0 //enable this to generate darknet style layer output
 
-void file_error(const char *s)
+void file_error(const char* s)
 {
     fprintf(stderr, "Couldn't open file: %s\n", s);
     exit(EXIT_FAILURE);
 }
 
-void error(const char *s)
+void error(const char* s)
 {
     perror(s);
     assert(0);
     exit(EXIT_FAILURE);
 }
 
-typedef struct Section {
+typedef struct Section
+{
     std::string name;
     int line_number = -1;
     int original_layer_count;
 
     std::unordered_map<std::string, std::string> options;
-    int w = 416, h = 416, c = 3, inputs=256;
+    int w = 416, h = 416, c = 3, inputs = 256;
     int out_w, out_h, out_c;
-    int batch_normalize = 0, filters = 1, size = 1, groups=1, stride = 1, padding = -1, pad = 0, dilation = 1;
+    int batch_normalize = 0, filters = 1, size = 1, groups = 1, stride = 1, padding = -1, pad = 0, dilation = 1;
     std::string activation;
     int from, reverse;
     std::vector<int> layers, mask, anchors;
@@ -62,29 +63,38 @@ typedef struct Section {
     std::vector<std::string> input_blobs, output_blobs;
     std::vector<std::string> real_output_blobs;
     std::vector<std::string> param;
-}Section;
+} Section;
 
-static inline std::string &trim(std::string &s) {
+static inline std::string& trim(std::string& s)
+{
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {
         return !std::isspace(ch);
     }));
     s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {
         return !std::isspace(ch);
-    }).base(), s.end());
+    }).base(),
+    s.end());
     return s;
 }
 
-typedef enum FIELD_TYPE {
-    INT, FLOAT, IARRAY, FARRAY, STRING, UNSUPPORTED
+typedef enum FIELD_TYPE
+{
+    INT,
+    FLOAT,
+    IARRAY,
+    FARRAY,
+    STRING,
+    UNSUPPORTED
 } FIELD_TYPE;
 
-typedef struct Section_Field {
-    const char *name;
+typedef struct Section_Field
+{
+    const char* name;
     FIELD_TYPE type;
     size_t offset;
 } Section_Field;
 
-#define FIELD_OFFSET(c)     ((size_t)&(((Section *)0)->c)) 
+#define FIELD_OFFSET(c) ((size_t) & (((Section*)0)->c))
 
 int yolo_layer_count = 0;
 
@@ -111,66 +121,66 @@ std::string format(const char* fmt, Args... args)
     return buf;
 }
 
-void update_field(Section *section, std::string key, std::string value)
+void update_field(Section* section, std::string key, std::string value)
 {
     static const Section_Field fields[] = {
         //net
-        {"width",           INT,    FIELD_OFFSET(w)},
-        {"height",          INT,    FIELD_OFFSET(h)},
-        {"channels",        INT,    FIELD_OFFSET(c)},
-        {"inputs",          INT,    FIELD_OFFSET(inputs)},
+        {"width", INT, FIELD_OFFSET(w)},
+        {"height", INT, FIELD_OFFSET(h)},
+        {"channels", INT, FIELD_OFFSET(c)},
+        {"inputs", INT, FIELD_OFFSET(inputs)},
         //convolutional, upsample, maxpool
-        {"batch_normalize", INT,    FIELD_OFFSET(batch_normalize)},
-        {"filters",         INT,    FIELD_OFFSET(filters)},
-        {"size",            INT,    FIELD_OFFSET(size)},
-        {"groups",          INT,    FIELD_OFFSET(groups)},
-        {"stride",          INT,    FIELD_OFFSET(stride)},
-        {"padding",         INT,    FIELD_OFFSET(padding)},
-        {"pad",             INT,    FIELD_OFFSET(pad)},
-        {"dilation",        INT,    FIELD_OFFSET(dilation)},
-        {"activation",      STRING, FIELD_OFFSET(activation)},
+        {"batch_normalize", INT, FIELD_OFFSET(batch_normalize)},
+        {"filters", INT, FIELD_OFFSET(filters)},
+        {"size", INT, FIELD_OFFSET(size)},
+        {"groups", INT, FIELD_OFFSET(groups)},
+        {"stride", INT, FIELD_OFFSET(stride)},
+        {"padding", INT, FIELD_OFFSET(padding)},
+        {"pad", INT, FIELD_OFFSET(pad)},
+        {"dilation", INT, FIELD_OFFSET(dilation)},
+        {"activation", STRING, FIELD_OFFSET(activation)},
         //shortcut
-        {"from",            INT,    FIELD_OFFSET(from)},
-        {"reverse",         INT,    FIELD_OFFSET(reverse)},
+        {"from", INT, FIELD_OFFSET(from)},
+        {"reverse", INT, FIELD_OFFSET(reverse)},
         //route
-        {"layers",          IARRAY, FIELD_OFFSET(layers)},
+        {"layers", IARRAY, FIELD_OFFSET(layers)},
         //yolo
-        {"mask",            IARRAY, FIELD_OFFSET(mask)},
-        {"anchors",         IARRAY, FIELD_OFFSET(anchors)},
-        {"classes",         INT,    FIELD_OFFSET(classes)},
-        {"num",             INT,    FIELD_OFFSET(num)},
-        {"ignore_thresh",   FLOAT,  FIELD_OFFSET(ignore_thresh)},
-        {"scale_x_y",       FLOAT,  FIELD_OFFSET(scale_x_y)},
+        {"mask", IARRAY, FIELD_OFFSET(mask)},
+        {"anchors", IARRAY, FIELD_OFFSET(anchors)},
+        {"classes", INT, FIELD_OFFSET(classes)},
+        {"num", INT, FIELD_OFFSET(num)},
+        {"ignore_thresh", FLOAT, FIELD_OFFSET(ignore_thresh)},
+        {"scale_x_y", FLOAT, FIELD_OFFSET(scale_x_y)},
     };
 
-    for (size_t i = 0; i < sizeof(fields)/sizeof(fields[0]); i++)
+    for (size_t i = 0; i < sizeof(fields) / sizeof(fields[0]); i++)
     {
         auto f = fields[i];
         if (key != f.name)
             continue;
-        char *addr = ((char *)section) + f.offset;
+        char* addr = ((char*)section) + f.offset;
         switch (f.type)
         {
         case INT:
-            *(int *)(addr) = std::stoi(value);
+            *(int*)(addr) = std::stoi(value);
             return;
 
         case FLOAT:
-            *(float *)(addr) = std::stof(value);
+            *(float*)(addr) = std::stof(value);
             return;
 
         case IARRAY:
-           for (auto v : split(value, ','))
-                reinterpret_cast<std::vector<int> *>(addr)->push_back(std::stoi(v));
+            for (auto v : split(value, ','))
+                reinterpret_cast<std::vector<int>*>(addr)->push_back(std::stoi(v));
             return;
 
         case FARRAY:
             for (auto v : split(value, ','))
-                reinterpret_cast<std::vector<float> *>(addr)->push_back(std::stof(v));
+                reinterpret_cast<std::vector<float>*>(addr)->push_back(std::stof(v));
             return;
-            
+
         case STRING:
-            *reinterpret_cast<std::string *>(addr) = value;
+            *reinterpret_cast<std::string*>(addr) = value;
             return;
 
         case UNSUPPORTED:
@@ -180,7 +190,7 @@ void update_field(Section *section, std::string key, std::string value)
     }
 }
 
-void load_cfg(const char *filename, std::deque<Section *> &dnet)
+void load_cfg(const char* filename, std::deque<Section*>& dnet)
 {
     std::string line;
     std::ifstream icfg(filename, std::ifstream::in);
@@ -190,7 +200,7 @@ void load_cfg(const char *filename, std::deque<Section *> &dnet)
         exit(EXIT_FAILURE);
     }
 
-    Section *section = NULL;
+    Section* section = NULL;
     size_t pos;
     int section_count = 0, line_count = 0;
     while (!icfg.eof())
@@ -221,8 +231,12 @@ void load_cfg(const char *filename, std::deque<Section *> &dnet)
     icfg.close();
 }
 
-Section *get_original_section(std::deque<Section *> &dnet, int count)
+Section* get_original_section(std::deque<Section*>& dnet, int count, int offset)
 {
+    if (offset >= 0)
+        count = offset + 1;
+    else
+        count += offset;
     for (auto s : dnet)
         if (s->original_layer_count == count)
             return s;
@@ -238,7 +252,7 @@ std::string array_to_float_string(std::vector<T> vec)
     return ret;
 }
 
-Section *get_section_by_output_blob(std::deque<Section *> &dnet, std::string blob)
+Section* get_section_by_output_blob(std::deque<Section*>& dnet, std::string blob)
 {
     for (auto s : dnet)
         for (auto b : s->output_blobs)
@@ -247,9 +261,9 @@ Section *get_section_by_output_blob(std::deque<Section *> &dnet, std::string blo
     return NULL;
 }
 
-std::vector<Section *> get_sections_by_input_blob(std::deque<Section *> &dnet, std::string blob)
+std::vector<Section*> get_sections_by_input_blob(std::deque<Section*>& dnet, std::string blob)
 {
-    std::vector<Section *> ret;
+    std::vector<Section*> ret;
     for (auto s : dnet)
         for (auto b : s->input_blobs)
             if (b == blob)
@@ -257,11 +271,50 @@ std::vector<Section *> get_sections_by_input_blob(std::deque<Section *> &dnet, s
     return ret;
 }
 
-void parse_cfg(std::deque<Section *> &dnet, int merge_output)
+void addActivationLayer(Section* s, std::deque<Section*>::iterator& it, std::deque<Section*>& dnet)
+{
+    Section* act = new Section;
+
+    if (s->activation == "relu")
+    {
+        act->layer_type = "ReLU";
+        act->param.push_back("0=0");
+    }
+    else if (s->activation == "leaky")
+    {
+        act->layer_type = "ReLU";
+        act->param.push_back("0=0.1");
+    }
+    else if (s->activation == "mish")
+        act->layer_type = "Mish";
+    else if (s->activation == "logistic")
+        act->layer_type = "Sigmoid";
+    else if (s->activation == "swish")
+        act->layer_type = "Swish";
+
+    if (s->batch_normalize)
+        act->layer_name = s->layer_name + "_bn";
+    else
+        act->layer_name = s->layer_name;
+    act->h = s->out_h;
+    act->w = s->out_w;
+    act->c = s->out_c;
+    act->out_h = s->out_h;
+    act->out_w = s->out_w;
+    act->out_c = s->out_c;
+    act->layer_name += "_" + s->activation;
+    act->input_blobs = s->real_output_blobs;
+    act->output_blobs.push_back(act->layer_name);
+
+    s->real_output_blobs = act->real_output_blobs = act->output_blobs;
+    it = dnet.insert(it + 1, act);
+}
+
+void parse_cfg(std::deque<Section*>& dnet, int merge_output)
 {
     int input_w = 416, input_h = 416;
     int yolo_count = 0;
-    std::vector<Section *> yolo_layers;
+    std::vector<Section*> yolo_layers;
 
 #if OUTPUT_LAYER_MAP
     printf("   layer   filters  size/strd(dil)      input                output\n");
@@ -272,7 +325,7 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
         if (s->line_number < 0)
             continue;
 
-        auto p = get_original_section(dnet, s->original_layer_count - 1);
+        auto p = get_original_section(dnet, s->original_layer_count, -1);
 
 #if OUTPUT_LAYER_MAP
         if (s->original_layer_count > 0)
@@ -286,8 +339,11 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
 
         if (s->name == "net")
         {
-            s->out_h = s->h; s->out_w = s->w; s->out_c = s->c;
-            input_h = s->h;  input_w = s->w;
+            s->out_h = s->h;
+            s->out_w = s->w;
+            s->out_c = s->c;
+            input_h = s->h;
+            input_w = s->w;
 
             s->layer_type = "Input";
             s->layer_name = "data";
@@ -303,96 +359,119 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
         {
             if (s->padding == -1)
                 s->padding = 0;
-            s->h = p->out_h; s->w = p->out_w; s->c = p->out_c;
-            s->out_h = s->h / s->stride; s->out_w = s->w / s->stride; s->out_c = s->filters;
+            s->h = p->out_h;
+            s->w = p->out_w;
+            s->c = p->out_c;
+            s->out_h = s->h / s->stride;
+            s->out_w = s->w / s->stride;
+            s->out_c = s->filters;
 
 #if OUTPUT_LAYER_MAP
-            printf("conv %5d      %2d x%2d/%2d   ", s->filters, s->size, s->size, s->stride);
+            if (s->groups == 1)
+                printf("conv %5d      %2d x%2d/%2d   ", s->filters, s->size, s->size, s->stride);
+            else
+                printf("conv %5d/%4d %2d x%2d/%2d   ", s->filters, s->groups, s->size, s->size, s->stride);
             printf("%4d x%4d x%4d -> %4d x%4d x%4d\n", s->h, s->w, s->c, s->out_h, s->out_w, s->out_c);
 #endif
 
-            s->layer_type = "Convolution";
-            s->param.push_back(format("0=%d", s->filters));     //num_output
-            s->param.push_back(format("1=%d", s->size));        //kernel_w
-            s->param.push_back(format("2=%d", s->dilation));    //dilation_w
-            s->param.push_back(format("3=%d", s->stride));      //stride_w
-            s->param.push_back(format("4=%d", s->pad ? s->size/2 : s->padding));      //pad_left
+            if (s->groups == 1)
+                s->layer_type = "Convolution";
+            else
+                s->layer_type = "ConvolutionDepthWise";
+            s->param.push_back(format("0=%d", s->filters));                        //num_output
+            s->param.push_back(format("1=%d", s->size));                           //kernel_w
+            s->param.push_back(format("2=%d", s->dilation));                       //dilation_w
+            s->param.push_back(format("3=%d", s->stride));                         //stride_w
+            s->param.push_back(format("4=%d", s->pad ? s->size / 2 : s->padding)); //pad_left
 
             if (s->batch_normalize)
             {
-                s->param.push_back("5=0");                          //bias_term
+                s->param.push_back("5=0"); //bias_term
 
-                Section *bn = new Section;
+                Section* bn = new Section;
                 bn->layer_type = "BatchNorm";
                 bn->layer_name = s->layer_name + "_bn";
-                bn->h = s->out_h; bn->w = s->out_w; bn->c = s->out_c;
-                bn->out_h = s->out_h; bn->out_w = s->out_w; bn->out_c = s->out_c;
+                bn->h = s->out_h;
+                bn->w = s->out_w;
+                bn->c = s->out_c;
+                bn->out_h = s->out_h;
+                bn->out_w = s->out_w;
+                bn->out_c = s->out_c;
                 bn->input_blobs = s->real_output_blobs;
                 bn->output_blobs.push_back(bn->layer_name);
-                bn->param.push_back(format("0=%d", s->filters));    //channels
-                bn->param.push_back("1=.00001");                    //eps
-                
+                bn->param.push_back(format("0=%d", s->filters)); //channels
+                bn->param.push_back("1=.00001");                 //eps
+
                 s->real_output_blobs = bn->real_output_blobs = bn->output_blobs;
                 it = dnet.insert(it + 1, bn);
             }
             else
             {
-                s->param.push_back("5=1");                          //bias_term
+                s->param.push_back("5=1"); //bias_term
             }
-            s->param.push_back(format("6=%d", s->c * s->size * s->size * s->filters));      //weight_data_size
+            s->param.push_back(format("6=%d", s->c * s->size * s->size * s->filters / s->groups)); //weight_data_size
 
-            if (s->activation == "relu" || s->activation == "leaky" || s->activation == "mish")
+            if (s->groups > 1)
+                s->param.push_back(format("7=%d", s->groups)); //stride_w
+
+            if (s->activation.size() > 0)
             {
-                Section *relu = new Section;
-                if (s->activation == "mish")
-                    relu->layer_type = "Mish";
-                else
-                    relu->layer_type = "ReLU";
-                if (s->batch_normalize)
-                    relu->layer_name += s->layer_name + "_bn";
-                relu->h = s->out_h; relu->w = s->out_w; relu->c = s->out_c;
-                relu->out_h = s->out_h; relu->out_w = s->out_w; relu->out_c = s->out_c;
-                relu->layer_name += "_" + s->activation;
-                relu->input_blobs = s->real_output_blobs;
-                relu->output_blobs.push_back(relu->layer_name);
-                if (s->activation == "leaky")
-                    relu->param.push_back("0=0.1");
-                else
-                    relu->param.push_back("0=0.f");
-                
-                s->real_output_blobs = relu->real_output_blobs = relu->output_blobs;
-                it = dnet.insert(it + 1, relu);
+                if (s->activation == "relu" || s->activation == "leaky" || s->activation == "mish" || s->activation == "logistic" || s->activation == "swish")
+                {
+                    addActivationLayer(s, it, dnet);
+                }
+                else if (s->activation != "linear")
+                    error(format("Unsupported convolutional activation type: %s", s->activation.c_str()).c_str());
             }
-            else if (s->activation != "linear")
-                error(format("Unsupported convolutional activation type: %s", s->activation.c_str()).c_str());
         }
         else if (s->name == "shortcut")
         {
-            auto q = get_original_section(dnet, s->original_layer_count + s->from);
-            if (p->out_h != q->out_h || p->out_w != q->out_w || p->out_c != q->out_c)
+            auto q = get_original_section(dnet, s->original_layer_count, s->from);
+            if (p->out_h != q->out_h || p->out_w != q->out_w)
                 error("shortcut dim not match");
 
-            s->h = p->out_h; s->w = p->out_w; s->c = p->out_c;
-            s->out_h = s->h; s->out_w = s->w; s->out_c = p->out_c;
+            s->h = p->out_h;
+            s->w = p->out_w;
+            s->c = p->out_c;
+            s->out_h = s->h;
+            s->out_w = s->w;
+            s->out_c = p->out_c;
 
 #if OUTPUT_LAYER_MAP
             printf("Shortcut Layer: %d, ", q->original_layer_count - 1);
             printf("outputs: %4d x%4d x%4d\n", s->out_h, s->out_w, s->out_c);
+            if (p->out_c != q->out_c)
+                printf("(%4d x%4d x%4d) + (%4d x%4d x%4d)\n", p->out_h, p->out_w, p->out_c,
+                       q->out_h, q->out_w, q->out_c);
 #endif
 
-            if (s->activation.size() > 0 && s->activation != "linear")
-                error(format("Unsupported shortcut activation type: %s", s->activation.c_str()).c_str());
+            if (s->activation.size() > 0)
+            {
+                if (s->activation == "relu" || s->activation == "leaky" || s->activation == "mish" || s->activation == "logistic" || s->activation == "swish")
+                {
+                    addActivationLayer(s, it, dnet);
+                }
+                else if (s->activation != "linear")
+                    error(format("Unsupported convolutional activation type: %s", s->activation.c_str()).c_str());
+            }
 
             s->layer_type = "Eltwise";
-            s->input_blobs.insert(s->input_blobs.end(), q->real_output_blobs.begin(), q->real_output_blobs.end());
-            s->param.push_back("0=1");      //op_type=Operation_SUM
+            s->input_blobs.clear();
+            s->input_blobs.push_back(p->real_output_blobs[0]);
+            s->input_blobs.push_back(q->real_output_blobs[0]);
+
+            s->param.push_back("0=1"); //op_type=Operation_SUM
         }
         else if (s->name == "maxpool")
         {
             if (s->padding == -1)
                 s->padding = s->size - 1;
-            s->h = p->out_h; s->w = p->out_w; s->c = p->out_c;
-            s->out_h = (s->h + s->padding - s->size) / s->stride + 1; s->out_w = s->out_h; s->out_c = s->c;
+            s->h = p->out_h;
+            s->w = p->out_w;
+            s->c = p->out_c;
+            s->out_h = (s->h + s->padding - s->size) / s->stride + 1;
+            s->out_w = s->out_h;
+            s->out_c = s->c;
 
 #if OUTPUT_LAYER_MAP
             printf("max             %2d x%2d/%2d   ", s->size, s->size, s->stride);
@@ -400,12 +479,77 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
 #endif
 
             s->layer_type = "Pooling";
-            s->param.push_back("0=0");                      //pooling_type=PoolMethod_MAX
-            s->param.push_back(format("1=%d", s->size));    //kernel_w
-            s->param.push_back(format("2=%d", s->stride));  //stride_w
-            s->param.push_back("5=1");                      //pad_mode=SAME_UPPER
-            s->param.push_back(format("14=%d", s->padding));    //pad_right
-            s->param.push_back(format("15=%d", s->padding));    //pad_bottom
+            s->param.push_back("0=0");                       //pooling_type=PoolMethod_MAX
+            s->param.push_back(format("1=%d", s->size));     //kernel_w
+            s->param.push_back(format("2=%d", s->stride));   //stride_w
+            s->param.push_back("5=1");                       //pad_mode=SAME_UPPER
+            s->param.push_back(format("14=%d", s->padding)); //pad_right
+            s->param.push_back(format("15=%d", s->padding)); //pad_bottom
+        }
+        else if (s->name == "avgpool")
+        {
+            if (s->padding == -1)
+                s->padding = s->size - 1;
+            s->h = p->out_h;
+            s->w = p->out_w;
+            s->c = p->out_c;
+            s->out_h = 1;
+            s->out_w = s->out_h;
+            s->out_c = s->c;
+
+#if OUTPUT_LAYER_MAP
+            printf("avg                         %4d x%4d x%4d ->   %4d\n", s->h, s->w, s->c, s->out_c);
+#endif
+
+            s->layer_type = "Pooling";
+            s->param.push_back("0=1"); //pooling_type=PoolMethod_AVE
+            s->param.push_back("4=1"); //global_pooling
+
+            Section* r = new Section;
+            r->layer_type = "Reshape";
+            r->layer_name = s->layer_name + "_reshape";
+            r->h = s->out_h;
+            r->w = s->out_w;
+            r->c = s->out_c;
+            r->out_h = 1;
+            r->out_w = 1;
+            r->out_c = r->h * r->w * r->c;
+            r->input_blobs.push_back(s->output_blobs[0]);
+            r->output_blobs.push_back(r->layer_name);
+            r->param.push_back("0=1");                    //w
+            r->param.push_back("1=1");                    //h
+            r->param.push_back(format("2=%d", r->out_c)); //c
+
+            s->real_output_blobs.clear();
+            s->real_output_blobs.push_back(r->layer_name);
+
+            it = dnet.insert(it + 1, r);
+        }
+        else if (s->name == "scale_channels")
+        {
+            auto q = get_original_section(dnet, s->original_layer_count, s->from);
+            if (p->out_c != q->out_c)
+                error("scale channels not match");
+
+            s->h = q->out_h;
+            s->w = q->out_w;
+            s->c = q->out_c;
+            s->out_h = s->h;
+            s->out_w = s->w;
+            s->out_c = q->out_c;
+
+#if OUTPUT_LAYER_MAP
+            printf("scale Layer: %d\n", q->original_layer_count - 1);
+#endif
+
+            if (s->activation.size() > 0 && s->activation != "linear")
+                error(format("Unsupported scale_channels activation type: %s", s->activation.c_str()).c_str());
+
+            s->layer_type = "BinaryOp";
+            s->input_blobs.clear();
+            s->input_blobs.push_back(q->real_output_blobs[0]);
+            s->input_blobs.push_back(p->real_output_blobs[0]);
+            s->param.push_back("0=2"); //op_type=Operation_MUL
         }
         else if (s->name == "route")
         {
@@ -416,13 +560,13 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
             s->input_blobs.clear();
             for (int l : s->layers)
             {
-                auto q = get_original_section(dnet, s->original_layer_count + l);
-                if (l > 0)
-                    q = get_original_section(dnet, l + 1);
+                auto q = get_original_section(dnet, s->original_layer_count, l);
 #if OUTPUT_LAYER_MAP
                 printf("%d ", q->original_layer_count - 1);
 #endif
-                s->out_h = q->out_h; s->out_w = q->out_w; s->out_c += q->out_c;
+                s->out_h = q->out_h;
+                s->out_w = q->out_w;
+                s->out_c += q->out_c;
 
                 for (auto blob : q->real_output_blobs)
                     s->input_blobs.push_back(blob);
@@ -438,17 +582,21 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
         }
         else if (s->name == "upsample")
         {
-            s->h = p->out_h; s->w = p->out_w; s->c = p->out_c;
-            s->out_h = s->h * s->stride; s->out_w = s->w * s->stride; s->out_c = s->c;
+            s->h = p->out_h;
+            s->w = p->out_w;
+            s->c = p->out_c;
+            s->out_h = s->h * s->stride;
+            s->out_w = s->w * s->stride;
+            s->out_c = s->c;
 
 #if OUTPUT_LAYER_MAP
             printf("upsample               %2dx  ", s->stride);
             printf("%4d x%4d x%4d -> %4d x%4d x%4d\n", s->h, s->w, s->c, s->out_h, s->out_w, s->out_c);
 #endif
             s->layer_type = "Interp";
-            s->param.push_back("0=1");      //resize_type=nearest
-            s->param.push_back("1=2.f");    //height_scale
-            s->param.push_back("2=2.f");    //width_scale
+            s->param.push_back("0=1");   //resize_type=nearest
+            s->param.push_back("1=2.f"); //height_scale
+            s->param.push_back("2=2.f"); //width_scale
         }
         else if (s->name == "yolo")
         {
@@ -459,29 +607,47 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
             if (s->ignore_thresh > 0.25)
             {
                 fprintf(stderr, "WARNING: The ignore_thresh=%f of yolo%d is too high. "
-                    "An alternative value 0.25 is written instead.\n", s->ignore_thresh, yolo_count);
+                        "An alternative value 0.25 is written instead.\n",
+                        s->ignore_thresh, yolo_count);
                 s->ignore_thresh = 0.25;
             }
 
             s->layer_type = "Yolov3DetectionOutput";
             s->layer_name = format("yolo%d", yolo_count++);
             s->output_blobs[0] = s->layer_name;
-            s->h = p->out_h; s->w = p->out_w; s->c = p->out_c;
-            s->out_h = s->h; s->out_w = s->w; s->out_c = s->c * (int)s->mask.size();
-            s->param.push_back(format("0=%d", s->classes));         //num_class
-            s->param.push_back(format("1=%d", s->mask.size()));             //num_box
-            s->param.push_back(format("2=%f", s->ignore_thresh));   //confidence_threshold
+            s->h = p->out_h;
+            s->w = p->out_w;
+            s->c = p->out_c;
+            s->out_h = s->h;
+            s->out_w = s->w;
+            s->out_c = s->c * (int)s->mask.size();
+            s->param.push_back(format("0=%d", s->classes));                                                             //num_class
+            s->param.push_back(format("1=%d", s->mask.size()));                                                         //num_box
+            s->param.push_back(format("2=%f", s->ignore_thresh));                                                       //confidence_threshold
             s->param.push_back(format("-23304=%d%s", s->anchors.size(), array_to_float_string(s->anchors).c_str()));    //biases
-            s->param.push_back(format("-23305=%d%s", s->mask.size(), array_to_float_string(s->mask).c_str()));       //mask
-            s->param.push_back(format("-23306=2,%f,%f", input_w * s->scale_x_y / s->w, input_h * s->scale_x_y / s->h));       //biases_index
+            s->param.push_back(format("-23305=%d%s", s->mask.size(), array_to_float_string(s->mask).c_str()));          //mask
+            s->param.push_back(format("-23306=2,%f,%f", input_w * s->scale_x_y / s->w, input_h * s->scale_x_y / s->h)); //biases_index
 
             yolo_layer_count++;
             yolo_layers.push_back(s);
         }
+        else if (s->name == "dropout")
+        {
+#if OUTPUT_LAYER_MAP
+            printf("dropout\n");
+#endif
+            s->h = p->out_h;
+            s->w = p->out_w;
+            s->c = p->out_c;
+            s->out_h = s->h;
+            s->out_w = s->w;
+            s->out_c = p->out_c;
+            s->layer_type = "Noop";
+        }
         else
         {
 #if OUTPUT_LAYER_MAP
-            printf("%-8s\n", s->name.c_str());
+            printf("%-8s (unsupported)\n", s->name.c_str());
 #endif
         }
     }
@@ -498,7 +664,7 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
         }
     }
 
-    for (auto it = dnet.begin(); it != dnet.end(); )
+    for (auto it = dnet.begin(); it != dnet.end();)
         if ((*it)->layer_type == "Noop")
             it = dnet.erase(it);
         else
@@ -512,11 +678,15 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
             auto q = get_sections_by_input_blob(dnet, output_name);
             if (q.size() <= 1 || s->layer_type == "Split")
                 continue;
-            Section *p = new Section;
+            Section* p = new Section;
             p->layer_type = "Split";
             p->layer_name = s->layer_name + "_split";
-            p->w = s->w; p->h = s->h; p->c = s->c;
-            p->out_w = s->out_w; p->out_h = s->out_h; p->out_c = s->out_c;
+            p->w = s->w;
+            p->h = s->h;
+            p->c = s->c;
+            p->out_w = s->out_w;
+            p->out_h = s->out_h;
+            p->out_c = s->out_c;
             p->input_blobs.push_back(output_name);
             for (size_t i = 0; i < q.size(); i++)
             {
@@ -536,7 +706,7 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
         std::vector<int> masks;
         std::vector<float> scale_x_y;
 
-        Section *s = new Section;
+        Section* s = new Section;
         s->classes = yolo_layers[0]->classes;
         s->anchors = yolo_layers[0]->anchors;
         s->mask = yolo_layers[0]->mask;
@@ -548,7 +718,7 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
 
             if (s->anchors.size() != p->anchors.size())
                 error("yolo layer anchor count not match, output cannot be merged.");
-            
+
             for (int i = 0; i < s->anchors.size(); i++)
                 if (s->anchors[i] != p->anchors[i])
                     error("yolo anchor size not match, output cannot be merged.");
@@ -563,7 +733,7 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
             s->input_blobs.push_back(p->input_blobs[0]);
         }
 
-        for (auto it = dnet.begin(); it != dnet.end(); )
+        for (auto it = dnet.begin(); it != dnet.end();)
             if ((*it)->name == "yolo")
                 it = dnet.erase(it);
             else
@@ -572,18 +742,18 @@ void parse_cfg(std::deque<Section *> &dnet, int merge_output)
         s->layer_type = "Yolov3DetectionOutput";
         s->layer_name = "detection_out";
         s->output_blobs.push_back("output");
-        s->param.push_back(format("0=%d", s->classes));         //num_class
-        s->param.push_back(format("1=%d", s->mask.size()));             //num_box
-        s->param.push_back(format("2=%f", s->ignore_thresh));   //confidence_threshold
-        s->param.push_back(format("-23304=%d%s", s->anchors.size(), array_to_float_string(s->anchors).c_str()));    //biases
-        s->param.push_back(format("-23305=%d%s", masks.size(), array_to_float_string(masks).c_str()));       //mask
-        s->param.push_back(format("-23306=%d%s", scale_x_y.size(), array_to_float_string(scale_x_y).c_str()));       //biases_index
+        s->param.push_back(format("0=%d", s->classes));                                                          //num_class
+        s->param.push_back(format("1=%d", s->mask.size()));                                                      //num_box
+        s->param.push_back(format("2=%f", s->ignore_thresh));                                                    //confidence_threshold
+        s->param.push_back(format("-23304=%d%s", s->anchors.size(), array_to_float_string(s->anchors).c_str())); //biases
+        s->param.push_back(format("-23305=%d%s", masks.size(), array_to_float_string(masks).c_str()));           //mask
+        s->param.push_back(format("-23306=%d%s", scale_x_y.size(), array_to_float_string(scale_x_y).c_str()));   //biases_index
 
         dnet.push_back(s);
     }
 }
 
-void read_to(std::vector<float> &vec, size_t size, FILE *fp)
+void read_to(std::vector<float>& vec, size_t size, FILE* fp)
 {
     vec.resize(size);
     size_t read_size = fread(&vec[0], sizeof(float), size, fp);
@@ -591,9 +761,9 @@ void read_to(std::vector<float> &vec, size_t size, FILE *fp)
         error("\n Warning: Unexpected end of wights-file!\n");
 }
 
-void load_weights(const char *filename, std::deque<Section *> &dnet)
+void load_weights(const char* filename, std::deque<Section*>& dnet)
 {
-    FILE *fp = fopen(filename, "rb");
+    FILE* fp = fopen(filename, "rb");
     if (fp == NULL)
         file_error(filename);
 
@@ -602,11 +772,13 @@ void load_weights(const char *filename, std::deque<Section *> &dnet)
     fread(&major, sizeof(int), 1, fp);
     fread(&minor, sizeof(int), 1, fp);
     fread(&revision, sizeof(int), 1, fp);
-    if ((major * 10 + minor) >= 2) {
+    if ((major * 10 + minor) >= 2)
+    {
         uint64_t iseen = 0;
         fread(&iseen, sizeof(uint64_t), 1, fp);
     }
-    else {
+    else
+    {
         uint32_t iseen = 0;
         fread(&iseen, sizeof(uint32_t), 1, fp);
     }
@@ -623,14 +795,17 @@ void load_weights(const char *filename, std::deque<Section *> &dnet)
                 read_to(s->rolling_variance, s->filters, fp);
             }
 
-            read_to(s->weights, s->c * s->filters * s->size * s->size, fp);
+            if (s->layer_type == "Convolution")
+                read_to(s->weights, s->c * s->filters * s->size * s->size, fp);
+            else if (s->layer_type == "ConvolutionDepthWise")
+                read_to(s->weights, s->c * s->filters * s->size * s->size / s->groups, fp);
         }
     }
 
     fclose(fp);
 }
 
-int count_output_blob(std::deque<Section *> &dnet)
+int count_output_blob(std::deque<Section*>& dnet)
 {
     int count = 0;
     for (auto s : dnet)
@@ -643,12 +818,12 @@ int main(int argc, char** argv)
     if (!(argc == 3 || argc == 5 || argc == 6))
     {
         fprintf(stderr, "Usage: %s [darknetcfg] [darknetweights] [ncnnparam] [ncnnbin] [merge_output]\n"
-            "\t[darknetcfg]     .cfg file of input darknet model.\n"
-            "\t[darknetweights] .weights file of input darknet model.\n"
-            "\t[cnnparam]       .param file of output ncnn model.\n"
-            "\t[ncnnbin]        .bin file of output ncnn model.\n"
-            "\t[merge_output]   merge all output yolo layers into one, enabled by default.\n"
-            , argv[0]);
+                "\t[darknetcfg]     .cfg file of input darknet model.\n"
+                "\t[darknetweights] .weights file of input darknet model.\n"
+                "\t[cnnparam]       .param file of output ncnn model.\n"
+                "\t[ncnnbin]        .bin file of output ncnn model.\n"
+                "\t[merge_output]   merge all output yolo layers into one, enabled by default.\n",
+                argv[0]);
         return -1;
     }
 
@@ -658,7 +833,7 @@ int main(int argc, char** argv)
     const char* ncnn_bin = argc >= 5 ? argv[4] : "ncnn.bin";
     int merge_output = argc >= 6 ? atoi(argv[5]) : 1;
 
-    std::deque<Section *> dnet;
+    std::deque<Section*> dnet;
 
     printf("Loading cfg...\n");
     load_cfg(darknetcfg, dnet);
@@ -667,7 +842,7 @@ int main(int argc, char** argv)
     printf("Loading weights...\n");
     load_weights(darknetweights, dnet);
 
-    FILE *pp = fopen(ncnn_param, "wb");
+    FILE* pp = fopen(ncnn_param, "wb");
     if (pp == NULL)
         file_error(ncnn_param);
 
@@ -708,7 +883,7 @@ int main(int argc, char** argv)
     }
     fclose(pp);
 
-    printf("NOTE: %d layers, %d blobs generated.\n", (int)dnet.size(), count_output_blob(dnet));
+    printf("%d layers, %d blobs generated.\n", (int)dnet.size(), count_output_blob(dnet));
     printf("NOTE: The input of darknet uses: mean_vals=0 and norm_vals=1/255.f.\n");
     if (!merge_output)
         printf("NOTE: There are %d unmerged yolo output layer. Make sure all outputs are processed with nms.\n", yolo_layer_count);

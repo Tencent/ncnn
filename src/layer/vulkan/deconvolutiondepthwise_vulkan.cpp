@@ -13,9 +13,11 @@
 // specific language governing permissions and limitations under the License.
 
 #include "deconvolutiondepthwise_vulkan.h"
-#include <algorithm>
-#include "layer_type.h"
+
 #include "layer_shader_type.h"
+#include "layer_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -473,11 +475,11 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
         float* pt = weight_data_transposed;
         const float* p = weight_data;
 
-        for (int i=0; i<(channels/group)*(num_output/group)*group; i++)
+        for (int i = 0; i < (channels / group) * (num_output / group) * group; i++)
         {
-            for (int k=0; k<maxk; k++)
+            for (int k = 0; k < maxk; k++)
             {
-                pt[maxk-1 - k] = p[k];
+                pt[maxk - 1 - k] = p[k];
             }
 
             p += maxk;
@@ -527,39 +529,37 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
     {
         Mat weight_data_r2_groups = weight_data_transposed.reshape(maxk, channels_g, num_output_g * group);
 
-        weight_data_packed_groups.create(maxk, channels_g/elempack_g, num_output_g/out_elempack_g * group, (size_t)4*elempack_g*out_elempack_g, elempack_g*out_elempack_g);
+        weight_data_packed_groups.create(maxk, channels_g / elempack_g, num_output_g / out_elempack_g * group, (size_t)4 * elempack_g * out_elempack_g, elempack_g * out_elempack_g);
 
-        for (int g=0; g<group; g++)
+        for (int g = 0; g < group; g++)
         {
             const Mat weight_data_r2 = weight_data_r2_groups.channel_range(num_output_g * g, num_output_g);
 
-            Mat weight_data_pack4 = weight_data_packed_groups.channel_range(num_output_g/out_elempack_g * g, num_output_g/out_elempack_g);
+            Mat weight_data_pack4 = weight_data_packed_groups.channel_range(num_output_g / out_elempack_g * g, num_output_g / out_elempack_g);
 
-            for (int q=0; q+(out_elempack_g-1)<num_output_g; q+=out_elempack_g)
+            for (int q = 0; q + (out_elempack_g - 1) < num_output_g; q += out_elempack_g)
             {
-                Mat g0 = weight_data_pack4.channel(q/out_elempack_g);
+                Mat g0 = weight_data_pack4.channel(q / out_elempack_g);
 
-                for (int p=0; p+(elempack_g-1)<channels_g; p+=elempack_g)
+                for (int p = 0; p + (elempack_g - 1) < channels_g; p += elempack_g)
                 {
-                    float* g00 = g0.row(p/elempack_g);
+                    float* g00 = g0.row(p / elempack_g);
 
-                    for (int k=0; k<maxk; k++)
+                    for (int k = 0; k < maxk; k++)
                     {
-
-                        for (int i=0; i<out_elempack_g; i++)
+                        for (int i = 0; i < out_elempack_g; i++)
                         {
-                            const Mat k0 = weight_data_r2.channel(q+i);
+                            const Mat k0 = weight_data_r2.channel(q + i);
 
-                            for (int j=0; j<elempack_g; j++)
+                            for (int j = 0; j < elempack_g; j++)
                             {
-                                const float* k00 = k0.row(p+j);
+                                const float* k00 = k0.row(p + j);
 
                                 g00[0] = k00[k];
 
                                 g00++;
                             }
                         }
-
                     }
                 }
             }
@@ -611,8 +611,8 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_elempack == 8) out_elemsize = 8*2u;
-        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
@@ -650,8 +650,8 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
         constants[9].i = top_blob_bordered.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_deconvolutiondepthwise_pack8
-                                 : elempack == 4 ? pipeline_deconvolutiondepthwise_pack4
-                                 : pipeline_deconvolutiondepthwise;
+                                   : elempack == 4 ? pipeline_deconvolutiondepthwise_pack4
+                                   : pipeline_deconvolutiondepthwise;
 
         // record
         cmd.record_pipeline(pipeline, bindings, constants, top_blob_bordered);
@@ -766,8 +766,8 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_elempack_g == 8) out_elemsize_g = 8*2u;
-        if (out_elempack_g == 4) out_elemsize_g = 4*2u;
+        if (out_elempack_g == 8) out_elemsize_g = 8 * 2u;
+        if (out_elempack_g == 4) out_elemsize_g = 4 * 2u;
         if (out_elempack_g == 1) out_elemsize_g = 4u;
     }
 
@@ -976,8 +976,8 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_elempack == 8) out_elemsize = 8*2u;
-        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
@@ -1007,16 +1007,16 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
         constants[1].i = bottom_blob.w;
         constants[2].i = bottom_blob.h;
         constants[3].i = bottom_blob.c;
-        constants[4].i = 0;//bottom_blob.cstep;
+        constants[4].i = 0; //bottom_blob.cstep;
         constants[5].i = top_blob_bordered.dims;
         constants[6].i = top_blob_bordered.w;
         constants[7].i = top_blob_bordered.h;
         constants[8].i = top_blob_bordered.c;
-        constants[9].i = 0;//top_blob_bordered.cstep;
+        constants[9].i = 0; //top_blob_bordered.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_deconvolutiondepthwise_pack8
-                                 : elempack == 4 ? pipeline_deconvolutiondepthwise_pack4
-                                 : pipeline_deconvolutiondepthwise;
+                                   : elempack == 4 ? pipeline_deconvolutiondepthwise_pack4
+                                   : pipeline_deconvolutiondepthwise;
 
         // record
         cmd.record_pipeline(pipeline, bindings, constants, top_blob_bordered);
@@ -1131,8 +1131,8 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_elempack_g == 8) out_elemsize_g = 8*2u;
-        if (out_elempack_g == 4) out_elemsize_g = 4*2u;
+        if (out_elempack_g == 8) out_elemsize_g = 8 * 2u;
+        if (out_elempack_g == 4) out_elemsize_g = 4 * 2u;
         if (out_elempack_g == 1) out_elemsize_g = 4u;
     }
 
@@ -1165,12 +1165,12 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
     constants[1].i = bottom_blob_unpacked.w;
     constants[2].i = bottom_blob_unpacked.h;
     constants[3].i = bottom_blob_unpacked.c;
-    constants[4].i = 0;//bottom_blob_unpacked.cstep;
+    constants[4].i = 0; //bottom_blob_unpacked.cstep;
     constants[5].i = top_blob_unpacked.dims;
     constants[6].i = top_blob_unpacked.w;
     constants[7].i = top_blob_unpacked.h;
     constants[8].i = top_blob_unpacked.c;
-    constants[9].i = 0;//top_blob_unpacked.cstep;
+    constants[9].i = 0; //top_blob_unpacked.cstep;
 
     const Pipeline* pipeline = 0;
     if (elempack_g == 1 && out_elempack_g == 1)

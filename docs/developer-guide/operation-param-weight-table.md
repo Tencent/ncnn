@@ -158,9 +158,13 @@
 ||2|alpha|1.f|
 ||3|beta|0.75f|
 ||4|bias|1.f|
+|LSTM|0|num_output|0|
+||1|weight_data_size|1|
+||2|direction|0|
 |MemoryData|0|w|0|
 ||1|h|0|
 ||2|c|0|
+|Mish|||
 |MVN|0|normalize_variance|0|
 ||1|across_channels|0|
 ||2|eps|0.0001f|
@@ -173,13 +177,21 @@
 ||3|scale_data_size|0|
 |Packing|0|out_packing|1|
 ||1|use_padding|0|
-|Padding|0|top|0|
+||2|cast_type_from|0|
+||3|cast_type_to|0|
+||4|storage_type_from|0|
+||5|storage_type_to|0|
+|Padding|0|top|0|per_channel_pad_data|
 ||1|bottom|0|
 ||2|left|0|
 ||3|right|0|
 ||4|type|0|
 ||5|value|0.f|
+||6|per_channel_pad_data_size|0|
+||7|front|0|
+||8|behind|0|
 |Permute|0|order_type|0|
+|PixelShuffle|0|upscale_factor|1|
 |Pooling|0|pooling_type|0|
 ||1|kernel_w|0|
 ||11|kernel_h|kernel_w|
@@ -241,6 +253,9 @@
 |ROIAlign|0|pooled_width|0|
 ||1|pooled_height|0|
 ||2|spatial_scale|1.f|
+||3|sampling_ratio|0|
+||4|aligned|0|
+||5|version|0|
 |ROIPooling|0|pooled_width|0|
 ||1|pooled_height|0|
 ||2|spatial_scale|1.f|
@@ -259,9 +274,22 @@
 ||1|squeeze_h|0|
 ||2|squeeze_c|0|
 ||3|axes|[ ]|
+|StatisticsPooling|0|include_stddev|0|
+|Swish|||
 |TanH|||
 |Threshold|0|threshold|0.f|
 |Tile TODO|||
 |UnaryOp|0|op_type|0|
+|YoloDetectionOutput|0|num_class|20|
+||1|num_box|5|
+||2|confidence_threshold|0.01f|
+||3|num_threshold|0.45f|
+||4|biases|[]|
+|Yolov3DetectionOutput|0|num_class|20|
+||1|num_box|5|
+||2|confidence_threshold|0.01f|
+||3|num_threshold|0.45f|
+||4|biases|[]|
+||5|mask|[]|
+||6|anchors_scale|[]|
 |RNN TODO|||
-|LSTM TODO|||

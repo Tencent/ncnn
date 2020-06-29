@@ -12,32 +12,31 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/deconvolution.h"
+#include "testutil.h"
 
 static int test_deconvolution(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
     ncnn::ParamDict pd;
-    pd.set(0, outch);// num_output
-    pd.set(1, kernel);// kernel_w
-    pd.set(2, dilation);// dilation_w
-    pd.set(3, stride);// stride_w
-    pd.set(4, pad);// pad_w
-    pd.set(5, bias);// bias_term
-    pd.set(6, outch*c*kernel*kernel);
+    pd.set(0, outch);    // num_output
+    pd.set(1, kernel);   // kernel_w
+    pd.set(2, dilation); // dilation_w
+    pd.set(3, stride);   // stride_w
+    pd.set(4, pad);      // pad_w
+    pd.set(5, bias);     // bias_term
+    pd.set(6, outch * c * kernel * kernel);
 
-    int activation_type = RAND() % 5;// 0 1 2 3 4
+    int activation_type = RAND() % 5; // 0 1 2 3 4
     ncnn::Mat activation_params(2);
-    activation_params[0] = RandomFloat(-1, 0);// alpha
-    activation_params[1] = RandomFloat(0, 1);// beta
+    activation_params[0] = RandomFloat(-1, 0); // alpha
+    activation_params[1] = RandomFloat(0, 1);  // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
     std::vector<ncnn::Mat> weights(2);
-    weights[0] = RandomMat(outch*c*kernel*kernel);
+    weights[0] = RandomMat(outch * c * kernel * kernel);
     weights[1] = RandomMat(outch);
 
     ncnn::Option opt;
@@ -75,18 +74,17 @@ static int test_deconvolution_0()
         {7, 2, 1, 3},
     };
 
-    for (int i=0; i<16; i++)
+    for (int i = 0; i < 16; i++)
     {
         int ret = 0
-            || test_deconvolution(9, 7, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-            || test_deconvolution(9, 7, 4, 13, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0)
-            || test_deconvolution(9, 7, 13, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-            || test_deconvolution(9, 7, 4, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0)
-            || test_deconvolution(9, 7, 8, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-            || test_deconvolution(9, 7, 8, 13, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0)
-            || test_deconvolution(9, 7, 13, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-            || test_deconvolution(9, 7, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0)
-            ;
+                  || test_deconvolution(9, 7, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+                  || test_deconvolution(9, 7, 4, 13, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0)
+                  || test_deconvolution(9, 7, 13, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+                  || test_deconvolution(9, 7, 4, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0)
+                  || test_deconvolution(9, 7, 8, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+                  || test_deconvolution(9, 7, 8, 13, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0)
+                  || test_deconvolution(9, 7, 13, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
+                  || test_deconvolution(9, 7, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0);
 
         if (ret != 0)
             return -1;

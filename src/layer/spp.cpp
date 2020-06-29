@@ -13,8 +13,9 @@
 // specific language governing permissions and limitations under the License.
 
 #include "spp.h"
-#include <math.h>
+
 #include <algorithm>
+#include <math.h>
 
 namespace ncnn {
 
@@ -106,7 +107,7 @@ int SPP::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
         if (pooling_type == PoolMethod_MAX)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const Mat m(w, h, bottom_blob_bordered.channel(q));
                 float* outptr = pyramid_ptr + outh * outw * q;
@@ -115,13 +116,13 @@ int SPP::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
                 {
                     for (int j = 0; j < outw; j++)
                     {
-                        const float* sptr = m.row(i*stride_h) + j*stride_w;
+                        const float* sptr = m.row(i * stride_h) + j * stride_w;
 
                         float max = sptr[0];
 
                         for (int k = 0; k < maxk; k++)
                         {
-                            float val = sptr[ space_ofs[k] ];
+                            float val = sptr[space_ofs[k]];
                             max = std::max(max, val);
                         }
 
@@ -135,7 +136,7 @@ int SPP::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
         else if (pooling_type == PoolMethod_AVE)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const Mat m(w, h, bottom_blob_bordered.channel(q));
                 float* outptr = pyramid_ptr + outh * outw * q;
@@ -144,13 +145,13 @@ int SPP::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
                 {
                     for (int j = 0; j < outw; j++)
                     {
-                        const float* sptr = m.row(i*stride_h) + j*stride_w;
+                        const float* sptr = m.row(i * stride_h) + j * stride_w;
 
                         float sum = 0;
 
                         for (int k = 0; k < maxk; k++)
                         {
-                            float val = sptr[ space_ofs[k] ];
+                            float val = sptr[space_ofs[k]];
                             sum += val;
                         }
 

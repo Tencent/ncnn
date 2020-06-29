@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "lstm.h"
+
 #include <math.h>
 
 namespace ncnn {
@@ -82,7 +83,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
     cell.fill(0.f);
 
     // unroll
-    for (int t=0; t<T; t++)
+    for (int t = 0; t < T; t++)
     {
         // clip hidden by continuation indicator
         // h_cont_{t-1} = cont_t * h_{t-1}
@@ -92,10 +93,10 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         // gate_input_t := W_hc * h_conted_{t-1} + W_xc * x_t + b_c
         int cont = t > 0;
 
-        int ti = reverse ? T-1-t : t;
+        int ti = reverse ? T - 1 - t : t;
 
         const float* x = bottom_blob.row(ti);
-        for (int q=0; q<num_output; q++)
+        for (int q = 0; q < num_output; q++)
         {
             const float* bias_c_I = bias_c.row(0);
             const float* bias_c_F = bias_c.row(1);
@@ -120,7 +121,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             float O = bias_c_O[q];
             float G = bias_c_G[q];
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 float xi = x[i];
 
@@ -130,7 +131,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
                 G += weight_xc_G[i] * xi;
             }
 
-            for (int i=0; i<num_output; i++)
+            for (int i = 0; i < num_output; i++)
             {
                 float h_cont = cont ? hidden[i] : 0.f;
 
@@ -154,7 +155,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         // c_t := f_t .* c_{t-1} + i_t .* g_t
         // h_t := o_t .* tanh[c_t]
         float* output_data = top_blob.row(ti);
-        for (int q=0; q<num_output; q++)
+        for (int q = 0; q < num_output; q++)
         {
             const float* gates_data = gates.row(q);
 
@@ -225,7 +226,7 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
             return ret1;
 
         // concat w
-        for (int i=0; i<T; i++)
+        for (int i = 0; i < T; i++)
         {
             const float* pf = top_blob_forward.row(i);
             const float* pr = top_blob_reverse.row(i);

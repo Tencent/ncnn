@@ -23,6 +23,7 @@ set(ncnn_SRCS
     allocator.cpp
     benchmark.cpp
     blob.cpp
+    c_api.cpp
     command.cpp
     cpu.cpp
     datareader.cpp
@@ -283,7 +284,7 @@ ncnn_add_layer(Quantize)
 ncnn_add_layer(Dequantize)
 ncnn_add_layer(Yolov3DetectionOutput)
 ncnn_add_layer(PSROIPooling)
-ncnn_add_layer(ROIAlign OFF)
+ncnn_add_layer(ROIAlign)
 ncnn_add_layer(Packing)
 ncnn_add_layer(Requantize)
 ncnn_add_layer(Cast)
@@ -396,10 +397,10 @@ elseif(NCNN_AVX2)
     #Windows
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC"
         OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
-        target_compile_options(ncnn PRIVATE /arch:AVX2 /DAVX2)
+        target_compile_options(ncnn PRIVATE /arch:AVX2 /DAVX2 /fp:strict)
     #Linux
     else()
-        target_compile_options(ncnn PRIVATE -mfma -mf16c)
+        target_compile_options(ncnn PRIVATE -mfma -mf16c -mavx2)
     endif()
 endif()
 
@@ -409,7 +410,11 @@ if(NCNN_OPENMP AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
     if(NCNN_CMAKE_VERBOSE)
         message("Building with OpenMP")
     endif()
-    if(OpenMP_CXX_FOUND)
+
+    if(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
+        target_compile_options(ncnn PRIVATE -fopenmp)
+        target_link_libraries(ncnn PUBLIC -fopenmp -static-openmp)
+    elseif(OpenMP_CXX_FOUND)
         target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
     else()
         target_link_libraries(ncnn PRIVATE "${OpenMP_CXX_FLAGS}")
@@ -421,6 +426,7 @@ if(NCNN_INSTALL_SDK)
     install(FILES
         allocator.h
         blob.h
+        c_api.h
         command.h
         cpu.h
         datareader.h

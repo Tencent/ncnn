@@ -22,9 +22,10 @@
 #include <pthread.h>
 #endif
 
-#include <stdlib.h>
-#include <list>
 #include "platform.h"
+
+#include <list>
+#include <stdlib.h>
 
 #if NCNN_VULKAN
 #include <vulkan/vulkan.h>
@@ -36,15 +37,21 @@
 
 namespace ncnn {
 
+#if __AVX__
 // the alignment of all the allocated buffers
-#define MALLOC_ALIGN    16
+#define MALLOC_ALIGN 256
+#else
+// the alignment of all the allocated buffers
+#define MALLOC_ALIGN 16
+#endif
 
 // Aligns a pointer to the specified number of bytes
 // ptr Aligned pointer
 // n Alignment size that must be a power of two
-template<typename _Tp> static inline _Tp* alignPtr(_Tp* ptr, int n=(int)sizeof(_Tp))
+template<typename _Tp>
+static inline _Tp* alignPtr(_Tp* ptr, int n = (int)sizeof(_Tp))
 {
-    return (_Tp*)(((size_t)ptr + n-1) & -n);
+    return (_Tp*)(((size_t)ptr + n - 1) & -n);
 }
 
 // Aligns a buffer size to the specified number of bytes
@@ -53,7 +60,7 @@ template<typename _Tp> static inline _Tp* alignPtr(_Tp* ptr, int n=(int)sizeof(_
 // n Alignment size that must be a power of two
 static inline size_t alignSize(size_t sz, int n)
 {
-    return (sz + n-1) & -n;
+    return (sz + n - 1) & -n;
 }
 
 static inline void* fastMalloc(size_t size)
@@ -97,28 +104,32 @@ static inline void fastFree(void* ptr)
 // exchange-add operation for atomic operations on reference counters
 #if defined __INTEL_COMPILER && !(defined WIN32 || defined _WIN32)
 // atomic increment on the linux version of the Intel(tm) compiler
-#  define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd(const_cast<void*>(reinterpret_cast<volatile void*>(addr)), delta)
+#define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd(const_cast<void*>(reinterpret_cast<volatile void*>(addr)), delta)
 #elif defined __GNUC__
-#  if defined __clang__ && __clang_major__ >= 3 && !defined __ANDROID__ && !defined __EMSCRIPTEN__ && !defined(__CUDACC__)
-#    ifdef __ATOMIC_ACQ_REL
-#      define NCNN_XADD(addr, delta) __c11_atomic_fetch_add((_Atomic(int)*)(addr), delta, __ATOMIC_ACQ_REL)
-#    else
-#      define NCNN_XADD(addr, delta) __atomic_fetch_add((_Atomic(int)*)(addr), delta, 4)
-#    endif
-#  else
-#    if defined __ATOMIC_ACQ_REL && !defined __clang__
+#if defined __clang__ && __clang_major__ >= 3 && !defined __ANDROID__ && !defined __EMSCRIPTEN__ && !defined(__CUDACC__)
+#ifdef __ATOMIC_ACQ_REL
+#define NCNN_XADD(addr, delta) __c11_atomic_fetch_add((_Atomic(int)*)(addr), delta, __ATOMIC_ACQ_REL)
+#else
+#define NCNN_XADD(addr, delta) __atomic_fetch_add((_Atomic(int)*)(addr), delta, 4)
+#endif
+#else
+#if defined __ATOMIC_ACQ_REL && !defined __clang__
 // version for gcc >= 4.7
-#      define NCNN_XADD(addr, delta) (int)__atomic_fetch_add((unsigned*)(addr), (unsigned)(delta), __ATOMIC_ACQ_REL)
-#    else
-#      define NCNN_XADD(addr, delta) (int)__sync_fetch_and_add((unsigned*)(addr), (unsigned)(delta))
-#    endif
-#  endif
+#define NCNN_XADD(addr, delta) (int)__atomic_fetch_add((unsigned*)(addr), (unsigned)(delta), __ATOMIC_ACQ_REL)
+#else
+#define NCNN_XADD(addr, delta) (int)__sync_fetch_and_add((unsigned*)(addr), (unsigned)(delta))
+#endif
+#endif
 #elif defined _MSC_VER && !defined RC_INVOKED
-#  include <intrin.h>
-#  define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd((long volatile*)addr, delta)
+#define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd((long volatile*)addr, delta)
 #else
 // thread-unsafe branch
-static inline int NCNN_XADD(int* addr, int delta) { int tmp = *addr; *addr += delta; return tmp; }
+static inline int NCNN_XADD(int* addr, int delta)
+{
+    int tmp = *addr;
+    *addr += delta;
+    return tmp;
+}
 #endif
 
 class Allocator
@@ -148,9 +159,9 @@ public:
 private:
     Mutex budgets_lock;
     Mutex payouts_lock;
-    unsigned int size_compare_ratio;// 0~256
-    std::list< std::pair<size_t, void*> > budgets;
-    std::list< std::pair<size_t, void*> > payouts;
+    unsigned int size_compare_ratio; // 0~256
+    std::list<std::pair<size_t, void*> > budgets;
+    std::list<std::pair<size_t, void*> > payouts;
 };
 
 class UnlockedPoolAllocator : public Allocator
@@ -170,9 +181,9 @@ public:
     virtual void fastFree(void* ptr);
 
 private:
-    unsigned int size_compare_ratio;// 0~256
-    std::list< std::pair<size_t, void*> > budgets;
-    std::list< std::pair<size_t, void*> > payouts;
+    unsigned int size_compare_ratio; // 0~256
+    std::list<std::pair<size_t, void*> > budgets;
+    std::list<std::pair<size_t, void*> > payouts;
 };
 
 #if NCNN_VULKAN
@@ -236,8 +247,13 @@ class VkAllocator
 {
 public:
     VkAllocator(const VulkanDevice* _vkdev);
-    virtual ~VkAllocator() { clear(); }
-    virtual void clear() {}
+    virtual ~VkAllocator()
+    {
+        clear();
+    }
+    virtual void clear()
+    {
+    }
 
     virtual VkBufferMemory* fastMalloc(size_t size) = 0;
     virtual void fastFree(VkBufferMemory* ptr) = 0;
@@ -282,9 +298,9 @@ protected:
     size_t block_size;
     size_t buffer_offset_alignment;
     size_t bind_memory_offset_alignment;
-    std::vector< std::list< std::pair<size_t, size_t> > > buffer_budgets;
+    std::vector<std::list<std::pair<size_t, size_t> > > buffer_budgets;
     std::vector<VkBufferMemory*> buffer_blocks;
-    std::vector< std::list< std::pair<size_t, size_t> > > image_memory_budgets;
+    std::vector<std::list<std::pair<size_t, size_t> > > image_memory_budgets;
     std::vector<VkDeviceMemory> image_memory_blocks;
 };
 
@@ -336,7 +352,7 @@ public:
     virtual void fastFree(VkImageMemory* ptr);
 
 protected:
-    unsigned int size_compare_ratio;// 0~256
+    unsigned int size_compare_ratio; // 0~256
     std::list<VkBufferMemory*> buffer_budgets;
 };
 
@@ -349,8 +365,13 @@ public:
 public:
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
-    virtual VkImageMemory* fastMalloc(int /*dims*/, int /*w*/, int /*h*/, int /*c*/, size_t /*elemsize*/, int /*elempack*/) { return 0; }
-    virtual void fastFree(VkImageMemory* /*ptr*/) {}
+    virtual VkImageMemory* fastMalloc(int /*dims*/, int /*w*/, int /*h*/, int /*c*/, size_t /*elemsize*/, int /*elempack*/)
+    {
+        return 0;
+    }
+    virtual void fastFree(VkImageMemory* /*ptr*/)
+    {
+    }
 
 protected:
 };
@@ -366,8 +387,13 @@ public:
 public:
     virtual VkImageMemory* fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
-    virtual VkBufferMemory* fastMalloc(size_t /*size*/) { return 0; }
-    virtual void fastFree(VkBufferMemory* /*ptr*/) {}
+    virtual VkBufferMemory* fastMalloc(size_t /*size*/)
+    {
+        return 0;
+    }
+    virtual void fastFree(VkBufferMemory* /*ptr*/)
+    {
+    }
 
 public:
     int init();

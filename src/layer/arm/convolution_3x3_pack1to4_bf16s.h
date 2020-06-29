@@ -35,14 +35,14 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
     remain_outch_start = nn_outch << 1;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp=0; pp<nn_outch; pp++)
+    for (int pp = 0; pp < nn_outch; pp++)
     {
         int p = pp * 2;
 
         Mat out0 = top_blob_fp32.channel(get_omp_thread_num());
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + p * 4) : vdupq_n_f32(0.f);
-        float32x4_t _bias1 = bias ? vld1q_f32((const float*)bias + (p+1) * 4) : vdupq_n_f32(0.f);
+        float32x4_t _bias1 = bias ? vld1q_f32((const float*)bias + (p + 1) * 4) : vdupq_n_f32(0.f);
         {
             float* ptr = (float*)out0;
 
@@ -50,40 +50,40 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             {
                 int j = 0;
 
-                for (; j+3<outw; j+=4)
+                for (; j + 3 < outw; j += 4)
                 {
                     vst1q_f32(ptr, _bias0);
-                    vst1q_f32(ptr+4, _bias0);
-                    vst1q_f32(ptr+8, _bias0);
-                    vst1q_f32(ptr+12, _bias0);
-                    vst1q_f32(ptr+16, _bias1);
-                    vst1q_f32(ptr+20, _bias1);
-                    vst1q_f32(ptr+24, _bias1);
-                    vst1q_f32(ptr+28, _bias1);
+                    vst1q_f32(ptr + 4, _bias0);
+                    vst1q_f32(ptr + 8, _bias0);
+                    vst1q_f32(ptr + 12, _bias0);
+                    vst1q_f32(ptr + 16, _bias1);
+                    vst1q_f32(ptr + 20, _bias1);
+                    vst1q_f32(ptr + 24, _bias1);
+                    vst1q_f32(ptr + 28, _bias1);
                     ptr += 32;
                 }
-                for (; j+1<outw; j+=2)
+                for (; j + 1 < outw; j += 2)
                 {
                     vst1q_f32(ptr, _bias0);
-                    vst1q_f32(ptr+4, _bias0);
-                    vst1q_f32(ptr+8, _bias1);
-                    vst1q_f32(ptr+12, _bias1);
+                    vst1q_f32(ptr + 4, _bias0);
+                    vst1q_f32(ptr + 8, _bias1);
+                    vst1q_f32(ptr + 12, _bias1);
                     ptr += 16;
                 }
-                for (; j<outw; j++)
+                for (; j < outw; j++)
                 {
                     vst1q_f32(ptr, _bias0);
-                    vst1q_f32(ptr+4, _bias1);
+                    vst1q_f32(ptr + 4, _bias1);
                     ptr += 8;
                 }
             }
         }
 
         const unsigned short* k0 = kernel.channel(p);
-        const unsigned short* k1 = kernel.channel(p+1);
+        const unsigned short* k1 = kernel.channel(p + 1);
 
-        int q=0;
-        for (; q<inch-1; q++)
+        int q = 0;
+        for (; q < inch - 1; q++)
         {
             float* outptr0 = out0;
 
@@ -94,24 +94,24 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r2 = img0.row<const unsigned short>(2);
 
             float32x4_t _k00_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+4), 16));
-            float32x4_t _k02_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+8), 16));
-            float32x4_t _k10_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+12), 16));
-            float32x4_t _k11_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+16), 16));
-            float32x4_t _k12_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+20), 16));
-            float32x4_t _k20_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+24), 16));
-            float32x4_t _k21_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+28), 16));
-            float32x4_t _k22_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+32), 16));
+            float32x4_t _k01_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
+            float32x4_t _k02_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
+            float32x4_t _k10_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
+            float32x4_t _k11_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
+            float32x4_t _k12_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
+            float32x4_t _k20_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
+            float32x4_t _k21_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
+            float32x4_t _k22_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
 
             float32x4_t _k00_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1), 16));
-            float32x4_t _k01_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+4), 16));
-            float32x4_t _k02_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+8), 16));
-            float32x4_t _k10_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+12), 16));
-            float32x4_t _k11_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+16), 16));
-            float32x4_t _k12_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+20), 16));
-            float32x4_t _k20_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+24), 16));
-            float32x4_t _k21_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+28), 16));
-            float32x4_t _k22_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+32), 16));
+            float32x4_t _k01_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 4), 16));
+            float32x4_t _k02_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 8), 16));
+            float32x4_t _k10_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 12), 16));
+            float32x4_t _k11_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 16), 16));
+            float32x4_t _k12_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 20), 16));
+            float32x4_t _k20_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 24), 16));
+            float32x4_t _k21_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 28), 16));
+            float32x4_t _k22_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 32), 16));
 
             int i = 0;
 
@@ -119,7 +119,7 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             {
                 int j = 0;
 
-                for (; j+3<outw; j+=4)
+                for (; j + 3 < outw; j += 4)
                 {
                     asm volatile(
                         "prfm   pldl1keep, [%1, #64]        \n"
@@ -235,36 +235,35 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
                         "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00_0),      // %8
-                          "w"(_k01_0),      // %9
-                          "w"(_k02_0),      // %10
-                          "w"(_k10_0),      // %11
-                          "w"(_k11_0),      // %12
-                          "w"(_k12_0),      // %13
-                          "w"(_k20_0),      // %14
-                          "w"(_k21_0),      // %15
-                          "w"(_k22_0),      // %16
-                          "w"(_k00_1),      // %17
-                          "w"(_k01_1),      // %18
-                          "w"(_k02_1),      // %19
-                          "w"(_k10_1),      // %20
-                          "w"(_k11_1),      // %21
-                          "w"(_k12_1),      // %22
-                          "w"(_k20_1),      // %23
-                          "w"(_k21_1),      // %24
-                          "w"(_k22_1)       // %25
-                        : "memory", "v0", "v1", "v2", "v3", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-                    );
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00_0), // %8
+                        "w"(_k01_0), // %9
+                        "w"(_k02_0), // %10
+                        "w"(_k10_0), // %11
+                        "w"(_k11_0), // %12
+                        "w"(_k12_0), // %13
+                        "w"(_k20_0), // %14
+                        "w"(_k21_0), // %15
+                        "w"(_k22_0), // %16
+                        "w"(_k00_1), // %17
+                        "w"(_k01_1), // %18
+                        "w"(_k02_1), // %19
+                        "w"(_k10_1), // %20
+                        "w"(_k11_1), // %21
+                        "w"(_k12_1), // %22
+                        "w"(_k20_1), // %23
+                        "w"(_k21_1), // %24
+                        "w"(_k22_1)  // %25
+                        : "memory", "v0", "v1", "v2", "v3", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
-                for (; j+1<outw; j+=2)
+                for (; j + 1 < outw; j += 2)
                 {
                     asm volatile(
                         "prfm   pldl1keep, [%1, #64]        \n"
@@ -338,39 +337,38 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00_0),      // %8
-                          "w"(_k01_0),      // %9
-                          "w"(_k02_0),      // %10
-                          "w"(_k10_0),      // %11
-                          "w"(_k11_0),      // %12
-                          "w"(_k12_0),      // %13
-                          "w"(_k20_0),      // %14
-                          "w"(_k21_0),      // %15
-                          "w"(_k22_0),      // %16
-                          "w"(_k00_1),      // %17
-                          "w"(_k01_1),      // %18
-                          "w"(_k02_1),      // %19
-                          "w"(_k10_1),      // %20
-                          "w"(_k11_1),      // %21
-                          "w"(_k12_1),      // %22
-                          "w"(_k20_1),      // %23
-                          "w"(_k21_1),      // %24
-                          "w"(_k22_1)       // %25
-                        : "memory", "v0", "v1", "v24", "v25", "v26", "v27"
-                    );
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00_0), // %8
+                        "w"(_k01_0), // %9
+                        "w"(_k02_0), // %10
+                        "w"(_k10_0), // %11
+                        "w"(_k11_0), // %12
+                        "w"(_k12_0), // %13
+                        "w"(_k20_0), // %14
+                        "w"(_k21_0), // %15
+                        "w"(_k22_0), // %16
+                        "w"(_k00_1), // %17
+                        "w"(_k01_1), // %18
+                        "w"(_k02_1), // %19
+                        "w"(_k10_1), // %20
+                        "w"(_k11_1), // %21
+                        "w"(_k12_1), // %22
+                        "w"(_k20_1), // %23
+                        "w"(_k21_1), // %24
+                        "w"(_k22_1)  // %25
+                        : "memory", "v0", "v1", "v24", "v25", "v26", "v27");
                 }
-                for (; j<outw; j++)
+                for (; j < outw; j++)
                 {
                     float32x4_t _sum00 = vld1q_f32(outptr0);
-                    float32x4_t _sum10 = vld1q_f32(outptr0+4);
+                    float32x4_t _sum10 = vld1q_f32(outptr0 + 4);
 
                     float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
                     float32x4_t _r1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r1), 16));
@@ -397,7 +395,7 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                     _sum10 = vfmaq_laneq_f32(_sum10, _k22_1, _r2, 2);
 
                     vst1q_f32(outptr0, _sum00);
-                    vst1q_f32(outptr0+4, _sum10);
+                    vst1q_f32(outptr0 + 4, _sum10);
 
                     r0 += 1;
                     r1 += 1;
@@ -410,13 +408,13 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 r2 += 2;
             }
 
-            k0 += 9*4;
-            k1 += 9*4;
+            k0 += 9 * 4;
+            k1 += 9 * 4;
         }
-        for (; q<inch; q++)
+        for (; q < inch; q++)
         {
             unsigned short* outptr0_bf16 = top_blob.channel(p);
-            unsigned short* outptr1_bf16 = top_blob.channel(p+1);
+            unsigned short* outptr1_bf16 = top_blob.channel(p + 1);
 
             const float* outptr0 = out0;
 
@@ -427,24 +425,24 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r2 = img0.row<const unsigned short>(2);
 
             float32x4_t _k00_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+4), 16));
-            float32x4_t _k02_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+8), 16));
-            float32x4_t _k10_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+12), 16));
-            float32x4_t _k11_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+16), 16));
-            float32x4_t _k12_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+20), 16));
-            float32x4_t _k20_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+24), 16));
-            float32x4_t _k21_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+28), 16));
-            float32x4_t _k22_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+32), 16));
+            float32x4_t _k01_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
+            float32x4_t _k02_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
+            float32x4_t _k10_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
+            float32x4_t _k11_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
+            float32x4_t _k12_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
+            float32x4_t _k20_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
+            float32x4_t _k21_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
+            float32x4_t _k22_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
 
             float32x4_t _k00_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1), 16));
-            float32x4_t _k01_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+4), 16));
-            float32x4_t _k02_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+8), 16));
-            float32x4_t _k10_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+12), 16));
-            float32x4_t _k11_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+16), 16));
-            float32x4_t _k12_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+20), 16));
-            float32x4_t _k20_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+24), 16));
-            float32x4_t _k21_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+28), 16));
-            float32x4_t _k22_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+32), 16));
+            float32x4_t _k01_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 4), 16));
+            float32x4_t _k02_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 8), 16));
+            float32x4_t _k10_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 12), 16));
+            float32x4_t _k11_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 16), 16));
+            float32x4_t _k12_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 20), 16));
+            float32x4_t _k20_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 24), 16));
+            float32x4_t _k21_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 28), 16));
+            float32x4_t _k22_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 32), 16));
 
             int i = 0;
 
@@ -452,7 +450,7 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             {
                 int j = 0;
 
-                for (; j+3<outw; j+=4)
+                for (; j + 3 < outw; j += 4)
                 {
                     asm volatile(
                         "prfm   pldl1keep, [%3, #64]        \n"
@@ -575,40 +573,39 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%0], #32 \n"
                         "st1    {v28.4h, v29.4h, v30.4h, v31.4h}, [%1], #32 \n"
 
-                        : "=r"(outptr0_bf16),    // %0
-                          "=r"(outptr1_bf16),    // %1
-                          "=r"(outptr0),    // %2
-                          "=r"(r0),         // %3
-                          "=r"(r1),         // %4
-                          "=r"(r2)          // %5
+                        : "=r"(outptr0_bf16), // %0
+                        "=r"(outptr1_bf16), // %1
+                        "=r"(outptr0),      // %2
+                        "=r"(r0),           // %3
+                        "=r"(r1),           // %4
+                        "=r"(r2)            // %5
                         : "0"(outptr0_bf16),
-                          "1"(outptr1_bf16),
-                          "2"(outptr0),
-                          "3"(r0),
-                          "4"(r1),
-                          "5"(r2),
-                          "w"(_k00_0),      // %12
-                          "w"(_k01_0),      // %13
-                          "w"(_k02_0),      // %14
-                          "w"(_k10_0),      // %15
-                          "w"(_k11_0),      // %16
-                          "w"(_k12_0),      // %17
-                          "w"(_k20_0),      // %18
-                          "w"(_k21_0),      // %19
-                          "w"(_k22_0),      // %20
-                          "w"(_k00_1),      // %21
-                          "w"(_k01_1),      // %22
-                          "w"(_k02_1),      // %23
-                          "w"(_k10_1),      // %24
-                          "w"(_k11_1),      // %25
-                          "w"(_k12_1),      // %26
-                          "w"(_k20_1),      // %27
-                          "w"(_k21_1),      // %28
-                          "w"(_k22_1)       // %29
-                        : "memory", "v0", "v1", "v2", "v3", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-                    );
+                        "1"(outptr1_bf16),
+                        "2"(outptr0),
+                        "3"(r0),
+                        "4"(r1),
+                        "5"(r2),
+                        "w"(_k00_0), // %12
+                        "w"(_k01_0), // %13
+                        "w"(_k02_0), // %14
+                        "w"(_k10_0), // %15
+                        "w"(_k11_0), // %16
+                        "w"(_k12_0), // %17
+                        "w"(_k20_0), // %18
+                        "w"(_k21_0), // %19
+                        "w"(_k22_0), // %20
+                        "w"(_k00_1), // %21
+                        "w"(_k01_1), // %22
+                        "w"(_k02_1), // %23
+                        "w"(_k10_1), // %24
+                        "w"(_k11_1), // %25
+                        "w"(_k12_1), // %26
+                        "w"(_k20_1), // %27
+                        "w"(_k21_1), // %28
+                        "w"(_k22_1)  // %29
+                        : "memory", "v0", "v1", "v2", "v3", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
-                for (; j+1<outw; j+=2)
+                for (; j + 1 < outw; j += 2)
                 {
                     asm volatile(
                         "prfm   pldl1keep, [%3, #64]        \n"
@@ -688,43 +685,42 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v24.4h, v25.4h}, [%0], #16 \n"
                         "st1    {v26.4h, v27.4h}, [%1], #16 \n"
 
-                        : "=r"(outptr0_bf16),    // %0
-                          "=r"(outptr1_bf16),    // %1
-                          "=r"(outptr0),    // %2
-                          "=r"(r0),         // %3
-                          "=r"(r1),         // %4
-                          "=r"(r2)          // %5
+                        : "=r"(outptr0_bf16), // %0
+                        "=r"(outptr1_bf16), // %1
+                        "=r"(outptr0),      // %2
+                        "=r"(r0),           // %3
+                        "=r"(r1),           // %4
+                        "=r"(r2)            // %5
                         : "0"(outptr0_bf16),
-                          "1"(outptr1_bf16),
-                          "2"(outptr0),
-                          "3"(r0),
-                          "4"(r1),
-                          "5"(r2),
-                          "w"(_k00_0),      // %12
-                          "w"(_k01_0),      // %13
-                          "w"(_k02_0),      // %14
-                          "w"(_k10_0),      // %15
-                          "w"(_k11_0),      // %16
-                          "w"(_k12_0),      // %17
-                          "w"(_k20_0),      // %18
-                          "w"(_k21_0),      // %19
-                          "w"(_k22_0),      // %20
-                          "w"(_k00_1),      // %21
-                          "w"(_k01_1),      // %22
-                          "w"(_k02_1),      // %23
-                          "w"(_k10_1),      // %24
-                          "w"(_k11_1),      // %25
-                          "w"(_k12_1),      // %26
-                          "w"(_k20_1),      // %27
-                          "w"(_k21_1),      // %28
-                          "w"(_k22_1)       // %29
-                        : "memory", "v0", "v1", "v24", "v25", "v26", "v27"
-                    );
+                        "1"(outptr1_bf16),
+                        "2"(outptr0),
+                        "3"(r0),
+                        "4"(r1),
+                        "5"(r2),
+                        "w"(_k00_0), // %12
+                        "w"(_k01_0), // %13
+                        "w"(_k02_0), // %14
+                        "w"(_k10_0), // %15
+                        "w"(_k11_0), // %16
+                        "w"(_k12_0), // %17
+                        "w"(_k20_0), // %18
+                        "w"(_k21_0), // %19
+                        "w"(_k22_0), // %20
+                        "w"(_k00_1), // %21
+                        "w"(_k01_1), // %22
+                        "w"(_k02_1), // %23
+                        "w"(_k10_1), // %24
+                        "w"(_k11_1), // %25
+                        "w"(_k12_1), // %26
+                        "w"(_k20_1), // %27
+                        "w"(_k21_1), // %28
+                        "w"(_k22_1)  // %29
+                        : "memory", "v0", "v1", "v24", "v25", "v26", "v27");
                 }
-                for (; j<outw; j++)
+                for (; j < outw; j++)
                 {
                     float32x4_t _sum00 = vld1q_f32(outptr0);
-                    float32x4_t _sum10 = vld1q_f32(outptr0+4);
+                    float32x4_t _sum10 = vld1q_f32(outptr0 + 4);
 
                     float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
                     float32x4_t _r1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r1), 16));
@@ -766,14 +762,14 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 r2 += 2;
             }
 
-            k0 += 9*4;
-            k1 += 9*4;
+            k0 += 9 * 4;
+            k1 += 9 * 4;
         }
     }
 #endif // __ARM_NEON && __aarch64__
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=remain_outch_start; p<outch; p++)
+    for (int p = remain_outch_start; p < outch; p++)
     {
         Mat out0 = top_blob_fp32.channel(get_omp_thread_num());
 
@@ -782,8 +778,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
         const unsigned short* k0 = kernel.channel(p);
 
-        int q=0;
-        for (; q<inch-1; q++)
+        int q = 0;
+        for (; q < inch - 1; q++)
         {
             float* outptr0 = out0.row(0);
 
@@ -794,14 +790,14 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r2 = img0.row<unsigned short>(2);
 
             float32x4_t _k00 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+4), 16));
-            float32x4_t _k02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+8), 16));
-            float32x4_t _k10 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+12), 16));
-            float32x4_t _k11 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+16), 16));
-            float32x4_t _k12 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+20), 16));
-            float32x4_t _k20 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+24), 16));
-            float32x4_t _k21 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+28), 16));
-            float32x4_t _k22 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+32), 16));
+            float32x4_t _k01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
+            float32x4_t _k02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
+            float32x4_t _k10 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
+            float32x4_t _k11 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
+            float32x4_t _k12 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
+            float32x4_t _k20 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
+            float32x4_t _k21 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
+            float32x4_t _k22 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
 
             int i = 0;
 
@@ -810,13 +806,13 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 int j = 0;
 
 #if __aarch64__
-                for (; j+7<outw; j+=8)
+                for (; j + 7 < outw; j += 8)
                 {
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
 
-//                         "prfm   pldl1keep, [%0, #512]       \n"
+                        //                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0] \n"
 
                         "prfm   pldl1keep, [%1, #128]       \n"
@@ -929,28 +925,27 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
                         "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%0], #64 \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
-                        : "memory", "v0", "v1", "v2", "v4", "v5", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-                    );
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00), // %8
+                        "w"(_k01), // %9
+                        "w"(_k02), // %10
+                        "w"(_k10), // %11
+                        "w"(_k11), // %12
+                        "w"(_k12), // %13
+                        "w"(_k20), // %14
+                        "w"(_k21), // %15
+                        "w"(_k22)  // %16
+                        : "memory", "v0", "v1", "v2", "v4", "v5", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
 #endif // __aarch64__
-                for (; j+3<outw; j+=4)
+                for (; j + 3 < outw; j += 4)
                 {
 #if __aarch64__
                     asm volatile(
@@ -1038,26 +1033,25 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%0], #64 \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
-                        : "memory", "v0", "v1", "v2", "v3", "v24", "v25", "v26", "v27"
-                    );
-#else // __aarch64__
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00), // %8
+                        "w"(_k01), // %9
+                        "w"(_k02), // %10
+                        "w"(_k10), // %11
+                        "w"(_k11), // %12
+                        "w"(_k12), // %13
+                        "w"(_k20), // %14
+                        "w"(_k21), // %15
+                        "w"(_k22)  // %16
+                        : "memory", "v0", "v1", "v2", "v3", "v24", "v25", "v26", "v27");
+#else  // __aarch64__
                     asm volatile(
                         "pld        [%0, #512]          \n"
                         "vldm       %0, {d24-d31}       \n"
@@ -1130,28 +1124,27 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "vstm       %0!, {d24-d31}      \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
-                        : "memory", "q0", "q1", "q2", "q12", "q13", "q14", "q15"
-                    );
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00), // %8
+                        "w"(_k01), // %9
+                        "w"(_k02), // %10
+                        "w"(_k10), // %11
+                        "w"(_k11), // %12
+                        "w"(_k12), // %13
+                        "w"(_k20), // %14
+                        "w"(_k21), // %15
+                        "w"(_k22)  // %16
+                        : "memory", "q0", "q1", "q2", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j+1<outw; j+=2)
+                for (; j + 1 < outw; j += 2)
                 {
 #if __aarch64__
                     asm volatile(
@@ -1213,26 +1206,25 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "st1    {v28.4s, v29.4s}, [%0], #32 \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
-                        : "memory", "v0", "v1", "v24", "v25", "v26", "v27", "v28", "v29"
-                    );
-#else // __aarch64__
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00), // %8
+                        "w"(_k01), // %9
+                        "w"(_k02), // %10
+                        "w"(_k10), // %11
+                        "w"(_k11), // %12
+                        "w"(_k12), // %13
+                        "w"(_k20), // %14
+                        "w"(_k21), // %15
+                        "w"(_k22)  // %16
+                        : "memory", "v0", "v1", "v24", "v25", "v26", "v27", "v28", "v29");
+#else  // __aarch64__
                     asm volatile(
                         "pld        [%1, #64]           \n"
                         "vld1.u16   {d1}, [%1]          \n"
@@ -1289,28 +1281,27 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "vst1.f32   {d24-d27}, [%0 :128]! \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
-                        : "memory", "q0", "q1", "q12", "q13", "q14", "q15"
-                    );
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00), // %8
+                        "w"(_k01), // %9
+                        "w"(_k02), // %10
+                        "w"(_k10), // %11
+                        "w"(_k11), // %12
+                        "w"(_k12), // %13
+                        "w"(_k20), // %14
+                        "w"(_k21), // %15
+                        "w"(_k22)  // %16
+                        : "memory", "q0", "q1", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j<outw; j++)
+                for (; j < outw; j++)
                 {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
 
@@ -1353,9 +1344,9 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 r2 += 2;
             }
 
-            k0 += 9*4;
+            k0 += 9 * 4;
         }
-        for (; q<inch; q++)
+        for (; q < inch; q++)
         {
             unsigned short* outptr0_bf16 = top_blob.channel(p);
 
@@ -1368,14 +1359,14 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r2 = img0.row<unsigned short>(2);
 
             float32x4_t _k00 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+4), 16));
-            float32x4_t _k02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+8), 16));
-            float32x4_t _k10 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+12), 16));
-            float32x4_t _k11 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+16), 16));
-            float32x4_t _k12 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+20), 16));
-            float32x4_t _k20 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+24), 16));
-            float32x4_t _k21 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+28), 16));
-            float32x4_t _k22 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+32), 16));
+            float32x4_t _k01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
+            float32x4_t _k02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
+            float32x4_t _k10 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
+            float32x4_t _k11 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
+            float32x4_t _k12 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
+            float32x4_t _k20 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
+            float32x4_t _k21 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
+            float32x4_t _k22 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
 
             int i = 0;
 
@@ -1384,7 +1375,7 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 int j = 0;
 
 #if __aarch64__
-                for (; j+7<outw; j+=8)
+                for (; j + 7 < outw; j += 8)
                 {
                     asm volatile(
                         "prfm   pldl1keep, [%1, #512]       \n"
@@ -1511,29 +1502,28 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v28.4h, v29.4h, v30.4h, v31.4h}, [%0], #32 \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2)          // %4
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2)            // %4
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "w"(_k00),        // %10
-                          "w"(_k01),        // %11
-                          "w"(_k02),        // %12
-                          "w"(_k10),        // %13
-                          "w"(_k11),        // %14
-                          "w"(_k12),        // %15
-                          "w"(_k20),        // %16
-                          "w"(_k21),        // %17
-                          "w"(_k22)         // %18
-                        : "memory", "v0", "v1", "v2", "v4", "v5", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-                    );
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "w"(_k00), // %10
+                        "w"(_k01), // %11
+                        "w"(_k02), // %12
+                        "w"(_k10), // %13
+                        "w"(_k11), // %14
+                        "w"(_k12), // %15
+                        "w"(_k20), // %16
+                        "w"(_k21), // %17
+                        "w"(_k22)  // %18
+                        : "memory", "v0", "v1", "v2", "v4", "v5", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
 #endif // __aarch64__
-                for (; j+3<outw; j+=4)
+                for (; j + 3 < outw; j += 4)
                 {
 #if __aarch64__
                     asm volatile(
@@ -1627,27 +1617,26 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%0], #32 \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2)          // %4
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2)            // %4
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "w"(_k00),        // %10
-                          "w"(_k01),        // %11
-                          "w"(_k02),        // %12
-                          "w"(_k10),        // %13
-                          "w"(_k11),        // %14
-                          "w"(_k12),        // %15
-                          "w"(_k20),        // %16
-                          "w"(_k21),        // %17
-                          "w"(_k22)         // %18
-                        : "memory", "v0", "v1", "v2", "v3", "v24", "v25", "v26", "v27"
-                    );
-#else // __aarch64__
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "w"(_k00), // %10
+                        "w"(_k01), // %11
+                        "w"(_k02), // %12
+                        "w"(_k10), // %13
+                        "w"(_k11), // %14
+                        "w"(_k12), // %15
+                        "w"(_k20), // %16
+                        "w"(_k21), // %17
+                        "w"(_k22)  // %18
+                        : "memory", "v0", "v1", "v2", "v3", "v24", "v25", "v26", "v27");
+#else  // __aarch64__
                     asm volatile(
                         "pld        [%1, #512]          \n"
                         "vldm       %1!, {d24-d31}      \n"
@@ -1726,29 +1715,28 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vst1.u16   {d24-d27}, [%0 :64]! \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2)          // %4
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2)            // %4
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "w"(_k00),        // %10
-                          "w"(_k01),        // %11
-                          "w"(_k02),        // %12
-                          "w"(_k10),        // %13
-                          "w"(_k11),        // %14
-                          "w"(_k12),        // %15
-                          "w"(_k20),        // %16
-                          "w"(_k21),        // %17
-                          "w"(_k22)         // %18
-                        : "memory", "q0", "q1", "q2", "q12", "q13", "q14", "q15"
-                    );
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "w"(_k00), // %10
+                        "w"(_k01), // %11
+                        "w"(_k02), // %12
+                        "w"(_k10), // %13
+                        "w"(_k11), // %14
+                        "w"(_k12), // %15
+                        "w"(_k20), // %16
+                        "w"(_k21), // %17
+                        "w"(_k22)  // %18
+                        : "memory", "q0", "q1", "q2", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j+1<outw; j+=2)
+                for (; j + 1 < outw; j += 2)
                 {
 #if __aarch64__
                     asm volatile(
@@ -1814,27 +1802,26 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v28.4h, v29.4h}, [%0], #16 \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2)          // %4
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2)            // %4
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "w"(_k00),        // %10
-                          "w"(_k01),        // %11
-                          "w"(_k02),        // %12
-                          "w"(_k10),        // %13
-                          "w"(_k11),        // %14
-                          "w"(_k12),        // %15
-                          "w"(_k20),        // %16
-                          "w"(_k21),        // %17
-                          "w"(_k22)         // %18
-                        : "memory", "v0", "v1", "v24", "v25", "v26", "v27", "v28", "v29"
-                    );
-#else // __aarch64__
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "w"(_k00), // %10
+                        "w"(_k01), // %11
+                        "w"(_k02), // %12
+                        "w"(_k10), // %13
+                        "w"(_k11), // %14
+                        "w"(_k12), // %15
+                        "w"(_k20), // %16
+                        "w"(_k21), // %17
+                        "w"(_k22)  // %18
+                        : "memory", "v0", "v1", "v24", "v25", "v26", "v27", "v28", "v29");
+#else  // __aarch64__
                     asm volatile(
                         "pld        [%2, #64]           \n"
                         "vld1.u16   {d1}, [%2]          \n"
@@ -1895,29 +1882,28 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vst1.f32   {d24-d25}, [%0 :64]! \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2)          // %4
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2)            // %4
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "w"(_k00),        // %10
-                          "w"(_k01),        // %11
-                          "w"(_k02),        // %12
-                          "w"(_k10),        // %13
-                          "w"(_k11),        // %14
-                          "w"(_k12),        // %15
-                          "w"(_k20),        // %16
-                          "w"(_k21),        // %17
-                          "w"(_k22)         // %18
-                        : "memory", "q0", "q1", "q12", "q13", "q14", "q15"
-                    );
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "w"(_k00), // %10
+                        "w"(_k01), // %11
+                        "w"(_k02), // %12
+                        "w"(_k10), // %13
+                        "w"(_k11), // %14
+                        "w"(_k12), // %15
+                        "w"(_k20), // %16
+                        "w"(_k21), // %17
+                        "w"(_k22)  // %18
+                        : "memory", "q0", "q1", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j<outw; j++)
+                for (; j < outw; j++)
                 {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
 
@@ -1961,7 +1947,7 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 r2 += 2;
             }
 
-            k0 += 9*4;
+            k0 += 9 * 4;
         }
     }
 }
@@ -1980,7 +1966,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
     Mat top_blob_fp32(outw, outh, opt.num_threads, (size_t)4u * 4, 4, opt.workspace_allocator);
 #endif
 
-    const int tailstep = w - 2*outw + w;
+    const int tailstep = w - 2 * outw + w;
 
     const float* bias = _bias;
 
@@ -1992,14 +1978,14 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
     remain_outch_start = nn_outch << 1;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp=0; pp<nn_outch; pp++)
+    for (int pp = 0; pp < nn_outch; pp++)
     {
         int p = pp * 2;
 
         Mat out0 = top_blob_fp32.channel(get_omp_thread_num());
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + p * 4) : vdupq_n_f32(0.f);
-        float32x4_t _bias1 = bias ? vld1q_f32((const float*)bias + (p+1) * 4) : vdupq_n_f32(0.f);
+        float32x4_t _bias1 = bias ? vld1q_f32((const float*)bias + (p + 1) * 4) : vdupq_n_f32(0.f);
         {
             float* ptr = (float*)out0;
 
@@ -2007,40 +1993,40 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             {
                 int j = 0;
 
-                for (; j+3<outw; j+=4)
+                for (; j + 3 < outw; j += 4)
                 {
                     vst1q_f32(ptr, _bias0);
-                    vst1q_f32(ptr+4, _bias0);
-                    vst1q_f32(ptr+8, _bias0);
-                    vst1q_f32(ptr+12, _bias0);
-                    vst1q_f32(ptr+16, _bias1);
-                    vst1q_f32(ptr+20, _bias1);
-                    vst1q_f32(ptr+24, _bias1);
-                    vst1q_f32(ptr+28, _bias1);
+                    vst1q_f32(ptr + 4, _bias0);
+                    vst1q_f32(ptr + 8, _bias0);
+                    vst1q_f32(ptr + 12, _bias0);
+                    vst1q_f32(ptr + 16, _bias1);
+                    vst1q_f32(ptr + 20, _bias1);
+                    vst1q_f32(ptr + 24, _bias1);
+                    vst1q_f32(ptr + 28, _bias1);
                     ptr += 32;
                 }
-                for (; j+1<outw; j+=2)
+                for (; j + 1 < outw; j += 2)
                 {
                     vst1q_f32(ptr, _bias0);
-                    vst1q_f32(ptr+4, _bias0);
-                    vst1q_f32(ptr+8, _bias1);
-                    vst1q_f32(ptr+12, _bias1);
+                    vst1q_f32(ptr + 4, _bias0);
+                    vst1q_f32(ptr + 8, _bias1);
+                    vst1q_f32(ptr + 12, _bias1);
                     ptr += 16;
                 }
-                for (; j<outw; j++)
+                for (; j < outw; j++)
                 {
                     vst1q_f32(ptr, _bias0);
-                    vst1q_f32(ptr+4, _bias1);
+                    vst1q_f32(ptr + 4, _bias1);
                     ptr += 8;
                 }
             }
         }
 
         const unsigned short* k0 = kernel.channel(p);
-        const unsigned short* k1 = kernel.channel(p+1);
+        const unsigned short* k1 = kernel.channel(p + 1);
 
-        int q=0;
-        for (; q<inch-1; q++)
+        int q = 0;
+        for (; q < inch - 1; q++)
         {
             float* outptr0 = out0;
 
@@ -2051,24 +2037,24 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r2 = img0.row<const unsigned short>(2);
 
             float32x4_t _k00_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+4), 16));
-            float32x4_t _k02_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+8), 16));
-            float32x4_t _k10_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+12), 16));
-            float32x4_t _k11_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+16), 16));
-            float32x4_t _k12_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+20), 16));
-            float32x4_t _k20_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+24), 16));
-            float32x4_t _k21_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+28), 16));
-            float32x4_t _k22_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+32), 16));
+            float32x4_t _k01_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
+            float32x4_t _k02_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
+            float32x4_t _k10_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
+            float32x4_t _k11_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
+            float32x4_t _k12_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
+            float32x4_t _k20_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
+            float32x4_t _k21_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
+            float32x4_t _k22_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
 
             float32x4_t _k00_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1), 16));
-            float32x4_t _k01_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+4), 16));
-            float32x4_t _k02_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+8), 16));
-            float32x4_t _k10_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+12), 16));
-            float32x4_t _k11_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+16), 16));
-            float32x4_t _k12_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+20), 16));
-            float32x4_t _k20_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+24), 16));
-            float32x4_t _k21_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+28), 16));
-            float32x4_t _k22_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+32), 16));
+            float32x4_t _k01_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 4), 16));
+            float32x4_t _k02_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 8), 16));
+            float32x4_t _k10_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 12), 16));
+            float32x4_t _k11_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 16), 16));
+            float32x4_t _k12_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 20), 16));
+            float32x4_t _k20_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 24), 16));
+            float32x4_t _k21_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 28), 16));
+            float32x4_t _k22_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 32), 16));
 
             int i = 0;
 
@@ -2076,7 +2062,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             {
                 int j = 0;
 
-                for (; j+3<outw; j+=4)
+                for (; j + 3 < outw; j += 4)
                 {
                     asm volatile(
                         // r0
@@ -2084,12 +2070,12 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "ld1    {v0.4h, v1.4h}, [%1], #16   \n"
 
                         "prfm   pldl1keep, [%0, #512]       \n"
-                        "ld1    {v6.4s, v7.4s, v8.4s, v9.4s}, [%0], #64 \n"// sum0
+                        "ld1    {v6.4s, v7.4s, v8.4s, v9.4s}, [%0], #64 \n" // sum0
 
                         "shll   v0.4s, v0.4h, #16           \n"
 
-//                         "prfm   pldl1keep, [%0, #512]       \n"
-                        "ld1    {v10.4s, v11.4s, v12.4s, v13.4s}, [%0] \n"// sum1
+                        //                         "prfm   pldl1keep, [%0, #512]       \n"
+                        "ld1    {v10.4s, v11.4s, v12.4s, v13.4s}, [%0] \n" // sum1
 
                         "shll   v1.4s, v1.4h, #16           \n"
 
@@ -2211,36 +2197,35 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v6.4s, v7.4s, v8.4s, v9.4s}, [%0], #64 \n"
                         "st1    {v10.4s, v11.4s, v12.4s, v13.4s}, [%0], #64 \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00_0),      // %8
-                          "w"(_k01_0),      // %9
-                          "w"(_k02_0),      // %10
-                          "w"(_k10_0),      // %11
-                          "w"(_k11_0),      // %12
-                          "w"(_k12_0),      // %13
-                          "w"(_k20_0),      // %14
-                          "w"(_k21_0),      // %15
-                          "w"(_k22_0),      // %16
-                          "w"(_k00_1),      // %17
-                          "w"(_k01_1),      // %18
-                          "w"(_k02_1),      // %19
-                          "w"(_k10_1),      // %20
-                          "w"(_k11_1),      // %21
-                          "w"(_k12_1),      // %22
-                          "w"(_k20_1),      // %23
-                          "w"(_k21_1),      // %24
-                          "w"(_k22_1)       // %25
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13"
-                    );
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00_0), // %8
+                        "w"(_k01_0), // %9
+                        "w"(_k02_0), // %10
+                        "w"(_k10_0), // %11
+                        "w"(_k11_0), // %12
+                        "w"(_k12_0), // %13
+                        "w"(_k20_0), // %14
+                        "w"(_k21_0), // %15
+                        "w"(_k22_0), // %16
+                        "w"(_k00_1), // %17
+                        "w"(_k01_1), // %18
+                        "w"(_k02_1), // %19
+                        "w"(_k10_1), // %20
+                        "w"(_k11_1), // %21
+                        "w"(_k12_1), // %22
+                        "w"(_k20_1), // %23
+                        "w"(_k21_1), // %24
+                        "w"(_k22_1)  // %25
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13");
                 }
-                for (; j+1<outw; j+=2)
+                for (; j + 1 < outw; j += 2)
                 {
                     asm volatile(
                         // r0
@@ -2248,7 +2233,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "ld1    {v0.4h}, [%1], #8           \n"
 
                         "prfm   pldl1keep, [%0, #512]       \n"
-                        "ld1    {v10.4s, v11.4s, v12.4s, v13.4s}, [%0] \n"// sum0 sum1
+                        "ld1    {v10.4s, v11.4s, v12.4s, v13.4s}, [%0] \n" // sum0 sum1
 
                         "shll   v0.4s, v0.4h, #16           \n"
 
@@ -2323,39 +2308,38 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "st1    {v10.4s, v11.4s, v12.4s, v13.4s}, [%0], #64 \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00_0),      // %8
-                          "w"(_k01_0),      // %9
-                          "w"(_k02_0),      // %10
-                          "w"(_k10_0),      // %11
-                          "w"(_k11_0),      // %12
-                          "w"(_k12_0),      // %13
-                          "w"(_k20_0),      // %14
-                          "w"(_k21_0),      // %15
-                          "w"(_k22_0),      // %16
-                          "w"(_k00_1),      // %17
-                          "w"(_k01_1),      // %18
-                          "w"(_k02_1),      // %19
-                          "w"(_k10_1),      // %20
-                          "w"(_k11_1),      // %21
-                          "w"(_k12_1),      // %22
-                          "w"(_k20_1),      // %23
-                          "w"(_k21_1),      // %24
-                          "w"(_k22_1)       // %25
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13"
-                    );
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00_0), // %8
+                        "w"(_k01_0), // %9
+                        "w"(_k02_0), // %10
+                        "w"(_k10_0), // %11
+                        "w"(_k11_0), // %12
+                        "w"(_k12_0), // %13
+                        "w"(_k20_0), // %14
+                        "w"(_k21_0), // %15
+                        "w"(_k22_0), // %16
+                        "w"(_k00_1), // %17
+                        "w"(_k01_1), // %18
+                        "w"(_k02_1), // %19
+                        "w"(_k10_1), // %20
+                        "w"(_k11_1), // %21
+                        "w"(_k12_1), // %22
+                        "w"(_k20_1), // %23
+                        "w"(_k21_1), // %24
+                        "w"(_k22_1)  // %25
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13");
                 }
-                for (; j<outw; j++)
+                for (; j < outw; j++)
                 {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
-                    float32x4_t _sum1 = vld1q_f32(outptr0+4);
+                    float32x4_t _sum1 = vld1q_f32(outptr0 + 4);
 
                     float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
                     float32x4_t _r1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r1), 16));
@@ -2382,7 +2366,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                     _sum1 = vfmaq_laneq_f32(_sum1, _k22_1, _r2, 2);
 
                     vst1q_f32(outptr0, _sum0);
-                    vst1q_f32(outptr0+4, _sum1);
+                    vst1q_f32(outptr0 + 4, _sum1);
 
                     r0 += 2;
                     r1 += 2;
@@ -2395,13 +2379,13 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 r2 += tailstep;
             }
 
-            k0 += 9*4;
-            k1 += 9*4;
+            k0 += 9 * 4;
+            k1 += 9 * 4;
         }
-        for (; q<inch; q++)
+        for (; q < inch; q++)
         {
             unsigned short* outptr0_bf16 = top_blob.channel(p);
-            unsigned short* outptr1_bf16 = top_blob.channel(p+1);
+            unsigned short* outptr1_bf16 = top_blob.channel(p + 1);
 
             const float* outptr0 = out0;
 
@@ -2412,24 +2396,24 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r2 = img0.row<const unsigned short>(2);
 
             float32x4_t _k00_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+4), 16));
-            float32x4_t _k02_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+8), 16));
-            float32x4_t _k10_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+12), 16));
-            float32x4_t _k11_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+16), 16));
-            float32x4_t _k12_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+20), 16));
-            float32x4_t _k20_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+24), 16));
-            float32x4_t _k21_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+28), 16));
-            float32x4_t _k22_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+32), 16));
+            float32x4_t _k01_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
+            float32x4_t _k02_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
+            float32x4_t _k10_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
+            float32x4_t _k11_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
+            float32x4_t _k12_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
+            float32x4_t _k20_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
+            float32x4_t _k21_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
+            float32x4_t _k22_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
 
             float32x4_t _k00_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1), 16));
-            float32x4_t _k01_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+4), 16));
-            float32x4_t _k02_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+8), 16));
-            float32x4_t _k10_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+12), 16));
-            float32x4_t _k11_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+16), 16));
-            float32x4_t _k12_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+20), 16));
-            float32x4_t _k20_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+24), 16));
-            float32x4_t _k21_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+28), 16));
-            float32x4_t _k22_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1+32), 16));
+            float32x4_t _k01_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 4), 16));
+            float32x4_t _k02_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 8), 16));
+            float32x4_t _k10_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 12), 16));
+            float32x4_t _k11_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 16), 16));
+            float32x4_t _k12_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 20), 16));
+            float32x4_t _k20_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 24), 16));
+            float32x4_t _k21_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 28), 16));
+            float32x4_t _k22_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 32), 16));
 
             int i = 0;
 
@@ -2437,7 +2421,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             {
                 int j = 0;
 
-                for (; j+3<outw; j+=4)
+                for (; j + 3 < outw; j += 4)
                 {
                     asm volatile(
                         // r0
@@ -2445,13 +2429,13 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "ld1    {v0.4h, v1.4h}, [%3], #16   \n"
 
                         "prfm   pldl1keep, [%2, #512]       \n"
-                        "ld1    {v6.4s, v7.4s, v8.4s, v9.4s}, [%2], #64 \n"// sum0
+                        "ld1    {v6.4s, v7.4s, v8.4s, v9.4s}, [%2], #64 \n" // sum0
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
 
                         "prfm   pldl1keep, [%2, #512]       \n"
-                        "ld1    {v10.4s, v11.4s, v12.4s, v13.4s}, [%2], #64 \n"// sum1
+                        "ld1    {v10.4s, v11.4s, v12.4s, v13.4s}, [%2], #64 \n" // sum1
 
                         "fmla   v6.4s, %12.4s, v0.s[0]      \n"
                         "fmla   v7.4s, %12.4s, v0.s[2]      \n"
@@ -2581,39 +2565,38 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v10.4h, v11.4h, v12.4h, v13.4h}, [%1], #32 \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr1_bf16), // %1
-                          "=r"(outptr0),    // %2
-                          "=r"(r0),         // %3
-                          "=r"(r1),         // %4
-                          "=r"(r2)          // %5
+                        "=r"(outptr1_bf16), // %1
+                        "=r"(outptr0),      // %2
+                        "=r"(r0),           // %3
+                        "=r"(r1),           // %4
+                        "=r"(r2)            // %5
                         : "0"(outptr0_bf16),
-                          "1"(outptr1_bf16),
-                          "2"(outptr0),
-                          "3"(r0),
-                          "4"(r1),
-                          "5"(r2),
-                          "w"(_k00_0),      // %12
-                          "w"(_k01_0),      // %13
-                          "w"(_k02_0),      // %14
-                          "w"(_k10_0),      // %15
-                          "w"(_k11_0),      // %16
-                          "w"(_k12_0),      // %17
-                          "w"(_k20_0),      // %18
-                          "w"(_k21_0),      // %19
-                          "w"(_k22_0),      // %20
-                          "w"(_k00_1),      // %21
-                          "w"(_k01_1),      // %22
-                          "w"(_k02_1),      // %23
-                          "w"(_k10_1),      // %24
-                          "w"(_k11_1),      // %25
-                          "w"(_k12_1),      // %26
-                          "w"(_k20_1),      // %27
-                          "w"(_k21_1),      // %28
-                          "w"(_k22_1)       // %29
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13"
-                    );
+                        "1"(outptr1_bf16),
+                        "2"(outptr0),
+                        "3"(r0),
+                        "4"(r1),
+                        "5"(r2),
+                        "w"(_k00_0), // %12
+                        "w"(_k01_0), // %13
+                        "w"(_k02_0), // %14
+                        "w"(_k10_0), // %15
+                        "w"(_k11_0), // %16
+                        "w"(_k12_0), // %17
+                        "w"(_k20_0), // %18
+                        "w"(_k21_0), // %19
+                        "w"(_k22_0), // %20
+                        "w"(_k00_1), // %21
+                        "w"(_k01_1), // %22
+                        "w"(_k02_1), // %23
+                        "w"(_k10_1), // %24
+                        "w"(_k11_1), // %25
+                        "w"(_k12_1), // %26
+                        "w"(_k20_1), // %27
+                        "w"(_k21_1), // %28
+                        "w"(_k22_1)  // %29
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13");
                 }
-                for (; j+1<outw; j+=2)
+                for (; j + 1 < outw; j += 2)
                 {
                     asm volatile(
                         // r0
@@ -2621,7 +2604,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "ld1    {v0.4h}, [%3], #8           \n"
 
                         "prfm   pldl1keep, [%2, #512]       \n"
-                        "ld1    {v10.4s, v11.4s, v12.4s, v13.4s}, [%2], #64 \n"// sum0 sum1
+                        "ld1    {v10.4s, v11.4s, v12.4s, v13.4s}, [%2], #64 \n" // sum0 sum1
 
                         "shll   v0.4s, v0.4h, #16           \n"
 
@@ -2703,42 +2686,41 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v12.4h, v13.4h}, [%1], #16 \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr1_bf16), // %1
-                          "=r"(outptr0),    // %2
-                          "=r"(r0),         // %3
-                          "=r"(r1),         // %4
-                          "=r"(r2)          // %5
+                        "=r"(outptr1_bf16), // %1
+                        "=r"(outptr0),      // %2
+                        "=r"(r0),           // %3
+                        "=r"(r1),           // %4
+                        "=r"(r2)            // %5
                         : "0"(outptr0_bf16),
-                          "1"(outptr1_bf16),
-                          "2"(outptr0),
-                          "3"(r0),
-                          "4"(r1),
-                          "5"(r2),
-                          "w"(_k00_0),      // %12
-                          "w"(_k01_0),      // %13
-                          "w"(_k02_0),      // %14
-                          "w"(_k10_0),      // %15
-                          "w"(_k11_0),      // %16
-                          "w"(_k12_0),      // %17
-                          "w"(_k20_0),      // %18
-                          "w"(_k21_0),      // %19
-                          "w"(_k22_0),      // %20
-                          "w"(_k00_1),      // %21
-                          "w"(_k01_1),      // %22
-                          "w"(_k02_1),      // %23
-                          "w"(_k10_1),      // %24
-                          "w"(_k11_1),      // %25
-                          "w"(_k12_1),      // %26
-                          "w"(_k20_1),      // %27
-                          "w"(_k21_1),      // %28
-                          "w"(_k22_1)       // %29
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13"
-                    );
+                        "1"(outptr1_bf16),
+                        "2"(outptr0),
+                        "3"(r0),
+                        "4"(r1),
+                        "5"(r2),
+                        "w"(_k00_0), // %12
+                        "w"(_k01_0), // %13
+                        "w"(_k02_0), // %14
+                        "w"(_k10_0), // %15
+                        "w"(_k11_0), // %16
+                        "w"(_k12_0), // %17
+                        "w"(_k20_0), // %18
+                        "w"(_k21_0), // %19
+                        "w"(_k22_0), // %20
+                        "w"(_k00_1), // %21
+                        "w"(_k01_1), // %22
+                        "w"(_k02_1), // %23
+                        "w"(_k10_1), // %24
+                        "w"(_k11_1), // %25
+                        "w"(_k12_1), // %26
+                        "w"(_k20_1), // %27
+                        "w"(_k21_1), // %28
+                        "w"(_k22_1)  // %29
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13");
                 }
-                for (; j<outw; j++)
+                for (; j < outw; j++)
                 {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
-                    float32x4_t _sum1 = vld1q_f32(outptr0+4);
+                    float32x4_t _sum1 = vld1q_f32(outptr0 + 4);
 
                     float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
                     float32x4_t _r1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r1), 16));
@@ -2780,14 +2762,14 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 r2 += tailstep;
             }
 
-            k0 += 9*4;
-            k1 += 9*4;
+            k0 += 9 * 4;
+            k1 += 9 * 4;
         }
     }
 #endif // __ARM_NEON && __aarch64__
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=remain_outch_start; p<outch; p++)
+    for (int p = remain_outch_start; p < outch; p++)
     {
         Mat out0 = top_blob_fp32.channel(get_omp_thread_num());
 
@@ -2796,8 +2778,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
         const unsigned short* k0 = kernel.channel(p);
 
-        int q=0;
-        for (; q<inch-1; q++)
+        int q = 0;
+        for (; q < inch - 1; q++)
         {
             float* outptr0 = out0;
 
@@ -2808,14 +2790,14 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r2 = img0.row<const unsigned short>(2);
 
             float32x4_t _k00 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+4), 16));
-            float32x4_t _k02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+8), 16));
-            float32x4_t _k10 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+12), 16));
-            float32x4_t _k11 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+16), 16));
-            float32x4_t _k12 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+20), 16));
-            float32x4_t _k20 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+24), 16));
-            float32x4_t _k21 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+28), 16));
-            float32x4_t _k22 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+32), 16));
+            float32x4_t _k01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
+            float32x4_t _k02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
+            float32x4_t _k10 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
+            float32x4_t _k11 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
+            float32x4_t _k12 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
+            float32x4_t _k20 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
+            float32x4_t _k21 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
+            float32x4_t _k22 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
 
             int i = 0;
 
@@ -2823,7 +2805,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             {
                 int j = 0;
 
-                for (; j+3<outw; j+=4)
+                for (; j + 3 < outw; j += 4)
                 {
 #if __aarch64__
                     asm volatile(
@@ -2832,7 +2814,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "ld1    {v0.4h, v1.4h}, [%1], #16   \n"
 
                         "prfm   pldl1keep, [%0, #512]       \n"
-                        "ld1    {v6.4s, v7.4s, v8.4s, v9.4s}, [%0] \n"// sum0
+                        "ld1    {v6.4s, v7.4s, v8.4s, v9.4s}, [%0] \n" // sum0
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -2910,33 +2892,32 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "st1    {v6.4s, v7.4s, v8.4s, v9.4s}, [%0], #64 \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9"
-                    );
-#else // __aarch64__
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00), // %8
+                        "w"(_k01), // %9
+                        "w"(_k02), // %10
+                        "w"(_k10), // %11
+                        "w"(_k11), // %12
+                        "w"(_k12), // %13
+                        "w"(_k20), // %14
+                        "w"(_k21), // %15
+                        "w"(_k22)  // %16
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9");
+#else  // __aarch64__
                     asm volatile(
                         // r0
                         "pld        [%1, #128]          \n"
                         "vld1.u16   {d12-d13}, [%1]!    \n"
 
                         "pld        [%0, #512]          \n"
-                        "vldm       %0, {d0-d7}         \n"// sum0
+                        "vldm       %0, {d0-d7}         \n" // sum0
 
                         "vshll.u16  q4, d12, #16        \n"
                         "vshll.u16  q5, d13, #16        \n"
@@ -3020,28 +3001,27 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "vstm       %0!, {d0-d7}        \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
-                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6"
-                    );
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00), // %8
+                        "w"(_k01), // %9
+                        "w"(_k02), // %10
+                        "w"(_k10), // %11
+                        "w"(_k11), // %12
+                        "w"(_k12), // %13
+                        "w"(_k20), // %14
+                        "w"(_k21), // %15
+                        "w"(_k22)  // %16
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6");
 #endif // __aarch64__
                 }
-                for (; j+1<outw; j+=2)
+                for (; j + 1 < outw; j += 2)
                 {
 #if __aarch64__
                     asm volatile(
@@ -3050,7 +3030,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "ld1    {v0.4h}, [%1], #8           \n"
 
                         "prfm   pldl1keep, [%0, #256]       \n"
-                        "ld1    {v8.4s, v9.4s}, [%0]        \n"// sum0
+                        "ld1    {v8.4s, v9.4s}, [%0]        \n" // sum0
 
                         "shll   v0.4s, v0.4h, #16           \n"
 
@@ -3110,33 +3090,32 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "st1    {v8.4s, v9.4s}, [%0], #32   \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9"
-                    );
-#else // __aarch64__
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00), // %8
+                        "w"(_k01), // %9
+                        "w"(_k02), // %10
+                        "w"(_k10), // %11
+                        "w"(_k11), // %12
+                        "w"(_k12), // %13
+                        "w"(_k20), // %14
+                        "w"(_k21), // %15
+                        "w"(_k22)  // %16
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9");
+#else  // __aarch64__
                     asm volatile(
                         // r0
                         "pld        [%1, #64]           \n"
                         "vld1.u16   {d9}, [%1]!         \n"
 
                         "pld        [%0, #256]          \n"
-                        "vld1.f32   {d4-d7}, [%0]       \n"// sum0
+                        "vld1.f32   {d4-d7}, [%0]       \n" // sum0
 
                         "vshll.u16  q4, d9, #16         \n"
 
@@ -3196,28 +3175,27 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "vst1.f32   {d4-d7}, [%0]!      \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2)          // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "w"(_k00),        // %8
-                          "w"(_k01),        // %9
-                          "w"(_k02),        // %10
-                          "w"(_k10),        // %11
-                          "w"(_k11),        // %12
-                          "w"(_k12),        // %13
-                          "w"(_k20),        // %14
-                          "w"(_k21),        // %15
-                          "w"(_k22)         // %16
-                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6"
-                    );
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "w"(_k00), // %8
+                        "w"(_k01), // %9
+                        "w"(_k02), // %10
+                        "w"(_k10), // %11
+                        "w"(_k11), // %12
+                        "w"(_k12), // %13
+                        "w"(_k20), // %14
+                        "w"(_k21), // %15
+                        "w"(_k22)  // %16
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6");
 #endif // __aarch64__
                 }
-                for (; j<outw; j++)
+                for (; j < outw; j++)
                 {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
 
@@ -3260,9 +3238,9 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 r2 += tailstep;
             }
 
-            k0 += 9*4;
+            k0 += 9 * 4;
         }
-        for (; q<inch; q++)
+        for (; q < inch; q++)
         {
             unsigned short* outptr0_bf16 = top_blob.channel(p);
 
@@ -3275,14 +3253,14 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r2 = img0.row<const unsigned short>(2);
 
             float32x4_t _k00 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+4), 16));
-            float32x4_t _k02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+8), 16));
-            float32x4_t _k10 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+12), 16));
-            float32x4_t _k11 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+16), 16));
-            float32x4_t _k12 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+20), 16));
-            float32x4_t _k20 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+24), 16));
-            float32x4_t _k21 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+28), 16));
-            float32x4_t _k22 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0+32), 16));
+            float32x4_t _k01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
+            float32x4_t _k02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
+            float32x4_t _k10 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
+            float32x4_t _k11 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
+            float32x4_t _k12 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
+            float32x4_t _k20 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
+            float32x4_t _k21 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
+            float32x4_t _k22 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
 
             int i = 0;
 
@@ -3290,7 +3268,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             {
                 int j = 0;
 
-                for (; j+3<outw; j+=4)
+                for (; j + 3 < outw; j += 4)
                 {
 #if __aarch64__
                     asm volatile(
@@ -3299,7 +3277,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "ld1    {v0.4h, v1.4h}, [%2], #16   \n"
 
                         "prfm   pldl1keep, [%1, #512]       \n"
-                        "ld1    {v6.4s, v7.4s, v8.4s, v9.4s}, [%1], #64 \n"// sum0
+                        "ld1    {v6.4s, v7.4s, v8.4s, v9.4s}, [%1], #64 \n" // sum0
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -3383,34 +3361,33 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v6.4h, v7.4h, v8.4h, v9.4h}, [%0], #32 \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2)          // %4
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2)            // %4
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "w"(_k00),        // %10
-                          "w"(_k01),        // %11
-                          "w"(_k02),        // %12
-                          "w"(_k10),        // %13
-                          "w"(_k11),        // %14
-                          "w"(_k12),        // %15
-                          "w"(_k20),        // %16
-                          "w"(_k21),        // %17
-                          "w"(_k22)         // %18
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9"
-                    );
-#else // __aarch64__
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "w"(_k00), // %10
+                        "w"(_k01), // %11
+                        "w"(_k02), // %12
+                        "w"(_k10), // %13
+                        "w"(_k11), // %14
+                        "w"(_k12), // %15
+                        "w"(_k20), // %16
+                        "w"(_k21), // %17
+                        "w"(_k22)  // %18
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9");
+#else  // __aarch64__
                     asm volatile(
                         // r0
                         "pld        [%2, #128]          \n"
                         "vld1.u16   {d12-d13}, [%2]!    \n"
 
                         "pld        [%1, #512]          \n"
-                        "vldm       %1!, {d0-d7}        \n"// sum0
+                        "vldm       %1!, {d0-d7}        \n" // sum0
 
                         "vshll.u16  q4, d12, #16        \n"
                         "vshll.u16  q5, d13, #16        \n"
@@ -3500,29 +3477,28 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vst1.u16   {d0-d3}, [%0 :64]!  \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2)          // %4
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2)            // %4
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "w"(_k00),        // %10
-                          "w"(_k01),        // %11
-                          "w"(_k02),        // %12
-                          "w"(_k10),        // %13
-                          "w"(_k11),        // %14
-                          "w"(_k12),        // %15
-                          "w"(_k20),        // %16
-                          "w"(_k21),        // %17
-                          "w"(_k22)         // %18
-                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6"
-                    );
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "w"(_k00), // %10
+                        "w"(_k01), // %11
+                        "w"(_k02), // %12
+                        "w"(_k10), // %13
+                        "w"(_k11), // %14
+                        "w"(_k12), // %15
+                        "w"(_k20), // %16
+                        "w"(_k21), // %17
+                        "w"(_k22)  // %18
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6");
 #endif // __aarch64__
                 }
-                for (; j+1<outw; j+=2)
+                for (; j + 1 < outw; j += 2)
                 {
 #if __aarch64__
                     asm volatile(
@@ -3531,7 +3507,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "ld1    {v0.4h}, [%2], #8           \n"
 
                         "prfm   pldl1keep, [%1, #256]       \n"
-                        "ld1    {v8.4s, v9.4s}, [%1], #32   \n"// sum0
+                        "ld1    {v8.4s, v9.4s}, [%1], #32   \n" // sum0
 
                         "shll   v0.4s, v0.4h, #16           \n"
 
@@ -3595,34 +3571,33 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v8.4h, v9.4h}, [%0], #16   \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2)          // %4
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2)            // %4
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "w"(_k00),        // %10
-                          "w"(_k01),        // %11
-                          "w"(_k02),        // %12
-                          "w"(_k10),        // %13
-                          "w"(_k11),        // %14
-                          "w"(_k12),        // %15
-                          "w"(_k20),        // %16
-                          "w"(_k21),        // %17
-                          "w"(_k22)         // %18
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9"
-                    );
-#else // __aarch64__
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "w"(_k00), // %10
+                        "w"(_k01), // %11
+                        "w"(_k02), // %12
+                        "w"(_k10), // %13
+                        "w"(_k11), // %14
+                        "w"(_k12), // %15
+                        "w"(_k20), // %16
+                        "w"(_k21), // %17
+                        "w"(_k22)  // %18
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9");
+#else  // __aarch64__
                     asm volatile(
                         // r0
                         "pld        [%2, #64]           \n"
                         "vld1.u16   {d9}, [%2]!         \n"
 
                         "pld        [%1, #256]          \n"
-                        "vld1.f32   {d4-d7}, [%1]!      \n"// sum0
+                        "vld1.f32   {d4-d7}, [%1]!      \n" // sum0
 
                         "vshll.u16  q4, d9, #16         \n"
 
@@ -3686,29 +3661,28 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vst1.u16   {d2-d3}, [%0 :64]!  \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2)          // %4
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2)            // %4
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "w"(_k00),        // %10
-                          "w"(_k01),        // %11
-                          "w"(_k02),        // %12
-                          "w"(_k10),        // %13
-                          "w"(_k11),        // %14
-                          "w"(_k12),        // %15
-                          "w"(_k20),        // %16
-                          "w"(_k21),        // %17
-                          "w"(_k22)         // %18
-                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6"
-                    );
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "w"(_k00), // %10
+                        "w"(_k01), // %11
+                        "w"(_k02), // %12
+                        "w"(_k10), // %13
+                        "w"(_k11), // %14
+                        "w"(_k12), // %15
+                        "w"(_k20), // %16
+                        "w"(_k21), // %17
+                        "w"(_k22)  // %18
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6");
 #endif // __aarch64__
                 }
-                for (; j<outw; j++)
+                for (; j < outw; j++)
                 {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
 
@@ -3752,7 +3726,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 r2 += tailstep;
             }
 
-            k0 += 9*4;
+            k0 += 9 * 4;
         }
     }
 }

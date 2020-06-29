@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "mvn.h"
+
 #include <math.h>
 
 namespace ncnn {
@@ -52,12 +53,12 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
         return -100;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         const float* ptr = bottom_blob.channel(q);
 
         float s = 0.f;
-        for (int i=0; i<size; i++)
+        for (int i = 0; i < size; i++)
         {
             s += ptr[i];
         }
@@ -69,7 +70,7 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
     {
         // compute mean across channels
         float mean = 0.f;
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             mean += sum[q];
         }
@@ -77,12 +78,12 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 
         // subtract mean
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 outptr[i] = ptr[i] - mean;
             }
@@ -92,13 +93,13 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
     {
         // subtract mean
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
             float mean = sum[q] / size;
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 outptr[i] = ptr[i] - mean;
             }
@@ -113,12 +114,12 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             const float* ptr = top_blob.channel(q);
 
             float s = 0.f;
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 s += ptr[i] * ptr[i];
             }
@@ -130,7 +131,7 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
         {
             // compute squared mean across channels
             float sqmean = 0.f;
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 sqmean += sqsum[q];
             }
@@ -142,11 +143,11 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 
             // apply normalize_variance
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 float* outptr = top_blob.channel(q);
 
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     outptr[i] = outptr[i] * norm_var_inv;
                 }
@@ -156,20 +157,19 @@ int MVN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
         {
             // apply normalize_variance
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 float* outptr = top_blob.channel(q);
                 float sqmean = sqsum[q] / size;
                 float norm_var = static_cast<float>(sqrt(sqmean) + eps);
                 float norm_var_inv = 1.f / norm_var;
 
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     outptr[i] = outptr[i] * norm_var_inv;
                 }
             }
         }
-
     }
 
     return 0;

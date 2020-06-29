@@ -19,8 +19,9 @@
 
 #if NCNN_VULKAN
 
-#include <vulkan/vulkan.h>
 #include "mat.h"
+
+#include <vulkan/vulkan.h>
 
 namespace ncnn {
 
@@ -173,7 +174,10 @@ public:
 
     const GpuInfo& info;
 
-    VkDevice vkdevice() const { return device; }
+    VkDevice vkdevice() const
+    {
+        return device;
+    }
 
 #if !NCNN_VULKAN_ONLINE_SPIRV
     VkShaderModule get_shader_module(int shader_type_index) const;
@@ -332,7 +336,7 @@ public:
     // 1 = storage buffer
     // 2 = storage image
     // 3 = combined image sampler
-    int binding_types[16];// 16 is large enough I think ...
+    int binding_types[16]; // 16 is large enough I think ...
 };
 
 #if !NCNN_VULKAN_ONLINE_SPIRV

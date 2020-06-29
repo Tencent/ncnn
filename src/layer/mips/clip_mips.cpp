@@ -15,8 +15,9 @@
 #include "clip_mips.h"
 
 #if __MIPS_MSA
-#include <msa.h>
 #include "mips_common.h"
+
+#include <msa.h>
 #endif // __MIPS_MSA
 
 namespace ncnn {
@@ -31,7 +32,7 @@ int Clip_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int size = w * h;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
@@ -43,12 +44,12 @@ int Clip_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __MIPS_MSA
 
 #if __MIPS_MSA
-        ncnn::FloatInt fi_max = { .f = max };
-        ncnn::FloatInt fi_min = { .f = min };
+        ncnn::FloatInt fi_max = {.f = max};
+        ncnn::FloatInt fi_min = {.f = min};
 
         v4f32 _max = (v4f32)__msa_fill_w(fi_max.i);
         v4f32 _min = (v4f32)__msa_fill_w(fi_min.i);
-        for (; nn>0; nn--)
+        for (; nn > 0; nn--)
         {
             v4f32 _ptr = (v4f32)__msa_ld_w(ptr, 0);
             _ptr = __msa_fmax_w(_ptr, _min);
@@ -59,7 +60,7 @@ int Clip_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
 #endif // __MIPS_MSA
 
-        for (; remain>0; remain--)
+        for (; remain > 0; remain--)
         {
             if (*ptr < min)
                 *ptr = min;

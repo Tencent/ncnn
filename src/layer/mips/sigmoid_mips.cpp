@@ -15,9 +15,10 @@
 #include "sigmoid_mips.h"
 
 #if __MIPS_MSA
-#include <msa.h>
 #include "mips_common.h"
 #include "mips_mathfun.h"
+
+#include <msa.h>
 #endif // __MIPS_MSA
 
 #include <math.h>
@@ -34,7 +35,7 @@ int Sigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int size = w * h;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
@@ -47,7 +48,7 @@ int Sigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
 #if __MIPS_MSA
         v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
-        for (; nn>0; nn--)
+        for (; nn > 0; nn--)
         {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             _p = (v4f32)__msa_bnegi_w((v4u32)_p, 31);
@@ -59,7 +60,7 @@ int Sigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             ptr += 4;
         }
 #endif // __MIPS_MSA
-        for (; remain>0; remain--)
+        for (; remain > 0; remain--)
         {
             *ptr = 1.f / (1.f + exp(-*ptr));
 

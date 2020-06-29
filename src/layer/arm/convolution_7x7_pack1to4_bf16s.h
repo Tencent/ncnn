@@ -23,20 +23,20 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
     Mat top_blob_fp32(outw, outh, opt.num_threads, (size_t)4u * 4, 4, opt.workspace_allocator);
 
-    const int tailstep = w - 2*outw + w;
+    const int tailstep = w - 2 * outw + w;
 
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<outch; p++)
+    for (int p = 0; p < outch; p++)
     {
         Mat out0 = top_blob_fp32.channel(get_omp_thread_num());
 
         float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + p * 4) : vdupq_n_f32(0.f);
         out0.fill(_bias0);
 
-        int q=0;
-        for (; q<inch-1; q++)
+        int q = 0;
+        for (; q < inch - 1; q++)
         {
             float* outptr0 = out0.row(0);
 
@@ -58,14 +58,14 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             {
                 int j = 0;
 #if __aarch64__
-                for (; j+7<outw; j+=8)
+                for (; j + 7 < outw; j += 8)
                 {
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
 
                         "prfm   pldl1keep, [%1, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n"// r0
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n" // r0
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -160,7 +160,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v23.4s, v29.4s, v4.s[3]     \n"
 
                         "prfm   pldl1keep, [%2, #256]       \n"
-                        "ld1    {v6.4h, v7.4h, v8.4h, v9.4h}, [%2], #32 \n"// r1
+                        "ld1    {v6.4h, v7.4h, v8.4h, v9.4h}, [%2], #32 \n" // r1
 
                         "shll   v6.4s, v6.4h, #16           \n"
                         "shll   v7.4s, v7.4h, #16           \n"
@@ -252,7 +252,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v23.4s, v29.4s, v10.s[3]    \n"
 
                         "prfm   pldl1keep, [%3, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%3], #32 \n"// r2
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%3], #32 \n" // r2
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -344,7 +344,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v23.4s, v29.4s, v4.s[3]     \n"
 
                         "prfm   pldl1keep, [%4, #256]       \n"
-                        "ld1    {v6.4h, v7.4h, v8.4h, v9.4h}, [%4], #32 \n"// r3
+                        "ld1    {v6.4h, v7.4h, v8.4h, v9.4h}, [%4], #32 \n" // r3
 
                         "shll   v6.4s, v6.4h, #16           \n"
                         "shll   v7.4s, v7.4h, #16           \n"
@@ -436,7 +436,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v23.4s, v29.4s, v10.s[3]    \n"
 
                         "prfm   pldl1keep, [%5, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%5], #32 \n"// r4
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%5], #32 \n" // r4
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -528,7 +528,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v23.4s, v29.4s, v4.s[3]     \n"
 
                         "prfm   pldl1keep, [%6, #256]       \n"
-                        "ld1    {v6.4h, v7.4h, v8.4h, v9.4h}, [%6], #32 \n"// r5
+                        "ld1    {v6.4h, v7.4h, v8.4h, v9.4h}, [%6], #32 \n" // r5
 
                         "shll   v6.4s, v6.4h, #16           \n"
                         "shll   v7.4s, v7.4h, #16           \n"
@@ -620,7 +620,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v23.4s, v29.4s, v10.s[3]    \n"
 
                         "prfm   pldl1keep, [%7, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%7], #32 \n"// r6
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%7], #32 \n" // r6
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -719,29 +719,28 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
                         "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2),         // %3
-                          "=r"(r3),         // %4
-                          "=r"(r4),         // %5
-                          "=r"(r5),         // %6
-                          "=r"(r6),         // %7
-                          "=r"(kptr)        // %8
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2),      // %3
+                        "=r"(r3),      // %4
+                        "=r"(r4),      // %5
+                        "=r"(r5),      // %6
+                        "=r"(r6),      // %7
+                        "=r"(kptr)     // %8
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "4"(r3),
-                          "5"(r4),
-                          "6"(r5),
-                          "7"(r6),
-                          "8"(kptr)
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30"
-                    );
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "4"(r3),
+                        "5"(r4),
+                        "6"(r5),
+                        "7"(r6),
+                        "8"(kptr)
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30");
                 }
 #endif // __aarch64__
-                for (; j+3<outw; j+=4)
+                for (; j + 3 < outw; j += 4)
                 {
 #if __aarch64__
                     asm volatile(
@@ -749,7 +748,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0] \n"
 
                         "prfm   pldl1keep, [%1, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1] \n"// r0
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1] \n" // r0
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -786,7 +785,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v2.s[0]     \n"
 
                         "prfm   pldl1keep, [%2, #256]       \n"
-                        "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%2] \n"// r1
+                        "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%2] \n" // r1
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -840,7 +839,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v6.s[0]     \n"
 
                         "prfm   pldl1keep, [%3, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%3] \n"// r2
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%3] \n" // r2
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -894,7 +893,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v2.s[0]     \n"
 
                         "prfm   pldl1keep, [%4, #256]       \n"
-                        "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%4] \n"// r3
+                        "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%4] \n" // r3
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -948,7 +947,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v6.s[0]     \n"
 
                         "prfm   pldl1keep, [%5, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%5] \n"// r4
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%5] \n" // r4
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -1002,7 +1001,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v2.s[0]     \n"
 
                         "prfm   pldl1keep, [%6, #256]       \n"
-                        "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%6] \n"// r5
+                        "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%6] \n" // r5
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -1056,7 +1055,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v6.s[0]     \n"
 
                         "prfm   pldl1keep, [%7, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%7] \n"// r6
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%7] \n" // r6
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -1137,33 +1136,32 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2),         // %3
-                          "=r"(r3),         // %4
-                          "=r"(r4),         // %5
-                          "=r"(r5),         // %6
-                          "=r"(r6),         // %7
-                          "=r"(kptr)        // %8
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2),      // %3
+                        "=r"(r3),      // %4
+                        "=r"(r4),      // %5
+                        "=r"(r5),      // %6
+                        "=r"(r6),      // %7
+                        "=r"(kptr)     // %8
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "4"(r3),
-                          "5"(r4),
-                          "6"(r5),
-                          "7"(r6),
-                          "8"(kptr)
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30"
-                    );
-#else // __aarch64__
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "4"(r3),
+                        "5"(r4),
+                        "6"(r5),
+                        "7"(r6),
+                        "8"(kptr)
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30");
+#else  // __aarch64__
                     asm volatile(
                         "pld        [%0, #512]          \n"
                         "vldm       %0, {d24-d31}       \n"
 
                         "pld        [%1, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%1]!      \n"// r0
+                        "vld1.u16   {d2-d3}, [%1]!      \n" // r0
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -1228,7 +1226,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q11, d4[0]     \n"
 
                         "pld        [%2, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%2]!      \n"// r1
+                        "vld1.u16   {d2-d3}, [%2]!      \n" // r1
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -1288,7 +1286,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q11, d4[0]     \n"
 
                         "pld        [%3, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%3]!      \n"// r2
+                        "vld1.u16   {d2-d3}, [%3]!      \n" // r2
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -1348,7 +1346,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q11, d4[0]     \n"
 
                         "pld        [%4, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%4]!      \n"// r3
+                        "vld1.u16   {d2-d3}, [%4]!      \n" // r3
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -1408,7 +1406,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q11, d4[0]     \n"
 
                         "pld        [%5, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%5]!      \n"// r4
+                        "vld1.u16   {d2-d3}, [%5]!      \n" // r4
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -1468,7 +1466,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q11, d4[0]     \n"
 
                         "pld        [%6, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%6]!      \n"// r5
+                        "vld1.u16   {d2-d3}, [%6]!      \n" // r5
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -1528,7 +1526,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q11, d4[0]     \n"
 
                         "pld        [%7, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%7]!      \n"// r6
+                        "vld1.u16   {d2-d3}, [%7]!      \n" // r6
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -1584,29 +1582,28 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "vstm       %0!, {d24-d31}      \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2),         // %3
-                          "=r"(r3),         // %4
-                          "=r"(r4),         // %5
-                          "=r"(r5),         // %6
-                          "=r"(r6),         // %7
-                          "=r"(kptr)        // %8
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2),      // %3
+                        "=r"(r3),      // %4
+                        "=r"(r4),      // %5
+                        "=r"(r5),      // %6
+                        "=r"(r6),      // %7
+                        "=r"(kptr)     // %8
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "4"(r3),
-                          "5"(r4),
-                          "6"(r5),
-                          "7"(r6),
-                          "8"(kptr)
-                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                    );
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "4"(r3),
+                        "5"(r4),
+                        "6"(r5),
+                        "7"(r6),
+                        "8"(kptr)
+                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j+1<outw; j+=2)
+                for (; j + 1 < outw; j += 2)
                 {
 #if __aarch64__
                     asm volatile(
@@ -1614,7 +1611,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "ld1    {v16.4s, v17.4s}, [%0]      \n"
 
                         "prfm   pldl1keep, [%1, #192]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h}, [%1] \n"// r0
+                        "ld1    {v0.4h, v1.4h, v2.4h}, [%1] \n" // r0
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -1644,7 +1641,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v1.s[0]     \n"
 
                         "prfm   pldl1keep, [%2, #192]       \n"
-                        "ld1    {v4.4h, v5.4h, v6.4h}, [%2] \n"// r1
+                        "ld1    {v4.4h, v5.4h, v6.4h}, [%2] \n" // r1
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -1683,7 +1680,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v17.4s, v26.4s, v5.s[0]     \n"
 
                         "prfm   pldl1keep, [%3, #192]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h}, [%3] \n"// r2
+                        "ld1    {v0.4h, v1.4h, v2.4h}, [%3] \n" // r2
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -1722,7 +1719,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v1.s[0]     \n"
 
                         "prfm   pldl1keep, [%4, #192]       \n"
-                        "ld1    {v4.4h, v5.4h, v6.4h}, [%4] \n"// r3
+                        "ld1    {v4.4h, v5.4h, v6.4h}, [%4] \n" // r3
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -1761,7 +1758,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v17.4s, v26.4s, v5.s[0]     \n"
 
                         "prfm   pldl1keep, [%5, #192]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h}, [%5] \n"// r4
+                        "ld1    {v0.4h, v1.4h, v2.4h}, [%5] \n" // r4
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -1800,7 +1797,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v1.s[0]     \n"
 
                         "prfm   pldl1keep, [%6, #192]       \n"
-                        "ld1    {v4.4h, v5.4h, v6.4h}, [%6] \n"// r5
+                        "ld1    {v4.4h, v5.4h, v6.4h}, [%6] \n" // r5
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -1839,7 +1836,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v17.4s, v26.4s, v5.s[0]     \n"
 
                         "prfm   pldl1keep, [%7, #192]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h}, [%7] \n"// r6
+                        "ld1    {v0.4h, v1.4h, v2.4h}, [%7] \n" // r6
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -1900,33 +1897,32 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "st1    {v16.4s, v17.4s}, [%0], #32 \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2),         // %3
-                          "=r"(r3),         // %4
-                          "=r"(r4),         // %5
-                          "=r"(r5),         // %6
-                          "=r"(r6),         // %7
-                          "=r"(kptr)        // %8
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2),      // %3
+                        "=r"(r3),      // %4
+                        "=r"(r4),      // %5
+                        "=r"(r5),      // %6
+                        "=r"(r6),      // %7
+                        "=r"(kptr)     // %8
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "4"(r3),
-                          "5"(r4),
-                          "6"(r5),
-                          "7"(r6),
-                          "8"(kptr)
-                        : "memory", "v0", "v1", "v2", "v4", "v5", "v6", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30"
-                    );
-#else // __aarch64__
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "4"(r3),
+                        "5"(r4),
+                        "6"(r5),
+                        "7"(r6),
+                        "8"(kptr)
+                        : "memory", "v0", "v1", "v2", "v4", "v5", "v6", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30");
+#else  // __aarch64__
                     asm volatile(
                         "pld        [%0, #256]          \n"
                         "vld1.f32   {d28-d31}, [%0 :128] \n"
 
                         "pld        [%1, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%1]!      \n"// r0
+                        "vld1.u16   {d2-d3}, [%1]!      \n" // r0
                         "vld1.u16   {d8[0]}, [%1]       \n"
 
                         "vshll.u16  q0, d2, #16         \n"
@@ -1957,7 +1953,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q7, d2[0]      \n"
 
                         "pld        [%2, #128]          \n"
-                        "vld1.u16   {d6-d7}, [%2]!      \n"// r1
+                        "vld1.u16   {d6-d7}, [%2]!      \n" // r1
                         "vld1.u16   {d9[0]}, [%2]       \n"
 
                         "vshll.u16  q2, d6, #16         \n"
@@ -1997,7 +1993,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q15, q7, d6[0]      \n"
 
                         "pld        [%3, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%3]!      \n"// r2
+                        "vld1.u16   {d2-d3}, [%3]!      \n" // r2
                         "vld1.u16   {d8[0]}, [%3]       \n"
 
                         "vshll.u16  q0, d2, #16         \n"
@@ -2037,7 +2033,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q7, d2[0]      \n"
 
                         "pld        [%4, #128]          \n"
-                        "vld1.u16   {d6-d7}, [%4]!      \n"// r3
+                        "vld1.u16   {d6-d7}, [%4]!      \n" // r3
                         "vld1.u16   {d9[0]}, [%4]       \n"
 
                         "vshll.u16  q2, d6, #16         \n"
@@ -2077,7 +2073,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q15, q7, d6[0]      \n"
 
                         "pld        [%5, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%5]!      \n"// r4
+                        "vld1.u16   {d2-d3}, [%5]!      \n" // r4
                         "vld1.u16   {d8[0]}, [%5]       \n"
 
                         "vshll.u16  q0, d2, #16         \n"
@@ -2117,7 +2113,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q7, d2[0]      \n"
 
                         "pld        [%6, #128]          \n"
-                        "vld1.u16   {d6-d7}, [%6]!      \n"// r5
+                        "vld1.u16   {d6-d7}, [%6]!      \n" // r5
                         "vld1.u16   {d9[0]}, [%6]       \n"
 
                         "vshll.u16  q2, d6, #16         \n"
@@ -2157,7 +2153,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q15, q7, d6[0]      \n"
 
                         "pld        [%7, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%7]!      \n"// r6
+                        "vld1.u16   {d2-d3}, [%7]!      \n" // r6
                         "vld1.u16   {d8[0]}, [%7]       \n"
 
                         "vshll.u16  q0, d2, #16         \n"
@@ -2225,29 +2221,28 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "vst1.f32   {d28-d31}, [%0 :128]! \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2),         // %3
-                          "=r"(r3),         // %4
-                          "=r"(r4),         // %5
-                          "=r"(r5),         // %6
-                          "=r"(r6),         // %7
-                          "=r"(kptr)        // %8
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2),      // %3
+                        "=r"(r3),      // %4
+                        "=r"(r4),      // %5
+                        "=r"(r5),      // %6
+                        "=r"(r6),      // %7
+                        "=r"(kptr)     // %8
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "4"(r3),
-                          "5"(r4),
-                          "6"(r5),
-                          "7"(r6),
-                          "8"(kptr)
-                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                    );
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "4"(r3),
+                        "5"(r4),
+                        "6"(r5),
+                        "7"(r6),
+                        "8"(kptr)
+                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j<outw; j++)
+                for (; j < outw; j++)
                 {
 #if __aarch64__
                     asm volatile(
@@ -2255,7 +2250,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "ld1    {v16.4s}, [%0]              \n"
 
                         "prfm   pldl1keep, [%1, #128]       \n"
-                        "ld1    {v0.4h, v1.4h}, [%1]        \n"// r0
+                        "ld1    {v0.4h, v1.4h}, [%1]        \n" // r0
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -2281,7 +2276,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmul   v19.4s, v26.4s, v0.s[2]     \n"
 
                         "prfm   pldl1keep, [%2, #128]       \n"
-                        "ld1    {v4.4h, v5.4h}, [%2]        \n"// r1
+                        "ld1    {v4.4h, v5.4h}, [%2]        \n" // r1
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -2312,7 +2307,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v18.4s, v26.4s, v4.s[2]     \n"
 
                         "prfm   pldl1keep, [%3, #128]       \n"
-                        "ld1    {v0.4h, v1.4h}, [%3]        \n"// r2
+                        "ld1    {v0.4h, v1.4h}, [%3]        \n" // r2
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -2343,7 +2338,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v17.4s, v26.4s, v0.s[2]     \n"
 
                         "prfm   pldl1keep, [%4, #128]       \n"
-                        "ld1    {v4.4h, v5.4h}, [%4]        \n"// r3
+                        "ld1    {v4.4h, v5.4h}, [%4]        \n" // r3
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -2374,7 +2369,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v16.4s, v26.4s, v4.s[2]     \n"
 
                         "prfm   pldl1keep, [%5, #128]       \n"
-                        "ld1    {v0.4h, v1.4h}, [%5]        \n"// r4
+                        "ld1    {v0.4h, v1.4h}, [%5]        \n" // r4
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -2405,7 +2400,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v0.s[2]     \n"
 
                         "prfm   pldl1keep, [%6, #128]       \n"
-                        "ld1    {v4.4h, v5.4h}, [%6]        \n"// r5
+                        "ld1    {v4.4h, v5.4h}, [%6]        \n" // r5
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -2436,7 +2431,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v18.4s, v26.4s, v4.s[2]     \n"
 
                         "prfm   pldl1keep, [%7, #128]       \n"
-                        "ld1    {v0.4h, v1.4h}, [%7]        \n"// r6
+                        "ld1    {v0.4h, v1.4h}, [%7]        \n" // r6
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -2492,33 +2487,32 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "st1    {v16.4s}, [%0], #16         \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2),         // %3
-                          "=r"(r3),         // %4
-                          "=r"(r4),         // %5
-                          "=r"(r5),         // %6
-                          "=r"(r6),         // %7
-                          "=r"(kptr)        // %8
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2),      // %3
+                        "=r"(r3),      // %4
+                        "=r"(r4),      // %5
+                        "=r"(r5),      // %6
+                        "=r"(r6),      // %7
+                        "=r"(kptr)     // %8
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "4"(r3),
-                          "5"(r4),
-                          "6"(r5),
-                          "7"(r6),
-                          "8"(kptr)
-                        : "memory", "v0", "v1", "v4", "v5", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30"
-                    );
-#else // __aarch64__
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "4"(r3),
+                        "5"(r4),
+                        "6"(r5),
+                        "7"(r6),
+                        "8"(kptr)
+                        : "memory", "v0", "v1", "v4", "v5", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30");
+#else  // __aarch64__
                     asm volatile(
                         "pld        [%0, #128]          \n"
                         "vld1.f32   {d8-d9}, [%0 :128]  \n"
 
                         "pld        [%1, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%1]       \n"// r0
+                        "vld1.u16   {d2-d3}, [%1]       \n" // r0
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -2545,7 +2539,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q4, q11, d1[1]      \n"
 
                         "pld        [%2, #128]          \n"
-                        "vld1.u16   {d6-d7}, [%2]       \n"// r1
+                        "vld1.u16   {d6-d7}, [%2]       \n" // r1
 
                         "vshll.u16  q2, d6, #16         \n"
                         "vshll.u16  q3, d7, #16         \n"
@@ -2575,7 +2569,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q6, q10, d5[0]      \n"
 
                         "pld        [%3, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%3]       \n"// r2
+                        "vld1.u16   {d2-d3}, [%3]       \n" // r2
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -2606,7 +2600,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q5, q10, d1[0]      \n"
 
                         "pld        [%4, #128]          \n"
-                        "vld1.u16   {d6-d7}, [%4]       \n"// r3
+                        "vld1.u16   {d6-d7}, [%4]       \n" // r3
 
                         "vshll.u16  q2, d6, #16         \n"
                         "vshll.u16  q3, d7, #16         \n"
@@ -2637,7 +2631,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q4, q10, d5[0]      \n"
 
                         "pld        [%5, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%5]       \n"// r4
+                        "vld1.u16   {d2-d3}, [%5]       \n" // r4
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -2668,7 +2662,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q7, q10, d1[0]      \n"
 
                         "pld        [%6, #128]          \n"
-                        "vld1.u16   {d6-d7}, [%6]       \n"// r5
+                        "vld1.u16   {d6-d7}, [%6]       \n" // r5
 
                         "vshll.u16  q2, d6, #16         \n"
                         "vshll.u16  q3, d7, #16         \n"
@@ -2699,7 +2693,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q6, q10, d5[0]      \n"
 
                         "pld        [%7, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%7]       \n"// r6
+                        "vld1.u16   {d2-d3}, [%7]       \n" // r6
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -2757,26 +2751,25 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
 
                         "vst1.f32   {d8-d9}, [%0 :128]! \n"
 
-                        : "=r"(outptr0),    // %0
-                          "=r"(r0),         // %1
-                          "=r"(r1),         // %2
-                          "=r"(r2),         // %3
-                          "=r"(r3),         // %4
-                          "=r"(r4),         // %5
-                          "=r"(r5),         // %6
-                          "=r"(r6),         // %7
-                          "=r"(kptr)        // %8
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2),      // %3
+                        "=r"(r3),      // %4
+                        "=r"(r4),      // %5
+                        "=r"(r5),      // %6
+                        "=r"(r6),      // %7
+                        "=r"(kptr)     // %8
                         : "0"(outptr0),
-                          "1"(r0),
-                          "2"(r1),
-                          "3"(r2),
-                          "4"(r3),
-                          "5"(r4),
-                          "6"(r5),
-                          "7"(r6),
-                          "8"(kptr)
-                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14"
-                    );
+                        "1"(r0),
+                        "2"(r1),
+                        "3"(r2),
+                        "4"(r3),
+                        "5"(r4),
+                        "6"(r5),
+                        "7"(r6),
+                        "8"(kptr)
+                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14");
 #endif // __aarch64__
                 }
 
@@ -2789,7 +2782,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 r6 += tailstep;
             }
         }
-        for (; q<inch; q++)
+        for (; q < inch; q++)
         {
             unsigned short* outptr0_bf16 = top_blob.channel(p);
 
@@ -2813,14 +2806,14 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             {
                 int j = 0;
 #if __aarch64__
-                for (; j+7<outw; j+=8)
+                for (; j + 7 < outw; j += 8)
                 {
                     asm volatile(
                         "prfm   pldl1keep, [%1, #512]       \n"
                         "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
 
                         "prfm   pldl1keep, [%2, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%2], #32 \n"// r0
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%2], #32 \n" // r0
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -2915,7 +2908,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v23.4s, v29.4s, v4.s[3]     \n"
 
                         "prfm   pldl1keep, [%3, #256]       \n"
-                        "ld1    {v6.4h, v7.4h, v8.4h, v9.4h}, [%3], #32 \n"// r1
+                        "ld1    {v6.4h, v7.4h, v8.4h, v9.4h}, [%3], #32 \n" // r1
 
                         "shll   v6.4s, v6.4h, #16           \n"
                         "shll   v7.4s, v7.4h, #16           \n"
@@ -3007,7 +3000,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v23.4s, v29.4s, v10.s[3]    \n"
 
                         "prfm   pldl1keep, [%4, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%4], #32 \n"// r2
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%4], #32 \n" // r2
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -3099,7 +3092,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v23.4s, v29.4s, v4.s[3]     \n"
 
                         "prfm   pldl1keep, [%5, #256]       \n"
-                        "ld1    {v6.4h, v7.4h, v8.4h, v9.4h}, [%5], #32 \n"// r3
+                        "ld1    {v6.4h, v7.4h, v8.4h, v9.4h}, [%5], #32 \n" // r3
 
                         "shll   v6.4s, v6.4h, #16           \n"
                         "shll   v7.4s, v7.4h, #16           \n"
@@ -3191,7 +3184,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v23.4s, v29.4s, v10.s[3]    \n"
 
                         "prfm   pldl1keep, [%6, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%6], #32 \n"// r4
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%6], #32 \n" // r4
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -3283,7 +3276,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v23.4s, v29.4s, v4.s[3]     \n"
 
                         "prfm   pldl1keep, [%7, #256]       \n"
-                        "ld1    {v6.4h, v7.4h, v8.4h, v9.4h}, [%7], #32 \n"// r5
+                        "ld1    {v6.4h, v7.4h, v8.4h, v9.4h}, [%7], #32 \n" // r5
 
                         "shll   v6.4s, v6.4h, #16           \n"
                         "shll   v7.4s, v7.4h, #16           \n"
@@ -3375,7 +3368,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v23.4s, v29.4s, v10.s[3]    \n"
 
                         "prfm   pldl1keep, [%8, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%8], #32 \n"// r6
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%8], #32 \n" // r6
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -3482,30 +3475,29 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v20.4h, v21.4h, v22.4h, v23.4h}, [%0], #32 \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2),         // %4
-                          "=r"(r3),         // %5
-                          "=r"(r4),         // %6
-                          "=r"(r5),         // %7
-                          "=r"(r6),         // %8
-                          "=r"(kptr)        // %9
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2),           // %4
+                        "=r"(r3),           // %5
+                        "=r"(r4),           // %6
+                        "=r"(r5),           // %7
+                        "=r"(r6),           // %8
+                        "=r"(kptr)          // %9
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "5"(r3),
-                          "6"(r4),
-                          "7"(r5),
-                          "8"(r6),
-                          "9"(kptr)
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30"
-                    );
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "5"(r3),
+                        "6"(r4),
+                        "7"(r5),
+                        "8"(r6),
+                        "9"(kptr)
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30");
                 }
 #endif // __aarch64__
-                for (; j+3<outw; j+=4)
+                for (; j + 3 < outw; j += 4)
                 {
 #if __aarch64__
                     asm volatile(
@@ -3513,7 +3505,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
 
                         "prfm   pldl1keep, [%2, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%2] \n"// r0
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%2] \n" // r0
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -3550,7 +3542,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v2.s[0]     \n"
 
                         "prfm   pldl1keep, [%3, #256]       \n"
-                        "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%3] \n"// r1
+                        "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%3] \n" // r1
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -3604,7 +3596,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v6.s[0]     \n"
 
                         "prfm   pldl1keep, [%4, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%4] \n"// r2
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%4] \n" // r2
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -3658,7 +3650,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v2.s[0]     \n"
 
                         "prfm   pldl1keep, [%5, #256]       \n"
-                        "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%5] \n"// r3
+                        "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%5] \n" // r3
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -3712,7 +3704,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v6.s[0]     \n"
 
                         "prfm   pldl1keep, [%6, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%6] \n"// r4
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%6] \n" // r4
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -3766,7 +3758,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v2.s[0]     \n"
 
                         "prfm   pldl1keep, [%7, #256]       \n"
-                        "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%7] \n"// r5
+                        "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%7] \n" // r5
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -3820,7 +3812,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v6.s[0]     \n"
 
                         "prfm   pldl1keep, [%8, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%8] \n"// r6
+                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%8] \n" // r6
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -3907,34 +3899,33 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v16.4h, v17.4h, v18.4h, v19.4h}, [%0], #32 \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2),         // %4
-                          "=r"(r3),         // %5
-                          "=r"(r4),         // %6
-                          "=r"(r5),         // %7
-                          "=r"(r6),         // %8
-                          "=r"(kptr)        // %9
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2),           // %4
+                        "=r"(r3),           // %5
+                        "=r"(r4),           // %6
+                        "=r"(r5),           // %7
+                        "=r"(r6),           // %8
+                        "=r"(kptr)          // %9
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "5"(r3),
-                          "6"(r4),
-                          "7"(r5),
-                          "8"(r6),
-                          "9"(kptr)
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30"
-                    );
-#else // __aarch64__
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "5"(r3),
+                        "6"(r4),
+                        "7"(r5),
+                        "8"(r6),
+                        "9"(kptr)
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30");
+#else  // __aarch64__
                     asm volatile(
                         "pld        [%1, #512]          \n"
                         "vldm       %1!, {d24-d31}      \n"
 
                         "pld        [%2, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%2]!      \n"// r0
+                        "vld1.u16   {d2-d3}, [%2]!      \n" // r0
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -3999,7 +3990,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q11, d4[0]     \n"
 
                         "pld        [%3, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%3]!      \n"// r1
+                        "vld1.u16   {d2-d3}, [%3]!      \n" // r1
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -4059,7 +4050,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q11, d4[0]     \n"
 
                         "pld        [%4, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%4]!      \n"// r2
+                        "vld1.u16   {d2-d3}, [%4]!      \n" // r2
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -4119,7 +4110,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q11, d4[0]     \n"
 
                         "pld        [%5, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%5]!      \n"// r3
+                        "vld1.u16   {d2-d3}, [%5]!      \n" // r3
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -4179,7 +4170,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q11, d4[0]     \n"
 
                         "pld        [%6, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%6]!      \n"// r4
+                        "vld1.u16   {d2-d3}, [%6]!      \n" // r4
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -4239,7 +4230,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q11, d4[0]     \n"
 
                         "pld        [%7, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%7]!      \n"// r5
+                        "vld1.u16   {d2-d3}, [%7]!      \n" // r5
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -4299,7 +4290,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q11, d4[0]     \n"
 
                         "pld        [%8, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%8]!      \n"// r6
+                        "vld1.u16   {d2-d3}, [%8]!      \n" // r6
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -4361,30 +4352,29 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vst1.u16   {d24-d27}, [%0]!    \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2),         // %4
-                          "=r"(r3),         // %5
-                          "=r"(r4),         // %6
-                          "=r"(r5),         // %7
-                          "=r"(r6),         // %8
-                          "=r"(kptr)        // %9
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2),           // %4
+                        "=r"(r3),           // %5
+                        "=r"(r4),           // %6
+                        "=r"(r5),           // %7
+                        "=r"(r6),           // %8
+                        "=r"(kptr)          // %9
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "5"(r3),
-                          "6"(r4),
-                          "7"(r5),
-                          "8"(r6),
-                          "9"(kptr)
-                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                    );
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "5"(r3),
+                        "6"(r4),
+                        "7"(r5),
+                        "8"(r6),
+                        "9"(kptr)
+                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j+1<outw; j+=2)
+                for (; j + 1 < outw; j += 2)
                 {
 #if __aarch64__
                     asm volatile(
@@ -4392,7 +4382,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "ld1    {v16.4s, v17.4s}, [%1], #32 \n"
 
                         "prfm   pldl1keep, [%2, #192]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h}, [%2] \n"// r0
+                        "ld1    {v0.4h, v1.4h, v2.4h}, [%2] \n" // r0
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -4422,7 +4412,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v1.s[0]     \n"
 
                         "prfm   pldl1keep, [%3, #192]       \n"
-                        "ld1    {v4.4h, v5.4h, v6.4h}, [%3] \n"// r1
+                        "ld1    {v4.4h, v5.4h, v6.4h}, [%3] \n" // r1
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -4461,7 +4451,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v17.4s, v26.4s, v5.s[0]     \n"
 
                         "prfm   pldl1keep, [%4, #192]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h}, [%4] \n"// r2
+                        "ld1    {v0.4h, v1.4h, v2.4h}, [%4] \n" // r2
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -4500,7 +4490,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v1.s[0]     \n"
 
                         "prfm   pldl1keep, [%5, #192]       \n"
-                        "ld1    {v4.4h, v5.4h, v6.4h}, [%5] \n"// r3
+                        "ld1    {v4.4h, v5.4h, v6.4h}, [%5] \n" // r3
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -4539,7 +4529,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v17.4s, v26.4s, v5.s[0]     \n"
 
                         "prfm   pldl1keep, [%6, #192]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h}, [%6] \n"// r4
+                        "ld1    {v0.4h, v1.4h, v2.4h}, [%6] \n" // r4
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -4578,7 +4568,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v1.s[0]     \n"
 
                         "prfm   pldl1keep, [%7, #192]       \n"
-                        "ld1    {v4.4h, v5.4h, v6.4h}, [%7] \n"// r5
+                        "ld1    {v4.4h, v5.4h, v6.4h}, [%7] \n" // r5
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -4617,7 +4607,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v17.4s, v26.4s, v5.s[0]     \n"
 
                         "prfm   pldl1keep, [%8, #192]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h}, [%8] \n"// r6
+                        "ld1    {v0.4h, v1.4h, v2.4h}, [%8] \n" // r6
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -4682,34 +4672,33 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v16.4h, v17.4h}, [%0], #16 \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2),         // %4
-                          "=r"(r3),         // %5
-                          "=r"(r4),         // %6
-                          "=r"(r5),         // %7
-                          "=r"(r6),         // %8
-                          "=r"(kptr)        // %9
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2),           // %4
+                        "=r"(r3),           // %5
+                        "=r"(r4),           // %6
+                        "=r"(r5),           // %7
+                        "=r"(r6),           // %8
+                        "=r"(kptr)          // %9
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "5"(r3),
-                          "6"(r4),
-                          "7"(r5),
-                          "8"(r6),
-                          "9"(kptr)
-                        : "memory", "v0", "v1", "v2", "v4", "v5", "v6", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30"
-                    );
-#else // __aarch64__
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "5"(r3),
+                        "6"(r4),
+                        "7"(r5),
+                        "8"(r6),
+                        "9"(kptr)
+                        : "memory", "v0", "v1", "v2", "v4", "v5", "v6", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30");
+#else  // __aarch64__
                     asm volatile(
                         "pld        [%1, #256]          \n"
                         "vld1.f32   {d28-d31}, [%1 :128]! \n"
 
                         "pld        [%2, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%2]!      \n"// r0
+                        "vld1.u16   {d2-d3}, [%2]!      \n" // r0
                         "vld1.u16   {d8[0]}, [%2]       \n"
 
                         "vshll.u16  q0, d2, #16         \n"
@@ -4740,7 +4729,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q7, d2[0]      \n"
 
                         "pld        [%3, #128]          \n"
-                        "vld1.u16   {d6-d7}, [%3]!      \n"// r1
+                        "vld1.u16   {d6-d7}, [%3]!      \n" // r1
                         "vld1.u16   {d9[0]}, [%3]       \n"
 
                         "vshll.u16  q2, d6, #16         \n"
@@ -4780,7 +4769,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q15, q7, d6[0]      \n"
 
                         "pld        [%4, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%4]!      \n"// r2
+                        "vld1.u16   {d2-d3}, [%4]!      \n" // r2
                         "vld1.u16   {d8[0]}, [%4]       \n"
 
                         "vshll.u16  q0, d2, #16         \n"
@@ -4820,7 +4809,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q7, d2[0]      \n"
 
                         "pld        [%5, #128]          \n"
-                        "vld1.u16   {d6-d7}, [%5]!      \n"// r3
+                        "vld1.u16   {d6-d7}, [%5]!      \n" // r3
                         "vld1.u16   {d9[0]}, [%5]       \n"
 
                         "vshll.u16  q2, d6, #16         \n"
@@ -4860,7 +4849,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q15, q7, d6[0]      \n"
 
                         "pld        [%6, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%6]!      \n"// r4
+                        "vld1.u16   {d2-d3}, [%6]!      \n" // r4
                         "vld1.u16   {d8[0]}, [%6]       \n"
 
                         "vshll.u16  q0, d2, #16         \n"
@@ -4900,7 +4889,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q13, q7, d2[0]      \n"
 
                         "pld        [%7, #128]          \n"
-                        "vld1.u16   {d6-d7}, [%7]!      \n"// r5
+                        "vld1.u16   {d6-d7}, [%7]!      \n" // r5
                         "vld1.u16   {d9[0]}, [%7]       \n"
 
                         "vshll.u16  q2, d6, #16         \n"
@@ -4940,7 +4929,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q15, q7, d6[0]      \n"
 
                         "pld        [%8, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%8]!      \n"// r6
+                        "vld1.u16   {d2-d3}, [%8]!      \n" // r6
                         "vld1.u16   {d8[0]}, [%8]       \n"
 
                         "vshll.u16  q0, d2, #16         \n"
@@ -5012,30 +5001,29 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vst1.u16   {d28-d29}, [%0 :64]! \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2),         // %4
-                          "=r"(r3),         // %5
-                          "=r"(r4),         // %6
-                          "=r"(r5),         // %7
-                          "=r"(r6),         // %8
-                          "=r"(kptr)        // %9
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2),           // %4
+                        "=r"(r3),           // %5
+                        "=r"(r4),           // %6
+                        "=r"(r5),           // %7
+                        "=r"(r6),           // %8
+                        "=r"(kptr)          // %9
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "5"(r3),
-                          "6"(r4),
-                          "7"(r5),
-                          "8"(r6),
-                          "9"(kptr)
-                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                    );
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "5"(r3),
+                        "6"(r4),
+                        "7"(r5),
+                        "8"(r6),
+                        "9"(kptr)
+                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
                 }
-                for (; j<outw; j++)
+                for (; j < outw; j++)
                 {
 #if __aarch64__
                     asm volatile(
@@ -5043,7 +5031,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "ld1    {v16.4s}, [%1], #16         \n"
 
                         "prfm   pldl1keep, [%2, #128]       \n"
-                        "ld1    {v0.4h, v1.4h}, [%2]        \n"// r0
+                        "ld1    {v0.4h, v1.4h}, [%2]        \n" // r0
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -5069,7 +5057,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmul   v19.4s, v26.4s, v0.s[2]     \n"
 
                         "prfm   pldl1keep, [%3, #128]       \n"
-                        "ld1    {v4.4h, v5.4h}, [%3]        \n"// r1
+                        "ld1    {v4.4h, v5.4h}, [%3]        \n" // r1
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -5100,7 +5088,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v18.4s, v26.4s, v4.s[2]     \n"
 
                         "prfm   pldl1keep, [%4, #128]       \n"
-                        "ld1    {v0.4h, v1.4h}, [%4]        \n"// r2
+                        "ld1    {v0.4h, v1.4h}, [%4]        \n" // r2
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -5131,7 +5119,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v17.4s, v26.4s, v0.s[2]     \n"
 
                         "prfm   pldl1keep, [%5, #128]       \n"
-                        "ld1    {v4.4h, v5.4h}, [%5]        \n"// r3
+                        "ld1    {v4.4h, v5.4h}, [%5]        \n" // r3
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -5162,7 +5150,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v16.4s, v26.4s, v4.s[2]     \n"
 
                         "prfm   pldl1keep, [%6, #128]       \n"
-                        "ld1    {v0.4h, v1.4h}, [%6]        \n"// r4
+                        "ld1    {v0.4h, v1.4h}, [%6]        \n" // r4
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -5193,7 +5181,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v19.4s, v26.4s, v0.s[2]     \n"
 
                         "prfm   pldl1keep, [%7, #128]       \n"
-                        "ld1    {v4.4h, v5.4h}, [%7]        \n"// r5
+                        "ld1    {v4.4h, v5.4h}, [%7]        \n" // r5
 
                         "shll   v4.4s, v4.4h, #16           \n"
                         "shll   v5.4s, v5.4h, #16           \n"
@@ -5224,7 +5212,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "fmla   v18.4s, v26.4s, v4.s[2]     \n"
 
                         "prfm   pldl1keep, [%8, #128]       \n"
-                        "ld1    {v0.4h, v1.4h}, [%8]        \n"// r6
+                        "ld1    {v0.4h, v1.4h}, [%8]        \n" // r6
 
                         "shll   v0.4s, v0.4h, #16           \n"
                         "shll   v1.4s, v1.4h, #16           \n"
@@ -5283,34 +5271,33 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "st1    {v16.4h}, [%0], #8          \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2),         // %4
-                          "=r"(r3),         // %5
-                          "=r"(r4),         // %6
-                          "=r"(r5),         // %7
-                          "=r"(r6),         // %8
-                          "=r"(kptr)        // %9
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2),           // %4
+                        "=r"(r3),           // %5
+                        "=r"(r4),           // %6
+                        "=r"(r5),           // %7
+                        "=r"(r6),           // %8
+                        "=r"(kptr)          // %9
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "5"(r3),
-                          "6"(r4),
-                          "7"(r5),
-                          "8"(r6),
-                          "9"(kptr)
-                        : "memory", "v0", "v1", "v4", "v5", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30"
-                    );
-#else // __aarch64__
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "5"(r3),
+                        "6"(r4),
+                        "7"(r5),
+                        "8"(r6),
+                        "9"(kptr)
+                        : "memory", "v0", "v1", "v4", "v5", "v16", "v17", "v18", "v19", "v24", "v25", "v26", "v27", "v28", "v29", "v30");
+#else  // __aarch64__
                     asm volatile(
                         "pld        [%1, #128]          \n"
                         "vld1.f32   {d8-d9}, [%1 :128]! \n"
 
                         "pld        [%2, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%2]       \n"// r0
+                        "vld1.u16   {d2-d3}, [%2]       \n" // r0
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -5337,7 +5324,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q4, q11, d1[1]      \n"
 
                         "pld        [%3, #128]          \n"
-                        "vld1.u16   {d6-d7}, [%3]       \n"// r1
+                        "vld1.u16   {d6-d7}, [%3]       \n" // r1
 
                         "vshll.u16  q2, d6, #16         \n"
                         "vshll.u16  q3, d7, #16         \n"
@@ -5367,7 +5354,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q6, q10, d5[0]      \n"
 
                         "pld        [%4, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%4]       \n"// r2
+                        "vld1.u16   {d2-d3}, [%4]       \n" // r2
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -5398,7 +5385,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q5, q10, d1[0]      \n"
 
                         "pld        [%5, #128]          \n"
-                        "vld1.u16   {d6-d7}, [%5]       \n"// r3
+                        "vld1.u16   {d6-d7}, [%5]       \n" // r3
 
                         "vshll.u16  q2, d6, #16         \n"
                         "vshll.u16  q3, d7, #16         \n"
@@ -5429,7 +5416,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q4, q10, d5[0]      \n"
 
                         "pld        [%6, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%6]       \n"// r4
+                        "vld1.u16   {d2-d3}, [%6]       \n" // r4
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -5460,7 +5447,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q7, q10, d1[0]      \n"
 
                         "pld        [%7, #128]          \n"
-                        "vld1.u16   {d6-d7}, [%7]       \n"// r5
+                        "vld1.u16   {d6-d7}, [%7]       \n" // r5
 
                         "vshll.u16  q2, d6, #16         \n"
                         "vshll.u16  q3, d7, #16         \n"
@@ -5491,7 +5478,7 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vmla.f32   q6, q10, d5[0]      \n"
 
                         "pld        [%8, #128]          \n"
-                        "vld1.u16   {d2-d3}, [%8]       \n"// r6
+                        "vld1.u16   {d2-d3}, [%8]       \n" // r6
 
                         "vshll.u16  q0, d2, #16         \n"
                         "vshll.u16  q1, d3, #16         \n"
@@ -5552,27 +5539,26 @@ static void conv7x7s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                         "vst1.u16   {d8}, [%0 :64]!     \n"
 
                         : "=r"(outptr0_bf16), // %0
-                          "=r"(outptr0),    // %1
-                          "=r"(r0),         // %2
-                          "=r"(r1),         // %3
-                          "=r"(r2),         // %4
-                          "=r"(r3),         // %5
-                          "=r"(r4),         // %6
-                          "=r"(r5),         // %7
-                          "=r"(r6),         // %8
-                          "=r"(kptr)        // %9
+                        "=r"(outptr0),      // %1
+                        "=r"(r0),           // %2
+                        "=r"(r1),           // %3
+                        "=r"(r2),           // %4
+                        "=r"(r3),           // %5
+                        "=r"(r4),           // %6
+                        "=r"(r5),           // %7
+                        "=r"(r6),           // %8
+                        "=r"(kptr)          // %9
                         : "0"(outptr0_bf16),
-                          "1"(outptr0),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "5"(r3),
-                          "6"(r4),
-                          "7"(r5),
-                          "8"(r6),
-                          "9"(kptr)
-                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14"
-                    );
+                        "1"(outptr0),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "5"(r3),
+                        "6"(r4),
+                        "7"(r5),
+                        "8"(r6),
+                        "9"(kptr)
+                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14");
 #endif // __aarch64__
                 }
 

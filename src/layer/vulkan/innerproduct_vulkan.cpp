@@ -13,9 +13,11 @@
 // specific language governing permissions and limitations under the License.
 
 #include "innerproduct_vulkan.h"
-#include <algorithm>
-#include "layer_type.h"
+
 #include "layer_shader_type.h"
+#include "layer_type.h"
+
+#include <algorithm>
 
 namespace ncnn {
 
@@ -262,20 +264,20 @@ int InnerProduct_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     {
         Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-        weight_data_packed.create(num_input/elempack, num_output/out_elempack, (size_t)4*elempack*out_elempack, elempack*out_elempack);
+        weight_data_packed.create(num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
 
-        for (int q=0; q+(out_elempack-1)<num_output; q+=out_elempack)
+        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
-            float* g00 = weight_data_packed.row(q/out_elempack);
+            float* g00 = weight_data_packed.row(q / out_elempack);
 
-            for (int p=0; p+(elempack-1)<num_input; p+=elempack)
+            for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
-                for (int i=0; i<out_elempack; i++)
+                for (int i = 0; i < out_elempack; i++)
                 {
-                    const float* k0 = weight_data_r2.row(q+i);
+                    const float* k0 = weight_data_r2.row(q + i);
                     k0 += p;
 
-                    for (int j=0; j<elempack; j++)
+                    for (int j = 0; j < elempack; j++)
                     {
                         g00[0] = k0[j];
 
@@ -332,8 +334,8 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_elempack == 8) out_elemsize = 8*2u;
-        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
@@ -421,8 +423,8 @@ int InnerProduct_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_elempack == 8) out_elemsize = 8*2u;
-        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
@@ -441,12 +443,12 @@ int InnerProduct_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_
     constants[1].i = bottom_blob_flattened.w;
     constants[2].i = bottom_blob_flattened.h;
     constants[3].i = bottom_blob_flattened.c;
-    constants[4].i = 0;//bottom_blob_flattened.cstep;
+    constants[4].i = 0; //bottom_blob_flattened.cstep;
     constants[5].i = top_blob.dims;
     constants[6].i = top_blob.w;
     constants[7].i = top_blob.h;
     constants[8].i = top_blob.c;
-    constants[9].i = 0;//top_blob.cstep;
+    constants[9].i = 0; //top_blob.cstep;
 
     const Pipeline* pipeline = 0;
     if (elempack == 1 && out_elempack == 1)

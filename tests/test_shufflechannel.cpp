@@ -12,16 +12,16 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include "layer/shufflechannel.h"
 #include "testutil.h"
 
-#include "layer/shufflechannel.h"
-
-static int test_shufflechannel(int w, int h, int c, int group)
+static int test_shufflechannel(int w, int h, int c, int group, int reverse)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
     ncnn::ParamDict pd;
-    pd.set(0, group);// group
+    pd.set(0, group);
+    pd.set(1, reverse);
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -33,7 +33,7 @@ static int test_shufflechannel(int w, int h, int c, int group)
     int ret = test_layer<ncnn::ShuffleChannel>("ShuffleChannel", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_shufflechannel failed w=%d h=%d c=%d group=%d\n", w, h, c, group);
+        fprintf(stderr, "test_shufflechannel failed w=%d h=%d c=%d group=%d reverse=%d\n", w, h, c, group, reverse);
     }
 
     return ret;
@@ -42,24 +42,40 @@ static int test_shufflechannel(int w, int h, int c, int group)
 static int test_shufflechannel_0()
 {
     return 0
-        || test_shufflechannel(3, 7, 1, 1)
-        || test_shufflechannel(3, 7, 2, 2)
-        || test_shufflechannel(3, 7, 3, 3)
-        || test_shufflechannel(3, 7, 4, 2)
-        || test_shufflechannel(3, 7, 12, 3)
-        || test_shufflechannel(3, 7, 12, 4)
-        || test_shufflechannel(3, 7, 12, 6)
-        || test_shufflechannel(3, 7, 15, 3)
-        || test_shufflechannel(3, 7, 15, 5)
-        || test_shufflechannel(3, 7, 16, 2)
-        || test_shufflechannel(3, 7, 16, 4)
-        || test_shufflechannel(3, 7, 16, 8)
-        ;
+           || test_shufflechannel(3, 7, 1, 1, 0)
+           || test_shufflechannel(3, 7, 2, 2, 0)
+           || test_shufflechannel(3, 7, 3, 3, 0)
+           || test_shufflechannel(3, 7, 4, 2, 0)
+           || test_shufflechannel(3, 7, 12, 3, 0)
+           || test_shufflechannel(3, 7, 12, 4, 0)
+           || test_shufflechannel(3, 7, 12, 6, 0)
+           || test_shufflechannel(3, 7, 15, 3, 0)
+           || test_shufflechannel(3, 7, 15, 5, 0)
+           || test_shufflechannel(3, 7, 16, 2, 0)
+           || test_shufflechannel(3, 7, 16, 4, 0)
+           || test_shufflechannel(3, 7, 16, 8, 0);
+}
+
+static int test_shufflechannel_1()
+{
+    return 0
+           || test_shufflechannel(3, 7, 1, 1, 1)
+           || test_shufflechannel(3, 7, 2, 2, 1)
+           || test_shufflechannel(3, 7, 3, 3, 1)
+           || test_shufflechannel(3, 7, 4, 2, 1)
+           || test_shufflechannel(3, 7, 12, 3, 1)
+           || test_shufflechannel(3, 7, 12, 4, 1)
+           || test_shufflechannel(3, 7, 12, 6, 1)
+           || test_shufflechannel(3, 7, 15, 3, 1)
+           || test_shufflechannel(3, 7, 15, 5, 1)
+           || test_shufflechannel(3, 7, 16, 2, 1)
+           || test_shufflechannel(3, 7, 16, 4, 1)
+           || test_shufflechannel(3, 7, 16, 8, 1);
 }
 
 int main()
 {
     SRAND(7767517);
 
-    return test_shufflechannel_0();
+    return test_shufflechannel_0() || test_shufflechannel_1();
 }

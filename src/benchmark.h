@@ -15,9 +15,9 @@
 #ifndef NCNN_BENCHMARK_H
 #define NCNN_BENCHMARK_H
 
-#include "platform.h"
-#include "mat.h"
 #include "layer.h"
+#include "mat.h"
+#include "platform.h"
 
 namespace ncnn {
 

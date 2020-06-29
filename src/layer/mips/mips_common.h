@@ -15,26 +15,27 @@
 #ifndef LAYER_MIPS_COMMON_H
 #define LAYER_MIPS_COMMON_H
 
-#include <stdint.h>
 #include <msa.h>
+#include <stdint.h>
 
 namespace ncnn {
 
-typedef union {
+typedef union
+{
     int32_t i;
     float f;
 } FloatInt;
 
 /* declare some mips constants with union */
 #define _MIPS_FLOAT_CONST(Name, Val) \
-    static const ncnn::FloatInt Name = { .f = Val }
+    static const ncnn::FloatInt Name = {.f = Val}
 
 } // namespace ncnn
 
 /* float type data load instructions */
 inline v4f32 __msa_fill_w_f32(float val)
 {
-    ncnn::FloatInt fi_tmpval = { .f = val };
+    ncnn::FloatInt fi_tmpval = {.f = val};
     return (v4f32)__msa_fill_w(fi_tmpval.i);
 }
 

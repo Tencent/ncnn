@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/absval.h"
+#include "testutil.h"
 
 static int test_absval(const ncnn::Mat& a)
 {
@@ -39,25 +38,22 @@ static int test_absval(const ncnn::Mat& a)
 static int test_absval_0()
 {
     return 0
-        || test_absval(RandomMat(6, 7, 16))
-        || test_absval(RandomMat(3, 5, 13))
-        ;
+           || test_absval(RandomMat(6, 7, 16))
+           || test_absval(RandomMat(3, 5, 13));
 }
 
 static int test_absval_1()
 {
     return 0
-        || test_absval(RandomMat(6, 16))
-        || test_absval(RandomMat(7, 15))
-        ;
+           || test_absval(RandomMat(6, 16))
+           || test_absval(RandomMat(7, 15));
 }
 
 static int test_absval_2()
 {
     return 0
-        || test_absval(RandomMat(128))
-        || test_absval(RandomMat(127))
-        ;
+           || test_absval(RandomMat(128))
+           || test_absval(RandomMat(127));
 }
 
 int main()
@@ -65,8 +61,7 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_absval_0()
-        || test_absval_1()
-        || test_absval_2()
-        ;
+           || test_absval_0()
+           || test_absval_1()
+           || test_absval_2();
 }

@@ -15,11 +15,11 @@
 #ifndef NCNN_NET_H
 #define NCNN_NET_H
 
-#include "platform.h"
 #include "blob.h"
 #include "layer.h"
 #include "mat.h"
 #include "option.h"
+#include "platform.h"
 
 #if __ANDROID_API__ >= 9
 #include <android/asset_manager.h>
@@ -123,6 +123,10 @@ public:
     // construct an Extractor from network
     Extractor create_extractor() const;
 
+public:
+    std::vector<Blob> blobs;
+    std::vector<Layer*> layers;
+
 protected:
     // parse the structure of network
     // fuse int8 op dequantize and quantize by requantize
@@ -154,9 +158,6 @@ protected:
 #endif // NCNN_VULKAN
 
 protected:
-    std::vector<Blob> blobs;
-    std::vector<Layer*> layers;
-
     std::vector<layer_registry_entry> custom_layer_registry;
 
 #if NCNN_VULKAN

@@ -12,11 +12,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include "layer/clip.h"
 #include "testutil.h"
 
-#include "layer/clip.h"
-
-static int test_clip(const ncnn::Mat &a, float min, float max)
+static int test_clip(const ncnn::Mat& a, float min, float max)
 {
     ncnn::ParamDict pd;
     pd.set(0, min);
@@ -41,34 +40,30 @@ static int test_clip(const ncnn::Mat &a, float min, float max)
 static int test_clip_0()
 {
     return 0
-        || test_clip(RandomMat(6, 7, 16), -1.f, 1.f)
-        || test_clip(RandomMat(3, 5, 13), -1.f, 1.f)
-        ;
+           || test_clip(RandomMat(6, 7, 16), -1.f, 1.f)
+           || test_clip(RandomMat(3, 5, 13), -1.f, 1.f);
 }
 
 static int test_clip_1()
 {
     return 0
-        || test_clip(RandomMat(6, 16), -1.f, 1.f)
-        || test_clip(RandomMat(7, 15), -1.f, 1.f)
-        ;
+           || test_clip(RandomMat(6, 16), -1.f, 1.f)
+           || test_clip(RandomMat(7, 15), -1.f, 1.f);
 }
 
 static int test_clip_2()
 {
     return 0
-        || test_clip(RandomMat(128), -1.f, 1.f)
-        || test_clip(RandomMat(127), -1.f, 1.f)
-        ;
+           || test_clip(RandomMat(128), -1.f, 1.f)
+           || test_clip(RandomMat(127), -1.f, 1.f);
 }
 
 int main()
 {
     SRAND(7767517);
 
-    return 0 
-        || test_clip_0()
-        || test_clip_1()
-        || test_clip_2()
-        ;
+    return 0
+           || test_clip_0()
+           || test_clip_1()
+           || test_clip_2();
 }

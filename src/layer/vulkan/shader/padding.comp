@@ -68,6 +68,7 @@ layout (push_constant) uniform parameter
 
     int left;
     int top;
+    int front;
 } p;
 
 void main()
@@ -83,15 +84,16 @@ void main()
 
     int x = gx - p.left;
     int y = gy - p.top;
+    int z = gz - p.front;
 
     if (type == 0)
     {
-        if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+        if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h) && z >= 0 && z < psc(c))
         {
 #if NCNN_image_shader
-            image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, gz));
+            image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
 #else
-            int v_offset = gz * psc(cstep) + y * psc(w) + x;
+            int v_offset = z * psc(cstep) + y * psc(w) + x;
             buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
 #endif
         }
@@ -118,11 +120,12 @@ void main()
     {
         x = clamp(x, 0, psc(w) - 1);
         y = clamp(y, 0, psc(h) - 1);
+        z = clamp(z, 0, psc(c) - 1);
 
 #if NCNN_image_shader
-        image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, gz));
+        image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
 #else
-        int v_offset = gz * psc(cstep) + y * psc(w) + x;
+        int v_offset = z * psc(cstep) + y * psc(w) + x;
         buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
 #endif
     }
@@ -130,13 +133,20 @@ void main()
     {
         x = abs(x);
         y = abs(y);
-        x = (psc(w) - 1) - abs(x - (psc(w) - 1));
-        y = (psc(h) - 1) - abs(y - (psc(h) - 1));
+        z = abs(z);
+        // NOTE psc(X) get zeros on nvidia
+        // TODO only enable this workaround for some nvidia driver
+        x = (p.w - 1) - abs(x - (p.w - 1));
+        y = (p.h - 1) - abs(y - (p.h - 1));
+        z = (p.c - 1) - abs(z - (p.c - 1));
+//         x = (psc(w) - 1) - abs(x - (psc(w) - 1));
+//         y = (psc(h) - 1) - abs(y - (psc(h) - 1));
+//         z = (psc(c) - 1) - abs(z - (psc(c) - 1));
 
 #if NCNN_image_shader
-        image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, gz));
+        image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
 #else
-        int v_offset = gz * psc(cstep) + y * psc(w) + x;
+        int v_offset = z * psc(cstep) + y * psc(w) + x;
         buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
 #endif
     }

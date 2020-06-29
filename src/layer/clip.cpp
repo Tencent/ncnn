@@ -52,11 +52,11 @@ int Clip::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) const
     signed char max_int8 = float2int8(max);
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         signed char* ptr = bottom_top_blob.channel(q);
 
-        for (int i=0; i<size; i++)
+        for (int i = 0; i < size; i++)
         {
             if (ptr[i] < min_int8)
                 ptr[i] = min_int8;
@@ -67,7 +67,6 @@ int Clip::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
-
 
 int Clip::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
@@ -82,11 +81,11 @@ int Clip::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int size = w * h;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
-        for (int i=0; i<size; i++)
+        for (int i = 0; i < size; i++)
         {
             if (ptr[i] < min)
                 ptr[i] = min;

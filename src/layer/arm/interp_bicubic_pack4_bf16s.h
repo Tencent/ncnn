@@ -29,7 +29,7 @@ static void resize_bicubic_image_pack4_bf16s(const Mat& src, Mat& dst, float* al
 
     int prev_sy1 = -3;
 
-    for (int dy = 0; dy < h; dy++ )
+    for (int dy = 0; dy < h; dy++)
     {
         int sy = yofs[dy];
 
@@ -45,7 +45,7 @@ static void resize_bicubic_image_pack4_bf16s(const Mat& src, Mat& dst, float* al
             rows1 = rows2;
             rows2 = rows3;
             rows3 = rows0_old;
-            const unsigned short* S3 = src.row<const unsigned short>(sy+2);
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
 
             const float* alphap = alpha;
             float* rows3p = rows3;
@@ -78,8 +78,8 @@ static void resize_bicubic_image_pack4_bf16s(const Mat& src, Mat& dst, float* al
             rows1 = rows3;
             rows2 = rows0_old;
             rows3 = rows1_old;
-            const unsigned short* S2 = src.row<const unsigned short>(sy+1);
-            const unsigned short* S3 = src.row<const unsigned short>(sy+2);
+            const unsigned short* S2 = src.row<const unsigned short>(sy + 1);
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
 
             const float* alphap = alpha;
             float* rows2p = rows2;
@@ -125,8 +125,8 @@ static void resize_bicubic_image_pack4_bf16s(const Mat& src, Mat& dst, float* al
             rows2 = rows1_old;
             rows3 = rows2_old;
             const unsigned short* S1 = src.row<const unsigned short>(sy);
-            const unsigned short* S2 = src.row<const unsigned short>(sy+1);
-            const unsigned short* S3 = src.row<const unsigned short>(sy+2);
+            const unsigned short* S2 = src.row<const unsigned short>(sy + 1);
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
 
             const float* alphap = alpha;
             float* rows1p = rows1;
@@ -175,10 +175,10 @@ static void resize_bicubic_image_pack4_bf16s(const Mat& src, Mat& dst, float* al
         else
         {
             // hresize four rows
-            const unsigned short* S0 = src.row<const unsigned short>(sy-1);
+            const unsigned short* S0 = src.row<const unsigned short>(sy - 1);
             const unsigned short* S1 = src.row<const unsigned short>(sy);
-            const unsigned short* S2 = src.row<const unsigned short>(sy+1);
-            const unsigned short* S3 = src.row<const unsigned short>(sy+2);
+            const unsigned short* S2 = src.row<const unsigned short>(sy + 1);
+            const unsigned short* S3 = src.row<const unsigned short>(sy + 2);
 
             const float* alphap = alpha;
             float* rows0p = rows0;
