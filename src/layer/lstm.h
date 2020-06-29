@@ -39,11 +39,6 @@ public:
     Mat weight_hc_data;
     Mat weight_xc_data;
     Mat bias_c_data;
-
-    mutable Mat hidden;
-    mutable Mat cell;
-protected:
-    int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc,const Mat& cont_blob, const Option& opt) const;
 };
 
 } // namespace ncnn
