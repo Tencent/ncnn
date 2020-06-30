@@ -58,10 +58,22 @@
 
 namespace mlir {
 
-static LogicalResult Verify(...) { return success(); }
-static LogicalResult VerifyPartitionedCall(...) { return success(); }
-static LogicalResult VerifyStridedSliceBase(...) { return success(); }
-static LogicalResult VerifyUnsortedSegmentReduction(...) { return success(); }
+static LogicalResult Verify(...)
+{
+    return success();
+}
+static LogicalResult VerifyPartitionedCall(...)
+{
+    return success();
+}
+static LogicalResult VerifyStridedSliceBase(...)
+{
+    return success();
+}
+static LogicalResult VerifyUnsortedSegmentReduction(...)
+{
+    return success();
+}
 
 namespace TF {
 
@@ -70,67 +82,70 @@ namespace TF {
 class TensorFlowDialect : public mlir::Dialect
 {
 public:
-    TensorFlowDialect(mlir::MLIRContext *context);
+    TensorFlowDialect(mlir::MLIRContext* context);
 
-    Attribute parseAttribute(DialectAsmParser &parser, Type type) const override;
+    Attribute parseAttribute(DialectAsmParser& parser, Type type) const override;
 
     // Parse a type registered to this dialect.
-    Type parseType(DialectAsmParser &parser) const override;
+    Type parseType(DialectAsmParser& parser) const override;
 
     // Parses resource type with potential subtypes.
-    Type ParseResourceType(DialectAsmParser &parser, Location loc) const;
+    Type ParseResourceType(DialectAsmParser& parser, Location loc) const;
 
     // Parse and print variant type. It may have subtypes inferred using shape
     // inference.
-    Type ParseVariantType(DialectAsmParser &parser, Location loc) const;
+    Type ParseVariantType(DialectAsmParser& parser, Location loc) const;
 
     // Registered hook to materialize a constant operation from a given attribute
     // value with the desired resultant type.
-    Operation *materializeConstant(OpBuilder &builder, Attribute value, Type type,
-                                    Location loc) override;
+    Operation* materializeConstant(OpBuilder& builder, Attribute value, Type type,
+                                   Location loc) override;
 };
 
 #define GET_OP_CLASSES
 #include "tf_ops.h.inc"
 
 namespace {
-struct TFInlinerInterface : public DialectInlinerInterface {
-  using DialectInlinerInterface::DialectInlinerInterface;
+struct TFInlinerInterface : public DialectInlinerInterface
+{
+    using DialectInlinerInterface::DialectInlinerInterface;
 
-  //===--------------------------------------------------------------------===//
-  // Analysis Hooks
-  //===--------------------------------------------------------------------===//
+    //===--------------------------------------------------------------------===//
+    // Analysis Hooks
+    //===--------------------------------------------------------------------===//
 
-  // Defines the legality of inlining TF operations.
-  bool isLegalToInline(Operation *, Region *,
-                       BlockAndValueMapping &) const final {
-    // TODO(riverriddle) For now, enable inlining all operations. This isn't
-    // correct in the face of operations that cannot be duplicated, but this
-    // requires more intricate side-effect modeling.
-    return true;
-  }
+    // Defines the legality of inlining TF operations.
+    bool isLegalToInline(Operation*, Region*,
+                         BlockAndValueMapping&) const final
+    {
+        // TODO(riverriddle) For now, enable inlining all operations. This isn't
+        // correct in the face of operations that cannot be duplicated, but this
+        // requires more intricate side-effect modeling.
+        return true;
+    }
 
-  //===--------------------------------------------------------------------===//
-  // Transformation Hooks
-  //===--------------------------------------------------------------------===//
+    //===--------------------------------------------------------------------===//
+    // Transformation Hooks
+    //===--------------------------------------------------------------------===//
 
-  // Attempts to materialize a conversion for a type mismatch between a call
-  // from this dialect, and a callable region. This method should generate an
-  // operation that takes 'input' as the only operand, and produces a single
-  // result of 'resultType'. If a conversion can not be generated, nullptr
-  // should be returned.
-  Operation *materializeCallConversion(OpBuilder &builder, Value input,
-                                       Type result_type,
-                                       Location conversion_loc) const final {
-    if (!result_type.isa<TensorType>() || !input.getType().isa<TensorType>())
-      return nullptr;
-    return builder.create<TF::CastOp>(conversion_loc, result_type, input,
-                                      /*truncate=*/builder.getBoolAttr(false));
-  }
+    // Attempts to materialize a conversion for a type mismatch between a call
+    // from this dialect, and a callable region. This method should generate an
+    // operation that takes 'input' as the only operand, and produces a single
+    // result of 'resultType'. If a conversion can not be generated, nullptr
+    // should be returned.
+    Operation* materializeCallConversion(OpBuilder& builder, Value input,
+                                         Type result_type,
+                                         Location conversion_loc) const final
+    {
+        if (!result_type.isa<TensorType>() || !input.getType().isa<TensorType>())
+            return nullptr;
+        return builder.create<TF::CastOp>(conversion_loc, result_type, input,
+                                          /*truncate=*/builder.getBoolAttr(false));
+    }
 };
-}  // end anonymous namespace
+} // end anonymous namespace
 
-TensorFlowDialect::TensorFlowDialect(mlir::MLIRContext *context)
+TensorFlowDialect::TensorFlowDialect(mlir::MLIRContext* context)
     : mlir::Dialect("tf", context)
 {
     addOperations<
@@ -139,7 +154,7 @@ TensorFlowDialect::TensorFlowDialect(mlir::MLIRContext *context)
         >();
 
     addTypes<
-#define HANDLE_TF_TYPE(tftype, enumerant, name) tftype##Type,
+#define HANDLE_TF_TYPE(tftype, enumerant, name)      tftype##Type,
 #define HANDLE_LAST_TF_TYPE(tftype, enumerant, name) tftype##Type
 #include "tf_types.def"
         >();
@@ -151,32 +166,34 @@ TensorFlowDialect::TensorFlowDialect(mlir::MLIRContext *context)
     allowUnknownOperations();
 }
 
-ShapeAttr ParseShapeAttr(MLIRContext *context, StringRef spec, Location loc) {
-  auto emit_error = [&, spec]() {
-    emitError(loc, "invalid TensorFlow shape attribute: ") << spec;
-    return nullptr;
-  };
+ShapeAttr ParseShapeAttr(MLIRContext* context, StringRef spec, Location loc)
+{
+    auto emit_error = [&, spec]() {
+        emitError(loc, "invalid TensorFlow shape attribute: ") << spec;
+        return nullptr;
+    };
 
-  if (!spec.consume_front("shape<")) return emit_error();
+    if (!spec.consume_front("shape<")) return emit_error();
 
-  if (spec.consume_front("*>"))
-    return mlir::TF::ShapeAttr::get(context, llvm::None);
+    if (spec.consume_front("*>"))
+        return mlir::TF::ShapeAttr::get(context, llvm::None);
 
-  SmallVector<int64_t, 4> shape;
-  while (!spec.consume_front(">")) {
-    int64_t dim;
+    SmallVector<int64_t, 4> shape;
+    while (!spec.consume_front(">"))
+    {
+        int64_t dim;
 
-    if (spec.consume_front("?"))
-      dim = -1;
-    else if (spec.consumeInteger(10, dim) || dim < 0)
-      return emit_error();
+        if (spec.consume_front("?"))
+            dim = -1;
+        else if (spec.consumeInteger(10, dim) || dim < 0)
+            return emit_error();
 
-    spec.consume_front("x");
+        spec.consume_front("x");
 
-    shape.push_back(dim);
-  }
+        shape.push_back(dim);
+    }
 
-  return mlir::TF::ShapeAttr::get(context, llvm::makeArrayRef(shape));
+    return mlir::TF::ShapeAttr::get(context, llvm::makeArrayRef(shape));
 }
 
 // Parses a #tf.func attribute of the following format:
@@ -185,117 +202,124 @@ ShapeAttr ParseShapeAttr(MLIRContext *context, StringRef spec, Location loc) {
 //
 // where the first element is a SymbolRefAttr and the second element is a
 // DictionaryAttr.
-FuncAttr ParseFuncAttr(MLIRContext *context, StringRef spec, Location loc) {
-  auto emit_error = [&, spec]() {
-    emitError(loc, "invalid TensorFlow func attribute: ") << spec;
-    return nullptr;
-  };
+FuncAttr ParseFuncAttr(MLIRContext* context, StringRef spec, Location loc)
+{
+    auto emit_error = [&, spec]() {
+        emitError(loc, "invalid TensorFlow func attribute: ") << spec;
+        return nullptr;
+    };
 
-  if (!spec.consume_front("func<")) return emit_error();
+    if (!spec.consume_front("func<")) return emit_error();
 
-  size_t func_name_num_read = 0;
-  Attribute func_name_attr =
-      mlir::parseAttribute(spec, context, func_name_num_read);
-  if (!func_name_attr || !func_name_attr.isa<SymbolRefAttr>())
-    return emit_error();
-  spec = spec.drop_front(func_name_num_read);
+    size_t func_name_num_read = 0;
+    Attribute func_name_attr = mlir::parseAttribute(spec, context, func_name_num_read);
+    if (!func_name_attr || !func_name_attr.isa<SymbolRefAttr>())
+        return emit_error();
+    spec = spec.drop_front(func_name_num_read);
 
-  if (!spec.consume_front(", ")) return emit_error();
+    if (!spec.consume_front(", ")) return emit_error();
 
-  size_t func_attrs_num_read = 0;
-  Attribute func_attrs_attr =
-      mlir::parseAttribute(spec, context, func_attrs_num_read);
-  if (!func_attrs_attr || !func_attrs_attr.isa<DictionaryAttr>())
-    return emit_error();
-  spec = spec.drop_front(func_attrs_num_read);
+    size_t func_attrs_num_read = 0;
+    Attribute func_attrs_attr = mlir::parseAttribute(spec, context, func_attrs_num_read);
+    if (!func_attrs_attr || !func_attrs_attr.isa<DictionaryAttr>())
+        return emit_error();
+    spec = spec.drop_front(func_attrs_num_read);
 
-  if (!spec.consume_front(">")) return emit_error();
+    if (!spec.consume_front(">")) return emit_error();
 
-  return mlir::TF::FuncAttr::get(context, func_name_attr.cast<SymbolRefAttr>(),
-                                 func_attrs_attr.cast<DictionaryAttr>());
+    return mlir::TF::FuncAttr::get(context, func_name_attr.cast<SymbolRefAttr>(),
+                                   func_attrs_attr.cast<DictionaryAttr>());
 }
 
-Attribute TensorFlowDialect::parseAttribute(DialectAsmParser &parser,
-                                            Type type) const {
-  auto spec = parser.getFullSymbolSpec();
-  Location loc = parser.getEncodedSourceLoc(parser.getNameLoc());
+Attribute TensorFlowDialect::parseAttribute(DialectAsmParser& parser,
+                                            Type type) const
+{
+    auto spec = parser.getFullSymbolSpec();
+    Location loc = parser.getEncodedSourceLoc(parser.getNameLoc());
 
-  if (spec.startswith("shape")) return ParseShapeAttr(getContext(), spec, loc);
+    if (spec.startswith("shape")) return ParseShapeAttr(getContext(), spec, loc);
 
-  if (spec.startswith("func")) return ParseFuncAttr(getContext(), spec, loc);
+    if (spec.startswith("func")) return ParseFuncAttr(getContext(), spec, loc);
 
-  return (emitError(loc, "unknown TensorFlow attribute: " + spec), nullptr);
+    return (emitError(loc, "unknown TensorFlow attribute: " + spec), nullptr);
 }
 
 // Parses a type registered to this dialect.
-Type TensorFlowDialect::parseType(DialectAsmParser &parser) const {
-  StringRef data;
-  if (parser.parseKeyword(&data)) return Type();
+Type TensorFlowDialect::parseType(DialectAsmParser& parser) const
+{
+    StringRef data;
+    if (parser.parseKeyword(&data)) return Type();
 
-  Location loc = parser.getEncodedSourceLoc(parser.getNameLoc());
-  auto typeKind = llvm::StringSwitch<unsigned>(data)
+    Location loc = parser.getEncodedSourceLoc(parser.getNameLoc());
+    auto typeKind = llvm::StringSwitch<unsigned>(data)
 #define HANDLE_TF_TYPE(tftype, enumerant, name) \
-  .Case(name, TensorFlowTypes::enumerant)
+    .Case(name, TensorFlowTypes::enumerant)
 // Custom TensorFlow types are handled separately at the end as they do partial
 // match.
 #define HANDLE_CUSTOM_TF_TYPE(tftype, enumerant, name)
 // NOLINTNEXTLINE
 #include "tf_types.def"
-                      .StartsWith("resource", TensorFlowTypes::RESOURCE)
-                      .StartsWith("variant", TensorFlowTypes::VARIANT)
-                      .Default(0);
-  switch (typeKind) {
+                        .StartsWith("resource", TensorFlowTypes::RESOURCE)
+                        .StartsWith("variant", TensorFlowTypes::VARIANT)
+                        .Default(0);
+    switch (typeKind)
+    {
     default:
-      return (emitError(loc, "unknown TensorFlow type: " + data), nullptr);
+        return (emitError(loc, "unknown TensorFlow type: " + data), nullptr);
 
 #define HANDLE_TF_TYPE(tftype, enumerant, name) \
-  case TensorFlowTypes::enumerant:              \
-    return tftype##Type::get(getContext());
+    case TensorFlowTypes::enumerant:            \
+        return tftype##Type::get(getContext());
 #define HANDLE_CUSTOM_TF_TYPE(tftype, enumerant, name)
 // NOLINTNEXTLINE
 #include "tf_types.def"
     case TensorFlowTypes::RESOURCE:
-      return ParseResourceType(parser, loc);
+        return ParseResourceType(parser, loc);
     case TensorFlowTypes::VARIANT:
-      return ParseVariantType(parser, loc);
-  }
+        return ParseVariantType(parser, loc);
+    }
 }
 
 namespace {
-template <typename TypeWithSubtype>
-Type ParseTypeWithSubtype(MLIRContext *context, DialectAsmParser &parser,
-                          Location loc) {
-  // Default type without inferred subtypes.
-  if (failed(parser.parseOptionalLess())) return TypeWithSubtype::get(context);
+template<typename TypeWithSubtype>
+Type ParseTypeWithSubtype(MLIRContext* context, DialectAsmParser& parser,
+                          Location loc)
+{
+    // Default type without inferred subtypes.
+    if (failed(parser.parseOptionalLess())) return TypeWithSubtype::get(context);
 
-  // Most types with subtypes have only one subtype.
-  SmallVector<TensorType, 1> subtypes;
-  do {
-    TensorType tensor_ty;
-    if (parser.parseType(tensor_ty)) return Type();
-    subtypes.push_back(tensor_ty);
-  } while (succeeded(parser.parseOptionalComma()));
+    // Most types with subtypes have only one subtype.
+    SmallVector<TensorType, 1> subtypes;
+    do
+    {
+        TensorType tensor_ty;
+        if (parser.parseType(tensor_ty)) return Type();
+        subtypes.push_back(tensor_ty);
+    } while (succeeded(parser.parseOptionalComma()));
 
-  if (parser.parseGreater()) return Type();
-  return TypeWithSubtype::getChecked(subtypes, context, loc);
+    if (parser.parseGreater()) return Type();
+    return TypeWithSubtype::getChecked(subtypes, context, loc);
 }
 
-}  // anonymous namespace
+} // anonymous namespace
 
-Type TensorFlowDialect::ParseResourceType(DialectAsmParser &parser,
-                                          Location loc) const {
-  return ParseTypeWithSubtype<ResourceType>(getContext(), parser, loc);
+Type TensorFlowDialect::ParseResourceType(DialectAsmParser& parser,
+                                          Location loc) const
+{
+    return ParseTypeWithSubtype<ResourceType>(getContext(), parser, loc);
 }
 
-Type TensorFlowDialect::ParseVariantType(DialectAsmParser &parser,
-                                         Location loc) const {
-  return ParseTypeWithSubtype<VariantType>(getContext(), parser, loc);
+Type TensorFlowDialect::ParseVariantType(DialectAsmParser& parser,
+                                         Location loc) const
+{
+    return ParseTypeWithSubtype<VariantType>(getContext(), parser, loc);
 }
 
-Operation *TensorFlowDialect::materializeConstant(OpBuilder &builder,
+Operation* TensorFlowDialect::materializeConstant(OpBuilder& builder,
                                                   Attribute value, Type type,
-                                                  Location loc) {
-  return builder.create<ConstOp>(loc, type, value);
+                                                  Location loc)
+{
+    return builder.create<ConstOp>(loc, type, value);
 }
 
 #define GET_OP_CLASSES
@@ -306,56 +330,63 @@ Operation *TensorFlowDialect::materializeConstant(OpBuilder &builder,
 // wraps it up with a tensor type of empty shape.
 // TODO(jpienaar): This one differs from the autogenerated one as it takes an
 // attribute but always creates an ElementsAttr internally.
-void ConstOp::build(OpBuilder &builder, OperationState &result,
-                    Attribute value) {
-  ShapedType type;
-  if (auto elem_attr = value.dyn_cast<ElementsAttr>()) {
-    return ConstOp::build(builder, result, elem_attr);
-  } else if (value.isa<BoolAttr>() || value.isa<FloatAttr>() ||
-             value.isa<IntegerAttr>()) {
-    // All TensorFlow types must be tensor types. In the build() method,
-    // we want to provide more flexibility by allowing attributes of scalar
-    // types. But we need to wrap it up with ElementsAttr to construct
-    // valid TensorFlow constants.
-    type = RankedTensorType::get(/*shape=*/{}, value.getType());
-    return ConstOp::build(builder, result, DenseElementsAttr::get(type, value));
-  }
-  // TODO(jpienaar): support other TensorFlow specific types.
-  llvm_unreachable("unsupported attribute type for building tf.Const");
+void ConstOp::build(OpBuilder& builder, OperationState& result,
+                    Attribute value)
+{
+    ShapedType type;
+    if (auto elem_attr = value.dyn_cast<ElementsAttr>())
+    {
+        return ConstOp::build(builder, result, elem_attr);
+    }
+    else if (value.isa<BoolAttr>() || value.isa<FloatAttr>() || value.isa<IntegerAttr>())
+    {
+        // All TensorFlow types must be tensor types. In the build() method,
+        // we want to provide more flexibility by allowing attributes of scalar
+        // types. But we need to wrap it up with ElementsAttr to construct
+        // valid TensorFlow constants.
+        type = RankedTensorType::get(/*shape=*/{}, value.getType());
+        return ConstOp::build(builder, result, DenseElementsAttr::get(type, value));
+    }
+    // TODO(jpienaar): support other TensorFlow specific types.
+    llvm_unreachable("unsupported attribute type for building tf.Const");
 }
 
-void ConstOp::build(OpBuilder &builder, OperationState &result, Type type,
-                    Attribute value) {
-  // Handle the case where the type and value are already tensors.
-  if (type.isa<TensorType>() && value.isa<ElementsAttr>()) {
-    result.addTypes(type);
-    result.addAttribute("value", value);
-    return;
-  }
+void ConstOp::build(OpBuilder& builder, OperationState& result, Type type,
+                    Attribute value)
+{
+    // Handle the case where the type and value are already tensors.
+    if (type.isa<TensorType>() && value.isa<ElementsAttr>())
+    {
+        result.addTypes(type);
+        result.addAttribute("value", value);
+        return;
+    }
 
-  // Otherwise, default to the attribute builder.
-  ConstOp::build(builder, result, value);
-  assert(type == result.types[0] && "type mismatch in construction");
+    // Otherwise, default to the attribute builder.
+    ConstOp::build(builder, result, value);
+    assert(type == result.types[0] && "type mismatch in construction");
 }
 
 LogicalResult ConstOp::inferReturnTypes(
-    MLIRContext *context, Optional<Location> location, ValueRange operands,
+    MLIRContext* context, Optional<Location> location, ValueRange operands,
     DictionaryAttr attributes, RegionRange regions,
-    SmallVectorImpl<Type> &inferredReturnTypes) {
-  auto value = attributes.get("value");
-  if (!value) return emitOptionalError(location, "missing attribute 'value'");
-  if (auto elem_attr = value.dyn_cast<ElementsAttr>()) {
-    inferredReturnTypes.assign({elem_attr.getType()});
-    return success();
-  }
-  return emitOptionalError(location,
-                           "attribute 'value' failed to satisfy constraint: "
-                           "constant vector/tensor");
+    SmallVectorImpl<Type>& inferredReturnTypes)
+{
+    auto value = attributes.get("value");
+    if (!value) return emitOptionalError(location, "missing attribute 'value'");
+    if (auto elem_attr = value.dyn_cast<ElementsAttr>())
+    {
+        inferredReturnTypes.assign({elem_attr.getType()});
+        return success();
+    }
+    return emitOptionalError(location,
+                             "attribute 'value' failed to satisfy constraint: "
+                             "constant vector/tensor");
 }
 
-}
+} // namespace TF
 
-}
+} // namespace mlir
 
 static std::string get_mlir_value_uniq_id(const mlir::Value& value)
 {
@@ -429,7 +460,7 @@ static std::vector<int> get_attr_ai(const mlir::Attribute& attr)
         const int array_size = a.getValue().size();
 
         v.resize(array_size);
-        for (int j=0; j<array_size; j++)
+        for (int j = 0; j < array_size; j++)
         {
             if (a[j].isa<mlir::IntegerAttr>())
             {
@@ -462,7 +493,7 @@ static std::vector<float> get_attr_af(const mlir::Attribute& attr)
         const int array_size = a.getValue().size();
 
         v.resize(array_size);
-        for (int j=0; j<array_size; j++)
+        for (int j = 0; j < array_size; j++)
         {
             if (a[j].isa<mlir::FloatAttr>())
             {
@@ -541,13 +572,13 @@ int main(int argc, char** argv)
     mlir::MLIRContext context;
     mlir::OwningModuleRef m = mlir::parseSourceFile(mlirpath, &context);
 
-//     m->dump();
+    //     m->dump();
 
     mlir::FuncOp main_fn = m->lookupSymbol<mlir::FuncOp>("main");
 
     auto& bb = main_fn.getBlocks().front();
 
-//     bb.dump();
+    //     bb.dump();
 
     FILE* pp = fopen(ncnn_prototxt, "wb");
     FILE* bp = fopen(ncnn_modelbin, "wb");
@@ -598,7 +629,7 @@ int main(int argc, char** argv)
             if (isBinaryOp)
             {
                 // check weights
-                for (int j=0; j<num_input; j++)
+                for (int j = 0; j < num_input; j++)
                 {
                     std::string input_name = get_mlir_value_uniq_id(operation.getOperand(j));
 
@@ -613,7 +644,7 @@ int main(int argc, char** argv)
             }
         }
 
-        for (int j=0; j<num_input; j++)
+        for (int j = 0; j < num_input; j++)
         {
             std::string input_name = get_mlir_value_uniq_id(operation.getOperand(j));
 
@@ -635,7 +666,7 @@ int main(int argc, char** argv)
             }
         }
 
-        for (int j=0; j<num_output; j++)
+        for (int j = 0; j < num_output; j++)
         {
             std::string output_name = get_mlir_value_uniq_id(operation.getResult(j));
 
@@ -655,7 +686,7 @@ int main(int argc, char** argv)
         else
         {
             splitncnn_blob_count += it->second;
-//             fprintf(stderr, "%s %d\n", it->first.c_str(), it->second);
+            //             fprintf(stderr, "%s %d\n", it->first.c_str(), it->second);
             ++it;
         }
     }
@@ -678,7 +709,7 @@ int main(int argc, char** argv)
         int num_input = (int)operation.getNumOperands();
         int num_output = (int)operation.getNumResults();
 
-        for (int i=0; i<(int)operation.getNumOperands(); i++)
+        for (int i = 0; i < (int)operation.getNumOperands(); i++)
         {
             std::string input_name = get_mlir_value_uniq_id(operation.getOperand(i));
 
@@ -825,7 +856,7 @@ int main(int argc, char** argv)
 
         fprintf(pp, " op_%d %d %d", opid, num_input, num_output);
 
-        for (int i=0; i<(int)operation.getNumOperands(); i++)
+        for (int i = 0; i < (int)operation.getNumOperands(); i++)
         {
             std::string input_name = get_mlir_value_uniq_id(operation.getOperand(i));
 
@@ -848,12 +879,11 @@ int main(int argc, char** argv)
             fprintf(pp, " %s", input_name.c_str());
         }
 
-        for (int i=0; i<num_output; i++)
+        for (int i = 0; i < num_output; i++)
         {
             std::string output_name = get_mlir_value_uniq_id(operation.getResult(i));
             fprintf(pp, " %s", output_name.c_str());
         }
-
 
         if (op == "std.return")
         {
@@ -874,12 +904,14 @@ int main(int argc, char** argv)
             std::vector<int> strides = get_operation_attr_ai(operation, "strides");
             std::string padding = get_operation_attr_s(operation, "padding");
 
-            if (ksize.size() == 4) {
+            if (ksize.size() == 4)
+            {
                 fprintf(pp, " 1=%d", ksize[2]);
                 fprintf(pp, " 11=%d", ksize[1]);
             }
 
-            if (strides.size() == 4) {
+            if (strides.size() == 4)
+            {
                 fprintf(pp, " 2=%d", strides[2]);
                 fprintf(pp, " 12=%d", strides[1]);
             }
@@ -979,13 +1011,13 @@ int main(int argc, char** argv)
 
                     float tmp;
                     // h-w-c to c-h-w
-                    for (int p=0; p<c; p++)
+                    for (int p = 0; p < c; p++)
                     {
-                        for (int i=0; i<h; i++)
+                        for (int i = 0; i < h; i++)
                         {
-                            for (int j=0; j<w; j++)
+                            for (int j = 0; j < w; j++)
                             {
-                                tmp = v[i*w*c + j*c + p];
+                                tmp = v[i * w * c + j * c + p];
                                 fwrite(&tmp, sizeof(float), 1, bp);
                             }
                         }
@@ -1000,7 +1032,7 @@ int main(int argc, char** argv)
 
             llvm::ArrayRef<int64_t> shape = W.getType().cast<mlir::RankedTensorType>().getShape();
 
-//             assert(shape.size() == 4)
+            //             assert(shape.size() == 4)
 
             // kh-kw-inch-outch
             int kernel_size_h = shape[0];
@@ -1018,12 +1050,14 @@ int main(int argc, char** argv)
             std::vector<int> strides = get_operation_attr_ai(operation, "strides");
             std::string padding = get_operation_attr_s(operation, "padding");
 
-            if (dilations.size() == 4) {
+            if (dilations.size() == 4)
+            {
                 fprintf(pp, " 2=%d", dilations[2]);
                 fprintf(pp, " 12=%d", dilations[1]);
             }
 
-            if (strides.size() == 4) {
+            if (strides.size() == 4)
+            {
                 fprintf(pp, " 3=%d", strides[2]);
                 fprintf(pp, " 13=%d", strides[1]);
             }
@@ -1055,15 +1089,15 @@ int main(int argc, char** argv)
                 fwrite(&quantize_tag, sizeof(int), 1, bp);
 
                 float tmp;
-                for (int p=0; p<num_output; p++)
+                for (int p = 0; p < num_output; p++)
                 {
-                    for (int q=0; q<num_input; q++)
+                    for (int q = 0; q < num_input; q++)
                     {
-                        for (int i=0; i<kernel_size_h; i++)
+                        for (int i = 0; i < kernel_size_h; i++)
                         {
-                            for (int j=0; j<kernel_size_w; j++)
+                            for (int j = 0; j < kernel_size_w; j++)
                             {
-                                tmp = v[i*kernel_size_w*num_input*num_output + j*num_input*num_output + q*num_output + p];
+                                tmp = v[i * kernel_size_w * num_input * num_output + j * num_input * num_output + q * num_output + p];
                                 fwrite(&tmp, sizeof(float), 1, bp);
                             }
                         }
@@ -1076,14 +1110,14 @@ int main(int argc, char** argv)
             std::string output_shape_name = get_mlir_value_uniq_id(operation.getOperand(0));
             const std::vector<int> output_shape = get_attr_ai(weights[output_shape_name]);
 
-//             assert(output_shape.size() == 4)
+            //             assert(output_shape.size() == 4)
 
             std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
             const mlir::Attribute& W = weights[weight_name];
 
             llvm::ArrayRef<int64_t> shape = W.getType().cast<mlir::RankedTensorType>().getShape();
 
-//             assert(shape.size() == 4)
+            //             assert(shape.size() == 4)
 
             // kh-kw-outch-inch
             int kernel_size_h = shape[0];
@@ -1101,12 +1135,14 @@ int main(int argc, char** argv)
             std::vector<int> strides = get_operation_attr_ai(operation, "strides");
             std::string padding = get_operation_attr_s(operation, "padding");
 
-            if (dilations.size() == 4) {
+            if (dilations.size() == 4)
+            {
                 fprintf(pp, " 2=%d", dilations[2]);
                 fprintf(pp, " 12=%d", dilations[1]);
             }
 
-            if (strides.size() == 4) {
+            if (strides.size() == 4)
+            {
                 fprintf(pp, " 3=%d", strides[2]);
                 fprintf(pp, " 13=%d", strides[1]);
             }
@@ -1141,15 +1177,15 @@ int main(int argc, char** argv)
                 fwrite(&quantize_tag, sizeof(int), 1, bp);
 
                 float tmp;
-                for (int p=0; p<num_output; p++)
+                for (int p = 0; p < num_output; p++)
                 {
-                    for (int q=0; q<num_input; q++)
+                    for (int q = 0; q < num_input; q++)
                     {
-                        for (int i=0; i<kernel_size_h; i++)
+                        for (int i = 0; i < kernel_size_h; i++)
                         {
-                            for (int j=0; j<kernel_size_w; j++)
+                            for (int j = 0; j < kernel_size_w; j++)
                             {
-                                tmp = v[i*kernel_size_w*num_output*num_input + j*num_output*num_input + p*num_input + q];
+                                tmp = v[i * kernel_size_w * num_output * num_input + j * num_output * num_input + p * num_input + q];
                                 fwrite(&tmp, sizeof(float), 1, bp);
                             }
                         }
@@ -1164,7 +1200,7 @@ int main(int argc, char** argv)
 
             llvm::ArrayRef<int64_t> shape = W.getType().cast<mlir::RankedTensorType>().getShape();
 
-//             assert(shape.size() == 4)
+            //             assert(shape.size() == 4)
 
             // kh-kw-inch-cm
             int kernel_size_h = shape[0];
@@ -1187,12 +1223,14 @@ int main(int argc, char** argv)
             std::vector<int> strides = get_operation_attr_ai(operation, "strides");
             std::string padding = get_operation_attr_s(operation, "padding");
 
-            if (dilations.size() == 4) {
+            if (dilations.size() == 4)
+            {
                 fprintf(pp, " 2=%d", dilations[2]);
                 fprintf(pp, " 12=%d", dilations[1]);
             }
 
-            if (strides.size() == 4) {
+            if (strides.size() == 4)
+            {
                 fprintf(pp, " 3=%d", strides[2]);
                 fprintf(pp, " 13=%d", strides[1]);
             }
@@ -1224,15 +1262,15 @@ int main(int argc, char** argv)
                 fwrite(&quantize_tag, sizeof(int), 1, bp);
 
                 float tmp;
-                for (int p=0; p<num_input; p++)
+                for (int p = 0; p < num_input; p++)
                 {
-                    for (int q=0; q<channel_multiplier; q++)
+                    for (int q = 0; q < channel_multiplier; q++)
                     {
-                        for (int i=0; i<kernel_size_h; i++)
+                        for (int i = 0; i < kernel_size_h; i++)
                         {
-                            for (int j=0; j<kernel_size_w; j++)
+                            for (int j = 0; j < kernel_size_w; j++)
                             {
-                                tmp = v[i*kernel_size_w*channel_multiplier*num_input + j*channel_multiplier*num_input + p*channel_multiplier + q];
+                                tmp = v[i * kernel_size_w * channel_multiplier * num_input + j * channel_multiplier * num_input + p * channel_multiplier + q];
                                 fwrite(&tmp, sizeof(float), 1, bp);
                             }
                         }
@@ -1256,7 +1294,7 @@ int main(int argc, char** argv)
 
             llvm::ArrayRef<int64_t> shape = W.getType().cast<mlir::RankedTensorType>().getShape();
 
-//             assert(shape.size() == 2)
+            //             assert(shape.size() == 2)
 
             // inch-outch
             int num_input = shape[0];
@@ -1274,11 +1312,11 @@ int main(int argc, char** argv)
                 fwrite(&quantize_tag, sizeof(int), 1, bp);
 
                 float tmp;
-                for (int p=0; p<num_output; p++)
+                for (int p = 0; p < num_output; p++)
                 {
-                    for (int q=0; q<num_input; q++)
+                    for (int q = 0; q < num_input; q++)
                     {
-                        tmp = v[q*num_output + p];
+                        tmp = v[q * num_output + p];
                         fwrite(&tmp, sizeof(float), 1, bp);
                     }
                 }
@@ -1290,12 +1328,14 @@ int main(int argc, char** argv)
             std::vector<int> strides = get_operation_attr_ai(operation, "strides");
             std::string padding = get_operation_attr_s(operation, "padding");
 
-            if (ksize.size() == 4) {
+            if (ksize.size() == 4)
+            {
                 fprintf(pp, " 1=%d", ksize[2]);
                 fprintf(pp, " 11=%d", ksize[1]);
             }
 
-            if (strides.size() == 4) {
+            if (strides.size() == 4)
+            {
                 fprintf(pp, " 2=%d", strides[2]);
                 fprintf(pp, " 12=%d", strides[1]);
             }
@@ -1390,7 +1430,6 @@ int main(int argc, char** argv)
             {
                 fprintf(pp, " 0=%d 1=-233 2=-233", v[1]);
             }
-
         }
         else if (op == "tf.Sigmoid")
         {
@@ -1420,24 +1459,24 @@ int main(int argc, char** argv)
             int dims = strides.size();
 
             // assert strides == 1
-            for (int i=0; i<dims; i++)
+            for (int i = 0; i < dims; i++)
             {
                 if (strides[i] != 1)
                     fprintf(stderr, "Unsupported StridedSlice strides !\n");
             }
 
-            for (int i=0; i<dims; i++)
+            for (int i = 0; i < dims; i++)
             {
                 // TODO strides[i] < 0
-                if (begin_mask & (1<<i))
+                if (begin_mask & (1 << i))
                 {
                     begin[i] = 0;
                 }
-                if (end_mask & (1<<i))
+                if (end_mask & (1 << i))
                 {
                     end[i] = -233;
                 }
-                if (ellipsis_mask & (1<<i))
+                if (ellipsis_mask & (1 << i))
                 {
                     begin[i] = 0;
                     end[i] = -233;
@@ -1590,7 +1629,7 @@ int main(int argc, char** argv)
 
         fprintf(pp, "\n");
 
-        for (int j=0; j<num_output; j++)
+        for (int j = 0; j < num_output; j++)
         {
             std::string output_name = get_mlir_value_uniq_id(operation.getResult(j));
             if (node_reference.find(output_name) != node_reference.end())
@@ -1604,7 +1643,7 @@ int main(int argc, char** argv)
 
                     fprintf(pp, " %s", output_name.c_str());
 
-                    for (int k=0; k<refcount; k++)
+                    for (int k = 0; k < refcount; k++)
                     {
                         fprintf(pp, " %s_splitncnn_%d", output_name.c_str(), k);
                     }
