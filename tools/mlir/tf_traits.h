@@ -30,7 +30,7 @@ namespace TF {
 
 // Verifies if 'ref_type' is a REF type corresponding to 'type'.
 static inline LogicalResult VerifyRefTypeMatch(mlir::Type type,
-        mlir::Type maybe_ref_type)
+                                               mlir::Type maybe_ref_type)
 {
     if (auto ref_type = maybe_ref_type.dyn_cast<mlir::TF::TensorFlowRefType>())
         return success(ref_type.RemoveRef().getKind() == type.getKind());
@@ -62,9 +62,9 @@ public:
         for (auto operand_type : op->getOperandTypes())
         {
             if (!mlir::TF::HasCompatibleElementTypes(
-                        operand_type, type, /*may_ignore_ref_type_lhs=*/true))
+                    operand_type, type, /*may_ignore_ref_type_lhs=*/true))
                 return op->emitError() << "requires all operands and results to have "
-                       "compatible element types";
+                                          "compatible element types";
         }
         return success();
     }

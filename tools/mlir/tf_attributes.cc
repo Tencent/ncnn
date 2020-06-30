@@ -46,7 +46,7 @@ struct ShapeAttrStorage : public AttributeStorage
                                        const KeyTy& key)
     {
         return new (allocator.allocate<ShapeAttrStorage>())
-               ShapeAttrStorage(allocator.copyInto(key.first), key.second);
+            ShapeAttrStorage(allocator.copyInto(key.first), key.second);
     }
 
     ArrayRef<int64_t> shape;
@@ -76,7 +76,7 @@ struct FuncAttrStorage : public AttributeStorage
                                       const KeyTy& key)
     {
         return new (allocator.allocate<FuncAttrStorage>())
-               FuncAttrStorage(key.first, key.second);
+            FuncAttrStorage(key.first, key.second);
     }
 
     Attribute name;

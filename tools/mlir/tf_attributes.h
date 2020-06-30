@@ -46,7 +46,7 @@ struct FuncAttrStorage;
 } // namespace detail
 
 class ShapeAttr : public Attribute::AttrBase<ShapeAttr, Attribute,
-    detail::ShapeAttrStorage>
+                                             detail::ShapeAttrStorage>
 {
 public:
     using Base::Base;
