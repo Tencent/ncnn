@@ -19,7 +19,6 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
     int outh = top_blob.h;
     int outch = top_blob.c;
     const float* bias = _bias;
-
     int nn_outch = 0;
     int remain_outch_start = 0;
 
@@ -496,7 +495,8 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum1 = _mm256_fmadd_ps(_r22, _k20, _sum1);
                     _sum1 = _mm256_fmadd_ps(_r23, _k21, _sum1);
                     _sum1 = _mm256_fmadd_ps(_r24, _k22, _sum1);
-                    _mm256_storeu_ps(outptr0 + 8, _sum0);
+
+                    _mm256_storeu_ps(outptr0 + 8, _sum1);
 
                     r0 += 2;
                     r1 += 2;
@@ -528,7 +528,6 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum0 = _mm256_fmadd_ps(_r23, _k22, _sum0);
 
                     _mm256_storeu_ps(outptr0, _sum0);
-
                     r0 += 1;
                     r1 += 1;
                     r2 += 1;
