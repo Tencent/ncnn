@@ -35,8 +35,8 @@ namespace TF {
 // shape otherwise.
 class OperandShapeIterator final
     : public llvm::mapped_iterator<Operation::operand_iterator,
-                                   llvm::Optional<ArrayRef<int64_t> > (*)(
-                                       Value)>
+      llvm::Optional<ArrayRef<int64_t> > (*)(
+          Value)>
 {
 public:
     using reference = llvm::Optional<ArrayRef<int64_t> >;
@@ -52,8 +52,8 @@ using OperandShapeRange = iterator_range<OperandShapeIterator>;
 // shape otherwise.
 class ResultShapeIterator final
     : public llvm::mapped_iterator<Operation::result_iterator,
-                                   llvm::Optional<ArrayRef<int64_t> > (*)(
-                                       Value)>
+      llvm::Optional<ArrayRef<int64_t> > (*)(
+          Value)>
 {
 public:
     using reference = llvm::Optional<ArrayRef<int64_t> >;
@@ -208,11 +208,11 @@ public:
 
     // NOLINTNEXTLINE
     static TypeWithSubtypeStorage* construct(TypeStorageAllocator& allocator,
-                                             const KeyTy& key)
+            const KeyTy& key)
     {
         ArrayRef<TensorType> subtypes = allocator.copyInto(key);
         return new (allocator.allocate<TypeWithSubtypeStorage>())
-            TypeWithSubtypeStorage(subtypes);
+               TypeWithSubtypeStorage(subtypes);
     }
 
     explicit TypeWithSubtypeStorage(const KeyTy& key)
@@ -281,7 +281,7 @@ public:
             if (!IsValidTFTensorType(subtype))
             {
                 return emitError(loc) << "invalid " << Derived::getTypeName()
-                                      << " subtype: " << subtype;
+                       << " subtype: " << subtype;
             }
         }
         return success();

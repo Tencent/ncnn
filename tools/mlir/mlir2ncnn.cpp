@@ -151,13 +151,13 @@ TensorFlowDialect::TensorFlowDialect(mlir::MLIRContext* context)
     addOperations<
 #define GET_OP_LIST
 #include "tf_ops.cpp.inc"
-        >();
+    >();
 
     addTypes<
 #define HANDLE_TF_TYPE(tftype, enumerant, name)      tftype##Type,
 #define HANDLE_LAST_TF_TYPE(tftype, enumerant, name) tftype##Type
 #include "tf_types.def"
-        >();
+    >();
     addInterfaces<TFInlinerInterface>();
     addAttributes<ShapeAttr, FuncAttr>();
 
@@ -232,7 +232,7 @@ FuncAttr ParseFuncAttr(MLIRContext* context, StringRef spec, Location loc)
 }
 
 Attribute TensorFlowDialect::parseAttribute(DialectAsmParser& parser,
-                                            Type type) const
+        Type type) const
 {
     auto spec = parser.getFullSymbolSpec();
     Location loc = parser.getEncodedSourceLoc(parser.getNameLoc());
@@ -259,9 +259,9 @@ Type TensorFlowDialect::parseType(DialectAsmParser& parser) const
 #define HANDLE_CUSTOM_TF_TYPE(tftype, enumerant, name)
 // NOLINTNEXTLINE
 #include "tf_types.def"
-                        .StartsWith("resource", TensorFlowTypes::RESOURCE)
-                        .StartsWith("variant", TensorFlowTypes::VARIANT)
-                        .Default(0);
+                    .StartsWith("resource", TensorFlowTypes::RESOURCE)
+                    .StartsWith("variant", TensorFlowTypes::VARIANT)
+                    .Default(0);
     switch (typeKind)
     {
     default:
@@ -304,20 +304,20 @@ Type ParseTypeWithSubtype(MLIRContext* context, DialectAsmParser& parser,
 } // anonymous namespace
 
 Type TensorFlowDialect::ParseResourceType(DialectAsmParser& parser,
-                                          Location loc) const
+        Location loc) const
 {
     return ParseTypeWithSubtype<ResourceType>(getContext(), parser, loc);
 }
 
 Type TensorFlowDialect::ParseVariantType(DialectAsmParser& parser,
-                                         Location loc) const
+        Location loc) const
 {
     return ParseTypeWithSubtype<VariantType>(getContext(), parser, loc);
 }
 
 Operation* TensorFlowDialect::materializeConstant(OpBuilder& builder,
-                                                  Attribute value, Type type,
-                                                  Location loc)
+        Attribute value, Type type,
+        Location loc)
 {
     return builder.create<ConstOp>(loc, type, value);
 }
@@ -344,7 +344,7 @@ void ConstOp::build(OpBuilder& builder, OperationState& result,
         // we want to provide more flexibility by allowing attributes of scalar
         // types. But we need to wrap it up with ElementsAttr to construct
         // valid TensorFlow constants.
-        type = RankedTensorType::get(/*shape=*/{}, value.getType());
+        type = RankedTensorType::get(/*shape=*/ {}, value.getType());
         return ConstOp::build(builder, result, DenseElementsAttr::get(type, value));
     }
     // TODO(jpienaar): support other TensorFlow specific types.
