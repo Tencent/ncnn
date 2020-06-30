@@ -25,7 +25,7 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
     nn_outch = outch >> 1;
     remain_outch_start = nn_outch << 1;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
         int p = pp * 2;
@@ -342,7 +342,7 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
         }
     }
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
     {
         Mat out0 = top_blob.channel(p);
@@ -556,13 +556,13 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
 
     const float* bias = _bias;
 
-   int nn_outch = 0;
+    int nn_outch = 0;
     int remain_outch_start = 0;
 
     nn_outch = outch >> 1;
     remain_outch_start = nn_outch << 1;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
         int p = pp * 2;
@@ -761,23 +761,23 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m256 _sum04 = _mm256_loadu_ps(outptr0 + 32);
                     __m256 _sum14 = _mm256_loadu_ps(outptr1 + 32);
 
-                    _sum04 = _mm256_fmadd_ps(_r09 , _k00_0, _sum04);
+                    _sum04 = _mm256_fmadd_ps(_r09, _k00_0, _sum04);
                     _sum04 = _mm256_fmadd_ps(_r010, _k01_0, _sum04);
                     _sum04 = _mm256_fmadd_ps(_r011, _k02_0, _sum04);
-                    _sum04 = _mm256_fmadd_ps(_r19 , _k10_0, _sum04);
+                    _sum04 = _mm256_fmadd_ps(_r19, _k10_0, _sum04);
                     _sum04 = _mm256_fmadd_ps(_r110, _k11_0, _sum04);
                     _sum04 = _mm256_fmadd_ps(_r111, _k12_0, _sum04);
-                    _sum04 = _mm256_fmadd_ps(_r29 , _k20_0, _sum04);
+                    _sum04 = _mm256_fmadd_ps(_r29, _k20_0, _sum04);
                     _sum04 = _mm256_fmadd_ps(_r210, _k21_0, _sum04);
                     _sum04 = _mm256_fmadd_ps(_r211, _k22_0, _sum04);
 
-                    _sum14 = _mm256_fmadd_ps(_r09 , _k00_1, _sum14);
+                    _sum14 = _mm256_fmadd_ps(_r09, _k00_1, _sum14);
                     _sum14 = _mm256_fmadd_ps(_r010, _k01_1, _sum14);
                     _sum14 = _mm256_fmadd_ps(_r011, _k02_1, _sum14);
-                    _sum14 = _mm256_fmadd_ps(_r19 , _k10_1, _sum14);
+                    _sum14 = _mm256_fmadd_ps(_r19, _k10_1, _sum14);
                     _sum14 = _mm256_fmadd_ps(_r110, _k11_1, _sum14);
                     _sum14 = _mm256_fmadd_ps(_r111, _k12_1, _sum14);
-                    _sum14 = _mm256_fmadd_ps(_r29 , _k20_1, _sum14);
+                    _sum14 = _mm256_fmadd_ps(_r29, _k20_1, _sum14);
                     _sum14 = _mm256_fmadd_ps(_r210, _k21_1, _sum14);
                     _sum14 = _mm256_fmadd_ps(_r211, _k22_1, _sum14);
 
@@ -1107,7 +1107,7 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     outptr0 += 16;
                     outptr1 += 16;
                 }
-                for (; j < outw; j ++)
+                for (; j < outw; j++)
                 {
                     __m256 _sum00 = _mm256_loadu_ps(outptr0);
                     __m256 _sum10 = _mm256_loadu_ps(outptr1);
@@ -1161,7 +1161,7 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
         }
     }
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
     {
         Mat out0 = top_blob.channel(p);
@@ -1294,13 +1294,13 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
 
                     __m256 _sum04 = _mm256_loadu_ps(outptr0 + 32);
 
-                    _sum04 = _mm256_fmadd_ps(_r09 , _k00_0, _sum04);
+                    _sum04 = _mm256_fmadd_ps(_r09, _k00_0, _sum04);
                     _sum04 = _mm256_fmadd_ps(_r010, _k01_0, _sum04);
                     _sum04 = _mm256_fmadd_ps(_r011, _k02_0, _sum04);
-                    _sum04 = _mm256_fmadd_ps(_r19 , _k10_0, _sum04);
+                    _sum04 = _mm256_fmadd_ps(_r19, _k10_0, _sum04);
                     _sum04 = _mm256_fmadd_ps(_r110, _k11_0, _sum04);
                     _sum04 = _mm256_fmadd_ps(_r111, _k12_0, _sum04);
-                    _sum04 = _mm256_fmadd_ps(_r29 , _k20_0, _sum04);
+                    _sum04 = _mm256_fmadd_ps(_r29, _k20_0, _sum04);
                     _sum04 = _mm256_fmadd_ps(_r210, _k21_0, _sum04);
                     _sum04 = _mm256_fmadd_ps(_r211, _k22_0, _sum04);
 
@@ -1520,7 +1520,7 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
                     r2 += 4;
                     outptr0 += 16;
                 }
-                for (; j < outw; j ++)
+                for (; j < outw; j++)
                 {
                     __m256 _sum00 = _mm256_loadu_ps(outptr0);
                     __m256 _r01 = _mm256_broadcast_ss(r0);

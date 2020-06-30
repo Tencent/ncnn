@@ -23,7 +23,7 @@ static void convdw3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
 
     const float* bias = _bias;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int g = 0; g < group; g++)
     {
         Mat out = top_blob.channel(g);
@@ -128,7 +128,6 @@ static void convdw3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum3 = _mm256_fmadd_ps(_k21, _r24, _sum3);
                 _sum3 = _mm256_fmadd_ps(_k22, _r25, _sum3);
 
-
                 __m256 _sum4 = _bias0;
                 __m256 _r06 = _mm256_loadu_ps(r0 + 48);
                 __m256 _r16 = _mm256_loadu_ps(r1 + 48);
@@ -144,7 +143,6 @@ static void convdw3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum4 = _mm256_fmadd_ps(_k20, _r24, _sum4);
                 _sum4 = _mm256_fmadd_ps(_k21, _r25, _sum4);
                 _sum4 = _mm256_fmadd_ps(_k22, _r26, _sum4);
-
 
                 __m256 _sum5 = _bias0;
                 __m256 _r07 = _mm256_loadu_ps(r0 + 56);
@@ -378,7 +376,7 @@ static void convdw3x3s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
 
     const float* bias = _bias;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int g = 0; g < group; g++)
     {
         Mat out = top_blob.channel(g);
