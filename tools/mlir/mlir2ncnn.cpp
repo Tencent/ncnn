@@ -814,6 +814,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "BinaryOp");
         }
+        else if (op == "tf.Tanh")
+        {
+            fprintf(pp, "%-16s", "TanH");
+        }
         else
         {
             fprintf(pp, "%-16s", op.c_str());
@@ -1473,6 +1477,9 @@ int main(int argc, char** argv)
         {
             int op_type = 1;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "tf.Tanh")
+        {
         }
 
 #if 0
