@@ -37,7 +37,7 @@ int LRN_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     if (square_blob.empty())
         return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* ptr = bottom_top_blob.channel(q);
@@ -80,7 +80,7 @@ int LRN_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         const float alpha_div_size = alpha / local_size;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             // square sum
@@ -198,7 +198,7 @@ int LRN_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
         }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);

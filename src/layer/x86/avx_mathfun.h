@@ -322,7 +322,7 @@ _PS256_CONST(cephes_FOPI, 1.27323954473516); // 4 / M_PI
 
 */
 static inline __m256 sin256_ps(__m256 x)
-{ // any x
+{   // any x
     __m256 xmm1, xmm2 = _mm256_setzero_ps(), xmm3, sign_bit, y;
     __m256i imm0, imm2;
 
@@ -450,7 +450,7 @@ static inline __m256 sin256_ps(__m256 x)
 
 /* almost the same as sin_ps */
 static inline __m256 cos256_ps(__m256 x)
-{ // any x
+{   // any x
     __m256 xmm1, xmm2 = _mm256_setzero_ps(), xmm3, y;
     __m256i imm0, imm2;
 
