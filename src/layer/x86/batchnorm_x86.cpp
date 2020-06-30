@@ -49,7 +49,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 __m256 _b = _mm256_loadu_ps((const float*)b_data + i * 8);
 
                 __m256 _p = _mm256_loadu_ps(ptr);
-                _p = _mm256_fmadd_ps(_p, _b,_a);
+                _p = _mm256_fmadd_ps(_p, _b, _a);
                 _mm256_storeu_ps(ptr, _p);
             }
         }
@@ -70,7 +70,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 for (int j = 0; j < w; j++)
                 {
                     __m256 _p = _mm256_loadu_ps(ptr);
-                    _p = _mm256_fmadd_ps(_p, _b,_a);
+                    _p = _mm256_fmadd_ps(_p, _b, _a);
                     _mm256_storeu_ps(ptr, _p);
 
                     ptr += 8;
@@ -96,7 +96,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 for (int i = 0; i < size; i++)
                 {
                     __m256 _p = _mm256_loadu_ps(ptr);
-                    _p = _mm256_fmadd_ps(_p, _b,_a);
+                    _p = _mm256_fmadd_ps(_p, _b, _a);
                     _mm256_storeu_ps(ptr, _p);
 
                     ptr += 8;
@@ -134,9 +134,10 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #if __AVX__
         __m256 _a = _mm256_set1_ps(a);
         __m256 _b = _mm256_set1_ps(b);
-        for (; nn >0; nn--) {
+        for (; nn > 0; nn--)
+        {
             __m256 _p = _mm256_loadu_ps(ptr);
-            _p = _mm256_fmadd_ps(_p, _b,_a);
+            _p = _mm256_fmadd_ps(_p, _b, _a);
             _mm256_storeu_ps(ptr, _p);
             ptr += 8;
         }
