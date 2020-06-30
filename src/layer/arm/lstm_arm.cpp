@@ -243,9 +243,9 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 
     return 0;
 }
-#if (__ARM_FP & 2)
 static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, Mat& cell_state, const Option& opt)
 {
+#if (__ARM_FP & 2)
     int size = bottom_blob.w;
     int T = bottom_blob.h;
 
@@ -465,8 +465,6 @@ static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
     return 0;
 }
 #else
-static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, Mat& cell_state, const Option& opt)
-{
     return lstm(bottom_blob, top_blob, reverse, weight_xc, bias_c, weight_hc, hidden_state, cell_state, opt);
 }
 #endif

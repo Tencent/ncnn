@@ -42,10 +42,9 @@ public:
 
     // bf16
     Mat weight_data_bf16;
-#if __ARM_NEON
+
     // fp16
     Mat weight_data_fp16;
-#endif
 };
 
 } // namespace ncnn

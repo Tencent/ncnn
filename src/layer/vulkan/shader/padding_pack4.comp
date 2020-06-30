@@ -131,8 +131,12 @@ void main()
     {
         x = abs(x);
         y = abs(y);
-        x = (psc(w) - 1) - abs(x - (psc(w) - 1));
-        y = (psc(h) - 1) - abs(y - (psc(h) - 1));
+        // NOTE psc(X) get zeros on nvidia
+        // TODO only enable this workaround for some nvidia driver
+        x = (p.w - 1) - abs(x - (p.w - 1));
+        y = (p.h - 1) - abs(y - (p.h - 1));
+//         x = (psc(w) - 1) - abs(x - (psc(w) - 1));
+//         y = (psc(h) - 1) - abs(y - (psc(h) - 1));
 
 #if NCNN_image_shader
         image3d_cp4(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, gz));

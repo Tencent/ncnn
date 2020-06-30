@@ -160,8 +160,6 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             hidden_state[q] = H;
             output_data[q] = H;
         }
-        // fprintf(stderr, "output = %f %f hidden = %f %f cell = %f %f \n",output_data[0],output_data[1], hidden_state[0],hidden_state[1],cell_state[0],cell_state[1]);
-        // no cell output here
     }
 
     return 0;

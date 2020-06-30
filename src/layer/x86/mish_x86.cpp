@@ -63,7 +63,22 @@ int Mish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     {
         float* ptr = bottom_top_blob.channel(q);
 
+#if __AVX__
+        int nn = size >> 3;
+        int remain = size & 7;
+#else
         int remain = size;
+#endif // __AVX__
+
+#if __AVX__
+        for (; nn > 0; nn--)
+        {
+            __m256 _p = _mm256_loadu_ps(ptr);
+            _p = mish_avx(_p);
+            _mm256_storeu_ps(ptr, _p);
+            ptr += 8;
+        }
+#endif // __AVX__
         for (; remain > 0; remain--)
         {
             *ptr = *ptr * tanh(log(exp(*ptr) + 1.f));

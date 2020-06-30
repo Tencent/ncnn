@@ -64,10 +64,10 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
 #if __AVX__
         int nn = size >> 3;
-        int remain = size - (nn << 3);
+        int remain = size & 7;
 #else
         int remain = size;
-#endif // __ARM_NEON
+#endif // v
 
 #if __AVX__
         for (; nn > 0; nn--)
