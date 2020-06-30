@@ -31,6 +31,8 @@ int LSTM::load_param(const ParamDict& pd)
     num_output = pd.get(0, 0);
     weight_data_size = pd.get(1, 0);
     direction = pd.get(2, 0);
+    if (direction == 2)
+        one_blob_only = true;
     return 0;
 }
 
@@ -232,8 +234,11 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
 int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    const Mat& bottom_blob = bottom_blobs[0];
 
+    if (bottom_blobs.size() != 3 || top_blobs.size() != 3) {
+        return forward(bottom_blobs[0],top_blobs[0],opt);
+    }
+    const Mat& bottom_blob = bottom_blobs[0];
     int T = bottom_blob.h;
     Mat& top_blob = top_blobs[0];
     Mat& hidden_state = top_blobs[1];

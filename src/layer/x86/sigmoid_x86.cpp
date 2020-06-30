@@ -67,7 +67,7 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int remain = size & 7;
 #else
         int remain = size;
-#endif // v
+#endif // __AVX__
 
 #if __AVX__
         for (; nn > 0; nn--)

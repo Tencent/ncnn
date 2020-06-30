@@ -20,7 +20,7 @@
 #include <arm_neon.h>
 #include "neon_mathfun.h"
 #endif // __ARM_NEON
-
+#include "cpu.h"
 #include "neon_activation.h"
 
 namespace ncnn {
@@ -57,8 +57,8 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     {
         ncnn::cast_float32_to_bfloat16(weight_data, weight_data_bf16, opt);
     }
-#if __ARM_NEON
-    else if (opt.use_fp16_storage && weight_data.elemsize == 4u)
+#if __ARM_NEON && (__ARM_FP & 2)
+    else if (opt.use_fp16_storage && weight_data.elemsize == 4u  && cpu_support_arm_vfpv4())
     {
         ncnn::cast_float32_to_float16(weight_data, weight_data_fp16, opt);
     }
@@ -77,10 +77,9 @@ int InnerProduct_arm::destroy_pipeline(const Option& opt)
 
     return 0;
 }
-#if __ARM_NEON
+#if __ARM_NEON && (__ARM_FP & 2)
 int InnerProduct_arm::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-#if (__ARM_FP & 2)
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
@@ -307,9 +306,6 @@ int InnerProduct_arm::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
         top_blob[p] = sum0;
     }
     return 0;
-#else
-    forward(bottom_blob, top_blob, opt);
-#endif
 }
 #endif
 
@@ -351,19 +347,21 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             bottom_blob_flattened.elemsize = 4u;
             bottom_blob_flattened.elempack = 1;
         }
-        if (opt.use_fp16_storage)
+#if (__ARM_FP & 2)
+        if (opt.use_fp16_storage && cpu_support_arm_vfpv4())
         {
             return forward_fp16(bottom_blob_flattened, top_blob, opt);
         }
-        else
-        {
-            return forward(bottom_blob_flattened, top_blob, opt);
-        }
+#endif
+        return forward(bottom_blob_flattened, top_blob, opt);
+
     }
-    if (opt.use_fp16_storage)
+#if (__ARM_FP & 2)
+    if (opt.use_fp16_storage && cpu_support_arm_vfpv4())
     {
         return forward_fp16(bottom_blob, top_blob, opt);
     }
+#endif
 #endif
     top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
