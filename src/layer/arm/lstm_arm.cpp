@@ -499,7 +499,6 @@ int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 #endif
         // Uni directional
         return lstm(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, cell, opt);
-
     }
 
     if (direction == 2)
