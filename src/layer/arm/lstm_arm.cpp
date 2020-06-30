@@ -466,7 +466,6 @@ static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 }
 #endif
 #endif
-
 int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
 #if __ARM_NEON
@@ -491,7 +490,7 @@ int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-#if __ARM_NEON && (__ARM_FP & 2)
+#if (__ARM_FP & 2)
         if (opt.use_fp16_storage && cpu_support_arm_vfpv4())
         {
             // Uni directional
@@ -512,7 +511,7 @@ int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         Mat top_blob_reverse(num_output, T, 4u, opt.workspace_allocator);
         if (top_blob_reverse.empty())
             return -100;
-#if __ARM_NEON && (__ARM_FP & 2)
+#if (__ARM_FP & 2)
         if (opt.use_fp16_storage && cpu_support_arm_vfpv4())
         {
             // Uni directional
@@ -521,15 +520,16 @@ int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 return ret0;
             hidden.fill(0.0f);
             cell.fill(0.0f);
-
             // Uni directional
             int ret1 = lstm_fp16(bottom_blob, top_blob_reverse, 1, weight_xc_data_fp16.channel(1), bias_c_data.channel(1), weight_hc_data_fp16.channel(1), hidden, cell, opt);
             if (ret1 != 0)
                 return ret1;
-        } else {
+        }
+        else
+        {
 #endif
             // Uni directional
-            int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0), hidden, cell, opt);
+            int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, cell, opt);
             if (ret0 != 0)
                 return ret0;
 
@@ -537,10 +537,10 @@ int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             cell.fill(0.0f);
 
             // Uni directional
-            int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data_fp16.channel(1), bias_c_data.channel(1), weight_hc_data_fp16.channel(1), hidden, cell, opt);
+            int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1), hidden, cell, opt);
             if (ret1 != 0)
                 return ret1;
-#if __ARM_NEON && (__ARM_FP & 2)
+#if (__ARM_FP & 2)
         }
 #endif
 
@@ -565,9 +565,6 @@ int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 int LSTM_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
 #if __ARM_NEON
-    if (bottom_blobs.size() != 3 || top_blobs.size() != 3) {
-        return forward(bottom_blobs[0],top_blobs[0],opt);
-    }
     const Mat& bottom_blob = bottom_blobs[0];
 
     int T = bottom_blob.h;
@@ -582,16 +579,15 @@ int LSTM_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     top_blob.create(num_output, T, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
-    #if __ARM_NEON && (__ARM_FP & 2)
+#if (__ARM_FP & 2)
     if (opt.use_fp16_storage && cpu_support_arm_vfpv4())
     {
         // Uni directional
         return lstm_fp16(bottom_blob, top_blob, direction, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0), hidden_state, cell_state, opt);
     }
-    #endif
+#endif
     // Uni directional
     return lstm(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden_state, cell_state, opt);
-
 #else
     return LSTM::forward(bottom_blobs, top_blobs, opt);
 #endif
