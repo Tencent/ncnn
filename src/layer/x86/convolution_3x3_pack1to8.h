@@ -19,11 +19,9 @@ static void conv3x3s1_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
     int outh = top_blob.h;
     int outch = top_blob.c;
     const float* bias = _bias;
-    int nn_outch = 0;
-    int remain_outch_start = 0;
 
-    nn_outch = outch >> 1;
-    remain_outch_start = nn_outch << 1;
+    int nn_outch = outch >> 1;
+    int remain_outch_start = nn_outch << 1;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
@@ -556,11 +554,8 @@ static void conv3x3s2_pack1to8_avx(const Mat& bottom_blob, Mat& top_blob, const 
 
     const float* bias = _bias;
 
-   int nn_outch = 0;
-    int remain_outch_start = 0;
-
-    nn_outch = outch >> 1;
-    remain_outch_start = nn_outch << 1;
+    int nn_outch = outch >> 1;
+    int remain_outch_start = nn_outch << 1;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
