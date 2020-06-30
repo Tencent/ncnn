@@ -137,7 +137,7 @@ mlir::Type GetCastCompatibleType(mlir::Type a, mlir::Type b,
         for (auto subtypes : llvm::zip(a_wst_st, b_wst_st))
         {
             mlir::Type refined_st = GetCastCompatibleType(std::get<0>(subtypes), std::get<1>(subtypes),
-                                                          /*may_ignore_ref_type_a=*/false);
+                                    /*may_ignore_ref_type_a=*/false);
             if (!refined_st) return nullptr;
             refined_subtypes.push_back(refined_st.cast<mlir::TensorType>());
         }
@@ -147,7 +147,7 @@ mlir::Type GetCastCompatibleType(mlir::Type a, mlir::Type b,
 
     // For tensor types, check compatibility of both element type and shape.
     mlir::Type refined_element_ty = GetCastCompatibleType(
-        a_tt.getElementType(), b_tt.getElementType(), may_ignore_ref_type_a);
+                                        a_tt.getElementType(), b_tt.getElementType(), may_ignore_ref_type_a);
     if (!refined_element_ty) return nullptr;
 
     if (!a_tt.hasRank() && !b_tt.hasRank())
@@ -179,15 +179,15 @@ namespace TF {
 
 OperandShapeIterator::OperandShapeIterator(Operation::operand_iterator it)
     : llvm::mapped_iterator<Operation::operand_iterator,
-                            llvm::Optional<ArrayRef<int64_t> > (*)(Value)>(
-        it, &GetShape)
+      llvm::Optional<ArrayRef<int64_t> > (*)(Value)>(
+          it, &GetShape)
 {
 }
 
 ResultShapeIterator::ResultShapeIterator(Operation::result_iterator it)
     : llvm::mapped_iterator<Operation::result_iterator,
-                            llvm::Optional<ArrayRef<int64_t> > (*)(Value)>(
-        it, &GetShape)
+      llvm::Optional<ArrayRef<int64_t> > (*)(Value)>(
+          it, &GetShape)
 {
 }
 
@@ -230,23 +230,23 @@ TensorFlowType TensorFlowRefType::get(Type type)
             return BoolRefType::get(ctx);
         case 8:
             return itype.isUnsigned() ? TensorFlowType(Uint8RefType::get(ctx))
-                                      : Int8RefType::get(ctx);
+                   : Int8RefType::get(ctx);
         case 16:
             return itype.isUnsigned() ? TensorFlowType(Uint16RefType::get(ctx))
-                                      : Int16RefType::get(ctx);
+                   : Int16RefType::get(ctx);
         case 32:
             return itype.isUnsigned() ? TensorFlowType(Uint32RefType::get(ctx))
-                                      : Int32RefType::get(ctx);
+                   : Int32RefType::get(ctx);
         case 64:
             return itype.isUnsigned() ? TensorFlowType(Uint64RefType::get(ctx))
-                                      : Int64RefType::get(ctx);
+                   : Int64RefType::get(ctx);
         default:
             llvm_unreachable("unexpected integer type");
         }
     }
 #define HANDLE_TF_TYPE(tftype, enumerant, name) \
-    case TensorFlowTypes::enumerant:            \
-        return tftype##RefType::get(ctx);
+case TensorFlowTypes::enumerant:            \
+    return tftype##RefType::get(ctx);
 
 #define HANDLE_TF_REF_TYPE(tftype, enumerant, name)
 // NOLINTNEXTLINE
@@ -380,7 +380,7 @@ bool BroadcastCompatible(ArrayRef<Type> lhs, ArrayRef<Type> rhs)
         if (!lhs_rt || !rhs_rt) return true;
         SmallVector<int64_t, 4> shape;
         return OpTrait::util::getBroadcastedShape(lhs_rt.getShape(),
-                                                  rhs_rt.getShape(), shape);
+                rhs_rt.getShape(), shape);
     }
     return true;
 }
