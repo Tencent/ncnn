@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -11,25 +11,26 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-
 #if __AVX__
-#include <immintrin.h>
+#include "avx_activation.h"
 #endif // __AVX__
 
-#include "hardsigmoid_x86.h"
+#include "tanh_x86.h"
+
+#include <math.h>
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(HardSigmoid_x86)
+DEFINE_LAYER_CREATOR(TanH_x86)
 
-HardSigmoid_x86::HardSigmoid_x86()
+TanH_x86::TanH_x86()
 {
 #if __AVX__
     support_packing = true;
 #endif // __AVX__
 }
 
-int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+int TanH_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -45,17 +46,11 @@ int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            __m256 _zero = _mm256_set1_ps(0.f);
-            __m256 _one = _mm256_set1_ps(1.f);
             for (int i = 0; i < size; i++)
             {
                 __m256 _p = _mm256_loadu_ps(ptr);
-                __m256 _ans = _mm256_set1_ps(beta);
-                _ans = _mm256_fmadd_ps(_p, _mm256_set1_ps(alpha), _ans);
-                _ans = _mm256_max_ps(_ans, _zero);
-                _ans = _mm256_min_ps(_ans, _one);
-                _mm256_storeu_ps(ptr, _ans);
-
+                _p = tanh_avx(_p);
+                _mm256_storeu_ps(ptr, _p);
                 ptr += 8;
             }
         }
@@ -68,35 +63,27 @@ int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
+
 #if __AVX__
-        int nn_size = size >> 3;
-        int remain = size & 7;
-
-        __m256 _zero = _mm256_set1_ps(0.f);
-        __m256 _one = _mm256_set1_ps(1.f);
-        for (; nn_size > 0; nn_size--)
-        {
-            __m256 _p = _mm256_loadu_ps(ptr);
-            __m256 _ans = _mm256_set1_ps(beta);
-            _ans = _mm256_fmadd_ps(_p, _mm256_set1_ps(alpha), _ans);
-            _ans = _mm256_max_ps(_ans, _zero);
-            _ans = _mm256_min_ps(_ans, _one);
-            _mm256_storeu_ps(ptr, _ans);
-
-            ptr += 8;
-        }
+        int nn = size >> 3;
+        int remain = size - (nn << 3);
 #else
         int remain = size;
-#endif
+#endif // __AVX__
+
+#if __AVX__
+        for (; nn > 0; nn--)
+        {
+            __m256 _p = _mm256_loadu_ps(ptr);
+            _p = tanh_avx(_p);
+            _mm256_storeu_ps(ptr, _p);
+            ptr += 8;
+        }
+#endif // __AVX__
         for (; remain > 0; remain--)
         {
-            if (*ptr < lower)
-                *ptr = 0.f;
-            else if (*ptr > upper)
-                *ptr = 1.f;
-            else
-                *ptr = *ptr * alpha + beta;
-            ++ptr;
+            *ptr = tanh(*ptr);
+            ptr++;
         }
     }
 
