@@ -32,7 +32,7 @@ static struct prng_rand_t g_prng_rand_state;
 #define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
 #define RAND()      prng_rand(&g_prng_rand_state)
 
-static float RandomFloat(float a = -2.f, float b = 2.f)
+static float RandomFloat(float a = -1.5f, float b = 1.5f)
 {
     float random = ((float)RAND()) / (float)uint64_t(-1); //RAND_MAX;
     float diff = b - a;
@@ -40,7 +40,7 @@ static float RandomFloat(float a = -2.f, float b = 2.f)
     return a + r;
 }
 
-static void Randomize(ncnn::Mat& m, float a = -2.f, float b = 2.f)
+static void Randomize(ncnn::Mat& m, float a = -1.5f, float b = 1.5f)
 {
     for (size_t i = 0; i < m.total(); i++)
     {
