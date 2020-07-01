@@ -234,9 +234,9 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
 int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-
-    if (bottom_blobs.size() != 3 || top_blobs.size() != 3) {
-        return forward(bottom_blobs[0],top_blobs[0],opt);
+    if (bottom_blobs.size() != 3 || top_blobs.size() != 3)
+    {
+        return forward(bottom_blobs[0], top_blobs[0], opt);
     }
     const Mat& bottom_blob = bottom_blobs[0];
     int T = bottom_blob.h;

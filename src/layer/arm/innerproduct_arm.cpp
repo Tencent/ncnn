@@ -58,7 +58,7 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
         ncnn::cast_float32_to_bfloat16(weight_data, weight_data_bf16, opt);
     }
 #if __ARM_NEON && (__ARM_FP & 2)
-    else if (opt.use_fp16_storage && weight_data.elemsize == 4u  && cpu_support_arm_vfpv4())
+    else if (opt.use_fp16_storage && weight_data.elemsize == 4u && cpu_support_arm_vfpv4())
     {
         ncnn::cast_float32_to_float16(weight_data, weight_data_fp16, opt);
     }
@@ -354,7 +354,6 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         }
 #endif
         return forward(bottom_blob_flattened, top_blob, opt);
-
     }
 #if (__ARM_FP & 2)
     if (opt.use_fp16_storage && cpu_support_arm_vfpv4())
