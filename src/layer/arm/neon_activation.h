@@ -49,6 +49,17 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
 }
 
 #if __ARM_NEON
+
+static inline float32x4_t sigmoid_ps(float32x4_t _v)
+{
+    float32x4_t _one = vdupq_n_f32(1.f);
+    _v = vnegq_f32(_v);
+    _v = exp_ps(_v);
+    _v = vaddq_f32(_v, _one);
+    float32x4_t _outp = vrecpeq_f32(_v);
+    return vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
+}
+
 static inline float32x4_t activation_ps(float32x4_t _v, int activation_type, const ncnn::Mat& activation_params)
 {
     if (activation_type == 1)
@@ -73,14 +84,7 @@ static inline float32x4_t activation_ps(float32x4_t _v, int activation_type, con
     }
     else if (activation_type == 4)
     {
-        float32x4_t _one = vdupq_n_f32(1.f);
-        _v = vnegq_f32(_v);
-        _v = exp_ps(_v);
-        _v = vaddq_f32(_v, _one);
-        float32x4_t _outp = vrecpeq_f32(_v);
-        _outp = vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
-        //         _outp = vmulq_f32(vrecpsq_f32(_v, _outp), _outp);
-        _v = _outp;
+        _v = sigmoid_ps(_v);
     }
     else if (activation_type == 5)
     {

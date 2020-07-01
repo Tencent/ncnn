@@ -515,7 +515,6 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         cmd.submit_and_wait();
     }
 #endif // NCNN_VULKAN
-
     ncnn::Mat b;
     if (op->support_inplace)
     {
@@ -663,7 +662,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 template<typename T>
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count = 1, float epsilon = 0.001, void (*func)(T*) = 0)
 {
-    ncnn::Option opts[3];
+    ncnn::Option opts[4];
     opts[0] = _opt;
     opts[0].use_packing_layout = false;
     opts[0].use_fp16_packed = false;
@@ -683,8 +682,14 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_bf16_storage = true;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = true;
-
-    for (int i = 0; i < 3; i++)
+    opts[3] = _opt;
+    opts[3].use_packing_layout = true;
+    opts[3].use_fp16_packed = true;
+    opts[3].use_fp16_storage = true;
+    opts[3].use_bf16_storage = false;
+    opts[3].use_shader_pack8 = true;
+    opts[3].use_image_storage = true;
+    for (int i = 0; i < 4; i++)
     {
         const ncnn::Option& opt = opts[i];
 
@@ -750,7 +755,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 template<typename T>
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, float epsilon = 0.001, void (*func)(T*) = 0)
 {
-    ncnn::Option opts[3];
+    ncnn::Option opts[4];
     opts[0] = _opt;
     opts[0].use_packing_layout = false;
     opts[0].use_fp16_packed = false;
@@ -770,11 +775,16 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_bf16_storage = true;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = true;
-
-    for (int i = 0; i < 3; i++)
+    opts[3] = _opt;
+    opts[3].use_packing_layout = true;
+    opts[3].use_fp16_packed = true;
+    opts[3].use_fp16_storage = true;
+    opts[3].use_bf16_storage = false;
+    opts[3].use_shader_pack8 = true;
+    opts[3].use_image_storage = true;
+    for (int i = 0; i < 4; i++)
     {
         const ncnn::Option& opt = opts[i];
-
         // fp16 representation
         ncnn::Mat a_fp16;
         std::vector<ncnn::Mat> weights_fp16;

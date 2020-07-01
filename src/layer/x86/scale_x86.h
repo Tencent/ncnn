@@ -12,41 +12,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_INNERPRODUCT_ARM_H
-#define LAYER_INNERPRODUCT_ARM_H
+#ifndef LAYER_SCALE_X86_H
+#define LAYER_SCALE_X86_H
 
-#include "innerproduct.h"
+#include "scale.h"
 
 namespace ncnn {
 
-class InnerProduct_arm : virtual public InnerProduct
+class Scale_x86 : virtual public Scale
 {
 public:
-    InnerProduct_arm();
+    Scale_x86();
 
-    virtual int create_pipeline(const Option& opt);
-    virtual int destroy_pipeline(const Option& opt);
-
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-
-protected:
-#if __ARM_NEON
-    int forward_fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-
-#endif
-
-    int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-
-public:
-    ncnn::Layer* flatten;
-
-    // bf16
-    Mat weight_data_bf16;
-
-    // fp16
-    Mat weight_data_fp16;
+    virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_INNERPRODUCT_ARM_H
+#endif // LAYER_SCALE_X86_H
