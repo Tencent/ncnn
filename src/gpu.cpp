@@ -618,7 +618,7 @@ int create_gpu_instance()
         // 640 = 0x5143 0x6040001
         // 650 = 0x5143 0x6050002
 
-        gpu_info.bug_local_size_spec_const = false;
+        gpu_info.bug_local_size_spec_const = true;
         gpu_info.bug_storage_buffer_no_l1 = false;
         gpu_info.bug_layout_binding_id_alias = false;
         gpu_info.bug_implicit_fp16_arithmetic = false;
@@ -1446,6 +1446,221 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
     free(spv_data_modified);
 
     return shader_module;
+}
+
+int VulkanDevice::create_descriptorset_layout(int binding_count, const int* binding_types, VkDescriptorSetLayout* descriptorset_layout) const
+{
+    if (binding_count == 0)
+    {
+        *descriptorset_layout = 0;
+        return 0;
+    }
+
+    std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings(binding_count);
+    for (int i = 0; i < binding_count; i++)
+    {
+        int binding_type = binding_types[i];
+
+        descriptorSetLayoutBindings[i].binding = i;
+        descriptorSetLayoutBindings[i].descriptorCount = 1;
+        descriptorSetLayoutBindings[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+        if (binding_type == 1)
+        {
+            descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorSetLayoutBindings[i].pImmutableSamplers = 0;
+        }
+        else if (binding_type == 2)
+        {
+            descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            descriptorSetLayoutBindings[i].pImmutableSamplers = 0;
+        }
+        else // if (binding_type == 3)
+        {
+            descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorSetLayoutBindings[i].pImmutableSamplers = immutable_texelfetch_sampler(); // we always use texelfetch
+        }
+    }
+
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
+    descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorSetLayoutCreateInfo.pNext = 0;
+    descriptorSetLayoutCreateInfo.flags = 0;
+    descriptorSetLayoutCreateInfo.bindingCount = binding_count;
+    descriptorSetLayoutCreateInfo.pBindings = descriptorSetLayoutBindings.data();
+
+    if (info.support_VK_KHR_push_descriptor)
+    {
+        descriptorSetLayoutCreateInfo.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+    }
+
+    VkResult ret = vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, 0, descriptorset_layout);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateDescriptorSetLayout failed %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const
+{
+    VkPushConstantRange pushConstantRange;
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(vk_constant_type) * push_constant_count;
+
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+    pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutCreateInfo.pNext = 0;
+    pipelineLayoutCreateInfo.flags = 0;
+
+    if (descriptorset_layout)
+    {
+        pipelineLayoutCreateInfo.setLayoutCount = 1;
+        pipelineLayoutCreateInfo.pSetLayouts = &descriptorset_layout;
+    }
+    else
+    {
+        pipelineLayoutCreateInfo.setLayoutCount = 0;
+        pipelineLayoutCreateInfo.pSetLayouts = 0;
+    }
+
+    if (push_constant_count > 0)
+    {
+        pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+        pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
+    }
+    else
+    {
+        pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+        pipelineLayoutCreateInfo.pPushConstantRanges = 0;
+    }
+
+    VkResult ret = vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, 0, pipeline_layout);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreatePipelineLayout failed %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, VkPipeline* pipeline) const
+{
+    const int specialization_count = specializations.size();
+
+    std::vector<VkSpecializationMapEntry> specializationMapEntries(specialization_count);
+    for (int i = 0; i < specialization_count; i++)
+    {
+        specializationMapEntries[i].constantID = i;
+        specializationMapEntries[i].offset = i * sizeof(vk_specialization_type);
+        specializationMapEntries[i].size = sizeof(vk_specialization_type);
+    }
+
+    VkSpecializationInfo specializationInfo;
+    specializationInfo.mapEntryCount = specializationMapEntries.size();
+    specializationInfo.pMapEntries = specializationMapEntries.data();
+    specializationInfo.dataSize = specializations.size() * sizeof(vk_specialization_type);
+    specializationInfo.pData = specializations.data();
+
+    VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo;
+    pipelineShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineShaderStageCreateInfo.pNext = 0;
+    pipelineShaderStageCreateInfo.flags = 0;
+    pipelineShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineShaderStageCreateInfo.module = shader_module;
+    pipelineShaderStageCreateInfo.pName = "main";
+    pipelineShaderStageCreateInfo.pSpecializationInfo = &specializationInfo;
+
+    VkComputePipelineCreateInfo computePipelineCreateInfo;
+    computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    computePipelineCreateInfo.pNext = 0;
+    computePipelineCreateInfo.flags = 0;
+    computePipelineCreateInfo.stage = pipelineShaderStageCreateInfo;
+    computePipelineCreateInfo.layout = pipeline_layout;
+    computePipelineCreateInfo.basePipelineHandle = 0;
+    computePipelineCreateInfo.basePipelineIndex = 0;
+
+    VkResult ret = vkCreateComputePipelines(device, 0, 1, &computePipelineCreateInfo, 0, pipeline);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateComputePipelines failed %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int VulkanDevice::create_descriptor_update_template(int binding_count, const int* binding_types, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR* descriptor_update_template) const
+{
+    if (binding_count == 0)
+    {
+        *descriptor_update_template = 0;
+        return 0;
+    }
+
+    std::vector<VkDescriptorUpdateTemplateEntryKHR> descriptorUpdateTemplateEntries(binding_count);
+    size_t offset = 0;
+    for (int i = 0; i < binding_count; i++) // TODO do not update weights
+    {
+        int binding_type = binding_types[i];
+
+        descriptorUpdateTemplateEntries[i].dstBinding = i;
+        descriptorUpdateTemplateEntries[i].dstArrayElement = 0;
+        descriptorUpdateTemplateEntries[i].descriptorCount = 1;
+        descriptorUpdateTemplateEntries[i].offset = offset;
+
+        if (binding_type == 1)
+        {
+            descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorBufferInfo);
+        }
+        else if (binding_type == 2)
+        {
+            descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorImageInfo);
+        }
+        else // if (binding_type == 3)
+        {
+            descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorImageInfo);
+        }
+
+        offset += descriptorUpdateTemplateEntries[i].stride;
+    }
+
+    VkDescriptorUpdateTemplateCreateInfoKHR descriptorUpdateTemplateCreateInfo;
+    descriptorUpdateTemplateCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO_KHR;
+    descriptorUpdateTemplateCreateInfo.pNext = 0;
+    descriptorUpdateTemplateCreateInfo.flags = 0;
+    descriptorUpdateTemplateCreateInfo.descriptorUpdateEntryCount = binding_count; // TODO do not update weights
+    descriptorUpdateTemplateCreateInfo.pDescriptorUpdateEntries = descriptorUpdateTemplateEntries.data();
+    if (info.support_VK_KHR_push_descriptor)
+    {
+        descriptorUpdateTemplateCreateInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR;
+    }
+    else
+    {
+        descriptorUpdateTemplateCreateInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_DESCRIPTOR_SET_KHR;
+    }
+    // descriptorSetLayout should be ignored if VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR
+    // FIXME HACK WARNING TODO NOTE but crash on radv if set NULL  :(
+    descriptorUpdateTemplateCreateInfo.descriptorSetLayout = descriptorset_layout;
+    descriptorUpdateTemplateCreateInfo.pipelineBindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
+    descriptorUpdateTemplateCreateInfo.pipelineLayout = pipeline_layout;
+    descriptorUpdateTemplateCreateInfo.set = 0;
+
+    VkResult ret = vkCreateDescriptorUpdateTemplateKHR(device, &descriptorUpdateTemplateCreateInfo, 0, descriptor_update_template);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateDescriptorUpdateTemplateKHR failed %d", ret);
+        return -1;
+    }
+
+    return 0;
 }
 
 uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const

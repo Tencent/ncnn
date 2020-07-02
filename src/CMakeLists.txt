@@ -24,7 +24,6 @@ set(ncnn_SRCS
     benchmark.cpp
     blob.cpp
     c_api.cpp
-    cache.cpp
     command.cpp
     cpu.cpp
     datareader.cpp
@@ -40,6 +39,7 @@ set(ncnn_SRCS
     option.cpp
     paramdict.cpp
     pipeline.cpp
+    pipelinecache.cpp
 )
 
 if(ANDROID)
