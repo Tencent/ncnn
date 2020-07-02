@@ -31,7 +31,6 @@ layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
 layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
 layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
-
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler1D bottom_blob1_1d;
 layout (binding = 0) uniform unfp sampler2D bottom_blob1_2d;

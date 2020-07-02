@@ -34,7 +34,6 @@ layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
 layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
 layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
-
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;

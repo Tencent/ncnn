@@ -23,7 +23,6 @@
 
 #define sfp2float(v) float(v)
 
-
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_top_blob;
 layout (binding = 1, r32f) writeonly uniform highp image3D sum_blob;

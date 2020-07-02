@@ -27,7 +27,6 @@
 #define sfp2floatvec4(v) vec4(v)
 #endif
 
-
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_top_blob;
 layout (binding = 1, rgba32f) writeonly uniform highp image3D sum_blob;

@@ -26,7 +26,6 @@ layout (constant_id = 1) const int across_channel = 0;
 layout (constant_id = 2) const float eps = 0.f;
 layout (constant_id = 3) const int eps_mode = 0;
 
-
 #if NCNN_image_shader
 layout (binding = 0) uniform highp sampler3D sqsum_blob;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image1D coeffs_blob;

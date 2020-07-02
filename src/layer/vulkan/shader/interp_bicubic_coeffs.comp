@@ -25,7 +25,6 @@
 layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int outw = 0;
 
-
 layout (binding = 0) writeonly buffer alpha_blob { sfpvec4 alpha_blob_data[]; };
 layout (binding = 1) writeonly buffer xofs_blob { int xofs_blob_data[]; };
 

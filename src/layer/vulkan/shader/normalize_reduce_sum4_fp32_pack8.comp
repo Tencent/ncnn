@@ -25,7 +25,6 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 layout (constant_id = 0) const int across_spatial = 0;
 layout (constant_id = 1) const int across_channel = 0;
 
-
 #if NCNN_image_shader
 layout (binding = 0) uniform highp sampler3D square_blob;
 layout (binding = 1, rgba32f) writeonly uniform highp image3D sqsum_blob;
