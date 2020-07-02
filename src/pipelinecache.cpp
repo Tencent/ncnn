@@ -376,26 +376,26 @@ int PipelineCache::new_pipeline(VkShaderModule shader_module, const ShaderInfo& 
     if ((int)specializations.size() != shader_info.specialization_count)
     {
         NCNN_LOGE("pipeline specialization count mismatch, expect %d but got %d", shader_info.specialization_count, (int)specializations.size());
-        goto ERROR;
+        goto ERROR_PipelineCache;
     }
 
     ret = vkdev->create_descriptorset_layout(shader_info.binding_count, shader_info.binding_types, &descriptorset_layout);
     if (ret != 0)
-        goto ERROR;
+        goto ERROR_PipelineCache;
 
     ret = vkdev->create_pipeline_layout(shader_info.push_constant_count, descriptorset_layout, &pipeline_layout);
     if (ret != 0)
-        goto ERROR;
+        goto ERROR_PipelineCache;
 
     ret = vkdev->create_pipeline(shader_module, pipeline_layout, specializations, &pipeline);
     if (ret != 0)
-        goto ERROR;
+        goto ERROR_PipelineCache;
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template)
     {
         ret = vkdev->create_descriptor_update_template(shader_info.binding_count, shader_info.binding_types, descriptorset_layout, pipeline_layout, &descriptor_update_template);
         if (ret != 0)
-            goto ERROR;
+            goto ERROR_PipelineCache;
     }
 
     *_descriptorset_layout = descriptorset_layout;
@@ -405,7 +405,7 @@ int PipelineCache::new_pipeline(VkShaderModule shader_module, const ShaderInfo& 
 
     return 0;
 
-ERROR:
+ERROR_PipelineCache:
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template)
     {
