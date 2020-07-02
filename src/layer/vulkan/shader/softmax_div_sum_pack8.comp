@@ -144,6 +144,15 @@ void main()
     {
         sum = buffer_ld8(sum_workspace_data, gz * psc(h) + gy);
     }
+
+#if NCNN_fp16_packed || NCNN_fp16_storage
+    // NOTE reduce max may produce (X, undef, X, undef) on nvidia fp16p/fp16s
+    // TODO only enable this workaround for some nvidia driver
+    if (axis == 0)
+    {
+        sum = afpvec8(afpvec4(sum[0].r), afpvec4(sum[0].r));
+    }
+#endif
 #endif
 
     v[0] /= sum[0];

@@ -12,16 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static inline __m256 _mm256_fmadd_1_ps(__m256 a, __m256 b, float c)
-{
-    return _mm256_fmadd_ps(b, _mm256_set1_ps(c), a);
-}
-
-static inline __m256 _mm256_fmrsub_1_ps(__m256 a, __m256 b, float c)
-{
-    return _mm256_sub_ps(a, _mm256_mul_ps(b, _mm256_set1_ps(c)));
-}
-
 static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch)
 {
     // winograd63 transform kernel
@@ -75,8 +65,9 @@ static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, M
     }
     // interleave
     // src = 64-inch-outch
-    // dst = 4b-4a-inch/4a-64-outch/4b;
-    kernel_tm_pack8.create(2 * inch / 8, 64, (outch / 4) / 2 + (outch / 4) % 2, (size_t)4u * 64, 64);
+    // dst = 8b-8a-inch/8a-64-outch/8b;
+    kernel_tm_pack8.create(inch / 8, 64, outch / 8, (size_t)4u * 64, 64);
+
     int q = 0;
     for (; q + 7 < outch; q += 8)
     {
@@ -254,7 +245,6 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
     int inch = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-
     int outw = top_blob.w;
     int outh = top_blob.h;
     int outch = top_blob.c;
@@ -474,7 +464,6 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
     }
     bottom_blob_bordered = Mat();
     // END transform input
-
     // BEGIN dot
     Mat top_blob_tm;
     {
@@ -554,18 +543,18 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                 {
                     __m256 _r0 = _mm256_loadu_ps(r0);
                     __m256 _r1 = _mm256_loadu_ps(r0 + 8);
-                    __m256 _r2 = _mm256_loadu_ps(r0 + 16);
-                    __m256 _r3 = _mm256_loadu_ps(r0 + 24);
                     _mm256_storeu_ps(tm2p, _r0);
                     _mm256_storeu_ps(tm2p + 8, _r1);
+                    __m256 _r2 = _mm256_loadu_ps(r0 + 16);
+                    __m256 _r3 = _mm256_loadu_ps(r0 + 24);
                     _mm256_storeu_ps(tm2p + 16, _r2);
                     _mm256_storeu_ps(tm2p + 24, _r3);
                     __m256 _r4 = _mm256_loadu_ps(r0 + 32);
                     __m256 _r5 = _mm256_loadu_ps(r0 + 40);
-                    __m256 _r6 = _mm256_loadu_ps(r0 + 48);
-                    __m256 _r7 = _mm256_loadu_ps(r0 + 56);
                     _mm256_storeu_ps(tm2p + 32, _r4);
                     _mm256_storeu_ps(tm2p + 40, _r5);
+                    __m256 _r6 = _mm256_loadu_ps(r0 + 48);
+                    __m256 _r7 = _mm256_loadu_ps(r0 + 56);
                     _mm256_storeu_ps(tm2p + 48, _r6);
                     _mm256_storeu_ps(tm2p + 56, _r7);
                     tm2p += 64;
@@ -1287,9 +1276,11 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                         _k01 = _mm256_loadu_ps(k01 + 24);
                         _r0 = _mm256_broadcast_ss(r0 + 3);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
+
                         _k01 = _mm256_loadu_ps(k01 + 32);
                         _r0 = _mm256_broadcast_ss(r0 + 4);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
+
                         _k01 = _mm256_loadu_ps(k01 + 40);
                         _r0 = _mm256_broadcast_ss(r0 + 5);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
@@ -1305,6 +1296,8 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                         k01 += 64;
                         r0 += 8;
                     }
+                    _mm256_storeu_ps(output0_tm, _sum0);
+                    output0_tm += 8;
                 }
             }
         }
@@ -1342,7 +1335,6 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
         int w_tm = outw / 6 * 8;
         int h_tm = outh / 6 * 8;
         const int tiles = w_tm / 8 * h_tm / 8;
-
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outch; p++)
         {

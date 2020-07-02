@@ -18,7 +18,6 @@ static void conv2x2s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const Mat
     int outw = top_blob.w;
     int outh = top_blob.h;
     int outch = top_blob.c;
-
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)

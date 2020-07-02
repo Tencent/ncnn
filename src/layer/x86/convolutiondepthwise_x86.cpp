@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 #if __AVX__
 #include "avx_activation.h"
+#include "avx_usability.h"
 #endif
 #include "convolutiondepthwise_x86.h"
 
@@ -20,6 +21,7 @@
 
 namespace ncnn {
 #ifdef __AVX__
+#include "convolutiondepthwise_3x3_pack8_fp16.h"
 #include "convolutiondepthwise_3x3_pack8.h"
 #include "convolutiondepthwise_5x5_pack8.h"
 #endif
@@ -116,6 +118,22 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
         // pack8
         if (elempack == 8)
         {
+            if (opt.use_fp16_storage && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                Mat weight_data_r2 = weight_data.reshape(maxk, group);
+                Mat weight_data_tmp;
+                convert_packing(weight_data_r2, weight_data_tmp, 8);
+                ncnn::cast_float32_to_float16(weight_data_tmp, weight_data_pack8, opt);
+                return 0;
+            }
+            if (opt.use_fp16_storage && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                Mat weight_data_r2 = weight_data.reshape(maxk, group);
+                Mat weight_data_tmp;
+                convert_packing(weight_data_r2, weight_data_tmp, 8);
+                ncnn::cast_float32_to_float16(weight_data_tmp, weight_data_pack8, opt);
+                return 0;
+            }
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
             convert_packing(weight_data_r2, weight_data_pack8, 8);
             return 0;
@@ -270,7 +288,14 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
         {
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
-                convdw3x3s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
+                if (opt.use_fp16_storage)
+                {
+                    convdw3x3s1_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
+                }
+                else
+                {
+                    convdw3x3s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
+                }
 
                 if (activation)
                 {
@@ -281,7 +306,14 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
             }
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
-                convdw3x3s2_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
+                if (opt.use_fp16_storage)
+                {
+                    convdw3x3s2_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
+                }
+                else
+                {
+                    convdw3x3s2_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
+                }
 
                 if (activation)
                 {

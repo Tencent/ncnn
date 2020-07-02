@@ -5,6 +5,8 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: true
     - name: protobuf
       run: brew install protobuf opencv3
     - name: cache-vulkansdk
