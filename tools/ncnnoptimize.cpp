@@ -483,7 +483,7 @@ int NetOptimize::fuse_convolution_batchnorm()
 int NetOptimize::fuse_convolution_mul()
 {
     const size_t layer_count = layers.size();
-    for (int i=0; i<layer_count; i++)
+    for (int i = 0; i < layer_count; i++)
     {
         if (layers[i]->type != "Convolution")
             continue;
@@ -492,7 +492,7 @@ int NetOptimize::fuse_convolution_mul()
         int top_blob_index = layers[i]->tops[0];
 
         int j = i + 1;
-        for (; j<layer_count; j++)
+        for (; j < layer_count; j++)
         {
             if (layers[j]->type != "BinaryOp")
                 continue;
@@ -516,7 +516,7 @@ int NetOptimize::fuse_convolution_mul()
 
         // MemoryData - ..... - BinaryOp
         int k = 0;
-        for (; k<j; k++)
+        for (; k < j; k++)
         {
             if (layers[k]->type != "MemoryData")
                 continue;
@@ -545,10 +545,10 @@ int NetOptimize::fuse_convolution_mul()
 
             float* weight = convolution->weight_data;
             float* bias = convolution->bias_data;
-            for (int i=0; i<channels; i++)
+            for (int i = 0; i < channels; i++)
             {
                 float* conv_weight_outch = weight + weight_per_outch * i;
-                for (int j=0; j<weight_per_outch; j++)
+                for (int j = 0; j < weight_per_outch; j++)
                 {
                     conv_weight_outch[j] *= memorydata->data[i];
                 }
@@ -572,7 +572,7 @@ int NetOptimize::fuse_convolution_mul()
 int NetOptimize::fuse_convolution_add()
 {
     const size_t layer_count = layers.size();
-    for (int i=0; i<layer_count; i++)
+    for (int i = 0; i < layer_count; i++)
     {
         if (layers[i]->type != "Convolution")
             continue;
@@ -581,7 +581,7 @@ int NetOptimize::fuse_convolution_add()
         int top_blob_index = layers[i]->tops[0];
 
         int j = i + 1;
-        for (; j<layer_count; j++)
+        for (; j < layer_count; j++)
         {
             if (layers[j]->type != "BinaryOp")
                 continue;
@@ -605,7 +605,7 @@ int NetOptimize::fuse_convolution_add()
 
         // MemoryData - ..... - BinaryOp
         int k = 0;
-        for (; k<j; k++)
+        for (; k < j; k++)
         {
             if (layers[k]->type != "MemoryData")
                 continue;
@@ -639,7 +639,7 @@ int NetOptimize::fuse_convolution_add()
             else
             {
                 float* bias = convolution->bias_data;
-                for (int i=0; i<channels; i++)
+                for (int i = 0; i < channels; i++)
                 {
                     bias[i] = bias[i] + memorydata->data[i];
                 }
@@ -741,7 +741,7 @@ int NetOptimize::fuse_convolutiondepthwise_batchnorm()
 int NetOptimize::fuse_convolutiondepthwise_mul()
 {
     const size_t layer_count = layers.size();
-    for (int i=0; i<layer_count; i++)
+    for (int i = 0; i < layer_count; i++)
     {
         if (layers[i]->type != "ConvolutionDepthWise")
             continue;
@@ -750,7 +750,7 @@ int NetOptimize::fuse_convolutiondepthwise_mul()
         int top_blob_index = layers[i]->tops[0];
 
         int j = i + 1;
-        for (; j<layer_count; j++)
+        for (; j < layer_count; j++)
         {
             if (layers[j]->type != "BinaryOp")
                 continue;
@@ -774,7 +774,7 @@ int NetOptimize::fuse_convolutiondepthwise_mul()
 
         // MemoryData - ..... - BinaryOp
         int k = 0;
-        for (; k<j; k++)
+        for (; k < j; k++)
         {
             if (layers[k]->type != "MemoryData")
                 continue;
@@ -803,10 +803,10 @@ int NetOptimize::fuse_convolutiondepthwise_mul()
 
             float* weight = convolutiondepthwise->weight_data;
             float* bias = convolutiondepthwise->bias_data;
-            for (int i=0; i<channels; i++)
+            for (int i = 0; i < channels; i++)
             {
                 float* conv_weight_outch = weight + weight_per_outch * i;
-                for (int j=0; j<weight_per_outch; j++)
+                for (int j = 0; j < weight_per_outch; j++)
                 {
                     conv_weight_outch[j] *= memorydata->data[i];
                 }
@@ -830,7 +830,7 @@ int NetOptimize::fuse_convolutiondepthwise_mul()
 int NetOptimize::fuse_convolutiondepthwise_add()
 {
     const size_t layer_count = layers.size();
-    for (int i=0; i<layer_count; i++)
+    for (int i = 0; i < layer_count; i++)
     {
         if (layers[i]->type != "ConvolutionDepthWise")
             continue;
@@ -839,7 +839,7 @@ int NetOptimize::fuse_convolutiondepthwise_add()
         int top_blob_index = layers[i]->tops[0];
 
         int j = i + 1;
-        for (; j<layer_count; j++)
+        for (; j < layer_count; j++)
         {
             if (layers[j]->type != "BinaryOp")
                 continue;
@@ -863,7 +863,7 @@ int NetOptimize::fuse_convolutiondepthwise_add()
 
         // MemoryData - ..... - BinaryOp
         int k = 0;
-        for (; k<j; k++)
+        for (; k < j; k++)
         {
             if (layers[k]->type != "MemoryData")
                 continue;
@@ -897,7 +897,7 @@ int NetOptimize::fuse_convolutiondepthwise_add()
             else
             {
                 float* bias = convolutiondepthwise->bias_data;
-                for (int i=0; i<channels; i++)
+                for (int i = 0; i < channels; i++)
                 {
                     bias[i] = bias[i] + memorydata->data[i];
                 }
@@ -999,7 +999,7 @@ int NetOptimize::fuse_deconvolution_batchnorm()
 int NetOptimize::fuse_deconvolution_mul()
 {
     const size_t layer_count = layers.size();
-    for (int i=0; i<layer_count; i++)
+    for (int i = 0; i < layer_count; i++)
     {
         if (layers[i]->type != "Deconvolution")
             continue;
@@ -1008,7 +1008,7 @@ int NetOptimize::fuse_deconvolution_mul()
         int top_blob_index = layers[i]->tops[0];
 
         int j = i + 1;
-        for (; j<layer_count; j++)
+        for (; j < layer_count; j++)
         {
             if (layers[j]->type != "BinaryOp")
                 continue;
@@ -1032,7 +1032,7 @@ int NetOptimize::fuse_deconvolution_mul()
 
         // MemoryData - ..... - BinaryOp
         int k = 0;
-        for (; k<j; k++)
+        for (; k < j; k++)
         {
             if (layers[k]->type != "MemoryData")
                 continue;
@@ -1061,10 +1061,10 @@ int NetOptimize::fuse_deconvolution_mul()
 
             float* weight = deconvolution->weight_data;
             float* bias = deconvolution->bias_data;
-            for (int i=0; i<channels; i++)
+            for (int i = 0; i < channels; i++)
             {
                 float* conv_weight_outch = weight + weight_per_outch * i;
-                for (int j=0; j<weight_per_outch; j++)
+                for (int j = 0; j < weight_per_outch; j++)
                 {
                     conv_weight_outch[j] *= memorydata->data[i];
                 }
@@ -1088,7 +1088,7 @@ int NetOptimize::fuse_deconvolution_mul()
 int NetOptimize::fuse_deconvolution_add()
 {
     const size_t layer_count = layers.size();
-    for (int i=0; i<layer_count; i++)
+    for (int i = 0; i < layer_count; i++)
     {
         if (layers[i]->type != "Deconvolution")
             continue;
@@ -1097,7 +1097,7 @@ int NetOptimize::fuse_deconvolution_add()
         int top_blob_index = layers[i]->tops[0];
 
         int j = i + 1;
-        for (; j<layer_count; j++)
+        for (; j < layer_count; j++)
         {
             if (layers[j]->type != "BinaryOp")
                 continue;
@@ -1121,7 +1121,7 @@ int NetOptimize::fuse_deconvolution_add()
 
         // MemoryData - ..... - BinaryOp
         int k = 0;
-        for (; k<j; k++)
+        for (; k < j; k++)
         {
             if (layers[k]->type != "MemoryData")
                 continue;
@@ -1155,7 +1155,7 @@ int NetOptimize::fuse_deconvolution_add()
             else
             {
                 float* bias = deconvolution->bias_data;
-                for (int i=0; i<channels; i++)
+                for (int i = 0; i < channels; i++)
                 {
                     bias[i] = bias[i] + memorydata->data[i];
                 }
@@ -1340,7 +1340,7 @@ int NetOptimize::fuse_innerproduct_batchnorm()
 int NetOptimize::fuse_innerproduct_add()
 {
     const size_t layer_count = layers.size();
-    for (int i=0; i<layer_count; i++)
+    for (int i = 0; i < layer_count; i++)
     {
         if (layers[i]->type != "InnerProduct")
             continue;
@@ -1349,7 +1349,7 @@ int NetOptimize::fuse_innerproduct_add()
         int top_blob_index = layers[i]->tops[0];
 
         int j = i + 1;
-        for (; j<layer_count; j++)
+        for (; j < layer_count; j++)
         {
             if (layers[j]->type != "BinaryOp")
                 continue;
@@ -1373,7 +1373,7 @@ int NetOptimize::fuse_innerproduct_add()
 
         // MemoryData - ..... - BinaryOp
         int k = 0;
-        for (; k<j; k++)
+        for (; k < j; k++)
         {
             if (layers[k]->type != "MemoryData")
                 continue;
@@ -1407,7 +1407,7 @@ int NetOptimize::fuse_innerproduct_add()
             else
             {
                 float* bias = innerproduct->bias_data;
-                for (int i=0; i<channels; i++)
+                for (int i = 0; i < channels; i++)
                 {
                     bias[i] = bias[i] + memorydata->data[i];
                 }
