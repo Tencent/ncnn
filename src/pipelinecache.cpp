@@ -18,6 +18,7 @@
 
 namespace ncnn {
 
+#if NCNN_VULKAN
 // https://en.wikipedia.org/wiki/MurmurHash
 static uint32_t murmur3_32(const uint32_t* data, int size)
 {
@@ -85,7 +86,6 @@ PipelineCache::pipeline_cache_digest::pipeline_cache_digest(int _shader_type_ind
     specializations_fnv1a = fnv1a_32((const uint8_t*)specializations.data(), specialization_count * sizeof(vk_specialization_type));
 }
 
-#if NCNN_VULKAN
 PipelineCache::PipelineCache(const VulkanDevice* _vkdev)
 {
     vkdev = _vkdev;
