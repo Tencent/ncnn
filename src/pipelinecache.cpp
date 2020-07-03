@@ -166,7 +166,7 @@ int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, 
                                 VkPipelineLayout* pipeline_layout,
                                 VkPipeline* pipeline,
                                 VkDescriptorUpdateTemplateKHR* descriptor_update_template,
-                                ShaderInfo& shader_info)
+                                ShaderInfo& shader_info) const
 {
     MutexLockGuard lock(cache_lock);
 
@@ -257,7 +257,7 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
                                 VkPipelineLayout* pipeline_layout,
                                 VkPipeline* pipeline,
                                 VkDescriptorUpdateTemplateKHR* descriptor_update_template,
-                                ShaderInfo& shader_info)
+                                ShaderInfo& shader_info) const
 {
     MutexLockGuard lock(cache_lock);
 

@@ -29,10 +29,6 @@ layout (constant_id = 4) const int type_to = 0;
 layout (constant_id = 5) const int rotate_from = 0;
 layout (constant_id = 6) const int need_resize = 0;
 
-layout (local_size_x_id = 233) in;
-layout (local_size_y_id = 234) in;
-layout (local_size_z_id = 235) in;
-
 layout (binding = 0) uniform sampler2D android_hardware_buffer_image;
 #if NCNN_image_shader
 layout (binding = 1, imfmtc1) writeonly uniform unfp image3D vkmat_blob;

@@ -217,8 +217,7 @@ public:
     VkImageMat get_dummy_image() const;
 
     // pipeline cache on this device
-    PipelineCache* acquire_pipeline_cache() const;
-    void reclaim_pipeline_cache(PipelineCache* pipeline_cache) const;
+    const PipelineCache* get_pipeline_cache() const;
 
     // test image allocation
     bool shape_support_image_storage(const Mat& shape) const;
@@ -307,9 +306,8 @@ private:
     VkMat dummy_buffer;
     VkImageMat dummy_image;
 
-    // default pipeline cache
-    mutable std::vector<PipelineCache*> pipeline_caches;
-    mutable Mutex pipeline_cache_lock;
+    // device-wide pipeline cache
+    PipelineCache* pipeline_cache;
 
     // utility operator
     // from buffer | image

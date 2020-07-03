@@ -46,7 +46,7 @@ public:
                      VkPipelineLayout* pipeline_layout,
                      VkPipeline* pipeline,
                      VkDescriptorUpdateTemplateKHR* descriptor_update_template,
-                     ShaderInfo& shader_info);
+                     ShaderInfo& shader_info) const;
 
     int get_pipeline(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations,
                      uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
@@ -55,7 +55,7 @@ public:
                      VkPipelineLayout* pipeline_layout,
                      VkPipeline* pipeline,
                      VkDescriptorUpdateTemplateKHR* descriptor_update_template,
-                     ShaderInfo& shader_info);
+                     ShaderInfo& shader_info) const;
 
 protected:
     int create_shader_module(int shader_type_index, const Option& opt, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
@@ -131,11 +131,11 @@ public:
         ShaderInfo shader_info;// TODO use pointer ?
     };
 
-    pipeline_cache_digest last_digest;
-    int last_digest_index;
-    std::vector<pipeline_cache_digest> cache_digests;
-    std::vector<pipeline_cache_artifact> cache_artifacts;
-    Mutex cache_lock;
+    mutable pipeline_cache_digest last_digest;
+    mutable int last_digest_index;
+    mutable std::vector<pipeline_cache_digest> cache_digests;
+    mutable std::vector<pipeline_cache_artifact> cache_artifacts;
+    mutable Mutex cache_lock;
 };
 
 #endif // NCNN_VULKAN

@@ -27,7 +27,6 @@ namespace ncnn {
 
 #if NCNN_VULKAN
 class Option;
-class PipelineCache;
 class Pipeline
 {
 public:
@@ -43,14 +42,8 @@ public:
 
     int create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations);
 
-    int create(VkShaderModule shader_module, const ShaderInfo& si, const std::vector<vk_specialization_type>& specializations);
-
-    void destroy();
-
 public:
     const VulkanDevice* vkdev;
-
-    PipelineCache* pipeline_cache;
 
     VkShaderModule shader_module;
     VkDescriptorSetLayout descriptorset_layout;
@@ -80,9 +73,9 @@ public:
     friend class VkCompute;
 
 protected:
+    int create_shader_module(const Option& opt);
     int create_sampler(VkAndroidHardwareBufferImageAllocator* ahb_im_allocator);
     int create_descriptorset_layout();
-    int create_descriptor_update_template();
 
 public:
     int type_to;

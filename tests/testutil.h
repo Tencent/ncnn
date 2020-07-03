@@ -219,12 +219,10 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 
     ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
     ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
-    ncnn::PipelineCache* pipeline_cache = vkdev->acquire_pipeline_cache();
 
     opt.blob_vkallocator = blob_vkallocator;
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
-    opt.pipeline_cache = pipeline_cache;
 
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
@@ -412,7 +410,6 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 #if NCNN_VULKAN
     vkdev->reclaim_blob_allocator(blob_vkallocator);
     vkdev->reclaim_staging_allocator(staging_vkallocator);
-    vkdev->reclaim_pipeline_cache(pipeline_cache);
     g_weight_vkallocator.clear();
     g_weight_staging_vkallocator.clear();
 #endif // NCNN_VULKAN
@@ -475,12 +472,10 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 
     ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
     ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
-    ncnn::PipelineCache* pipeline_cache = vkdev->acquire_pipeline_cache();
 
     opt.blob_vkallocator = blob_vkallocator;
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
-    opt.pipeline_cache = pipeline_cache;
 
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
@@ -633,7 +628,6 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 #if NCNN_VULKAN
     vkdev->reclaim_blob_allocator(blob_vkallocator);
     vkdev->reclaim_staging_allocator(staging_vkallocator);
-    vkdev->reclaim_pipeline_cache(pipeline_cache);
     g_weight_vkallocator.clear();
     g_weight_staging_vkallocator.clear();
 #endif // NCNN_VULKAN
