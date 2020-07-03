@@ -88,11 +88,11 @@ PipelineCache::pipeline_cache_digest::pipeline_cache_digest(int _shader_type_ind
 
     // encode opt
     opt_local_size_bits[0] = opt.use_image_storage << 7
-        | opt.use_fp16_packed << 6
-        | opt.use_fp16_storage << 5
-        | opt.use_fp16_arithmetic << 4
-        | opt.use_int8_storage << 3
-        | opt.use_int8_arithmetic << 2;
+                             | opt.use_fp16_packed << 6
+                             | opt.use_fp16_storage << 5
+                             | opt.use_fp16_arithmetic << 4
+                             | opt.use_int8_storage << 3
+                             | opt.use_int8_arithmetic << 2;
 
     // encode local_size
     opt_local_size_bits[1] = local_size_x;
@@ -105,7 +105,8 @@ PipelineCache::pipeline_cache_digest::pipeline_cache_digest(int _shader_type_ind
     specializations_fnv1a = fnv1a_32((const uint8_t*)specializations.data(), specialization_count * sizeof(vk_specialization_type));
 }
 
-PipelineCache::PipelineCache(const VulkanDevice* _vkdev) : vkdev(_vkdev)
+PipelineCache::PipelineCache(const VulkanDevice* _vkdev)
+    : vkdev(_vkdev)
 {
     last_digest_index = -1;
 }
@@ -359,7 +360,7 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
     }
 
     VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
-#else // NCNN_VULKAN_ONLINE_SPIRV
+#else  // NCNN_VULKAN_ONLINE_SPIRV
     // ncnn_add_shader cmake macro
     // 0 = fp32
     // 1 = fp16p
