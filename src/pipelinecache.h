@@ -79,6 +79,8 @@ public:
             d1 = 0;
         }
 
+        pipeline_cache_digest(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
+                              uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z);
         pipeline_cache_digest(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations,
                               uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z);
 
@@ -96,7 +98,11 @@ public:
         {
             struct
             {
-                int shader_type_index;
+                union
+                {
+                    uint32_t spv_data_murmur3;
+                    int shader_type_index;
+                };
                 unsigned char opt_local_size_bits[4];
             };
 
@@ -129,6 +135,7 @@ public:
     int last_digest_index;
     std::vector<pipeline_cache_digest> cache_digests;
     std::vector<pipeline_cache_artifact> cache_artifacts;
+    Mutex cache_lock;
 };
 
 #endif // NCNN_VULKAN
