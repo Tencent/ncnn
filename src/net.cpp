@@ -518,12 +518,14 @@ int Net::load_model(const DataReader& dr)
 
     fuse_network();
 
+#if NCNN_VULKAN
     if (!opt.pipeline_cache)
     {
         if (!pipeline_cache)
             pipeline_cache = new PipelineCache(vkdev);
         opt.pipeline_cache = pipeline_cache;
     }
+#endif // NCNN_VULKAN
 
     for (size_t i = 0; i < layers.size(); i++)
     {
