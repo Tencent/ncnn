@@ -52,15 +52,10 @@ public:
 
     PipelineCache* pipeline_cache;
 
-    // local shader module
-    VkShaderModule local_shader_module;
-
+    VkShaderModule shader_module;
     VkDescriptorSetLayout descriptorset_layout;
     VkPipelineLayout pipeline_layout;
-
-    // op forward TODO use pipeline cache ?
     VkPipeline pipeline;
-
     VkDescriptorUpdateTemplateKHR descriptor_update_template;
 
     ShaderInfo shader_info;

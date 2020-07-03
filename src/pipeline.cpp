@@ -34,8 +34,7 @@ Pipeline::Pipeline(const VulkanDevice* _vkdev)
 {
     pipeline_cache = 0;
 
-    local_shader_module = 0;
-
+    shader_module = 0;
     descriptorset_layout = 0;
     pipeline_layout = 0;
     pipeline = 0;
@@ -69,18 +68,11 @@ int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::
         return -1;
     }
 
-    if (vkdev->info.bug_local_size_spec_const)
-    {
-        local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
-    }
-    else
-    {
-        local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size);
-    }
+    shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
 
-    //     NCNN_LOGE("local_shader_module %p created", local_shader_module);
+    //     NCNN_LOGE("shader_module %p created", shader_module);
 
-    return create(local_shader_module, si, specializations);
+    return create(shader_module, si, specializations);
 }
 
 int Pipeline::create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations)
@@ -91,7 +83,7 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
 
         // get from pipeline cache
         return pipeline_cache->get_pipeline(shader_type_index, opt, specializations, local_size_x, local_size_y, local_size_z,
-                                            &local_shader_module, &descriptorset_layout, &pipeline_layout, &pipeline, &descriptor_update_template,
+                                            &shader_module, &descriptorset_layout, &pipeline_layout, &pipeline, &descriptor_update_template,
                                             shader_info);
     }
 
@@ -121,18 +113,7 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
         return -1;
     }
 
-    if (vkdev->info.bug_local_size_spec_const)
-    {
-        local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
-    }
-    else
-    {
-        local_shader_module = vkdev->compile_shader_module(spv_data, spv_data_size);
-    }
-
-    //     NCNN_LOGE("local_shader_module %p created", local_shader_module);
-
-    return create(local_shader_module, si, specializations);
+    shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
 #else
     // ncnn_add_shader cmake macro
     // 0 = fp32
@@ -191,17 +172,12 @@ int Pipeline::create(int shader_type_index, const Option& opt, const std::vector
         return -1;
     }
 
-    if (vkdev->info.bug_local_size_spec_const)
-    {
-        local_shader_module = vkdev->create_shader_module(shader_type_index, local_size_x, local_size_y, local_size_z);
+    shader_module = vkdev->create_shader_module(shader_type_index, local_size_x, local_size_y, local_size_z);
+#endif
 
-        return create(local_shader_module, si, specializations);
-    }
-
-    VkShaderModule shader_module = vkdev->get_shader_module(shader_type_index);
+    //     NCNN_LOGE("shader_module %p created", shader_module);
 
     return create(shader_module, si, specializations);
-#endif
 }
 
 int Pipeline::create(VkShaderModule shader_module, const ShaderInfo& _shader_info, const std::vector<vk_specialization_type>& specializations)
@@ -277,10 +253,10 @@ void Pipeline::destroy()
         descriptorset_layout = 0;
     }
 
-    if (local_shader_module)
+    if (shader_module)
     {
-        vkDestroyShaderModule(vkdev->vkdevice(), local_shader_module, 0);
-        local_shader_module = 0;
+        vkDestroyShaderModule(vkdev->vkdevice(), shader_module, 0);
+        shader_module = 0;
     }
 }
 
@@ -450,15 +426,7 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
         return -1;
     }
 
-    VkShaderModule shader_module;
-    if (vkdev->info.bug_local_size_spec_const)
-    {
-        shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
-    }
-    else
-    {
-        shader_module = vkdev->compile_shader_module(spv_data, spv_data_size);
-    }
+    shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
 #else
     // ncnn_add_shader cmake macro
     // 0 = fp32
@@ -509,7 +477,7 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
         shader_type_index += 1;
     }
 
-    VkShaderModule shader_module = vkdev->get_shader_module(shader_type_index);
+    shader_module = vkdev->get_shader_module(shader_type_index);
 #endif
     create_pipeline(shader_module, specializations);
 

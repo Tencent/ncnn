@@ -619,23 +619,13 @@ int create_gpu_instance()
         // 640 = 0x5143 0x6040001
         // 650 = 0x5143 0x6050002
 
-        gpu_info.bug_local_size_spec_const = true;
         gpu_info.bug_storage_buffer_no_l1 = false;
         gpu_info.bug_layout_binding_id_alias = false;
         gpu_info.bug_implicit_fp16_arithmetic = false;
 
-        if (physicalDeviceProperties.vendorID == 0x13b5 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 66))
-        {
-            // arm mali with old buggy driver
-            gpu_info.bug_local_size_spec_const = true;
-        }
-
         if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 49))
         {
-            // qcom adreno with old buggy driver
-            gpu_info.bug_local_size_spec_const = true;
-
-            // old buggy driver cannot handle binding id alias
+            // qcom adreno with old buggy driver cannot handle binding id alias
             gpu_info.bug_layout_binding_id_alias = true;
         }
 
@@ -942,8 +932,8 @@ int create_gpu_instance()
                   gpu_info.graphics_queue_family_index, gpu_info.graphics_queue_count,
                   gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count);
 
-        NCNN_LOGE("[%u %s]  buglssc=%d  bugsbn1=%d  buglbia=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
-                  gpu_info.bug_local_size_spec_const, gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_layout_binding_id_alias, gpu_info.bug_implicit_fp16_arithmetic);
+        NCNN_LOGE("[%u %s]  bugsbn1=%d  buglbia=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
+                  gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_layout_binding_id_alias, gpu_info.bug_implicit_fp16_arithmetic);
 
         NCNN_LOGE("[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
@@ -1201,10 +1191,6 @@ VulkanDevice::VulkanDevice(int device_index)
 
     init_device_extension();
 
-#if !NCNN_VULKAN_ONLINE_SPIRV
-    create_shader_module();
-#endif
-
     compute_queues.resize(info.compute_queue_count);
     blob_allocators.resize(info.compute_queue_count);
     staging_allocators.resize(info.compute_queue_count);
@@ -1293,25 +1279,10 @@ VulkanDevice::~VulkanDevice()
     }
     pipeline_caches.clear();
 
-#if !NCNN_VULKAN_ONLINE_SPIRV
-    destroy_shader_module();
-#endif
-
     vkDestroyDevice(device, 0);
 }
 
 #if !NCNN_VULKAN_ONLINE_SPIRV
-VkShaderModule VulkanDevice::get_shader_module(int shader_type_index) const
-{
-    if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
-    {
-        NCNN_LOGE("no such shader module %d", shader_type_index);
-        return 0;
-    }
-
-    return shader_modules[shader_type_index];
-}
-
 VkShaderModule VulkanDevice::create_shader_module(int shader_type_index, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const
 {
     if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
@@ -2159,114 +2130,6 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_el
     const ncnn::Packing_vulkan* uop = uop_packing[1][0][cast_type_from_index][cast_type_to_index][packing_type_to_index];
     uop->forward(src, dst, cmd, opt);
 }
-
-#if !NCNN_VULKAN_ONLINE_SPIRV
-int VulkanDevice::create_shader_module()
-{
-    if (info.bug_local_size_spec_const)
-    {
-        // do not cache shader module
-        return 0;
-    }
-
-    shader_modules.resize(layer_shader_registry_entry_count, VK_NULL_HANDLE);
-
-    for (int i = 0; i < layer_shader_registry_entry_count; i++)
-    {
-        // ncnn_add_shader cmake macro
-        // 0 = fp32
-        // 1 = fp16p
-        // 2 = fp16pa
-        // 3 = fp16s
-        // 4 = fp16sa
-        // 5 = image
-        // 6 = image_fp16p
-        // 7 = image_fp16pa
-        // 8 = image_fp16s
-        // 9 = image_fp16sa
-
-        if (!info.support_fp16_packed)
-        {
-            if (i % 10 == 1)
-                continue;
-        }
-
-        if (!info.support_fp16_packed || !info.support_fp16_arithmetic)
-        {
-            if (i % 10 == 2)
-                continue;
-        }
-
-        if (!info.support_fp16_storage)
-        {
-            if (i % 10 == 3)
-                continue;
-        }
-
-        if (!info.support_fp16_storage || !info.support_fp16_arithmetic)
-        {
-            if (i % 10 == 4)
-                continue;
-        }
-
-        //         if (!info.support_image_storage)
-        //         {
-        //             if (i % 10 == 5)
-        //                 continue;
-        //         }
-
-        if (!info.support_fp16_packed)
-        {
-            if (i % 10 == 6)
-                continue;
-        }
-
-        if (!info.support_fp16_packed || !info.support_fp16_arithmetic)
-        {
-            if (i % 10 == 7)
-                continue;
-        }
-
-        if (!info.support_fp16_storage)
-        {
-            if (i % 10 == 8)
-                continue;
-        }
-
-        if (!info.support_fp16_storage || !info.support_fp16_arithmetic)
-        {
-            if (i % 10 == 9)
-                continue;
-        }
-
-        const uint32_t* spv_data = layer_shader_registry[i].spv_data;
-        size_t spv_data_size = layer_shader_registry[i].spv_data_size;
-
-        VkShaderModule shader_module = compile_shader_module(spv_data, spv_data_size);
-        if (shader_module == 0)
-        {
-            NCNN_LOGE("compile_shader_module %d failed", i);
-            return -1;
-        }
-
-        shader_modules[i] = shader_module;
-
-        //         NCNN_LOGE("shader_module %d created", i);
-    }
-
-    return 0;
-}
-
-void VulkanDevice::destroy_shader_module()
-{
-    for (int i = 0; i < (int)shader_modules.size(); i++)
-    {
-        vkDestroyShaderModule(device, shader_modules[i], 0);
-    }
-
-    shader_modules.clear();
-}
-#endif
 
 int VulkanDevice::init_device_extension()
 {
