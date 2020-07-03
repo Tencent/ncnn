@@ -73,12 +73,23 @@ public:
     // digest -> artifact
     struct pipeline_cache_digest
     {
+        pipeline_cache_digest()
+        {
+            d0 = 0;
+            d1 = 0;
+        }
+
         pipeline_cache_digest(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations,
                               uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z);
 
         bool operator==(const pipeline_cache_digest& rhs) const
         {
             return d0 == rhs.d0 && d1 == rhs.d1;
+        }
+
+        bool operator!=(const pipeline_cache_digest& rhs) const
+        {
+            return d0 != rhs.d0 || d1 != rhs.d1;
         }
 
         union
@@ -114,6 +125,8 @@ public:
         ShaderInfo shader_info;// TODO use pointer ?
     };
 
+    pipeline_cache_digest last_digest;
+    int last_digest_index;
     std::vector<pipeline_cache_digest> cache_digests;
     std::vector<pipeline_cache_artifact> cache_artifacts;
 };

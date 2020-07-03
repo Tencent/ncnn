@@ -86,9 +86,9 @@ PipelineCache::pipeline_cache_digest::pipeline_cache_digest(int _shader_type_ind
     specializations_fnv1a = fnv1a_32((const uint8_t*)specializations.data(), specialization_count * sizeof(vk_specialization_type));
 }
 
-PipelineCache::PipelineCache(const VulkanDevice* _vkdev)
+PipelineCache::PipelineCache(const VulkanDevice* _vkdev) : vkdev(_vkdev)
 {
-    vkdev = _vkdev;
+    last_digest_index = -1;
 }
 
 PipelineCache::~PipelineCache()
@@ -133,6 +133,9 @@ void PipelineCache::clear()
 
     cache_digests.clear();
     cache_artifacts.clear();
+
+    last_digest = pipeline_cache_digest();
+    last_digest_index = -1;
 }
 
 int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
@@ -144,8 +147,6 @@ int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, 
                                 VkDescriptorUpdateTemplateKHR* _descriptor_update_template,
                                 ShaderInfo& shader_info)
 {
-    // TODO mutex lock
-
     int ret = 0;
 
     // find cache
@@ -177,6 +178,7 @@ int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, 
     ret = new_pipeline(shader_module, shader_info, specializations, _descriptorset_layout, _pipeline_layout, _pipeline, _descriptor_update_template);
     if (ret != 0)
     {
+        NCNN_LOGE("new_pipeline failed");
         vkDestroyShaderModule(vkdev->vkdevice(), shader_module, 0);
         return -1;
     }
@@ -199,22 +201,33 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
 {
     // find cache
     pipeline_cache_digest key(shader_type_index, opt, specializations, local_size_x, local_size_y, local_size_z);
-    for (size_t i = 0; i < cache_digests.size(); i++)
+    for (int i = 0; i < (int)cache_digests.size(); i++)
     {
-        if (cache_digests[i] == key)
+        if (cache_digests[i] != key)
+            continue;
+
+        if (last_digest == key && last_digest_index == i)
         {
-            // hit cache
-            const pipeline_cache_artifact& cc = cache_artifacts[i];
-
-            *_shader_module = cc.shader_module;
-            *descriptorset_layout = cc.descriptorset_layout;
-            *pipeline_layout = cc.pipeline_layout;
-            *pipeline = cc.pipeline;
-            *descriptor_update_template = cc.descriptor_update_template;
-            shader_info = cc.shader_info;
-
-            return 0;
+            // do not return identical pipeline for adjacent ones
+            continue;
         }
+
+        // hit cache
+        const pipeline_cache_artifact& cc = cache_artifacts[i];
+
+        *_shader_module = cc.shader_module;
+        *descriptorset_layout = cc.descriptorset_layout;
+        *pipeline_layout = cc.pipeline_layout;
+        *pipeline = cc.pipeline;
+        *descriptor_update_template = cc.descriptor_update_template;
+        shader_info = cc.shader_info;
+
+        last_digest = key;
+        last_digest_index = i;
+
+        // NCNN_LOGE("get_pipeline hit %d", last_digest_index);
+
+        return 0;
     }
 
     int ret = 0;
@@ -224,12 +237,14 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
     ret = create_shader_module(shader_type_index, opt, local_size_x, local_size_y, local_size_z, &shader_module, shader_info);
     if (ret != 0)
     {
+        NCNN_LOGE("create_shader_module failed");
         return -1;
     }
 
     ret = new_pipeline(shader_module, shader_info, specializations, descriptorset_layout, pipeline_layout, pipeline, descriptor_update_template);
     if (ret != 0)
     {
+        NCNN_LOGE("new_pipeline failed");
         vkDestroyShaderModule(vkdev->vkdevice(), shader_module, 0);
         return -1;
     }
@@ -250,6 +265,11 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
         cache_digests.push_back(key);
         cache_artifacts.push_back(cc);
     }
+
+    last_digest = key;
+    last_digest_index = (int)cache_digests.size() - 1;
+
+    // NCNN_LOGE("new_pipeline %d", last_digest_index);
 
     return 0;
 }

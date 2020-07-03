@@ -31,6 +31,7 @@
 #include "layer/vulkan/packing_vulkan.h"
 #include "layer_type.h"
 #include "mat.h"
+#include "pipelinecache.h"
 
 #if __ANDROID__
 #define ENABLE_VALIDATION_LAYER 0
@@ -1276,13 +1277,21 @@ VulkanDevice::~VulkanDevice()
         vkDestroySampler(device, texelfetch_sampler, 0);
     }
 
-    for (uint32_t i = 0; i < info.compute_queue_count; i++)
+    for (size_t i = 0; i < blob_allocators.size(); i++)
     {
         delete blob_allocators[i];
-        delete staging_allocators[i];
     }
     blob_allocators.clear();
+    for (size_t i = 0; i < staging_allocators.size(); i++)
+    {
+        delete staging_allocators[i];
+    }
     staging_allocators.clear();
+    for (size_t i = 0; i < pipeline_caches.size(); i++)
+    {
+        delete pipeline_caches[i];
+    }
+    pipeline_caches.clear();
 
 #if !NCNN_VULKAN_ONLINE_SPIRV
     destroy_shader_module();
@@ -1814,6 +1823,7 @@ VkAllocator* VulkanDevice::acquire_blob_allocator() const
     // pre-allocated allcator exhausted, create new
     VkAllocator* allocator = new VkBlobAllocator(this);
     blob_allocators.push_back(allocator);
+    blob_allocators[blob_allocators.size() - 1] = 0;
     return allocator;
 }
 
@@ -1850,6 +1860,7 @@ VkAllocator* VulkanDevice::acquire_staging_allocator() const
     // pre-allocated allcator exhausted, create new
     VkAllocator* allocator = new VkStagingAllocator(this);
     staging_allocators.push_back(allocator);
+    staging_allocators[staging_allocators.size() - 1] = 0;
     return allocator;
 }
 
@@ -1882,6 +1893,43 @@ VkMat VulkanDevice::get_dummy_buffer() const
 VkImageMat VulkanDevice::get_dummy_image() const
 {
     return dummy_image;
+}
+
+PipelineCache* VulkanDevice::acquire_pipeline_cache() const
+{
+    MutexLockGuard lock(pipeline_cache_lock);
+
+    for (int i = 0; i < (int)pipeline_caches.size(); i++)
+    {
+        PipelineCache* pipeline_cache = pipeline_caches[i];
+        if (pipeline_cache)
+        {
+            pipeline_caches[i] = 0;
+            return pipeline_cache;
+        }
+    }
+
+    // pre-allocated allcator exhausted, create new
+    PipelineCache* pipeline_cache = new PipelineCache(this);
+    pipeline_caches.push_back(pipeline_cache);
+    pipeline_caches[pipeline_caches.size() - 1] = 0;
+    return pipeline_cache;
+}
+
+void VulkanDevice::reclaim_pipeline_cache(PipelineCache* pipeline_cache) const
+{
+    MutexLockGuard lock(pipeline_cache_lock);
+
+    for (int i = 0; i < (int)pipeline_caches.size(); i++)
+    {
+        if (!pipeline_caches[i])
+        {
+            pipeline_caches[i] = pipeline_cache;
+            return;
+        }
+    }
+
+    NCNN_LOGE("FATAL ERROR! reclaim_pipeline_cache get wild pipeline_cache %p", pipeline_cache);
 }
 
 bool VulkanDevice::shape_support_image_storage(const Mat& shape) const

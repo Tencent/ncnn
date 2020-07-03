@@ -28,6 +28,7 @@
 #include "datareader.h"
 #include "net.h"
 #include "gpu.h"
+#include "pipelinecache.h"
 
 class DataReaderFromEmpty : public ncnn::DataReader
 {
@@ -54,12 +55,25 @@ static ncnn::PoolAllocator g_workspace_pool_allocator;
 static ncnn::VulkanDevice* g_vkdev = 0;
 static ncnn::VkAllocator* g_blob_vkallocator = 0;
 static ncnn::VkAllocator* g_staging_vkallocator = 0;
+static ncnn::PipelineCache* g_pipeline_cache = 0;
 #endif // NCNN_VULKAN
 
 void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& opt)
 {
     ncnn::Mat in = _in;
     in.fill(0.01f);
+
+    g_blob_pool_allocator.clear();
+    g_workspace_pool_allocator.clear();
+
+#if NCNN_VULKAN
+    if (opt.use_vulkan_compute)
+    {
+        g_blob_vkallocator->clear();
+        g_staging_vkallocator->clear();
+        g_pipeline_cache->clear();
+    }
+#endif // NCNN_VULKAN
 
     ncnn::Net net;
 
@@ -79,16 +93,17 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     DataReaderFromEmpty dr;
     net.load_model(dr);
 
-    g_blob_pool_allocator.clear();
-    g_workspace_pool_allocator.clear();
-
-#if NCNN_VULKAN
-    if (net.opt.use_vulkan_compute)
-    {
-        g_blob_vkallocator->clear();
-        g_staging_vkallocator->clear();
-    }
-#endif // NCNN_VULKAN
+//     g_blob_pool_allocator.clear();
+//     g_workspace_pool_allocator.clear();
+//
+// #if NCNN_VULKAN
+//     if (net.opt.use_vulkan_compute)
+//     {
+//         g_blob_vkallocator->clear();
+//         g_staging_vkallocator->clear();
+//         g_pipeline_cache->clear();
+//     }
+// #endif // NCNN_VULKAN
 
     if (g_enable_cooling_down)
     {
@@ -185,6 +200,8 @@ int main(int argc, char** argv)
 
         g_blob_vkallocator = new ncnn::VkBlobAllocator(g_vkdev);
         g_staging_vkallocator = new ncnn::VkStagingAllocator(g_vkdev);
+
+        g_pipeline_cache = new ncnn::PipelineCache(g_vkdev);
     }
 #endif // NCNN_VULKAN
 
@@ -198,6 +215,7 @@ int main(int argc, char** argv)
     opt.blob_vkallocator = g_blob_vkallocator;
     opt.workspace_vkallocator = g_blob_vkallocator;
     opt.staging_vkallocator = g_staging_vkallocator;
+    opt.pipeline_cache = g_pipeline_cache;
 #endif // NCNN_VULKAN
     opt.use_winograd_convolution = true;
     opt.use_sgemm_convolution = true;
@@ -328,6 +346,7 @@ int main(int argc, char** argv)
 #if NCNN_VULKAN
     delete g_blob_vkallocator;
     delete g_staging_vkallocator;
+    delete g_pipeline_cache;
 #endif // NCNN_VULKAN
 
     return 0;

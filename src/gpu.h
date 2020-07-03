@@ -166,6 +166,7 @@ class VkCompute;
 class Layer;
 class Packing_vulkan;
 class Option;
+class PipelineCache;
 class VulkanDevice
 {
 public:
@@ -217,6 +218,10 @@ public:
     // dummy buffer image
     VkMat get_dummy_buffer() const;
     VkImageMat get_dummy_image() const;
+
+    // pipeline cache on this device
+    PipelineCache* acquire_pipeline_cache() const;
+    void reclaim_pipeline_cache(PipelineCache* pipeline_cache) const;
 
     // test image allocation
     bool shape_support_image_storage(const Mat& shape) const;
@@ -313,6 +318,10 @@ private:
     VkAllocator* dummy_allocator;
     VkMat dummy_buffer;
     VkImageMat dummy_image;
+
+    // default pipeline cache
+    mutable std::vector<PipelineCache*> pipeline_caches;
+    mutable Mutex pipeline_cache_lock;
 
     // utility operator
     // from buffer | image
