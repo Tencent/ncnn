@@ -987,6 +987,8 @@ void destroy_gpu_instance()
 #endif // ENABLE_VALIDATION_LAYER
 
     vkDestroyInstance(g_instance, 0);
+
+    g_instance.instance = 0;
 }
 
 static bool is_gpu_instance_ready()
