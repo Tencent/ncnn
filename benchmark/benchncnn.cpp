@@ -61,6 +61,17 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     ncnn::Mat in = _in;
     in.fill(0.01f);
 
+    g_blob_pool_allocator.clear();
+    g_workspace_pool_allocator.clear();
+
+#if NCNN_VULKAN
+    if (opt.use_vulkan_compute)
+    {
+        g_blob_vkallocator->clear();
+        g_staging_vkallocator->clear();
+    }
+#endif // NCNN_VULKAN
+
     ncnn::Net net;
 
     net.opt = opt;
@@ -78,17 +89,6 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
 
     DataReaderFromEmpty dr;
     net.load_model(dr);
-
-    g_blob_pool_allocator.clear();
-    g_workspace_pool_allocator.clear();
-
-#if NCNN_VULKAN
-    if (net.opt.use_vulkan_compute)
-    {
-        g_blob_vkallocator->clear();
-        g_staging_vkallocator->clear();
-    }
-#endif // NCNN_VULKAN
 
     if (g_enable_cooling_down)
     {

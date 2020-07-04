@@ -27,10 +27,6 @@ layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
 layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
 
-layout (local_size_x_id = 233) in;
-layout (local_size_y_id = 234) in;
-layout (local_size_z_id = 235) in;
-
 #if NCNN_image_shader
 layout (binding = 0) uniform highp sampler3D bottom_top_blob;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image1D mean_blob;

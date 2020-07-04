@@ -29,6 +29,7 @@ Option::Option()
     blob_vkallocator = 0;
     workspace_vkallocator = 0;
     staging_vkallocator = 0;
+    pipeline_cache = 0;
 #endif // NCNN_VULKAN
 
     use_winograd_convolution = true;
