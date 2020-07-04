@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(HardSwish_arm)
-
 HardSwish_arm::HardSwish_arm()
 {
 #if __ARM_NEON

@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(InstanceNorm)
-
 InstanceNorm::InstanceNorm()
 {
     one_blob_only = true;

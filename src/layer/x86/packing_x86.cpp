@@ -19,8 +19,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Packing_x86)
-
 Packing_x86::Packing_x86()
 {
     support_packing = true;

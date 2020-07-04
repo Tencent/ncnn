@@ -22,8 +22,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Yolov3DetectionOutput)
-
 Yolov3DetectionOutput::Yolov3DetectionOutput()
 {
     one_blob_only = false;

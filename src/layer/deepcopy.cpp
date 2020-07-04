@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(DeepCopy)
-
 DeepCopy::DeepCopy()
 {
     one_blob_only = true;

@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Mish)
-
 Mish::Mish()
 {
     one_blob_only = true;

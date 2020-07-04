@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(UnaryOp)
-
 UnaryOp::UnaryOp()
 {
     one_blob_only = true;

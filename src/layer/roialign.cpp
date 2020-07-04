@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(ROIAlign)
-
 ROIAlign::ROIAlign()
 {
 }

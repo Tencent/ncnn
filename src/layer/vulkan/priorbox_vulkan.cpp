@@ -22,8 +22,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(PriorBox_vulkan)
-
 PriorBox_vulkan::PriorBox_vulkan()
 {
     support_vulkan = true;

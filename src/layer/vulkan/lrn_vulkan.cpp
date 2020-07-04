@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(LRN_vulkan)
-
 LRN_vulkan::LRN_vulkan()
 {
     support_vulkan = true;

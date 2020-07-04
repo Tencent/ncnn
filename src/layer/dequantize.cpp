@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Dequantize)
-
 Dequantize::Dequantize()
 {
     one_blob_only = true;

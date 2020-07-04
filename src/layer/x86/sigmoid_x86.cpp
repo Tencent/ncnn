@@ -22,8 +22,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Sigmoid_x86)
-
 Sigmoid_x86::Sigmoid_x86()
 {
 #if __AVX__

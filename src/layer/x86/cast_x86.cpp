@@ -59,8 +59,6 @@ static inline __m128i float2bfloat_avx(__m256 v0)
 
 #endif //NCNN_AVX2
 
-DEFINE_LAYER_CREATOR(Cast_x86)
-
 Cast_x86::Cast_x86()
 {
     support_packing = true;

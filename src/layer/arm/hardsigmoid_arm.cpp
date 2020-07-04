@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(HardSigmoid_arm)
-
 HardSigmoid_arm::HardSigmoid_arm()
 {
 #if __ARM_NEON

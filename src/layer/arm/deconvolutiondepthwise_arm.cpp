@@ -25,8 +25,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(DeconvolutionDepthWise_arm)
-
 DeconvolutionDepthWise_arm::DeconvolutionDepthWise_arm()
 {
 #if __ARM_NEON

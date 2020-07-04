@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Eltwise_arm)
-
 Eltwise_arm::Eltwise_arm()
 {
 #if __ARM_NEON

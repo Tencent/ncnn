@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Tile)
-
 Tile::Tile()
 {
     one_blob_only = true;

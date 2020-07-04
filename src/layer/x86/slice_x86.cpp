@@ -23,8 +23,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Slice_x86)
-
 Slice_x86::Slice_x86()
 {
 #if __AVX__

@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Packing_vulkan)
-
 Packing_vulkan::Packing_vulkan()
 {
     support_vulkan = true;

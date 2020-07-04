@@ -36,8 +36,6 @@ namespace ncnn {
 #include "convolutiondepthwise_5x5_pack4_bf16s.h"
 #endif // __ARM_NEON
 
-DEFINE_LAYER_CREATOR(ConvolutionDepthWise_arm)
-
 ConvolutionDepthWise_arm::ConvolutionDepthWise_arm()
 {
 #if __ARM_NEON

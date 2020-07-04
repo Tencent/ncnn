@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Swish_vulkan)
-
 Swish_vulkan::Swish_vulkan()
 {
     support_vulkan = true;

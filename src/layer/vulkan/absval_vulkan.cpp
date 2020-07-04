@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(AbsVal_vulkan)
-
 AbsVal_vulkan::AbsVal_vulkan()
 {
     support_vulkan = true;

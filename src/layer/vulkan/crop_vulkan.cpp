@@ -21,8 +21,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Crop_vulkan)
-
 Crop_vulkan::Crop_vulkan()
 {
     support_vulkan = true;

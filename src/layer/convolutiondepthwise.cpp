@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(ConvolutionDepthWise)
-
 ConvolutionDepthWise::ConvolutionDepthWise()
 {
     one_blob_only = true;

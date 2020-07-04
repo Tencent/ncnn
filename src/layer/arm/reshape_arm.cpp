@@ -22,8 +22,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Reshape_arm)
-
 Reshape_arm::Reshape_arm()
 {
 #if __ARM_NEON

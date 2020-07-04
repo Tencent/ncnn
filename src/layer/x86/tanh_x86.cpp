@@ -21,8 +21,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(TanH_x86)
-
 TanH_x86::TanH_x86()
 {
 #if __AVX__

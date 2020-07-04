@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Clip_vulkan)
-
 Clip_vulkan::Clip_vulkan()
 {
     support_vulkan = true;

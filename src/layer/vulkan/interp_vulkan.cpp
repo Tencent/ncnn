@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Interp_vulkan);
-
 Interp_vulkan::Interp_vulkan()
 {
     support_vulkan = true;

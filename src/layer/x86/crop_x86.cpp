@@ -22,8 +22,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Crop_x86)
-
 Crop_x86::Crop_x86()
 {
 #if __AVX__

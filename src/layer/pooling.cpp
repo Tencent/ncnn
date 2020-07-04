@@ -21,8 +21,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Pooling)
-
 Pooling::Pooling()
 {
     one_blob_only = true;

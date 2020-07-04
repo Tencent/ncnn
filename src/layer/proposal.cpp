@@ -19,8 +19,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Proposal)
-
 Proposal::Proposal()
 {
     one_blob_only = false;
