@@ -28,7 +28,6 @@
 #include "datareader.h"
 #include "net.h"
 #include "gpu.h"
-#include "pipelinecache.h"
 
 class DataReaderFromEmpty : public ncnn::DataReader
 {
