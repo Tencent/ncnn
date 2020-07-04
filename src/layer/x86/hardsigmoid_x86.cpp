@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(HardSigmoid_x86)
-
 HardSigmoid_x86::HardSigmoid_x86()
 {
 #if __AVX__

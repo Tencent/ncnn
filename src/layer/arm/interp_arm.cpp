@@ -34,8 +34,6 @@ namespace ncnn {
 #include "interp_bilinear_pack4_bf16s.h"
 #endif
 
-DEFINE_LAYER_CREATOR(Interp_arm)
-
 Interp_arm::Interp_arm()
 {
 #if __ARM_NEON

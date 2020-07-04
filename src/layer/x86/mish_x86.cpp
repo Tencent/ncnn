@@ -21,8 +21,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Mish_x86)
-
 Mish_x86::Mish_x86()
 {
 #if __AVX__

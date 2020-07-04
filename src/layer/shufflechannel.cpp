@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(ShuffleChannel)
-
 ShuffleChannel::ShuffleChannel()
 {
     one_blob_only = true;

@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Noop)
-
 Noop::Noop()
 {
     support_inplace = true;

@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Split)
-
 Split::Split()
 {
     one_blob_only = false;

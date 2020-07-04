@@ -25,8 +25,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(InnerProduct_arm)
-
 InnerProduct_arm::InnerProduct_arm()
 {
 #if __ARM_NEON

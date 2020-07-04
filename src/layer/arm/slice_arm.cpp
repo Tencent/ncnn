@@ -22,8 +22,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Slice_arm)
-
 Slice_arm::Slice_arm()
 {
 #if __ARM_NEON

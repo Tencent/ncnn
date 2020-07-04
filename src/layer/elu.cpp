@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(ELU)
-
 ELU::ELU()
 {
     one_blob_only = true;

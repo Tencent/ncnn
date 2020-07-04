@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(BNLL)
-
 BNLL::BNLL()
 {
     one_blob_only = true;

@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Reshape_vulkan)
-
 Reshape_vulkan::Reshape_vulkan()
 {
     support_vulkan = true;

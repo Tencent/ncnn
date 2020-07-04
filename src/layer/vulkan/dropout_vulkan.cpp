@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Dropout_vulkan)
-
 Dropout_vulkan::Dropout_vulkan()
 {
     support_vulkan = true;

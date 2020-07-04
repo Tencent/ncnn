@@ -51,8 +51,6 @@ namespace ncnn {
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
 
-DEFINE_LAYER_CREATOR(Convolution_x86)
-
 Convolution_x86::Convolution_x86()
 {
 #ifdef __AVX__

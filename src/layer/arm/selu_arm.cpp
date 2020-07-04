@@ -22,8 +22,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(SELU_arm)
-
 int SELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;

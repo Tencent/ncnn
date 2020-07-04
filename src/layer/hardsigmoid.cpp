@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(HardSigmoid)
-
 HardSigmoid::HardSigmoid()
 {
     one_blob_only = true;

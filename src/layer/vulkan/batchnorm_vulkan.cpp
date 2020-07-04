@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(BatchNorm_vulkan)
-
 BatchNorm_vulkan::BatchNorm_vulkan()
 {
     support_vulkan = true;

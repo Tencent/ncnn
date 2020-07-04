@@ -23,8 +23,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(LSTM_x86)
-
 LSTM_x86::LSTM_x86()
 {
     one_blob_only = false;

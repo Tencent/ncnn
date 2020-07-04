@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Scale)
-
 Scale::Scale()
 {
     one_blob_only = true;

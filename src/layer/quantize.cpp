@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Quantize)
-
 Quantize::Quantize()
 {
     one_blob_only = true;

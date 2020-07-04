@@ -30,8 +30,6 @@ namespace ncnn {
 #include "pooling_3x3_pack8.h"
 #endif
 
-DEFINE_LAYER_CREATOR(Pooling_x86)
-
 Pooling_x86::Pooling_x86()
 {
 #if __AVX__

@@ -19,8 +19,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Normalize)
-
 Normalize::Normalize()
 {
     one_blob_only = true;

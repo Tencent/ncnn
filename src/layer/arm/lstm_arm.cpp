@@ -25,8 +25,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(LSTM_arm)
-
 LSTM_arm::LSTM_arm()
 {
     one_blob_only = false;

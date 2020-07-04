@@ -26,8 +26,6 @@ static inline signed char float2int8(float v)
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Clip)
-
 Clip::Clip()
 {
     one_blob_only = true;

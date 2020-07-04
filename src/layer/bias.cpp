@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Bias)
-
 Bias::Bias()
 {
     one_blob_only = true;

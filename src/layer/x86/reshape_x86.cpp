@@ -21,8 +21,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Reshape_x86)
-
 Reshape_x86::Reshape_x86()
 {
 #if __AVX__

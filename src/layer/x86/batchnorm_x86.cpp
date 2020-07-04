@@ -19,8 +19,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(BatchNorm_x86)
-
 BatchNorm_x86::BatchNorm_x86()
 {
 #if __AVX__

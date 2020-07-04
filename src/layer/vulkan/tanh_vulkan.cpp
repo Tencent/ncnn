@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(TanH_vulkan)
-
 TanH_vulkan::TanH_vulkan()
 {
     support_vulkan = true;

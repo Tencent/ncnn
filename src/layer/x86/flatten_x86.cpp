@@ -19,8 +19,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Flatten_x86)
-
 Flatten_x86::Flatten_x86()
 {
 #if __AVX__

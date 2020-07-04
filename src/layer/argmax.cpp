@@ -19,8 +19,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(ArgMax)
-
 ArgMax::ArgMax()
 {
     one_blob_only = true;

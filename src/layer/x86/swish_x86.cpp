@@ -21,8 +21,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Swish_x86)
-
 Swish_x86::Swish_x86()
 {
 #if __AVX__

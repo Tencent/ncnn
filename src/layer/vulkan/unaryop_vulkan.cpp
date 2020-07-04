@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(UnaryOp_vulkan)
-
 UnaryOp_vulkan::UnaryOp_vulkan()
 {
     support_vulkan = true;

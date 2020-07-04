@@ -19,8 +19,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(ROIAlign_x86)
-
 // adapted from detectron2
 // https://github.com/facebookresearch/detectron2/blob/master/detectron2/layers/csrc/ROIAlign/ROIAlign_cpu.cpp
 template<typename T>

@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(MemoryData)
-
 MemoryData::MemoryData()
 {
     one_blob_only = false;

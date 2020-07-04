@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Clip_arm)
-
 Clip_arm::Clip_arm()
 {
 #if __ARM_NEON

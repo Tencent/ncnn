@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Scale_vulkan)
-
 Scale_vulkan::Scale_vulkan()
 {
     support_vulkan = true;

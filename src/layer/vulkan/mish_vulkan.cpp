@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Mish_vulkan)
-
 Mish_vulkan::Mish_vulkan()
 {
     support_vulkan = true;

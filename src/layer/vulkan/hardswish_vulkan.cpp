@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(HardSwish_vulkan)
-
 HardSwish_vulkan::HardSwish_vulkan()
 {
     support_vulkan = true;

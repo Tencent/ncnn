@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(AbsVal_arm)
-
 AbsVal_arm::AbsVal_arm()
 {
 #if __ARM_NEON

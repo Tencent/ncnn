@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Exp)
-
 Exp::Exp()
 {
     one_blob_only = true;

@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Scale_x86)
-
 Scale_x86::Scale_x86()
 {
 #if __AVX__

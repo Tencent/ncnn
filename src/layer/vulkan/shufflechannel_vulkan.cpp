@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(ShuffleChannel_vulkan)
-
 ShuffleChannel_vulkan::ShuffleChannel_vulkan()
 {
     support_vulkan = true;

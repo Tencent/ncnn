@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(SELU)
-
 SELU::SELU()
 {
     one_blob_only = true;

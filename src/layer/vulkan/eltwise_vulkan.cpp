@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Eltwise_vulkan)
-
 Eltwise_vulkan::Eltwise_vulkan()
 {
     support_vulkan = true;

@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Crop)
-
 Crop::Crop()
 {
     one_blob_only = true;

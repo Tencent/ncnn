@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Dropout_x86)
-
 Dropout_x86::Dropout_x86()
 {
 #if __AVX__
