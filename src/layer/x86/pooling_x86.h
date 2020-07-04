@@ -22,12 +22,13 @@
 
 namespace ncnn {
 
-class Pooling_x86 : virtual public Pooling {
+class Pooling_x86 : virtual public Pooling
+{
 public:
     Pooling_x86();
 
-    virtual int forward(const Mat &bottom_blob, Mat &top_blob,
-                        const Option &opt) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob,
+                        const Option& opt) const;
 };
 
 } // namespace ncnn
