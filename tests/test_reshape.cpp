@@ -38,6 +38,30 @@ static int test_reshape(const ncnn::Mat& a, int outw, int outh, int outc)
     return ret;
 }
 
+static int test_reshape_permute(const ncnn::Mat& a, int outw, int outh, int outc)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, outw); // w
+    pd.set(1, outh); // h
+    pd.set(2, outc); // c
+    pd.set(3, 1);    // permute
+
+    std::vector<ncnn::Mat> weights(0);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_vulkan_compute = true;
+    opt.use_int8_inference = false;
+
+    int ret = test_layer<ncnn::Reshape>("Reshape", pd, weights, opt, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_reshape_permute failed a.dims=%d a=(%d %d %d) outw=%d outh=%d outc=%d\n", a.dims, a.w, a.h, a.c, outw, outh, outc);
+    }
+
+    return ret;
+}
+
 static int test_reshape_0()
 {
     ncnn::Mat a = RandomMat(3, 7, 16);
@@ -134,6 +158,38 @@ static int test_reshape_5()
            || test_reshape(a, -1, -233, -233);
 }
 
+static int test_reshape_6()
+{
+    ncnn::Mat a = RandomMat(3, 7, 16);
+
+    return 0
+           || test_reshape_permute(a, 7, 3, 16)
+           || test_reshape_permute(a, 3, 16, 7)
+           || test_reshape_permute(a, 16, 7, 3)
+           || test_reshape_permute(a, 2, 3, -1)
+           || test_reshape_permute(a, -1, 8, 2)
+           || test_reshape_permute(a, -1, 4, -233)
+           || test_reshape_permute(a, 8, -1, -233)
+           || test_reshape_permute(a, 16, 21, -233)
+           || test_reshape_permute(a, -1, -233, -233);
+}
+
+static int test_reshape_7()
+{
+    ncnn::Mat a = RandomMat(4, 14, 13);
+
+    return 0
+           || test_reshape_permute(a, 14, 4, 13)
+           || test_reshape_permute(a, 4, 13, 14)
+           || test_reshape_permute(a, 13, 14, 4)
+           || test_reshape_permute(a, 2, 7, -1)
+           || test_reshape_permute(a, -1, 13, 2)
+           || test_reshape_permute(a, -1, 4, -233)
+           || test_reshape_permute(a, 8, -1, -233)
+           || test_reshape_permute(a, 8, 91, -233)
+           || test_reshape_permute(a, -1, -233, -233);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -144,5 +200,7 @@ int main()
            || test_reshape_2()
            || test_reshape_3()
            || test_reshape_4()
-           || test_reshape_5();
+           || test_reshape_5()
+           || test_reshape_6()
+           || test_reshape_7();
 }
