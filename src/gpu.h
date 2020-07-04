@@ -120,7 +120,6 @@ public:
     bool unified_compute_transfer_queue;
 
     // bug is not feature
-    bool bug_local_size_spec_const;
     bool bug_storage_buffer_no_l1;
     bool bug_layout_binding_id_alias;
 
@@ -166,6 +165,7 @@ class VkCompute;
 class Layer;
 class Packing_vulkan;
 class Option;
+class PipelineCache;
 class VulkanDevice
 {
 public:
@@ -180,8 +180,6 @@ public:
     }
 
 #if !NCNN_VULKAN_ONLINE_SPIRV
-    VkShaderModule get_shader_module(int shader_type_index) const;
-
     // with fixed workgroup size
     VkShaderModule create_shader_module(int shader_type_index, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const;
 #endif
@@ -190,6 +188,12 @@ public:
 
     // with fixed workgroup size
     VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const;
+
+    // helper for creating pipeline
+    int create_descriptorset_layout(int binding_count, const int* binding_types, VkDescriptorSetLayout* descriptorset_layout) const;
+    int create_pipeline_layout(int push_constant_count, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const;
+    int create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, VkPipeline* pipeline) const;
+    int create_descriptor_update_template(int binding_count, const int* binding_types, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR* descriptor_update_template) const;
 
     uint32_t find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const;
     bool is_mappable(uint32_t memory_type_index) const;
@@ -211,6 +215,9 @@ public:
     // dummy buffer image
     VkMat get_dummy_buffer() const;
     VkImageMat get_dummy_image() const;
+
+    // pipeline cache on this device
+    const PipelineCache* get_pipeline_cache() const;
 
     // test image allocation
     bool shape_support_image_storage(const Mat& shape) const;
@@ -263,12 +270,6 @@ public:
 #endif // __ANDROID_API__ >= 26
 
 protected:
-#if !NCNN_VULKAN_ONLINE_SPIRV
-    // shader management
-    int create_shader_module();
-    void destroy_shader_module();
-#endif
-
     // device extension
     int init_device_extension();
 
@@ -282,9 +283,6 @@ protected:
 
 private:
     VkDevice device;
-#if !NCNN_VULKAN_ONLINE_SPIRV
-    std::vector<VkShaderModule> shader_modules;
-#endif
 
     // hardware queue
     mutable std::vector<VkQueue> compute_queues;
@@ -307,6 +305,9 @@ private:
     VkAllocator* dummy_allocator;
     VkMat dummy_buffer;
     VkImageMat dummy_image;
+
+    // device-wide pipeline cache
+    PipelineCache* pipeline_cache;
 
     // utility operator
     // from buffer | image
