@@ -24,6 +24,8 @@
 #include "gpu.h"
 #endif // NCNN_VULKAN
 
+#define YOLOV4_TINY 1 //0 or undef for yolov4
+
 struct Object
 {
     cv::Rect_<float> rect;
@@ -41,10 +43,15 @@ static int detect_yolov4(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // original pretrained model from https://github.com/AlexeyAB/darknet
     // the ncnn model https://drive.google.com/drive/folders/1YzILvh0SKQPS_lrb33dmGNq7aVTKPWS0?usp=sharing
+#if YOLOV4_TINY
     yolov4.load_param("yolov4-tiny-opt.param");
     yolov4.load_model("yolov4-tiny-opt.bin");
-
     const int target_size = 416;
+#else
+    yolov4.load_param("yolov4-opt.param");
+    yolov4.load_model("yolov4-opt.bin");
+    const int target_size = 608;
+#endif
 
     int img_w = bgr.cols;
     int img_h = bgr.rows;
