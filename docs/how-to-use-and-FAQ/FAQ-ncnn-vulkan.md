@@ -6,7 +6,7 @@ make sure you have installed vulkan sdk from [lunarg vulkan sdk website](https:/
 
 Usually, you can enable the vulkan compute inference feature by adding only three lines of code to your application.
 
-```
+```cpp
 // initialize when app starts
 ncnn::create_gpu_instance();// line1
 

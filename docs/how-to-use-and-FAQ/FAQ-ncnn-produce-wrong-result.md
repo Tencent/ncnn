@@ -63,7 +63,7 @@ transform_param {
 }
 ```
 Then the corresponding code for ncnn pre process is
-```
+```cpp
 const float mean_vals[3] = { 103.94f, 116.78f, 123.68f };
 const float norm_vals[3] = { 0.017f, 0.017f, 0.017f };
 in.substract_mean_normalize(mean_vals, norm_vals);
@@ -79,12 +79,12 @@ transform_param {
 ```
 
 For pytorch or mxnet-gluon
-```
+```python
 transforms.ToTensor(),
 transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
 ```
 Then the corresponding code for ncnn pre process is
-```
+```cpp
 // R' = (R / 255 - 0.485) / 0.229 = (R - 0.485 * 255) / 0.229 / 255
 // G' = (G / 255 - 0.456) / 0.224 = (G - 0.456 * 255) / 0.224 / 255
 // B' = (B / 255 - 0.406) / 0.225 = (B - 0.406 * 255) / 0.225 / 255
@@ -100,7 +100,7 @@ For example, squeezenet v1.1 use "data" as input blob and "prob" as output blob 
 
 Some models may need multiple input or produce multiple output.
 
-```
+```cpp
 ncnn::Extractor ex = net.create_extractor();
 
 ex.input("data", in);// change "data" to yours
@@ -130,7 +130,7 @@ const float* outptr = flattened_out;
 The `ncnn::Extractor` object is stateful, if you reuse for different input, you will always get exact the same result cached inside.
 
 Always create new Extractor to process images in loop unless you do know how the stateful Extractor works.
-```
+```cpp
 for (int i=0; i<count; i++)
 {
     // always create Extractor
@@ -148,7 +148,7 @@ If you want to load plain param file buffer, you shall use Net::load_param_mem i
 
 For more information about the ncnn model load api, see [ncnn-load-model](ncnn-load-model)
 
-```
+```cpp
 ncnn::Net net;
 
 // param_buffer is the content buffe of XYZ.param file

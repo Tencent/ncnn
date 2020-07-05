@@ -53,7 +53,7 @@ CentOS 尝试
 4. 设置 protobuf.so 的搜索目录
 打开`~/.bashrc`，在末尾增加
 
-```
+```bash
 export LD_LIBRARY_PATH=/your_install_dir/lib:$LD_LIBRARY_PATH
 export CPLUS_INCLUDE_PATH=/your_install_dir/include:$CPLUS_INCLUDE_PATH
 ```
