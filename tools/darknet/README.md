@@ -61,5 +61,5 @@ The result will be:
 
 ## How to run with benchncnn
 
-Change the Yolov3DetectionOutput layer to Noop.
+Set 2=0.3 for Yolov3DetectionOutput layer.
 

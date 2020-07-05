@@ -325,6 +325,8 @@ int main(int argc, char** argv)
 
     benchmark("mobilenetv2_yolov3", ncnn::Mat(352, 352, 3), opt);
 
+    benchmark("yolov4-tiny", ncnn::Mat(416, 416, 3), opt);
+
 #if NCNN_VULKAN
     delete g_blob_vkallocator;
     delete g_staging_vkallocator;
