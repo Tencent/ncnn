@@ -2,21 +2,21 @@
 
 * cv::Mat CV_8UC3 -> ncnn::Mat 3 channel + swap RGB/BGR
 
-```
+```cpp
 // cv::Mat a(h, w, CV_8UC3);
 ncnn::Mat in = ncnn::Mat::from_pixels(a.data, ncnn::PIXEL_BGR2RGB, a.cols, a.rows);
 ```
 
 * cv::Mat CV_8UC3 -> ncnn::Mat 3 channel + keep RGB/BGR order
 
-```
+```cpp
 // cv::Mat a(h, w, CV_8UC3);
 ncnn::Mat in = ncnn::Mat::from_pixels(a.data, ncnn::PIXEL_RGB, a.cols, a.rows);
 ```
 
 * cv::Mat CV_8UC3 -> ncnn::Mat 1 channel + do RGB2GRAY/BGR2GRAY
 
-```
+```cpp
 // cv::Mat rgb(h, w, CV_8UC3);
 ncnn::Mat inrgb = ncnn::Mat::from_pixels(rgb.data, ncnn::PIXEL_RGB2GRAY, rgb.cols, rgb.rows);
 
@@ -26,7 +26,7 @@ ncnn::Mat inbgr = ncnn::Mat::from_pixels(bgr.data, ncnn::PIXEL_BGR2GRAY, bgr.col
 
 * cv::Mat CV_8UC1 -> ncnn::Mat 1 channel
 
-```
+```cpp
 // cv::Mat a(h, w, CV_8UC1);
 ncnn::Mat in = ncnn::Mat::from_pixels(a.data, ncnn::PIXEL_GRAY, a.cols, a.rows);
 ```
@@ -35,7 +35,7 @@ ncnn::Mat in = ncnn::Mat::from_pixels(a.data, ncnn::PIXEL_GRAY, a.cols, a.rows);
 
   * **You could construct ncnn::Mat and fill data into it directly to avoid data copy**
 
-```
+```cpp
 // cv::Mat a(h, w, CV_32FC1);
 ncnn::Mat in(a.cols, a.rows, 1, (void*)a.data);
 in = in.clone();
@@ -45,7 +45,7 @@ in = in.clone();
 
   * **You could construct ncnn::Mat and fill data into it directly to avoid data copy**
 
-```
+```cpp
 // cv::Mat a(h, w, CV_32FC3);
 ncnn::Mat in_pack3(a.cols, a.rows, 1, (void*)a.data, (size_t)4u * 3, 3);
 ncnn::Mat in;
@@ -56,7 +56,7 @@ ncnn::convert_packing(in_pack3, in, 1);
 
   * **You could construct ncnn::Mat and fill data into it directly to avoid data copy**
 
-```
+```cpp
 // std::vector<cv::Mat> a(channels, cv::Mat(h, w, CV_32FC1));
 int channels = a.size();
 ncnn::Mat in(a[0].cols, a[0].rows, channels);
@@ -72,7 +72,7 @@ for (int p=0; p<in.c; p++)
 
   * **You may need to call in.substract_mean_normalize() first to scale values from 0..1 to 0..255**
 
-```
+```cpp
 // ncnn::Mat in(w, h, 3);
 cv::Mat a(in.h, in.w, CV_8UC3);
 in.to_pixels(a.data, ncnn::PIXEL_BGR2RGB);
@@ -82,7 +82,7 @@ in.to_pixels(a.data, ncnn::PIXEL_BGR2RGB);
 
   * **You may need to call in.substract_mean_normalize() first to scale values from 0..1 to 0..255**
 
-```
+```cpp
 // ncnn::Mat in(w, h, 3);
 cv::Mat a(in.h, in.w, CV_8UC3);
 in.to_pixels(a.data, ncnn::PIXEL_RGB);
@@ -92,7 +92,7 @@ in.to_pixels(a.data, ncnn::PIXEL_RGB);
 
   * **You may need to call in.substract_mean_normalize() first to scale values from 0..1 to 0..255**
 
-```
+```cpp
 // ncnn::Mat in(w, h, 1);
 cv::Mat a(in.h, in.w, CV_8UC1);
 in.to_pixels(a.data, ncnn::PIXEL_GRAY);
@@ -102,7 +102,7 @@ in.to_pixels(a.data, ncnn::PIXEL_GRAY);
 
   * **You could consume or manipulate ncnn::Mat data directly to avoid data copy**
 
-```
+```cpp
 // ncnn::Mat in;
 cv::Mat a(in.h, in.w, CV_32FC1);
 memcpy((uchar*)a.data, in.data, in.w * in.h * sizeof(float));
@@ -112,7 +112,7 @@ memcpy((uchar*)a.data, in.data, in.w * in.h * sizeof(float));
 
   * **You could consume or manipulate ncnn::Mat data directly to avoid data copy**
 
-```
+```cpp
 // ncnn::Mat in(w, h, 3);
 ncnn::Mat in_pack3;
 ncnn::convert_packing(in, in_pack3, 3);
@@ -124,7 +124,7 @@ memcpy((uchar*)a.data, in_pack3.data, in.w * in.h * 3 * sizeof(float));
 
   * **You could consume or manipulate ncnn::Mat data directly to avoid data copy**
 
-```
+```cpp
 // ncnn::Mat in(w, h, channels);
 std::vector<cv::Mat> a(in.c);
 for (int p=0; p<in.c; p++)

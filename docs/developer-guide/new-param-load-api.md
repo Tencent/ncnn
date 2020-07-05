@@ -12,7 +12,7 @@ MyLayer  mylayer 1 1 in out 100 1.250000
 binary 100
 binary 1.250000
 ```
-```
+```cpp
 #if NCNN_STDIO
 #if NCNN_STRING
 int MyLayer::load_param(FILE* paramfp)
@@ -75,7 +75,7 @@ binary 0.8
 binary 1.0
 binary -233(EOP)
 ```
-```
+```cpp
 int MyLayer::load_param(const ParamDict& pd)
 {
     // pd.get( param id (seq), default value );
