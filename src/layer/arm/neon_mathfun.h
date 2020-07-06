@@ -40,15 +40,15 @@ static inline float32x4_t loadfp16(const void* ptr)
         "fcvtl  %0.4s, v0.4h        \n"
         : "=w"(v) // %0
         : "0"(v),
-        "r"(ptr)  // %2
+          "r"(ptr) // %2
         : "memory", "v0");
 #else
     asm volatile(
         "vld1.s16       {d0}, [%2]  \n"
         "vcvt.f32.f16   %q0, d0     \n"
-        : "=w"(v)  // %0
+        : "=w"(v) // %0
         : "0"(v),
-        "1"(ptr)   // %2
+          "1"(ptr) // %2
         : "memory", "d0");
 #endif // __aarch64__
     return v;
