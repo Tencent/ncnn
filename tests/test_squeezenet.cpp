@@ -114,7 +114,8 @@ static int test_squeezenet(const ncnn::Option& opt, float epsilon = 0.001)
     ncnn::Mat out;
     ex.extract("prob", out);
 
-    std::vector<float> cls_scores(out.w);
+    std::vector<float> cls_scores;
+    cls_scores.resize(out.w);
     for (int j = 0; j < out.w; j++)
     {
         cls_scores[j] = out[j];
