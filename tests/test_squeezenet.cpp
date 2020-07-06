@@ -176,7 +176,7 @@ int main()
 
         int ret;
 
-        Option opt_cpu = opt;
+        ncnn::Option opt_cpu = opt;
         opt_cpu.use_vulkan_compute = false;
         ret = test_squeezenet(opt_cpu, epsilon);
         if (ret != 0)
@@ -185,7 +185,7 @@ int main()
             return ret;
         }
 
-        Option opt_gpu = opt;
+        ncnn::Option opt_gpu = opt;
         opt_gpu.use_vulkan_compute = true;
         ret = test_squeezenet(opt_gpu, epsilon);
         if (ret != 0)
