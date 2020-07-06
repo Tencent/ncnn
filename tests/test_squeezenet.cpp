@@ -23,6 +23,8 @@
 
 static ncnn::Mat generate_ncnn_logo(int pixel_type_to, int w, int h)
 {
+    // clang-format off
+    // *INDENT-OFF*
     static const unsigned char ncnn_logo_data[16][16] =
     {
         {245, 245,  33, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245,  33, 245, 245},
@@ -42,6 +44,8 @@ static ncnn::Mat generate_ncnn_logo(int pixel_type_to, int w, int h)
         { 66, 224, 202, 158,  66, 224, 224, 224, 224, 224, 224,  66, 224, 202, 158,  66},
         { 66, 158, 224, 158,  66, 224, 224, 224, 224, 224, 224,  66, 158, 224, 158,  66}
     };
+    // *INDENT-ON*
+    // clang-format on
 
     const unsigned char* p_ncnn_logo_data = (const unsigned char*)ncnn_logo_data;
     ncnn::Mat logo = ncnn::Mat::from_pixels(p_ncnn_logo_data, ncnn::Mat::PIXEL_GRAY | (pixel_type_to << ncnn::Mat::PIXEL_CONVERT_SHIFT), 16, 16);
@@ -62,9 +66,7 @@ static int check_top3(const std::vector<float>& cls_scores, float epsilon = 0.00
         vec[i] = std::make_pair(cls_scores[i], i);
     }
 
-    std::partial_sort(vec.begin(), vec.begin() + 3, vec.end(),
-                      std::greater<std::pair<float, int> >());
-
+    std::partial_sort(vec.begin(), vec.begin() + 3, vec.end(), std::greater<std::pair<float, int> >());
 
     int expect_indexes[3] = {532, 920, 716};
     float expect_scores[3] = {0.189459f, 0.082801f, 0.034684f};
