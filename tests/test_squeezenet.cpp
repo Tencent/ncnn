@@ -185,6 +185,7 @@ int main()
             return ret;
         }
 
+#if NCNN_VULKAN
         ncnn::Option opt_gpu = opt;
         opt_gpu.use_vulkan_compute = true;
         ret = test_squeezenet(opt_gpu, epsilon);
@@ -193,6 +194,7 @@ int main()
             fprintf(stderr, "test_squeezenet gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
             return ret;
         }
+#endif // NCNN_VULKAN
     }
 
     return 0;
