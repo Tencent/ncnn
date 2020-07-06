@@ -97,8 +97,8 @@ static int test_squeezenet(const ncnn::Option& opt, float epsilon = 0.001)
     squeezenet.opt = opt;
 
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    squeezenet.load_param("../examples/squeezenet_v1.1.param");
-    squeezenet.load_model("../examples/squeezenet_v1.1.bin");
+    squeezenet.load_param("../../examples/squeezenet_v1.1.param");
+    squeezenet.load_model("../../examples/squeezenet_v1.1.bin");
 
     ncnn::Mat in = generate_ncnn_logo(ncnn::Mat::PIXEL_BGR, 227, 227);
 
