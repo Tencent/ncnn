@@ -174,10 +174,23 @@ int main()
             epsilon = 0.01;
         }
 
-        int ret = test_squeezenet(opt, epsilon);
+        int ret;
+
+        Option opt_cpu = opt;
+        opt_cpu.use_vulkan_compute = false;
+        ret = test_squeezenet(opt_cpu, epsilon);
         if (ret != 0)
         {
-            fprintf(stderr, "test_squeezenet failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
+            fprintf(stderr, "test_squeezenet cpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
+            return ret;
+        }
+
+        Option opt_gpu = opt;
+        opt_gpu.use_vulkan_compute = true;
+        ret = test_squeezenet(opt_gpu, epsilon);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_squeezenet gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
             return ret;
         }
     }
