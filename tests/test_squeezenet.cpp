@@ -53,6 +53,14 @@ static ncnn::Mat generate_ncnn_logo(int pixel_type_to, int w, int h)
     return m;
 }
 
+struct compare_score_index
+{
+    inline bool operator()(const std::pair<float, int>& a, const std::pair<float, int>& b)
+    {
+        return a.first > b.first;
+    }
+};
+
 static int check_top3(const std::vector<float>& cls_scores, float epsilon = 0.001)
 {
     // partial sort topk with index
@@ -64,7 +72,7 @@ static int check_top3(const std::vector<float>& cls_scores, float epsilon = 0.00
         vec[i] = std::make_pair(cls_scores[i], i);
     }
 
-    std::partial_sort(vec.begin(), vec.begin() + 3, vec.end(), std::greater<std::pair<float, int> >());
+    std::partial_sort(vec.begin(), vec.begin() + 3, vec.end(), compare_score_index());
 
     int expect_indexes[3] = {532, 920, 716};
     float expect_scores[3] = {0.189459f, 0.082801f, 0.034684f};
