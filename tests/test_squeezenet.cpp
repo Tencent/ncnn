@@ -12,13 +12,11 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "net.h"
-#include "platform.h"
-
-#include <algorithm>
 #include <stdio.h>
 #include <vector>
+#include <algorithm>
 
+#include "net.h"
 #include "testutil.h"
 
 static ncnn::Mat generate_ncnn_logo(int pixel_type_to, int w, int h)
