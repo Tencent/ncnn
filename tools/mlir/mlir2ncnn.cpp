@@ -48,12 +48,14 @@
 #include <mlir/Interfaces/CallInterfaces.h>
 #include <mlir/Interfaces/DerivedAttributeOpInterface.h>
 #include <mlir/Interfaces/InferTypeOpInterface.h>
+#include <mlir/Interfaces/LoopLikeInterface.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
 #include <mlir/Parser.h>
 #include <mlir/Support/LogicalResult.h>
 #include <mlir/Transforms/InliningUtils.h>
 
 #include "tf_attributes.h"
+#include "tf_side_effects.h"
 #include "tf_traits.h"
 
 namespace mlir {
@@ -382,6 +384,30 @@ LogicalResult ConstOp::inferReturnTypes(
     return emitOptionalError(location,
                              "attribute 'value' failed to satisfy constraint: "
                              "constant vector/tensor");
+}
+
+Region& WhileRegionOp::getLoopBody()
+{
+    return body();
+}
+
+bool WhileRegionOp::isDefinedOutsideOfLoop(Value value)
+{
+    // If the Op defining the value exists and the defining op is outside the
+    // scope of this WhileRegion, then we can infer that its defined outside.
+    // The defining Op is outside the scope of this WhileRegion if this
+    // WhileRegionOp is not an ancestor of the defining op in the parent chain.
+    Operation* def_op = value.getDefiningOp();
+    return def_op && !getOperation()->isAncestor(def_op);
+}
+
+LogicalResult WhileRegionOp::moveOutOfLoop(
+    llvm::ArrayRef<mlir::Operation*> ops)
+{
+    // Move the hoisted value to just before the while.
+    Operation* while_op = this->getOperation();
+    for (auto op : ops) op->moveBefore(while_op);
+    return success();
 }
 
 } // namespace TF
