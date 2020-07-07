@@ -278,7 +278,7 @@ protected:
     void destroy_dummy_buffer_image();
 
     // utility operator
-    int create_utility_operator();
+    const ncnn::Packing_vulkan* get_utility_operator(int storage_type_from, int storage_type_to, int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const;
     void destroy_utility_operator();
 
 private:
@@ -315,7 +315,8 @@ private:
     // from fp32-b/i | fp16p-b/i | fp16s-b/i
     // to fp32-b/i | fp16p-b/i | fp16s-b/i
     // to pack1 | pack4 | pack8
-    ncnn::Packing_vulkan* uop_packing[2][2][3][3][3];
+    mutable ncnn::Packing_vulkan* uop_packing[2][2][3][3][3];
+    mutable Mutex uop_lock;
 };
 
 VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());
