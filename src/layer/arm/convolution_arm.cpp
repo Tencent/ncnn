@@ -57,8 +57,6 @@ namespace ncnn {
 #include "convolution_7x7_pack1to4_bf16s.h"
 #endif // __ARM_NEON
 
-DEFINE_LAYER_CREATOR(Convolution_arm)
-
 Convolution_arm::Convolution_arm()
 {
 #if __ARM_NEON

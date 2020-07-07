@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(InnerProduct)
-
 InnerProduct::InnerProduct()
 {
     one_blob_only = true;

@@ -5,6 +5,8 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: true
     - name: cache-protobuf
       id: cache-protobuf
       uses: actions/cache@v1

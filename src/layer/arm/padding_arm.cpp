@@ -25,8 +25,6 @@ namespace ncnn {
 #include "padding_pack4_bf16s.h"
 #endif // __ARM_NEON
 
-DEFINE_LAYER_CREATOR(Padding_arm)
-
 Padding_arm::Padding_arm()
 {
 #if __ARM_NEON

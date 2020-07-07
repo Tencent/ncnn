@@ -29,6 +29,7 @@ namespace ncnn {
 
 #if NCNN_VULKAN
 class VkCompute;
+class PipelineCache;
 #endif // NCNN_VULKAN
 class DataReader;
 class Extractor;
@@ -165,6 +166,8 @@ protected:
 
     VkAllocator* weight_vkallocator;
     VkAllocator* weight_staging_vkallocator;
+
+    PipelineCache* pipeline_cache;
 #endif // NCNN_VULKAN
 };
 

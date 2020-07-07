@@ -21,8 +21,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(BinaryOp_vulkan)
-
 BinaryOp_vulkan::BinaryOp_vulkan()
 {
     support_vulkan = true;

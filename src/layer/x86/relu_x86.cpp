@@ -21,8 +21,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(ReLU_x86)
-
 ReLU_x86::ReLU_x86()
 {
 #if __AVX__

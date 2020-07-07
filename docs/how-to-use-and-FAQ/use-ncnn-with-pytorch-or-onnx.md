@@ -8,7 +8,7 @@ The official pytorch tutorial for exporting onnx model
 
 https://pytorch.org/tutorials/advanced/super_resolution_with_caffe2.html
 
-```
+```python
 import torch
 import torchvision
 import torch.onnx

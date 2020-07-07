@@ -24,8 +24,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Mish_arm)
-
 Mish_arm::Mish_arm()
 {
 #if __ARM_NEON

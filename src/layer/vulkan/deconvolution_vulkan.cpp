@@ -21,8 +21,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Deconvolution_vulkan)
-
 Deconvolution_vulkan::Deconvolution_vulkan()
 {
     support_vulkan = true;

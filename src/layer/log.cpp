@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Log)
-
 Log::Log()
 {
     one_blob_only = true;

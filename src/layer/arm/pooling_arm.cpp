@@ -30,8 +30,6 @@ namespace ncnn {
 #include "pooling_3x3_pack4.h"
 #endif
 
-DEFINE_LAYER_CREATOR(Pooling_arm)
-
 Pooling_arm::Pooling_arm()
 {
 #if __ARM_NEON

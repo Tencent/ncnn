@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Reshape)
-
 Reshape::Reshape()
 {
     one_blob_only = true;

@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Flatten_vulkan)
-
 Flatten_vulkan::Flatten_vulkan()
 {
     support_vulkan = true;

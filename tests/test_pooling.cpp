@@ -129,8 +129,7 @@ static int test_pooling_2()
            || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 0)
            || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 0)
            || test_pooling(48, 48, 4, 0, 2, 2, 0, 0, 0, 0)
-           || test_pooling(48, 48, 15, 0, 2, 2, 1, 0, 0, 0)
-           ;
+           || test_pooling(48, 48, 15, 0, 2, 2, 1, 0, 0, 0);
 }
 
 int main()

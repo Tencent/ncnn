@@ -21,8 +21,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(InnerProduct_vulkan)
-
 InnerProduct_vulkan::InnerProduct_vulkan()
 {
     support_vulkan = true;

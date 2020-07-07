@@ -21,8 +21,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Reduction)
-
 Reduction::Reduction()
 {
     one_blob_only = true;

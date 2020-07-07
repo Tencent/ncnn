@@ -136,13 +136,13 @@ pick build/install folder for further usage
 
 ### Build for Raspberry Pi 3
 install g++ cmake protobuf
-```
-$ cd <ncnn-root-dir>
-$ mkdir -p build
-$ cd build
-$ cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/pi3.toolchain.cmake -DPI3=ON ..
-$ make -j4
-$ make install
+```bash
+cd <ncnn-root-dir>
+mkdir -p build
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/pi3.toolchain.cmake -DPI3=ON ..
+make -j4
+make install
 ```
 
 pick build/install folder for further usage
@@ -177,7 +177,7 @@ cd ~/
 ```
 
 #### install glslang dependency
-```
+```bash
 # glslang is a dependency of Tencent/ncnn
 git clone --depth=1 https://github.com/KhronosGroup/glslang.git
 cd glslang
@@ -188,7 +188,7 @@ sudo make -j`nproc` install && cd ..
 ```
 
 #### compile ncnn
-```
+```bash
 git clone https://github.com/Tencent/ncnn.git
 # while aarch64-linux-gnu.toolchain.cmake would compile Tencent/ncnn as well
 # but why not compile with more native features w

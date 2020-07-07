@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Input)
-
 Input::Input()
 {
     one_blob_only = true;

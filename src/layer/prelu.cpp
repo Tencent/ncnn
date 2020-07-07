@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(PReLU)
-
 PReLU::PReLU()
 {
     one_blob_only = true;

@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(HardSigmoid_vulkan)
-
 HardSigmoid_vulkan::HardSigmoid_vulkan()
 {
     support_vulkan = true;

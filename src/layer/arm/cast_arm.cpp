@@ -22,8 +22,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Cast_arm)
-
 Cast_arm::Cast_arm()
 {
 #if __ARM_NEON

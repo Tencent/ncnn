@@ -28,8 +28,6 @@ namespace ncnn {
 #include "convolutiondepthwise_3x3.h"
 #include "convolutiondepthwise_3x3_int8.h"
 
-DEFINE_LAYER_CREATOR(ConvolutionDepthWise_x86)
-
 ConvolutionDepthWise_x86::ConvolutionDepthWise_x86()
 {
 #ifdef __AVX__

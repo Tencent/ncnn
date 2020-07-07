@@ -24,10 +24,6 @@
 layout (constant_id = 0) const float eps = 0;
 layout (constant_id = 1) const int w = 0;
 
-layout (local_size_x_id = 233) in;
-layout (local_size_y_id = 234) in;
-layout (local_size_z_id = 235) in;
-
 #if NCNN_image_shader
 layout (binding = 0, imfmtc1) writeonly uniform unfp image1D coeffs_blob;
 layout (binding = 1) uniform unfp sampler1D mean_blob;

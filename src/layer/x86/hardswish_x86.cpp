@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(HardSwish_x86)
-
 HardSwish_x86::HardSwish_x86()
 {
 #if __AVX__

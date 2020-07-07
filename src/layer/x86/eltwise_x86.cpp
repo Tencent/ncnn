@@ -21,8 +21,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Eltwise_x86)
-
 Eltwise_x86::Eltwise_x86()
 {
 #if __AVX__

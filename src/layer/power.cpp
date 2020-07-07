@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Power)
-
 Power::Power()
 {
     one_blob_only = true;

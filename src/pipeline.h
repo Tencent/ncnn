@@ -42,28 +42,13 @@ public:
 
     int create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations);
 
-    int create(VkShaderModule shader_module, const ShaderInfo& si, const std::vector<vk_specialization_type>& specializations);
-
-    void destroy();
-
-protected:
-    int create_descriptorset_layout();
-    int create_pipeline_layout();
-    int create_pipeline(VkShaderModule shader_module, const std::vector<vk_specialization_type>& specializations);
-    int create_descriptor_update_template();
-
 public:
     const VulkanDevice* vkdev;
 
-    // local shader module
-    VkShaderModule local_shader_module;
-
+    VkShaderModule shader_module;
     VkDescriptorSetLayout descriptorset_layout;
     VkPipelineLayout pipeline_layout;
-
-    // op forward TODO use pipeline cache ?
     VkPipeline pipeline;
-
     VkDescriptorUpdateTemplateKHR descriptor_update_template;
 
     ShaderInfo shader_info;
@@ -88,9 +73,9 @@ public:
     friend class VkCompute;
 
 protected:
+    int create_shader_module(const Option& opt);
     int create_sampler(VkAndroidHardwareBufferImageAllocator* ahb_im_allocator);
     int create_descriptorset_layout();
-    int create_descriptor_update_template();
 
 public:
     int type_to;

@@ -19,8 +19,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(SPP)
-
 SPP::SPP()
 {
     one_blob_only = true;

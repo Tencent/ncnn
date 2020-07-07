@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(BatchNorm_arm)
-
 BatchNorm_arm::BatchNorm_arm()
 {
 #if __ARM_NEON

@@ -19,8 +19,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(PSROIPooling)
-
 PSROIPooling::PSROIPooling()
 {
     one_blob_only = false;

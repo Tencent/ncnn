@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Scale_arm)
-
 Scale_arm::Scale_arm()
 {
 #if __ARM_NEON

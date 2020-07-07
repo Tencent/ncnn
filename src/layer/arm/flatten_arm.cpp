@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Flatten_arm)
-
 Flatten_arm::Flatten_arm()
 {
 #if __ARM_NEON

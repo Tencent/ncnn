@@ -21,6 +21,7 @@ namespace ncnn {
 
 #if NCNN_VULKAN
 class VkAllocator;
+class PipelineCache;
 #endif // NCNN_VULKAN
 
 class Allocator;
@@ -55,6 +56,9 @@ public:
 
     // staging memory allocator
     VkAllocator* staging_vkallocator;
+
+    // pipeline cache
+    PipelineCache* pipeline_cache;
 #endif // NCNN_VULKAN
 
     // enable winograd convolution optimization

@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Requantize)
-
 Requantize::Requantize()
 {
     one_blob_only = true;

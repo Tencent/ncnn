@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(ReLU_vulkan)
-
 ReLU_vulkan::ReLU_vulkan()
 {
     support_vulkan = true;
