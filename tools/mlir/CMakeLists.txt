@@ -1,7 +1,7 @@
 project(mlir2ncnn)
 
 cmake_minimum_required(VERSION 3.10)
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 
 set(LLVM_DIR "/home/nihui/osd/llvm-project/build/install/lib/cmake/llvm")
 find_package(LLVM REQUIRED)
