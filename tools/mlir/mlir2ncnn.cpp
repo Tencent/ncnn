@@ -445,17 +445,17 @@ static int get_attr_i(const mlir::Attribute& attr)
 {
     int i;
 
-    if (attr.isa<mlir::IntegerAttr>())
-    {
-        mlir::IntegerAttr a = attr.cast<mlir::IntegerAttr>();
-
-        i = (int)a.getInt();
-    }
-    else if (attr.isa<mlir::BoolAttr>())
+    if (attr.isa<mlir::BoolAttr>())
     {
         mlir::BoolAttr a = attr.cast<mlir::BoolAttr>();
 
         i = a.getValue() ? 1 : 0;
+    }
+    else if (attr.isa<mlir::IntegerAttr>())
+    {
+        mlir::IntegerAttr a = attr.cast<mlir::IntegerAttr>();
+
+        i = (int)a.getInt();
     }
 
     return i;
@@ -855,6 +855,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Reshape");
         }
+        else if (op == "tf.ResizeNearestNeighbor")
+        {
+            fprintf(pp, "%-16s", "Interp");
+        }
         else if (op == "tf.Sigmoid")
         {
             fprintf(pp, "%-16s", "Sigmoid");
@@ -877,6 +881,8 @@ int main(int argc, char** argv)
         }
         else
         {
+            // TODO
+            fprintf(stderr, "%s not supported yet!\n", op.c_str());
             fprintf(pp, "%-16s", op.c_str());
         }
 
@@ -1456,6 +1462,23 @@ int main(int argc, char** argv)
             {
                 fprintf(pp, " 0=%d 1=-233 2=-233", v[1]);
             }
+        }
+        else if (op == "tf.ResizeNearestNeighbor")
+        {
+            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            const mlir::Attribute& P = weights[weight_name];
+
+            std::vector<int> size = get_attr_ai(P);
+
+            int align_corners = get_operation_attr_i(operation, "align_corners");
+            int half_pixel_centers = get_operation_attr_i(operation, "half_pixel_centers");
+            if (!(align_corners == 0 && half_pixel_centers == 1))
+            {
+                fprintf(stderr, "Unsupported ResizeNearestNeighbor align_corners %d half_pixel_centers %d !\n", align_corners, half_pixel_centers);
+            }
+
+            fprintf(pp, " 0=1"); // nearest
+            fprintf(pp, " 3=%d 4=%d", size[1], size[0]);
         }
         else if (op == "tf.Sigmoid")
         {
