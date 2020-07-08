@@ -24,8 +24,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Sigmoid_arm)
-
 Sigmoid_arm::Sigmoid_arm()
 {
 #if __ARM_NEON

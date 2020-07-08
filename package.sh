@@ -50,7 +50,7 @@ lipo -create \
     build-ios-bitcode/install/lib/lib${NAME}.a \
     build-ios-sim-bitcode/install/lib/lib${NAME}.a \
     -o $IOSPKGNAME/Versions/A/${NAME}
-cp -r build-ios-bitcode/install/include/* $IOSPKGNAME/Versions/A/Headers/
+cp -r build-ios-bitcode/install/include/ncnn $IOSPKGNAME/Versions/A/Headers/
 cp Info.plist ${IOSPKGNAME}/Versions/A/Resources/
 rm -f $IOSPKGNAME-bitcode.zip
 zip -9 -y -r $IOSPKGNAME-bitcode.zip $IOSPKGNAME
@@ -86,7 +86,7 @@ lipo -create \
     build-ios-vulkan/install/lib/lib${NAME}.a \
     build-ios-sim-vulkan/install/lib/lib${NAME}.a \
     -o $IOSPKGNAME/Versions/A/${NAME}
-cp -r build-ios-vulkan/install/include/* $IOSPKGNAME/Versions/A/Headers/
+cp -r build-ios-vulkan/install/include/ncnn $IOSPKGNAME/Versions/A/Headers/
 cp Info.plist ${IOSPKGNAME}/Versions/A/Resources/
 rm -f $IOSPKGNAME-vulkan.zip
 zip -9 -y -r $IOSPKGNAME-vulkan.zip $IOSPKGNAME
@@ -104,7 +104,68 @@ lipo -create \
     build-ios-vulkan-bitcode/install/lib/lib${NAME}.a \
     build-ios-sim-vulkan-bitcode/install/lib/lib${NAME}.a \
     -o $IOSPKGNAME/Versions/A/${NAME}
-cp -r build-ios-vulkan-bitcode/install/include/* $IOSPKGNAME/Versions/A/Headers/
+cp -r build-ios-vulkan-bitcode/install/include/ncnn $IOSPKGNAME/Versions/A/Headers/
 cp Info.plist ${IOSPKGNAME}/Versions/A/Resources/
 rm -f $IOSPKGNAME-vulkan-bitcode.zip
 zip -9 -y -r $IOSPKGNAME-vulkan-bitcode.zip $IOSPKGNAME
+
+
+##### package ios framework glslang
+IOSPKGNAME=glslang.framework
+rm -rf $IOSPKGNAME
+mkdir -p $IOSPKGNAME/Versions/A/Headers
+mkdir -p $IOSPKGNAME/Versions/A/Resources
+ln -s A $IOSPKGNAME/Versions/Current
+ln -s Versions/Current/Headers $IOSPKGNAME/Headers
+ln -s Versions/Current/Resources $IOSPKGNAME/Resources
+ln -s Versions/Current/glslang $IOSPKGNAME/glslang
+ibtool -static \
+    build-ios-vulkan/install/lib/libglslang.a \
+    build-ios-vulkan/install/lib/libSPIRV.a \
+    build-ios-vulkan/install/lib/libOGLCompiler.a \
+    build-ios-vulkan/install/lib/libOSDependent.a \
+    -o build-ios-vulkan/install/lib/libglslang_combined.a
+libtool -static \
+    build-ios-sim-vulkan/install/lib/libglslang.a \
+    build-ios-sim-vulkan/install/lib/libSPIRV.a \
+    build-ios-sim-vulkan/install/lib/libOGLCompiler.a \
+    build-ios-sim-vulkan/install/lib/libOSDependent.a \
+    -o build-ios-sim-vulkan/install/lib/libglslang_combined.a
+lipo -create \
+    build-ios-vulkan/install/lib/libglslang_combined.a \
+    build-ios-sim-vulkan/install/lib/libglslang_combined.a \
+    -o $IOSPKGNAME/Versions/A/glslang
+cp -r build-ios-vulkan/install/include/glslang $IOSPKGNAME/Versions/A/Headers/
+cp Info.plist ${IOSPKGNAME}/Versions/A/Resources/
+rm -f $IOSPKGNAME.zip
+zip -9 -y -r $IOSPKGNAME.zip $IOSPKGNAME
+
+##### package ios framework glslang bitcode
+IOSPKGNAME=glslang.framework
+rm -rf $IOSPKGNAME
+mkdir -p $IOSPKGNAME/Versions/A/Headers
+mkdir -p $IOSPKGNAME/Versions/A/Resources
+ln -s A $IOSPKGNAME/Versions/Current
+ln -s Versions/Current/Headers $IOSPKGNAME/Headers
+ln -s Versions/Current/Resources $IOSPKGNAME/Resources
+ln -s Versions/Current/glslang $IOSPKGNAME/glslang
+libtool -static \
+    build-ios-vulkan-bitcode/install/lib/libglslang.a \
+    build-ios-vulkan-bitcode/install/lib/libSPIRV.a \
+    build-ios-vulkan-bitcode/install/lib/libOGLCompiler.a \
+    build-ios-vulkan-bitcode/install/lib/libOSDependent.a \
+    -o build-ios-vulkan-bitcode/install/lib/libglslang_combined.a
+libtool -static \
+    build-ios-sim-vulkan-bitcode/install/lib/libglslang.a \
+    build-ios-sim-vulkan-bitcode/install/lib/libSPIRV.a \
+    build-ios-sim-vulkan-bitcode/install/lib/libOGLCompiler.a \
+    build-ios-sim-vulkan-bitcode/install/lib/libOSDependent.a \
+    -o build-ios-sim-vulkan-bitcode/install/lib/libglslang_combined.a
+lipo -create \
+    build-ios-vulkan-bitcode/install/lib/libglslang_combined.a \
+    build-ios-sim-vulkan-bitcode/install/lib/libglslang_combined.a \
+    -o $IOSPKGNAME/Versions/A/glslang
+cp -r build-ios-vulkan-bitcode/install/include/glslang $IOSPKGNAME/Versions/A/Headers/
+cp Info.plist ${IOSPKGNAME}/Versions/A/Resources/
+rm -f $IOSPKGNAME-bitcode.zip
+zip -9 -y -r $IOSPKGNAME-bitcode.zip $IOSPKGNAME

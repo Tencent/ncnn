@@ -24,8 +24,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Swish_arm)
-
 Swish_arm::Swish_arm()
 {
 #if __ARM_NEON

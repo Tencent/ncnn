@@ -8,7 +8,7 @@ Pooling          maxpool 1 1 relu6 maxpool 0=0 1=3 2=2 3=-233 4=0
 ```
 
 ## method 1 -- 注册自定义层
-```
+```cpp
 #include "layer.h"
 
 class Relu6 : public ncnn::Layer
@@ -45,7 +45,7 @@ public:
 DEFINE_LAYER_CREATOR(Relu6)
 ```
 
-```
+```cpp
 ncnn::Net net;
 net.register_custom_layer("Relu6", Relu6_layer_creator);
 
@@ -60,7 +60,7 @@ ex.extract("maxpool", maxpoolmat);
 
 
 ## method 2 -- 处理中间 blob
-```
+```cpp
 ncnn::Net net;
 net.load_param("model.param");
 net.load_model("model.bin");
@@ -100,7 +100,7 @@ ex.extract("maxpool", maxpoolmat);
 实现 src/layer/relu6.cpp
 
 修改 src/CMakeLists.txt
-```
+```cmake
 ncnn_add_layer(UnaryOp)
 ncnn_add_layer(ConvolutionDepthWise)
 ncnn_add_layer(Padding)

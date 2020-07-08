@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(InstanceNorm_vulkan)
-
 InstanceNorm_vulkan::InstanceNorm_vulkan()
 {
     support_vulkan = true;

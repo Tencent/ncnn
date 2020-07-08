@@ -24,8 +24,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(UnaryOp_arm)
-
 UnaryOp_arm::UnaryOp_arm()
 {
 #if __ARM_NEON

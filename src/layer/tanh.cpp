@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(TanH)
-
 TanH::TanH()
 {
     one_blob_only = true;

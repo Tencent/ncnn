@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Softmax_vulkan)
-
 Softmax_vulkan::Softmax_vulkan()
 {
     support_vulkan = true;

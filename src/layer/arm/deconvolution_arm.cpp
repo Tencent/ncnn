@@ -28,8 +28,6 @@ namespace ncnn {
 #include "deconvolution_3x3.h"
 #include "deconvolution_4x4.h"
 
-DEFINE_LAYER_CREATOR(Deconvolution_arm)
-
 Deconvolution_arm::Deconvolution_arm()
 {
 #if __ARM_NEON

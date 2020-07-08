@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Concat_x86)
-
 Concat_x86::Concat_x86()
 {
 #if __AVX__
@@ -179,7 +177,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         outptr += w * 8;
                     }
                 }
-                else // if (bottom_blob.elempack == 1 && elempack == 1) if (bottom_blob.elempack == 4 && elempack == 4)
+                else // if (bottom_blob.elempack == 1 && elempack == 1) if (bottom_blob.elempack == 8 && elempack == 8)
                 {
                     int size = w * bottom_blob.h;
 
@@ -310,7 +308,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         p += 8;
                     }
                 }
-                else // if (bottom_blob.elempack == 1 && elempack == 1) if (bottom_blob.elempack == 4 && elempack == 4)
+                else // if (bottom_blob.elempack == 1 && elempack == 1) if (bottom_blob.elempack == 8 && elempack == 8)
                 {
                     int size = bottom_blob.total();
 

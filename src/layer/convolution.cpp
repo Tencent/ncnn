@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Convolution)
-
 Convolution::Convolution()
 {
     one_blob_only = true;

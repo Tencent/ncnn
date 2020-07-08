@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(AbsVal)
-
 AbsVal::AbsVal()
 {
     one_blob_only = true;

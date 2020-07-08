@@ -19,8 +19,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Clip_x86)
-
 Clip_x86::Clip_x86()
 {
 #if __AVX__

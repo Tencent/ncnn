@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(ReLU_arm)
-
 ReLU_arm::ReLU_arm()
 {
 #if __ARM_NEON

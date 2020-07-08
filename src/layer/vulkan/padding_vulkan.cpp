@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Padding_vulkan)
-
 Padding_vulkan::Padding_vulkan()
 {
     support_vulkan = true;

@@ -10,11 +10,11 @@ https://github.com/google/protobuf/archive/v3.4.0.zip
 
 我下载到 C:/Users/shuiz/source 解压缩
 
-```
+```batch
 mkdir build-vs2017
 cd build-vs2017
-cmake -G"NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%cd%/install \
-    -Dprotobuf_BUILD_TESTS=OFF \
+cmake -G"NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%cd%/install ^
+    -Dprotobuf_BUILD_TESTS=OFF ^
     -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
 nmake
 nmake install
@@ -28,12 +28,12 @@ https://github.com/Tencent/ncnn.git
 
 cmake 命令中的 protobuf 路径要相应修改成自己的
 
-```
+```batch
 mkdir build-vs2017
 cd build-vs2017
-cmake -G"NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%cd%/install \
-    -DProtobuf_INCLUDE_DIR=C:/Users/shuiz/source/protobuf-3.4.0/build-vs2017/install/include \
-    -DProtobuf_LIBRARIES=C:/Users/shuiz/source/protobuf-3.4.0/build-vs2017/install/lib/libprotobuf.lib \
+cmake -G"NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%cd%/install ^
+    -DProtobuf_INCLUDE_DIR=C:/Users/shuiz/source/protobuf-3.4.0/build-vs2017/install/include ^
+    -DProtobuf_LIBRARIES=C:/Users/shuiz/source/protobuf-3.4.0/build-vs2017/install/lib/libprotobuf.lib ^
     -DProtobuf_PROTOC_EXECUTABLE=C:/Users/shuiz/source/protobuf-3.4.0/build-vs2017/install/bin/protoc.exe ..
 nmake
 nmake install

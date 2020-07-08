@@ -22,8 +22,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(ShuffleChannel_arm)
-
 ShuffleChannel_arm::ShuffleChannel_arm()
 {
 #if __ARM_NEON

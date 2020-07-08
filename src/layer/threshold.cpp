@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Threshold)
-
 Threshold::Threshold()
 {
     one_blob_only = true;

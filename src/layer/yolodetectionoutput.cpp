@@ -21,8 +21,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(YoloDetectionOutput)
-
 YoloDetectionOutput::YoloDetectionOutput()
 {
     one_blob_only = false;

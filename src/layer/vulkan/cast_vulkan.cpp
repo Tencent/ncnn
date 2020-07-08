@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Cast_vulkan)
-
 Cast_vulkan::Cast_vulkan()
 {
     support_vulkan = true;

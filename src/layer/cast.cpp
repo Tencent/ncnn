@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Cast)
-
 Cast::Cast()
 {
     one_blob_only = true;
