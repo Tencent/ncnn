@@ -15,9 +15,14 @@
 #include "layer/deconvolutiondepthwise.h"
 #include "testutil.h"
 
-static int test_deconvolutiondepthwise(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int group)
+static int test_deconvolutiondepthwise(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int group, int output_pad_right, int output_pad_bottom, int output_w, int output_h)
 {
     ncnn::Mat a = RandomMat(w, h, c);
+
+    if (output_w > 0 && output_h > 0 && pad != -233 && pad != -234)
+    {
+        pad = -233;
+    }
 
     ncnn::ParamDict pd;
     pd.set(0, outch);    // num_output
@@ -36,6 +41,11 @@ static int test_deconvolutiondepthwise(int w, int h, int c, int outch, int kerne
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
+    pd.set(18, output_pad_right);
+    pd.set(19, output_pad_bottom);
+    pd.set(20, output_w);
+    pd.set(21, output_h);
+
     std::vector<ncnn::Mat> weights(2);
     weights[0] = RandomMat(outch / group * c / group * kernel * kernel * group);
     weights[1] = RandomMat(outch);
@@ -48,7 +58,7 @@ static int test_deconvolutiondepthwise(int w, int h, int c, int outch, int kerne
     int ret = test_layer<ncnn::DeconvolutionDepthWise>("DeconvolutionDepthWise", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_deconvolutiondepthwise failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params[0], activation_params[1]);
+        fprintf(stderr, "test_deconvolutiondepthwise failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);
     }
 
     return ret;
@@ -60,37 +70,37 @@ static int test_deconvolutiondepthwise_0()
         {1, 1, 1, 0},
         {1, 1, 2, 0},
         {2, 1, 1, 1},
-        {2, 1, 2, 1},
+        {2, 1, 2, -233},
         {3, 1, 1, 1},
         {3, 1, 2, 1},
         {3, 2, 1, 1},
-        {4, 1, 1, 2},
-        {4, 1, 2, 2},
-        {4, 2, 1, 2},
+        {4, 1, 1, -233},
+        {4, 1, 2, -234},
+        {4, 2, 1, -234},
         {5, 1, 1, 2},
         {5, 1, 2, 2},
         {5, 2, 2, 2},
         {7, 1, 1, 3},
         {7, 1, 2, 3},
-        {7, 2, 1, 3},
+        {7, 2, 1, -233},
     };
 
     for (int i = 0; i < 16; i++)
     {
         int ret = 0
-                  || test_deconvolutiondepthwise(9, 7, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 1)
-                  || test_deconvolutiondepthwise(9, 7, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 1)
-                  || test_deconvolutiondepthwise(9, 7, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2)
-                  || test_deconvolutiondepthwise(9, 7, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 3)
-                  || test_deconvolutiondepthwise(9, 7, 4, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2)
-                  || test_deconvolutiondepthwise(9, 7, 4, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 4)
-                  || test_deconvolutiondepthwise(9, 7, 7, 7, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 7)
-                  || test_deconvolutiondepthwise(9, 7, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 2)
-                  || test_deconvolutiondepthwise(9, 7, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 8)
-                  || test_deconvolutiondepthwise(9, 7, 12, 12, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 4)
-                  || test_deconvolutiondepthwise(9, 7, 15, 15, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 15)
-                  || test_deconvolutiondepthwise(9, 7, 16, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 2)
-                  || test_deconvolutiondepthwise(9, 7, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 16);
+                  || test_deconvolutiondepthwise(9, 7, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 1, 0, 0, 0, 0)
+                  || test_deconvolutiondepthwise(9, 7, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 1, 1, 1, 7, 5)
+                  || test_deconvolutiondepthwise(9, 7, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2, 1, 0, 0, 0)
+                  || test_deconvolutiondepthwise(9, 7, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 3, 0, 1, 0, 0)
+                  || test_deconvolutiondepthwise(9, 7, 4, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2, 0, 0, 7, 5)
+                  || test_deconvolutiondepthwise(9, 7, 4, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 4, 2, 2, 0, 0)
+                  || test_deconvolutiondepthwise(9, 7, 7, 7, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 7, 2, 0, 0, 0)
+                  || test_deconvolutiondepthwise(9, 7, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 2, 0, 2, 7, 5)
+                  || test_deconvolutiondepthwise(9, 7, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 8, 0, 0, 0, 0)
+                  || test_deconvolutiondepthwise(9, 7, 12, 12, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 4, 3, 3, 0, 0)
+                  || test_deconvolutiondepthwise(9, 7, 15, 15, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 15, 3, 0, 7, 5)
+                  || test_deconvolutiondepthwise(9, 7, 16, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 2, 0, 3, 0, 0)
+                  || test_deconvolutiondepthwise(9, 7, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 16, 0, 0, 0, 0);
 
         if (ret != 0)
             return -1;
