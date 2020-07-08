@@ -98,8 +98,8 @@ void main()
 
         ivec4 y4 = i4 / psc(w);
         ivec4 x4 = i4 % psc(w);
-        ivec4 yy4 = i4 / psc(w);
-        ivec4 xx4 = i4 % psc(w);
+        ivec4 yy4 = ii4 / psc(w);
+        ivec4 xx4 = ii4 % psc(w);
 
         afpvec4 v0 = image2d_ld4(bottom_blob_2d, ivec2(x4.r, y4.r / 4));
         afpvec4 v1 = image2d_ld4(bottom_blob_2d, ivec2(x4.g, y4.g / 4));

@@ -1448,20 +1448,23 @@ int main(int argc, char** argv)
             int size = v.size();
 
             // n h w c
-            // n h w
-            // n w
+            // n h c
+            // n c
             if (size == 4)
             {
                 fprintf(pp, " 0=%d 1=%d 2=%d", v[2], v[1], v[3]);
             }
             if (size == 3)
             {
-                fprintf(pp, " 0=%d 1=%d 2=-233", v[2], v[1]);
+                fprintf(pp, " 0=%d 1=%d 2=-233", v[1], v[2]);
             }
             if (size == 2)
             {
                 fprintf(pp, " 0=%d 1=-233 2=-233", v[1]);
             }
+
+            // FIXME may not always be the case
+            fprintf(pp, " 3=1");
         }
         else if (op == "tf.ResizeNearestNeighbor")
         {
@@ -1543,8 +1546,8 @@ int main(int argc, char** argv)
             }
 
             // n h w c
-            // n h w
-            // n w
+            // n h c
+            // n c
             if (dims == 4)
             {
                 fprintf(pp, " -23309=3,%d,%d,%d", begin[3], begin[1], begin[2]);
@@ -1552,8 +1555,8 @@ int main(int argc, char** argv)
             }
             if (dims == 3)
             {
-                fprintf(pp, " -23309=2,%d,%d", begin[1], begin[2]);
-                fprintf(pp, " -23310=2,%d,%d", end[1], end[2]);
+                fprintf(pp, " -23309=2,%d,%d", begin[2], begin[1]);
+                fprintf(pp, " -23310=2,%d,%d", end[2], end[1]);
             }
             if (dims == 2)
             {

@@ -33,6 +33,9 @@ public:
 
 public:
     ncnn::Layer* permute_hwc;
+    ncnn::Layer* permute_hc;
+    ncnn::Layer* permute_hw;
+    ncnn::Layer* permute_chw;
 
     Pipeline* pipeline_reshape;
     Pipeline* pipeline_reshape_pack4;

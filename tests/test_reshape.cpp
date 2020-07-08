@@ -190,6 +190,70 @@ static int test_reshape_7()
            || test_reshape_permute(a, -1, -233, -233);
 }
 
+static int test_reshape_8()
+{
+    ncnn::Mat a = RandomMat(14, 16);
+
+    return 0
+           || test_reshape_permute(a, 7, 2, 16)
+           || test_reshape_permute(a, 2, 16, 7)
+           || test_reshape_permute(a, 16, 7, 2)
+           || test_reshape_permute(a, 2, 4, -1)
+           || test_reshape_permute(a, -1, 8, 2)
+           || test_reshape_permute(a, 28, 8, -233)
+           || test_reshape_permute(a, -1, 7, -233)
+           || test_reshape_permute(a, 16, -1, -233)
+           || test_reshape_permute(a, -1, -233, -233);
+}
+
+static int test_reshape_9()
+{
+    ncnn::Mat a = RandomMat(12, 14);
+
+    return 0
+           || test_reshape_permute(a, 7, 2, 12)
+           || test_reshape_permute(a, 2, 12, 7)
+           || test_reshape_permute(a, 12, 7, 2)
+           || test_reshape_permute(a, 2, 4, -1)
+           || test_reshape_permute(a, -1, 4, 2)
+           || test_reshape_permute(a, 21, 8, -233)
+           || test_reshape_permute(a, -1, 7, -233)
+           || test_reshape_permute(a, 3, -1, -233)
+           || test_reshape_permute(a, -1, -233, -233);
+}
+
+static int test_reshape_10()
+{
+    ncnn::Mat a = RandomMat(120);
+
+    return 0
+           || test_reshape_permute(a, 3, 5, 8)
+           || test_reshape_permute(a, 3, 8, 5)
+           || test_reshape_permute(a, 8, 5, 3)
+           || test_reshape_permute(a, 2, 5, -1)
+           || test_reshape_permute(a, -1, 5, 2)
+           || test_reshape_permute(a, 4, 30, -233)
+           || test_reshape_permute(a, -1, 2, -233)
+           || test_reshape_permute(a, 24, -1, -233)
+           || test_reshape_permute(a, -1, -233, -233);
+}
+
+static int test_reshape_11()
+{
+    ncnn::Mat a = RandomMat(210);
+
+    return 0
+           || test_reshape_permute(a, 3, 5, 14)
+           || test_reshape_permute(a, 3, 14, 5)
+           || test_reshape_permute(a, 14, 5, 3)
+           || test_reshape_permute(a, 2, 5, -1)
+           || test_reshape_permute(a, -1, 5, 2)
+           || test_reshape_permute(a, 6, 35, -233)
+           || test_reshape_permute(a, -1, 7, -233)
+           || test_reshape_permute(a, 21, -1, -233)
+           || test_reshape_permute(a, -1, -233, -233);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -202,5 +266,9 @@ int main()
            || test_reshape_4()
            || test_reshape_5()
            || test_reshape_6()
-           || test_reshape_7();
+           || test_reshape_7()
+           || test_reshape_8()
+           || test_reshape_9()
+           || test_reshape_10()
+           || test_reshape_11();
 }

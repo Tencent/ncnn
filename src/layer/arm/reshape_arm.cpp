@@ -63,7 +63,8 @@ int Reshape_arm::destroy_pipeline(const Option& opt)
 
 int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (ndim == 1 && permute == 1)
+#if __ARM_NEON
+    if (opt.use_packing_layout && permute == 1)
     {
         // TODO implement permute on-the-fly
         Option opt_pack = opt;
@@ -82,7 +83,6 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return 0;
     }
 
-#if __ARM_NEON
     if (opt.use_packing_layout)
     {
         if (ndim == 1)
