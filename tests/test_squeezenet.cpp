@@ -98,15 +98,63 @@ static int check_top3(const std::vector<float>& cls_scores, float epsilon = 0.00
     return 0;
 }
 
-static int test_squeezenet(const ncnn::Option& opt, float epsilon = 0.001)
+static ncnn::Mat read_file_content(const char* filepath)
+{
+    FILE* fp = fopen(filepath, "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "fopen %s failed\n", filepath);
+        return ncnn::Mat();
+    }
+
+    fseek(fp, 0, SEEK_END);
+    int len = ftell(fp);
+    rewind(fp);
+
+    ncnn::Mat m(len, (size_t)1u, 1);
+
+    fread(m, 1, len, fp);
+    fclose(fp);
+
+    return m;
+}
+
+static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float epsilon = 0.001)
 {
     ncnn::Net squeezenet;
 
     squeezenet.opt = opt;
 
-    // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    squeezenet.load_param("../../examples/squeezenet_v1.1.param");
-    squeezenet.load_model("../../examples/squeezenet_v1.1.bin");
+    ncnn::Mat param_data;
+    ncnn::Mat model_data;
+    if (load_model_type == 0)
+    {
+        // load from plain model file
+        squeezenet.load_param("../../examples/squeezenet_v1.1.param");
+        squeezenet.load_model("../../examples/squeezenet_v1.1.bin");
+    }
+    if (load_model_type == 1)
+    {
+        // load from plain model memory
+        param_data = read_file_content("../../examples/squeezenet_v1.1.param");
+        model_data = read_file_content("../../examples/squeezenet_v1.1.bin");
+        squeezenet.load_param_mem((const char*)param_data);
+        squeezenet.load_model((const unsigned char*)model_data);
+    }
+    if (load_model_type == 2)
+    {
+        // load from binary model file
+        squeezenet.load_param_bin("../../examples/squeezenet_v1.1.param.bin");
+        squeezenet.load_model("../../examples/squeezenet_v1.1.bin");
+    }
+    if (load_model_type == 3)
+    {
+        // load from binary model memory
+        param_data = read_file_content("../../examples/squeezenet_v1.1.param.bin");
+        model_data = read_file_content("../../examples/squeezenet_v1.1.bin");
+        squeezenet.load_param((const unsigned char*)param_data);
+        squeezenet.load_model((const unsigned char*)model_data);
+    }
 
     ncnn::Mat in = generate_ncnn_logo(ncnn::Mat::PIXEL_BGR, 227, 227);
 
@@ -115,10 +163,17 @@ static int test_squeezenet(const ncnn::Option& opt, float epsilon = 0.001)
 
     ncnn::Extractor ex = squeezenet.create_extractor();
 
-    ex.input("data", in);
-
     ncnn::Mat out;
-    ex.extract("prob", out);
+    if (load_model_type == 0 || load_model_type == 1)
+    {
+        ex.input("data", in);
+        ex.extract("prob", out);
+    }
+    if (load_model_type == 2 || load_model_type == 3)
+    {
+        ex.input(0, in);
+        ex.extract(82, out);
+    }
 
     std::vector<float> cls_scores;
     cls_scores.resize(out.w);
@@ -160,6 +215,8 @@ int main()
     opts[3].use_shader_pack8 = true;
     opts[3].use_image_storage = true;
 
+    int load_model_types[4] = {0, 1, 2, 3};
+
     for (int i = 0; i < 4; i++)
     {
         const ncnn::Option& opt = opts[i];
@@ -178,7 +235,7 @@ int main()
 
         ncnn::Option opt_cpu = opt;
         opt_cpu.use_vulkan_compute = false;
-        ret = test_squeezenet(opt_cpu, epsilon);
+        ret = test_squeezenet(opt_cpu, load_model_types[i], epsilon);
         if (ret != 0)
         {
             fprintf(stderr, "test_squeezenet cpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
@@ -188,7 +245,7 @@ int main()
 #if NCNN_VULKAN
         ncnn::Option opt_gpu = opt;
         opt_gpu.use_vulkan_compute = true;
-        ret = test_squeezenet(opt_gpu, epsilon);
+        ret = test_squeezenet(opt_gpu, load_model_types[i], epsilon);
         if (ret != 0)
         {
             fprintf(stderr, "test_squeezenet gpu failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
