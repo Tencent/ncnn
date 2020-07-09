@@ -995,6 +995,7 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
     {
         onnx::NodeProto* node = mutable_graph->mutable_node(i);
 
+        // Normalize <= X - ReduceL2 - Clip - Expand - Div
         // Normalize <= X - ReduceL2 - Clip - Shape - Expand - Div
         if (node->op_type() == "ReduceL2")
         {
@@ -1008,15 +1009,26 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
             if (axes[0] != 1)
                 continue;
 
-            if (i + 4 >= node_count)
+            if (i + 3 >= node_count)
                 continue;
 
             onnx::NodeProto* node2 = mutable_graph->mutable_node(i + 1);
             onnx::NodeProto* node3 = mutable_graph->mutable_node(i + 2);
             onnx::NodeProto* node4 = mutable_graph->mutable_node(i + 3);
-            onnx::NodeProto* node5 = mutable_graph->mutable_node(i + 4);
 
-            if (node2->op_type() != "Clip" || node3->op_type() != "Shape" || node4->op_type() != "Expand" || node5->op_type() != "Div")
+            bool has_shape_node = node3->op_type() == "Shape";
+            onnx::NodeProto* node_shape = 0;
+            if (has_shape_node)
+            {
+                if (i + 4 >= node_count)
+                    continue;
+
+                node_shape = node3;
+                node3 = mutable_graph->mutable_node(i + 3);
+                node4 = mutable_graph->mutable_node(i + 4);
+            }
+
+            if (node2->op_type() != "Clip" || node3->op_type() != "Expand" || node4->op_type() != "Div")
                 continue;
 
             if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
@@ -1025,13 +1037,15 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
             if (node_reference.find(node3->output(0)) == node_reference.end() || node_reference[node3->output(0)] != 1)
                 continue;
 
-            if (node_reference.find(node4->output(0)) == node_reference.end() || node_reference[node4->output(0)] != 1)
+            if (node2->input(0) != node->output(0) || node3->input(0) != node2->output(0)
+                    || node4->input(0) != node->input(0) || node4->input(1) != node3->output(0))
                 continue;
 
-            if (node2->input(0) != node->output(0) || node3->input(0) != node->input(0)
-                    || node4->input(0) != node2->output(0) || node4->input(1) != node3->output(0)
-                    || node5->input(0) != node->input(0) || node5->input(1) != node4->output(0))
-                continue;
+            if (has_shape_node)
+            {
+                if (node_shape->input(0) != node->input(0) || node3->input(1) != node_shape->output(0))
+                    continue;
+            }
 
             // +eps
             float clip_min;
@@ -1050,30 +1064,39 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
             // reduce
             node->set_op_type("noop_reducedncnn");
             node2->set_op_type("noop_reducedncnn");
+            if (has_shape_node)
+            {
+                node_shape->set_op_type("noop_reducedncnn");
+            }
             node3->set_op_type("noop_reducedncnn");
-            node4->set_op_type("noop_reducedncnn");
 
-            node_reference[node->input(0)] -= 2;
+            node_reference[node->input(0)] -= has_shape_node ? 2 : 1;
 
             node_reference.erase(node_reference.find(node->output(0)));
             node_reference.erase(node_reference.find(node2->output(0)));
+            if (has_shape_node)
+            {
+                node_reference.erase(node_reference.find(node_shape->output(0)));
+            }
             node_reference.erase(node_reference.find(node3->output(0)));
-            node_reference.erase(node_reference.find(node4->output(0)));
             blob_names.erase(node->output(0));
             blob_names.erase(node2->output(0));
+            if (has_shape_node)
+            {
+                blob_names.erase(node_shape->output(0));
+            }
             blob_names.erase(node3->output(0));
-            blob_names.erase(node4->output(0));
 
-            node5->set_op_type("Normalize");
-            node5->clear_input();
-            node5->add_input(node->input(0));
+            node4->set_op_type("Normalize");
+            node4->clear_input();
+            node4->add_input(node->input(0));
 
-            onnx::AttributeProto* attr_alpha = node5->add_attribute();
+            onnx::AttributeProto* attr_alpha = node4->add_attribute();
             attr_alpha->set_name("eps");
             attr_alpha->set_f(clip_min);
 
-            reduced_node_count += 4;
-            i += 4;
+            reduced_node_count += has_shape_node ? 4 : 3;
+            i += has_shape_node ? 4 : 3;
         }
     }
 }
