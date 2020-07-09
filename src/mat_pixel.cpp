@@ -2269,6 +2269,7 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, Alloca
     }
 
     // unknown convert type
+    NCNN_LOGE("unknown convert type %d", type);
     return Mat();
 }
 
@@ -2326,6 +2327,7 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, int st
             break;
         default:
             // unimplemented convert type
+            NCNN_LOGE("unimplemented convert type %d", type);
             break;
         }
     }
@@ -2362,6 +2364,7 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
     }
 
     // unknown convert type
+    NCNN_LOGE("unknown convert type %d", type);
     return Mat();
 }
 
@@ -2395,6 +2398,7 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
     }
 
     // unknown convert type
+    NCNN_LOGE("unknown convert type %d", type);
     return Mat();
 }
 
@@ -2444,6 +2448,7 @@ void Mat::to_pixels(unsigned char* pixels, int type, int stride) const
             break;
         default:
             // unimplemented convert type
+            NCNN_LOGE("unimplemented convert type %d", type);
             break;
         }
     }
