@@ -200,6 +200,58 @@ static std::vector<int> get_node_attr_from_input_ai(const onnx::TensorProto& tp)
     return v;
 }
 
+static std::vector<float> get_node_attr_from_input_af(const onnx::TensorProto& tp)
+{
+    int size = 0;
+
+    std::vector<float> v;
+
+    // float
+    if (tp.data_type() == 1)
+    {
+        const float* shape_data = 0;
+        if (tp.has_raw_data())
+        {
+            shape_data = (const float*)tp.raw_data().data();
+            size = tp.raw_data().size() / 4;
+        }
+        else
+        {
+            shape_data = tp.float_data().data();
+            size = tp.float_data_size();
+        }
+        for (int j = 0; j < size; j++)
+        {
+            v.push_back(shape_data[j]);
+        }
+    }
+    // double
+    else if (tp.data_type() == 11)
+    {
+        const double* shape_data = 0;
+        if (tp.has_raw_data())
+        {
+            shape_data = (const double*)tp.raw_data().data();
+            size = tp.raw_data().size() / 8;
+        }
+        else
+        {
+            shape_data = tp.double_data().data();
+            size = tp.double_data_size();
+        }
+        for (int j = 0; j < size; j++)
+        {
+            v.push_back((float)shape_data[j]);
+        }
+    }
+    else
+    {
+        fprintf(stderr, "Unknown data type %d\n", tp.data_type());
+    }
+
+    return v;
+}
+
 static int get_tensor_proto_data_size(const onnx::TensorProto& tp)
 {
     if (tp.has_raw_data())
@@ -2985,25 +3037,16 @@ int main(int argc, char** argv)
             std::string mode = get_node_attr_s(node, "mode");
 
             std::vector<float> scales;
-            {
-                const onnx::TensorProto& scales_tp = weights[node.input(2)];
-                const float* shape_data = scales_tp.has_raw_data() ? (const float*)scales_tp.raw_data().data() : scales_tp.float_data().data();
-
-                int float_data_size = scales_tp.float_data_size();
-                //float data is None, use raw data instead
-                if (float_data_size == 0)
-                {
-                    float_data_size = scales_tp.dims().Get(0);
-                }
-
-                for (int j = 0; j < float_data_size; j++)
-                {
-                    scales.push_back(shape_data[j]);
-                }
-            }
-
             std::vector<int> sizes;
+            if (node.input_size() == 2)
             {
+                // opset 10
+                scales = get_node_attr_from_input_af(weights[node.input(1)]);
+            }
+            else
+            {
+                // opset 11+
+                scales = get_node_attr_from_input_af(weights[node.input(2)]);
                 sizes = get_node_attr_from_input_ai(weights[node.input(3)]);
             }
 
@@ -3285,20 +3328,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                const onnx::TensorProto& scales_tp = weights[node.input(1)];
-                const float* shape_data = scales_tp.has_raw_data() ? (const float*)scales_tp.raw_data().data() : scales_tp.float_data().data();
-
-                int float_data_size = scales_tp.float_data_size();
-                //float data is None, use raw data instead
-                if (float_data_size == 0)
-                {
-                    float_data_size = scales_tp.dims().Get(0);
-                }
-
-                for (int j = 0; j < float_data_size; j++)
-                {
-                    scales.push_back(shape_data[j]);
-                }
+                scales = get_node_attr_from_input_af(weights[node.input(1)]);
             }
 
             int resize_type = 1;
