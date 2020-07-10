@@ -269,18 +269,30 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 #endif // NCNN_VULKAN
 
     std::vector<ncnn::Mat> b(top_blob_count);
-    if (op->support_inplace)
     {
-        for (size_t i = 0; i < a.size(); i++)
-        {
-            b[i] = a[i].clone();
-        }
+        ncnn::Option opt_naive;
+        opt_naive.use_packing_layout = false;
+        opt_naive.use_fp16_packed = false;
+        opt_naive.use_fp16_storage = false;
+        opt_naive.use_fp16_arithmetic = false;
+        opt_naive.use_shader_pack8 = false;
+        opt_naive.use_image_storage = false;
+        opt_naive.use_bf16_storage = false;
+        opt_naive.use_vulkan_compute = false;
 
-        ((T*)op)->T::forward_inplace(b, opt);
-    }
-    else
-    {
-        ((T*)op)->T::forward(a, b, opt);
+        if (op->support_inplace)
+        {
+            for (size_t i = 0; i < a.size(); i++)
+            {
+                b[i] = a[i].clone();
+            }
+
+            ((T*)op)->T::forward_inplace(b, opt_naive);
+        }
+        else
+        {
+            ((T*)op)->T::forward(a, b, opt_naive);
+        }
     }
 
     std::vector<ncnn::Mat> c(top_blob_count);
@@ -516,14 +528,26 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     }
 #endif // NCNN_VULKAN
     ncnn::Mat b;
-    if (op->support_inplace)
     {
-        b = a.clone();
-        ((T*)op)->T::forward_inplace(b, opt);
-    }
-    else
-    {
-        ((T*)op)->T::forward(a, b, opt);
+        ncnn::Option opt_naive;
+        opt_naive.use_packing_layout = false;
+        opt_naive.use_fp16_packed = false;
+        opt_naive.use_fp16_storage = false;
+        opt_naive.use_fp16_arithmetic = false;
+        opt_naive.use_shader_pack8 = false;
+        opt_naive.use_image_storage = false;
+        opt_naive.use_bf16_storage = false;
+        opt_naive.use_vulkan_compute = false;
+
+        if (op->support_inplace)
+        {
+            b = a.clone();
+            ((T*)op)->T::forward_inplace(b, opt_naive);
+        }
+        else
+        {
+            ((T*)op)->T::forward(a, b, opt_naive);
+        }
     }
 
     ncnn::Mat c;

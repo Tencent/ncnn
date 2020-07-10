@@ -452,14 +452,14 @@ int Convolution_arm::destroy_pipeline(const Option& opt)
 
 int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (bottom_blob.dims != 3)
-    {
-        return Convolution::forward(bottom_blob, top_blob, opt);
-    }
-
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return forward_int8_arm(bottom_blob, top_blob, opt);
+    }
+
+    if (bottom_blob.dims != 3)
+    {
+        return Convolution::forward(bottom_blob, top_blob, opt);
     }
 
     if (opt.use_bf16_storage)
