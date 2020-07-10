@@ -17,18 +17,11 @@
 
 #define OP_TYPE_MAX 17
 
-static int get_op_type()
-{
-    static int op_type = 0;
-    if (op_type == OP_TYPE_MAX)
-        op_type = 0;
-    return op_type++;
-}
+static int op_type = 0;
 
 static int test_unaryop(const ncnn::Mat& _a)
 {
     ncnn::Mat a = _a;
-    int op_type = get_op_type();
     if (op_type == 5 || op_type == 6 || op_type == 8)
     {
         // value must be positive for sqrt rsqrt log
@@ -62,17 +55,17 @@ static int test_unaryop(const ncnn::Mat& _a)
 static int test_unaryop_0()
 {
     return 0
-           || test_unaryop(RandomMat(6, 7, 16))
-           || test_unaryop(RandomMat(5, 4, 12))
-           || test_unaryop(RandomMat(3, 5, 13));
+           || test_unaryop(RandomMat(12, 7, 16))
+           || test_unaryop(RandomMat(10, 4, 12))
+           || test_unaryop(RandomMat(6, 5, 13));
 }
 
 static int test_unaryop_1()
 {
     return 0
-           || test_unaryop(RandomMat(6, 16))
-           || test_unaryop(RandomMat(5, 12))
-           || test_unaryop(RandomMat(7, 15));
+           || test_unaryop(RandomMat(12, 16))
+           || test_unaryop(RandomMat(10, 12))
+           || test_unaryop(RandomMat(14, 15));
 }
 
 static int test_unaryop_2()
@@ -87,13 +80,16 @@ int main()
 {
     SRAND(7767517);
 
-    return 0
-           || test_unaryop_0()
-           || test_unaryop_1()
-           || test_unaryop_2()
+    for (op_type = 0; op_type < OP_TYPE_MAX; op_type++)
+    {
+        int ret = 0
+                  || test_unaryop_0()
+                  || test_unaryop_1()
+                  || test_unaryop_2();
 
-           // iterate full OP_TYPE_MAX
-           || test_unaryop_0()
-           || test_unaryop_1()
-           || test_unaryop_2();
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
 }
