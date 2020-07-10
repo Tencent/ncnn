@@ -70,8 +70,7 @@ int InnerProduct_x86::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
-                              const Option& opt) const
+int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
@@ -105,26 +104,22 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
             bottom_blob_flattened.elemsize = 4u;
             bottom_blob_flattened.elempack = 1;
         }
-        if (opt.use_fp16_storage)
-        {
-            return forward_fp16(bottom_blob_flattened, top_blob, opt);
-        }
-        else
-        {
-            return forward(bottom_blob_flattened, top_blob, opt);
-        }
+
+        return forward(bottom_blob_flattened, top_blob, opt);
     }
 
     if (opt.use_fp16_storage)
     {
         return forward_fp16(bottom_blob, top_blob, opt);
     }
+
     top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
     const float* weight_data_ptr = weight_data;
     float* output_ptr = top_blob;
+
     int nn_num_output = num_output >> 3;
     int remain_num_output_start = nn_num_output << 3;
 
@@ -231,13 +226,10 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
                 w7++;
             }
         }
-        __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5,
-                                      _sum6, _sum7);
+        __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
         __m256 _sums_f = _mm256_loadu_ps(sums);
-        _sums = activation_ps(_mm256_add_ps(_sums_f, _sums), activation_type,
-                              activation_params);
-        _mm256_storeu_ps(output_ptr, _sums);
-        output_ptr += 8;
+        _sums = activation_ps(_mm256_add_ps(_sums_f, _sums), activation_type, activation_params);
+        _mm256_storeu_ps(output_ptr + p, _sums);
     }
 
     nn_num_output = (num_output - remain_num_output_start) >> 2;
@@ -312,10 +304,8 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
             }
         }
         __m128 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3);
-        __m256 _sums_a = activation_ps(_mm256_castps128_ps256(_mm_add_ps(_mm_loadu_ps(sums), _sums)), activation_type,
-                                       activation_params);
-        _mm_storeu_ps(output_ptr, _mm256_castps256_ps128(_sums_a));
-        output_ptr += 4;
+        __m256 _sums_a = activation_ps(_mm256_castps128_ps256(_mm_add_ps(_mm_loadu_ps(sums), _sums)), activation_type, activation_params);
+        _mm_storeu_ps(output_ptr + p, _mm256_castps256_ps128(_sums_a));
     }
 
 // num_output
@@ -358,8 +348,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
         sum += _mm256_reduce_add_ps(_sum);
         sum = activation_ss(sum, activation_type, activation_params);
 
-        *output_ptr = sum;
-        output_ptr++;
+        output_ptr[p] = sum;
     }
     return 0;
 #else
@@ -368,8 +357,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob,
 }
 #if __AVX__
 
-int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
-                                   const Option& opt) const
+int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -522,13 +510,10 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
                 _sum7 = _mm256_fmadd_ps(_m, _w7, _sum7);
             }
         }
-        __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5,
-                                      _sum6, _sum7);
+        __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
         __m256 _sums_f = _mm256_loadu_ps(sums);
-        _sums = activation_ps(_mm256_add_ps(_sums_f, _sums), activation_type,
-                              activation_params);
-        _mm256_storeu_ps(output_ptr, _sums);
-        output_ptr += 8;
+        _sums = activation_ps(_mm256_add_ps(_sums_f, _sums), activation_type, activation_params);
+        _mm256_storeu_ps(output_ptr + p, _sums);
     }
 
     nn_num_output = (num_output - remain_num_output_start) >> 2;
@@ -622,10 +607,8 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
             }
         }
         __m128 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3);
-        __m256 _sums_a = activation_ps(_mm256_castps128_ps256(_mm_add_ps(_mm_loadu_ps(sums), _sums)), activation_type,
-                                       activation_params);
-        _mm_storeu_ps(output_ptr, _mm256_castps256_ps128(_sums_a));
-        output_ptr += 4;
+        __m256 _sums_a = activation_ps(_mm256_castps128_ps256(_mm_add_ps(_mm_loadu_ps(sums), _sums)), activation_type, activation_params);
+        _mm_storeu_ps(output_ptr + p, _mm256_castps256_ps128(_sums_a));
     }
 
 // num_output
@@ -680,8 +663,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob,
         sum += _mm256_reduce_add_ps(_sum);
         sum = activation_ss(sum, activation_type, activation_params);
 
-        *output_ptr = sum;
-        output_ptr++;
+        output_ptr[p] = sum;
     }
     return 0;
 }
