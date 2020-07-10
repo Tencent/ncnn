@@ -33,7 +33,7 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b)
     ncnn::ParamDict pd;
     pd.set(0, op_type);
     pd.set(1, 0);   // with_scalar
-    pd.set(11, 0.f); // b
+    pd.set(2, 0.f); // b
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -68,7 +68,7 @@ static int test_binaryop(const ncnn::Mat& _a, float b)
     ncnn::ParamDict pd;
     pd.set(0, op_type);
     pd.set(1, 1); // with_scalar
-    pd.set(11, b); // b
+    pd.set(2, b); // b
 
     std::vector<ncnn::Mat> weights(0);
 
