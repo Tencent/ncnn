@@ -526,14 +526,14 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     // convolv with NxN kernel
     // value = value + bias
 
-    if (bottom_blob.dims != 3)
-    {
-        return Convolution::forward(bottom_blob, top_blob, opt);
-    }
-
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return forward_int8_x86(bottom_blob, top_blob, opt);
+    }
+
+    if (bottom_blob.dims != 3)
+    {
+        return Convolution::forward(bottom_blob, top_blob, opt);
     }
 
     if ((!support_packing || !opt.use_packing_layout) && (dilation_w > 1 || dilation_h > 1) && (stride_w > 1 || stride_h > 1))

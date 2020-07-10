@@ -146,6 +146,10 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         {
             sum = static_cast<float>(1.f / (1.f + exp(-sum)));
         }
+        else if (activation_type == 5)
+        {
+            sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
+        }
 
         top_blob[p] = sum;
     }

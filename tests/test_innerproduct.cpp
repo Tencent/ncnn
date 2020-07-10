@@ -22,7 +22,7 @@ static int test_innerproduct(const ncnn::Mat& a, int outch, int bias)
     pd.set(1, bias);  // bias_term
     pd.set(2, outch * a.w * a.h * a.c);
 
-    int activation_type = RAND() % 5; // 0 1 2 3 4
+    int activation_type = RAND() % 6; // 0 1 2 3 4 5
     ncnn::Mat activation_params(2);
     activation_params[0] = RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);  // beta

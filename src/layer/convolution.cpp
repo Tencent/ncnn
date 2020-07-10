@@ -115,7 +115,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
     {
         int num_input = weight_data_size / num_output;
-        if (bottom_blob.w == num_input)
+        if (bottom_blob.w * bottom_blob.elempack == num_input)
         {
             // call InnerProduct
             ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::InnerProduct);
@@ -126,6 +126,8 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             pd.set(1, bias_term);
             pd.set(2, weight_data_size);
             pd.set(8, int8_scale_term);
+            pd.set(9, activation_type);
+            pd.set(10, activation_params);
 
             op->load_param(pd);
 
@@ -146,6 +148,8 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             // forward
             op->forward(bottom_blob, top_blob, opt);
+
+            op->destroy_pipeline(opt);
 
             delete op;
 

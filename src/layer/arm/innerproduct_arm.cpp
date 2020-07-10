@@ -236,6 +236,13 @@ int InnerProduct_arm::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
             sum2 = static_cast<float>(1.f / (1.f + exp(-sum2)));
             sum3 = static_cast<float>(1.f / (1.f + exp(-sum3)));
         }
+        else if (activation_type == 5)
+        {
+            sum0 = static_cast<float>(sum0 * tanh(log(exp(sum0) + 1.f)));
+            sum1 = static_cast<float>(sum1 * tanh(log(exp(sum1) + 1.f)));
+            sum2 = static_cast<float>(sum2 * tanh(log(exp(sum2) + 1.f)));
+            sum3 = static_cast<float>(sum3 * tanh(log(exp(sum3) + 1.f)));
+        }
 
         top_blob[p] = sum0;
         top_blob[p + 1] = sum1;
@@ -500,6 +507,13 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             sum1 = static_cast<float>(1.f / (1.f + exp(-sum1)));
             sum2 = static_cast<float>(1.f / (1.f + exp(-sum2)));
             sum3 = static_cast<float>(1.f / (1.f + exp(-sum3)));
+        }
+        else if (activation_type == 5)
+        {
+            sum0 = static_cast<float>(sum0 * tanh(log(exp(sum0) + 1.f)));
+            sum1 = static_cast<float>(sum1 * tanh(log(exp(sum1) + 1.f)));
+            sum2 = static_cast<float>(sum2 * tanh(log(exp(sum2) + 1.f)));
+            sum3 = static_cast<float>(sum3 * tanh(log(exp(sum3) + 1.f)));
         }
 
         top_blob[p] = sum0;
@@ -787,6 +801,13 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
             sum1 = static_cast<float>(1.f / (1.f + exp(-sum1)));
             sum2 = static_cast<float>(1.f / (1.f + exp(-sum2)));
             sum3 = static_cast<float>(1.f / (1.f + exp(-sum3)));
+        }
+        else if (activation_type == 5)
+        {
+            sum0 = static_cast<float>(sum0 * tanh(log(exp(sum0) + 1.f)));
+            sum1 = static_cast<float>(sum1 * tanh(log(exp(sum1) + 1.f)));
+            sum2 = static_cast<float>(sum2 * tanh(log(exp(sum2) + 1.f)));
+            sum3 = static_cast<float>(sum3 * tanh(log(exp(sum3) + 1.f)));
         }
 
         unsigned short* outptr = (unsigned short*)top_blob + p;
