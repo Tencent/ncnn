@@ -22,6 +22,14 @@ static int op_type = 0;
 static int test_unaryop(const ncnn::Mat& _a)
 {
     ncnn::Mat a = _a;
+    if (op_type == 2 || op_type == 3)
+    {
+        // large dynamic range for floor ceil
+        for (int i = 0; i < a.total(); i++)
+        {
+            a[i] *= 1000;
+        }
+    }
     if (op_type == 5 || op_type == 6 || op_type == 8)
     {
         // value must be positive for sqrt rsqrt log
