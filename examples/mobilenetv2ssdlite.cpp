@@ -13,16 +13,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include "net.h"
-#include "platform.h"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <stdio.h>
 #include <vector>
-#if NCNN_VULKAN
-#include "gpu.h"
-#endif // NCNN_VULKAN
 
 class Noop : public ncnn::Layer
 {
@@ -40,9 +36,7 @@ static int detect_mobilenetv2(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net mobilenetv2;
 
-#if NCNN_VULKAN
     mobilenetv2.opt.use_vulkan_compute = true;
-#endif // NCNN_VULKAN
 
     mobilenetv2.register_custom_layer("Silence", Noop_layer_creator);
 
