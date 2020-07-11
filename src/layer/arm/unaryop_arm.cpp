@@ -59,28 +59,25 @@ static int unary_op_inplace(Mat& a, const Option& opt)
     return 0;
 }
 
-template<typename T>
-struct unary_op_abs
+struct unary_op_abs_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
         return vabsq_f32(x);
     }
 };
 
-template<typename T>
-struct unary_op_neg
+struct unary_op_neg_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
         return vnegq_f32(x);
     }
 };
 
-template<typename T>
-struct unary_op_floor
+struct unary_op_floor_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
 #if __aarch64__
         return vcvtq_f32_s32(vcvtmq_s32_f32(x));
@@ -92,10 +89,9 @@ struct unary_op_floor
     }
 };
 
-template<typename T>
-struct unary_op_ceil
+struct unary_op_ceil_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
 #if __aarch64__
         return vcvtq_f32_s32(vcvtpq_s32_f32(x));
@@ -107,83 +103,75 @@ struct unary_op_ceil
     }
 };
 
-template<typename T>
-struct unary_op_square
+struct unary_op_square_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
         return vmulq_f32(x, x);
     }
 };
 
-template<typename T>
-struct unary_op_sqrt
+struct unary_op_sqrt_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
 #if __aarch64__
         return vsqrtq_f32(x);
 #else
         float32x4_t _reciprocal = vrsqrteq_f32(x);
         _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(x, _reciprocal), _reciprocal), _reciprocal);
-        //         _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(x, _reciprocal), _reciprocal), _reciprocal);
+        // _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(x, _reciprocal), _reciprocal), _reciprocal);
         return vmulq_f32(x, _reciprocal);
 #endif
     }
 };
 
-template<typename T>
-struct unary_op_rsqrt
+struct unary_op_rsqrt_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
         float32x4_t _reciprocal = vrsqrteq_f32(x);
         _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(x, _reciprocal), _reciprocal), _reciprocal);
-        //         _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(x, _reciprocal), _reciprocal), _reciprocal);
+        // _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(x, _reciprocal), _reciprocal), _reciprocal);
         return _reciprocal;
     }
 };
 
-template<typename T>
-struct unary_op_exp
+struct unary_op_exp_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
         return exp_ps(x);
     }
 };
 
-template<typename T>
-struct unary_op_log
+struct unary_op_log_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
         return log_ps(x);
     }
 };
 
-template<typename T>
-struct unary_op_sin
+struct unary_op_sin_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
         return sin_ps(x);
     }
 };
 
-template<typename T>
-struct unary_op_cos
+struct unary_op_cos_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
         return cos_ps(x);
     }
 };
 
-template<typename T>
-struct unary_op_tan
+struct unary_op_tan_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
         // TODO neon optimize
         float tmp[4];
@@ -196,10 +184,9 @@ struct unary_op_tan
     }
 };
 
-template<typename T>
-struct unary_op_asin
+struct unary_op_asin_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
         // TODO neon optimize
         float tmp[4];
@@ -212,10 +199,9 @@ struct unary_op_asin
     }
 };
 
-template<typename T>
-struct unary_op_acos
+struct unary_op_acos_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
         // TODO neon optimize
         float tmp[4];
@@ -228,10 +214,9 @@ struct unary_op_acos
     }
 };
 
-template<typename T>
-struct unary_op_atan
+struct unary_op_atan_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
         // TODO neon optimize
         float tmp[4];
@@ -244,22 +229,20 @@ struct unary_op_atan
     }
 };
 
-template<typename T>
-struct unary_op_reciprocal
+struct unary_op_reciprocal_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
         float32x4_t _reciprocal = vrecpeq_f32(x);
         _reciprocal = vmulq_f32(vrecpsq_f32(x, _reciprocal), _reciprocal);
-        //         _reciprocal = vmulq_f32(vrecpsq_f32(x, _reciprocal), _reciprocal);
+        // _reciprocal = vmulq_f32(vrecpsq_f32(x, _reciprocal), _reciprocal);
         return _reciprocal;
     }
 };
 
-template<typename T>
-struct unary_op_tanh
+struct unary_op_tanh_pack4
 {
-    T operator()(const T& x) const
+    float32x4_t operator()(const float32x4_t& x) const
     {
         return tanh_ps(x);
     }
@@ -274,55 +257,55 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     if (elempack == 4)
     {
         if (op_type == Operation_ABS)
-            return unary_op_inplace<unary_op_abs<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_abs_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_NEG)
-            return unary_op_inplace<unary_op_neg<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_neg_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_FLOOR)
-            return unary_op_inplace<unary_op_floor<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_floor_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_CEIL)
-            return unary_op_inplace<unary_op_ceil<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_ceil_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_SQUARE)
-            return unary_op_inplace<unary_op_square<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_square_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_SQRT)
-            return unary_op_inplace<unary_op_sqrt<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_sqrt_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_RSQRT)
-            return unary_op_inplace<unary_op_rsqrt<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_rsqrt_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_EXP)
-            return unary_op_inplace<unary_op_exp<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_exp_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_LOG)
-            return unary_op_inplace<unary_op_log<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_log_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_SIN)
-            return unary_op_inplace<unary_op_sin<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_sin_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_COS)
-            return unary_op_inplace<unary_op_cos<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_cos_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_TAN)
-            return unary_op_inplace<unary_op_tan<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_tan_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_ASIN)
-            return unary_op_inplace<unary_op_asin<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_asin_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_ACOS)
-            return unary_op_inplace<unary_op_acos<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_acos_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_ATAN)
-            return unary_op_inplace<unary_op_atan<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_atan_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_RECIPROCAL)
-            return unary_op_inplace<unary_op_reciprocal<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_reciprocal_pack4>(bottom_top_blob, opt);
 
         if (op_type == Operation_TANH)
-            return unary_op_inplace<unary_op_tanh<float32x4_t> >(bottom_top_blob, opt);
+            return unary_op_inplace<unary_op_tanh_pack4>(bottom_top_blob, opt);
     }
 #endif // __ARM_NEON
 
