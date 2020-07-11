@@ -12,20 +12,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include "net.h"
+
 #include <algorithm>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <stdio.h>
 #include <vector>
-
-#if CV_VERSION_MAJOR >= 4
-#include <opencv2/opencv.hpp>
-#define CV_LOAD_IMAGE_COLOR cv::IMREAD_COLOR
-#endif // CV_VERSION_MAJOR >= 4
-
-#include "gpu.h"
-#include "net.h"
 
 struct KeyPoint
 {
@@ -37,9 +31,7 @@ static int detect_posenet(const cv::Mat& bgr, std::vector<KeyPoint>& keypoints)
 {
     ncnn::Net posenet;
 
-#if NCNN_VULKAN
     posenet.opt.use_vulkan_compute = true;
-#endif // NCNN_VULKAN
 
     // the simple baseline human pose estimation from gluon-cv
     // https://gluon-cv.mxnet.io/build/examples_pose/demo_simple_pose.html
@@ -147,7 +139,7 @@ int main(int argc, char** argv)
 {
     const char* imagepath = argv[1];
 
-    cv::Mat m = cv::imread(imagepath, CV_LOAD_IMAGE_COLOR);
+    cv::Mat m = cv::imread(imagepath, 1);
     if (m.empty())
     {
         fprintf(stderr, "cv::imread %s failed\n", imagepath);

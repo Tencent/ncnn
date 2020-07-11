@@ -1,14 +1,24 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
 #include "net.h"
-#include "platform.h"
 
 #include <math.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <stdio.h>
-#if NCNN_VULKAN
-#include "gpu.h"
-#endif // NCNN_VULKAN
 
 struct Object
 {
@@ -106,9 +116,7 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net fasterrcnn;
 
-#if NCNN_VULKAN
     fasterrcnn.opt.use_vulkan_compute = true;
-#endif // NCNN_VULKAN
 
     // original pretrained model from https://github.com/rbgirshick/py-faster-rcnn
     // py-faster-rcnn/models/pascal_voc/ZF/faster_rcnn_alt_opt/faster_rcnn_test.pt

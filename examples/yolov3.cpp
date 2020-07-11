@@ -13,16 +13,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include "net.h"
-#include "platform.h"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <stdio.h>
 #include <vector>
-#if NCNN_VULKAN
-#include "gpu.h"
-#endif // NCNN_VULKAN
 
 struct Object
 {
@@ -35,9 +31,7 @@ static int detect_yolov3(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net yolov3;
 
-#if NCNN_VULKAN
     yolov3.opt.use_vulkan_compute = true;
-#endif // NCNN_VULKAN
 
     // original pretrained model from https://github.com/eric612/MobileNet-YOLO
     // param : https://drive.google.com/open?id=1V9oKHP6G6XvXZqhZbzNKL6FI_clRWdC-

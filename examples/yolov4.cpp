@@ -13,16 +13,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include "net.h"
-#include "platform.h"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <stdio.h>
 #include <vector>
-#if NCNN_VULKAN
-#include "gpu.h"
-#endif // NCNN_VULKAN
 
 #define YOLOV4_TINY 1 //0 or undef for yolov4
 
@@ -37,12 +33,11 @@ static int detect_yolov4(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net yolov4;
 
-#if NCNN_VULKAN
     yolov4.opt.use_vulkan_compute = true;
-#endif // NCNN_VULKAN
 
     // original pretrained model from https://github.com/AlexeyAB/darknet
     // the ncnn model https://drive.google.com/drive/folders/1YzILvh0SKQPS_lrb33dmGNq7aVTKPWS0?usp=sharing
+    // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
 #if YOLOV4_TINY
     yolov4.load_param("yolov4-tiny-opt.param");
     yolov4.load_model("yolov4-tiny-opt.bin");
