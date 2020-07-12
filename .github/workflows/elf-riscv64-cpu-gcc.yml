@@ -2,7 +2,7 @@ name: elf-riscv64-cpu-gcc
 on: [push, pull_request]
 jobs:
   linux-gcc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
       with:
@@ -13,7 +13,7 @@ jobs:
       uses: actions/cache@v1
       with:
         path: riscv-install
-        key: riscv-linux-install-0
+        key: riscv-linux-install-1
 
     - name: install-riscv-build-deps
       if: steps.cache-riscv.outputs.cache-hit != 'true'
