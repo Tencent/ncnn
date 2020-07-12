@@ -59,7 +59,7 @@ jobs:
         mkdir build
         cd build
         export PATH=$GITHUB_WORKSPACE/riscv-install/bin:$PATH
-        ./configure --prefix=$GITHUB_WORKSPACE/riscv-install --host=riscv64-unknown-elf
+        ../configure --prefix=$GITHUB_WORKSPACE/riscv-install --host=riscv64-unknown-elf
         make -j2
         make install
 
@@ -77,7 +77,7 @@ jobs:
         mkdir build
         cd build
         export PATH=$GITHUB_WORKSPACE/riscv-install/bin:$PATH
-        ./configure --prefix=$GITHUB_WORKSPACE/riscv-install
+        ../configure --prefix=$GITHUB_WORKSPACE/riscv-install
         make -j2
         make install
 
