@@ -69,7 +69,7 @@ jobs:
       with:
         repository: riscv/riscv-isa-sim
         path: riscv-isa-sim
-        ref: 5d9ed238e1cabfbca3c47f50d32894ce94bfc304
+        ref: ecc039ef5726315b7e37e8a9c7b682bbe09c9cf5
     - name: riscv-isa-sim
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       run: |
