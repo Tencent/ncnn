@@ -32,9 +32,12 @@ jobs:
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       run: |
         cd riscv-gnu-toolchain
-        sed -i '/qemu/d' .gitmodules
-        git submodule sync
-        git submodule update --init --recursive --depth 1
+        git submodule update --init --recursive --depth 1 riscv-binutils
+        git submodule update --init --recursive --depth 1 riscv-gcc
+        git submodule update --init --recursive --depth 1 riscv-glibc
+        git submodule update --init --recursive --depth 1 riscv-dejagnu
+        git submodule update --init --recursive --depth 1 riscv-newlib
+        git submodule update --init --recursive --depth 1 riscv-gdb
     - name: riscv-gnu-toolchain
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       run: |
