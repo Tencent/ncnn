@@ -91,6 +91,8 @@ jobs:
       run: cmake --build build -j 2
     - name: test
       run: |
+        sudo apt-get update
+        sudo apt-get install device-tree-compiler
         export PATH=$GITHUB_WORKSPACE/riscv-install/bin:$PATH
         cd build
         TESTS_EXECUTABLE_LOADER=spike TESTS_EXECUTABLE_LOADER_ARGUMENTS=$GITHUB_WORKSPACE/riscv-install/riscv64-unknown-elf/bin/pk ctest --output-on-failure -j 2
