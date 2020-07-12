@@ -13,7 +13,7 @@ jobs:
       uses: actions/cache@v1
       with:
         path: riscv-install
-        key: riscv-linux-install-1
+        key: riscv-linux-install-2
 
     - name: install-riscv-build-deps
       if: steps.cache-riscv.outputs.cache-hit != 'true'
@@ -27,7 +27,7 @@ jobs:
       with:
         repository: riscv/riscv-gnu-toolchain
         path: riscv-gnu-toolchain
-        ref: 256a4108922f76403a63d6567501c479971d5575
+        ref: 5842fde8ee5bb3371643b60ed34906eff7a5fa31
     - name: checkout-riscv-gnu-toolchain-submodules
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       run: |
@@ -96,11 +96,3 @@ jobs:
         export PATH=$GITHUB_WORKSPACE/riscv-install/bin:$PATH
         cd build
         TESTS_EXECUTABLE_LOADER=spike TESTS_EXECUTABLE_LOADER_ARGUMENTS=$GITHUB_WORKSPACE/riscv-install/riscv64-unknown-elf/bin/pk ctest --output-on-failure -j 2
-
-
-    #- name: tmp
-      #run: zip -q -9 -r riscv-install.zip $GITHUB_WORKSPACE/riscv-install
-    #- uses: actions/upload-artifact@v2
-      #with:
-        #name: riscv-install-linux
-        #path: riscv-install.zip
