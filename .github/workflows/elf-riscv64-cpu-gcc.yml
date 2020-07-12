@@ -83,15 +83,15 @@ jobs:
 
     - name: riscv-strip-install
       if: steps.cache-riscv.outputs.cache-hit != 'true'
-      run: find $GITHUB_WORKSPACE/riscv-install -type f | xargs -i strip -g {}
+      run: find $GITHUB_WORKSPACE/riscv-install -type f | xargs -i strip -g {} || true
 
-    - name: configure
-      run: export PATH=$GITHUB_WORKSPACE/riscv-install:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-elf.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-    - name: build
-      run: cmake --build build -j 2
-    - name: test
-      run: |
-        export PATH=$GITHUB_WORKSPACE/riscv-install:$PATH
-        cd build
-        TESTS_EXECUTABLE_LOADER=spike TESTS_EXECUTABLE_LOADER_ARGUMENTS=$GITHUB_WORKSPACE/riscv-install/riscv64-unknown-elf/bin/pk ctest --output-on-failure -j 2
+    #- name: configure
+      #run: export PATH=$GITHUB_WORKSPACE/riscv-install:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-elf.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+    #- name: build
+      #run: cmake --build build -j 2
+    #- name: test
+      #run: |
+        #export PATH=$GITHUB_WORKSPACE/riscv-install:$PATH
+        #cd build
+        #TESTS_EXECUTABLE_LOADER=spike TESTS_EXECUTABLE_LOADER_ARGUMENTS=$GITHUB_WORKSPACE/riscv-install/riscv64-unknown-elf/bin/pk ctest --output-on-failure -j 2
 
