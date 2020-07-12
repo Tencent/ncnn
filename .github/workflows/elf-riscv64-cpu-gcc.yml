@@ -32,7 +32,7 @@ jobs:
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       run: |
         cd riscv-gnu-toolchain
-        sed -i 's@https://git.qemu.org/git/qemu.git@https://github.com/qemu/qemu.git@g' .gitmodules
+        sed -i '/qemu/d' .gitmodules
         git submodule sync
         git submodule update --init --recursive --depth 1
     - name: riscv-gnu-toolchain
