@@ -23,14 +23,10 @@ jobs:
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
       with:
+        submodules: true
         repository: riscv/riscv-gnu-toolchain
         path: riscv-gnu-toolchain
         ref: 256a4108922f76403a63d6567501c479971d5575
-    - name: checkout-riscv-gnu-toolchain-submodules
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
-      run: |
-        cd riscv-gnu-toolchain
-        git submodule update --init --recursive
     - name: riscv-gnu-toolchain
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       run: |
@@ -42,6 +38,7 @@ jobs:
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
       with:
+        submodules: true
         repository: riscv/riscv-pk
         path: riscv-pk
         ref: 5d9ed238e1cabfbca3c47f50d32894ce94bfc304
@@ -60,6 +57,7 @@ jobs:
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
       with:
+        submodules: true
         repository: riscv/riscv-isa-sim
         path: riscv-isa-sim
         ref: 5d9ed238e1cabfbca3c47f50d32894ce94bfc304
@@ -86,5 +84,5 @@ jobs:
       run: |
         export PATH=$GITHUB_WORKSPACE/riscv-install:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=spike TESTS_EXECUTABLE_LOADER_ARGUMENTS=/home/nihui/osd/riscv/riscv64-unknown-elf/bin/pk ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=spike TESTS_EXECUTABLE_LOADER_ARGUMENTS=$GITHUB_WORKSPACE/riscv-install/riscv64-unknown-elf/bin/pk ctest --output-on-failure -j 2
 
