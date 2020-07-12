@@ -13,7 +13,7 @@ jobs:
       uses: actions/cache@v1
       with:
         path: riscv-install
-        key: riscv-linux-install-2
+        key: riscv-linux-install-3
 
     - name: install-riscv-build-deps
       if: steps.cache-riscv.outputs.cache-hit != 'true'
@@ -42,7 +42,7 @@ jobs:
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       run: |
         cd riscv-gnu-toolchain
-        ./configure --prefix=$GITHUB_WORKSPACE/riscv-install
+        ./configure --prefix=$GITHUB_WORKSPACE/riscv-install --with-arch=rv64imafdcv
         make -j2
 
     - name: checkout-riscv-pk
