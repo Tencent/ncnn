@@ -13,7 +13,7 @@ jobs:
       uses: actions/cache@v1
       with:
         path: riscv-install
-        key: riscv-linux-install-3
+        key: riscv-linux-install-4
 
     - name: install-riscv-build-deps
       if: steps.cache-riscv.outputs.cache-hit != 'true'
@@ -27,7 +27,7 @@ jobs:
       with:
         repository: riscv/riscv-gnu-toolchain
         path: riscv-gnu-toolchain
-        ref: 07607e1720113e34b1fe6fd8bbb4842d42e591bf
+        ref: 5842fde8ee5bb3371643b60ed34906eff7a5fa31
     - name: checkout-riscv-gnu-toolchain-submodules
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       run: |
@@ -42,7 +42,8 @@ jobs:
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       run: |
         cd riscv-gnu-toolchain
-        ./configure --prefix=$GITHUB_WORKSPACE/riscv-install --with-arch=rv64imafdcv
+        sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
+        ./configure --prefix=$GITHUB_WORKSPACE/riscv-install --with-arch=rv64gcv
         make -j2
 
     - name: checkout-riscv-pk
