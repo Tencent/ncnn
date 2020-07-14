@@ -95,8 +95,15 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
         // sleep 10 seconds for cooling down SOC  :(
 #ifdef _WIN32
         Sleep(10 * 1000);
-#else
+#elif defined(__unix__) || defined(__APPLE__)
         sleep(10);
+#elif _POSIX_TIMERS
+        struct timespec ts;
+        ts.tv_sec = 10;
+        ts.tv_nsec = 0;
+        nanosleep(&ts, &ts);
+#else
+        // TODO How to handle it ?
 #endif
     }
 

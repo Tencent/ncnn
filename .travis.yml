@@ -54,7 +54,7 @@ matrix:
       dist: 1803-containers
       env:
         - NAME=windows-vs2017
-        - BUILD="mkdir build && cd build && cmake .. && cmake --build . && ctest --output-on-failure -j 2"
+        - BUILD="mkdir build && cd build && cmake .. && cmake --build . --config Release && ctest -C Release --output-on-failure -j 2"
 
     - name: "test-coverage-arm64"
       os: linux
