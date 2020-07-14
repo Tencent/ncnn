@@ -67,7 +67,7 @@ static inline void* fastMalloc(size_t size)
 {
 #if _MSC_VER
     return _aligned_malloc(size, MALLOC_ALIGN);
-#elif _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
+#elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
     void* ptr = 0;
     if (posix_memalign(&ptr, MALLOC_ALIGN, size))
         ptr = 0;
@@ -90,7 +90,7 @@ static inline void fastFree(void* ptr)
     {
 #if _MSC_VER
         _aligned_free(ptr);
-#elif _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
+#elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
         free(ptr);
 #elif __ANDROID__ && __ANDROID_API__ < 17
         free(ptr);
