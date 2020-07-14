@@ -1,4 +1,4 @@
-name: elf-riscv64gcv-cpu-gcc
+name: elf-riscv64-cpu-gcc
 on: [push, pull_request]
 jobs:
   newlib-rv64gcv-gcc:
