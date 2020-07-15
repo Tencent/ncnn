@@ -269,6 +269,11 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 #endif // NCNN_VULKAN
 
     std::vector<ncnn::Mat> b(top_blob_count);
+    if (!top_shapes.empty())
+    {
+        b = top_shapes;
+    }
+    else
     {
         ncnn::Option opt_naive;
         opt_naive.use_packing_layout = false;
@@ -528,6 +533,11 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     }
 #endif // NCNN_VULKAN
     ncnn::Mat b;
+    if (!top_shape.empty())
+    {
+        b = top_shape;
+    }
+    else
     {
         ncnn::Option opt_naive;
         opt_naive.use_packing_layout = false;

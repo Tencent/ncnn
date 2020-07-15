@@ -14,8 +14,6 @@
 
 #include "clip_riscv.h"
 
-#include "riscv-pk/encoding.h"
-
 namespace ncnn {
 
 Clip_riscv::Clip_riscv()
