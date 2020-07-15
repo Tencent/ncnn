@@ -26,7 +26,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 | iOS | [![Build Status](https://img.shields.io/github/workflow/status/Tencent/ncnn/ios-cpu)](https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-cpu) | [![Build Status](https://img.shields.io/github/workflow/status/Tencent/ncnn/ios-cpu)](https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-cpu) | — | [![Build Status](https://img.shields.io/github/workflow/status/Tencent/ncnn/ios-64bit-gpu)](https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-64bit-gpu) |
 | iOS Simulator | [![Build Status](https://img.shields.io/github/workflow/status/Tencent/ncnn/ios-simulator)](https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator) | [![Build Status](https://img.shields.io/github/workflow/status/Tencent/ncnn/ios-simulator)](https://github.com/Tencent/ncnn/actions?query=workflow%3Aios-simulator) | — | — |
 | WebAssembly | — | [![Build Status](https://img.shields.io/github/workflow/status/Tencent/ncnn/web-assembly)](https://github.com/Tencent/ncnn/actions?query=workflow%3Aweb-assembly) | — | — |
-| RISC-V GCC/Newlib | — | [![Build Status](https://img.shields.io/github/workflow/status/Tencent/ncnn/elf-riscv64-cpu-gcc)](https://github.com/Tencent/ncnn/actions?query=workflow%3Aelf-riscv64-cpu-gcc) | — | — |
+| RISC-V GCC/Newlib | [![Build Status](https://img.shields.io/github/workflow/status/Tencent/ncnn/elf-riscv32-cpu-gcc)](https://github.com/Tencent/ncnn/actions?query=workflow%3Aelf-riscv32-cpu-gcc) | [![Build Status](https://img.shields.io/github/workflow/status/Tencent/ncnn/elf-riscv64-cpu-gcc)](https://github.com/Tencent/ncnn/actions?query=workflow%3Aelf-riscv64-cpu-gcc) | — | — |
 
 ---
 
