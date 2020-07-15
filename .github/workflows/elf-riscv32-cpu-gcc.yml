@@ -27,7 +27,7 @@ jobs:
       with:
         repository: riscv/riscv-gnu-toolchain
         path: riscv-gnu-toolchain
-        ref: 5842fde8ee5bb3371643b60ed34906eff7a5fa31
+        ref: 256a4108922f76403a63d6567501c479971d5575
     - name: checkout-riscv-gnu-toolchain-submodules
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       run: |
