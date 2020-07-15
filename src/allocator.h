@@ -102,7 +102,15 @@ static inline void fastFree(void* ptr)
 }
 
 // exchange-add operation for atomic operations on reference counters
-#if defined __INTEL_COMPILER && !(defined WIN32 || defined _WIN32)
+#if defined __riscv && !defined __riscv_atomic
+// riscv target without A extension
+static inline int NCNN_XADD(int* addr, int delta)
+{
+    int tmp = *addr;
+    *addr += delta;
+    return tmp;
+}
+#elif defined __INTEL_COMPILER && !(defined WIN32 || defined _WIN32)
 // atomic increment on the linux version of the Intel(tm) compiler
 #define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd(const_cast<void*>(reinterpret_cast<volatile void*>(addr)), delta)
 #elif defined __GNUC__
