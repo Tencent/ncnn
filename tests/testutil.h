@@ -32,7 +32,7 @@ static struct prng_rand_t g_prng_rand_state;
 #define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
 #define RAND()      prng_rand(&g_prng_rand_state)
 
-static float RandomFloat(float a = -2.f, float b = 2.f)
+static float RandomFloat(float a = -1.5f, float b = 1.5f)
 {
     float random = ((float)RAND()) / (float)uint64_t(-1); //RAND_MAX;
     float diff = b - a;
@@ -40,7 +40,7 @@ static float RandomFloat(float a = -2.f, float b = 2.f)
     return a + r;
 }
 
-static void Randomize(ncnn::Mat& m, float a = -2.f, float b = 2.f)
+static void Randomize(ncnn::Mat& m, float a = -1.5f, float b = 1.5f)
 {
     for (size_t i = 0; i < m.total(); i++)
     {
@@ -269,18 +269,35 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 #endif // NCNN_VULKAN
 
     std::vector<ncnn::Mat> b(top_blob_count);
-    if (op->support_inplace)
+    if (!top_shapes.empty())
     {
-        for (size_t i = 0; i < a.size(); i++)
-        {
-            b[i] = a[i].clone();
-        }
-
-        ((T*)op)->T::forward_inplace(b, opt);
+        b = top_shapes;
     }
     else
     {
-        ((T*)op)->T::forward(a, b, opt);
+        ncnn::Option opt_naive;
+        opt_naive.use_packing_layout = false;
+        opt_naive.use_fp16_packed = false;
+        opt_naive.use_fp16_storage = false;
+        opt_naive.use_fp16_arithmetic = false;
+        opt_naive.use_shader_pack8 = false;
+        opt_naive.use_image_storage = false;
+        opt_naive.use_bf16_storage = false;
+        opt_naive.use_vulkan_compute = false;
+
+        if (op->support_inplace)
+        {
+            for (size_t i = 0; i < a.size(); i++)
+            {
+                b[i] = a[i].clone();
+            }
+
+            ((T*)op)->T::forward_inplace(b, opt_naive);
+        }
+        else
+        {
+            ((T*)op)->T::forward(a, b, opt_naive);
+        }
     }
 
     std::vector<ncnn::Mat> c(top_blob_count);
@@ -515,16 +532,32 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
         cmd.submit_and_wait();
     }
 #endif // NCNN_VULKAN
-
     ncnn::Mat b;
-    if (op->support_inplace)
+    if (!top_shape.empty())
     {
-        b = a.clone();
-        ((T*)op)->T::forward_inplace(b, opt);
+        b = top_shape;
     }
     else
     {
-        ((T*)op)->T::forward(a, b, opt);
+        ncnn::Option opt_naive;
+        opt_naive.use_packing_layout = false;
+        opt_naive.use_fp16_packed = false;
+        opt_naive.use_fp16_storage = false;
+        opt_naive.use_fp16_arithmetic = false;
+        opt_naive.use_shader_pack8 = false;
+        opt_naive.use_image_storage = false;
+        opt_naive.use_bf16_storage = false;
+        opt_naive.use_vulkan_compute = false;
+
+        if (op->support_inplace)
+        {
+            b = a.clone();
+            ((T*)op)->T::forward_inplace(b, opt_naive);
+        }
+        else
+        {
+            ((T*)op)->T::forward(a, b, opt_naive);
+        }
     }
 
     ncnn::Mat c;
@@ -663,7 +696,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 template<typename T>
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count = 1, float epsilon = 0.001, void (*func)(T*) = 0)
 {
-    ncnn::Option opts[3];
+    ncnn::Option opts[4];
     opts[0] = _opt;
     opts[0].use_packing_layout = false;
     opts[0].use_fp16_packed = false;
@@ -679,12 +712,18 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2] = _opt;
     opts[2].use_packing_layout = true;
     opts[2].use_fp16_packed = true;
-    opts[2].use_fp16_storage = false;
+    opts[2].use_fp16_storage = true;
     opts[2].use_bf16_storage = true;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = true;
-
-    for (int i = 0; i < 3; i++)
+    opts[3] = _opt;
+    opts[3].use_packing_layout = true;
+    opts[3].use_fp16_packed = true;
+    opts[3].use_fp16_storage = true;
+    opts[3].use_bf16_storage = false;
+    opts[3].use_shader_pack8 = true;
+    opts[3].use_image_storage = true;
+    for (int i = 0; i < 4; i++)
     {
         const ncnn::Option& opt = opts[i];
 
@@ -739,7 +778,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_blob_count, top_shapes, epsilon_fp16, func);
         if (ret != 0)
         {
-            fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
+            fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
             return ret;
         }
     }
@@ -750,7 +789,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 template<typename T>
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, float epsilon = 0.001, void (*func)(T*) = 0)
 {
-    ncnn::Option opts[3];
+    ncnn::Option opts[4];
     opts[0] = _opt;
     opts[0].use_packing_layout = false;
     opts[0].use_fp16_packed = false;
@@ -766,15 +805,20 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2] = _opt;
     opts[2].use_packing_layout = true;
     opts[2].use_fp16_packed = true;
-    opts[2].use_fp16_storage = false;
+    opts[2].use_fp16_storage = true;
     opts[2].use_bf16_storage = true;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = true;
-
-    for (int i = 0; i < 3; i++)
+    opts[3] = _opt;
+    opts[3].use_packing_layout = true;
+    opts[3].use_fp16_packed = true;
+    opts[3].use_fp16_storage = true;
+    opts[3].use_bf16_storage = false;
+    opts[3].use_shader_pack8 = true;
+    opts[3].use_image_storage = true;
+    for (int i = 0; i < 4; i++)
     {
         const ncnn::Option& opt = opts[i];
-
         // fp16 representation
         ncnn::Mat a_fp16;
         std::vector<ncnn::Mat> weights_fp16;
@@ -822,7 +866,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_shape, epsilon_fp16, func);
         if (ret != 0)
         {
-            fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
+            fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
             return ret;
         }
     }

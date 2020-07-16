@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(MemoryData_vulkan)
-
 MemoryData_vulkan::MemoryData_vulkan()
 {
     support_vulkan = true;

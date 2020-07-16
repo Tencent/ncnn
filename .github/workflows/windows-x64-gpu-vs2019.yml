@@ -5,6 +5,8 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: true
     - name: cache-protobuf
       id: cache-protobuf
       uses: actions/cache@v1
@@ -70,4 +72,4 @@ jobs:
       run: |
         Copy-Item -Path '.\VulkanSDK\RunTimeInstaller\x64\vulkan-1.dll' -Destination 'build\tests'
         $env:VK_ICD_FILENAMES="$env:GITHUB_WORKSPACE\swiftshader-install\vk_swiftshader_icd.json"
-        cd build; ctest --output-on-failure -j 2
+        cd build; ctest -C Release --output-on-failure -j 2

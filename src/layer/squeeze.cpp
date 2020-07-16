@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Squeeze)
-
 Squeeze::Squeeze()
 {
     one_blob_only = true;

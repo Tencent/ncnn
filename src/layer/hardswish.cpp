@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(HardSwish)
-
 HardSwish::HardSwish()
 {
     one_blob_only = true;

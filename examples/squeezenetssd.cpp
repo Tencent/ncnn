@@ -13,16 +13,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include "net.h"
-#include "platform.h"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <stdio.h>
 #include <vector>
-#if NCNN_VULKAN
-#include "gpu.h"
-#endif // NCNN_VULKAN
 
 struct Object
 {
@@ -35,9 +31,7 @@ static int detect_squeezenet(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net squeezenet;
 
-#if NCNN_VULKAN
     squeezenet.opt.use_vulkan_compute = true;
-#endif // NCNN_VULKAN
 
     // original pretrained model from https://github.com/chuanqi305/SqueezeNet-SSD
     // squeezenet_ssd_voc_deploy.prototxt

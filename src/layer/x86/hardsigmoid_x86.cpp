@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(HardSigmoid_x86)
-
 HardSigmoid_x86::HardSigmoid_x86()
 {
 #if __AVX__
@@ -68,7 +66,26 @@ int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
+#if __AVX__
+        int nn_size = size >> 3;
+        int remain = size & 7;
+
+        __m256 _zero = _mm256_set1_ps(0.f);
+        __m256 _one = _mm256_set1_ps(1.f);
+        for (; nn_size > 0; nn_size--)
+        {
+            __m256 _p = _mm256_loadu_ps(ptr);
+            __m256 _ans = _mm256_set1_ps(beta);
+            _ans = _mm256_fmadd_ps(_p, _mm256_set1_ps(alpha), _ans);
+            _ans = _mm256_max_ps(_ans, _zero);
+            _ans = _mm256_min_ps(_ans, _one);
+            _mm256_storeu_ps(ptr, _ans);
+
+            ptr += 8;
+        }
+#else
         int remain = size;
+#endif
         for (; remain > 0; remain--)
         {
             if (*ptr < lower)

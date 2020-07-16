@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Slice_vulkan)
-
 Slice_vulkan::Slice_vulkan()
 {
     support_vulkan = true;

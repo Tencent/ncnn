@@ -24,8 +24,6 @@ namespace ncnn {
 #include "padding_pack8.h"
 #endif // __AVX__
 
-DEFINE_LAYER_CREATOR(Padding_x86)
-
 Padding_x86::Padding_x86()
 {
 #if __AVX__

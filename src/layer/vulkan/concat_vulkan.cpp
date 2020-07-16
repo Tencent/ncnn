@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Concat_vulkan)
-
 Concat_vulkan::Concat_vulkan()
 {
     support_vulkan = true;

@@ -22,8 +22,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Pooling_vulkan)
-
 Pooling_vulkan::Pooling_vulkan()
 {
     support_vulkan = true;

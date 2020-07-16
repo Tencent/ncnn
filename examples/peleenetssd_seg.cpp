@@ -13,16 +13,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include "net.h"
-#include "platform.h"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <stdio.h>
 #include <vector>
-#if NCNN_VULKAN
-#include "gpu.h"
-#endif // NCNN_VULKAN
 
 struct Object
 {
@@ -35,9 +31,7 @@ static int detect_peleenet(const cv::Mat& bgr, std::vector<Object>& objects, ncn
 {
     ncnn::Net peleenet;
 
-#if NCNN_VULKAN
     peleenet.opt.use_vulkan_compute = true;
-#endif // NCNN_VULKAN
 
     // model is converted from https://github.com/eric612/MobileNet-YOLO
     // and can be downloaded from https://drive.google.com/open?id=1Wt6jKv13sBRMHgrGAJYlOlRF-o80pC0g

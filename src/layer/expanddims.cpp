@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(ExpandDims)
-
 ExpandDims::ExpandDims()
 {
     one_blob_only = true;

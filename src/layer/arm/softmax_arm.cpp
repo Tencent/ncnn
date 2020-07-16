@@ -25,8 +25,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Softmax_arm)
-
 Softmax_arm::Softmax_arm()
 {
 #if __ARM_NEON

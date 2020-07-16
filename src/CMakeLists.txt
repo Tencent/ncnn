@@ -39,6 +39,7 @@ set(ncnn_SRCS
     option.cpp
     paramdict.cpp
     pipeline.cpp
+    pipelinecache.cpp
 )
 
 if(ANDROID)
@@ -54,6 +55,8 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
     set(arch arm)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(mips)")
     set(arch mips)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
+    set(arch riscv)
 else()
     set(arch x86)
 endif()
@@ -497,6 +500,7 @@ if(NCNN_INSTALL_SDK)
     install(TARGETS ncnn EXPORT ncnn ARCHIVE DESTINATION lib)
     install(FILES
         allocator.h
+        benchmark.h
         blob.h
         c_api.h
         command.h
@@ -513,7 +517,7 @@ if(NCNN_INSTALL_SDK)
         option.h
         paramdict.h
         pipeline.h
-        benchmark.h
+        pipelinecache.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/platform.h

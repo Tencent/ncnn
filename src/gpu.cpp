@@ -31,6 +31,7 @@
 #include "layer/vulkan/packing_vulkan.h"
 #include "layer_type.h"
 #include "mat.h"
+#include "pipelinecache.h"
 
 #if __ANDROID__
 #define ENABLE_VALIDATION_LAYER 0
@@ -618,23 +619,13 @@ int create_gpu_instance()
         // 640 = 0x5143 0x6040001
         // 650 = 0x5143 0x6050002
 
-        gpu_info.bug_local_size_spec_const = false;
         gpu_info.bug_storage_buffer_no_l1 = false;
         gpu_info.bug_layout_binding_id_alias = false;
         gpu_info.bug_implicit_fp16_arithmetic = false;
 
-        if (physicalDeviceProperties.vendorID == 0x13b5 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 66))
-        {
-            // arm mali with old buggy driver
-            gpu_info.bug_local_size_spec_const = true;
-        }
-
         if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 49))
         {
-            // qcom adreno with old buggy driver
-            gpu_info.bug_local_size_spec_const = true;
-
-            // old buggy driver cannot handle binding id alias
+            // qcom adreno with old buggy driver cannot handle binding id alias
             gpu_info.bug_layout_binding_id_alias = true;
         }
 
@@ -941,8 +932,8 @@ int create_gpu_instance()
                   gpu_info.graphics_queue_family_index, gpu_info.graphics_queue_count,
                   gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count);
 
-        NCNN_LOGE("[%u %s]  buglssc=%d  bugsbn1=%d  buglbia=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
-                  gpu_info.bug_local_size_spec_const, gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_layout_binding_id_alias, gpu_info.bug_implicit_fp16_arithmetic);
+        NCNN_LOGE("[%u %s]  bugsbn1=%d  buglbia=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
+                  gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_layout_binding_id_alias, gpu_info.bug_implicit_fp16_arithmetic);
 
         NCNN_LOGE("[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
@@ -996,6 +987,8 @@ void destroy_gpu_instance()
 #endif // ENABLE_VALIDATION_LAYER
 
     vkDestroyInstance(g_instance, 0);
+
+    g_instance.instance = 0;
 }
 
 static bool is_gpu_instance_ready()
@@ -1200,10 +1193,6 @@ VulkanDevice::VulkanDevice(int device_index)
 
     init_device_extension();
 
-#if !NCNN_VULKAN_ONLINE_SPIRV
-    create_shader_module();
-#endif
-
     compute_queues.resize(info.compute_queue_count);
     blob_allocators.resize(info.compute_queue_count);
     staging_allocators.resize(info.compute_queue_count);
@@ -1262,7 +1251,9 @@ VulkanDevice::VulkanDevice(int device_index)
 
     create_dummy_buffer_image();
 
-    create_utility_operator();
+    pipeline_cache = new PipelineCache(this);
+
+    memset(uop_packing, 0, sizeof(uop_packing));
 }
 
 VulkanDevice::~VulkanDevice()
@@ -1276,33 +1267,23 @@ VulkanDevice::~VulkanDevice()
         vkDestroySampler(device, texelfetch_sampler, 0);
     }
 
-    for (uint32_t i = 0; i < info.compute_queue_count; i++)
+    for (size_t i = 0; i < blob_allocators.size(); i++)
     {
         delete blob_allocators[i];
-        delete staging_allocators[i];
     }
     blob_allocators.clear();
+    for (size_t i = 0; i < staging_allocators.size(); i++)
+    {
+        delete staging_allocators[i];
+    }
     staging_allocators.clear();
 
-#if !NCNN_VULKAN_ONLINE_SPIRV
-    destroy_shader_module();
-#endif
+    delete pipeline_cache;
 
     vkDestroyDevice(device, 0);
 }
 
 #if !NCNN_VULKAN_ONLINE_SPIRV
-VkShaderModule VulkanDevice::get_shader_module(int shader_type_index) const
-{
-    if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
-    {
-        NCNN_LOGE("no such shader module %d", shader_type_index);
-        return 0;
-    }
-
-    return shader_modules[shader_type_index];
-}
-
 VkShaderModule VulkanDevice::create_shader_module(int shader_type_index, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const
 {
     if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
@@ -1446,6 +1427,221 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
     free(spv_data_modified);
 
     return shader_module;
+}
+
+int VulkanDevice::create_descriptorset_layout(int binding_count, const int* binding_types, VkDescriptorSetLayout* descriptorset_layout) const
+{
+    if (binding_count == 0)
+    {
+        *descriptorset_layout = 0;
+        return 0;
+    }
+
+    std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings(binding_count);
+    for (int i = 0; i < binding_count; i++)
+    {
+        int binding_type = binding_types[i];
+
+        descriptorSetLayoutBindings[i].binding = i;
+        descriptorSetLayoutBindings[i].descriptorCount = 1;
+        descriptorSetLayoutBindings[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+        if (binding_type == 1)
+        {
+            descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorSetLayoutBindings[i].pImmutableSamplers = 0;
+        }
+        else if (binding_type == 2)
+        {
+            descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            descriptorSetLayoutBindings[i].pImmutableSamplers = 0;
+        }
+        else // if (binding_type == 3)
+        {
+            descriptorSetLayoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorSetLayoutBindings[i].pImmutableSamplers = immutable_texelfetch_sampler(); // we always use texelfetch
+        }
+    }
+
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
+    descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorSetLayoutCreateInfo.pNext = 0;
+    descriptorSetLayoutCreateInfo.flags = 0;
+    descriptorSetLayoutCreateInfo.bindingCount = binding_count;
+    descriptorSetLayoutCreateInfo.pBindings = descriptorSetLayoutBindings.data();
+
+    if (info.support_VK_KHR_push_descriptor)
+    {
+        descriptorSetLayoutCreateInfo.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+    }
+
+    VkResult ret = vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, 0, descriptorset_layout);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateDescriptorSetLayout failed %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const
+{
+    VkPushConstantRange pushConstantRange;
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    pushConstantRange.offset = 0;
+    pushConstantRange.size = sizeof(vk_constant_type) * push_constant_count;
+
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+    pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutCreateInfo.pNext = 0;
+    pipelineLayoutCreateInfo.flags = 0;
+
+    if (descriptorset_layout)
+    {
+        pipelineLayoutCreateInfo.setLayoutCount = 1;
+        pipelineLayoutCreateInfo.pSetLayouts = &descriptorset_layout;
+    }
+    else
+    {
+        pipelineLayoutCreateInfo.setLayoutCount = 0;
+        pipelineLayoutCreateInfo.pSetLayouts = 0;
+    }
+
+    if (push_constant_count > 0)
+    {
+        pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+        pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
+    }
+    else
+    {
+        pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+        pipelineLayoutCreateInfo.pPushConstantRanges = 0;
+    }
+
+    VkResult ret = vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, 0, pipeline_layout);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreatePipelineLayout failed %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, VkPipeline* pipeline) const
+{
+    const int specialization_count = specializations.size();
+
+    std::vector<VkSpecializationMapEntry> specializationMapEntries(specialization_count);
+    for (int i = 0; i < specialization_count; i++)
+    {
+        specializationMapEntries[i].constantID = i;
+        specializationMapEntries[i].offset = i * sizeof(vk_specialization_type);
+        specializationMapEntries[i].size = sizeof(vk_specialization_type);
+    }
+
+    VkSpecializationInfo specializationInfo;
+    specializationInfo.mapEntryCount = specializationMapEntries.size();
+    specializationInfo.pMapEntries = specializationMapEntries.data();
+    specializationInfo.dataSize = specializations.size() * sizeof(vk_specialization_type);
+    specializationInfo.pData = specializations.data();
+
+    VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo;
+    pipelineShaderStageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    pipelineShaderStageCreateInfo.pNext = 0;
+    pipelineShaderStageCreateInfo.flags = 0;
+    pipelineShaderStageCreateInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    pipelineShaderStageCreateInfo.module = shader_module;
+    pipelineShaderStageCreateInfo.pName = "main";
+    pipelineShaderStageCreateInfo.pSpecializationInfo = &specializationInfo;
+
+    VkComputePipelineCreateInfo computePipelineCreateInfo;
+    computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    computePipelineCreateInfo.pNext = 0;
+    computePipelineCreateInfo.flags = 0;
+    computePipelineCreateInfo.stage = pipelineShaderStageCreateInfo;
+    computePipelineCreateInfo.layout = pipeline_layout;
+    computePipelineCreateInfo.basePipelineHandle = 0;
+    computePipelineCreateInfo.basePipelineIndex = 0;
+
+    VkResult ret = vkCreateComputePipelines(device, 0, 1, &computePipelineCreateInfo, 0, pipeline);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateComputePipelines failed %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int VulkanDevice::create_descriptor_update_template(int binding_count, const int* binding_types, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR* descriptor_update_template) const
+{
+    if (binding_count == 0)
+    {
+        *descriptor_update_template = 0;
+        return 0;
+    }
+
+    std::vector<VkDescriptorUpdateTemplateEntryKHR> descriptorUpdateTemplateEntries(binding_count);
+    size_t offset = 0;
+    for (int i = 0; i < binding_count; i++) // TODO do not update weights
+    {
+        int binding_type = binding_types[i];
+
+        descriptorUpdateTemplateEntries[i].dstBinding = i;
+        descriptorUpdateTemplateEntries[i].dstArrayElement = 0;
+        descriptorUpdateTemplateEntries[i].descriptorCount = 1;
+        descriptorUpdateTemplateEntries[i].offset = offset;
+
+        if (binding_type == 1)
+        {
+            descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorBufferInfo);
+        }
+        else if (binding_type == 2)
+        {
+            descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+            descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorImageInfo);
+        }
+        else // if (binding_type == 3)
+        {
+            descriptorUpdateTemplateEntries[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorUpdateTemplateEntries[i].stride = sizeof(VkDescriptorImageInfo);
+        }
+
+        offset += descriptorUpdateTemplateEntries[i].stride;
+    }
+
+    VkDescriptorUpdateTemplateCreateInfoKHR descriptorUpdateTemplateCreateInfo;
+    descriptorUpdateTemplateCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO_KHR;
+    descriptorUpdateTemplateCreateInfo.pNext = 0;
+    descriptorUpdateTemplateCreateInfo.flags = 0;
+    descriptorUpdateTemplateCreateInfo.descriptorUpdateEntryCount = binding_count; // TODO do not update weights
+    descriptorUpdateTemplateCreateInfo.pDescriptorUpdateEntries = descriptorUpdateTemplateEntries.data();
+    if (info.support_VK_KHR_push_descriptor)
+    {
+        descriptorUpdateTemplateCreateInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR;
+    }
+    else
+    {
+        descriptorUpdateTemplateCreateInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_DESCRIPTOR_SET_KHR;
+    }
+    // descriptorSetLayout should be ignored if VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR
+    // FIXME HACK WARNING TODO NOTE but crash on radv if set NULL  :(
+    descriptorUpdateTemplateCreateInfo.descriptorSetLayout = descriptorset_layout;
+    descriptorUpdateTemplateCreateInfo.pipelineBindPoint = VK_PIPELINE_BIND_POINT_COMPUTE;
+    descriptorUpdateTemplateCreateInfo.pipelineLayout = pipeline_layout;
+    descriptorUpdateTemplateCreateInfo.set = 0;
+
+    VkResult ret = vkCreateDescriptorUpdateTemplateKHR(device, &descriptorUpdateTemplateCreateInfo, 0, descriptor_update_template);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateDescriptorUpdateTemplateKHR failed %d", ret);
+        return -1;
+    }
+
+    return 0;
 }
 
 uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const
@@ -1596,8 +1792,11 @@ VkAllocator* VulkanDevice::acquire_blob_allocator() const
         }
     }
 
-    NCNN_LOGE("out of blob allocator");
-    return 0;
+    // pre-allocated allcator exhausted, create new
+    VkAllocator* allocator = new VkBlobAllocator(this);
+    blob_allocators.push_back(allocator);
+    blob_allocators[blob_allocators.size() - 1] = 0;
+    return allocator;
 }
 
 void VulkanDevice::reclaim_blob_allocator(VkAllocator* allocator) const
@@ -1630,8 +1829,11 @@ VkAllocator* VulkanDevice::acquire_staging_allocator() const
         }
     }
 
-    NCNN_LOGE("out of staging allocator");
-    return 0;
+    // pre-allocated allcator exhausted, create new
+    VkAllocator* allocator = new VkStagingAllocator(this);
+    staging_allocators.push_back(allocator);
+    staging_allocators[staging_allocators.size() - 1] = 0;
+    return allocator;
 }
 
 void VulkanDevice::reclaim_staging_allocator(VkAllocator* allocator) const
@@ -1663,6 +1865,11 @@ VkMat VulkanDevice::get_dummy_buffer() const
 VkImageMat VulkanDevice::get_dummy_image() const
 {
     return dummy_image;
+}
+
+const PipelineCache* VulkanDevice::get_pipeline_cache() const
+{
+    return pipeline_cache;
 }
 
 bool VulkanDevice::shape_support_image_storage(const Mat& shape) const
@@ -1775,7 +1982,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
 
     //     NCNN_LOGE("convert_packing b2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
-    const ncnn::Packing_vulkan* uop = uop_packing[0][0][cast_type_from_index][cast_type_to_index][packing_type_to_index];
+    const ncnn::Packing_vulkan* uop = get_utility_operator(0, 0, cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt);
 }
 
@@ -1813,7 +2020,7 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int d
 
     //     NCNN_LOGE("convert_packing i2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
-    const ncnn::Packing_vulkan* uop = uop_packing[1][1][cast_type_from_index][cast_type_to_index][packing_type_to_index];
+    const ncnn::Packing_vulkan* uop = get_utility_operator(1, 1, cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt);
 }
 
@@ -1851,7 +2058,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_el
 
     //     NCNN_LOGE("convert_packing b2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
-    const ncnn::Packing_vulkan* uop = uop_packing[0][1][cast_type_from_index][cast_type_to_index][packing_type_to_index];
+    const ncnn::Packing_vulkan* uop = get_utility_operator(0, 1, cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt);
 }
 
@@ -1889,117 +2096,9 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_el
 
     //     NCNN_LOGE("convert_packing i2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
-    const ncnn::Packing_vulkan* uop = uop_packing[1][0][cast_type_from_index][cast_type_to_index][packing_type_to_index];
+    const ncnn::Packing_vulkan* uop = get_utility_operator(1, 0, cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt);
 }
-
-#if !NCNN_VULKAN_ONLINE_SPIRV
-int VulkanDevice::create_shader_module()
-{
-    if (info.bug_local_size_spec_const)
-    {
-        // do not cache shader module
-        return 0;
-    }
-
-    shader_modules.resize(layer_shader_registry_entry_count, VK_NULL_HANDLE);
-
-    for (int i = 0; i < layer_shader_registry_entry_count; i++)
-    {
-        // ncnn_add_shader cmake macro
-        // 0 = fp32
-        // 1 = fp16p
-        // 2 = fp16pa
-        // 3 = fp16s
-        // 4 = fp16sa
-        // 5 = image
-        // 6 = image_fp16p
-        // 7 = image_fp16pa
-        // 8 = image_fp16s
-        // 9 = image_fp16sa
-
-        if (!info.support_fp16_packed)
-        {
-            if (i % 10 == 1)
-                continue;
-        }
-
-        if (!info.support_fp16_packed || !info.support_fp16_arithmetic)
-        {
-            if (i % 10 == 2)
-                continue;
-        }
-
-        if (!info.support_fp16_storage)
-        {
-            if (i % 10 == 3)
-                continue;
-        }
-
-        if (!info.support_fp16_storage || !info.support_fp16_arithmetic)
-        {
-            if (i % 10 == 4)
-                continue;
-        }
-
-        //         if (!info.support_image_storage)
-        //         {
-        //             if (i % 10 == 5)
-        //                 continue;
-        //         }
-
-        if (!info.support_fp16_packed)
-        {
-            if (i % 10 == 6)
-                continue;
-        }
-
-        if (!info.support_fp16_packed || !info.support_fp16_arithmetic)
-        {
-            if (i % 10 == 7)
-                continue;
-        }
-
-        if (!info.support_fp16_storage)
-        {
-            if (i % 10 == 8)
-                continue;
-        }
-
-        if (!info.support_fp16_storage || !info.support_fp16_arithmetic)
-        {
-            if (i % 10 == 9)
-                continue;
-        }
-
-        const uint32_t* spv_data = layer_shader_registry[i].spv_data;
-        size_t spv_data_size = layer_shader_registry[i].spv_data_size;
-
-        VkShaderModule shader_module = compile_shader_module(spv_data, spv_data_size);
-        if (shader_module == 0)
-        {
-            NCNN_LOGE("compile_shader_module %d failed", i);
-            return -1;
-        }
-
-        shader_modules[i] = shader_module;
-
-        //         NCNN_LOGE("shader_module %d created", i);
-    }
-
-    return 0;
-}
-
-void VulkanDevice::destroy_shader_module()
-{
-    for (int i = 0; i < (int)shader_modules.size(); i++)
-    {
-        vkDestroyShaderModule(device, shader_modules[i], 0);
-    }
-
-    shader_modules.clear();
-}
-#endif
 
 int VulkanDevice::init_device_extension()
 {
@@ -2197,76 +2296,76 @@ void VulkanDevice::destroy_dummy_buffer_image()
     delete dummy_allocator;
 }
 
-int VulkanDevice::create_utility_operator()
+const ncnn::Packing_vulkan* VulkanDevice::get_utility_operator(int storage_type_from, int storage_type_to, int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const
 {
-    memset(uop_packing, 0, sizeof(uop_packing));
+    MutexLockGuard lock(uop_lock);
 
-    Option opt;
+    const ncnn::Packing_vulkan* cached_uop = uop_packing[storage_type_from][storage_type_to][cast_type_from_index][cast_type_to_index][packing_type_to_index];
+    if (cached_uop)
+        return cached_uop;
 
-    // from buffer | image
-    // to buffer | image
-    for (int i0 = 0; i0 < 2; i0++)
+    if ((cast_type_from_index == 1 && cast_type_to_index == 2) || (cast_type_from_index == 2 && cast_type_to_index == 1))
     {
-        for (int i1 = 0; i1 < 2; i1++)
-        {
-            opt.use_image_storage = (i0 == 1 || i1 == 1);
-            if (info.bug_layout_binding_id_alias && opt.use_image_storage)
-                continue;
-
-            // from fp32-b/i | fp16p-b/i | fp16s-b/i
-            // to fp32-b/i | fp16p-b/i | fp16s-b/i
-            for (int j0 = 0; j0 < 3; j0++)
-            {
-                for (int j1 = 0; j1 < 3; j1++)
-                {
-                    if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
-                    {
-                        // no fp16p to/from fp16s conversion
-                        continue;
-                    }
-
-                    opt.use_fp16_packed = (j0 == 1 || j1 == 1);
-                    opt.use_fp16_storage = (j0 == 2 || j1 == 2);
-
-                    if (!info.support_fp16_packed && opt.use_fp16_packed)
-                        continue;
-
-                    if (!info.support_fp16_storage && opt.use_fp16_storage)
-                        continue;
-
-                    // to pack1 | pack4 | pack8
-                    for (int k = 0; k < 3; k++)
-                    {
-                        // enable pack8 for pack8to1/pack8to4
-                        opt.use_shader_pack8 = true;
-
-                        ncnn::Packing_vulkan* uop = new ncnn::Packing_vulkan;
-                        uop->vkdev = this;
-
-                        ncnn::ParamDict pd;
-                        pd.set(0, k == 0 ? 1 : k == 1 ? 4 : 8); // out_elempack
-                        pd.set(2, j0 + 1);                      // cast_type_from  0=auto 1=fp32 2=fp16p 3=fp16s
-                        pd.set(3, j1 + 1);                      // cast_type_to
-                        pd.set(4, i0);                          // storage_type_from  0=buffer 1=image
-                        pd.set(5, i1);                          // storage_type_to
-
-                        uop->load_param(pd);
-
-                        uop->create_pipeline(opt);
-
-                        uop_packing[i0][i1][j0][j1][k] = uop;
-                    }
-                }
-            }
-        }
+        NCNN_LOGE("no fp16p to/from fp16s conversion");
+        return 0;
     }
 
-    return 0;
+    // create uop
+    Option opt;
+    opt.use_image_storage = (storage_type_from == 1 || storage_type_to == 1);
+    opt.use_fp16_packed = (cast_type_from_index == 1 || cast_type_to_index == 1);
+    opt.use_fp16_storage = (cast_type_from_index == 2 || cast_type_to_index == 2);
+
+    if (info.bug_layout_binding_id_alias && opt.use_image_storage)
+    {
+        NCNN_LOGE("cannot create uop with use_image_storage if bug_layout_binding_id_alias");
+        return 0;
+    }
+
+    if (!info.support_fp16_packed && opt.use_fp16_packed)
+    {
+        NCNN_LOGE("cannot create uop with use_fp16_packed if not support_fp16_packed");
+        return 0;
+    }
+
+    if (!info.support_fp16_storage && opt.use_fp16_storage)
+    {
+        NCNN_LOGE("cannot create uop with use_fp16_storage if not support_fp16_storage");
+        return 0;
+    }
+
+    // enable pack8 for pack8to1/pack8to4
+    opt.use_shader_pack8 = true;
+
+    opt.use_vulkan_compute = true;
+
+    // cache uop pipeline as device member explicitly
+    opt.pipeline_cache = 0;
+
+    ncnn::Packing_vulkan* uop = new ncnn::Packing_vulkan;
+    uop->vkdev = this;
+
+    ncnn::ParamDict pd;
+    pd.set(0, packing_type_to_index == 0 ? 1 : packing_type_to_index == 1 ? 4 : 8); // out_elempack
+    pd.set(2, cast_type_from_index + 1); // 0=auto 1=fp32 2=fp16p 3=fp16s
+    pd.set(3, cast_type_to_index + 1);
+    pd.set(4, storage_type_from); // 0=buffer 1=image
+    pd.set(5, storage_type_to);
+
+    uop->load_param(pd);
+
+    uop->create_pipeline(opt);
+
+    uop_packing[storage_type_from][storage_type_to][cast_type_from_index][cast_type_to_index][packing_type_to_index] = uop;
+
+    return uop;
 }
 
 void VulkanDevice::destroy_utility_operator()
 {
     Option opt;
+    opt.use_vulkan_compute = true;
+    opt.pipeline_cache = 0;
 
     // from buffer | image
     // to buffer | image
@@ -2306,6 +2405,8 @@ void VulkanDevice::destroy_utility_operator()
                         opt.use_shader_pack8 = true;
 
                         ncnn::Layer* uop = uop_packing[i0][i1][j0][j1][k];
+                        if (!uop)
+                            continue;
 
                         uop->destroy_pipeline(opt);
 

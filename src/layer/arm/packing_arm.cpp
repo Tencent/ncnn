@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Packing_arm)
-
 Packing_arm::Packing_arm()
 {
     support_packing = true;

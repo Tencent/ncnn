@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(MVN)
-
 MVN::MVN()
 {
     one_blob_only = true;

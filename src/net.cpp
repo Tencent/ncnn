@@ -32,6 +32,7 @@
 
 #if NCNN_VULKAN
 #include "command.h"
+#include "pipelinecache.h"
 #endif // NCNN_VULKAN
 
 namespace ncnn {
@@ -42,6 +43,7 @@ Net::Net()
     vkdev = 0;
     weight_vkallocator = 0;
     weight_staging_vkallocator = 0;
+    pipeline_cache = 0;
 #endif // NCNN_VULKAN
 }
 
@@ -516,6 +518,15 @@ int Net::load_model(const DataReader& dr)
 
     fuse_network();
 
+#if NCNN_VULKAN
+    if (!opt.pipeline_cache)
+    {
+        if (!pipeline_cache)
+            pipeline_cache = new PipelineCache(vkdev);
+        opt.pipeline_cache = pipeline_cache;
+    }
+#endif // NCNN_VULKAN
+
     for (size_t i = 0; i < layers.size(); i++)
     {
         Layer* layer = layers[i];
@@ -904,6 +915,12 @@ void Net::clear()
     {
         delete weight_staging_vkallocator;
         weight_staging_vkallocator = 0;
+    }
+    if (pipeline_cache)
+    {
+        delete pipeline_cache;
+        pipeline_cache = 0;
+        opt.pipeline_cache = 0;
     }
 #endif // NCNN_VULKAN
 }

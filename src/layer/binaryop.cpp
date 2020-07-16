@@ -19,8 +19,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(BinaryOp)
-
 BinaryOp::BinaryOp()
 {
     one_blob_only = false;
@@ -487,82 +485,73 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
     return 0;
 }
 
-template<typename T>
 struct binary_op_add
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
         return x + y;
     }
 };
 
-template<typename T>
 struct binary_op_sub
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
         return x - y;
     }
 };
 
-template<typename T>
 struct binary_op_mul
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
         return x * y;
     }
 };
 
-template<typename T>
 struct binary_op_div
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
         return x / y;
     }
 };
 
-template<typename T>
 struct binary_op_max
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
         return std::max(x, y);
     }
 };
 
-template<typename T>
 struct binary_op_min
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
         return std::min(x, y);
     }
 };
 
-template<typename T>
 struct binary_op_pow
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
-        return static_cast<T>(pow(x, y));
+        return (float)pow(x, y);
     }
 };
 
-template<typename T>
 struct binary_op_rsub
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
         return y - x;
     }
 };
 
-template<typename T>
 struct binary_op_rdiv
 {
-    T operator()(const T& x, const T& y) const
+    float operator()(const float& x, const float& y) const
     {
         return y / x;
     }
@@ -576,31 +565,31 @@ int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     Mat& top_blob = top_blobs[0];
 
     if (op_type == Operation_ADD)
-        return binary_op<binary_op_add<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+        return binary_op<binary_op_add>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_SUB)
-        return binary_op<binary_op_sub<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+        return binary_op<binary_op_sub>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_MUL)
-        return binary_op<binary_op_mul<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+        return binary_op<binary_op_mul>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_DIV)
-        return binary_op<binary_op_div<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+        return binary_op<binary_op_div>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_MAX)
-        return binary_op<binary_op_max<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+        return binary_op<binary_op_max>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_MIN)
-        return binary_op<binary_op_min<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+        return binary_op<binary_op_min>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_POW)
-        return binary_op<binary_op_pow<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+        return binary_op<binary_op_pow>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_RSUB)
-        return binary_op<binary_op_rsub<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+        return binary_op<binary_op_rsub>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_RDIV)
-        return binary_op<binary_op_rdiv<float> >(bottom_blob, bottom_blob1, top_blob, opt);
+        return binary_op<binary_op_rdiv>(bottom_blob, bottom_blob1, top_blob, opt);
 
     return 0;
 }
@@ -608,31 +597,31 @@ int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 int BinaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     if (op_type == Operation_ADD)
-        return binary_op_scalar_inplace<binary_op_add<float> >(bottom_top_blob, b, opt);
+        return binary_op_scalar_inplace<binary_op_add>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_SUB)
-        return binary_op_scalar_inplace<binary_op_sub<float> >(bottom_top_blob, b, opt);
+        return binary_op_scalar_inplace<binary_op_sub>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_MUL)
-        return binary_op_scalar_inplace<binary_op_mul<float> >(bottom_top_blob, b, opt);
+        return binary_op_scalar_inplace<binary_op_mul>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_DIV)
-        return binary_op_scalar_inplace<binary_op_div<float> >(bottom_top_blob, b, opt);
+        return binary_op_scalar_inplace<binary_op_div>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_MAX)
-        return binary_op_scalar_inplace<binary_op_max<float> >(bottom_top_blob, b, opt);
+        return binary_op_scalar_inplace<binary_op_max>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_MIN)
-        return binary_op_scalar_inplace<binary_op_min<float> >(bottom_top_blob, b, opt);
+        return binary_op_scalar_inplace<binary_op_min>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_POW)
-        return binary_op_scalar_inplace<binary_op_pow<float> >(bottom_top_blob, b, opt);
+        return binary_op_scalar_inplace<binary_op_pow>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_RSUB)
-        return binary_op_scalar_inplace<binary_op_rsub<float> >(bottom_top_blob, b, opt);
+        return binary_op_scalar_inplace<binary_op_rsub>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_RDIV)
-        return binary_op_scalar_inplace<binary_op_rdiv<float> >(bottom_top_blob, b, opt);
+        return binary_op_scalar_inplace<binary_op_rdiv>(bottom_top_blob, b, opt);
 
     return 0;
 }

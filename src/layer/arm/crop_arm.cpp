@@ -22,8 +22,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Crop_arm)
-
 Crop_arm::Crop_arm()
 {
 #if __ARM_NEON

@@ -57,8 +57,6 @@ namespace ncnn {
 #include "convolution_7x7_pack1to4_bf16s.h"
 #endif // __ARM_NEON
 
-DEFINE_LAYER_CREATOR(Convolution_arm)
-
 Convolution_arm::Convolution_arm()
 {
 #if __ARM_NEON
@@ -129,7 +127,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
         return create_pipeline_int8_arm(opt);
     }
 
-    if (opt.use_packing_layout == false && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+    if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     {
         convolution_dilation1 = ncnn::create_layer(ncnn::LayerType::Convolution);
 
@@ -174,8 +172,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
-    int elempack = (opt.use_packing_layout && num_input % 4 == 0) ? 4 : 1;
-    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int elempack = (support_packing && opt.use_packing_layout && num_input % 4 == 0) ? 4 : 1;
+    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
 
 #if __ARM_NEON
     // pack4
@@ -454,14 +452,14 @@ int Convolution_arm::destroy_pipeline(const Option& opt)
 
 int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    if (bottom_blob.dims != 3)
-    {
-        return Convolution::forward(bottom_blob, top_blob, opt);
-    }
-
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return forward_int8_arm(bottom_blob, top_blob, opt);
+    }
+
+    if (bottom_blob.dims != 3)
+    {
+        return Convolution::forward(bottom_blob, top_blob, opt);
     }
 
     if (opt.use_bf16_storage)
@@ -488,14 +486,14 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-    if (opt.use_packing_layout == false && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+    if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     {
         if (outw >= dilation_w && outh >= dilation_h)
         {
@@ -1021,8 +1019,8 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
-    int elempack = (opt.use_packing_layout && num_input % 4 == 0) ? 4 : 1;
-    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int elempack = (support_packing && opt.use_packing_layout && num_input % 4 == 0) ? 4 : 1;
+    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
 
 #if __ARM_NEON
     // pack4
@@ -1243,7 +1241,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -1251,7 +1249,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         return -100;
 
     // FIXME
-    //     if (opt.use_packing_layout == false && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+    //     if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     //     {
     //         return forwardDilation_arm(bottom_blob_bordered, top_blob, opt);
     //     }

@@ -25,8 +25,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Softmax_mips)
-
 int Softmax_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;

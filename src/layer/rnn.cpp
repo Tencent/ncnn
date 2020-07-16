@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(RNN)
-
 RNN::RNN()
 {
     one_blob_only = false;

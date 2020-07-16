@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(PixelShuffle_vulkan)
-
 PixelShuffle_vulkan::PixelShuffle_vulkan()
 {
     support_vulkan = true;

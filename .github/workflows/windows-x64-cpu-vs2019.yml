@@ -27,7 +27,7 @@ jobs:
     - name: build
       run: cmake --build build --config Release -j 2
     - name: test
-      run: cd build; ctest --output-on-failure -j 2
+      run: cd build; ctest -C Release --output-on-failure -j 2
 
   windows-vs2019-avx2:
     runs-on: windows-latest
@@ -55,7 +55,7 @@ jobs:
     - name: build
       run: cmake --build build --config Release -j 2
     - name: test
-      run: cd build; ctest --output-on-failure -j 2
+      run: cd build; ctest -C Release --output-on-failure -j 2
 
   windows-vs2019-nostdio-nostring:
     runs-on: windows-latest

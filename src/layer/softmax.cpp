@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Softmax)
-
 Softmax::Softmax()
 {
     one_blob_only = true;

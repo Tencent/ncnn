@@ -13,16 +13,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include "net.h"
-#include "platform.h"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <stdio.h>
 #include <vector>
-#if NCNN_VULKAN
-#include "gpu.h"
-#endif // NCNN_VULKAN
 
 struct Object
 {
@@ -122,9 +118,7 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net yolact;
 
-#if NCNN_VULKAN
     yolact.opt.use_vulkan_compute = true;
-#endif // NCNN_VULKAN
 
     // original model converted from https://github.com/dbolya/yolact
     // yolact_resnet50_54_800000.pth

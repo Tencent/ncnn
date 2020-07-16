@@ -23,8 +23,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(BinaryOp_x86)
-
 BinaryOp_x86::BinaryOp_x86()
 {
 #if __AVX__

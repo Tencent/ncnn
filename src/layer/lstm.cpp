@@ -18,11 +18,9 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(LSTM)
-
 LSTM::LSTM()
 {
-    one_blob_only = true;
+    one_blob_only = false;
     support_inplace = false;
 }
 
@@ -31,7 +29,8 @@ int LSTM::load_param(const ParamDict& pd)
     num_output = pd.get(0, 0);
     weight_data_size = pd.get(1, 0);
     direction = pd.get(2, 0);
-
+    if (direction == 2)
+        one_blob_only = true;
     return 0;
 }
 
@@ -57,30 +56,17 @@ int LSTM::load_model(const ModelBin& mb)
     return 0;
 }
 
-static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, const Option& opt)
+static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, Mat& cell_state, const Option& opt)
 {
     int size = bottom_blob.w;
     int T = bottom_blob.h;
 
     int num_output = top_blob.w;
 
-    // initial hidden state
-    Mat hidden(num_output, 4u, opt.workspace_allocator);
-    if (hidden.empty())
-        return -100;
-
-    // internal cell state
-    Mat cell(num_output, 4u, opt.workspace_allocator);
-    if (cell.empty())
-        return -100;
-
     // 4 x num_output
     Mat gates(4, num_output, 4u, opt.workspace_allocator);
     if (gates.empty())
         return -100;
-
-    hidden.fill(0.f);
-    cell.fill(0.f);
 
     // unroll
     for (int t = 0; t < T; t++)
@@ -91,7 +77,6 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         //                0       otherwise
         // calculate hidden
         // gate_input_t := W_hc * h_conted_{t-1} + W_xc * x_t + b_c
-        int cont = t > 0;
 
         int ti = reverse ? T - 1 - t : t;
 
@@ -133,7 +118,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 
             for (int i = 0; i < num_output; i++)
             {
-                float h_cont = cont ? hidden[i] : 0.f;
+                float h_cont = hidden_state[i];
 
                 I += weight_hc_I[i] * h_cont;
                 F += weight_hc_F[i] * h_cont;
@@ -165,18 +150,16 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             float G = gates_data[3];
 
             I = 1.f / (1.f + exp(-I));
-            F = cont ? 1.f / (1.f + exp(-F)) : 0.f;
+            F = 1.f / (1.f + exp(-F));
             O = 1.f / (1.f + exp(-O));
             G = tanh(G);
 
-            float cell2 = F * cell[q] + I * G;
+            float cell2 = F * cell_state[q] + I * G;
             float H = O * tanh(cell2);
-            cell[q] = cell2;
-            hidden[q] = H;
+            cell_state[q] = cell2;
+            hidden_state[q] = H;
             output_data[q] = H;
         }
-
-        // no cell output here
     }
 
     return 0;
@@ -188,21 +171,25 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
     int num_directions = direction == 2 ? 2 : 1;
 
+    // initial hidden state
+    Mat hidden(num_output, 4u, opt.workspace_allocator);
+    if (hidden.empty())
+        return -100;
+    hidden.fill(0.f);
+
+    Mat cell(num_output, 4u, opt.workspace_allocator);
+    if (cell.empty())
+        return -100;
+    cell.fill(0.f);
+
     top_blob.create(num_output * num_directions, T, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-    // forward
-    if (direction == 0)
+    // Uni directional
+    if (direction == 0 || direction == 1)
     {
-        int ret = lstm(bottom_blob, top_blob, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), opt);
-        if (ret != 0)
-            return ret;
-    }
-
-    if (direction == 1)
-    {
-        int ret = lstm(bottom_blob, top_blob, 1, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), opt);
+        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, cell, opt);
         if (ret != 0)
             return ret;
     }
@@ -217,11 +204,14 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         if (top_blob_reverse.empty())
             return -100;
 
-        int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), opt);
+        int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, cell, opt);
         if (ret0 != 0)
             return ret0;
 
-        int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1), opt);
+        hidden.fill(0.0f);
+        cell.fill(0.0f);
+
+        int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1), hidden, cell, opt);
         if (ret1 != 0)
             return ret1;
 
@@ -235,6 +225,37 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
             memcpy(ptr, pf, num_output * sizeof(float));
             memcpy(ptr + num_output, pr, num_output * sizeof(float));
         }
+    }
+
+    return 0;
+}
+
+int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    if (bottom_blobs.size() != 3 || top_blobs.size() != 3)
+    {
+        return forward(bottom_blobs[0], top_blobs[0], opt);
+    }
+    const Mat& bottom_blob = bottom_blobs[0];
+    int T = bottom_blob.h;
+    Mat& top_blob = top_blobs[0];
+    Mat& hidden_state = top_blobs[1];
+    Mat& cell_state = top_blobs[2];
+
+    //Copy previous states
+    hidden_state = bottom_blobs[1].clone(opt.blob_allocator);
+    cell_state = bottom_blobs[2].clone(opt.blob_allocator);
+
+    top_blob.create(num_output, T, 4u, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    // Uni directional
+    if (direction == 0 || direction == 1)
+    {
+        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden_state, cell_state, opt);
+        if (ret != 0)
+            return ret;
     }
 
     return 0;

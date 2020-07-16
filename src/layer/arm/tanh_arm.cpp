@@ -24,8 +24,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(TanH_arm)
-
 TanH_arm::TanH_arm()
 {
 #if __ARM_NEON

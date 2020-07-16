@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(UnaryOp)
-
 UnaryOp::UnaryOp()
 {
     one_blob_only = true;
@@ -49,211 +47,194 @@ static int unary_op_inplace(Mat& a, const Option& opt)
     return 0;
 }
 
-template<typename T>
 struct unary_op_abs
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
-        return static_cast<T>(fabs(x));
+        return (float)fabs(x);
     }
 };
 
-template<typename T>
 struct unary_op_neg
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
         return -x;
     }
 };
 
-template<typename T>
 struct unary_op_floor
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
-        return static_cast<T>(floor(x));
+        return (float)floor(x);
     }
 };
 
-template<typename T>
 struct unary_op_ceil
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
-        return static_cast<T>(ceil(x));
+        return (float)ceil(x);
     }
 };
 
-template<typename T>
 struct unary_op_square
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
         return x * x;
     }
 };
 
-template<typename T>
 struct unary_op_sqrt
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
-        return static_cast<T>(sqrt(x));
+        return (float)sqrt(x);
     }
 };
 
-template<typename T>
 struct unary_op_rsqrt
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
-        return static_cast<T>(1.f / sqrt(x));
+        return (float)(1.f / sqrt(x));
     }
 };
 
-template<typename T>
 struct unary_op_exp
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
-        return static_cast<T>(exp(x));
+        return (float)exp(x);
     }
 };
 
-template<typename T>
 struct unary_op_log
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
-        return static_cast<T>(log(x));
+        return (float)log(x);
     }
 };
 
-template<typename T>
 struct unary_op_sin
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
-        return static_cast<T>(sin(x));
+        return (float)sin(x);
     }
 };
 
-template<typename T>
 struct unary_op_cos
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
-        return static_cast<T>(cos(x));
+        return (float)cos(x);
     }
 };
 
-template<typename T>
 struct unary_op_tan
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
-        return static_cast<T>(tan(x));
+        return (float)tan(x);
     }
 };
 
-template<typename T>
 struct unary_op_asin
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
-        return static_cast<T>(asin(x));
+        return (float)asin(x);
     }
 };
 
-template<typename T>
 struct unary_op_acos
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
-        return static_cast<T>(acos(x));
+        return (float)acos(x);
     }
 };
 
-template<typename T>
 struct unary_op_atan
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
-        return static_cast<T>(atan(x));
+        return (float)atan(x);
     }
 };
 
-template<typename T>
 struct unary_op_reciprocal
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
         return 1.f / x;
     }
 };
 
-template<typename T>
 struct unary_op_tanh
 {
-    T operator()(const T& x) const
+    float operator()(const float& x) const
     {
-        return static_cast<T>(tanh(x));
+        return (float)tanh(x);
     }
 };
 
 int UnaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     if (op_type == Operation_ABS)
-        return unary_op_inplace<unary_op_abs<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_abs>(bottom_top_blob, opt);
 
     if (op_type == Operation_NEG)
-        return unary_op_inplace<unary_op_neg<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_neg>(bottom_top_blob, opt);
 
     if (op_type == Operation_FLOOR)
-        return unary_op_inplace<unary_op_floor<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_floor>(bottom_top_blob, opt);
 
     if (op_type == Operation_CEIL)
-        return unary_op_inplace<unary_op_ceil<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_ceil>(bottom_top_blob, opt);
 
     if (op_type == Operation_SQUARE)
-        return unary_op_inplace<unary_op_square<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_square>(bottom_top_blob, opt);
 
     if (op_type == Operation_SQRT)
-        return unary_op_inplace<unary_op_sqrt<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_sqrt>(bottom_top_blob, opt);
 
     if (op_type == Operation_RSQRT)
-        return unary_op_inplace<unary_op_rsqrt<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_rsqrt>(bottom_top_blob, opt);
 
     if (op_type == Operation_EXP)
-        return unary_op_inplace<unary_op_exp<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_exp>(bottom_top_blob, opt);
 
     if (op_type == Operation_LOG)
-        return unary_op_inplace<unary_op_log<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_log>(bottom_top_blob, opt);
 
     if (op_type == Operation_SIN)
-        return unary_op_inplace<unary_op_sin<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_sin>(bottom_top_blob, opt);
 
     if (op_type == Operation_COS)
-        return unary_op_inplace<unary_op_cos<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_cos>(bottom_top_blob, opt);
 
     if (op_type == Operation_TAN)
-        return unary_op_inplace<unary_op_tan<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_tan>(bottom_top_blob, opt);
 
     if (op_type == Operation_ASIN)
-        return unary_op_inplace<unary_op_asin<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_asin>(bottom_top_blob, opt);
 
     if (op_type == Operation_ACOS)
-        return unary_op_inplace<unary_op_acos<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_acos>(bottom_top_blob, opt);
 
     if (op_type == Operation_ATAN)
-        return unary_op_inplace<unary_op_atan<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_atan>(bottom_top_blob, opt);
 
     if (op_type == Operation_RECIPROCAL)
-        return unary_op_inplace<unary_op_reciprocal<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_reciprocal>(bottom_top_blob, opt);
 
     if (op_type == Operation_TANH)
-        return unary_op_inplace<unary_op_tanh<float> >(bottom_top_blob, opt);
+        return unary_op_inplace<unary_op_tanh>(bottom_top_blob, opt);
 
     return 0;
 }

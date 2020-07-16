@@ -5,6 +5,8 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: true
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1

@@ -583,6 +583,7 @@ enum BorderType
 };
 void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, const Option& opt = Option());
 void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, const Option& opt = Option());
+void resize_nearest(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
 void resize_bilinear(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
 void resize_bicubic(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
 void convert_packing(const Mat& src, Mat& dst, int elempack, const Option& opt = Option());

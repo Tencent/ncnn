@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Slice)
-
 Slice::Slice()
 {
 }

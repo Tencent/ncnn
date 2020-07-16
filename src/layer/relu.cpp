@@ -18,8 +18,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(ReLU)
-
 ReLU::ReLU()
 {
     one_blob_only = true;

@@ -16,8 +16,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(PixelShuffle)
-
 PixelShuffle::PixelShuffle()
 {
     one_blob_only = true;

@@ -31,10 +31,6 @@ layout (constant_id = 4) const int num_prior = 0;
 layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
 
-layout (local_size_x_id = 233) in;
-layout (local_size_y_id = 234) in;
-layout (local_size_z_id = 235) in;
-
 layout (binding = 0) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 layout (binding = 1) readonly buffer min_sizes { sfp min_sizes_data[]; };
 layout (binding = 2) readonly buffer aspect_ratios { sfp aspect_ratios_data[]; };

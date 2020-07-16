@@ -21,8 +21,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Convolution_vulkan)
-
 Convolution_vulkan::Convolution_vulkan()
 {
     support_vulkan = true;
@@ -81,6 +79,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         pd.set(0, num_output);
         pd.set(1, bias_term);
         pd.set(2, weight_data_size); // TODO int8
+        pd.set(9, activation_type);
+        pd.set(10, activation_params);
 
         innerproduct->load_param(pd);
 

@@ -21,6 +21,7 @@ namespace ncnn {
 
 #if NCNN_VULKAN
 class VkAllocator;
+class PipelineCache;
 #endif // NCNN_VULKAN
 
 class Allocator;
@@ -55,6 +56,9 @@ public:
 
     // staging memory allocator
     VkAllocator* staging_vkallocator;
+
+    // pipeline cache
+    PipelineCache* pipeline_cache;
 #endif // NCNN_VULKAN
 
     // enable winograd convolution optimization
@@ -80,7 +84,7 @@ public:
 
     // enable options for gpu inference
     bool use_fp16_packed;
-    bool use_fp16_storage;
+    bool use_fp16_storage; //Also used for fp16 weight storage in AVX
     bool use_fp16_arithmetic;
     bool use_int8_storage;
     bool use_int8_arithmetic;

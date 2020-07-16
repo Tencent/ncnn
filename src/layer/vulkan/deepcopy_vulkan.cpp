@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(DeepCopy_vulkan)
-
 DeepCopy_vulkan::DeepCopy_vulkan()
 {
     support_vulkan = true;

@@ -30,6 +30,11 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
+#if __ARM_NEON
+    int forward_fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
+#endif
+
     int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
@@ -37,6 +42,9 @@ public:
 
     // bf16
     Mat weight_data_bf16;
+
+    // fp16
+    Mat weight_data_fp16;
 };
 
 } // namespace ncnn

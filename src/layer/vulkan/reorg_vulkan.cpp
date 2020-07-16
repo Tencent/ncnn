@@ -20,8 +20,6 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Reorg_vulkan)
-
 Reorg_vulkan::Reorg_vulkan()
 {
     support_vulkan = true;
