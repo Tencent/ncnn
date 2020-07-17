@@ -188,11 +188,11 @@ static const layer_registry_entry layer_registry[] = {
 #include "layer_registry.h"
 };
 
-#if NCNN_ARM82
+#if NCNN_RUNTIME_CPU && NCNN_ARM82
 static const layer_registry_entry layer_registry_arm82[] = {
 #include "layer_registry_arm82.h"
 };
-#endif // NCNN_ARM82
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM82
 
 static const int layer_registry_entry_count = sizeof(layer_registry) / sizeof(layer_registry_entry);
 
@@ -224,13 +224,13 @@ Layer* create_layer(int index)
         return 0;
 
     layer_creator_func layer_creator = 0;
-#if NCNN_ARM82
+#if NCNN_RUNTIME_CPU && NCNN_ARM82
     if (ncnn::cpu_support_arm_asimdhp())
     {
         layer_creator = layer_registry_arm82[index].creator;
     }
     else
-#endif // NCNN_ARM82
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM82
     {
         layer_creator = layer_registry[index].creator;
     }

@@ -217,7 +217,7 @@ macro(ncnn_add_layer class)
     endif()
 
 
-    if(NCNN_ARM82 AND ((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64)")))
+    if(NCNN_RUNTIME_CPU AND NCNN_ARM82 AND ((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64)")))
         # enable armv8.2a+fp16
         set(NCNN_ARM_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/layer/${arch}/${name}_${arch}.h)
         set(NCNN_ARM_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/layer/${arch}/${name}_${arch}.cpp)
@@ -477,6 +477,10 @@ elseif(NCNN_AVX2)
     else()
         target_compile_options(ncnn PRIVATE -mfma -mf16c -mavx2)
     endif()
+endif()
+
+if(NOT NCNN_RUNTIME_CPU AND NCNN_ARM82 AND ((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64)")))
+    target_compile_options(ncnn PRIVATE -march=armv8.2-a+fp16)
 endif()
 
 add_dependencies(ncnn ncnn-generate-spirv)
