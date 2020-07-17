@@ -213,6 +213,8 @@ int Clip_arm::forward_inplace_fp16a(Mat& bottom_top_blob, const Option& opt) con
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #pragma message("build with __ARM_FEATURE_FP16_VECTOR_ARITHMETIC !!")
 
+    fprintf(stderr, "run with __ARM_FEATURE_FP16_VECTOR_ARITHMETIC !!\n");
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
