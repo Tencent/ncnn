@@ -31,7 +31,7 @@ static int test_clip(const ncnn::Mat& a, float min, float max)
     int ret = test_layer<ncnn::Clip>("Clip", pd, weights, opt, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_clip failed min=%f max=%f\n", min, max);
+        fprintf(stderr, "test_clip failed a.dims=%d a=(%d,%d,%d) min=%f max=%f\n", a.dims, a.w, a.h, a.c, min, max);
     }
 
     return ret;

@@ -72,8 +72,23 @@ public:
     // accept bf16
     bool support_bf16_storage;
 
+    // accept fp16
+    bool support_fp16_storage;
+
     // shader image storage
     bool support_image_storage;
+
+
+    // fp32 nchw1
+    // fp32 nchw4
+
+    // bf16 nchw1
+    // bf16 nchw4
+
+    // fp16 nchw1
+    // fp16 nchw4
+    // fp16 nchw8
+
 
 public:
     // implement inference

@@ -27,12 +27,19 @@ Clip_arm::Clip_arm()
 #endif // __ARM_NEON
 
     support_bf16_storage = true;
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    support_fp16_storage = true;
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 }
 
 int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     if (opt.use_bf16_storage)
         return forward_inplace_bf16s(bottom_top_blob, opt);
+
+    if (opt.use_fp16_storage)
+        return forward_inplace_fp16s(bottom_top_blob, opt);
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -208,19 +215,15 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
     return 0;
 }
 
-int Clip_arm::forward_inplace_fp16a(Mat& bottom_top_blob, const Option& opt) const
+int Clip_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-#pragma message("build with __ARM_FEATURE_FP16_VECTOR_ARITHMETIC !!")
-
-    fprintf(stderr, "run with __ARM_FEATURE_FP16_VECTOR_ARITHMETIC !!\n");
-
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int size = w * h;
     int elempack = bottom_top_blob.elempack;
 
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (elempack == 8)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -235,7 +238,7 @@ int Clip_arm::forward_inplace_fp16a(Mat& bottom_top_blob, const Option& opt) con
             {
                 float16x8_t _ptr = vld1q_f16(ptr);
                 _ptr = vmaxq_f16(_ptr, _min);
-                _ptr = vmaxq_f16(_ptr, _max);
+                _ptr = vminq_f16(_ptr, _max);
                 vst1q_f16(ptr, _ptr);
 
                 ptr += 8;
@@ -245,27 +248,89 @@ int Clip_arm::forward_inplace_fp16a(Mat& bottom_top_blob, const Option& opt) con
         return 0;
     }
 
+    if (elempack == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr = bottom_top_blob.channel(q);
+
+            float16x8_t _max = vdupq_n_f16(max);
+            float16x8_t _min = vdupq_n_f16(min);
+
+            int i = 0;
+            for (; i + 1 < size; i += 2)
+            {
+                float16x8_t _ptr = vld1q_f16(ptr);
+                _ptr = vmaxq_f16(_ptr, _min);
+                _ptr = vminq_f16(_ptr, _max);
+                vst1q_f16(ptr, _ptr);
+
+                ptr += 8;
+            }
+            for (; i < size; i++)
+            {
+                float16x4_t _ptr = vld1_f16(ptr);
+                _ptr = vmax_f16(_ptr, vget_low_f16(_min));
+                _ptr = vmin_f16(_ptr, vget_low_f16(_max));
+                vst1_f16(ptr, _ptr);
+
+                ptr += 4;
+            }
+        }
+
+        return 0;
+    }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         __fp16* ptr = bottom_top_blob.channel(q);
 
-        int nn = size >> 3;
-        int remain = size & 7;
+        int i = 0;
 
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         float16x8_t _max = vdupq_n_f16(max);
         float16x8_t _min = vdupq_n_f16(min);
-        for (; nn > 0; nn--)
+
+        for (; i + 7 < size; i += 8)
         {
             float16x8_t _ptr = vld1q_f16(ptr);
             _ptr = vmaxq_f16(_ptr, _min);
-            _ptr = vmaxq_f16(_ptr, _max);
+            _ptr = vminq_f16(_ptr, _max);
             vst1q_f16(ptr, _ptr);
 
             ptr += 8;
         }
+        for (; i + 3 < size; i += 4)
+        {
+            float16x4_t _ptr = vld1_f16(ptr);
+            _ptr = vmax_f16(_ptr, vget_low_f16(_min));
+            _ptr = vmin_f16(_ptr, vget_low_f16(_max));
+            vst1_f16(ptr, _ptr);
 
-        for (; remain > 0; remain--)
+            ptr += 4;
+        }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __ARM_FEATURE_FP16_SCALAR_ARITHMETIC
+        __fp16 min_fp16 = min;
+        __fp16 max_fp16 = max;
+
+        for (; i < size; i++)
+        {
+            __fp16 v = *ptr;
+            if (v < min_fp16)
+                v = min_fp16;
+
+            if (v > max_fp16)
+                v = max_fp16;
+
+            *ptr = v;
+            ptr++;
+        }
+#else // __ARM_FEATURE_FP16_SCALAR_ARITHMETIC
+        for (; i < size; i++)
         {
             float v = *ptr;
             if (v < min)
@@ -277,13 +342,10 @@ int Clip_arm::forward_inplace_fp16a(Mat& bottom_top_blob, const Option& opt) con
             *ptr = v;
             ptr++;
         }
+#endif // __ARM_FEATURE_FP16_SCALAR_ARITHMETIC
     }
 
     return 0;
-#else  // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    // FIXME fallback to fp32
-    return -200;
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 }
 
 } // namespace ncnn
