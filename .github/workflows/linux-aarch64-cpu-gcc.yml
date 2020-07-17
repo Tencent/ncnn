@@ -18,7 +18,6 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: qemu/qemu
-        submodules: true
         path: qemu
         ref: 8746309137ba470d1b2e8f5ce86ac228625db940
 
