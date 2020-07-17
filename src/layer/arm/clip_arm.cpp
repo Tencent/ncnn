@@ -24,13 +24,12 @@ Clip_arm::Clip_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#endif // __ARM_NEON
-
-    support_bf16_storage = true;
-
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     support_fp16_storage = true;
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // __ARM_NEON
+
+    support_bf16_storage = true;
 }
 
 int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
