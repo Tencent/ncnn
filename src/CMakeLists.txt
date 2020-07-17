@@ -217,7 +217,7 @@ macro(ncnn_add_layer class)
     endif()
 
 
-    if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64e") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64)"))
+    if(NCNN_ARM82 AND ((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64)")))
         # enable armv8.2a+fp16
         set(NCNN_ARM_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/layer/${arch}/${name}_${arch}.h)
         set(NCNN_ARM_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/layer/${arch}/${name}_${arch}.cpp)
