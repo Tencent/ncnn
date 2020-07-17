@@ -211,6 +211,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
     op->load_model(mb);
 
     ncnn::Option opt;
+    opt.num_threads = 1;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
@@ -275,6 +276,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     op->load_model(mb);
 
     ncnn::Option opt = _opt;
+    opt.num_threads = 1;
     opt.use_vulkan_compute = false;
 
     if (!op->support_packing) opt.use_packing_layout = false;
@@ -411,6 +413,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     op->load_model(mb);
 
     ncnn::Option opt = _opt;
+    opt.num_threads = 1;
     opt.use_vulkan_compute = true;
 
     if (!op->support_packing) opt.use_packing_layout = false;
@@ -604,6 +607,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
     op->load_model(mb);
 
     ncnn::Option opt;
+    opt.num_threads = 1;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
@@ -657,6 +661,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     op->load_model(mb);
 
     ncnn::Option opt = _opt;
+    opt.num_threads = 1;
     opt.use_vulkan_compute = false;
 
     if (!op->support_packing) opt.use_packing_layout = false;
@@ -767,6 +772,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     op->load_model(mb);
 
     ncnn::Option opt = _opt;
+    opt.num_threads = 1;
     opt.use_vulkan_compute = true;
 
     if (!op->support_packing) opt.use_packing_layout = false;
