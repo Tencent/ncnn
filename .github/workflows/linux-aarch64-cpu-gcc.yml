@@ -6,16 +6,11 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
-    - name: riscv-gnu-toolchain
+    - name: aarch64-gnu-toolchain
       run: |
         sudo apt-get update
-        sudo apt-get install gcc-aarch64-linux-gnu
+        sudo apt-get install g++-aarch64-linux-gnu
 
-
-    #- name: update
-      #run: sudo apt-get update
-    #- name: protobuf
-      #run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
     - name: build
