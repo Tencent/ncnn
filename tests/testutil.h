@@ -283,8 +283,8 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
     if (!op->support_fp16_storage) opt.use_fp16_storage = false;
 
-    if (opt.use_int8_inference) opt.use_bf16_storage = false;
-    if (opt.use_int8_inference) opt.use_packing_layout = false;
+//     if (opt.use_int8_inference) opt.use_bf16_storage = false;
+//     if (opt.use_int8_inference) opt.use_packing_layout = false;
 
     op->create_pipeline(opt);
 
@@ -424,8 +424,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     opt.use_image_storage = false;
 #endif
 
-    if (opt.use_int8_inference) opt.use_bf16_storage = false;
-    if (opt.use_int8_inference) opt.use_packing_layout = false;
+//     if (opt.use_int8_inference) opt.use_bf16_storage = false;
+//     if (opt.use_int8_inference) opt.use_packing_layout = false;
 
     opt.blob_vkallocator = blob_vkallocator;
     opt.workspace_vkallocator = blob_vkallocator;
@@ -668,8 +668,8 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
     if (!op->support_fp16_storage) opt.use_fp16_storage = false;
 
-    if (opt.use_int8_inference) opt.use_bf16_storage = false;
-    if (opt.use_int8_inference) opt.use_packing_layout = false;
+//     if (opt.use_int8_inference) opt.use_bf16_storage = false;
+//     if (opt.use_int8_inference) opt.use_packing_layout = false;
 
     op->create_pipeline(opt);
 
@@ -783,8 +783,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     opt.use_image_storage = false;
 #endif
 
-    if (opt.use_int8_inference) opt.use_bf16_storage = false;
-    if (opt.use_int8_inference) opt.use_packing_layout = false;
+//     if (opt.use_int8_inference) opt.use_bf16_storage = false;
+//     if (opt.use_int8_inference) opt.use_packing_layout = false;
 
     opt.blob_vkallocator = blob_vkallocator;
     opt.workspace_vkallocator = blob_vkallocator;
@@ -944,6 +944,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_fp16_packed = false;
     opts[0].use_fp16_storage = false;
     opts[0].use_fp16_arithmetic = false;
+    opts[0].use_bf16_storage = false;
     opts[0].use_shader_pack8 = false;
     opts[0].use_image_storage = false;
 
@@ -951,6 +952,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[1].use_fp16_packed = true;
     opts[1].use_fp16_storage = false;
     opts[1].use_fp16_arithmetic = false;
+    opts[1].use_bf16_storage = false;
     opts[1].use_shader_pack8 = true;
     opts[1].use_image_storage = false;
 
@@ -1047,6 +1049,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_fp16_packed = false;
     opts[0].use_fp16_storage = false;
     opts[0].use_fp16_arithmetic = false;
+    opts[0].use_bf16_storage = false;
     opts[0].use_shader_pack8 = false;
     opts[0].use_image_storage = false;
 
@@ -1054,6 +1057,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[1].use_fp16_packed = true;
     opts[1].use_fp16_storage = false;
     opts[1].use_fp16_arithmetic = false;
+    opts[1].use_bf16_storage = false;
     opts[1].use_shader_pack8 = true;
     opts[1].use_image_storage = false;
 
