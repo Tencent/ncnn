@@ -328,7 +328,7 @@ int Clip_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
             *ptr = v;
             ptr++;
         }
-#else // __ARM_FEATURE_FP16_SCALAR_ARITHMETIC
+#else  // __ARM_FEATURE_FP16_SCALAR_ARITHMETIC
         for (; i < size; i++)
         {
             float v = *ptr;
