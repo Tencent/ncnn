@@ -568,7 +568,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     {
         std::vector<ncnn::Mat> d;
         int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, top_blob_count, d, std::vector<ncnn::Mat>(), func);
-        if (ret != 0 && ret != 233 || CompareMat(b, d, epsilon) != 0)
+        if (ret != 233 && (ret != 0 || CompareMat(b, d, epsilon) != 0))
         {
             fprintf(stderr, "test_layer_gpu failed\n");
             return -1;
@@ -579,7 +579,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     {
         std::vector<ncnn::Mat> d;
         int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, top_blob_count, d, b, func);
-        if (ret != 0 && ret != 233 || CompareMat(b, d, epsilon) != 0)
+        if (ret != 233 && (ret != 0 || CompareMat(b, d, epsilon) != 0))
         {
             fprintf(stderr, "test_layer_gpu failed with shape hint\n");
             return -1;
@@ -913,7 +913,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     {
         ncnn::Mat d;
         int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, d, ncnn::Mat(), func);
-        if (ret != 0 && ret != 233 || CompareMat(b, d, epsilon) != 0)
+        if (ret != 233 && (ret != 0 || CompareMat(b, d, epsilon) != 0))
         {
             fprintf(stderr, "test_layer_gpu failed\n");
             return -1;
@@ -924,7 +924,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     {
         ncnn::Mat d;
         int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, d, b, func);
-        if (ret != 0 && ret != 233 || CompareMat(b, d, epsilon) != 0)
+        if (ret != 233 && (ret != 0 || CompareMat(b, d, epsilon) != 0))
         {
             fprintf(stderr, "test_layer_gpu failed with shape hint\n");
             return -1;
