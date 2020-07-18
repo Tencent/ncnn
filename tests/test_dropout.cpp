@@ -34,8 +34,8 @@ static int test_dropout(const ncnn::Mat& a, float scale)
 static int test_dropout_0()
 {
     return 0
-           || test_dropout(RandomMat(6, 7, 16), 1.f)
-           || test_dropout(RandomMat(6, 7, 16), 0.2f)
+           || test_dropout(RandomMat(5, 7, 16), 1.f)
+           || test_dropout(RandomMat(5, 7, 16), 0.2f)
            || test_dropout(RandomMat(3, 5, 13), 1.f)
            || test_dropout(RandomMat(3, 5, 13), 0.5f);
 }

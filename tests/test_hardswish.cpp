@@ -35,7 +35,7 @@ static int test_hardswish(const ncnn::Mat& a, float alpha, float beta)
 static int test_hardswish_0()
 {
     return 0
-           || test_hardswish(RandomMat(6, 7, 16), 0.2f, 0.5f)
+           || test_hardswish(RandomMat(5, 7, 16), 0.2f, 0.5f)
            || test_hardswish(RandomMat(3, 5, 13), 0.2f, 0.5f);
 }
 

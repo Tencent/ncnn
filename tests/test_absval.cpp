@@ -33,7 +33,7 @@ static int test_absval(const ncnn::Mat& a)
 static int test_absval_0()
 {
     return 0
-           || test_absval(RandomMat(6, 7, 16))
+           || test_absval(RandomMat(5, 7, 16))
            || test_absval(RandomMat(3, 5, 13));
 }
 

@@ -35,8 +35,8 @@ static int test_prelu(const ncnn::Mat& a, int num_slope)
 static int test_prelu_0()
 {
     return 0
-           || test_prelu(RandomMat(6, 7, 16), 16)
-           || test_prelu(RandomMat(6, 7, 16), 1)
+           || test_prelu(RandomMat(5, 7, 16), 16)
+           || test_prelu(RandomMat(5, 7, 16), 1)
            || test_prelu(RandomMat(3, 5, 13), 13)
            || test_prelu(RandomMat(3, 5, 13), 1);
 }

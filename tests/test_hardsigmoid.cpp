@@ -35,7 +35,7 @@ static int test_hardsigmoid(const ncnn::Mat& a, float alpha, float beta)
 static int test_hardsigmoid_0()
 {
     return 0
-           || test_hardsigmoid(RandomMat(6, 7, 16), 0.5f, 0.5f)
+           || test_hardsigmoid(RandomMat(5, 7, 16), 0.5f, 0.5f)
            || test_hardsigmoid(RandomMat(3, 5, 13), 0.5f, 0.5f);
 }
 

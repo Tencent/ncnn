@@ -33,7 +33,7 @@ static int test_sigmoid(const ncnn::Mat& a)
 static int test_sigmoid_0()
 {
     return 0
-           || test_sigmoid(RandomMat(6, 7, 16))
+           || test_sigmoid(RandomMat(5, 7, 16))
            || test_sigmoid(RandomMat(3, 5, 13));
 }
 

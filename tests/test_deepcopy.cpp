@@ -33,7 +33,7 @@ static int test_deepcopy(const ncnn::Mat& a)
 static int test_deepcopy_0()
 {
     return 0
-           || test_deepcopy(RandomMat(6, 7, 16))
+           || test_deepcopy(RandomMat(5, 7, 16))
            || test_deepcopy(RandomMat(3, 5, 13));
 }
 

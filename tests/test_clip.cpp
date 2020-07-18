@@ -35,7 +35,7 @@ static int test_clip(const ncnn::Mat& a, float min, float max)
 static int test_clip_0()
 {
     return 0
-           || test_clip(RandomMat(6, 7, 16), -1.f, 1.f)
+           || test_clip(RandomMat(5, 7, 16), -1.f, 1.f)
            || test_clip(RandomMat(3, 5, 13), -1.f, 1.f);
 }
 

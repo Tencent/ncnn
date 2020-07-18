@@ -39,7 +39,7 @@ static int test_memorydata(const ncnn::Mat& a)
 static int test_memorydata_0()
 {
     return 0
-           || test_memorydata(RandomMat(6, 7, 16))
+           || test_memorydata(RandomMat(5, 7, 16))
            || test_memorydata(RandomMat(3, 5, 13));
 }
 

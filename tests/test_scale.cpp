@@ -58,8 +58,8 @@ static int test_scale_attention(const ncnn::Mat& a, int scale_data_size)
 static int test_scale_0()
 {
     return 0
-           || test_scale(RandomMat(6, 7, 16), 16, 0)
-           || test_scale(RandomMat(6, 7, 16), 16, 1)
+           || test_scale(RandomMat(5, 7, 16), 16, 0)
+           || test_scale(RandomMat(5, 7, 16), 16, 1)
            || test_scale(RandomMat(3, 5, 13), 13, 0)
            || test_scale(RandomMat(3, 5, 13), 13, 1);
 }
@@ -85,7 +85,7 @@ static int test_scale_2()
 static int test_scale_3()
 {
     return 0
-           || test_scale_attention(RandomMat(6, 7, 16), 16)
+           || test_scale_attention(RandomMat(5, 7, 16), 16)
            || test_scale_attention(RandomMat(3, 5, 13), 13);
 }
 

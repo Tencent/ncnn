@@ -33,7 +33,7 @@ static int test_mish(const ncnn::Mat& a)
 static int test_mish_0()
 {
     return 0
-           || test_mish(RandomMat(6, 7, 16))
+           || test_mish(RandomMat(5, 7, 16))
            || test_mish(RandomMat(3, 5, 13));
 }
 

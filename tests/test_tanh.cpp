@@ -33,7 +33,7 @@ static int test_tanh(const ncnn::Mat& a)
 static int test_tanh_0()
 {
     return 0
-           || test_tanh(RandomMat(6, 7, 16))
+           || test_tanh(RandomMat(5, 7, 16))
            || test_tanh(RandomMat(3, 5, 13));
 }
 

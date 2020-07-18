@@ -58,7 +58,7 @@ static int test_unaryop(const ncnn::Mat& _a)
 static int test_unaryop_0()
 {
     return 0
-           || test_unaryop(RandomMat(12, 7, 16))
+           || test_unaryop(RandomMat(11, 7, 16))
            || test_unaryop(RandomMat(10, 4, 12))
            || test_unaryop(RandomMat(6, 5, 13));
 }
