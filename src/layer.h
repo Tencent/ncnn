@@ -75,6 +75,9 @@ public:
     // accept fp16
     bool support_fp16_storage;
 
+    // accept int8
+    bool support_int8_storage;
+
     // shader image storage
     bool support_image_storage;
 

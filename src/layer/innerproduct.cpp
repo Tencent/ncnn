@@ -35,6 +35,11 @@ int InnerProduct::load_param(const ParamDict& pd)
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
 
+    if (int8_scale_term)
+    {
+        support_int8_storage = true;
+    }
+
     return 0;
 }
 

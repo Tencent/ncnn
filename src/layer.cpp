@@ -40,6 +40,7 @@ Layer::Layer()
 
     support_bf16_storage = false;
     support_fp16_storage = false;
+    support_int8_storage = false;
     support_image_storage = false;
 
 #if NCNN_VULKAN
