@@ -428,8 +428,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     opt.use_image_storage = false;
 #endif
 
-//     if (opt.use_int8_inference) opt.use_bf16_storage = false;
-//     if (opt.use_int8_inference) opt.use_packing_layout = false;
+    //     if (opt.use_int8_inference) opt.use_bf16_storage = false;
+    //     if (opt.use_int8_inference) opt.use_packing_layout = false;
 
     opt.blob_vkallocator = blob_vkallocator;
     opt.workspace_vkallocator = blob_vkallocator;
@@ -791,8 +791,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     opt.use_image_storage = false;
 #endif
 
-//     if (opt.use_int8_inference) opt.use_bf16_storage = false;
-//     if (opt.use_int8_inference) opt.use_packing_layout = false;
+    //     if (opt.use_int8_inference) opt.use_bf16_storage = false;
+    //     if (opt.use_int8_inference) opt.use_packing_layout = false;
 
     opt.blob_vkallocator = blob_vkallocator;
     opt.workspace_vkallocator = blob_vkallocator;
