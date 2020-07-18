@@ -40,12 +40,7 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     if (bias)
         weights[1] = RandomMat(outch);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, opt, a);
+    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
@@ -134,12 +129,7 @@ static int test_convolution_vec(int w, int outch, int kernel, int dilation, int 
     if (bias)
         weights[1] = RandomMat(outch);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, opt, a);
+    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution_vec failed w=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
@@ -198,12 +188,7 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         weights[2] = RandomMat(1);
     }
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = false;
-    opt.use_int8_inference = true;
-
-    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, opt, a, 0.001f, requant ? set_param : 0);
+    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a, 0.001f, requant ? set_param : 0);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant);

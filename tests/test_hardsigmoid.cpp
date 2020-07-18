@@ -23,12 +23,7 @@ static int test_hardsigmoid(const ncnn::Mat& a, float alpha, float beta)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::HardSigmoid>("HardSigmoid", pd, weights, opt, a);
+    int ret = test_layer<ncnn::HardSigmoid>("HardSigmoid", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_hardsigmoid failed a.dims=%d a=(%d %d %d) alpha=%f beta=%f\n", a.dims, a.w, a.h, a.c, alpha, beta);

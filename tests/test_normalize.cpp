@@ -30,12 +30,7 @@ static int test_normalize(const ncnn::Mat& a, int across_spatial, int across_cha
     std::vector<ncnn::Mat> weights(1);
     weights[0] = RandomMat(scale_data_size);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::Normalize>("Normalize", pd, weights, opt, a);
+    int ret = test_layer<ncnn::Normalize>("Normalize", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_normalize failed a.dims=%d a=(%d %d %d) across_spatial=%d across_channel=%d channel_shared=%d eps=%f eps_mode=%d\n", a.dims, a.w, a.h, a.c, across_spatial, across_channel, channel_shared, eps, eps_mode);

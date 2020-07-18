@@ -49,12 +49,7 @@ static int test_deconvolution(int w, int h, int c, int outch, int kernel, int di
     weights[0] = RandomMat(outch * c * kernel * kernel);
     weights[1] = RandomMat(outch);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::Deconvolution>("Deconvolution", pd, weights, opt, a);
+    int ret = test_layer<ncnn::Deconvolution>("Deconvolution", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_deconvolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_w=%d output_h=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_w, output_h);

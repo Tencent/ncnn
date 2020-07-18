@@ -23,12 +23,7 @@ static int test_softmax(const ncnn::Mat& a, int axis)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::Softmax>("Softmax", pd, weights, opt, a);
+    int ret = test_layer<ncnn::Softmax>("Softmax", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_softmax failed a.dims=%d a=(%d %d %d) axis=%d\n", a.dims, a.w, a.h, a.c, axis);

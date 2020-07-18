@@ -22,12 +22,7 @@ static int test_relu(const ncnn::Mat& a, float slope)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::ReLU>("ReLU", pd, weights, opt, a);
+    int ret = test_layer<ncnn::ReLU>("ReLU", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_relu failed a.dims=%d a=(%d %d %d) slope=%f\n", a.dims, a.w, a.h, a.c, slope);

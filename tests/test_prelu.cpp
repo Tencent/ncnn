@@ -23,12 +23,7 @@ static int test_prelu(const ncnn::Mat& a, int num_slope)
     std::vector<ncnn::Mat> weights(1);
     weights[0] = RandomMat(num_slope);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::PReLU>("PReLU", pd, weights, opt, a);
+    int ret = test_layer<ncnn::PReLU>("PReLU", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_prelu failed a.dims=%d a=(%d %d %d) num_slope=%d\n", a.dims, a.w, a.h, a.c, num_slope);
