@@ -384,12 +384,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
-    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
-    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
-
-    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
-    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
-
     op->vkdev = vkdev;
 
     if (func)
@@ -415,6 +409,19 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     ncnn::ModelBinFromMatArray mb(weights.data());
 
     op->load_model(mb);
+
+    if (op->support_int8_storage)
+    {
+        // NOTE skip int8 on gpu
+        delete op;
+        return 233;
+    }
+
+    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
+    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
 
     ncnn::Option opt = _opt;
     opt.num_threads = 1;
@@ -752,12 +759,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
-    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
-    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
-
-    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
-    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
-
     op->vkdev = vkdev;
 
     if (func)
@@ -778,6 +779,19 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     ncnn::ModelBinFromMatArray mb(weights.data());
 
     op->load_model(mb);
+
+    if (op->support_int8_storage)
+    {
+        // NOTE skip int8 on gpu
+        delete op;
+        return 233;
+    }
+
+    ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
+    ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
 
     ncnn::Option opt = _opt;
     opt.num_threads = 1;
