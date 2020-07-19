@@ -25,7 +25,7 @@
 #endif
 
 #ifdef _MSC_VER
-#include <intrin.h>    // __cpuid __cpuindex
+#include <intrin.h>    // __cpuid()
 #include <immintrin.h> // _xgetbv()
 #endif
 
@@ -224,6 +224,7 @@ int cpu_support_x86_avx2()
     if (nIds < 7)
         return 0;
 
+    __cpuid(cpu_info, 1);
     // check AVX XSAVE OSXSAVE
     if (!(cpu_info[2] & 0x10000000) || !(cpu_info[2] & 0x04000000) || !(cpu_info[2] & 0x08000000))
         return 0;
@@ -232,7 +233,7 @@ int cpu_support_x86_avx2()
     if ((_xgetbv(0) & 6) != 6)
         return 0;
 
-    __cpuindex(cpu_info, 7, 0);
+    __cpuid(cpu_info, 7);
     return cpu_info[1] & 0x00000020;
 #else
     // TODO gcc-specific
