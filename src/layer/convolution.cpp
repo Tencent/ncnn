@@ -51,7 +51,7 @@ int Convolution::load_param(const ParamDict& pd)
 
     if (int8_scale_term)
     {
-        support_int8_storage = true;
+        use_int8_inference = true;
     }
 
     return 0;

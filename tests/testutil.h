@@ -220,6 +220,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
     opt.use_image_storage = false;
     opt.use_bf16_storage = false;
     opt.use_vulkan_compute = false;
+    opt.use_weight_fp16_storage = false;
 
     op->create_pipeline(opt);
 
@@ -282,8 +283,9 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!op->support_packing) opt.use_packing_layout = false;
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
     if (!op->support_fp16_storage) opt.use_fp16_storage = false;
+    if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
 
-    if (op->support_int8_storage)
+    if (op->use_int8_inference)
     {
         opt.use_bf16_storage = false;
         opt.use_fp16_storage = false;
@@ -410,7 +412,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     op->load_model(mb);
 
-    if (op->support_int8_storage)
+    if (op->use_int8_inference)
     {
         // NOTE skip int8 on gpu
         delete op;
@@ -430,13 +432,11 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!op->support_packing) opt.use_packing_layout = false;
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
     if (!op->support_image_storage) opt.use_image_storage = false;
+    if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
 
 #if __APPLE__
     opt.use_image_storage = false;
 #endif
-
-    //     if (opt.use_int8_inference) opt.use_bf16_storage = false;
-    //     if (opt.use_int8_inference) opt.use_packing_layout = false;
 
     opt.blob_vkallocator = blob_vkallocator;
     opt.workspace_vkallocator = blob_vkallocator;
@@ -627,6 +627,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
     opt.use_image_storage = false;
     opt.use_bf16_storage = false;
     opt.use_vulkan_compute = false;
+    opt.use_weight_fp16_storage = false;
 
     op->create_pipeline(opt);
 
@@ -678,8 +679,9 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!op->support_packing) opt.use_packing_layout = false;
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
     if (!op->support_fp16_storage) opt.use_fp16_storage = false;
+    if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
 
-    if (op->support_int8_storage)
+    if (op->use_int8_inference)
     {
         opt.use_bf16_storage = false;
         opt.use_fp16_storage = false;
@@ -780,7 +782,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     op->load_model(mb);
 
-    if (op->support_int8_storage)
+    if (op->use_int8_inference)
     {
         // NOTE skip int8 on gpu
         delete op;
@@ -800,13 +802,11 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!op->support_packing) opt.use_packing_layout = false;
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
     if (!op->support_image_storage) opt.use_image_storage = false;
+    if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
 
 #if __APPLE__
     opt.use_image_storage = false;
 #endif
-
-    //     if (opt.use_int8_inference) opt.use_bf16_storage = false;
-    //     if (opt.use_int8_inference) opt.use_packing_layout = false;
 
     opt.blob_vkallocator = blob_vkallocator;
     opt.workspace_vkallocator = blob_vkallocator;
@@ -969,6 +969,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_bf16_storage = false;
     opts[0].use_shader_pack8 = false;
     opts[0].use_image_storage = false;
+    opts[0].use_weight_fp16_storage = false;
 
     opts[1].use_packing_layout = true;
     opts[1].use_fp16_packed = true;
@@ -977,6 +978,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[1].use_bf16_storage = false;
     opts[1].use_shader_pack8 = true;
     opts[1].use_image_storage = false;
+    opts[1].use_weight_fp16_storage = false;
 
     opts[2].use_packing_layout = true;
     opts[2].use_fp16_packed = true;
@@ -985,6 +987,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_bf16_storage = true;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = true;
+    opts[2].use_weight_fp16_storage = true;
 
     opts[3].use_packing_layout = true;
     opts[3].use_fp16_packed = true;
@@ -993,6 +996,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[3].use_bf16_storage = false;
     opts[3].use_shader_pack8 = true;
     opts[3].use_image_storage = true;
+    opts[3].use_weight_fp16_storage = true;
 
     for (int i = 0; i < 4; i++)
     {
@@ -1074,6 +1078,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_bf16_storage = false;
     opts[0].use_shader_pack8 = false;
     opts[0].use_image_storage = false;
+    opts[0].use_weight_fp16_storage = false;
 
     opts[1].use_packing_layout = true;
     opts[1].use_fp16_packed = true;
@@ -1082,6 +1087,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[1].use_bf16_storage = false;
     opts[1].use_shader_pack8 = true;
     opts[1].use_image_storage = false;
+    opts[1].use_weight_fp16_storage = false;
 
     opts[2].use_packing_layout = true;
     opts[2].use_fp16_packed = true;
@@ -1090,6 +1096,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_bf16_storage = true;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = true;
+    opts[2].use_weight_fp16_storage = true;
 
     opts[3].use_packing_layout = true;
     opts[3].use_fp16_packed = true;
@@ -1098,6 +1105,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[3].use_bf16_storage = false;
     opts[3].use_shader_pack8 = true;
     opts[3].use_image_storage = true;
+    opts[3].use_weight_fp16_storage = true;
 
     for (int i = 0; i < 4; i++)
     {

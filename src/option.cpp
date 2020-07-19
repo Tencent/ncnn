@@ -50,6 +50,8 @@ Option::Option()
     use_image_storage = false;
 
     use_bf16_storage = false;
+
+    use_weight_fp16_storage = false;
 }
 
 } // namespace ncnn
