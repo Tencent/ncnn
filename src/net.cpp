@@ -190,6 +190,13 @@ int Net::load_param(const DataReader& dr)
             return -1;
         }
 
+        if (layer->use_int8_inference)
+        {
+            // no int8 gpu or packing layout support yet
+            opt.use_vulkan_compute = false;
+            opt.use_packing_layout = false;
+        }
+
 #if NCNN_VULKAN
         if (opt.use_vulkan_compute)
             layer->vkdev = vkdev;
@@ -383,6 +390,13 @@ int Net::load_param_bin(const DataReader& dr)
             return -1;
         }
 
+        if (layer->use_int8_inference)
+        {
+            // no int8 gpu or packing layout support yet
+            opt.use_vulkan_compute = false;
+            opt.use_packing_layout = false;
+        }
+
 #if NCNN_VULKAN
         if (opt.use_vulkan_compute)
             layer->vkdev = vkdev;
@@ -514,16 +528,28 @@ int Net::load_model(const DataReader& dr)
             ret = -1;
             break;
         }
+
+        if (layer->use_int8_inference)
+        {
+            // no int8 gpu or packing layout support yet
+            opt.use_vulkan_compute = false;
+            opt.use_packing_layout = false;
+        }
     }
 
     fuse_network();
 
 #if NCNN_VULKAN
-    if (!opt.pipeline_cache)
+    if (opt.use_vulkan_compute)
     {
-        if (!pipeline_cache)
-            pipeline_cache = new PipelineCache(vkdev);
-        opt.pipeline_cache = pipeline_cache;
+        if (!opt.pipeline_cache)
+        {
+            if (!pipeline_cache)
+                pipeline_cache = new PipelineCache(vkdev);
+            opt.pipeline_cache = pipeline_cache;
+        }
+
+        if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
     }
 #endif // NCNN_VULKAN
 
@@ -543,11 +569,7 @@ int Net::load_model(const DataReader& dr)
 #if NCNN_VULKAN
         if (opt.use_vulkan_compute)
         {
-            if (!layer->support_image_storage)
-            {
-                opt1.use_image_storage = false;
-            }
-            if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
+            if (!layer->support_image_storage) opt1.use_image_storage = false;
         }
 #endif // NCNN_VULKAN
 

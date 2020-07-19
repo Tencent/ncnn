@@ -62,15 +62,10 @@ static int test_slice(const ncnn::Mat& a, const ncnn::Mat& slices, int axis)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
     std::vector<ncnn::Mat> a0(1);
     a0[0] = a;
 
-    int ret = test_layer<ncnn::Slice>("Slice", pd, weights, opt, a0, slices.w);
+    int ret = test_layer<ncnn::Slice>("Slice", pd, weights, a0, slices.w);
     if (ret != 0)
     {
         fprintf(stderr, "test_slice failed a.dims=%d a=(%d %d %d)", a.dims, a.w, a.h, a.c);

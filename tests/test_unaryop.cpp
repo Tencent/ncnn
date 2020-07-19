@@ -46,12 +46,7 @@ static int test_unaryop(const ncnn::Mat& _a)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::UnaryOp>("UnaryOp", pd, weights, opt, a);
+    int ret = test_layer<ncnn::UnaryOp>("UnaryOp", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_unaryop failed a.dims=%d a=(%d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.c, op_type);
@@ -63,7 +58,7 @@ static int test_unaryop(const ncnn::Mat& _a)
 static int test_unaryop_0()
 {
     return 0
-           || test_unaryop(RandomMat(12, 7, 16))
+           || test_unaryop(RandomMat(11, 7, 16))
            || test_unaryop(RandomMat(10, 4, 12))
            || test_unaryop(RandomMat(6, 5, 13));
 }

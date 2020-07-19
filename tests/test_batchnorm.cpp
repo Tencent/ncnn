@@ -30,12 +30,7 @@ static int test_batchnorm(const ncnn::Mat& a, int channels, float eps)
     // var must be positive
     Randomize(weights[2], 0.001f, 2.f);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::BatchNorm>("BatchNorm", pd, weights, opt, a);
+    int ret = test_layer<ncnn::BatchNorm>("BatchNorm", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_batchnorm failed a.dims=%d a=(%d %d %d) channels=%d eps=%f\n", a.dims, a.w, a.h, a.c, channels, eps);
@@ -47,8 +42,8 @@ static int test_batchnorm(const ncnn::Mat& a, int channels, float eps)
 static int test_batchnorm_0()
 {
     return 0
-           || test_batchnorm(RandomMat(6, 7, 16), 16, 0.f)
-           || test_batchnorm(RandomMat(6, 7, 16), 16, 0.01f)
+           || test_batchnorm(RandomMat(5, 7, 16), 16, 0.f)
+           || test_batchnorm(RandomMat(5, 7, 16), 16, 0.01f)
            || test_batchnorm(RandomMat(3, 5, 13), 13, 0.f)
            || test_batchnorm(RandomMat(3, 5, 13), 13, 0.001f);
 }

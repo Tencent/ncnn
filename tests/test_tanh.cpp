@@ -21,12 +21,7 @@ static int test_tanh(const ncnn::Mat& a)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::TanH>("TanH", pd, weights, opt, a);
+    int ret = test_layer<ncnn::TanH>("TanH", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_tanh failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
@@ -38,7 +33,7 @@ static int test_tanh(const ncnn::Mat& a)
 static int test_tanh_0()
 {
     return 0
-           || test_tanh(RandomMat(6, 7, 16))
+           || test_tanh(RandomMat(5, 7, 16))
            || test_tanh(RandomMat(3, 5, 13));
 }
 

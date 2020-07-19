@@ -22,12 +22,7 @@ static int test_dropout(const ncnn::Mat& a, float scale)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::Dropout>("Dropout", pd, weights, opt, a);
+    int ret = test_layer<ncnn::Dropout>("Dropout", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_dropout failed a.dims=%d a=(%d %d %d) scale=%f\n", a.dims, a.w, a.h, a.c, scale);
@@ -39,8 +34,8 @@ static int test_dropout(const ncnn::Mat& a, float scale)
 static int test_dropout_0()
 {
     return 0
-           || test_dropout(RandomMat(6, 7, 16), 1.f)
-           || test_dropout(RandomMat(6, 7, 16), 0.2f)
+           || test_dropout(RandomMat(5, 7, 16), 1.f)
+           || test_dropout(RandomMat(5, 7, 16), 0.2f)
            || test_dropout(RandomMat(3, 5, 13), 1.f)
            || test_dropout(RandomMat(3, 5, 13), 0.5f);
 }

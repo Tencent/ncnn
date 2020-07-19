@@ -22,12 +22,7 @@ static int test_reorg(const ncnn::Mat& a, int stride)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::Reorg>("Reorg", pd, weights, opt, a);
+    int ret = test_layer<ncnn::Reorg>("Reorg", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_reorg failed a.dims=%d a=(%d %d %d) stride=%d\n", a.dims, a.w, a.h, a.c, stride);

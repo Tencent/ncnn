@@ -37,16 +37,11 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
     std::vector<ncnn::Mat> ab(2);
     ab[0] = a;
     ab[1] = b;
 
-    int ret = test_layer<ncnn::BinaryOp>("BinaryOp", pd, weights, opt, ab);
+    int ret = test_layer<ncnn::BinaryOp>("BinaryOp", pd, weights, ab);
     if (ret != 0)
     {
         fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d) b.dims=%d b=(%d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.c, b.dims, b.w, b.h, b.c, op_type);
@@ -72,17 +67,7 @@ static int test_binaryop(const ncnn::Mat& _a, float b)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-    opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_int8_storage = false;
-    opt.use_int8_arithmetic = false;
-
-    int ret = test_layer<ncnn::BinaryOp>("BinaryOp", pd, weights, opt, a);
+    int ret = test_layer<ncnn::BinaryOp>("BinaryOp", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d) b=%f op_type=%d\n", a.dims, a.w, a.h, a.c, b, op_type);

@@ -33,12 +33,7 @@ static int test_eltwise(const std::vector<ncnn::Mat>& a, int op_type, const ncnn
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::Eltwise>("Eltwise", pd, weights, opt, a);
+    int ret = test_layer<ncnn::Eltwise>("Eltwise", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_eltwise failed a[0].dims=%d a[0]=(%d %d %d) op_type=%d", a[0].dims, a[0].w, a[0].h, a[0].c, op_type);

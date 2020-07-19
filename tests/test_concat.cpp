@@ -22,12 +22,7 @@ static int test_concat(const std::vector<ncnn::Mat>& a, int axis)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::Concat>("Concat", pd, weights, opt, a);
+    int ret = test_layer<ncnn::Concat>("Concat", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_concat failed a[0].dims=%d a[0]=(%d %d %d) axis=%d\n", a[0].dims, a[0].w, a[0].h, a[0].c, axis);

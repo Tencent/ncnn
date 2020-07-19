@@ -17,13 +17,14 @@
 #include "platform.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
 
 #ifdef _OPENMP
 #include <omp.h>
 #endif
 
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
 #include <stdint.h>
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -41,7 +42,7 @@
 
 namespace ncnn {
 
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
 
 // extract the ELF HW capabilities bitmap from /proc/self/auxv
 static unsigned int get_elf_hwcap_from_proc_self_auxv()
@@ -104,7 +105,7 @@ static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
 #define HWCAP_VFPv4 (1 << 16)
 #endif
 
-#endif // __ANDROID__
+#endif // defined __ANDROID__ || defined __linux__
 
 #if __IOS__
 static unsigned int get_hw_cpufamily()
@@ -138,7 +139,7 @@ static cpu_subtype_t g_hw_cpusubtype = get_hw_cpusubtype();
 
 int cpu_support_arm_neon()
 {
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
     return g_hwcaps & HWCAP_ASIMD;
 #else
@@ -157,7 +158,7 @@ int cpu_support_arm_neon()
 
 int cpu_support_arm_vfpv4()
 {
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
     // neon always enable fma and fp16
     return g_hwcaps & HWCAP_ASIMD;
@@ -177,7 +178,7 @@ int cpu_support_arm_vfpv4()
 
 int cpu_support_arm_asimdhp()
 {
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
     return g_hwcaps & HWCAP_ASIMDHP;
 #else
@@ -191,7 +192,13 @@ int cpu_support_arm_asimdhp()
 #ifndef CPUFAMILY_ARM_MONSOON_MISTRAL
 #define CPUFAMILY_ARM_MONSOON_MISTRAL 0xe81e7ef6
 #endif
-    return g_hw_cpufamily == CPUFAMILY_ARM_HURRICANE || g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL;
+#ifndef CPUFAMILY_ARM_VORTEX_TEMPEST
+#define CPUFAMILY_ARM_VORTEX_TEMPEST 0x07d34b9f
+#endif
+#ifndef CPUFAMILY_ARM_LIGHTNING_THUNDER
+#define CPUFAMILY_ARM_LIGHTNING_THUNDER 0x462504d2
+#endif
+    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER;
 #else
     return 0;
 #endif
@@ -203,7 +210,7 @@ int cpu_support_arm_asimdhp()
 static int get_cpucount()
 {
     int count = 0;
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
     // get cpu count from /proc/cpuinfo
     FILE* fp = fopen("/proc/cpuinfo", "rb");
     if (!fp)
@@ -252,7 +259,7 @@ int get_cpu_count()
     return g_cpucount;
 }
 
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
 static int get_max_freq_khz(int cpuid)
 {
     // first try, for all possible cpu
@@ -328,15 +335,15 @@ static int set_sched_affinity(size_t thread_affinity_mask)
 {
     // cpu_set_t definition
     // ref http://stackoverflow.com/questions/16319725/android-set-thread-affinity
-#define CPU_SETSIZE 1024
-#define __NCPUBITS  (8 * sizeof(unsigned long))
+#define NCNN_CPU_SETSIZE 1024
+#define __NCNN_NCPUBITS  (8 * sizeof(unsigned long))
     typedef struct
     {
-        unsigned long __bits[CPU_SETSIZE / __NCPUBITS];
+        unsigned long __bits[NCNN_CPU_SETSIZE / __NCNN_NCPUBITS];
     } cpu_set_t;
 
 #define NCNN_CPU_SET(cpu, cpusetp) \
-    ((cpusetp)->__bits[(cpu) / __NCPUBITS] |= (1UL << ((cpu) % __NCPUBITS)))
+    ((cpusetp)->__bits[(cpu) / __NCNN_NCPUBITS] |= (1UL << ((cpu) % __NCNN_NCPUBITS)))
 
 #define NCNN_CPU_ZERO(cpusetp) \
     memset((cpusetp), 0, sizeof(cpu_set_t))
@@ -370,7 +377,7 @@ static int set_sched_affinity(size_t thread_affinity_mask)
 
     return 0;
 }
-#endif // __ANDROID__
+#endif // defined __ANDROID__ || defined __linux__
 
 static int g_powersave = 0;
 
@@ -406,7 +413,7 @@ static int setup_thread_affinity_masks()
 {
     g_thread_affinity_mask_all = (1ul << g_cpucount) - 1;
 
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
     int max_freq_khz_min = INT_MAX;
     int max_freq_khz_max = 0;
     std::vector<int> cpu_max_freq_khz(g_cpucount);
@@ -479,7 +486,7 @@ size_t get_cpu_thread_affinity_mask(int powersave)
 
 int set_cpu_thread_affinity(size_t thread_affinity_mask)
 {
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
     int num_threads = 0;
     for (int i = 0; i < (int)sizeof(size_t) * 8; i++)
     {

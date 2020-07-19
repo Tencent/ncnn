@@ -24,12 +24,7 @@ static int test_reshape(const ncnn::Mat& a, int outw, int outh, int outc)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::Reshape>("Reshape", pd, weights, opt, a);
+    int ret = test_layer<ncnn::Reshape>("Reshape", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_reshape failed a.dims=%d a=(%d %d %d) outw=%d outh=%d outc=%d\n", a.dims, a.w, a.h, a.c, outw, outh, outc);
@@ -48,12 +43,7 @@ static int test_reshape_permute(const ncnn::Mat& a, int outw, int outh, int outc
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::Reshape>("Reshape", pd, weights, opt, a);
+    int ret = test_layer<ncnn::Reshape>("Reshape", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_reshape_permute failed a.dims=%d a=(%d %d %d) outw=%d outh=%d outc=%d\n", a.dims, a.w, a.h, a.c, outw, outh, outc);

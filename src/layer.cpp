@@ -39,7 +39,11 @@ Layer::Layer()
     support_packing = false;
 
     support_bf16_storage = false;
+    support_fp16_storage = false;
     support_image_storage = false;
+
+    use_int8_inference = false;
+    support_weight_fp16_storage = false;
 
 #if NCNN_VULKAN
     vkdev = 0;
@@ -187,6 +191,12 @@ static const layer_registry_entry layer_registry[] = {
 #include "layer_registry.h"
 };
 
+#if NCNN_RUNTIME_CPU && NCNN_ARM82
+static const layer_registry_entry layer_registry_arm82[] = {
+#include "layer_registry_arm82.h"
+};
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM82
+
 static const int layer_registry_entry_count = sizeof(layer_registry) / sizeof(layer_registry_entry);
 
 #if NCNN_STRING
@@ -216,7 +226,17 @@ Layer* create_layer(int index)
     if (index < 0 || index >= layer_registry_entry_count)
         return 0;
 
-    layer_creator_func layer_creator = layer_registry[index].creator;
+    layer_creator_func layer_creator = 0;
+#if NCNN_RUNTIME_CPU && NCNN_ARM82
+    if (ncnn::cpu_support_arm_asimdhp())
+    {
+        layer_creator = layer_registry_arm82[index].creator;
+    }
+    else
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM82
+    {
+        layer_creator = layer_registry[index].creator;
+    }
     if (!layer_creator)
         return 0;
 

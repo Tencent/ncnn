@@ -26,7 +26,9 @@
 #cmakedefine01 NCNN_VULKAN
 #cmakedefine01 NCNN_VULKAN_ONLINE_SPIRV
 #cmakedefine01 NCNN_REQUANT
+#cmakedefine01 NCNN_RUNTIME_CPU
 #cmakedefine01 NCNN_AVX2
+#cmakedefine01 NCNN_ARM82
 
 #if NCNN_THREADS
 #if (defined _WIN32 && !(defined __MINGW32__))
