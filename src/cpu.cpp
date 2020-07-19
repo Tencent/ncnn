@@ -207,6 +207,20 @@ int cpu_support_arm_asimdhp()
 #endif
 }
 
+int cpu_support_x86_avx2()
+{
+#ifdef _MSC_VER
+    // TODO
+    // extern "C" int __isa_available;
+    // return __isa_available >= __ISA_AVAILABLE_AVX2
+    return 0;
+#else
+    // TODO gcc-specific
+    __builtin_cpu_init();
+    return __builtin_cpu_supports("avx2");
+#endif
+}
+
 static int get_cpucount()
 {
     int count = 0;
