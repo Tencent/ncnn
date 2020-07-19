@@ -209,6 +209,7 @@ int cpu_support_arm_asimdhp()
 
 int cpu_support_x86_avx2()
 {
+#if defined(__x86_64__)
 #ifdef _MSC_VER
     // TODO
     // extern "C" int __isa_available;
@@ -218,6 +219,9 @@ int cpu_support_x86_avx2()
     // TODO gcc-specific
     __builtin_cpu_init();
     return __builtin_cpu_supports("avx2");
+#endif
+#else
+    return 0;
 #endif
 }
 
