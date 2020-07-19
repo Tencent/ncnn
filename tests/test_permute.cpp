@@ -22,12 +22,7 @@ static int test_permute(const ncnn::Mat& a, int order_type)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::Permute>("Permute", pd, weights, opt, a);
+    int ret = test_layer<ncnn::Permute>("Permute", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_permute failed a.dims=%d a=(%d %d %d) order_type=%d\n", a.dims, a.w, a.h, a.c, order_type);

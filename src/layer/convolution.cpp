@@ -49,6 +49,11 @@ int Convolution::load_param(const ParamDict& pd)
     activation_params = pd.get(10, Mat());
     impl_type = pd.get(17, 0);
 
+    if (int8_scale_term)
+    {
+        use_int8_inference = true;
+    }
+
     return 0;
 }
 

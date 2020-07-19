@@ -34,7 +34,7 @@ option(NCNN_VULKAN "vulkan compute support" OFF)
 option(NCNN_VULKAN_ONLINE_SPIRV "online SPIR-V module compilation" ON)
 option(NCNN_SYSTEM_GLSLANG "use system glslang library" OFF)
 option(NCNN_REQUANT "auto merge int8 quant and dequant" OFF)
-option(NCNN_AVX2 "optimize x86 platform with avx2" OFF)
+option(NCNN_RUNTIME_CPU "runtime dispatch cpu routines" ON)
 option(NCNN_DISABLE_PIC "disable position-independent code" OFF)
 option(NCNN_BUILD_TESTS "build tests" ON)
 option(NCNN_COVERAGE "build for coverage" OFF)
@@ -55,6 +55,23 @@ if(ANDROID OR IOS OR LINUX)
 else()
     option(NCNN_DISABLE_EXCEPTION "disable exception" OFF)
 endif()
+
+##############################################
+
+if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
+    OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64)"))
+    set(NCNN_TARGET_ARCH arm)
+    option(NCNN_ARM82 "optimize aarch64 platform with armv8.2" ON)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(mips)")
+    set(NCNN_TARGET_ARCH mips)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
+    set(NCNN_TARGET_ARCH riscv)
+else()
+    set(NCNN_TARGET_ARCH x86)
+    option(NCNN_AVX2 "optimize x86 platform with avx2" OFF)
+endif()
+
+message(STATUS "Target arch: ${NCNN_TARGET_ARCH}")
 
 ##############################################
 

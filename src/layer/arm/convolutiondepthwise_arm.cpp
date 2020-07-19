@@ -177,6 +177,9 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
 
         ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
 
+        // FIXME
+        // ((ncnn::Convolution*)op)->use_int8_requantize = use_int8_requantize;
+
         // set param
         ncnn::ParamDict pd;
         pd.set(0, num_output_g); // num_output
@@ -205,7 +208,9 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
 
             if (int8_scale_term)
             {
-                weights[2] = weight_data_int8_scales.range(g, 1);
+                Mat weight_data_int8_scales_g(num_output_g);
+                weight_data_int8_scales_g.fill(weight_data_int8_scales[g]);
+                weights[2] = weight_data_int8_scales_g;
                 weights[3] = bottom_blob_int8_scales.range(g, 1);
             }
 
@@ -218,7 +223,9 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
 
             if (int8_scale_term)
             {
-                weights[1] = weight_data_int8_scales.range(g, 1);
+                Mat weight_data_int8_scales_g(num_output_g);
+                weight_data_int8_scales_g.fill(weight_data_int8_scales[g]);
+                weights[1] = weight_data_int8_scales_g;
                 weights[2] = bottom_blob_int8_scales.range(g, 1);
             }
 
@@ -226,8 +233,6 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
         }
 
         op->create_pipeline(opt);
-
-        //         op->use_int8_requantize = use_int8_requantize; FIXME
 
         group_ops[g] = op;
     }

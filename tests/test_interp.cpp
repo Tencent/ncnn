@@ -26,12 +26,7 @@ static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, 
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::Interp>("Interp", pd, weights, opt, a);
+    int ret = test_layer<ncnn::Interp>("Interp", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_interp failed a.dims=%d a=(%d %d %d) resize_type=%d height_scale=%f width_scale=%f output_height=%d output_width=%d\n", a.dims, a.w, a.h, a.c, resize_type, height_scale, width_scale, output_height, output_width);

@@ -25,14 +25,9 @@ static int test_memorydata(const ncnn::Mat& a)
     std::vector<ncnn::Mat> weights(1);
     weights[0] = a;
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
     std::vector<ncnn::Mat> as(0);
 
-    int ret = test_layer<ncnn::MemoryData>("MemoryData", pd, weights, opt, as, 1);
+    int ret = test_layer<ncnn::MemoryData>("MemoryData", pd, weights, as, 1);
     if (ret != 0)
     {
         fprintf(stderr, "test_memorydata failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
@@ -44,7 +39,7 @@ static int test_memorydata(const ncnn::Mat& a)
 static int test_memorydata_0()
 {
     return 0
-           || test_memorydata(RandomMat(6, 7, 16))
+           || test_memorydata(RandomMat(5, 7, 16))
            || test_memorydata(RandomMat(3, 5, 13));
 }
 

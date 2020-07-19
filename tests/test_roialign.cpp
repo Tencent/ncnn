@@ -37,12 +37,7 @@ static int test_roialign(int w, int h, int c, int pooled_width, int pooled_heigh
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::ROIAlign>("ROIAlign", pd, weights, opt, a);
+    int ret = test_layer<ncnn::ROIAlign>("ROIAlign", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_roialign failed base_w=%d base_h=%d base_c=%d pooled_width=%d pooled_height=%d spatial_scale=%4f.3\n", w, h, c, pooled_width, pooled_height, spatial_scale);

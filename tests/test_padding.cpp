@@ -38,11 +38,7 @@ static int test_padding(int w, int h, int c, int top, int bottom, int left, int 
     if (per_channel_pad_data_size)
         weights[0] = RandomMat(per_channel_pad_data_size);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-    int ret = test_layer<ncnn::Padding>("Padding", pd, weights, opt, a);
+    int ret = test_layer<ncnn::Padding>("Padding", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_padding failed w=%d h=%d c=%d top=%d bottom=%d left=%d right=%d front=%d behind=%d type=%d value=%f per_channel_pad_data_size=%d\n", w, h, c, top, bottom, left, right, front, behind, type, value, per_channel_pad_data_size);

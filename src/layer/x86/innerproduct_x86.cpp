@@ -31,6 +31,7 @@ InnerProduct_x86::InnerProduct_x86()
 {
 #if __AVX__
     support_packing = true;
+    support_weight_fp16_storage = true;
 #endif // __AVX__
 
     flatten = 0;
@@ -49,7 +50,7 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
 
         flatten->create_pipeline(opt);
     }
-    if (opt.use_fp16_storage && weight_data.elemsize == 4u)
+    if (opt.use_weight_fp16_storage && weight_data.elemsize == 4u)
     {
         ncnn::cast_float32_to_float16(weight_data, weight_data_fp16, opt);
     }
@@ -108,7 +109,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         return forward(bottom_blob_flattened, top_blob, opt);
     }
 
-    if (opt.use_fp16_storage)
+    if (opt.use_weight_fp16_storage)
     {
         return forward_fp16(bottom_blob, top_blob, opt);
     }

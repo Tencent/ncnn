@@ -51,12 +51,7 @@ static int test_priorbox_caffe()
     as[0] = RandomMat(72, 72, 1);
     as[1] = RandomMat(512, 512, 1);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::PriorBox>("PriorBox", pd, weights, opt, as, 1);
+    int ret = test_layer<ncnn::PriorBox>("PriorBox", pd, weights, as, 1);
     if (ret != 0)
     {
         fprintf(stderr, "test_priorbox_caffe failed\n");
@@ -103,12 +98,7 @@ static int test_priorbox_mxnet()
     std::vector<ncnn::Mat> as(1);
     as[0] = RandomMat(72, 72, 1);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::PriorBox>("PriorBox", pd, weights, opt, as, 1);
+    int ret = test_layer<ncnn::PriorBox>("PriorBox", pd, weights, as, 1);
     if (ret != 0)
     {
         fprintf(stderr, "test_priorbox_mxnet failed\n");

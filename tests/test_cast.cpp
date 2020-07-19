@@ -636,13 +636,13 @@ static int test_cast(const ncnn::Mat& a, int type_from, int type_to)
 static int test_cast_0()
 {
     return 0
-           || test_cast(RandomMat(6, 7, 16), 1, 2)
+           || test_cast(RandomMat(5, 7, 16), 1, 2)
            || test_cast(RandomMat(3, 5, 13), 1, 2)
-           || test_cast(RandomMat(6, 7, 16), 2, 1)
+           || test_cast(RandomMat(5, 7, 16), 2, 1)
            || test_cast(RandomMat(3, 5, 13), 2, 1)
-           || test_cast(RandomMat(6, 7, 16), 1, 4)
+           || test_cast(RandomMat(5, 7, 16), 1, 4)
            || test_cast(RandomMat(3, 5, 13), 1, 4)
-           || test_cast(RandomMat(6, 7, 16), 4, 1)
+           || test_cast(RandomMat(5, 7, 16), 4, 1)
            || test_cast(RandomMat(3, 5, 13), 4, 1);
 }
 

@@ -29,11 +29,8 @@ static int test_lstm(const ncnn::Mat& a, int outch, int direction)
     weights[0] = RandomMat(outch * input_size * 4 * num_directions);
     weights[1] = RandomMat(outch * 4 * num_directions);
     weights[2] = RandomMat(outch * outch * 4 * num_directions);
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_int8_inference = false;
 
-    int ret = test_layer<ncnn::LSTM>("LSTM", pd, weights, opt, a);
+    int ret = test_layer<ncnn::LSTM>("LSTM", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_lstm failed a.dims=%d a=(%d %d %d) outch=%d, direction = %d \n", a.dims, a.w, a.h, a.c, outch, direction);

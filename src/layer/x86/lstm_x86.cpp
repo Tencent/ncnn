@@ -25,13 +25,17 @@ namespace ncnn {
 
 LSTM_x86::LSTM_x86()
 {
+#ifdef __AVX__
+    support_weight_fp16_storage = true;
+#endif
     one_blob_only = false;
     support_inplace = false;
 }
+
 int LSTM_x86::create_pipeline(const Option& opt)
 {
 #if __AVX__
-    if (opt.use_fp16_storage)
+    if (opt.use_weight_fp16_storage)
     {
         ncnn::cast_float32_to_float16(weight_xc_data, weight_xc_data_fp16, opt);
         ncnn::cast_float32_to_float16(weight_hc_data, weight_hc_data_fp16, opt);
@@ -814,7 +818,7 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        if (opt.use_fp16_storage)
+        if (opt.use_weight_fp16_storage)
         {
             // Uni directional
             int ret = lstm_fp16(bottom_blob, top_blob, direction, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0), hidden, cell, opt);
@@ -840,7 +844,7 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (top_blob_reverse.empty())
             return -100;
 
-        if (opt.use_fp16_storage)
+        if (opt.use_weight_fp16_storage)
         {
             // Uni directional
             int ret0 = lstm_fp16(bottom_blob, top_blob_forward, 0, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0), hidden, cell, opt);
@@ -857,7 +861,7 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
         hidden.fill(0.0f);
         cell.fill(0.0f);
-        if (opt.use_fp16_storage)
+        if (opt.use_weight_fp16_storage)
         {
             // Uni directional
             int ret1 = lstm_fp16(bottom_blob, top_blob_reverse, 1, weight_xc_data_fp16.channel(1), bias_c_data.channel(1), weight_hc_data_fp16.channel(1), hidden, cell, opt);
@@ -912,7 +916,7 @@ int LSTM_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (top_blob.empty())
         return -100;
 
-    if (opt.use_fp16_storage)
+    if (opt.use_weight_fp16_storage)
     {
         // Uni directional
         int ret = lstm_fp16(bottom_blob, top_blob, direction, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0), hidden_state, cell_state, opt);
