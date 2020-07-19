@@ -446,6 +446,9 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
     if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
 
+    // FIXME fp16a may produce large error
+    opt.use_fp16_arithmetic = false;
+
     op->create_pipeline(opt);
 
     {
@@ -815,6 +818,9 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
     if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
+
+    // FIXME fp16a may produce large error
+    opt.use_fp16_arithmetic = false;
 
     op->create_pipeline(opt);
 

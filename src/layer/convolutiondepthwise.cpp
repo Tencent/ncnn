@@ -55,6 +55,11 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
         return -100;
     }
 
+    if (int8_scale_term)
+    {
+        use_int8_inference = true;
+    }
+
     return 0;
 }
 

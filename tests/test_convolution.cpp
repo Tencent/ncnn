@@ -166,7 +166,6 @@ void set_param(ncnn::Convolution* layer)
 {
     layer->use_int8_requantize = true;
     layer->top_blob_int8_scale = 64.f;
-    return;
 }
 
 static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, bool requant = false)
@@ -229,31 +228,41 @@ static int test_convolution_1()
 
     for (int i = 0; i < 16; i++)
     {
+        const int k = kdsp[i][0];
+        const int d = kdsp[i][1];
+        const int s = kdsp[i][2];
+        const int p = kdsp[i][3];
+
         int ret = 0
-                  || test_convolution_int8(9, 7, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-                  || test_convolution_int8(9, 7, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-                  || test_convolution_int8(9, 7, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-                  || test_convolution_int8(9, 7, 4, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-                  || test_convolution_int8(9, 7, 7, 7, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-                  || test_convolution_int8(9, 7, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-                  || test_convolution_int8(9, 7, 15, 15, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1)
-                  || test_convolution_int8(9, 7, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1);
+                  || test_convolution_int8(9, 7, 1, 1, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 2, 2, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 3, 3, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 4, 4, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 7, 7, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 8, 8, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 15, 15, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 16, 16, k, d, s, p, 1);
 
         if (ret != 0)
             return -1;
     }
     for (int i = 0; i < 16; i++)
     {
+        const int k = kdsp[i][0];
+        const int d = kdsp[i][1];
+        const int s = kdsp[i][2];
+        const int p = kdsp[i][3];
+
         int ret = 0
-                  || test_convolution_int8(9, 7, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, true)
-                  || test_convolution_int8(9, 7, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, true)
-                  || test_convolution_int8(9, 7, 2, 2, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, true)
-                  || test_convolution_int8(9, 7, 3, 3, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, true)
-                  || test_convolution_int8(9, 7, 4, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, true)
-                  || test_convolution_int8(9, 7, 7, 7, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, true)
-                  || test_convolution_int8(9, 7, 8, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, true)
-                  || test_convolution_int8(9, 7, 15, 15, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, true)
-                  || test_convolution_int8(9, 7, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, true);
+                  || test_convolution_int8(9, 7, 1, 1, k, d, s, p, 1, true)
+                  || test_convolution_int8(9, 7, 1, 1, k, d, s, p, 1, true)
+                  || test_convolution_int8(9, 7, 2, 2, k, d, s, p, 1, true)
+                  || test_convolution_int8(9, 7, 3, 3, k, d, s, p, 1, true)
+                  || test_convolution_int8(9, 7, 4, 4, k, d, s, p, 1, true)
+                  || test_convolution_int8(9, 7, 7, 7, k, d, s, p, 1, true)
+                  || test_convolution_int8(9, 7, 8, 8, k, d, s, p, 1, true)
+                  || test_convolution_int8(9, 7, 15, 15, k, d, s, p, 1, true)
+                  || test_convolution_int8(9, 7, 16, 16, k, d, s, p, 1, true);
 
         if (ret != 0)
             return -1;

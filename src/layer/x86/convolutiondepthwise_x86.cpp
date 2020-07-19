@@ -137,9 +137,10 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
             convert_packing(weight_data_r2, weight_data_pack8, 8);
             return 0;
         }
-#endif // __AVX__          \
-// depth-wise specific \
-// special path for both int8 and fp32
+#endif // __AVX__
+
+        // depth-wise specific
+        // special path for both int8 and fp32
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             return 0;
@@ -163,6 +164,9 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
             bias_data_g = bias_data.range(num_output_g * g, num_output_g);
 
         ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
+
+        // FIXME
+        // ((ncnn::Convolution*)op)->use_int8_requantize = use_int8_requantize;
 
         // set param
         ncnn::ParamDict pd;
@@ -192,7 +196,9 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
 
             if (int8_scale_term)
             {
-                weights[2] = weight_data_int8_scales.range(g, 1);
+                Mat weight_data_int8_scales_g(num_output_g);
+                weight_data_int8_scales_g.fill(weight_data_int8_scales[g]);
+                weights[2] = weight_data_int8_scales_g;
                 weights[3] = bottom_blob_int8_scales.range(g, 1);
             }
 
@@ -205,7 +211,9 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
 
             if (int8_scale_term)
             {
-                weights[1] = weight_data_int8_scales.range(g, 1);
+                Mat weight_data_int8_scales_g(num_output_g);
+                weight_data_int8_scales_g.fill(weight_data_int8_scales[g]);
+                weights[1] = weight_data_int8_scales_g;
                 weights[2] = bottom_blob_int8_scales.range(g, 1);
             }
 
@@ -213,8 +221,6 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
         }
 
         op->create_pipeline(opt);
-
-        //         op->use_int8_requantize = use_int8_requantize; FIXME
 
         group_ops[g] = op;
     }
