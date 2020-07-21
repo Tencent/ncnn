@@ -42,10 +42,6 @@ layout (constant_id = shape_constant_id_offset + 12) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 13) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 14) const int outcstep = 0;
 
-layout (local_size_x_id = 233) in;
-layout (local_size_y_id = 234) in;
-layout (local_size_z_id = 235) in;
-
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler1D a_blob_1d;
 layout (binding = 0) uniform unfp sampler2D a_blob_2d;

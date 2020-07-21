@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "pooling_arm.h"
+
 #include <float.h>
 
 #if __ARM_NEON
@@ -28,8 +29,6 @@ namespace ncnn {
 #include "pooling_2x2_pack4.h"
 #include "pooling_3x3_pack4.h"
 #endif
-
-DEFINE_LAYER_CREATOR(Pooling_arm)
 
 Pooling_arm::Pooling_arm()
 {
@@ -55,7 +54,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     int elempack = bottom_blob.elempack;
 
 #if __ARM_NEON
-//     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
+    //     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
 
     if (elempack == 4)
     {
@@ -70,12 +69,12 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (pooling_type == PoolMethod_MAX)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob.channel(q);
 
                     float32x4_t _max = vld1q_f32(ptr);
-                    for (int i=0; i<size; i++)
+                    for (int i = 0; i < size; i++)
                     {
                         float32x4_t _val = vld1q_f32(ptr);
                         _max = vmaxq_f32(_max, _val);
@@ -89,12 +88,12 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             else if (pooling_type == PoolMethod_AVE)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob.channel(q);
 
                     float32x4_t _sum = vdupq_n_f32(0.f);
-                    for (int i=0; i<size; i++)
+                    for (int i = 0; i < size; i++)
                     {
                         float32x4_t _val = vld1q_f32(ptr);
                         _sum = vaddq_f32(_sum, _val);
@@ -165,7 +164,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             }
 
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const Mat m = bottom_blob_bordered.channel(q);
                 float* outptr = top_blob.channel(q);
@@ -174,13 +173,13 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 {
                     for (int j = 0; j < outw; j++)
                     {
-                        const float* sptr = m.row(i*stride_h) + j*stride_w * 4;
+                        const float* sptr = m.row(i * stride_h) + j * stride_w * 4;
 
                         float32x4_t _max = vld1q_f32(sptr);
 
                         for (int k = 0; k < maxk; k++)
                         {
-                            float32x4_t _val = vld1q_f32( sptr + space_ofs[k] * 4 );
+                            float32x4_t _val = vld1q_f32(sptr + space_ofs[k] * 4);
                             _max = vmaxq_f32(_max, _val);
                         }
 
@@ -205,7 +204,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 }
 
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
                     float* outptr = top_blob.channel(q);
@@ -241,7 +240,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                                     if (sx >= w - pad_right - wtailpad)
                                         break;
 
-                                    float32x4_t _val = vld1q_f32( m.row(sy) + sx * 4 );
+                                    float32x4_t _val = vld1q_f32(m.row(sy) + sx * 4);
                                     _sum = vaddq_f32(_sum, _val);
                                     area += 1;
                                 }
@@ -259,7 +258,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             else // if (avgpool_count_include_pad == 1)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
                     float* outptr = top_blob.channel(q);
@@ -270,13 +269,13 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     {
                         for (int j = 0; j < outw; j++)
                         {
-                            const float* sptr = m.row(i*stride_h) + j*stride_w * 4;
+                            const float* sptr = m.row(i * stride_h) + j * stride_w * 4;
 
                             float32x4_t _sum = vdupq_n_f32(0.f);
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                float32x4_t _val = vld1q_f32( sptr + space_ofs[k] * 4 );
+                                float32x4_t _val = vld1q_f32(sptr + space_ofs[k] * 4);
                                 _sum = vaddq_f32(_sum, _val);
                             }
 
@@ -346,7 +345,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-//     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
+    //     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
 
     if (global_pooling)
     {
@@ -362,12 +361,12 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
             if (elempack == 4)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const unsigned short* ptr = bottom_blob.channel(q);
 
                     float32x4_t _max = vdupq_n_f32(-FLT_MAX);
-                    for (int i=0; i<size; i++)
+                    for (int i = 0; i < size; i++)
                     {
                         float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                         _max = vmaxq_f32(_max, _val);
@@ -383,12 +382,12 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
             if (elempack == 1)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const unsigned short* ptr = bottom_blob.channel(q);
 
                     float max = -FLT_MAX;
-                    for (int i=0; i<size; i++)
+                    for (int i = 0; i < size; i++)
                     {
                         max = std::max(max, bfloat16_to_float32(ptr[i]));
                     }
@@ -405,12 +404,12 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
             if (elempack == 4)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const unsigned short* ptr = bottom_blob.channel(q);
 
                     float32x4_t _sum = vdupq_n_f32(0.f);
-                    for (int i=0; i<size; i++)
+                    for (int i = 0; i < size; i++)
                     {
                         float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
                         _sum = vaddq_f32(_sum, _val);
@@ -429,12 +428,12 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
             if (elempack == 1)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const unsigned short* ptr = bottom_blob.channel(q);
 
                     float sum = 0.f;
-                    for (int i=0; i<size; i++)
+                    for (int i = 0; i < size; i++)
                     {
                         sum += bfloat16_to_float32(ptr[i]);
                     }
@@ -490,7 +489,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
         if (elempack == 4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const Mat m = bottom_blob_bordered.channel(q);
                 unsigned short* outptr = top_blob.channel(q);
@@ -499,13 +498,13 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                 {
                     for (int j = 0; j < outw; j++)
                     {
-                        const unsigned short* sptr = m.row<const unsigned short>(i*stride_h) + j*stride_w * 4;
+                        const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 4;
 
                         float32x4_t _max = vdupq_n_f32(-FLT_MAX);
 
                         for (int k = 0; k < maxk; k++)
                         {
-                            float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16( sptr + space_ofs[k] * 4 ), 16));
+                            float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(sptr + space_ofs[k] * 4), 16));
                             _max = vmaxq_f32(_max, _val);
                         }
 
@@ -521,7 +520,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
         if (elempack == 1)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const Mat m = bottom_blob_bordered.channel(q);
                 unsigned short* outptr = top_blob.channel(q);
@@ -530,13 +529,13 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                 {
                     for (int j = 0; j < outw; j++)
                     {
-                        const unsigned short* sptr = m.row<const unsigned short>(i*stride_h) + j*stride_w;
+                        const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w;
 
                         float max = -FLT_MAX;
 
                         for (int k = 0; k < maxk; k++)
                         {
-                            float val = bfloat16_to_float32(sptr[ space_ofs[k] ]);
+                            float val = bfloat16_to_float32(sptr[space_ofs[k]]);
                             max = std::max(max, val);
                         }
 
@@ -566,7 +565,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
             if (elempack == 4)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
                     unsigned short* outptr = top_blob.channel(q);
@@ -602,7 +601,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                                     if (sx >= w - pad_right - wtailpad)
                                         break;
 
-                                    float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16( m.row<const unsigned short>(sy) + sx * 4 ), 16));
+                                    float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(m.row<const unsigned short>(sy) + sx * 4), 16));
                                     _sum = vaddq_f32(_sum, _val);
                                     area += 1;
                                 }
@@ -622,7 +621,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
             if (elempack == 1)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
                     unsigned short* outptr = top_blob.channel(q);
@@ -679,7 +678,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
             if (elempack == 4)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
                     unsigned short* outptr = top_blob.channel(q);
@@ -690,13 +689,13 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                     {
                         for (int j = 0; j < outw; j++)
                         {
-                            const unsigned short* sptr = m.row<const unsigned short>(i*stride_h) + j*stride_w * 4;
+                            const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 4;
 
                             float32x4_t _sum = vdupq_n_f32(0.f);
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16( sptr + space_ofs[k] * 4 ), 16));
+                                float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(sptr + space_ofs[k] * 4), 16));
                                 _sum = vaddq_f32(_sum, _val);
                             }
 
@@ -713,7 +712,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
             if (elempack == 1)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q=0; q<channels; q++)
+                for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
                     unsigned short* outptr = top_blob.channel(q);
@@ -722,13 +721,13 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                     {
                         for (int j = 0; j < outw; j++)
                         {
-                            const unsigned short* sptr = m.row<const unsigned short>(i*stride_h) + j*stride_w;
+                            const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w;
 
                             float sum = 0.f;
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                float val = bfloat16_to_float32(sptr[ space_ofs[k] ]);
+                                float val = bfloat16_to_float32(sptr[space_ofs[k]]);
                                 sum += val;
                             }
 

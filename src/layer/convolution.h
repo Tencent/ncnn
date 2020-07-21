@@ -46,7 +46,7 @@ public:
     int dilation_h;
     int stride_w;
     int stride_h;
-    int pad_left;// -233=SAME_UPPER -234=SAME_LOWER
+    int pad_left; // -233=SAME_UPPER -234=SAME_LOWER
     int pad_right;
     int pad_top;
     int pad_bottom;
@@ -67,11 +67,11 @@ public:
 
     Mat weight_data_int8_scales;
     float bottom_blob_int8_scale;
-    float top_blob_int8_scale;// TODO load param
+    float top_blob_int8_scale; // TODO load param
 
     bool use_int8_requantize;
 
-    // implementation type, 0 means do not use auto pack model 
+    // implementation type, 0 means do not use auto pack model
     int impl_type;
 };
 

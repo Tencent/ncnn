@@ -1,14 +1,24 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#include "net.h"
+
 #include <math.h>
-#include <stdio.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-
-#include "platform.h"
-#include "net.h"
-#if NCNN_VULKAN
-#include "gpu.h"
-#endif // NCNN_VULKAN
+#include <stdio.h>
 
 struct Object
 {
@@ -92,7 +102,7 @@ static void nms_sorted_bboxes(const std::vector<Object>& objects, std::vector<in
             // intersection over union
             float inter_area = intersection_area(a, b);
             float union_area = areas[i] + areas[picked[j]] - inter_area;
-//             float IoU = inter_area / union_area
+            //             float IoU = inter_area / union_area
             if (inter_area / union_area > nms_threshold)
                 keep = 0;
         }
@@ -106,9 +116,7 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net fasterrcnn;
 
-#if NCNN_VULKAN
     fasterrcnn.opt.use_vulkan_compute = true;
-#endif // NCNN_VULKAN
 
     // original pretrained model from https://github.com/rbgirshick/py-faster-rcnn
     // py-faster-rcnn/models/pascal_voc/ZF/faster_rcnn_alt_opt/faster_rcnn_test.pt
@@ -121,12 +129,12 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
     // hyper parameters taken from
     // py-faster-rcnn/lib/fast_rcnn/config.py
     // py-faster-rcnn/lib/fast_rcnn/test.py
-    const int target_size = 600;// __C.TEST.SCALES
+    const int target_size = 600; // __C.TEST.SCALES
 
     const int max_per_image = 100;
     const float confidence_thresh = 0.05f;
 
-    const float nms_threshold = 0.3f;// __C.TEST.NMS
+    const float nms_threshold = 0.3f; // __C.TEST.NMS
 
     // scale to target detect size
     int w = bgr.cols;
@@ -147,7 +155,7 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
 
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, w, h);
 
-    const float mean_vals[3] = { 102.9801f, 115.9465f, 122.7717f };
+    const float mean_vals[3] = {102.9801f, 115.9465f, 122.7717f};
     in.substract_mean_normalize(mean_vals, 0);
 
     ncnn::Mat im_info(3);
@@ -161,18 +169,18 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
     ex1.input("data", in);
     ex1.input("im_info", im_info);
 
-    ncnn::Mat conv5_relu5;// feature
-    ncnn::Mat rois;// all rois
+    ncnn::Mat conv5_relu5; // feature
+    ncnn::Mat rois;        // all rois
     ex1.extract("conv5_relu5", conv5_relu5);
     ex1.extract("rois", rois);
 
     // step2, extract bbox and score for each roi
-    std::vector< std::vector<Object> > class_candidates;
+    std::vector<std::vector<Object> > class_candidates;
     for (int i = 0; i < rois.c; i++)
     {
         ncnn::Extractor ex2 = fasterrcnn.create_extractor();
 
-        ncnn::Mat roi = rois.channel(i);// get single roi
+        ncnn::Mat roi = rois.channel(i); // get single roi
         ex2.input("conv5_relu5", conv5_relu5);
         ex2.input("rois", roi);
 
@@ -187,7 +195,7 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
         // find class id with highest score
         int label = 0;
         float score = 0.f;
-        for (int i=0; i<num_class; i++)
+        for (int i = 0; i < num_class; i++)
         {
             float class_score = cls_prob[i];
             if (class_score > score)
@@ -201,7 +209,7 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
         if (label == 0 || score <= confidence_thresh)
             continue;
 
-//         fprintf(stderr, "%d = %f\n", label, score);
+        //         fprintf(stderr, "%d = %f\n", label, score);
 
         // unscale to image size
         float x1 = roi[0] / scale;
@@ -240,7 +248,7 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
 
         // append object
         Object obj;
-        obj.rect = cv::Rect_<float>(obj_x1, obj_y1, obj_x2-obj_x1+1, obj_y2-obj_y1+1);
+        obj.rect = cv::Rect_<float>(obj_x1, obj_y1, obj_x2 - obj_x1 + 1, obj_y2 - obj_y1 + 1);
         obj.label = label;
         obj.prob = score;
 
@@ -278,11 +286,12 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
 static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 {
     static const char* class_names[] = {"background",
-        "aeroplane", "bicycle", "bird", "boat",
-        "bottle", "bus", "car", "cat", "chair",
-        "cow", "diningtable", "dog", "horse",
-        "motorbike", "person", "pottedplant",
-        "sheep", "sofa", "train", "tvmonitor"};
+                                        "aeroplane", "bicycle", "bird", "boat",
+                                        "bottle", "bus", "car", "cat", "chair",
+                                        "cow", "diningtable", "dog", "horse",
+                                        "motorbike", "person", "pottedplant",
+                                        "sheep", "sofa", "train", "tvmonitor"
+                                       };
 
     cv::Mat image = bgr.clone();
 
@@ -308,8 +317,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         if (x + label_size.width > image.cols)
             x = image.cols - label_size.width;
 
-        cv::rectangle(image, cv::Rect(cv::Point(x, y),
-                                      cv::Size(label_size.width, label_size.height + baseLine)),
+        cv::rectangle(image, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
                       cv::Scalar(255, 255, 255), -1);
 
         cv::putText(image, text, cv::Point(x, y + label_size.height),
@@ -337,16 +345,8 @@ int main(int argc, char** argv)
         return -1;
     }
 
-#if NCNN_VULKAN
-    ncnn::create_gpu_instance();
-#endif // NCNN_VULKAN
-
     std::vector<Object> objects;
     detect_fasterrcnn(m, objects);
-
-#if NCNN_VULKAN
-    ncnn::destroy_gpu_instance();
-#endif // NCNN_VULKAN
 
     draw_objects(m, objects);
 

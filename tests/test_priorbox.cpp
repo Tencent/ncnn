@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/priorbox.h"
+#include "testutil.h"
 
 static int test_priorbox_caffe()
 {
@@ -32,19 +31,19 @@ static int test_priorbox_caffe()
     pd.set(0, min_sizes);
     pd.set(1, max_sizes);
     pd.set(2, aspect_ratios);
-    pd.set(3, 0.1f);// variances[0]
-    pd.set(4, 0.1f);// variances[1]
-    pd.set(5, 0.2f);// variances[2]
-    pd.set(6, 0.2f);// variances[3]
-    pd.set(7, 1);// flip
-    pd.set(8, 0);// clip
-    pd.set(9, -233);// image_width
-    pd.set(10, -233);// image_height
-    pd.set(11, -233.f);// step_width
-    pd.set(12, -233.f);// step_height
-    pd.set(13, 0.f);// offset
-    pd.set(14, 0.f);// step_mmdetection
-    pd.set(15, 0.f);// center_mmdetection
+    pd.set(3, 0.1f);    // variances[0]
+    pd.set(4, 0.1f);    // variances[1]
+    pd.set(5, 0.2f);    // variances[2]
+    pd.set(6, 0.2f);    // variances[3]
+    pd.set(7, 1);       // flip
+    pd.set(8, 0);       // clip
+    pd.set(9, -233);    // image_width
+    pd.set(10, -233);   // image_height
+    pd.set(11, -233.f); // step_width
+    pd.set(12, -233.f); // step_height
+    pd.set(13, 0.f);    // offset
+    pd.set(14, 0.f);    // step_mmdetection
+    pd.set(15, 0.f);    // center_mmdetection
 
     std::vector<ncnn::Mat> weights(0);
 
@@ -52,12 +51,7 @@ static int test_priorbox_caffe()
     as[0] = RandomMat(72, 72, 1);
     as[1] = RandomMat(512, 512, 1);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::PriorBox>("PriorBox", pd, weights, opt, as, 1);
+    int ret = test_layer<ncnn::PriorBox>("PriorBox", pd, weights, as, 1);
     if (ret != 0)
     {
         fprintf(stderr, "test_priorbox_caffe failed\n");
@@ -85,31 +79,26 @@ static int test_priorbox_mxnet()
     pd.set(0, min_sizes);
     pd.set(1, max_sizes);
     pd.set(2, aspect_ratios);
-    pd.set(3, 0.1f);// variances[0]
-    pd.set(4, 0.1f);// variances[1]
-    pd.set(5, 0.2f);// variances[2]
-    pd.set(6, 0.2f);// variances[3]
-    pd.set(7, 0);// flip
-    pd.set(8, 0);// clip
-    pd.set(9, -233);// image_width
-    pd.set(10, -233);// image_height
-    pd.set(11, -233.f);// step_width
-    pd.set(12, -233.f);// step_height
-    pd.set(13, 0.5f);// offset
-    pd.set(14, 0.f);// step_mmdetection
-    pd.set(15, 0.f);// center_mmdetection
+    pd.set(3, 0.1f);    // variances[0]
+    pd.set(4, 0.1f);    // variances[1]
+    pd.set(5, 0.2f);    // variances[2]
+    pd.set(6, 0.2f);    // variances[3]
+    pd.set(7, 0);       // flip
+    pd.set(8, 0);       // clip
+    pd.set(9, -233);    // image_width
+    pd.set(10, -233);   // image_height
+    pd.set(11, -233.f); // step_width
+    pd.set(12, -233.f); // step_height
+    pd.set(13, 0.5f);   // offset
+    pd.set(14, 0.f);    // step_mmdetection
+    pd.set(15, 0.f);    // center_mmdetection
 
     std::vector<ncnn::Mat> weights(0);
 
     std::vector<ncnn::Mat> as(1);
     as[0] = RandomMat(72, 72, 1);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::PriorBox>("PriorBox", pd, weights, opt, as, 1);
+    int ret = test_layer<ncnn::PriorBox>("PriorBox", pd, weights, as, 1);
     if (ret != 0)
     {
         fprintf(stderr, "test_priorbox_mxnet failed\n");
@@ -123,7 +112,6 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_priorbox_caffe()
-        || test_priorbox_mxnet()
-        ;
+           || test_priorbox_caffe()
+           || test_priorbox_mxnet();
 }

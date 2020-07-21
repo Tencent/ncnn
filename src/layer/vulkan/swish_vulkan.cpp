@@ -13,12 +13,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include "swish_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
 
-namespace ncnn {
+#include <algorithm>
 
-DEFINE_LAYER_CREATOR(Swish_vulkan)
+namespace ncnn {
 
 Swish_vulkan::Swish_vulkan()
 {
@@ -140,8 +140,8 @@ int Swish_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const 
     constants[4].i = bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_swish_pack8
-                             : elempack == 4 ? pipeline_swish_pack4
-                             : pipeline_swish;
+                               : elempack == 4 ? pipeline_swish_pack4
+                               : pipeline_swish;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

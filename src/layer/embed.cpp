@@ -13,11 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "embed.h"
+
 #include <string.h>
 
 namespace ncnn {
-
-DEFINE_LAYER_CREATOR(Embed)
 
 Embed::Embed()
 {
@@ -61,7 +60,7 @@ int Embed::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) con
 
     // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<words; q++)
+    for (int q = 0; q < words; q++)
     {
         float* outptr = top_blob.row(q);
 
@@ -78,7 +77,7 @@ int Embed::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) con
 
         if (bias_term)
         {
-            for (int p=0; p<num_output; p++)
+            for (int p = 0; p < num_output; p++)
             {
                 outptr[p] += bias_data[p];
             }

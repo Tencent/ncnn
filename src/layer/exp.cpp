@@ -13,11 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "exp.h"
+
 #include <math.h>
 
 namespace ncnn {
-
-DEFINE_LAYER_CREATOR(Exp)
 
 Exp::Exp()
 {
@@ -44,11 +43,11 @@ int Exp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     if (base == -1.f)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 ptr[i] = static_cast<float>(exp(shift + ptr[i] * scale));
             }
@@ -57,11 +56,11 @@ int Exp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     else
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 ptr[i] = static_cast<float>(pow(base, (shift + ptr[i] * scale)));
             }

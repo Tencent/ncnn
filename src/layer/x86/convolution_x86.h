@@ -44,6 +44,13 @@ public:
     // forwardDilation
     Layer* convolution_dilation1;
 
+    // pack8
+    Mat weight_data_pack8;
+    Mat weight_data_pack1to8;
+    Mat weight_data_pack8to1;
+
+    Mat weight_3x3_winograd64_data_pack8;
+
     // int8
     bool use_winograd3x3_int8;
     Mat weight_3x3_winograd23_data_int8;

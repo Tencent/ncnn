@@ -13,12 +13,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include "relu_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
 
-namespace ncnn {
+#include <algorithm>
 
-DEFINE_LAYER_CREATOR(ReLU_vulkan)
+namespace ncnn {
 
 ReLU_vulkan::ReLU_vulkan()
 {
@@ -142,8 +142,8 @@ int ReLU_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const O
     constants[4].i = bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_relu_pack8
-                             : elempack == 4 ? pipeline_relu_pack4
-                             : pipeline_relu;
+                               : elempack == 4 ? pipeline_relu_pack4
+                               : pipeline_relu;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 
@@ -163,11 +163,11 @@ int ReLU_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, co
     constants[1].i = bottom_top_blob.w;
     constants[2].i = bottom_top_blob.h;
     constants[3].i = bottom_top_blob.c;
-    constants[4].i = 0;//bottom_top_blob.cstep;
+    constants[4].i = 0; //bottom_top_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_relu_pack8
-                             : elempack == 4 ? pipeline_relu_pack4
-                             : pipeline_relu;
+                               : elempack == 4 ? pipeline_relu_pack4
+                               : pipeline_relu;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
 

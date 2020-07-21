@@ -31,30 +31,12 @@ matrix:
         - NAME=linux-clang
         - BUILD="mkdir build && cd build && cmake .. && make -j2 && ctest --output-on-failure -j 2"
 
-    - name: "linux-gcc-arm64-simplestl"
-      os: linux
-      arch: arm64
-      dist: bionic
-      compiler: gcc
-      env:
-        - NAME=linux-gcc-simplestl
-        - BUILD="mkdir build && cd build && cmake -DNCNN_SIMPLESTL=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF .. && make -j2 && ctest --output-on-failure -j 2"
-
-    - name: "linux-clang-arm64-simplestl"
-      os: linux
-      arch: arm64
-      dist: bionic
-      compiler: clang
-      env:
-        - NAME=linux-clang-simplestl
-        - BUILD="mkdir build && cd build && cmake -DNCNN_SIMPLESTL=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF .. && make -j2 && ctest --output-on-failure -j 2"
-
     - name: "windows-vs2017"
       os: windows
       dist: 1803-containers
       env:
         - NAME=windows-vs2017
-        - BUILD="mkdir build && cd build && cmake .. && cmake --build . && ctest --output-on-failure -j 2"
+        - BUILD="mkdir build && cd build && cmake .. && cmake --build . --config Release && ctest -C Release --output-on-failure -j 2"
 
     - name: "test-coverage-arm64"
       os: linux
@@ -63,7 +45,7 @@ matrix:
       compiler: gcc
       env:
         - NAME=test-coverage-arm64
-        - BUILD="mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF .. && make -j2 && ctest --output-on-failure -j 2 && lcov -d ./src -c -o lcov.info && lcov -r lcov.info '/usr/*' -o lcov.info && lcov --list lcov.info && bash <(curl -s https://codecov.io/bash) -f lcov.info"
+        - BUILD="mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF .. && make -j2 && ctest --output-on-failure -j 2 && lcov -d ./src -c -o lcov.info && lcov -r lcov.info '/usr/*' -o lcov.info && lcov --list lcov.info && bash <(curl -s https://codecov.io/bash) -f lcov.info"
 
     - name: "linux-gcc-arm32"
       os: linux
@@ -71,25 +53,16 @@ matrix:
       dist: bionic
       env:
         - NAME=linux-gcc-arm32
-        - BEFORE_BUILD="sudo dpkg --add-architecture armhf && sudo rm /etc/apt/sources.list.d/mongodb*.list && sudo apt-get update && sudo apt-get -y install crossbuild-essential-armhf libc6:armhf libstdc++-5-dev:armhf linux-libc-dev:armhf"
+        - BEFORE_BUILD="sudo apt-get update && sudo dpkg --add-architecture armhf && sudo rm /etc/apt/sources.list.d/mongodb*.list && sudo apt-get update && sudo apt-get -y install crossbuild-essential-armhf libc6:armhf libstdc++-5-dev:armhf linux-libc-dev:armhf"
         - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF - .. && make -j2 VERBOSE=1 && ctest --output-on-failure -j 2"
-
-    - name: "linux-gcc-arm32-simplestl"
-      os: linux
-      arch: arm64
-      dist: bionic
-      env:
-        - NAME=linux-gcc-arm32-simplestl
-        - BEFORE_BUILD="sudo dpkg --add-architecture armhf && sudo rm /etc/apt/sources.list.d/mongodb*.list && sudo apt-get update && sudo apt-get -y install crossbuild-essential-armhf libc6:armhf libstdc++-5-dev:armhf linux-libc-dev:armhf"
-        - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DNCNN_SIMPLESTL=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF - .. && make -j2 VERBOSE=1 && ctest --output-on-failure -j 2"
 
     - name: "test-coverage-arm32"
       os: linux
       arch: arm64
       dist: bionic
       env:
-        - NAME=linux-gcc-arm32
-        - BEFORE_BUILD="sudo dpkg --add-architecture armhf && sudo rm /etc/apt/sources.list.d/mongodb*.list && sudo apt-get update && sudo apt-get -y install crossbuild-essential-armhf libc6:armhf libstdc++-5-dev:armhf linux-libc-dev:armhf"
+        - NAME=test-coverage-arm32
+        - BEFORE_BUILD="sudo apt-get update && sudo dpkg --add-architecture armhf && sudo rm /etc/apt/sources.list.d/mongodb*.list && sudo apt-get update && sudo apt-get -y install crossbuild-essential-armhf libc6:armhf libstdc++-5-dev:armhf linux-libc-dev:armhf"
         - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF - .. && make -j2 && ctest --output-on-failure -j 2 && lcov -d ./src -c -o lcov.info && lcov -r lcov.info '/usr/*' -o lcov.info && lcov --list lcov.info && bash <(curl -s https://codecov.io/bash) -f lcov.info"
 
 before_install:

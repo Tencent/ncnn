@@ -63,7 +63,11 @@ protected:
         // 5 = array of int
         // 6 = array of float
         int type;
-        union { int i; float f; };
+        union
+        {
+            int i;
+            float f;
+        };
         Mat v;
     } params[NCNN_MAX_PARAM_COUNT];
 };

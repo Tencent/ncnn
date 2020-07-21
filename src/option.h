@@ -21,6 +21,7 @@ namespace ncnn {
 
 #if NCNN_VULKAN
 class VkAllocator;
+class PipelineCache;
 #endif // NCNN_VULKAN
 
 class Allocator;
@@ -55,6 +56,9 @@ public:
 
     // staging memory allocator
     VkAllocator* staging_vkallocator;
+
+    // pipeline cache
+    PipelineCache* pipeline_cache;
 #endif // NCNN_VULKAN
 
     // enable winograd convolution optimization
@@ -99,6 +103,10 @@ public:
     // enable bf16 data type for storage
     // improve most operator performace on all arm devices, may consume more memory
     bool use_bf16_storage;
+
+    // used for fp16 weight storage in AVX
+    // TODO drop this option
+    bool use_weight_fp16_storage;
 };
 
 } // namespace ncnn
