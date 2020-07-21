@@ -28,13 +28,13 @@ jobs:
         make install
         cp -r mips64el-linux-user/install $GITHUB_WORKSPACE/qemu-install
 
-    - name: mips64el-gnu-toolchain
+    - name: mips64el-gnuabi64-toolchain
       run: |
         sudo apt-get update
-        sudo apt-get install g++-mips64el-linux-gnu
+        sudo apt-get install g++-mips64el-linux-gnuabi64
 
     - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mips64el-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mips64el-linux-gnuabi64.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
     - name: build
       run: cmake --build build -j 2
 
@@ -42,7 +42,7 @@ jobs:
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mips64el-linux-gnu" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mips64el-linux-gnuabi64" ctest --output-on-failure -j 2
 
   linux-gcc-mipsisa64r6el:
     runs-on: ubuntu-20.04
@@ -71,13 +71,13 @@ jobs:
         make install
         cp -r mips64el-linux-user/install $GITHUB_WORKSPACE/qemu-install
 
-    - name: mipsisa64r6el-gnu-toolchain
+    - name: mipsisa64r6el-gnuabi64-toolchain
       run: |
         sudo apt-get update
-        sudo apt-get install g++-mipsisa64r6el-linux-gnu
+        sudo apt-get install g++-mipsisa64r6el-linux-gnuabi64
 
     - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa64r6el-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
     - name: build
       run: cmake --build build -j 2
 
@@ -85,4 +85,4 @@ jobs:
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnu" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnuabi64" ctest --output-on-failure -j 2

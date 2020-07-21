@@ -1,15 +1,15 @@
 set(CMAKE_SYSTEM_NAME Linux)
-set(CMAKE_SYSTEM_PROCESSOR mipsisa64r6el)
+set(CMAKE_SYSTEM_PROCESSOR mips64el)
 
-set(CMAKE_C_COMPILER "mipsisa64r6el-linux-gnu-gcc")
-set(CMAKE_CXX_COMPILER "mipsisa64r6el-linux-gnu-g++")
+set(CMAKE_C_COMPILER "mips64el-linux-gnuabi64-gcc")
+set(CMAKE_CXX_COMPILER "mips64el-linux-gnuabi64-g++")
 
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 
-set(CMAKE_C_FLAGS "-march=mips64r6")
-set(CMAKE_CXX_FLAGS "-march=mips64r6")
+set(CMAKE_C_FLAGS "-march=mips64")
+set(CMAKE_CXX_FLAGS "-march=mips64")
 
 # cache flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")
