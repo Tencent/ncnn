@@ -68,7 +68,7 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
     set(NCNN_TARGET_ARCH riscv)
 else()
     set(NCNN_TARGET_ARCH x86)
-    option(NCNN_AVX2 "optimize x86 platform with avx2" OFF)
+    option(NCNN_AVX2 "optimize x86 platform with avx2" ON)
 endif()
 
 message(STATUS "Target arch: ${NCNN_TARGET_ARCH}")

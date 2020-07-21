@@ -16,7 +16,7 @@
 
 namespace ncnn {
 
-#if NCNN_AVX2
+#if __AVX__
 #include <emmintrin.h>
 #include <immintrin.h>
 typedef union m128i
@@ -57,7 +57,7 @@ static inline __m128i float2bfloat_avx(__m256 v0)
     return _mm256_castsi256_si128(_mm256_permutevar8x32_epi32(aaaa, _mm256_setr_epi32(0, 1, 4, 5, 2, 3, 6, 7)));
 }
 
-#endif //NCNN_AVX2
+#endif // __AVX__
 
 Cast_x86::Cast_x86()
 {
@@ -66,7 +66,7 @@ Cast_x86::Cast_x86()
 
 int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-#if NCNN_AVX2
+#if __AVX__
     if (type_from == type_to)
     {
         top_blob = bottom_blob;
@@ -245,11 +245,11 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     }
 
     return 0;
-#else //NCNN_AVX2
+#else // __AVX__
 
     return Cast::forward(bottom_blob, top_blob, opt);
 
-#endif //NCNN_AVX2
+#endif // __AVX__
 }
 
 } // namespace ncnn

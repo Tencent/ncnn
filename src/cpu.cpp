@@ -24,6 +24,11 @@
 #include <omp.h>
 #endif
 
+#ifdef _MSC_VER
+#include <intrin.h>    // __cpuid()
+#include <immintrin.h> // _xgetbv()
+#endif
+
 #if defined __ANDROID__ || defined __linux__
 #include <stdint.h>
 #include <sys/syscall.h>
@@ -201,6 +206,39 @@ int cpu_support_arm_asimdhp()
     return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER;
 #else
     return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_x86_avx2()
+{
+#if defined(__x86_64__)
+#ifdef _MSC_VER
+    // TODO move to init function
+    int cpu_info[4];
+    __cpuid(cpu_info, 0);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    __cpuid(cpu_info, 1);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & 0x10000000) || !(cpu_info[2] & 0x04000000) || !(cpu_info[2] & 0x08000000))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((_xgetbv(0) & 6) != 6)
+        return 0;
+
+    __cpuid(cpu_info, 7);
+    return cpu_info[1] & 0x00000020;
+#else
+    // TODO gcc-specific
+    __builtin_cpu_init();
+    return __builtin_cpu_supports("avx2");
 #endif
 #else
     return 0;
