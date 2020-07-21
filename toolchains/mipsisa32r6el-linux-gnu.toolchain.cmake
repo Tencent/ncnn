@@ -1,8 +1,8 @@
 set(CMAKE_SYSTEM_NAME Linux)
-set(CMAKE_SYSTEM_PROCESSOR mipsisa32r6)
+set(CMAKE_SYSTEM_PROCESSOR mipsisa32r6el)
 
-set(CMAKE_C_COMPILER "mipsisa32r6-linux-gnu-gcc")
-set(CMAKE_CXX_COMPILER "mipsisa32r6-linux-gnu-g++")
+set(CMAKE_C_COMPILER "mipsisa32r6el-linux-gnu-gcc")
+set(CMAKE_CXX_COMPILER "mipsisa32r6el-linux-gnu-g++")
 
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
