@@ -14,11 +14,11 @@
 
 #include "clip_mips.h"
 
-#if __MIPS_MSA
+#if __mips_msa
 #include "mips_common.h"
 
 #include <msa.h>
-#endif // __MIPS_MSA
+#endif // __mips_msa
 
 namespace ncnn {
 
@@ -34,14 +34,14 @@ int Clip_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     {
         float* ptr = bottom_top_blob.channel(q);
 
-#if __MIPS_MSA
+#if __mips_msa
         int nn = size >> 2;
         int remain = size & 3;
 #else
         int remain = size;
-#endif // __MIPS_MSA
+#endif // __mips_msa
 
-#if __MIPS_MSA
+#if __mips_msa
         ncnn::FloatInt fi_max = {.f = max};
         ncnn::FloatInt fi_min = {.f = min};
 
@@ -56,7 +56,7 @@ int Clip_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             ptr += 4;
         }
-#endif // __MIPS_MSA
+#endif // __mips_msa
 
         for (; remain > 0; remain--)
         {
