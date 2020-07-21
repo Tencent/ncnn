@@ -36,6 +36,20 @@ ncnn::Mat in_bgr = ncnn::Mat::from_pixels(rgb_data, ncnn::Mat::PIXEL_RGB2BGR, w,
 ncnn::Mat in_rgb = ncnn::Mat::from_pixels(bgr_data, ncnn::Mat::PIXEL_BGR2RGB, w, h);
 ```
 
+
+### image decoding
+
+JPEG(`.jpg`,`.jpeg`) is loss compression, people may get different pixel value for same image on same position. 
+
+`.bmp` images are recommended instead.
+
+### interpolation / resizing
+
+There are several image resizing methods, which may generate different result for same input image.
+
+Even we specify same interpolation method, different frameworks/libraries and their various versions may also introduce difference.
+
+
 ### Mat::from_pixels/from_pixels_resize assume that the pixel data is continuous
 
 You shall pass continuous pixel buffer to from_pixels family.
