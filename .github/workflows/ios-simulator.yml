@@ -1,0 +1,11 @@
+name: ios-simulator
+on: [push, pull_request]
+jobs:
+  ios-iphone-simulator:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR ..
+    - name: build
+      run: cmake --build build -j 2

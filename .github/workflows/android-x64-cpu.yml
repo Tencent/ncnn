@@ -1,0 +1,11 @@
+name: android-x64-cpu
+on: [push, pull_request]
+jobs:
+  android-x86_64:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 ..
+    - name: build
+      run: cmake --build build -j 2
