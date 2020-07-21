@@ -33,6 +33,7 @@
 #include <msa.h>
 
 _MIPS_FLOAT_CONST(c_1, 1.0f);
+_MIPS_FLOAT_CONST(c_2, 2.0f);
 _MIPS_FLOAT_CONST(c_n1, -1.0f);
 _MIPS_FLOAT_CONST(c_0p5, 0.5f);
 
@@ -125,14 +126,15 @@ static inline v4f32 tanh_ps(v4f32 x)
 {
     v4f32 x2 = (v4f32)__msa_bclri_w((v4u32)x, 31);
 
-    v4i32_w mask_l = __msa_fsle_w((v4f32)__msa_fill_w(c_cephes_tanh_C1.i), x2);
-    v4i32_w mask_l2 = __msa_fslt_w((v4f32)__msa_fill_w(c_cephes_HALFMAXLOGF.i), x2);
+    v4i32_w mask_l = __msa_fclt_w((v4f32)__msa_fill_w(c_cephes_tanh_C1.i), x2);
+    v4i32_w mask_l2 = __msa_fcle_w((v4f32)__msa_fill_w(c_cephes_HALFMAXLOGF.i), x2);
 
     // abs(x) >= 0.625
-    // tanh(x) = (exp(2x) - 1) / (exp(2x) + 1)
+    // tanh(x) = 1 − 2 / (exp(2x) + 1)
     v4f32 _one = (v4f32)__msa_fill_w(c_1.i);
+    v4f32 _two = (v4f32)__msa_fill_w(c_2.i);
     v4f32 exp_x_x = exp_ps(__msa_fadd_w(x, x));
-    v4f32 y0 = __msa_fdiv_w(__msa_fsub_w(exp_x_x, _one), __msa_fadd_w(exp_x_x, _one));
+    v4f32 y0 = __msa_fsub_w(_one, __msa_fdiv_w(_two, __msa_fadd_w(exp_x_x, _one)));
 
     // abs(x) < 0.625
     /*
@@ -168,7 +170,7 @@ static inline v4f32 tanh_ps(v4f32 x)
 
     // abs(x) > HALFMAXLOGF
     // return 1.0 or -1.0
-    v4i32_w mask_pos = __msa_fslt_w((v4f32)__msa_fill_w(0), x2);
+    v4i32_w mask_pos = __msa_fcle_w((v4f32)__msa_fill_w(0), x2);
     v4f32 y1 = (v4f32)__msa_bsel_v((v16u8)mask_pos, (v16u8)__msa_fill_w(c_1.i), (v16u8)__msa_fill_w(c_n1.i));
 
     y = (v4f32)__msa_bsel_v((v16u8)mask_l, (v16u8)y0, (v16u8)y);
