@@ -33,6 +33,7 @@
 #include <msa.h>
 
 _MIPS_FLOAT_CONST(c_1, 1.0f);
+_MIPS_FLOAT_CONST(c_2, 2.0f);
 _MIPS_FLOAT_CONST(c_n1, -1.0f);
 _MIPS_FLOAT_CONST(c_0p5, 0.5f);
 
@@ -129,10 +130,11 @@ static inline v4f32 tanh_ps(v4f32 x)
     v4i32_w mask_l2 = __msa_fslt_w((v4f32)__msa_fill_w(c_cephes_HALFMAXLOGF.i), x2);
 
     // abs(x) >= 0.625
-    // tanh(x) = (exp(2x) - 1) / (exp(2x) + 1)
+    // tanh(x) = 1 − 2 / (exp(2x) + 1)
     v4f32 _one = (v4f32)__msa_fill_w(c_1.i);
+    v4f32 _two = (v4f32)__msa_fill_w(c_2.i);
     v4f32 exp_x_x = exp_ps(__msa_fadd_w(x, x));
-    v4f32 y0 = __msa_fdiv_w(__msa_fsub_w(exp_x_x, _one), __msa_fadd_w(exp_x_x, _one));
+    v4f32 y0 = __msa_fsub_w(_one, __msa_fdiv_w(_two, __msa_fadd_w(exp_x_x, _one)));
 
     // abs(x) < 0.625
     /*
