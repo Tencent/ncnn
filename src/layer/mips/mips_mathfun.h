@@ -126,8 +126,8 @@ static inline v4f32 tanh_ps(v4f32 x)
 {
     v4f32 x2 = (v4f32)__msa_bclri_w((v4u32)x, 31);
 
-    v4i32_w mask_l = __msa_fsle_w((v4f32)__msa_fill_w(c_cephes_tanh_C1.i), x2);
-    v4i32_w mask_l2 = __msa_fslt_w((v4f32)__msa_fill_w(c_cephes_HALFMAXLOGF.i), x2);
+    v4i32_w mask_l = __msa_fclt_w((v4f32)__msa_fill_w(c_cephes_tanh_C1.i), x2);
+    v4i32_w mask_l2 = __msa_fcle_w((v4f32)__msa_fill_w(c_cephes_HALFMAXLOGF.i), x2);
 
     // abs(x) >= 0.625
     // tanh(x) = 1 − 2 / (exp(2x) + 1)
@@ -170,7 +170,7 @@ static inline v4f32 tanh_ps(v4f32 x)
 
     // abs(x) > HALFMAXLOGF
     // return 1.0 or -1.0
-    v4i32_w mask_pos = __msa_fslt_w((v4f32)__msa_fill_w(0), x2);
+    v4i32_w mask_pos = __msa_fcle_w((v4f32)__msa_fill_w(0), x2);
     v4f32 y1 = (v4f32)__msa_bsel_v((v16u8)mask_pos, (v16u8)__msa_fill_w(c_1.i), (v16u8)__msa_fill_w(c_n1.i));
 
     y = (v4f32)__msa_bsel_v((v16u8)mask_l, (v16u8)y0, (v16u8)y);
