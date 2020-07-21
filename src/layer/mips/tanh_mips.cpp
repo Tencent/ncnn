@@ -43,7 +43,7 @@ int TanH_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int remain = size;
 #endif // __mips_msa
 
-#if 0 // __mips_msa
+#if 0  // __mips_msa
         for (; nn > 0; nn--)
         {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
