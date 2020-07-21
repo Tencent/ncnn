@@ -85,4 +85,4 @@ jobs:
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;mips32r6-generic;-L;/usr/mipsisa32r6el-linux-gnu" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa32r6el-linux-gnu" ctest --output-on-failure -j 2
