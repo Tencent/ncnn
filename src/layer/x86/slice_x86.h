@@ -12,8 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_SLICE_x86_H
-#define LAYER_SLICE_x86_H
+#ifndef LAYER_SLICE_X86_H
+#define LAYER_SLICE_X86_H
 
 #include "slice.h"
 
@@ -35,4 +35,4 @@ public:
 
 } // namespace ncnn
 
-#endif // LAYER_SLICE_x86_H
+#endif // LAYER_SLICE_X86_H
