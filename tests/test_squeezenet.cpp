@@ -187,6 +187,9 @@ static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float e
 
 int main()
 {
+    ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
+    ncnn::PoolAllocator g_workspace_pool_allocator;
+
     ncnn::Option opts[4];
 
     opts[0].use_packing_layout = false;
@@ -207,6 +210,8 @@ int main()
     opts[2].use_bf16_storage = true;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = true;
+    opts[2].blob_allocator = &g_blob_pool_allocator;
+    opts[2].workspace_allocator = &g_workspace_pool_allocator;
 
     opts[3].use_packing_layout = true;
     opts[3].use_fp16_packed = true;
@@ -214,6 +219,8 @@ int main()
     opts[3].use_bf16_storage = false;
     opts[3].use_shader_pack8 = true;
     opts[3].use_image_storage = true;
+    opts[3].blob_allocator = &g_blob_pool_allocator;
+    opts[3].workspace_allocator = &g_workspace_pool_allocator;
 
     int load_model_types[4] = {0, 1, 2, 3};
 

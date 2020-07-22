@@ -16,9 +16,7 @@
 #include "layer/roialign.h"
 #include "testutil.h"
 
-static int test_roialign(int w, int h, int c,
-                         int pooled_width, int pooled_height, float spatial_scale,
-                         int sampling_ratio, bool aligned, int version)
+static int test_roialign(int w, int h, int c, int pooled_width, int pooled_height, float spatial_scale, int sampling_ratio, bool aligned, int version)
 {
     std::vector<ncnn::Mat> a;
     a.push_back(RandomMat(w, h, c));
@@ -39,12 +37,7 @@ static int test_roialign(int w, int h, int c,
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::ROIAlign>("ROIAlign", pd, weights, opt, a);
+    int ret = test_layer<ncnn::ROIAlign>("ROIAlign", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_roialign failed base_w=%d base_h=%d base_c=%d pooled_width=%d pooled_height=%d spatial_scale=%4f.3\n", w, h, c, pooled_width, pooled_height, spatial_scale);
@@ -55,29 +48,13 @@ static int test_roialign(int w, int h, int c,
 
 static int test_roialign_0()
 {
-    int ret = 0;
-    for (int sampling_ratio = 0; sampling_ratio <= 4 && ret == 0; ++sampling_ratio)
-    {
-        for (int aligned_i = 0; aligned_i < 2 && ret == 0; ++aligned_i)
-        {
-            for (int version = 0; version <= 1; ++version)
-            {
-                bool aligned = aligned_i;
-                int lret = 0
-                           || test_roialign(112, 112, 16, 56, 56, 0.50000, sampling_ratio, aligned, version)
-                           || test_roialign(56, 56, 32, 28, 28, 0.25000, sampling_ratio, aligned, version)
-                           || test_roialign(28, 28, 64, 14, 14, 0.12500, sampling_ratio, aligned, version)
-                           || test_roialign(14, 14, 128, 27, 17, 0.06250, sampling_ratio, aligned, version)
-                           || test_roialign(7, 7, 256, 3, 3, 0.03125, sampling_ratio, aligned, version);
-                ret |= lret;
-            }
-        }
-    }
-
-    if (ret != 0)
-        return -1;
-
-    return 0;
+    return 0
+           || test_roialign(56, 56, 1, 28, 28, 0.50000, 0, 0, 0)
+           || test_roialign(28, 28, 3, 14, 14, 0.25000, 1, 1, 1)
+           || test_roialign(14, 14, 4, 7, 7, 0.12500, 2, 0, 1)
+           || test_roialign(14, 14, 8, 7, 7, 0.06250, 3, 1, 0)
+           || test_roialign(7, 7, 12, 3, 3, 0.03125, 4, 0, 0)
+           || test_roialign(7, 7, 16, 3, 3, 0.03125, 4, 1, 1);
 }
 
 int main()

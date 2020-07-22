@@ -35,6 +35,11 @@ int InnerProduct::load_param(const ParamDict& pd)
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
 
+    if (int8_scale_term)
+    {
+        use_int8_inference = true;
+    }
+
     return 0;
 }
 
@@ -145,6 +150,10 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         else if (activation_type == 4)
         {
             sum = static_cast<float>(1.f / (1.f + exp(-sum)));
+        }
+        else if (activation_type == 5)
+        {
+            sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
         }
 
         top_blob[p] = sum;

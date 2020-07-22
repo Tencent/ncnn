@@ -55,6 +55,7 @@ Convolution_x86::Convolution_x86()
 {
 #ifdef __AVX__
     support_packing = true;
+    support_weight_fp16_storage = true;
 #endif
     activation = 0;
     convolution_dilation1 = 0;
@@ -125,8 +126,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
     int num_input = weight_data_size / kernel_size / num_output;
 
     use_winograd3x3 = false;
-    // TODO: FIX ME
-#if 0
+
     if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     {
         convolution_dilation1 = ncnn::create_layer(ncnn::LayerType::Convolution);
@@ -168,7 +168,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
 
         return 0;
     }
-#endif
+
     const int maxk = kernel_w * kernel_h;
 
     int elempack = (support_packing && opt.use_packing_layout && num_input % 8 == 0) ? 8 : 1;
@@ -178,15 +178,15 @@ int Convolution_x86::create_pipeline(const Option& opt)
     // pack8
     if (elempack == 8 && out_elempack == 8)
     {
-        if (opt.use_fp16_storage && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        if (opt.use_weight_fp16_storage && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv1x1s1_sgemm_transform_kernel_fp16_pack8_avx(weight_data, weight_data_pack8, num_input, num_output);
         }
-        else if (opt.use_fp16_storage && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        else if (opt.use_weight_fp16_storage && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             conv1x1s1_sgemm_transform_kernel_fp16_pack8_avx(weight_data, weight_data_pack8, num_input, num_output);
         }
-        else if (opt.use_fp16_storage && kernel_w == 2 && kernel_h == 2 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        else if (opt.use_weight_fp16_storage && kernel_w == 2 && kernel_h == 2 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv2x2s1_weight_fp16_pack8_avx(weight_data, weight_data_pack8, num_input, num_output);
         }
@@ -526,14 +526,14 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     // convolv with NxN kernel
     // value = value + bias
 
-    if (bottom_blob.dims != 3)
-    {
-        return Convolution::forward(bottom_blob, top_blob, opt);
-    }
-
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return forward_int8_x86(bottom_blob, top_blob, opt);
+    }
+
+    if (bottom_blob.dims != 3)
+    {
+        return Convolution::forward(bottom_blob, top_blob, opt);
     }
 
     if ((!support_packing || !opt.use_packing_layout) && (dilation_w > 1 || dilation_h > 1) && (stride_w > 1 || stride_h > 1))
@@ -571,14 +571,14 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
-    // TODO: FIX ME
-    // if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
-    // {
-    //     if (outw >= dilation_w && outh >= dilation_h)
-    //     {
-    //         return forwardDilation_x86(bottom_blob_bordered, top_blob, opt);
-    //     }
-    // }
+
+    if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+    {
+        if (outw >= dilation_w && outh >= dilation_h)
+        {
+            return forwardDilation_x86(bottom_blob_bordered, top_blob, opt);
+        }
+    }
 
     const int maxk = kernel_w * kernel_h;
 
@@ -605,7 +605,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     {
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            if (opt.use_fp16_storage)
+            if (opt.use_weight_fp16_storage)
             {
                 conv1x1s1_sgemm_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
             }
@@ -621,7 +621,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-            if (opt.use_fp16_storage)
+            if (opt.use_weight_fp16_storage)
             {
                 conv1x1s2_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
             }
@@ -646,7 +646,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else if (kernel_w == 2 && kernel_h == 2 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            if (opt.use_fp16_storage)
+            if (opt.use_weight_fp16_storage)
             {
                 conv2x2s1_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
             }
@@ -1133,8 +1133,6 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
     return 0;
 }
 
-// TODO: FIX ME
-#if 0
 int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
@@ -1218,5 +1216,5 @@ int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, 
 
     return 0;
 }
-#endif
+
 } // namespace ncnn

@@ -2347,7 +2347,7 @@ const ncnn::Packing_vulkan* VulkanDevice::get_utility_operator(int storage_type_
 
     ncnn::ParamDict pd;
     pd.set(0, packing_type_to_index == 0 ? 1 : packing_type_to_index == 1 ? 4 : 8); // out_elempack
-    pd.set(2, cast_type_from_index + 1); // 0=auto 1=fp32 2=fp16p 3=fp16s
+    pd.set(2, cast_type_from_index + 1);                                            // 0=auto 1=fp32 2=fp16p 3=fp16s
     pd.set(3, cast_type_to_index + 1);
     pd.set(4, storage_type_from); // 0=buffer 1=image
     pd.set(5, storage_type_to);

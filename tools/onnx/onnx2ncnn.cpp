@@ -200,6 +200,58 @@ static std::vector<int> get_node_attr_from_input_ai(const onnx::TensorProto& tp)
     return v;
 }
 
+static std::vector<float> get_node_attr_from_input_af(const onnx::TensorProto& tp)
+{
+    int size = 0;
+
+    std::vector<float> v;
+
+    // float
+    if (tp.data_type() == 1)
+    {
+        const float* shape_data = 0;
+        if (tp.has_raw_data())
+        {
+            shape_data = (const float*)tp.raw_data().data();
+            size = tp.raw_data().size() / 4;
+        }
+        else
+        {
+            shape_data = tp.float_data().data();
+            size = tp.float_data_size();
+        }
+        for (int j = 0; j < size; j++)
+        {
+            v.push_back(shape_data[j]);
+        }
+    }
+    // double
+    else if (tp.data_type() == 11)
+    {
+        const double* shape_data = 0;
+        if (tp.has_raw_data())
+        {
+            shape_data = (const double*)tp.raw_data().data();
+            size = tp.raw_data().size() / 8;
+        }
+        else
+        {
+            shape_data = tp.double_data().data();
+            size = tp.double_data_size();
+        }
+        for (int j = 0; j < size; j++)
+        {
+            v.push_back((float)shape_data[j]);
+        }
+    }
+    else
+    {
+        fprintf(stderr, "Unknown data type %d\n", tp.data_type());
+    }
+
+    return v;
+}
+
 static int get_tensor_proto_data_size(const onnx::TensorProto& tp)
 {
     if (tp.has_raw_data())
@@ -943,6 +995,7 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
     {
         onnx::NodeProto* node = mutable_graph->mutable_node(i);
 
+        // Normalize <= X - ReduceL2 - Clip - Expand - Div
         // Normalize <= X - ReduceL2 - Clip - Shape - Expand - Div
         if (node->op_type() == "ReduceL2")
         {
@@ -956,15 +1009,26 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
             if (axes[0] != 1)
                 continue;
 
-            if (i + 4 >= node_count)
+            if (i + 3 >= node_count)
                 continue;
 
             onnx::NodeProto* node2 = mutable_graph->mutable_node(i + 1);
             onnx::NodeProto* node3 = mutable_graph->mutable_node(i + 2);
             onnx::NodeProto* node4 = mutable_graph->mutable_node(i + 3);
-            onnx::NodeProto* node5 = mutable_graph->mutable_node(i + 4);
 
-            if (node2->op_type() != "Clip" || node3->op_type() != "Shape" || node4->op_type() != "Expand" || node5->op_type() != "Div")
+            bool has_shape_node = node3->op_type() == "Shape";
+            onnx::NodeProto* node_shape = 0;
+            if (has_shape_node)
+            {
+                if (i + 4 >= node_count)
+                    continue;
+
+                node_shape = node3;
+                node3 = mutable_graph->mutable_node(i + 3);
+                node4 = mutable_graph->mutable_node(i + 4);
+            }
+
+            if (node2->op_type() != "Clip" || node3->op_type() != "Expand" || node4->op_type() != "Div")
                 continue;
 
             if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
@@ -973,13 +1037,15 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
             if (node_reference.find(node3->output(0)) == node_reference.end() || node_reference[node3->output(0)] != 1)
                 continue;
 
-            if (node_reference.find(node4->output(0)) == node_reference.end() || node_reference[node4->output(0)] != 1)
+            if (node2->input(0) != node->output(0) || node3->input(0) != node2->output(0)
+                    || node4->input(0) != node->input(0) || node4->input(1) != node3->output(0))
                 continue;
 
-            if (node2->input(0) != node->output(0) || node3->input(0) != node->input(0)
-                    || node4->input(0) != node2->output(0) || node4->input(1) != node3->output(0)
-                    || node5->input(0) != node->input(0) || node5->input(1) != node4->output(0))
-                continue;
+            if (has_shape_node)
+            {
+                if (node_shape->input(0) != node->input(0) || node3->input(1) != node_shape->output(0))
+                    continue;
+            }
 
             // +eps
             float clip_min;
@@ -998,30 +1064,39 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
             // reduce
             node->set_op_type("noop_reducedncnn");
             node2->set_op_type("noop_reducedncnn");
+            if (has_shape_node)
+            {
+                node_shape->set_op_type("noop_reducedncnn");
+            }
             node3->set_op_type("noop_reducedncnn");
-            node4->set_op_type("noop_reducedncnn");
 
-            node_reference[node->input(0)] -= 2;
+            node_reference[node->input(0)] -= has_shape_node ? 2 : 1;
 
             node_reference.erase(node_reference.find(node->output(0)));
             node_reference.erase(node_reference.find(node2->output(0)));
+            if (has_shape_node)
+            {
+                node_reference.erase(node_reference.find(node_shape->output(0)));
+            }
             node_reference.erase(node_reference.find(node3->output(0)));
-            node_reference.erase(node_reference.find(node4->output(0)));
             blob_names.erase(node->output(0));
             blob_names.erase(node2->output(0));
+            if (has_shape_node)
+            {
+                blob_names.erase(node_shape->output(0));
+            }
             blob_names.erase(node3->output(0));
-            blob_names.erase(node4->output(0));
 
-            node5->set_op_type("Normalize");
-            node5->clear_input();
-            node5->add_input(node->input(0));
+            node4->set_op_type("Normalize");
+            node4->clear_input();
+            node4->add_input(node->input(0));
 
-            onnx::AttributeProto* attr_alpha = node5->add_attribute();
+            onnx::AttributeProto* attr_alpha = node4->add_attribute();
             attr_alpha->set_name("eps");
             attr_alpha->set_f(clip_min);
 
-            reduced_node_count += 4;
-            i += 4;
+            reduced_node_count += has_shape_node ? 4 : 3;
+            i += has_shape_node ? 4 : 3;
         }
     }
 }
@@ -2985,25 +3060,16 @@ int main(int argc, char** argv)
             std::string mode = get_node_attr_s(node, "mode");
 
             std::vector<float> scales;
-            {
-                const onnx::TensorProto& scales_tp = weights[node.input(2)];
-                const float* shape_data = scales_tp.has_raw_data() ? (const float*)scales_tp.raw_data().data() : scales_tp.float_data().data();
-
-                int float_data_size = scales_tp.float_data_size();
-                //float data is None, use raw data instead
-                if (float_data_size == 0)
-                {
-                    float_data_size = scales_tp.dims().Get(0);
-                }
-
-                for (int j = 0; j < float_data_size; j++)
-                {
-                    scales.push_back(shape_data[j]);
-                }
-            }
-
             std::vector<int> sizes;
+            if (node.input_size() == 2)
             {
+                // opset 10
+                scales = get_node_attr_from_input_af(weights[node.input(1)]);
+            }
+            else
+            {
+                // opset 11+
+                scales = get_node_attr_from_input_af(weights[node.input(2)]);
                 sizes = get_node_attr_from_input_ai(weights[node.input(3)]);
             }
 
@@ -3285,20 +3351,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                const onnx::TensorProto& scales_tp = weights[node.input(1)];
-                const float* shape_data = scales_tp.has_raw_data() ? (const float*)scales_tp.raw_data().data() : scales_tp.float_data().data();
-
-                int float_data_size = scales_tp.float_data_size();
-                //float data is None, use raw data instead
-                if (float_data_size == 0)
-                {
-                    float_data_size = scales_tp.dims().Get(0);
-                }
-
-                for (int j = 0; j < float_data_size; j++)
-                {
-                    scales.push_back(shape_data[j]);
-                }
+                scales = get_node_attr_from_input_af(weights[node.input(1)]);
             }
 
             int resize_type = 1;

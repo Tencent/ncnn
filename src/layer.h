@@ -72,8 +72,15 @@ public:
     // accept bf16
     bool support_bf16_storage;
 
+    // accept fp16
+    bool support_fp16_storage;
+
     // shader image storage
     bool support_image_storage;
+
+    // TODO drop these fields
+    bool use_int8_inference;
+    bool support_weight_fp16_storage;
 
 public:
     // implement inference

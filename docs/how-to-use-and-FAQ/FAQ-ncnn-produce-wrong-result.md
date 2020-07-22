@@ -36,6 +36,22 @@ ncnn::Mat in_bgr = ncnn::Mat::from_pixels(rgb_data, ncnn::Mat::PIXEL_RGB2BGR, w,
 ncnn::Mat in_rgb = ncnn::Mat::from_pixels(bgr_data, ncnn::Mat::PIXEL_BGR2RGB, w, h);
 ```
 
+
+### image decoding
+
+JPEG(`.jpg`,`.jpeg`) is loss compression, people may get different pixel value for same image on same position. 
+
+`.bmp` images are recommended instead.
+
+### interpolation / resizing
+
+There are several image resizing methods, which may generate different result for same input image.
+
+Even we specify same interpolation method, different frameworks/libraries and their various versions may also introduce difference.
+
+A good practice is feed same size image as the input layer expected, e.g. read a 224x244 bmp image when input layer need 224x224 size.
+
+
 ### Mat::from_pixels/from_pixels_resize assume that the pixel data is continuous
 
 You shall pass continuous pixel buffer to from_pixels family.
@@ -118,7 +134,7 @@ blob may have gaps between channels if (width x height) can not divided exactly 
 Prefer using ncnn::Mat::from_pixels or ncnn::Mat::from_pixels_resize for constructing input blob from image data
 
 If you do need a continuous blob buffer, reshape the output.
-```
+```cpp
 // out is the output blob extracted
 ncnn::Mat flattened_out = out.reshape(out.w * out.h * out.c);
 

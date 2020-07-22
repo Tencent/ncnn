@@ -13,16 +13,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include "net.h"
-#include "platform.h"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <stdio.h>
 #include <vector>
-#if NCNN_VULKAN
-#include "gpu.h"
-#endif // NCNN_VULKAN
 
 struct FaceObject
 {
@@ -240,9 +236,7 @@ static int detect_retinaface(const cv::Mat& bgr, std::vector<FaceObject>& faceob
 {
     ncnn::Net retinaface;
 
-#if NCNN_VULKAN
     retinaface.opt.use_vulkan_compute = true;
-#endif // NCNN_VULKAN
 
     // model is converted from
     // https://github.com/deepinsight/insightface/tree/master/RetinaFace#retinaface-pretrained-models

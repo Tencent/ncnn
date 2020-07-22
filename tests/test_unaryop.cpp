@@ -17,18 +17,19 @@
 
 #define OP_TYPE_MAX 17
 
-static int get_op_type()
-{
-    static int op_type = 0;
-    if (op_type == OP_TYPE_MAX)
-        op_type = 0;
-    return op_type++;
-}
+static int op_type = 0;
 
 static int test_unaryop(const ncnn::Mat& _a)
 {
     ncnn::Mat a = _a;
-    int op_type = get_op_type();
+    if (op_type == 2 || op_type == 3)
+    {
+        // large dynamic range for floor ceil
+        for (int i = 0; i < a.total(); i++)
+        {
+            a[i] *= 1000;
+        }
+    }
     if (op_type == 5 || op_type == 6 || op_type == 8)
     {
         // value must be positive for sqrt rsqrt log
@@ -45,12 +46,7 @@ static int test_unaryop(const ncnn::Mat& _a)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::UnaryOp>("UnaryOp", pd, weights, opt, a);
+    int ret = test_layer<ncnn::UnaryOp>("UnaryOp", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_unaryop failed a.dims=%d a=(%d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.c, op_type);
@@ -62,17 +58,17 @@ static int test_unaryop(const ncnn::Mat& _a)
 static int test_unaryop_0()
 {
     return 0
-           || test_unaryop(RandomMat(6, 7, 16))
-           || test_unaryop(RandomMat(5, 4, 12))
-           || test_unaryop(RandomMat(3, 5, 13));
+           || test_unaryop(RandomMat(11, 7, 16))
+           || test_unaryop(RandomMat(10, 4, 12))
+           || test_unaryop(RandomMat(6, 5, 13));
 }
 
 static int test_unaryop_1()
 {
     return 0
-           || test_unaryop(RandomMat(6, 16))
-           || test_unaryop(RandomMat(5, 12))
-           || test_unaryop(RandomMat(7, 15));
+           || test_unaryop(RandomMat(12, 16))
+           || test_unaryop(RandomMat(10, 12))
+           || test_unaryop(RandomMat(14, 15));
 }
 
 static int test_unaryop_2()
@@ -87,13 +83,16 @@ int main()
 {
     SRAND(7767517);
 
-    return 0
-           || test_unaryop_0()
-           || test_unaryop_1()
-           || test_unaryop_2()
+    for (op_type = 0; op_type < OP_TYPE_MAX; op_type++)
+    {
+        int ret = 0
+                  || test_unaryop_0()
+                  || test_unaryop_1()
+                  || test_unaryop_2();
 
-           // iterate full OP_TYPE_MAX
-           || test_unaryop_0()
-           || test_unaryop_1()
-           || test_unaryop_2();
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
 }

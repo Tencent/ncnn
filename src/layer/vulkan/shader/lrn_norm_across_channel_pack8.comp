@@ -114,6 +114,7 @@ void main()
         sum[1].a += afp(square_workspace_data[vv_offset.a]);
 
         v_offset += psc(cstep);
+        vv_offset += psc(cstep);
     }
 #endif
 

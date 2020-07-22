@@ -67,7 +67,7 @@ static inline void* fastMalloc(size_t size)
 {
 #if _MSC_VER
     return _aligned_malloc(size, MALLOC_ALIGN);
-#elif _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
+#elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
     void* ptr = 0;
     if (posix_memalign(&ptr, MALLOC_ALIGN, size))
         ptr = 0;
@@ -90,7 +90,7 @@ static inline void fastFree(void* ptr)
     {
 #if _MSC_VER
         _aligned_free(ptr);
-#elif _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
+#elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
         free(ptr);
 #elif __ANDROID__ && __ANDROID_API__ < 17
         free(ptr);
@@ -102,7 +102,15 @@ static inline void fastFree(void* ptr)
 }
 
 // exchange-add operation for atomic operations on reference counters
-#if defined __INTEL_COMPILER && !(defined WIN32 || defined _WIN32)
+#if defined __riscv && !defined __riscv_atomic
+// riscv target without A extension
+static inline int NCNN_XADD(int* addr, int delta)
+{
+    int tmp = *addr;
+    *addr += delta;
+    return tmp;
+}
+#elif defined __INTEL_COMPILER && !(defined WIN32 || defined _WIN32)
 // atomic increment on the linux version of the Intel(tm) compiler
 #define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd(const_cast<void*>(reinterpret_cast<volatile void*>(addr)), delta)
 #elif defined __GNUC__

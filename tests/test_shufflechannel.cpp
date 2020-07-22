@@ -25,12 +25,7 @@ static int test_shufflechannel(int w, int h, int c, int group, int reverse)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::ShuffleChannel>("ShuffleChannel", pd, weights, opt, a);
+    int ret = test_layer<ncnn::ShuffleChannel>("ShuffleChannel", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_shufflechannel failed w=%d h=%d c=%d group=%d reverse=%d\n", w, h, c, group, reverse);

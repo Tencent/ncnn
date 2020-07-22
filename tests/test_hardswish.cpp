@@ -23,12 +23,7 @@ static int test_hardswish(const ncnn::Mat& a, float alpha, float beta)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::HardSwish>("HardSwish", pd, weights, opt, a);
+    int ret = test_layer<ncnn::HardSwish>("HardSwish", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_hardswish failed a.dims=%d a=(%d %d %d) alpha=%f beta=%f\n", a.dims, a.w, a.h, a.c, alpha, beta);
@@ -40,7 +35,7 @@ static int test_hardswish(const ncnn::Mat& a, float alpha, float beta)
 static int test_hardswish_0()
 {
     return 0
-           || test_hardswish(RandomMat(6, 7, 16), 0.2f, 0.5f)
+           || test_hardswish(RandomMat(5, 7, 16), 0.2f, 0.5f)
            || test_hardswish(RandomMat(3, 5, 13), 0.2f, 0.5f);
 }
 

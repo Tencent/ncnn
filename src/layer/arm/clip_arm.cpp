@@ -24,6 +24,9 @@ Clip_arm::Clip_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    support_fp16_storage = true;
+#endif
 #endif // __ARM_NEON
 
     support_bf16_storage = true;
@@ -33,6 +36,11 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     if (opt.use_bf16_storage)
         return forward_inplace_bf16s(bottom_top_blob, opt);
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (opt.use_fp16_storage)
+        return forward_inplace_fp16s(bottom_top_blob, opt);
+#endif
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -207,5 +215,122 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 
     return 0;
 }
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+int Clip_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    int size = w * h;
+    int elempack = bottom_top_blob.elempack;
+
+    if (elempack == 8)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr = bottom_top_blob.channel(q);
+
+            float16x8_t _max = vdupq_n_f16(max);
+            float16x8_t _min = vdupq_n_f16(min);
+
+            for (int i = 0; i < size; i++)
+            {
+                float16x8_t _ptr = vld1q_f16(ptr);
+                _ptr = vmaxq_f16(_ptr, _min);
+                _ptr = vminq_f16(_ptr, _max);
+                vst1q_f16(ptr, _ptr);
+
+                ptr += 8;
+            }
+        }
+
+        return 0;
+    }
+
+    if (elempack == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr = bottom_top_blob.channel(q);
+
+            float16x8_t _max = vdupq_n_f16(max);
+            float16x8_t _min = vdupq_n_f16(min);
+
+            int i = 0;
+            for (; i + 1 < size; i += 2)
+            {
+                float16x8_t _ptr = vld1q_f16(ptr);
+                _ptr = vmaxq_f16(_ptr, _min);
+                _ptr = vminq_f16(_ptr, _max);
+                vst1q_f16(ptr, _ptr);
+
+                ptr += 8;
+            }
+            for (; i < size; i++)
+            {
+                float16x4_t _ptr = vld1_f16(ptr);
+                _ptr = vmax_f16(_ptr, vget_low_f16(_min));
+                _ptr = vmin_f16(_ptr, vget_low_f16(_max));
+                vst1_f16(ptr, _ptr);
+
+                ptr += 4;
+            }
+        }
+
+        return 0;
+    }
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        __fp16* ptr = bottom_top_blob.channel(q);
+
+        int i = 0;
+
+        float16x8_t _max = vdupq_n_f16(max);
+        float16x8_t _min = vdupq_n_f16(min);
+
+        for (; i + 7 < size; i += 8)
+        {
+            float16x8_t _ptr = vld1q_f16(ptr);
+            _ptr = vmaxq_f16(_ptr, _min);
+            _ptr = vminq_f16(_ptr, _max);
+            vst1q_f16(ptr, _ptr);
+
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            float16x4_t _ptr = vld1_f16(ptr);
+            _ptr = vmax_f16(_ptr, vget_low_f16(_min));
+            _ptr = vmin_f16(_ptr, vget_low_f16(_max));
+            vst1_f16(ptr, _ptr);
+
+            ptr += 4;
+        }
+
+        __fp16 min_fp16 = min;
+        __fp16 max_fp16 = max;
+
+        for (; i < size; i++)
+        {
+            __fp16 v = *ptr;
+            if (v < min_fp16)
+                v = min_fp16;
+
+            if (v > max_fp16)
+                v = max_fp16;
+
+            *ptr = v;
+            ptr++;
+        }
+    }
+
+    return 0;
+}
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 } // namespace ncnn

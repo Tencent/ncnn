@@ -21,12 +21,7 @@ static int test_sigmoid(const ncnn::Mat& a)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::Sigmoid>("Sigmoid", pd, weights, opt, a);
+    int ret = test_layer<ncnn::Sigmoid>("Sigmoid", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_sigmoid failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
@@ -38,7 +33,7 @@ static int test_sigmoid(const ncnn::Mat& a)
 static int test_sigmoid_0()
 {
     return 0
-           || test_sigmoid(RandomMat(6, 7, 16))
+           || test_sigmoid(RandomMat(5, 7, 16))
            || test_sigmoid(RandomMat(3, 5, 13));
 }
 

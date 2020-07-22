@@ -84,7 +84,7 @@ public:
 
     // enable options for gpu inference
     bool use_fp16_packed;
-    bool use_fp16_storage; //Also used for fp16 weight storage in AVX
+    bool use_fp16_storage;
     bool use_fp16_arithmetic;
     bool use_int8_storage;
     bool use_int8_arithmetic;
@@ -103,6 +103,10 @@ public:
     // enable bf16 data type for storage
     // improve most operator performace on all arm devices, may consume more memory
     bool use_bf16_storage;
+
+    // used for fp16 weight storage in AVX
+    // TODO drop this option
+    bool use_weight_fp16_storage;
 };
 
 } // namespace ncnn

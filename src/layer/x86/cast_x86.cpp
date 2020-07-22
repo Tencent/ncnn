@@ -14,11 +14,14 @@
 
 #include "cast_x86.h"
 
-namespace ncnn {
-
-#if NCNN_AVX2
+#if __SSE2__
 #include <emmintrin.h>
+#endif // __SSE2__
+#if __AVX__
 #include <immintrin.h>
+#endif // __AVX__
+
+#if __AVX__
 typedef union m128i
 {
     __m128i vec;
@@ -56,8 +59,9 @@ static inline __m128i float2bfloat_avx(__m256 v0)
     __m256i aaaa = _mm256_packus_epi32(a, a);
     return _mm256_castsi256_si128(_mm256_permutevar8x32_epi32(aaaa, _mm256_setr_epi32(0, 1, 4, 5, 2, 3, 6, 7)));
 }
+#endif // __AVX__
 
-#endif //NCNN_AVX2
+namespace ncnn {
 
 Cast_x86::Cast_x86()
 {
@@ -66,7 +70,7 @@ Cast_x86::Cast_x86()
 
 int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-#if NCNN_AVX2
+#if __AVX__
     if (type_from == type_to)
     {
         top_blob = bottom_blob;
@@ -245,11 +249,11 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     }
 
     return 0;
-#else //NCNN_AVX2
+#else // __AVX__
 
     return Cast::forward(bottom_blob, top_blob, opt);
 
-#endif //NCNN_AVX2
+#endif // __AVX__
 }
 
 } // namespace ncnn
