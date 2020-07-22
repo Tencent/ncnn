@@ -127,7 +127,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
         return create_pipeline_int8_arm(opt);
     }
 
-    if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+    if ((!support_packing || !opt.use_packing_layout) && !opt.use_bf16_storage && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     {
         convolution_dilation1 = ncnn::create_layer(ncnn::LayerType::Convolution);
 
@@ -1248,7 +1248,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
     if (top_blob.empty())
         return -100;
 
-    // FIXME
+    // TODO dilated conv for bf16s
     //     if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     //     {
     //         return forwardDilation_arm(bottom_blob_bordered, top_blob, opt);

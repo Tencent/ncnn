@@ -126,8 +126,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
     int num_input = weight_data_size / kernel_size / num_output;
 
     use_winograd3x3 = false;
-    // TODO: FIX ME
-#if 0
+
     if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     {
         convolution_dilation1 = ncnn::create_layer(ncnn::LayerType::Convolution);
@@ -169,7 +168,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
 
         return 0;
     }
-#endif
+
     const int maxk = kernel_w * kernel_h;
 
     int elempack = (support_packing && opt.use_packing_layout && num_input % 8 == 0) ? 8 : 1;
@@ -572,14 +571,14 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
-    // TODO: FIX ME
-    // if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
-    // {
-    //     if (outw >= dilation_w && outh >= dilation_h)
-    //     {
-    //         return forwardDilation_x86(bottom_blob_bordered, top_blob, opt);
-    //     }
-    // }
+
+    if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+    {
+        if (outw >= dilation_w && outh >= dilation_h)
+        {
+            return forwardDilation_x86(bottom_blob_bordered, top_blob, opt);
+        }
+    }
 
     const int maxk = kernel_w * kernel_h;
 
@@ -1134,8 +1133,6 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
     return 0;
 }
 
-// TODO: FIX ME
-#if 0
 int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
@@ -1219,5 +1216,5 @@ int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, 
 
     return 0;
 }
-#endif
+
 } // namespace ncnn
