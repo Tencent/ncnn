@@ -22,6 +22,17 @@
 #endif // __AVX__
 
 #if __AVX__
+typedef union m128i
+{
+    __m128i vec;
+    uint16_t m128i_u16[8];
+} m128;
+
+typedef union m256i
+{
+    __m256i vec;
+    uint32_t m256i_u32[8];
+} m256;
 static inline __m256 bfloat2float_avx(__m128i v0)
 {
     __m128i zero = _mm_set1_epi32(0);
