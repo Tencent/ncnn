@@ -33,11 +33,7 @@
 #include "mat.h"
 #include "pipelinecache.h"
 
-#if __ANDROID__
 #define ENABLE_VALIDATION_LAYER 0
-#else
-#define ENABLE_VALIDATION_LAYER 0
-#endif
 
 namespace ncnn {
 
@@ -621,12 +617,19 @@ int create_gpu_instance()
 
         gpu_info.bug_storage_buffer_no_l1 = false;
         gpu_info.bug_layout_binding_id_alias = false;
+        gpu_info.bug_corrupted_online_pipeline_cache = false;
         gpu_info.bug_implicit_fp16_arithmetic = false;
 
         if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 49))
         {
             // qcom adreno with old buggy driver cannot handle binding id alias
             gpu_info.bug_layout_binding_id_alias = true;
+        }
+
+        if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 66))
+        {
+            // qcom adreno with old buggy driver cannot share created pipeline properly
+            gpu_info.bug_corrupted_online_pipeline_cache = true;
         }
 
         if (physicalDeviceProperties.vendorID == 0x5143 && !(physicalDeviceProperties.deviceID == 0x6040001 || physicalDeviceProperties.deviceID == 0x6050002))
@@ -932,8 +935,8 @@ int create_gpu_instance()
                   gpu_info.graphics_queue_family_index, gpu_info.graphics_queue_count,
                   gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count);
 
-        NCNN_LOGE("[%u %s]  bugsbn1=%d  buglbia=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
-                  gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_layout_binding_id_alias, gpu_info.bug_implicit_fp16_arithmetic);
+        NCNN_LOGE("[%u %s]  bugsbn1=%d  buglbia=%d  bugcopc=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
+                  gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_layout_binding_id_alias, gpu_info.bug_corrupted_online_pipeline_cache, gpu_info.bug_implicit_fp16_arithmetic);
 
         NCNN_LOGE("[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
