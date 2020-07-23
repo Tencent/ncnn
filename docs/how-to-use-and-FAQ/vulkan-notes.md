@@ -19,17 +19,6 @@ $ sudo dnf install vulkan-devel
 $ cmake -DNCNN_VULKAN=ON ..
 ```
 
-## initialize vulkan runtime
-```cpp
-ncnn::create_gpu_instance();
-
-{
-...
-}
-
-ncnn::destroy_gpu_instance();
-```
-
 ## enable vulkan compute inference
 ```cpp
 ncnn::Net net;
