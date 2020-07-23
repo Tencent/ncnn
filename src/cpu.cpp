@@ -602,10 +602,28 @@ void set_omp_dynamic(int dynamic)
 
 int get_omp_thread_num()
 {
-#if _OPENMP
+#ifdef _OPENMP
     return omp_get_thread_num();
 #else
     return 0;
+#endif
+}
+
+int get_kmp_blocktime()
+{
+#if defined(_OPENMP) && __clang__
+    return kmp_get_blocktime();
+#else
+    return 0;
+#endif
+}
+
+void set_kmp_blocktime(int time_ms)
+{
+#if defined(_OPENMP) && __clang__
+    kmp_set_blocktime(time_ms);
+#else
+    (void)time_ms;
 #endif
 }
 

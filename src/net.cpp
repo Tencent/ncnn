@@ -16,6 +16,7 @@
 
 #include "convolution.h"
 #include "convolutiondepthwise.h"
+#include "cpu.h"
 #include "datareader.h"
 #include "layer_type.h"
 #include "modelbin.h"
@@ -2556,6 +2557,9 @@ int Extractor::extract(int blob_index, Mat& feat)
     if (blob_index < 0 || blob_index >= (int)blob_mats.size())
         return -1;
 
+    int old_blocktime = get_kmp_blocktime();
+    set_kmp_blocktime(opt.openmp_blocktime);
+
     int ret = 0;
 
     if (blob_mats[blob_index].dims == 0)
@@ -2660,6 +2664,8 @@ int Extractor::extract(int blob_index, Mat& feat)
         feat = bottom_blob_unpacked;
     }
 
+    set_kmp_blocktime(old_blocktime);
+
     return ret;
 }
 
@@ -2751,6 +2757,9 @@ int Extractor::extract(int blob_index, VkImageMat& feat, VkCompute& cmd)
     if (blob_index < 0 || blob_index >= (int)blob_mats.size())
         return -1;
 
+    int old_blocktime = get_kmp_blocktime();
+    set_kmp_blocktime(opt.openmp_blocktime);
+
     int ret = 0;
 
     if (blob_mats_gpu_image[blob_index].dims == 0)
@@ -2766,6 +2775,8 @@ int Extractor::extract(int blob_index, VkImageMat& feat, VkCompute& cmd)
     }
 
     feat = blob_mats_gpu_image[blob_index];
+
+    set_kmp_blocktime(old_blocktime);
 
     return ret;
 }
