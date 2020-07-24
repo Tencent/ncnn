@@ -144,6 +144,10 @@ int Net::load_param(const DataReader& dr)
     blobs.resize((size_t)blob_count);
 
 #if NCNN_VULKAN
+    // TODO enable gpu when bf16 conversion implemented
+    if (opt.use_bf16_storage)
+        opt.use_vulkan_compute = false;
+
     if (opt.use_vulkan_compute)
     {
         if (!vkdev) vkdev = get_gpu_device();
@@ -347,6 +351,10 @@ int Net::load_param_bin(const DataReader& dr)
     blobs.resize(blob_count);
 
 #if NCNN_VULKAN
+    // TODO enable gpu when bf16 conversion implemented
+    if (opt.use_bf16_storage)
+        opt.use_vulkan_compute = false;
+
     if (opt.use_vulkan_compute)
     {
         if (!vkdev) vkdev = get_gpu_device();
@@ -1147,17 +1155,23 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             bottom_blob = bottom_blob_packed;
         }
 
+        Option opt1 = opt;
+        if (!layer->support_packing) opt1.use_packing_layout = false;
+        if (!layer->support_fp16_storage) opt1.use_fp16_storage = false;
+        if (!layer->support_bf16_storage) opt1.use_bf16_storage = false;
+        if (!layer->use_int8_inference) opt1.use_int8_inference = false;
+
         // forward
         if (opt.lightmode && layer->support_inplace)
         {
             Mat& bottom_top_blob = bottom_blob;
 #if NCNN_BENCHMARK
             double start = get_current_time();
-            int ret = layer->forward_inplace(bottom_top_blob, opt);
+            int ret = layer->forward_inplace(bottom_top_blob, opt1);
             double end = get_current_time();
             benchmark(layer, bottom_top_blob, bottom_top_blob, start, end);
 #else
-            int ret = layer->forward_inplace(bottom_top_blob, opt);
+            int ret = layer->forward_inplace(bottom_top_blob, opt1);
 #endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
@@ -1170,11 +1184,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             Mat top_blob;
 #if NCNN_BENCHMARK
             double start = get_current_time();
-            int ret = layer->forward(bottom_blob, top_blob, opt);
+            int ret = layer->forward(bottom_blob, top_blob, opt1);
             double end = get_current_time();
             benchmark(layer, bottom_blob, top_blob, start, end);
 #else
-            int ret = layer->forward(bottom_blob, top_blob, opt);
+            int ret = layer->forward(bottom_blob, top_blob, opt1);
 #endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
@@ -1241,17 +1255,23 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             }
         }
 
+        Option opt1 = opt;
+        if (!layer->support_packing) opt1.use_packing_layout = false;
+        if (!layer->support_fp16_storage) opt1.use_fp16_storage = false;
+        if (!layer->support_bf16_storage) opt1.use_bf16_storage = false;
+        if (!layer->use_int8_inference) opt1.use_int8_inference = false;
+
         // forward
         if (opt.lightmode && layer->support_inplace)
         {
             std::vector<Mat>& bottom_top_blobs = bottom_blobs;
 #if NCNN_BENCHMARK
             double start = get_current_time();
-            int ret = layer->forward_inplace(bottom_top_blobs, opt);
+            int ret = layer->forward_inplace(bottom_top_blobs, opt1);
             double end = get_current_time();
             benchmark(layer, start, end);
 #else
-            int ret = layer->forward_inplace(bottom_top_blobs, opt);
+            int ret = layer->forward_inplace(bottom_top_blobs, opt1);
 #endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
@@ -1269,11 +1289,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             std::vector<Mat> top_blobs(layer->tops.size());
 #if NCNN_BENCHMARK
             double start = get_current_time();
-            int ret = layer->forward(bottom_blobs, top_blobs, opt);
+            int ret = layer->forward(bottom_blobs, top_blobs, opt1);
             double end = get_current_time();
             benchmark(layer, start, end);
 #else
-            int ret = layer->forward(bottom_blobs, top_blobs, opt);
+            int ret = layer->forward(bottom_blobs, top_blobs, opt1);
 #endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
@@ -2665,6 +2685,16 @@ int Extractor::extract(int blob_index, Mat& feat)
         Mat bottom_blob_unpacked;
         convert_packing(feat, bottom_blob_unpacked, 1, opt);
         feat = bottom_blob_unpacked;
+    }
+
+    if (opt.use_bf16_storage)
+    {
+        if (feat.elemsize / feat.elempack == 2u)
+        {
+            Mat feat_fp32;
+            cast_bfloat16_to_float32(feat, feat_fp32, opt);
+            feat = feat_fp32;
+        }
     }
 
     set_kmp_blocktime(old_blocktime);
