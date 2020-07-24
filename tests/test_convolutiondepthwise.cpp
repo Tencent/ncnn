@@ -78,19 +78,19 @@ static int test_convolutiondepthwise_0()
         const int p = kdsp[i][3];
 
         int ret = 0
-                  || test_convolutiondepthwise(9, 7, 1, 1, k, d, s, p, 1, 1)
-                  || test_convolutiondepthwise(9, 7, 2, 2, k, d, s, p, 0, 1)
-                  || test_convolutiondepthwise(9, 7, 2, 2, k, d, s, p, 1, 2)
-                  || test_convolutiondepthwise(9, 7, 3, 3, k, d, s, p, 0, 3)
-                  || test_convolutiondepthwise(9, 7, 4, 2, k, d, s, p, 1, 2)
-                  || test_convolutiondepthwise(9, 7, 4, 4, k, d, s, p, 0, 4)
-                  || test_convolutiondepthwise(9, 7, 7, 7, k, d, s, p, 1, 7)
-                  || test_convolutiondepthwise(9, 7, 8, 8, k, d, s, p, 0, 2)
-                  || test_convolutiondepthwise(9, 7, 8, 8, k, d, s, p, 1, 8)
-                  || test_convolutiondepthwise(9, 7, 12, 12, k, d, s, p, 0, 4)
-                  || test_convolutiondepthwise(9, 7, 15, 15, k, d, s, p, 1, 15)
-                  || test_convolutiondepthwise(9, 7, 16, 8, k, d, s, p, 0, 2)
-                  || test_convolutiondepthwise(9, 7, 16, 16, k, d, s, p, 1, 16);
+                  || test_convolutiondepthwise(15, 7, 1, 1, k, d, s, p, 1, 1)
+                  || test_convolutiondepthwise(15, 7, 2, 2, k, d, s, p, 0, 1)
+                  || test_convolutiondepthwise(15, 7, 2, 2, k, d, s, p, 1, 2)
+                  || test_convolutiondepthwise(15, 7, 3, 3, k, d, s, p, 0, 3)
+                  || test_convolutiondepthwise(15, 7, 4, 2, k, d, s, p, 1, 2)
+                  || test_convolutiondepthwise(15, 7, 4, 4, k, d, s, p, 0, 4)
+                  || test_convolutiondepthwise(15, 7, 7, 7, k, d, s, p, 1, 7)
+                  || test_convolutiondepthwise(15, 7, 8, 8, k, d, s, p, 0, 2)
+                  || test_convolutiondepthwise(15, 7, 8, 8, k, d, s, p, 1, 8)
+                  || test_convolutiondepthwise(15, 7, 12, 12, k, d, s, p, 0, 4)
+                  || test_convolutiondepthwise(15, 7, 15, 15, k, d, s, p, 1, 15)
+                  || test_convolutiondepthwise(15, 7, 16, 8, k, d, s, p, 0, 2)
+                  || test_convolutiondepthwise(15, 7, 16, 16, k, d, s, p, 1, 16);
 
         if (ret != 0)
             return -1;
@@ -173,19 +173,19 @@ static int test_convolutiondepthwise_1()
         const int p = kdsp[i][3];
 
         int ret = 0
-                  || test_convolutiondepthwise_int8(9, 7, 1, 1, k, d, s, p, 1, 1)
-                  || test_convolutiondepthwise_int8(9, 7, 2, 2, k, d, s, p, 0, 1)
-                  || test_convolutiondepthwise_int8(9, 7, 2, 2, k, d, s, p, 1, 2)
-                  || test_convolutiondepthwise_int8(9, 7, 3, 3, k, d, s, p, 0, 3)
-                  || test_convolutiondepthwise_int8(9, 7, 4, 2, k, d, s, p, 1, 2)
-                  || test_convolutiondepthwise_int8(9, 7, 4, 4, k, d, s, p, 0, 4)
-                  || test_convolutiondepthwise_int8(9, 7, 7, 7, k, d, s, p, 1, 7)
-                  || test_convolutiondepthwise_int8(9, 7, 8, 8, k, d, s, p, 0, 2)
-                  || test_convolutiondepthwise_int8(9, 7, 8, 8, k, d, s, p, 1, 8)
-                  || test_convolutiondepthwise_int8(9, 7, 12, 12, k, d, s, p, 0, 4)
-                  || test_convolutiondepthwise_int8(9, 7, 15, 15, k, d, s, p, 1, 15)
-                  || test_convolutiondepthwise_int8(9, 7, 16, 8, k, d, s, p, 0, 2)
-                  || test_convolutiondepthwise_int8(9, 7, 16, 16, k, d, s, p, 1, 16);
+                  || test_convolutiondepthwise_int8(15, 7, 1, 1, k, d, s, p, 1, 1)
+                  || test_convolutiondepthwise_int8(15, 7, 2, 2, k, d, s, p, 0, 1)
+                  || test_convolutiondepthwise_int8(15, 7, 2, 2, k, d, s, p, 1, 2)
+                  || test_convolutiondepthwise_int8(15, 7, 3, 3, k, d, s, p, 0, 3)
+                  || test_convolutiondepthwise_int8(15, 7, 4, 2, k, d, s, p, 1, 2)
+                  || test_convolutiondepthwise_int8(15, 7, 4, 4, k, d, s, p, 0, 4)
+                  || test_convolutiondepthwise_int8(15, 7, 7, 7, k, d, s, p, 1, 7)
+                  || test_convolutiondepthwise_int8(15, 7, 8, 8, k, d, s, p, 0, 2)
+                  || test_convolutiondepthwise_int8(15, 7, 8, 8, k, d, s, p, 1, 8)
+                  || test_convolutiondepthwise_int8(15, 7, 12, 12, k, d, s, p, 0, 4)
+                  || test_convolutiondepthwise_int8(15, 7, 15, 15, k, d, s, p, 1, 15)
+                  || test_convolutiondepthwise_int8(15, 7, 16, 8, k, d, s, p, 0, 2)
+                  || test_convolutiondepthwise_int8(15, 7, 16, 16, k, d, s, p, 1, 16);
 
         if (ret != 0)
             return -1;
