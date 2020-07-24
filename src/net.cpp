@@ -196,6 +196,7 @@ int Net::load_param(const DataReader& dr)
             // no int8 gpu or packing layout support yet
             opt.use_vulkan_compute = false;
             opt.use_packing_layout = false;
+            opt.use_bf16_storage = false;
         }
 
 #if NCNN_VULKAN
@@ -396,6 +397,7 @@ int Net::load_param_bin(const DataReader& dr)
             // no int8 gpu or packing layout support yet
             opt.use_vulkan_compute = false;
             opt.use_packing_layout = false;
+            opt.use_bf16_storage = false;
         }
 
 #if NCNN_VULKAN
@@ -535,6 +537,7 @@ int Net::load_model(const DataReader& dr)
             // no int8 gpu or packing layout support yet
             opt.use_vulkan_compute = false;
             opt.use_packing_layout = false;
+            opt.use_bf16_storage = false;
         }
     }
 
