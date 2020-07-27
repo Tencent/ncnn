@@ -13,12 +13,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include "permute_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
 
-namespace ncnn {
+#include <algorithm>
 
-DEFINE_LAYER_CREATOR(Permute_vulkan)
+namespace ncnn {
 
 Permute_vulkan::Permute_vulkan()
 {
@@ -100,7 +100,7 @@ int Permute_vulkan::create_pipeline(const Option& _opt)
     specializations[1 + 8].i = out_shape_packed.c;
     specializations[1 + 9].i = out_shape_packed.cstep;
 
-    Mat local_size_xyz_bottom;// pack4to1 and pack8to1
+    Mat local_size_xyz_bottom; // pack4to1 and pack8to1
     if (shape_packed.dims == 2)
     {
         local_size_xyz_bottom.w = std::min(8, shape_packed.w);
@@ -274,8 +274,8 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
-            if (out_elempack == 8) out_elemsize = 8*2u;
-            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 8) out_elemsize = 8 * 2u;
+            if (out_elempack == 4) out_elemsize = 4 * 2u;
             if (out_elempack == 1) out_elemsize = 4u;
         }
 
@@ -333,8 +333,8 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
-            if (out_elempack == 8) out_elemsize = 8*2u;
-            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 8) out_elemsize = 8 * 2u;
+            if (out_elempack == 4) out_elemsize = 4 * 2u;
             if (out_elempack == 1) out_elemsize = 4u;
         }
 
@@ -438,8 +438,8 @@ int Permute_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
 
         if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
-            if (out_elempack == 8) out_elemsize = 8*2u;
-            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 8) out_elemsize = 8 * 2u;
+            if (out_elempack == 4) out_elemsize = 4 * 2u;
             if (out_elempack == 1) out_elemsize = 4u;
         }
 
@@ -497,8 +497,8 @@ int Permute_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
 
         if (opt.use_fp16_packed && !opt.use_fp16_storage)
         {
-            if (out_elempack == 8) out_elemsize = 8*2u;
-            if (out_elempack == 4) out_elemsize = 4*2u;
+            if (out_elempack == 8) out_elemsize = 8 * 2u;
+            if (out_elempack == 4) out_elemsize = 4 * 2u;
             if (out_elempack == 1) out_elemsize = 4u;
         }
 
@@ -516,12 +516,12 @@ int Permute_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
     constants[3].i = bottom_blob.c;
-    constants[4].i = 0;//bottom_blob.cstep;
+    constants[4].i = 0; //bottom_blob.cstep;
     constants[5].i = top_blob.dims;
     constants[6].i = top_blob.w;
     constants[7].i = top_blob.h;
     constants[8].i = top_blob.c;
-    constants[9].i = 0;//top_blob.cstep;
+    constants[9].i = 0; //top_blob.cstep;
 
     if (elempack == 1 && out_elempack == 1)
     {

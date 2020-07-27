@@ -15,11 +15,11 @@
 #ifndef NCNN_NET_H
 #define NCNN_NET_H
 
-#include "platform.h"
 #include "blob.h"
 #include "layer.h"
 #include "mat.h"
 #include "option.h"
+#include "platform.h"
 
 #if __ANDROID_API__ >= 9
 #include <android/asset_manager.h>
@@ -29,6 +29,7 @@ namespace ncnn {
 
 #if NCNN_VULKAN
 class VkCompute;
+class PipelineCache;
 #endif // NCNN_VULKAN
 class DataReader;
 class Extractor;
@@ -123,6 +124,10 @@ public:
     // construct an Extractor from network
     Extractor create_extractor() const;
 
+public:
+    std::vector<Blob> blobs;
+    std::vector<Layer*> layers;
+
 protected:
     // parse the structure of network
     // fuse int8 op dequantize and quantize by requantize
@@ -154,9 +159,6 @@ protected:
 #endif // NCNN_VULKAN
 
 protected:
-    std::vector<Blob> blobs;
-    std::vector<Layer*> layers;
-
     std::vector<layer_registry_entry> custom_layer_registry;
 
 #if NCNN_VULKAN
@@ -164,6 +166,8 @@ protected:
 
     VkAllocator* weight_vkallocator;
     VkAllocator* weight_staging_vkallocator;
+
+    PipelineCache* pipeline_cache;
 #endif // NCNN_VULKAN
 };
 

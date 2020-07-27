@@ -12,20 +12,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include "layer.h"
+
+#include <cstddef>
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
-#include <cstddef>
 #include <string>
 #include <vector>
-#include "layer.h"
 
 static std::vector<std::string> layer_names;
 static std::vector<std::string> blob_names;
 
 static int find_blob_index_by_name(const char* name)
 {
-    for (std::size_t i=0; i<blob_names.size(); i++)
+    for (std::size_t i = 0; i < blob_names.size(); i++)
     {
         if (blob_names[i] == name)
         {
@@ -39,7 +40,7 @@ static int find_blob_index_by_name(const char* name)
 
 static void sanitize_name(char* name)
 {
-    for (std::size_t i=0; i<strlen(name); i++)
+    for (std::size_t i = 0; i < strlen(name); i++)
     {
         if (!isalnum(name[i]))
         {
@@ -62,7 +63,7 @@ static std::string path_to_varname(const char* path)
 static bool vstr_is_float(const char vstr[16])
 {
     // look ahead for determine isfloat
-    for (int j=0; j<16; j++)
+    for (int j = 0; j < 16; j++)
     {
         if (vstr[j] == '\0')
             break;
@@ -78,7 +79,8 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
 {
     FILE* fp = fopen(parampath, "rb");
 
-    if (!fp){
+    if (!fp)
+    {
         fprintf(stderr, "fopen %s failed\n", parampath);
         return -1;
     }
@@ -119,7 +121,7 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
     blob_names.resize(blob_count);
 
     int blob_index = 0;
-    for (int i=0; i<layer_count; i++)
+    for (int i = 0; i < layer_count; i++)
     {
         char layer_type[33];
         char layer_name[257];
@@ -142,8 +144,8 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
 
         fprintf(ip, "const int LAYER_%s = %d;\n", layer_name, i);
 
-//         layer->bottoms.resize(bottom_count);
-        for (int j=0; j<bottom_count; j++)
+        //         layer->bottoms.resize(bottom_count);
+        for (int j = 0; j < bottom_count; j++)
         {
             char bottom_name[257];
             nscan = fscanf(fp, "%256s", bottom_name);
@@ -160,8 +162,8 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
             fwrite(&bottom_blob_index, sizeof(int), 1, mp);
         }
 
-//         layer->tops.resize(top_count);
-        for (int j=0; j<top_count; j++)
+        //         layer->tops.resize(top_count);
+        for (int j = 0; j < top_count; j++)
         {
             char blob_name[257];
             nscan = fscanf(fp, "%256s", blob_name);
@@ -283,7 +285,8 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
 
     FILE* mp = fopen(parambinpath, "rb");
 
-    if (!mp){
+    if (!mp)
+    {
         fprintf(stderr, "fopen %s failed\n", parambinpath);
         return -1;
     }
@@ -318,7 +321,8 @@ static int write_memcpp(const char* parambinpath, const char* modelpath, const c
 
     FILE* bp = fopen(modelpath, "rb");
 
-    if (!bp){
+    if (!bp)
+    {
         fprintf(stderr, "fopen %s failed\n", modelpath);
         return -1;
     }

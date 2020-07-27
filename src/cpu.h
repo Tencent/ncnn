@@ -27,6 +27,9 @@ int cpu_support_arm_vfpv4();
 // asimdhp = aarch64 asimd half precision
 int cpu_support_arm_asimdhp();
 
+// avx2 = x86_64 avx2 + fma + f16c
+int cpu_support_x86_avx2();
+
 // cpu info
 int get_cpu_count();
 
@@ -55,6 +58,9 @@ int get_omp_dynamic();
 void set_omp_dynamic(int dynamic);
 
 int get_omp_thread_num();
+
+int get_kmp_blocktime();
+void set_kmp_blocktime(int time_ms);
 
 } // namespace ncnn
 

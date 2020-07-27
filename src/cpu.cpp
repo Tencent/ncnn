@@ -13,34 +13,41 @@
 // specific language governing permissions and limitations under the License.
 
 #include "cpu.h"
+
 #include "platform.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
 
 #ifdef _OPENMP
 #include <omp.h>
 #endif
 
-#ifdef __ANDROID__
+#ifdef _MSC_VER
+#include <intrin.h>    // __cpuid()
+#include <immintrin.h> // _xgetbv()
+#endif
+
+#if defined __ANDROID__ || defined __linux__
+#include <stdint.h>
 #include <sys/syscall.h>
 #include <unistd.h>
-#include <stdint.h>
 #endif
 
 #if __APPLE__
 #include "TargetConditionals.h"
 #if TARGET_OS_IPHONE
-#include <sys/types.h>
-#include <sys/sysctl.h>
 #include <mach/machine.h>
+#include <sys/sysctl.h>
+#include <sys/types.h>
 #define __IOS__ 1
 #endif
 #endif
 
 namespace ncnn {
 
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
 
 // extract the ELF HW capabilities bitmap from /proc/self/auxv
 static unsigned int get_elf_hwcap_from_proc_self_auxv()
@@ -51,13 +58,21 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv()
         return 0;
     }
 
-#define AT_HWCAP 16
+#define AT_HWCAP  16
 #define AT_HWCAP2 26
 #if __aarch64__
 
-    struct { uint64_t tag; uint64_t value; } entry;
+    struct
+    {
+        uint64_t tag;
+        uint64_t value;
+    } entry;
 #else
-    struct { unsigned int tag; unsigned int value; } entry;
+    struct
+    {
+        unsigned int tag;
+        unsigned int value;
+    } entry;
 
 #endif
 
@@ -87,15 +102,15 @@ static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
 
 #if __aarch64__
 // from arch/arm64/include/uapi/asm/hwcap.h
-#define HWCAP_ASIMD     (1 << 1)
-#define HWCAP_ASIMDHP   (1 << 10)
+#define HWCAP_ASIMD   (1 << 1)
+#define HWCAP_ASIMDHP (1 << 10)
 #else
 // from arch/arm/include/uapi/asm/hwcap.h
-#define HWCAP_NEON      (1 << 12)
-#define HWCAP_VFPv4     (1 << 16)
+#define HWCAP_NEON  (1 << 12)
+#define HWCAP_VFPv4 (1 << 16)
 #endif
 
-#endif // __ANDROID__
+#endif // defined __ANDROID__ || defined __linux__
 
 #if __IOS__
 static unsigned int get_hw_cpufamily()
@@ -129,7 +144,7 @@ static cpu_subtype_t g_hw_cpusubtype = get_hw_cpusubtype();
 
 int cpu_support_arm_neon()
 {
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
     return g_hwcaps & HWCAP_ASIMD;
 #else
@@ -148,7 +163,7 @@ int cpu_support_arm_neon()
 
 int cpu_support_arm_vfpv4()
 {
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
     // neon always enable fma and fp16
     return g_hwcaps & HWCAP_ASIMD;
@@ -168,7 +183,7 @@ int cpu_support_arm_vfpv4()
 
 int cpu_support_arm_asimdhp()
 {
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
 #if __aarch64__
     return g_hwcaps & HWCAP_ASIMDHP;
 #else
@@ -182,9 +197,48 @@ int cpu_support_arm_asimdhp()
 #ifndef CPUFAMILY_ARM_MONSOON_MISTRAL
 #define CPUFAMILY_ARM_MONSOON_MISTRAL 0xe81e7ef6
 #endif
-    return g_hw_cpufamily == CPUFAMILY_ARM_HURRICANE || g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL;
+#ifndef CPUFAMILY_ARM_VORTEX_TEMPEST
+#define CPUFAMILY_ARM_VORTEX_TEMPEST 0x07d34b9f
+#endif
+#ifndef CPUFAMILY_ARM_LIGHTNING_THUNDER
+#define CPUFAMILY_ARM_LIGHTNING_THUNDER 0x462504d2
+#endif
+    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER;
 #else
     return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_x86_avx2()
+{
+#if defined(__x86_64__)
+#ifdef _MSC_VER
+    // TODO move to init function
+    int cpu_info[4];
+    __cpuid(cpu_info, 0);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    __cpuid(cpu_info, 1);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & 0x10000000) || !(cpu_info[2] & 0x04000000) || !(cpu_info[2] & 0x08000000))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((_xgetbv(0) & 6) != 6)
+        return 0;
+
+    __cpuid(cpu_info, 7);
+    return cpu_info[1] & 0x00000020;
+#else
+    // TODO gcc-specific
+    __builtin_cpu_init();
+    return __builtin_cpu_supports("avx2");
 #endif
 #else
     return 0;
@@ -194,7 +248,7 @@ int cpu_support_arm_asimdhp()
 static int get_cpucount()
 {
     int count = 0;
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
     // get cpu count from /proc/cpuinfo
     FILE* fp = fopen("/proc/cpuinfo", "rb");
     if (!fp)
@@ -243,7 +297,7 @@ int get_cpu_count()
     return g_cpucount;
 }
 
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
 static int get_max_freq_khz(int cpuid)
 {
     // first try, for all possible cpu
@@ -319,17 +373,17 @@ static int set_sched_affinity(size_t thread_affinity_mask)
 {
     // cpu_set_t definition
     // ref http://stackoverflow.com/questions/16319725/android-set-thread-affinity
-#define CPU_SETSIZE 1024
-#define __NCPUBITS  (8 * sizeof (unsigned long))
-typedef struct
-{
-    unsigned long __bits[CPU_SETSIZE / __NCPUBITS];
-} cpu_set_t;
+#define NCNN_CPU_SETSIZE 1024
+#define __NCNN_NCPUBITS  (8 * sizeof(unsigned long))
+    typedef struct
+    {
+        unsigned long __bits[NCNN_CPU_SETSIZE / __NCNN_NCPUBITS];
+    } cpu_set_t;
 
-#define CPU_SET(cpu, cpusetp) \
-    ((cpusetp)->__bits[(cpu)/__NCPUBITS] |= (1UL << ((cpu) % __NCPUBITS)))
+#define NCNN_CPU_SET(cpu, cpusetp) \
+    ((cpusetp)->__bits[(cpu) / __NCNN_NCPUBITS] |= (1UL << ((cpu) % __NCNN_NCPUBITS)))
 
-#define CPU_ZERO(cpusetp) \
+#define NCNN_CPU_ZERO(cpusetp) \
     memset((cpusetp), 0, sizeof(cpu_set_t))
 
     // set affinity for thread
@@ -343,11 +397,13 @@ typedef struct
 #endif
 #endif
     cpu_set_t mask;
-    CPU_ZERO(&mask);
-    for (int i=0; i<(int)sizeof(size_t) * 8; i++)
+    NCNN_CPU_ZERO(&mask);
+    for (int i = 0; i < (int)sizeof(size_t) * 8; i++)
     {
-        if (thread_affinity_mask & (1 << i))
-            CPU_SET(i, &mask);
+        if (thread_affinity_mask & (1ul << i))
+        {
+            NCNN_CPU_SET(i, &mask);
+        }
     }
 
     int syscallret = syscall(__NR_sched_setaffinity, pid, sizeof(mask), &mask);
@@ -359,7 +415,7 @@ typedef struct
 
     return 0;
 }
-#endif // __ANDROID__
+#endif // defined __ANDROID__ || defined __linux__
 
 static int g_powersave = 0;
 
@@ -393,17 +449,17 @@ static size_t g_thread_affinity_mask_big = 0;
 
 static int setup_thread_affinity_masks()
 {
-    g_thread_affinity_mask_all = (1 << g_cpucount) - 1;
+    g_thread_affinity_mask_all = (1ul << g_cpucount) - 1;
 
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
     int max_freq_khz_min = INT_MAX;
     int max_freq_khz_max = 0;
     std::vector<int> cpu_max_freq_khz(g_cpucount);
-    for (int i=0; i<g_cpucount; i++)
+    for (int i = 0; i < g_cpucount; i++)
     {
         int max_freq_khz = get_max_freq_khz(i);
 
-//         NCNN_LOGE("%d max freq = %d khz", i, max_freq_khz);
+        //         NCNN_LOGE("%d max freq = %d khz", i, max_freq_khz);
 
         cpu_max_freq_khz[i] = max_freq_khz;
 
@@ -421,12 +477,12 @@ static int setup_thread_affinity_masks()
         return 0;
     }
 
-    for (int i=0; i<g_cpucount; i++)
+    for (int i = 0; i < g_cpucount; i++)
     {
         if (cpu_max_freq_khz[i] < max_freq_khz_medium)
-            g_thread_affinity_mask_little |= (1 << i);
+            g_thread_affinity_mask_little |= (1ul << i);
         else
-            g_thread_affinity_mask_big |= (1 << i);
+            g_thread_affinity_mask_big |= (1ul << i);
     }
 #else
     // TODO implement me for other platforms
@@ -468,11 +524,11 @@ size_t get_cpu_thread_affinity_mask(int powersave)
 
 int set_cpu_thread_affinity(size_t thread_affinity_mask)
 {
-#ifdef __ANDROID__
+#if defined __ANDROID__ || defined __linux__
     int num_threads = 0;
-    for (int i=0; i<(int)sizeof(size_t) * 8; i++)
+    for (int i = 0; i < (int)sizeof(size_t) * 8; i++)
     {
-        if (thread_affinity_mask & (1 << i))
+        if (thread_affinity_mask & (1ul << i))
             num_threads++;
     }
 
@@ -481,11 +537,11 @@ int set_cpu_thread_affinity(size_t thread_affinity_mask)
     set_omp_num_threads(num_threads);
     std::vector<int> ssarets(num_threads, 0);
     #pragma omp parallel for num_threads(num_threads)
-    for (int i=0; i<num_threads; i++)
+    for (int i = 0; i < num_threads; i++)
     {
         ssarets[i] = set_sched_affinity(thread_affinity_mask);
     }
-    for (int i=0; i<num_threads; i++)
+    for (int i = 0; i < num_threads; i++)
     {
         if (ssarets[i] != 0)
             return -1;
@@ -546,10 +602,28 @@ void set_omp_dynamic(int dynamic)
 
 int get_omp_thread_num()
 {
-#if _OPENMP
+#ifdef _OPENMP
     return omp_get_thread_num();
 #else
     return 0;
+#endif
+}
+
+int get_kmp_blocktime()
+{
+#if defined(_OPENMP) && __clang__
+    return kmp_get_blocktime();
+#else
+    return 0;
+#endif
+}
+
+void set_kmp_blocktime(int time_ms)
+{
+#if defined(_OPENMP) && __clang__
+    kmp_set_blocktime(time_ms);
+#else
+    (void)time_ms;
 #endif
 }
 

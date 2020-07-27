@@ -14,17 +14,16 @@
 
 #include "sigmoid_mips.h"
 
-#if __MIPS_MSA
-#include <msa.h>
+#if __mips_msa
 #include "mips_common.h"
 #include "mips_mathfun.h"
-#endif // __MIPS_MSA
+
+#include <msa.h>
+#endif // __mips_msa
 
 #include <math.h>
 
 namespace ncnn {
-
-DEFINE_LAYER_CREATOR(Sigmoid_mips)
 
 int Sigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
@@ -34,20 +33,20 @@ int Sigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int size = w * h;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
-#if __MIPS_MSA
+#if __mips_msa
         int nn = size >> 2;
         int remain = size - (nn << 2);
 #else
         int remain = size;
-#endif // __MIPS_MSA
+#endif // __mips_msa
 
-#if __MIPS_MSA
+#if __mips_msa
         v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
-        for (; nn>0; nn--)
+        for (; nn > 0; nn--)
         {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             _p = (v4f32)__msa_bnegi_w((v4u32)_p, 31);
@@ -58,8 +57,8 @@ int Sigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             ptr += 4;
         }
-#endif // __MIPS_MSA
-        for (; remain>0; remain--)
+#endif // __mips_msa
+        for (; remain > 0; remain--)
         {
             *ptr = 1.f / (1.f + exp(-*ptr));
 

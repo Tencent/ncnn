@@ -13,12 +13,12 @@
 // specific language governing permissions and limitations under the License.
 
 #include "reorg_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
 
-namespace ncnn {
+#include <algorithm>
 
-DEFINE_LAYER_CREATOR(Reorg_vulkan)
+namespace ncnn {
 
 Reorg_vulkan::Reorg_vulkan()
 {
@@ -196,8 +196,8 @@ int Reorg_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& 
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_elempack == 8) out_elemsize = 8*2u;
-        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
@@ -269,8 +269,8 @@ int Reorg_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, V
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_elempack == 8) out_elemsize = 8*2u;
-        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
@@ -287,12 +287,12 @@ int Reorg_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, V
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
     constants[3].i = bottom_blob.c;
-    constants[4].i = 0;//bottom_blob.cstep;
+    constants[4].i = 0; //bottom_blob.cstep;
     constants[5].i = top_blob.dims;
     constants[6].i = top_blob.w;
     constants[7].i = top_blob.h;
     constants[8].i = top_blob.c;
-    constants[9].i = 0;//top_blob.cstep;
+    constants[9].i = 0; //top_blob.cstep;
 
     const Pipeline* pipeline = 0;
     if (elempack == 1 && out_elempack == 1)

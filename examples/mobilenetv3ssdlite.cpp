@@ -12,20 +12,20 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <stdio.h>
-#include <vector>
+#include "net.h"
+#include "platform.h"
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-
-#include "platform.h"
-#include "net.h"
+#include <stdio.h>
+#include <vector>
 #if NCNN_VULKAN
 #include "gpu.h"
 #endif // NCNN_VULKAN
 
 template<class T>
-const T& clamp(const T&v, const T& lo, const T& hi)
+const T& clamp(const T& v, const T& lo, const T& hi)
 {
     assert(!(hi < lo));
     return v < lo ? lo : hi < v ? hi : v;
@@ -68,11 +68,11 @@ static int detect_mobilenetv3(const cv::Mat& bgr, std::vector<Object>& objects)
     ex.input("input", in);
 
     ncnn::Mat out;
-    ex.extract("detection_out",out);
+    ex.extract("detection_out", out);
 
-//     printf("%d %d %d\n", out.w, out.h, out.c);
+    //     printf("%d %d %d\n", out.w, out.h, out.c);
     objects.clear();
-    for (int i=0; i<out.h; i++)
+    for (int i = 0; i < out.h; i++)
     {
         const float* values = out.row(i);
 
@@ -84,7 +84,7 @@ static int detect_mobilenetv3(const cv::Mat& bgr, std::vector<Object>& objects)
         float x1 = clamp(values[2] * target_size, 0.f, float(target_size - 1)) / target_size * img_w;
         float y1 = clamp(values[3] * target_size, 0.f, float(target_size - 1)) / target_size * img_h;
         float x2 = clamp(values[4] * target_size, 0.f, float(target_size - 1)) / target_size * img_w;
-        float y2 = clamp(values[5] * target_size, 0.f, float(target_size - 1)) / target_size * img_h;		
+        float y2 = clamp(values[5] * target_size, 0.f, float(target_size - 1)) / target_size * img_h;
 
         object.rect.x = x1;
         object.rect.y = y1;
@@ -100,44 +100,45 @@ static int detect_mobilenetv3(const cv::Mat& bgr, std::vector<Object>& objects)
 static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
 {
     static const char* class_names[] = {"background",
-        "aeroplane", "bicycle", "bird", "boat",
-        "bottle", "bus", "car", "cat", "chair",
-        "cow", "diningtable", "dog", "horse",
-        "motorbike", "person", "pottedplant",
-        "sheep", "sofa", "train", "tvmonitor"};
+                                        "aeroplane", "bicycle", "bird", "boat",
+                                        "bottle", "bus", "car", "cat", "chair",
+                                        "cow", "diningtable", "dog", "horse",
+                                        "motorbike", "person", "pottedplant",
+                                        "sheep", "sofa", "train", "tvmonitor"
+                                       };
 
     cv::Mat image = bgr.clone();
 
     for (size_t i = 0; i < objects.size(); i++)
     {
-        if (objects[i].prob > 0.6) 
-	  {
-	    const Object& obj = objects[i];
+        if (objects[i].prob > 0.6)
+        {
+            const Object& obj = objects[i];
 
-	    fprintf(stderr, "%d = %.5f at %.2f %.2f %.2f x %.2f\n", obj.label, obj.prob,
-		    obj.rect.x, obj.rect.y, obj.rect.width, obj.rect.height);
+            fprintf(stderr, "%d = %.5f at %.2f %.2f %.2f x %.2f\n", obj.label, obj.prob,
+                    obj.rect.x, obj.rect.y, obj.rect.width, obj.rect.height);
 
-	    cv::rectangle(image, obj.rect, cv::Scalar(255, 0, 0));
+            cv::rectangle(image, obj.rect, cv::Scalar(255, 0, 0));
 
-	    char text[256];
-	    sprintf(text, "%s %.1f%%", class_names[obj.label], obj.prob * 100);
+            char text[256];
+            sprintf(text, "%s %.1f%%", class_names[obj.label], obj.prob * 100);
 
-	    int baseLine = 0;
-	    cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
+            int baseLine = 0;
+            cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
 
-	    int x = obj.rect.x;
-	    int y = obj.rect.y - label_size.height - baseLine;
+            int x = obj.rect.x;
+            int y = obj.rect.y - label_size.height - baseLine;
             if (y < 0)
-	        y = 0;
-	    if (x + label_size.width > image.cols)
-		x = image.cols - label_size.width;
+                y = 0;
+            if (x + label_size.width > image.cols)
+                x = image.cols - label_size.width;
 
-	    cv::rectangle(image, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-		          cv::Scalar(255, 255, 255), -1);
+            cv::rectangle(image, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
+                          cv::Scalar(255, 255, 255), -1);
 
-	    cv::putText(image, text, cv::Point(x, y + label_size.height),
-		        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
-	  }
+            cv::putText(image, text, cv::Point(x, y + label_size.height),
+                        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+        }
     }
 
     cv::imshow("image", image);
@@ -161,16 +162,8 @@ int main(int argc, char** argv)
         return -1;
     }
 
-#if NCNN_VULKAN
-    ncnn::create_gpu_instance();
-#endif // NCNN_VULKAN
-
     std::vector<Object> objects;
     detect_mobilenetv3(m, objects);
-
-#if NCNN_VULKAN
-    ncnn::destroy_gpu_instance();
-#endif // NCNN_VULKAN
 
     draw_objects(m, objects);
 

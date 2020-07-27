@@ -1,4 +1,4 @@
-```
+```c
 // v寄存器全部使用 %.4s
 // 128-bit vreg matches %.4s
 // a += b * c
@@ -14,7 +14,7 @@ asm volatile(
     :
 );
 ```
-```
+```c
 // v寄存器使用低64位  %.2s
 // low 64-bit vreg matches %.2s
 // a += b * c
@@ -30,7 +30,7 @@ asm volatile(
     :
 );
 ```
-```
+```c
 // v寄存器单路使用 %.s[0] %.s[1] %.s[2] %.s[3]
 // 32-bit register matches %.s[0]
 // a += b * c[0]

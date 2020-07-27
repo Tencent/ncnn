@@ -16,13 +16,15 @@
 
 #if NCNN_VULKAN
 
-#include <algorithm>
 #include "option.h"
 #include "pipeline.h"
 
+#include <algorithm>
+
 namespace ncnn {
 
-VkCompute::VkCompute(const VulkanDevice* _vkdev) : vkdev(_vkdev)
+VkCompute::VkCompute(const VulkanDevice* _vkdev)
+    : vkdev(_vkdev)
 {
     compute_command_pool = 0;
     compute_command_buffer = 0;
@@ -38,7 +40,7 @@ VkCompute::VkCompute(const VulkanDevice* _vkdev) : vkdev(_vkdev)
 
 VkCompute::~VkCompute()
 {
-    for (size_t i=0; i<image_blocks_to_destroy.size(); i++)
+    for (size_t i = 0; i < image_blocks_to_destroy.size(); i++)
     {
         VkImageMemory* ptr = image_blocks_to_destroy[i];
 
@@ -60,7 +62,7 @@ VkCompute::~VkCompute()
 
     if (!vkdev->info.support_VK_KHR_push_descriptor)
     {
-        for (size_t i=0; i<descriptorsets.size(); i++)
+        for (size_t i = 0; i < descriptorsets.size(); i++)
         {
             vkFreeDescriptorSets(vkdev->vkdevice(), descriptor_pools[i], 1, &descriptorsets[i]);
             vkDestroyDescriptorPool(vkdev->vkdevice(), descriptor_pools[i], 0);
@@ -85,7 +87,7 @@ VkCompute::~VkCompute()
 
 void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 {
-//     NCNN_LOGE("record_upload buffer");
+    //     NCNN_LOGE("record_upload buffer");
 
     Mat src_fp16;
     if (src.elemsize == src.elempack * 4u)
@@ -121,7 +123,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     // stash staging
     upload_staging_buffers.push_back(dst_staging);
 
-//     NCNN_LOGE("upload_staging_buffer %p  ->   %p +%d ~%d", src_fp16.data, dst_staging.buffer(), dst_staging.buffer_offset(), dst_staging.buffer_capacity());
+    //     NCNN_LOGE("upload_staging_buffer %p  ->   %p +%d ~%d", src_fp16.data, dst_staging.buffer(), dst_staging.buffer_offset(), dst_staging.buffer_capacity());
 
     // memcpy src to device
     memcpy(dst_staging.mapped_ptr(), src_fp16.data, src_fp16.total() * src_fp16.elemsize);
@@ -150,7 +152,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
 void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt)
 {
-//     NCNN_LOGE("record_upload image");
+    //     NCNN_LOGE("record_upload image");
 
     Mat src_fp16;
     if (src.elemsize == src.elempack * 4u)
@@ -213,7 +215,7 @@ void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt
 
 void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 {
-//     NCNN_LOGE("record_download buffer");
+    //     NCNN_LOGE("record_download buffer");
 
     // resolve dst_elempack
     int dims = src.dims;
@@ -341,7 +343,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
 void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& opt)
 {
-//     NCNN_LOGE("record_download image");
+    //     NCNN_LOGE("record_download image");
 
     // resolve dst_elempack
     int dims = src.dims;
@@ -469,7 +471,7 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
 
 void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const Option& opt)
 {
-//     NCNN_LOGE("record_buffer_to_image");
+    //     NCNN_LOGE("record_buffer_to_image");
 
     // resolve dst_elempack
     int dims = src.dims;
@@ -489,7 +491,7 @@ void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const 
 
 void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const Option& opt)
 {
-//     NCNN_LOGE("record_image_to_buffer");
+    //     NCNN_LOGE("record_image_to_buffer");
 
     // resolve dst_elempack
     int dims = src.dims;
@@ -509,7 +511,7 @@ void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const 
 
 void VkCompute::record_clone(const Mat& src, VkMat& dst, const Option& opt)
 {
-//     NCNN_LOGE("record_clone host to buffer");
+    //     NCNN_LOGE("record_clone host to buffer");
 
     if (!opt.blob_vkallocator->mappable)
     {
@@ -544,7 +546,7 @@ void VkCompute::record_clone(const Mat& src, VkMat& dst, const Option& opt)
 
 void VkCompute::record_clone(const Mat& src, VkImageMat& dst, const Option& opt)
 {
-//     NCNN_LOGE("record_clone host to image");
+    //     NCNN_LOGE("record_clone host to image");
 
     // host to staging
     VkMat dst_staging;
@@ -561,7 +563,7 @@ void VkCompute::record_clone(const Mat& src, VkImageMat& dst, const Option& opt)
 
 void VkCompute::record_clone(const VkMat& src, Mat& dst, const Option& opt)
 {
-//     NCNN_LOGE("record_clone buffer to host");
+    //     NCNN_LOGE("record_clone buffer to host");
 
     if (!src.allocator->mappable)
     {
@@ -638,7 +640,7 @@ void VkCompute::record_clone(const VkMat& src, Mat& dst, const Option& opt)
 
 void VkCompute::record_clone(const VkImageMat& src, Mat& dst, const Option& opt)
 {
-//     NCNN_LOGE("record_clone image to host");
+    //     NCNN_LOGE("record_clone image to host");
 
     // image to staging
     VkMat src_staging;
@@ -652,7 +654,7 @@ void VkCompute::record_clone(const VkImageMat& src, Mat& dst, const Option& opt)
 
 void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
 {
-//     NCNN_LOGE("record_clone buffer to buffer");
+    //     NCNN_LOGE("record_clone buffer to buffer");
 
     // create dst
     dst.create_like(src, opt.blob_vkallocator);
@@ -734,7 +736,7 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
 
 void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Option& opt)
 {
-//     NCNN_LOGE("record_clone image to image");
+    //     NCNN_LOGE("record_clone image to image");
 
     // create dst
     dst.create_like(src, opt.blob_vkallocator);
@@ -880,7 +882,7 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
 
 void VkCompute::record_clone(const VkMat& src, VkImageMat& dst, const Option& opt)
 {
-//     NCNN_LOGE("record_clone buffer to image");
+    //     NCNN_LOGE("record_clone buffer to image");
 
     // create dst
     dst.create_like(src, opt.blob_vkallocator);
@@ -1040,7 +1042,7 @@ void VkCompute::record_clone(const VkMat& src, VkImageMat& dst, const Option& op
 
 void VkCompute::record_clone(const VkImageMat& src, VkMat& dst, const Option& opt)
 {
-//     NCNN_LOGE("record_clone image to buffer");
+    //     NCNN_LOGE("record_clone image to buffer");
 
     // create dst
     dst.create_like(src, opt.blob_vkallocator);
@@ -1194,7 +1196,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
 void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const Mat& dispatcher)
 {
-//     NCNN_LOGE("record_pipeline %p", pipeline);
+    //     NCNN_LOGE("record_pipeline %p", pipeline);
 
     const int buffer_binding_count = (int)buffer_bindings.size();
     const int image_binding_count = (int)image_bindings.size();
@@ -1214,7 +1216,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
     int buffer_index = 0;
     int image_index = 0;
-    for (int i=0; i<binding_count; i++)
+    for (int i = 0; i < binding_count; i++)
     {
         int binding_type = pipeline->shader_info.binding_types[i];
 
@@ -1223,7 +1225,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             const VkMat& binding = buffer_bindings[buffer_index].empty() ? vkdev->get_dummy_buffer() : buffer_bindings[buffer_index];
             buffer_index++;
 
-//             NCNN_LOGE("binding #%d buffer = %d %d %d %d @ %lu %d = %p +%ld ~%ld", i, binding.dims, binding.w, binding.h, binding.c, binding.elemsize, binding.elempack, binding.buffer(), binding.buffer_offset(), binding.buffer_capacity());
+            //             NCNN_LOGE("binding #%d buffer = %d %d %d %d @ %lu %d = %p +%ld ~%ld", i, binding.dims, binding.w, binding.h, binding.c, binding.elemsize, binding.elempack, binding.buffer(), binding.buffer_offset(), binding.buffer_capacity());
 
             if (binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
             {
@@ -1269,7 +1271,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             const VkImageMat& binding = image_bindings[image_index].empty() ? vkdev->get_dummy_image() : image_bindings[image_index];
             image_index++;
 
-//             NCNN_LOGE("binding #%d image = %d %d %d %d @ %lu %d = %p +%ld ~%ld %p", i, binding.dims, binding.w, binding.h, binding.c, binding.elemsize, binding.elempack, binding.image(), binding.data->bind_offset, binding.data->bind_capacity, binding.imageview());
+            //             NCNN_LOGE("binding #%d image = %d %d %d %d @ %lu %d = %p +%ld ~%ld %p", i, binding.dims, binding.w, binding.h, binding.c, binding.elemsize, binding.elempack, binding.image(), binding.data->bind_offset, binding.data->bind_capacity, binding.imageview());
 
             if (binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->image_layout != VK_IMAGE_LAYOUT_GENERAL || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
             {
@@ -1325,11 +1327,11 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             const VkImageMat& binding = image_bindings[image_index].empty() ? vkdev->get_dummy_image() : image_bindings[image_index];
             image_index++;
 
-//             NCNN_LOGE("binding #%d sampler = %d %d %d %d @ %lu %d = %p +%ld ~%ld %p", i, binding.dims, binding.w, binding.h, binding.c, binding.elemsize, binding.elempack, binding.image(), binding.data->bind_offset, binding.data->bind_capacity, binding.imageview());
+            //             NCNN_LOGE("binding #%d sampler = %d %d %d %d @ %lu %d = %p +%ld ~%ld %p", i, binding.dims, binding.w, binding.h, binding.c, binding.elemsize, binding.elempack, binding.image(), binding.data->bind_offset, binding.data->bind_capacity, binding.imageview());
 
             // if the same image used for both storage image and combined image sampler
             // only apply image layout transition to general
-            for (int j=0; j<image_binding_count; j++)
+            for (int j = 0; j < image_binding_count; j++)
             {
                 if (pipeline->shader_info.binding_types[j] == 2 && binding.data == image_bindings[j].data)
                 {
@@ -1416,7 +1418,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             unsigned char* p_descriptorInfos = descriptorInfos.data();
             int descriptorBufferInfo_index = 0;
             int descriptorImageInfo_index = 0;
-            for (int i=0; i<binding_count; i++)
+            for (int i = 0; i < binding_count; i++)
             {
                 int binding_type = pipeline->shader_info.binding_types[i];
 
@@ -1461,7 +1463,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             {
                 int image_binding_count = 0;
                 int sampler_binding_count = 0;
-                for (int i=0; i<binding_count; i++)
+                for (int i = 0; i < binding_count; i++)
                 {
                     int binding_type = pipeline->shader_info.binding_types[i];
 
@@ -1523,7 +1525,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
                 std::vector<VkWriteDescriptorSet> writeDescriptorSets(binding_count);
                 {
                     const unsigned char* p_descriptorInfos = descriptorInfos.data();
-                    for (int i=0; i<binding_count; i++)
+                    for (int i = 0; i < binding_count; i++)
                     {
                         int binding_type = pipeline->shader_info.binding_types[i];
 
@@ -2075,7 +2077,7 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
 
 int VkCompute::submit_and_wait()
 {
-//     NCNN_LOGE("submit_and_wait");
+    //     NCNN_LOGE("submit_and_wait");
 
     if (!vkdev->info.support_VK_KHR_push_descriptor)
     {
@@ -2089,7 +2091,7 @@ int VkCompute::submit_and_wait()
         const size_t record_count = delayed_records.size();
 
         // handle delayed records
-        for (size_t i=0; i<record_count; i++)
+        for (size_t i = 0; i < record_count; i++)
         {
             const record& r = delayed_records[i];
 
@@ -2221,7 +2223,7 @@ int VkCompute::submit_and_wait()
     }
 
     // handle delayed post records
-    for (size_t i=0; i<delayed_records.size(); i++)
+    for (size_t i = 0; i < delayed_records.size(); i++)
     {
         const record& r = delayed_records[i];
 
@@ -2232,7 +2234,7 @@ int VkCompute::submit_and_wait()
             const VkMat& src = download_post_buffers[r.post_download.download_post_buffer_mat_offset];
             Mat& dst = download_post_mats_fp16[r.post_download.download_post_mat_fp16_offset];
 
-//             NCNN_LOGE("post_download  %p +%d ~%d  -> %p", src.buffer(), src.buffer_offset(), src.buffer_capacity(), dst.data);
+            //             NCNN_LOGE("post_download  %p +%d ~%d  -> %p", src.buffer(), src.buffer_offset(), src.buffer_capacity(), dst.data);
 
             src.allocator->invalidate(src.data);
             memcpy(dst.data, src.mapped_ptr(), dst.total() * dst.elemsize);
@@ -2240,7 +2242,7 @@ int VkCompute::submit_and_wait()
         }
         case record::TYPE_post_cast_float16_to_float32:
         {
-//             NCNN_LOGE("post_cast_float16_to_float32");
+            //             NCNN_LOGE("post_cast_float16_to_float32");
 
             const Mat& src = download_post_mats_fp16[r.post_cast_float16_to_float32.download_post_mat_fp16_offset];
             Mat& dst = download_post_mats[r.post_cast_float16_to_float32.download_post_mat_offset];
@@ -2267,7 +2269,7 @@ int VkCompute::reset()
     download_post_mats_fp16.clear();
     download_post_mats.clear();
 
-    for (size_t i=0; i<image_blocks_to_destroy.size(); i++)
+    for (size_t i = 0; i < image_blocks_to_destroy.size(); i++)
     {
         VkImageMemory* ptr = image_blocks_to_destroy[i];
 
@@ -2289,7 +2291,7 @@ int VkCompute::reset()
 
     if (!vkdev->info.support_VK_KHR_push_descriptor)
     {
-        for (size_t i=0; i<descriptorsets.size(); i++)
+        for (size_t i = 0; i < descriptorsets.size(); i++)
         {
             vkFreeDescriptorSets(vkdev->vkdevice(), descriptor_pools[i], 1, &descriptorsets[i]);
             vkDestroyDescriptorPool(vkdev->vkdevice(), descriptor_pools[i], 0);
@@ -2473,7 +2475,8 @@ int VkCompute::end_command_buffer()
     return 0;
 }
 
-VkTransfer::VkTransfer(const VulkanDevice* _vkdev) : vkdev(_vkdev)
+VkTransfer::VkTransfer(const VulkanDevice* _vkdev)
+    : vkdev(_vkdev)
 {
     compute_command_pool = 0;
     transfer_command_pool = 0;
@@ -2509,7 +2512,7 @@ VkTransfer::~VkTransfer()
 
 void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bool flatten)
 {
-//     NCNN_LOGE("record_upload src = %d | %d %d %d @ %d", src.dims, src.w, src.h, src.c, src.elempack);
+    //     NCNN_LOGE("record_upload src = %d | %d %d %d @ %d", src.dims, src.w, src.h, src.c, src.elempack);
 
     // NOTE keep the hack here ?
     if (src.elemsize == src.elempack * 4u)
@@ -2688,7 +2691,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
 
 void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& opt)
 {
-//     NCNN_LOGE("record_upload image src = %d | %d %d %d @ %d", src.dims, src.w, src.h, src.c, src.elempack);
+    //     NCNN_LOGE("record_upload image src = %d | %d %d %d @ %d", src.dims, src.w, src.h, src.c, src.elempack);
 
     // NOTE keep the hack here ?
     if (src.elemsize == src.elempack * 4u)
@@ -2885,7 +2888,7 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
 
 int VkTransfer::submit_and_wait()
 {
-//     NCNN_LOGE("submit_and_wait");
+    //     NCNN_LOGE("submit_and_wait");
 
     // end command buffer
     {
@@ -2956,7 +2959,7 @@ int VkTransfer::submit_and_wait()
             }
         }
         {
-            VkPipelineStageFlags wait_dst_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;// FIXME
+            VkPipelineStageFlags wait_dst_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT; // FIXME
 
             VkSubmitInfo submitInfo;
             submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -2996,7 +2999,7 @@ int VkTransfer::submit_and_wait()
     }
     else
     {
-        VkFence fences[2] = { upload_command_fence, compute_command_fence };
+        VkFence fences[2] = {upload_command_fence, compute_command_fence};
 
         VkResult ret = vkWaitForFences(vkdev->vkdevice(), 2, fences, VK_TRUE, UINT64_MAX);
         if (ret != VK_SUCCESS)

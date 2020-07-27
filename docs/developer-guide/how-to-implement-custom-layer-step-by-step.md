@@ -1,5 +1,5 @@
 # step1 create a new empty class
-```
+```cpp
 // mylayer.h
 #include "layer.h"
 using namespace ncnn;
@@ -15,7 +15,7 @@ DEFINE_LAYER_CREATOR(MyLayer)
 ```
 
 # step2 declare layer parameters and weights
-```
+```cpp
 // mylayer.h
 #include "layer.h"
 using namespace ncnn;
@@ -34,7 +34,7 @@ DEFINE_LAYER_CREATOR(MyLayer)
 ```
 
 # step3 implment load functions for parameters and weights
-```
+```cpp
 // mylayer.h
 #include "layer.h"
 using namespace ncnn;
@@ -89,7 +89,7 @@ int MyLayer::load_model(const ModelBin& mb)
 ```
 
 # step4 determine forward behavior
-```
+```cpp
 // mylayer.h
 #include "layer.h"
 using namespace ncnn;
@@ -158,7 +158,7 @@ int MyLayer::load_model(const ModelBin& mb)
 ```
 
 # step5 choose proper interface based on forward behavior
-```
+```cpp
 // The base class Layer defines four interfaces for each forward behavior combination
 
 // 1
@@ -187,7 +187,7 @@ sometimes the graph inference path cannot call forward_inplace directly due to d
 |true|true| |optional| |must|
 
 # step6 implement forward function
-```
+```cpp
 // mylayer.h
 #include "layer.h"
 using namespace ncnn;
@@ -311,7 +311,7 @@ MyLayer          mylayer 1 1 conv2d mylayer0
 Pooling          maxpool 1 1 mylayer0 maxpool 0=0 1=3 2=2 3=-233 4=0
 ```
 
-```
+```cpp
 ncnn::Net net;
 
 // register custom layer before load param and model

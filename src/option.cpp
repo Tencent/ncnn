@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "option.h"
+
 #include "cpu.h"
 
 namespace ncnn {
@@ -28,12 +29,15 @@ Option::Option()
     blob_vkallocator = 0;
     workspace_vkallocator = 0;
     staging_vkallocator = 0;
+    pipeline_cache = 0;
 #endif // NCNN_VULKAN
+
+    openmp_blocktime = 20;
 
     use_winograd_convolution = true;
     use_sgemm_convolution = true;
     use_int8_inference = true;
-    use_vulkan_compute = false;// TODO enable me
+    use_vulkan_compute = false; // TODO enable me
 
     use_fp16_packed = true;
     use_fp16_storage = true;
@@ -48,6 +52,8 @@ Option::Option()
     use_image_storage = false;
 
     use_bf16_storage = false;
+
+    use_weight_fp16_storage = false;
 }
 
 } // namespace ncnn

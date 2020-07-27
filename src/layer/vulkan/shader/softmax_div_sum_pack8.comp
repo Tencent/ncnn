@@ -37,10 +37,6 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-layout (local_size_x_id = 233) in;
-layout (local_size_y_id = 234) in;
-layout (local_size_z_id = 235) in;
-
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler1D bottom_blob_1d;
 layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
@@ -144,6 +140,15 @@ void main()
     {
         sum = buffer_ld8(sum_workspace_data, gz * psc(h) + gy);
     }
+
+#if NCNN_fp16_packed || NCNN_fp16_storage
+    // NOTE reduce max may produce (X, undef, X, undef) on nvidia fp16p/fp16s
+    // TODO only enable this workaround for some nvidia driver
+    if (axis == 0)
+    {
+        sum = afpvec8(afpvec4(sum[0].r), afpvec4(sum[0].r));
+    }
+#endif
 #endif
 
     v[0] /= sum[0];

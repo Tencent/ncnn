@@ -39,10 +39,6 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-layout (local_size_x_id = 233) in;
-layout (local_size_y_id = 234) in;
-layout (local_size_z_id = 235) in;
-
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler1D bottom_blob;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image1D top_blob;
@@ -157,6 +153,10 @@ void main()
     if (activation_type == 4)
     {
         sum = afp(1.f) / (afp(1.f) + exp(-sum));
+    }
+    if (activation_type == 5)
+    {
+        sum = sum * tanh(log(exp(sum) + afp(1.f)));
     }
 
 #if NCNN_image_shader

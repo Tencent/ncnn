@@ -35,10 +35,6 @@ layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
 layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
 layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
-layout (local_size_x_id = 233) in;
-layout (local_size_y_id = 234) in;
-layout (local_size_z_id = 235) in;
-
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
@@ -104,6 +100,15 @@ void main()
         a = buffer_ld8(coeffs_blob_data, gy * psc(w) + gx);
 #endif
     }
+
+#if !NCNN_image_shader && (NCNN_fp16_packed || NCNN_fp16_storage)
+    // NOTE coeffs may produce (X, undef, X, undef) on nvidia fp16p/fp16s
+    // TODO only enable this workaround for some nvidia driver
+    if (across_channel == 1)
+    {
+        a = afpvec8(afpvec4(a[0].r), afpvec4(a[0].r));
+    }
+#endif
 
     v[0] = v[0] * a[0];
     v[1] = v[1] * a[1];
