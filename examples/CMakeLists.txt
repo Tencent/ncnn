@@ -13,6 +13,9 @@ if(NOT OpenCV_FOUND)
 endif()
 
 if(OpenCV_FOUND)
+    if(${OpenCV_VERSION_MAJOR} GREATER_EQUAL 4)
+        set(CMAKE_CXX_STANDARD 11)
+    endif()
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
     include_directories(${CMAKE_CURRENT_BINARY_DIR}/../src)
 
