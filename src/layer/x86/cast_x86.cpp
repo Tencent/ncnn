@@ -22,6 +22,7 @@
 #endif // __AVX__
 
 #if __AVX__
+#include <stdint.h>
 typedef union m128i
 {
     __m128i vec;
