@@ -282,11 +282,6 @@ static int get_cpucount()
     if (count < 1)
         count = 1;
 
-    if (count > (int)sizeof(size_t) * 8)
-    {
-        NCNN_LOGE("more than %d cpu detected, thread affinity may not work properly :(", (int)sizeof(size_t) * 8);
-    }
-
     return count;
 }
 
@@ -369,23 +364,8 @@ static int get_max_freq_khz(int cpuid)
     return max_freq_khz;
 }
 
-static int set_sched_affinity(size_t thread_affinity_mask)
+static int set_sched_affinity(CpuSet thread_affinity_mask)
 {
-    // cpu_set_t definition
-    // ref http://stackoverflow.com/questions/16319725/android-set-thread-affinity
-#define NCNN_CPU_SETSIZE 1024
-#define __NCNN_NCPUBITS  (8 * sizeof(unsigned long))
-    typedef struct
-    {
-        unsigned long __bits[NCNN_CPU_SETSIZE / __NCNN_NCPUBITS];
-    } cpu_set_t;
-
-#define NCNN_CPU_SET(cpu, cpusetp) \
-    ((cpusetp)->__bits[(cpu) / __NCNN_NCPUBITS] |= (1UL << ((cpu) % __NCNN_NCPUBITS)))
-
-#define NCNN_CPU_ZERO(cpusetp) \
-    memset((cpusetp), 0, sizeof(cpu_set_t))
-
     // set affinity for thread
 #ifdef __GLIBC__
     pid_t pid = syscall(SYS_gettid);
@@ -396,17 +376,8 @@ static int set_sched_affinity(size_t thread_affinity_mask)
     pid_t pid = gettid();
 #endif
 #endif
-    cpu_set_t mask;
-    NCNN_CPU_ZERO(&mask);
-    for (int i = 0; i < (int)sizeof(size_t) * 8; i++)
-    {
-        if (thread_affinity_mask & (1ul << i))
-        {
-            NCNN_CPU_SET(i, &mask);
-        }
-    }
 
-    int syscallret = syscall(__NR_sched_setaffinity, pid, sizeof(mask), &mask);
+    int syscallret = syscall(__NR_sched_setaffinity, pid, thread_affinity_mask.data_size(), thread_affinity_mask.data_ptr());
     if (syscallret)
     {
         NCNN_LOGE("syscall error %d", syscallret);
@@ -432,7 +403,7 @@ int set_cpu_powersave(int powersave)
         return -1;
     }
 
-    size_t thread_affinity_mask = get_cpu_thread_affinity_mask(powersave);
+    CpuSet thread_affinity_mask = get_cpu_thread_affinity_mask(powersave);
 
     int ret = set_cpu_thread_affinity(thread_affinity_mask);
     if (ret != 0)
@@ -443,13 +414,16 @@ int set_cpu_powersave(int powersave)
     return 0;
 }
 
-static size_t g_thread_affinity_mask_all = 0;
-static size_t g_thread_affinity_mask_little = 0;
-static size_t g_thread_affinity_mask_big = 0;
+static CpuSet g_thread_affinity_mask_all;
+static CpuSet g_thread_affinity_mask_little;
+static CpuSet g_thread_affinity_mask_big;
 
 static int setup_thread_affinity_masks()
 {
-    g_thread_affinity_mask_all = (1ul << g_cpucount) - 1;
+    for (int i = 0; i < g_cpucount; ++i)
+    {
+        g_thread_affinity_mask_all.clr(i);
+    }
 
 #if defined __ANDROID__ || defined __linux__
     int max_freq_khz_min = INT_MAX;
@@ -472,7 +446,7 @@ static int setup_thread_affinity_masks()
     int max_freq_khz_medium = (max_freq_khz_min + max_freq_khz_max) / 2;
     if (max_freq_khz_medium == max_freq_khz_max)
     {
-        g_thread_affinity_mask_little = 0;
+        g_thread_affinity_mask_little.zero();
         g_thread_affinity_mask_big = g_thread_affinity_mask_all;
         return 0;
     }
@@ -480,32 +454,22 @@ static int setup_thread_affinity_masks()
     for (int i = 0; i < g_cpucount; i++)
     {
         if (cpu_max_freq_khz[i] < max_freq_khz_medium)
-            g_thread_affinity_mask_little |= (1ul << i);
+            g_thread_affinity_mask_little.set(i);
         else
-            g_thread_affinity_mask_big |= (1ul << i);
+            g_thread_affinity_mask_big.set(i);
     }
 #else
     // TODO implement me for other platforms
-    g_thread_affinity_mask_little = 0;
+    g_thread_affinity_mask_little.zero();
     g_thread_affinity_mask_big = g_thread_affinity_mask_all;
 #endif
 
     return 0;
 }
 
-size_t get_cpu_thread_affinity_mask(int powersave)
+CpuSet get_cpu_thread_affinity_mask(int powersave)
 {
-    if (g_thread_affinity_mask_all == 0)
-    {
-        setup_thread_affinity_masks();
-    }
-
-    if (g_thread_affinity_mask_little == 0)
-    {
-        // SMP cpu powersave not supported
-        // fallback to all cores anyway
-        return g_thread_affinity_mask_all;
-    }
+    setup_thread_affinity_masks();
 
     if (powersave == 0)
         return g_thread_affinity_mask_all;
@@ -522,13 +486,13 @@ size_t get_cpu_thread_affinity_mask(int powersave)
     return g_thread_affinity_mask_all;
 }
 
-int set_cpu_thread_affinity(size_t thread_affinity_mask)
+int set_cpu_thread_affinity(CpuSet thread_affinity_mask)
 {
 #if defined __ANDROID__ || defined __linux__
     int num_threads = 0;
     for (int i = 0; i < (int)sizeof(size_t) * 8; i++)
     {
-        if (thread_affinity_mask & (1ul << i))
+        if (thread_affinity_mask.isset(i))
             num_threads++;
     }
 

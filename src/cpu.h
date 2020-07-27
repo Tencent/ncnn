@@ -16,8 +16,71 @@
 #define NCNN_CPU_H
 
 #include <stddef.h>
+#if defined __ANDROID__ || defined __linux__
+#include <sched.h>
+#endif
 
 namespace ncnn {
+
+class CpuSet
+{
+private:
+#if defined __ANDROID__ || defined __linux__
+    cpu_set_t m_bits;
+#else
+#define CPU_SETSIZE 1024
+#define NCNN_NCPUBITS  (8 * sizeof(unsigned long))
+    unsigned long m_bits[CPU_SETSIZE / NCNN_NCPUBITS];
+#endif
+
+public:
+    void* data_ptr()
+    {
+        return static_cast<void*>(&m_bits);
+    }
+
+    size_t data_size()
+    {
+        return sizeof(m_bits);
+    }
+
+    void set(int cpu)
+    {
+#if defined __ANDROID__ || defined __linux__
+        CPU_SET(cpu, &m_bits);
+#else
+        m_bits[(cpu) / NCNN_NCPUBITS] |= (1UL << ((cpu) % NCNN_NCPUBITS)));
+#endif
+    }
+
+    void zero()
+    {
+#if defined __ANDROID__ || defined __linux__
+        CPU_ZERO(&m_bits);
+#else
+        memset((m_bits), 0, sizeof(m_bits));
+#endif
+    }
+
+    void clr(int cpu)
+    {
+#if defined __ANDROID__ || defined __linux__
+        CPU_CLR(cpu, &m_bits);
+#else
+        m_bits[(cpu) / NCNN_NCPUBITS] &= (!(1UL << ((cpu) % NCNN_NCPUBITS))));
+#endif
+    }
+
+    bool isset(int cpu)
+    {
+#if defined __ANDROID__ || defined __linux__
+        return CPU_ISSET(cpu, &m_bits);
+#else
+        return m_bits[(cpu) / NCNN_NCPUBITS] & (1UL << ((cpu) % NCNN_NCPUBITS)));
+#endif
+
+    }
+};
 
 // test optional cpu features
 // neon = armv7 neon or aarch64 asimd
@@ -45,10 +108,10 @@ int get_cpu_powersave();
 int set_cpu_powersave(int powersave);
 
 // convenient wrapper
-size_t get_cpu_thread_affinity_mask(int powersave);
+CpuSet get_cpu_thread_affinity_mask(int powersave);
 
 // set explicit thread affinity
-int set_cpu_thread_affinity(size_t thread_affinity_mask);
+int set_cpu_thread_affinity(CpuSet thread_affinity_mask);
 
 // misc function wrapper for openmp routines
 int get_omp_num_threads();
