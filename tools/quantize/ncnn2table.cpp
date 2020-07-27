@@ -795,6 +795,25 @@ static int find_all_value_in_string(const std::string& values_string, std::vecto
     return 0;
 }
 
+#if CV_MAJOR_VERSION < 3
+class NcnnQuantCommandLineParser : public cv::CommandLineParser
+{
+public:
+    NcnnQuantCommandLineParser(int argc, const char* const argv[], const char* key_map)
+        : cv::CommandLineParser(argc, argv, key_map)
+    {
+    }
+    bool has(const std::string& keys)
+    {
+        return cv::CommandLineParser::has(keys);
+    }
+    void printMessage()
+    {
+        cv::CommandLineParser::printParams();
+    }
+};
+#endif
+
 int main(int argc, char** argv)
 {
     std::cout << "--- ncnn post training quantization tool --- " << __TIME__ << " " << __DATE__ << std::endl;
@@ -810,7 +829,11 @@ int main(int argc, char** argv)
                           "{swapRB c       |   | flag which indicates that swap first and last channels in 3-channel image is necessary }"
                           "{thread t       | 4 | count of processing threads }";
 
+#if CV_MAJOR_VERSION < 3
+    NcnnQuantCommandLineParser parser(argc, argv, key_map);
+#else
     cv::CommandLineParser parser(argc, argv, key_map);
+#endif
 
     if (parser.has("help"))
     {
