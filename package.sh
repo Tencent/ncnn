@@ -119,7 +119,7 @@ ln -s A $IOSPKGNAME/Versions/Current
 ln -s Versions/Current/Headers $IOSPKGNAME/Headers
 ln -s Versions/Current/Resources $IOSPKGNAME/Resources
 ln -s Versions/Current/glslang $IOSPKGNAME/glslang
-ibtool -static \
+libtool -static \
     build-ios-vulkan/install/lib/libglslang.a \
     build-ios-vulkan/install/lib/libSPIRV.a \
     build-ios-vulkan/install/lib/libOGLCompiler.a \
