@@ -137,7 +137,7 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         for (int i = 0; i < remain; i++)
             mask.m256i_u32[i] = 0x80000000;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
@@ -169,7 +169,7 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         for (int i = 0; i < remain; i++)
             mask.m256i_u32[i] = 0x80000000;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const unsigned short* ptr = bottom_blob.channel(q);
@@ -195,7 +195,7 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     }
     if (type_from == 4 && type_to == 1)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const unsigned short* ptr = bottom_blob.channel(q);
@@ -220,7 +220,7 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     }
     if (type_from == 1 && type_to == 4)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
