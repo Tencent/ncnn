@@ -796,17 +796,19 @@ static int find_all_value_in_string(const std::string& values_string, std::vecto
 }
 
 #if CV_MAJOR_VERSION < 3
-class NcnnQuantCommandLineParser: public cv::CommandLineParser
+class NcnnQuantCommandLineParser : public cv::CommandLineParser
 {
 public:
-    NcnnQuantCommandLineParser(int argc, const char *const argv[], const char *key_map):
-        cv::CommandLineParser(argc, argv, key_map)
+    NcnnQuantCommandLineParser(int argc, const char* const argv[], const char* key_map)
+        : cv::CommandLineParser(argc, argv, key_map)
     {
     }
-    bool has(const std::string &keys) {
+    bool has(const std::string& keys)
+    {
         return cv::CommandLineParser::has(keys);
     }
-    void printMessage() {
+    void printMessage()
+    {
         cv::CommandLineParser::printParams();
     }
 };
