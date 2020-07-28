@@ -99,27 +99,16 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         support_packing = false;
+
+        return create_pipeline_int8_arm(opt);
     }
 
-    // create Convolution op for each group
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
     // depth-wise
     if (channels == group && group == num_output)
     {
-        if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
-        {
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-            {
-                return 0;
-            }
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-            {
-                return 0;
-            }
-        }
-
         int elempack = (support_packing && opt.use_packing_layout && channels % 4 == 0) ? 4 : 1;
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
@@ -197,6 +186,17 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
     }
 
     // group convolution
+    create_group_ops(opt);
+
+    return 0;
+}
+
+int ConvolutionDepthWise_arm::create_group_ops(const Option& opt)
+{
+    // create Convolution op for each group
+    const int maxk = kernel_w * kernel_h;
+    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
+
     for (int i = 0; i < (int)group_ops.size(); i++)
         delete group_ops[i];
 
@@ -1320,6 +1320,33 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
     {
         top_blob = top_blob_unpacked;
     }
+
+    return 0;
+}
+
+int ConvolutionDepthWise_arm::create_pipeline_int8_arm(const Option& opt)
+{
+    const int maxk = kernel_w * kernel_h;
+    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
+
+    // depth-wise
+    if (channels == group && group == num_output)
+    {
+        if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+        {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                return 0;
+            }
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                return 0;
+            }
+        }
+    }
+
+    // group convolution
+    create_group_ops(opt);
 
     return 0;
 }
