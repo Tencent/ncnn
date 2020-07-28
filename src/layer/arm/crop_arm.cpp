@@ -26,7 +26,12 @@ Crop_arm::Crop_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    support_fp16_storage = true;
+#endif
 #endif // __ARM_NEON
+
+    support_bf16_storage = true;
 }
 
 #if __ARM_NEON

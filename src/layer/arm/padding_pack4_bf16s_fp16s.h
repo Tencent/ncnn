@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void padding_constant_pack4_bf16_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right, uint16x8_t v)
+static void padding_constant_pack4_bf16_fp16s_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right, uint16x8_t v)
 {
     const short* ptr = src;
     short* outptr = dst;
@@ -334,7 +334,7 @@ static void padding_constant_pack4_bf16_neon(const Mat& src, Mat& dst, int top, 
 #endif // __aarch64__
 }
 
-static void padding_replicate_pack4_bf16_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right)
+static void padding_replicate_pack4_bf16_fp16s_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right)
 {
     const unsigned short* ptr = src;
     unsigned short* outptr = dst;
@@ -410,7 +410,7 @@ static void padding_replicate_pack4_bf16_neon(const Mat& src, Mat& dst, int top,
     }
 }
 
-static void padding_reflect_pack4_bf16_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right)
+static void padding_reflect_pack4_bf16_fp16s_neon(const Mat& src, Mat& dst, int top, int bottom, int left, int right)
 {
     const unsigned short* ptr = src;
     unsigned short* outptr = dst;

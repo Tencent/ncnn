@@ -26,6 +26,9 @@ Slice_arm::Slice_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    support_fp16_storage = true;
+#endif
 
     packing_pack1 = 0;
 #endif // __ARM_NEON
@@ -71,8 +74,13 @@ int Slice_arm::destroy_pipeline(const Option& opt)
 
 int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (opt.use_fp16_storage)
+        return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
+#endif
+
     if (opt.use_bf16_storage)
-        return forward_bf16s(bottom_blobs, top_blobs, opt);
+        return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
 
     const Mat& bottom_blob = bottom_blobs[0];
     int dims = bottom_blob.dims;
@@ -422,7 +430,7 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     return Slice::forward(bottom_blobs, top_blobs, opt);
 }
 
-int Slice_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int Slice_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     int dims = bottom_blob.dims;

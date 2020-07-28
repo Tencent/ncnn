@@ -24,6 +24,9 @@ Concat_arm::Concat_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    support_fp16_storage = true;
+#endif
 
     packing_pack4 = 0;
 #endif // __ARM_NEON
@@ -69,8 +72,13 @@ int Concat_arm::destroy_pipeline(const Option& opt)
 
 int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (opt.use_fp16_storage)
+        return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
+#endif
+
     if (opt.use_bf16_storage)
-        return forward_bf16s(bottom_blobs, top_blobs, opt);
+        return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
 
     int dims = bottom_blobs[0].dims;
 
@@ -409,7 +417,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     return Concat::forward(bottom_blobs, top_blobs, opt);
 }
 
-int Concat_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
 

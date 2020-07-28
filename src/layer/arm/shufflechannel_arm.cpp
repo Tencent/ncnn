@@ -26,6 +26,9 @@ ShuffleChannel_arm::ShuffleChannel_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    support_fp16_storage = true;
+#endif
 #endif // __ARM_NEON
 
     support_bf16_storage = true;
@@ -33,8 +36,13 @@ ShuffleChannel_arm::ShuffleChannel_arm()
 
 int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (opt.use_fp16_storage)
+        return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
+#endif
+
     if (opt.use_bf16_storage)
-        return forward_bf16s(bottom_blob, top_blob, opt);
+        return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 
     int channels = bottom_blob.c;
     int elempack = bottom_blob.elempack;
@@ -212,7 +220,7 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     return ShuffleChannel::forward(bottom_blob, top_blob, opt);
 }
 
-int ShuffleChannel_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int channels = bottom_blob.c;
     int elempack = bottom_blob.elempack;
