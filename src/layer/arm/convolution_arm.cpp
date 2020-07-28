@@ -1043,7 +1043,6 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
     int elempack = (support_packing && opt.use_packing_layout && num_input % 4 == 0) ? 4 : 1;
     int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
 
-#if __ARM_NEON
     // pack4
     if (elempack == 4 && out_elempack == 4)
     {
@@ -1195,7 +1194,6 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
             }
         }
     }
-#endif // __ARM_NEON
 
     // pack1
     if (elempack == 1 && out_elempack == 1)
@@ -1267,7 +1265,6 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
         }
     }
 
-#if __ARM_NEON
     if (elempack == 4 && out_elempack == 4)
     {
         {
@@ -1424,7 +1421,6 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
             }
         }
     }
-#endif // __ARM_NEON
 
     if (elempack == 1 && out_elempack == 1)
     {
@@ -1464,32 +1460,7 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
                             kptr += maxk;
                         }
 
-                        if (activation_type == 1)
-                        {
-                            sum = std::max(sum, 0.f);
-                        }
-                        else if (activation_type == 2)
-                        {
-                            float slope = activation_params[0];
-                            sum = sum > 0.f ? sum : sum * slope;
-                        }
-                        else if (activation_type == 3)
-                        {
-                            float min = activation_params[0];
-                            float max = activation_params[1];
-                            if (sum < min)
-                                sum = min;
-                            if (sum > max)
-                                sum = max;
-                        }
-                        else if (activation_type == 4)
-                        {
-                            sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                        }
-                        else if (activation_type == 5)
-                        {
-                            sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                        }
+                        sum = activation_ss(sum, activation_type, activation_params);
 
                         outptr[j] = (__fp16)sum;
                     }
@@ -1560,7 +1531,6 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
     }
 
-#if __ARM_NEON
     if (elempack == 4 && out_elempack == 4)
     {
         {
@@ -1717,7 +1687,6 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
             }
         }
     }
-#endif // __ARM_NEON
 
     if (elempack == 1 && out_elempack == 1)
     {
@@ -1757,32 +1726,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
                             kptr += maxk;
                         }
 
-                        if (activation_type == 1)
-                        {
-                            sum = std::max(sum, 0.f);
-                        }
-                        else if (activation_type == 2)
-                        {
-                            float slope = activation_params[0];
-                            sum = sum > 0.f ? sum : sum * slope;
-                        }
-                        else if (activation_type == 3)
-                        {
-                            float min = activation_params[0];
-                            float max = activation_params[1];
-                            if (sum < min)
-                                sum = min;
-                            if (sum > max)
-                                sum = max;
-                        }
-                        else if (activation_type == 4)
-                        {
-                            sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                        }
-                        else if (activation_type == 5)
-                        {
-                            sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                        }
+                        sum = activation_ss(sum, activation_type, activation_params);
 
                         outptr[j] = sum;
                     }
