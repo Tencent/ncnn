@@ -861,7 +861,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
         sum = activation_ss(sum, activation_type, activation_params);
 
         __fp16* outptr = (__fp16*)top_blob + p;
-        outptr[0] = float32_to_bfloat16(sum);
+        outptr[0] = (__fp16)sum;
     }
 
     return 0;
