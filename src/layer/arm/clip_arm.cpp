@@ -34,13 +34,13 @@ Clip_arm::Clip_arm()
 
 int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    if (opt.use_bf16_storage)
-        return forward_inplace_bf16s(bottom_top_blob, opt);
-
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (opt.use_fp16_storage)
         return forward_inplace_fp16s(bottom_top_blob, opt);
 #endif
+
+    if (opt.use_bf16_storage)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
