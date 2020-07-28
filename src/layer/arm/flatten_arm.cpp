@@ -24,6 +24,9 @@ Flatten_arm::Flatten_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    support_fp16_storage = true;
+#endif
 #endif // __ARM_NEON
 
     support_bf16_storage = true;
@@ -31,8 +34,13 @@ Flatten_arm::Flatten_arm()
 
 int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (opt.use_fp16_storage)
+        return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
+#endif
+
     if (opt.use_bf16_storage)
-        return forward_bf16s(bottom_blob, top_blob, opt);
+        return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 
     int dims = bottom_blob.dims;
 
@@ -184,7 +192,7 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     return Flatten::forward(bottom_blob, top_blob, opt);
 }
 
-int Flatten_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int Flatten_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int dims = bottom_blob.dims;
 
