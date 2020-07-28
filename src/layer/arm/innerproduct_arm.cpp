@@ -29,6 +29,9 @@ InnerProduct_arm::InnerProduct_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    support_fp16_storage = true;
+#endif
 #endif // __ARM_NEON
 
     support_bf16_storage = true;
@@ -51,16 +54,18 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     }
 #endif // __ARM_NEON
 
-    if (opt.use_bf16_storage)
-    {
-        ncnn::cast_float32_to_bfloat16(weight_data, weight_data_bf16, opt);
-    }
-#if __ARM_NEON && (__ARM_FP & 2)
-    else if (opt.use_fp16_storage && weight_data.elemsize == 4u && cpu_support_arm_vfpv4())
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (opt.use_fp16_storage)
     {
         ncnn::cast_float32_to_float16(weight_data, weight_data_fp16, opt);
     }
 #endif
+
+    if (opt.use_bf16_storage)
+    {
+        ncnn::cast_float32_to_bfloat16(weight_data, weight_data_bf16, opt);
+    }
+
     return 0;
 }
 
@@ -75,244 +80,6 @@ int InnerProduct_arm::destroy_pipeline(const Option& opt)
 
     return 0;
 }
-#if __ARM_NEON && (__ARM_FP & 2)
-int InnerProduct_arm::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-    int size = w * h;
-
-    top_blob.create(num_output, elemsize, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    const unsigned short* weight_data_ptr = (const unsigned short*)weight_data_fp16;
-
-    int nn_num_output = num_output >> 2;
-    int remain_num_output_start = nn_num_output << 2;
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_num_output; pp++)
-    {
-        int p = pp * 4;
-
-        float sum0 = 0.f;
-        float sum1 = 0.f;
-        float sum2 = 0.f;
-        float sum3 = 0.f;
-
-        if (bias_term)
-        {
-            sum0 = bias_data[p];
-            sum1 = bias_data[p + 1];
-            sum2 = bias_data[p + 2];
-            sum3 = bias_data[p + 3];
-        }
-
-        const unsigned short* w0 = (const unsigned short*)weight_data_ptr + size * channels * p;
-        const unsigned short* w1 = (const unsigned short*)weight_data_ptr + size * channels * (p + 1);
-        const unsigned short* w2 = (const unsigned short*)weight_data_ptr + size * channels * (p + 2);
-        const unsigned short* w3 = (const unsigned short*)weight_data_ptr + size * channels * (p + 3);
-
-        float32x4_t _sum0 = vdupq_n_f32(0.f);
-        float32x4_t _sum1 = vdupq_n_f32(0.f);
-        float32x4_t _sum2 = vdupq_n_f32(0.f);
-        float32x4_t _sum3 = vdupq_n_f32(0.f);
-
-        // channels
-        for (int q = 0; q < channels; q++)
-        {
-            const float* m = bottom_blob.channel(q);
-
-            int nn = size >> 2;
-            int remain = size & 3;
-
-            for (; nn > 0; nn--)
-            {
-                float32x4_t _m = vld1q_f32(m);
-
-                float32x4_t _w0 = loadfp16(w0);
-                _sum0 = vmlaq_f32(_sum0, _m, _w0);
-
-                float32x4_t _w1 = loadfp16(w1);
-                _sum1 = vmlaq_f32(_sum1, _m, _w1);
-
-                float32x4_t _w2 = loadfp16(w2);
-                _sum2 = vmlaq_f32(_sum2, _m, _w2);
-
-                float32x4_t _w3 = loadfp16(w3);
-                _sum3 = vmlaq_f32(_sum3, _m, _w3);
-
-                m += 4;
-                w0 += 4;
-                w1 += 4;
-                w2 += 4;
-                w3 += 4;
-            }
-            if (remain != 0)
-            {
-                unsigned short fp16_weights[4][4] = {{0}};
-                float _m_f[4] = {0};
-                int i = 0;
-                // No fast way to convert to fp32 one element at the time
-                // so batch an 8 lane vector.
-                for (; remain > 0; remain--)
-                {
-                    _m_f[i] = *m;
-                    fp16_weights[0][i] = *w0;
-                    fp16_weights[1][i] = *w1;
-                    fp16_weights[2][i] = *w2;
-                    fp16_weights[3][i] = *w3;
-                    i++;
-                    m++;
-                    w0++;
-                    w1++;
-                    w2++;
-                    w3++;
-                }
-                float32x4_t _m = vld1q_f32(_m_f);
-
-                float32x4_t _w0 = loadfp16(fp16_weights[0]);
-                _sum0 = vmlaq_f32(_sum0, _m, _w0);
-
-                float32x4_t _w1 = loadfp16(fp16_weights[1]);
-                _sum1 = vmlaq_f32(_sum1, _m, _w1);
-
-                float32x4_t _w2 = loadfp16(fp16_weights[2]);
-                _sum2 = vmlaq_f32(_sum2, _m, _w2);
-
-                float32x4_t _w3 = loadfp16(fp16_weights[3]);
-                _sum3 = vmlaq_f32(_sum3, _m, _w3);
-            }
-        }
-
-        float32x2_t _sum0ss = vadd_f32(vget_low_f32(_sum0), vget_high_f32(_sum0));
-        float32x2_t _sum1ss = vadd_f32(vget_low_f32(_sum1), vget_high_f32(_sum1));
-        float32x2_t _sum2ss = vadd_f32(vget_low_f32(_sum2), vget_high_f32(_sum2));
-        float32x2_t _sum3ss = vadd_f32(vget_low_f32(_sum3), vget_high_f32(_sum3));
-
-        float32x2_t _sum01ss = vpadd_f32(_sum0ss, _sum1ss);
-        float32x2_t _sum23ss = vpadd_f32(_sum2ss, _sum3ss);
-
-        sum0 += vget_lane_f32(_sum01ss, 0);
-        sum1 += vget_lane_f32(_sum01ss, 1);
-        sum2 += vget_lane_f32(_sum23ss, 0);
-        sum3 += vget_lane_f32(_sum23ss, 1);
-
-        if (activation_type == 1)
-        {
-            sum0 = std::max(sum0, 0.f);
-            sum1 = std::max(sum1, 0.f);
-            sum2 = std::max(sum2, 0.f);
-            sum3 = std::max(sum3, 0.f);
-        }
-        else if (activation_type == 2)
-        {
-            float slope = activation_params[0];
-            sum0 = sum0 > 0.f ? sum0 : sum0 * slope;
-            sum1 = sum1 > 0.f ? sum1 : sum1 * slope;
-            sum2 = sum2 > 0.f ? sum2 : sum2 * slope;
-            sum3 = sum3 > 0.f ? sum3 : sum3 * slope;
-        }
-        else if (activation_type == 3)
-        {
-            float min = activation_params[0];
-            float max = activation_params[1];
-            if (sum0 < min) sum0 = min;
-            if (sum0 > max) sum0 = max;
-            if (sum1 < min) sum1 = min;
-            if (sum1 > max) sum1 = max;
-            if (sum2 < min) sum2 = min;
-            if (sum2 > max) sum2 = max;
-            if (sum3 < min) sum3 = min;
-            if (sum3 > max) sum3 = max;
-        }
-        else if (activation_type == 4)
-        {
-            sum0 = static_cast<float>(1.f / (1.f + exp(-sum0)));
-            sum1 = static_cast<float>(1.f / (1.f + exp(-sum1)));
-            sum2 = static_cast<float>(1.f / (1.f + exp(-sum2)));
-            sum3 = static_cast<float>(1.f / (1.f + exp(-sum3)));
-        }
-        else if (activation_type == 5)
-        {
-            sum0 = static_cast<float>(sum0 * tanh(log(exp(sum0) + 1.f)));
-            sum1 = static_cast<float>(sum1 * tanh(log(exp(sum1) + 1.f)));
-            sum2 = static_cast<float>(sum2 * tanh(log(exp(sum2) + 1.f)));
-            sum3 = static_cast<float>(sum3 * tanh(log(exp(sum3) + 1.f)));
-        }
-
-        top_blob[p] = sum0;
-        top_blob[p + 1] = sum1;
-        top_blob[p + 2] = sum2;
-        top_blob[p + 3] = sum3;
-    }
-    // num_output
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = remain_num_output_start; p < num_output; p++)
-    {
-        float sum0 = 0.f;
-        if (bias_term)
-        {
-            sum0 = bias_data[p];
-        }
-
-        const unsigned short* w0 = (const unsigned short*)weight_data_ptr + size * channels * p;
-
-        float32x4_t _sum0 = vdupq_n_f32(0.f);
-        // channels
-        for (int q = 0; q < channels; q++)
-        {
-            const float* m = bottom_blob.channel(q);
-
-            int nn = size >> 2;
-            int remain = size & 3;
-
-            for (; nn > 0; nn--)
-            {
-                float32x4_t _m = vld1q_f32(m);
-
-                float32x4_t _w0 = loadfp16(w0);
-                _sum0 = vmlaq_f32(_sum0, _m, _w0);
-
-                m += 4;
-                w0 += 4;
-            }
-            if (remain != 0)
-            {
-                unsigned short fp16_weights[4] = {0};
-                float _m_f[4] = {0};
-                int i = 0;
-                // No fast way to convert to fp32 one element at the time
-                // so batch an 8 lane vector.
-                for (; remain > 0; remain--)
-                {
-                    _m_f[i] = *m;
-                    fp16_weights[i] = *w0;
-                    i++;
-                    m++;
-                    w0++;
-                }
-                float32x4_t _m = vld1q_f32(_m_f);
-
-                float32x4_t _w0 = loadfp16(fp16_weights);
-                _sum0 = vmlaq_f32(_sum0, _m, _w0);
-            }
-        }
-
-        float32x2_t _sum0ss = vadd_f32(vget_low_f32(_sum0), vget_high_f32(_sum0));
-
-        sum0 += vget_lane_f32(_sum0ss, 0) + vget_lane_f32(_sum0ss, 1);
-
-        sum0 = activation_ss(sum0, activation_type, activation_params);
-
-        top_blob[p] = sum0;
-    }
-    return 0;
-}
-#endif
 
 int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
@@ -321,6 +88,16 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         // TODO
         return InnerProduct::forward(bottom_blob, top_blob, opt);
     }
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (opt.use_fp16_storage)
+    {
+        if (opt.use_fp16_arithmetic)
+            return forward_fp16sa(bottom_blob, top_blob, opt);
+        else
+            return forward_fp16s(bottom_blob, top_blob, opt);
+    }
+#endif
 
     if (opt.use_bf16_storage)
         return forward_bf16s(bottom_blob, top_blob, opt);
@@ -352,21 +129,11 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             bottom_blob_flattened.elemsize = 4u;
             bottom_blob_flattened.elempack = 1;
         }
-#if (__ARM_FP & 2)
-        if (opt.use_fp16_storage && cpu_support_arm_vfpv4())
-        {
-            return forward_fp16(bottom_blob_flattened, top_blob, opt);
-        }
-#endif
+
         return forward(bottom_blob_flattened, top_blob, opt);
     }
-#if (__ARM_FP & 2)
-    if (opt.use_fp16_storage && cpu_support_arm_vfpv4())
-    {
-        return forward_fp16(bottom_blob, top_blob, opt);
-    }
 #endif
-#endif
+
     top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
@@ -630,6 +397,476 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     return 0;
 }
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+    int size = w * h;
+
+    if (elempack == 4)
+    {
+        // flatten
+        Mat bottom_blob_flattened = bottom_blob;
+        if (bottom_blob.dims != 1)
+        {
+            Option opt_flatten = opt;
+            opt_flatten.blob_allocator = opt.workspace_allocator;
+
+            flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        }
+
+        // pack1
+        {
+            bottom_blob_flattened.w *= bottom_blob_flattened.elempack;
+            bottom_blob_flattened.elemsize = 2u;
+            bottom_blob_flattened.elempack = 1;
+        }
+
+        return forward(bottom_blob_flattened, top_blob, opt);
+    }
+
+    top_blob.create(num_output, elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    const __fp16* weight_data_ptr = (const __fp16*)weight_data_fp16;
+
+    int nn_num_output = num_output >> 2;
+    int remain_num_output_start = nn_num_output << 2;
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int pp = 0; pp < nn_num_output; pp++)
+    {
+        int p = pp * 4;
+
+        float sum0 = 0.f;
+        float sum1 = 0.f;
+        float sum2 = 0.f;
+        float sum3 = 0.f;
+
+        if (bias_term)
+        {
+            sum0 = bias_data[p];
+            sum1 = bias_data[p + 1];
+            sum2 = bias_data[p + 2];
+            sum3 = bias_data[p + 3];
+        }
+
+        const __fp16* w0 = (const __fp16*)weight_data_ptr + size * channels * p;
+        const __fp16* w1 = (const __fp16*)weight_data_ptr + size * channels * (p + 1);
+        const __fp16* w2 = (const __fp16*)weight_data_ptr + size * channels * (p + 2);
+        const __fp16* w3 = (const __fp16*)weight_data_ptr + size * channels * (p + 3);
+
+        float32x4_t _sum0 = vdupq_n_f32(0.f);
+        float32x4_t _sum1 = vdupq_n_f32(0.f);
+        float32x4_t _sum2 = vdupq_n_f32(0.f);
+        float32x4_t _sum3 = vdupq_n_f32(0.f);
+
+        // channels
+        for (int q = 0; q < channels; q++)
+        {
+            const __fp16* m = bottom_blob.channel(q);
+
+            int nn = size >> 2;
+            int remain = size & 3;
+
+            for (; nn > 0; nn--)
+            {
+                float32x4_t _m = vcvt_f32_f16(vld1_f16(m));
+
+                float32x4_t _w0 = vcvt_f32_f16(vld1_f16(w0));
+                float32x4_t _w1 = vcvt_f32_f16(vld1_f16(w1));
+                float32x4_t _w2 = vcvt_f32_f16(vld1_f16(w2));
+                float32x4_t _w3 = vcvt_f32_f16(vld1_f16(w3));
+
+                _sum0 = vfmaq_f32(_sum0, _m, _w0);
+                _sum1 = vfmaq_f32(_sum1, _m, _w1);
+                _sum2 = vfmaq_f32(_sum2, _m, _w2);
+                _sum3 = vfmaq_f32(_sum3, _m, _w3);
+
+                m += 4;
+                w0 += 4;
+                w1 += 4;
+                w2 += 4;
+                w3 += 4;
+            }
+            if (remain != 0)
+            {
+                __fp16 fp16_weights[4][4] = {{0}};
+                __fp16 _m_f[4] = {0};
+                int i = 0;
+                // No fast way to convert to fp32 one element at the time
+                // so batch an 8 lane vector.
+                for (; remain > 0; remain--)
+                {
+                    _m_f[i] = *m;
+                    fp16_weights[0][i] = *w0;
+                    fp16_weights[1][i] = *w1;
+                    fp16_weights[2][i] = *w2;
+                    fp16_weights[3][i] = *w3;
+                    i++;
+                    m++;
+                    w0++;
+                    w1++;
+                    w2++;
+                    w3++;
+                }
+                float32x4_t _m = vcvt_f32_f16(vld1_f16(_m_f));
+
+                float32x4_t _w0 = vcvt_f32_f16(vld1_f16(fp16_weights[0]));
+                float32x4_t _w1 = vcvt_f32_f16(vld1_f16(fp16_weights[1]));
+                float32x4_t _w2 = vcvt_f32_f16(vld1_f16(fp16_weights[2]));
+                float32x4_t _w3 = vcvt_f32_f16(vld1_f16(fp16_weights[3]));
+
+                _sum0 = vfmaq_f32(_sum0, _m, _w0);
+                _sum1 = vfmaq_f32(_sum1, _m, _w1);
+                _sum2 = vfmaq_f32(_sum2, _m, _w2);
+                _sum3 = vfmaq_f32(_sum3, _m, _w3);
+            }
+        }
+
+        sum0 += vaddvq_f32(_sum0);
+        sum1 += vaddvq_f32(_sum1);
+        sum2 += vaddvq_f32(_sum2);
+        sum3 += vaddvq_f32(_sum3);
+
+        if (activation_type == 1)
+        {
+            sum0 = std::max(sum0, 0.f);
+            sum1 = std::max(sum1, 0.f);
+            sum2 = std::max(sum2, 0.f);
+            sum3 = std::max(sum3, 0.f);
+        }
+        else if (activation_type == 2)
+        {
+            float slope = activation_params[0];
+            sum0 = sum0 > 0.f ? sum0 : sum0 * slope;
+            sum1 = sum1 > 0.f ? sum1 : sum1 * slope;
+            sum2 = sum2 > 0.f ? sum2 : sum2 * slope;
+            sum3 = sum3 > 0.f ? sum3 : sum3 * slope;
+        }
+        else if (activation_type == 3)
+        {
+            float min = activation_params[0];
+            float max = activation_params[1];
+            if (sum0 < min) sum0 = min;
+            if (sum0 > max) sum0 = max;
+            if (sum1 < min) sum1 = min;
+            if (sum1 > max) sum1 = max;
+            if (sum2 < min) sum2 = min;
+            if (sum2 > max) sum2 = max;
+            if (sum3 < min) sum3 = min;
+            if (sum3 > max) sum3 = max;
+        }
+        else if (activation_type == 4)
+        {
+            sum0 = static_cast<float>(1.f / (1.f + exp(-sum0)));
+            sum1 = static_cast<float>(1.f / (1.f + exp(-sum1)));
+            sum2 = static_cast<float>(1.f / (1.f + exp(-sum2)));
+            sum3 = static_cast<float>(1.f / (1.f + exp(-sum3)));
+        }
+        else if (activation_type == 5)
+        {
+            sum0 = static_cast<float>(sum0 * tanh(log(exp(sum0) + 1.f)));
+            sum1 = static_cast<float>(sum1 * tanh(log(exp(sum1) + 1.f)));
+            sum2 = static_cast<float>(sum2 * tanh(log(exp(sum2) + 1.f)));
+            sum3 = static_cast<float>(sum3 * tanh(log(exp(sum3) + 1.f)));
+        }
+
+        __fp16* outptr = (__fp16*)top_blob + p;
+        outptr[0] = (__fp16)sum0;
+        outptr[1] = (__fp16)sum1;
+        outptr[2] = (__fp16)sum2;
+        outptr[3] = (__fp16)sum3;
+    }
+
+    // num_output
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p = remain_num_output_start; p < num_output; p++)
+    {
+        float sum0 = 0.f;
+        if (bias_term)
+        {
+            sum0 = bias_data[p];
+        }
+
+        const __fp16* w0 = (const __fp16*)weight_data_ptr + size * channels * p;
+
+        float32x4_t _sum0 = vdupq_n_f32(0.f);
+        // channels
+        for (int q = 0; q < channels; q++)
+        {
+            const __fp16* m = bottom_blob.channel(q);
+
+            int nn = size >> 2;
+            int remain = size & 3;
+
+            for (; nn > 0; nn--)
+            {
+                float32x4_t _m = vcvt_f32_f16(vld1_f16(m));
+                float32x4_t _w0 = vcvt_f32_f16(vld1_f16(w0));
+                _sum0 = vfmaq_f32(_sum0, _m, _w0);
+
+                m += 4;
+                w0 += 4;
+            }
+            if (remain != 0)
+            {
+                __fp16 fp16_weights[4] = {0};
+                __fp16 _m_f[4] = {0};
+                int i = 0;
+                // No fast way to convert to fp32 one element at the time
+                // so batch an 8 lane vector.
+                for (; remain > 0; remain--)
+                {
+                    _m_f[i] = *m;
+                    fp16_weights[i] = *w0;
+                    i++;
+                    m++;
+                    w0++;
+                }
+                float32x4_t _m = vcvt_f32_f16(vld1_f16(_m_f));
+                float32x4_t _w0 = vcvt_f32_f16(vld1_f16(fp16_weights));
+                _sum0 = vfmaq_f32(_sum0, _m, _w0);
+            }
+        }
+
+        sum0 += vaddvq_f32(_sum0);
+
+        sum0 = activation_ss(sum0, activation_type, activation_params);
+
+        __fp16* outptr = (__fp16*)top_blob + p;
+        outptr[0] = (__fp16)sum0;
+    }
+
+    return 0;
+}
+
+int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+    int size = w * h;
+
+    if (elempack == 4)
+    {
+        // flatten
+        Mat bottom_blob_flattened = bottom_blob;
+        if (bottom_blob.dims != 1)
+        {
+            Option opt_flatten = opt;
+            opt_flatten.blob_allocator = opt.workspace_allocator;
+
+            flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        }
+
+        // pack1
+        {
+            bottom_blob_flattened.w *= bottom_blob_flattened.elempack;
+            bottom_blob_flattened.elemsize = 2u;
+            bottom_blob_flattened.elempack = 1;
+        }
+
+        return forward(bottom_blob_flattened, top_blob, opt);
+    }
+
+    top_blob.create(num_output, elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    const __fp16* weight_data_ptr = weight_data_fp16;
+
+    int nn_num_output = num_output >> 2;
+    int remain_num_output_start = nn_num_output << 2;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int pp = 0; pp < nn_num_output; pp++)
+    {
+        int p = pp * 4;
+
+        float sum0 = 0.f;
+        float sum1 = 0.f;
+        float sum2 = 0.f;
+        float sum3 = 0.f;
+
+        if (bias_term)
+        {
+            sum0 = bias_data[p];
+            sum1 = bias_data[p + 1];
+            sum2 = bias_data[p + 2];
+            sum3 = bias_data[p + 3];
+        }
+
+        const __fp16* w0 = (const __fp16*)weight_data_ptr + size * channels * p;
+        const __fp16* w1 = (const __fp16*)weight_data_ptr + size * channels * (p + 1);
+        const __fp16* w2 = (const __fp16*)weight_data_ptr + size * channels * (p + 2);
+        const __fp16* w3 = (const __fp16*)weight_data_ptr + size * channels * (p + 3);
+
+        float16x4_t _sum0 = vdup_n_f16((__fp16)0.f);
+        float16x4_t _sum1 = vdup_n_f16((__fp16)0.f);
+        float16x4_t _sum2 = vdup_n_f16((__fp16)0.f);
+        float16x4_t _sum3 = vdup_n_f16((__fp16)0.f);
+
+        // channels
+        for (int q = 0; q < channels; q++)
+        {
+            const __fp16* m = bottom_blob.channel(q);
+
+            int i = 0;
+            for (; i + 3 < size; i += 4)
+            {
+                float16x4_t _m = vld1_f16(m);
+                float16x4_t _w0 = vld1_f16(w0);
+                float16x4_t _w1 = vld1_f16(w1);
+                float16x4_t _w2 = vld1_f16(w2);
+                float16x4_t _w3 = vld1_f16(w3);
+
+                _sum0 = vfma_f16(_sum0, _m, _w0);
+                _sum1 = vfma_f16(_sum1, _m, _w1);
+                _sum2 = vfma_f16(_sum2, _m, _w2);
+                _sum3 = vfma_f16(_sum3, _m, _w3);
+
+                m += 4;
+                w0 += 4;
+                w1 += 4;
+                w2 += 4;
+                w3 += 4;
+            }
+            for (; i < size; i++)
+            {
+                __fp16 _m = *m;
+                __fp16 _w0 = *w0;
+                __fp16 _w1 = *w1;
+                __fp16 _w2 = *w2;
+                __fp16 _w3 = *w3;
+
+                sum0 += _m * _w0;
+                sum1 += _m * _w1;
+                sum2 += _m * _w2;
+                sum3 += _m * _w3;
+
+                m++;
+                w0++;
+                w1++;
+                w2++;
+                w3++;
+            }
+        }
+
+        sum0 += vaddvq_f32(vcvt_f32_f16(_sum0));
+        sum1 += vaddvq_f32(vcvt_f32_f16(_sum1));
+        sum2 += vaddvq_f32(vcvt_f32_f16(_sum2));
+        sum3 += vaddvq_f32(vcvt_f32_f16(_sum3));
+
+        if (activation_type == 1)
+        {
+            sum0 = std::max(sum0, 0.f);
+            sum1 = std::max(sum1, 0.f);
+            sum2 = std::max(sum2, 0.f);
+            sum3 = std::max(sum3, 0.f);
+        }
+        else if (activation_type == 2)
+        {
+            float slope = activation_params[0];
+            sum0 = sum0 > 0.f ? sum0 : sum0 * slope;
+            sum1 = sum1 > 0.f ? sum1 : sum1 * slope;
+            sum2 = sum2 > 0.f ? sum2 : sum2 * slope;
+            sum3 = sum3 > 0.f ? sum3 : sum3 * slope;
+        }
+        else if (activation_type == 3)
+        {
+            float min = activation_params[0];
+            float max = activation_params[1];
+            if (sum0 < min) sum0 = min;
+            if (sum0 > max) sum0 = max;
+            if (sum1 < min) sum1 = min;
+            if (sum1 > max) sum1 = max;
+            if (sum2 < min) sum2 = min;
+            if (sum2 > max) sum2 = max;
+            if (sum3 < min) sum3 = min;
+            if (sum3 > max) sum3 = max;
+        }
+        else if (activation_type == 4)
+        {
+            sum0 = static_cast<float>(1.f / (1.f + exp(-sum0)));
+            sum1 = static_cast<float>(1.f / (1.f + exp(-sum1)));
+            sum2 = static_cast<float>(1.f / (1.f + exp(-sum2)));
+            sum3 = static_cast<float>(1.f / (1.f + exp(-sum3)));
+        }
+        else if (activation_type == 5)
+        {
+            sum0 = static_cast<float>(sum0 * tanh(log(exp(sum0) + 1.f)));
+            sum1 = static_cast<float>(sum1 * tanh(log(exp(sum1) + 1.f)));
+            sum2 = static_cast<float>(sum2 * tanh(log(exp(sum2) + 1.f)));
+            sum3 = static_cast<float>(sum3 * tanh(log(exp(sum3) + 1.f)));
+        }
+
+        __fp16* outptr = (__fp16*)top_blob + p;
+        outptr[0] = (__fp16)sum0;
+        outptr[1] = (__fp16)sum1;
+        outptr[2] = (__fp16)sum2;
+        outptr[3] = (__fp16)sum3;
+    }
+
+    // num_output
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p = remain_num_output_start; p < num_output; p++)
+    {
+        float sum = 0.f;
+
+        if (bias_term)
+            sum = bias_data[p];
+
+        const __fp16* w = weight_data_ptr + size * channels * p;
+
+        float16x4_t _sum = vdup_n_f16((__fp16)0.f);
+
+        // channels
+        for (int q = 0; q < channels; q++)
+        {
+            const __fp16* m = bottom_blob.channel(q);
+
+            int i = 0;
+            for (; i + 3 < size; i += 4)
+            {
+                float16x4_t _m = vld1_f16(m);
+                float16x4_t _w = vld1_f16(w);
+
+                _sum = vfma_f16(_sum, _m, _w);
+
+                m += 4;
+                w += 4;
+            }
+            for (; i < size; i++)
+            {
+                __fp16 _m = *m;
+                __fp16 _w = *w;
+
+                sum += _m * _w;
+
+                m++;
+                w++;
+            }
+        }
+
+        sum += vaddvq_f32(vcvt_f32_f16(_sum));
+
+        sum = activation_ss(sum, activation_type, activation_params);
+
+        __fp16* outptr = (__fp16*)top_blob + p;
+        outptr[0] = float32_to_bfloat16(sum);
+    }
+
+    return 0;
+}
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
