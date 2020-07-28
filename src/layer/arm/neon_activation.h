@@ -49,7 +49,6 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
 }
 
 #if __ARM_NEON
-
 static inline float32x4_t sigmoid_ps(float32x4_t _v)
 {
     float32x4_t _one = vdupq_n_f32(1.f);
@@ -93,4 +92,19 @@ static inline float32x4_t activation_ps(float32x4_t _v, int activation_type, con
 
     return _v;
 }
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+static inline __fp16 activation_ss(__fp16 v, int activation_type, const ncnn::Mat& activation_params)
+{
+    float v32 = v;
+    v32 = activation_ss(v32, activation_type, activation_params);
+    return (__fp16)v32;
+}
+
+static inline float16x4_t activation_ps(float16x4_t _v, int activation_type, const ncnn::Mat& activation_params)
+{
+    float32x4_t _v32 = vcvt_f32_f16(_v);
+    _v32 = activation_ps(_v32, activation_type, activation_params);
+    return vcvt_f16_f32(_v32);
+}
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON
