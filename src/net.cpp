@@ -1126,7 +1126,8 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             }
         }
 
-        if (opt.use_fp16_storage)
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
         {
             if (bottom_blob.elemsize / bottom_blob.elempack == 4u && layer->support_fp16_storage)
             {
@@ -1142,6 +1143,9 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             }
         }
         else if (opt.use_bf16_storage)
+#else
+        if (opt.use_bf16_storage)
+#endif
         {
             if (bottom_blob.elemsize / bottom_blob.elempack == 4u && layer->support_bf16_storage)
             {
@@ -1240,7 +1244,8 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                 }
             }
 
-            if (opt.use_fp16_storage)
+#if NCNN_ARM82
+            if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
             {
                 if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 4u && layer->support_fp16_storage)
                 {
@@ -1256,6 +1261,9 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                 }
             }
             else if (opt.use_bf16_storage)
+#else
+            if (opt.use_bf16_storage)
+#endif
             {
                 if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 4u && layer->support_bf16_storage)
                 {
