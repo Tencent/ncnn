@@ -472,8 +472,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         return Convolution::forward(bottom_blob, top_blob, opt);
     }
 
+    int elembits = bottom_blob.elembits();
+
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
             return forward_fp16sa(bottom_blob, top_blob, opt);
@@ -482,7 +484,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }
 #endif
 
-    if (opt.use_bf16_storage)
+    if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blob, top_blob, opt);
 
     int w = bottom_blob.w;

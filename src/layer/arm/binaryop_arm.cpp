@@ -678,17 +678,18 @@ struct binary_op_rdiv_pack4
 
 int BinaryOp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    int elembits = std::max(bottom_blobs[0].elembits(), bottom_blobs[1].elembits());
+
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage && elembits == 16)
         return forward_fp16s(bottom_blobs, top_blobs, opt);
 #endif
 
-    if (opt.use_bf16_storage)
+    if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blobs, top_blobs, opt);
 
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& bottom_blob1 = bottom_blobs[1];
-
     Mat& top_blob = top_blobs[0];
 
 #if __ARM_NEON
@@ -731,12 +732,14 @@ int BinaryOp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
 int BinaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+    int elembits = bottom_top_blob.elembits();
+
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage && elembits == 16)
         return forward_inplace_fp16s(bottom_top_blob, opt);
 #endif
 
-    if (opt.use_bf16_storage)
+    if (opt.use_bf16_storage && elembits == 16)
         return forward_inplace_bf16s(bottom_top_blob, opt);
 
 #if __ARM_NEON

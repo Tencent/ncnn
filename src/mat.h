@@ -131,6 +131,9 @@ public:
     bool empty() const;
     size_t total() const;
 
+    // bits per element
+    int elembits() const;
+
     // shape only
     Mat shape() const;
 
@@ -336,6 +339,9 @@ public:
     bool empty() const;
     size_t total() const;
 
+    // bits per element
+    int elembits() const;
+
     // shape only
     Mat shape() const;
 
@@ -442,6 +448,9 @@ public:
 
     bool empty() const;
     size_t total() const;
+
+    // bits per element
+    int elembits() const;
 
     // shape only
     Mat shape() const;
@@ -1256,6 +1265,11 @@ inline size_t Mat::total() const
     return cstep * c;
 }
 
+inline int Mat::elembits() const
+{
+    return elempack ? elemsize * 8 / elempack : 0;
+}
+
 inline Mat Mat::shape() const
 {
     if (dims == 1)
@@ -1744,6 +1758,11 @@ inline size_t VkMat::total() const
     return cstep * c;
 }
 
+inline int VkMat::elembits() const
+{
+    return elempack ? elemsize * 8 / elempack : 0;
+}
+
 inline Mat VkMat::shape() const
 {
     if (dims == 1)
@@ -2135,6 +2154,11 @@ inline bool VkImageMat::empty() const
 inline size_t VkImageMat::total() const
 {
     return w * h * c;
+}
+
+inline int VkImageMat::elembits() const
+{
+    return elempack ? elemsize * 8 / elempack : 0;
 }
 
 inline Mat VkImageMat::shape() const
