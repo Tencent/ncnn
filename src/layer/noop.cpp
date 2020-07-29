@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "noop.h"
+#include "cpu.h"
 
 namespace ncnn {
 
@@ -21,6 +22,8 @@ Noop::Noop()
     support_inplace = true;
     support_vulkan = true;
     support_packing = true;
+    support_fp16_storage = cpu_support_arm_asimdhp();
+    support_bf16_storage = true;
     support_image_storage = true;
 }
 

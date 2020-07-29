@@ -24,6 +24,9 @@ ReLU_arm::ReLU_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    support_fp16_storage = true;
+#endif
 #endif // __ARM_NEON
 
     support_bf16_storage = true;
@@ -33,6 +36,11 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     if (bottom_top_blob.elemsize == 1u)
         return forward_inplace_int8_neon(bottom_top_blob, opt);
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (opt.use_fp16_storage)
+        return forward_inplace_fp16s(bottom_top_blob, opt);
+#endif
 
     if (opt.use_bf16_storage)
         return forward_inplace_bf16s(bottom_top_blob, opt);
@@ -329,6 +337,126 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    int size = w * h;
+    int elempack = bottom_top_blob.elempack;
+
+    if (elempack == 4)
+    {
+        if (slope == 0.f)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                __fp16* ptr = bottom_top_blob.channel(q);
+
+                float16x4_t _zero = vdup_n_f16((__fp16)0.f);
+                for (int i=0; i<size; i++)
+                {
+                    float16x4_t _p = vld1_f16(ptr);
+                    _p = vmax_f16(_p, _zero);
+                    vst1_f16(ptr, _p);
+
+                    ptr += 4;
+                }
+            }
+        }
+        else
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                __fp16* ptr = bottom_top_blob.channel(q);
+
+                float16x4_t _zero = vdup_n_f16((__fp16)0.f);
+                float16x4_t _slope = vdup_n_f16((__fp16)slope);
+                for (int i = 0; i < size; i++)
+                {
+                    float16x4_t _p = vld1_f16(ptr);
+                    uint16x4_t _lemask = vcle_f16(_p, _zero);
+                    float16x4_t _ps = vmul_f16(_p, _slope);
+                    _p = vbsl_f16(_lemask, _ps, _p);
+                    vst1_f16(ptr, _p);
+
+                    ptr += 4;
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    if (slope == 0.f)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr = bottom_top_blob.channel(q);
+
+            int i = 0;
+#if __ARM_NEON
+            float16x4_t _zero = vdup_n_f16((__fp16)0.f);
+            for (; i + 3 < size; i += 4)
+            {
+                float16x4_t _p = vld1_f16(ptr);
+                _p = vmax_f16(_p, _zero);
+                vst1_f16(ptr, _p);
+
+                ptr += 4;
+            }
+#endif // __ARM_NEON
+            for (; i < size; i++)
+            {
+                __fp16 v = ptr[0];
+                if (v < (__fp16)0.f)
+                    ptr[0] = (__fp16)0.f;
+
+                ptr += 1;
+            }
+        }
+    }
+    else
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr = bottom_top_blob.channel(q);
+
+            int i = 0;
+#if __ARM_NEON
+            float16x4_t _zero = vdup_n_f16((__fp16)0.f);
+            float16x4_t _slope = vdup_n_f16((__fp16)slope);
+            for (; i + 3 < size; i += 4)
+            {
+                float16x4_t _p = vld1_f16(ptr);
+                uint16x4_t _lemask = vcle_f16(_p, _zero);
+                float16x4_t _ps = vmul_f16(_p, _slope);
+                _p = vbsl_f16(_lemask, _ps, _p);
+                vst1_f16(ptr, _p);
+
+                ptr += 4;
+            }
+#endif // __ARM_NEON
+            for (; i < size; i++)
+            {
+                __fp16 v = ptr[0];
+                if (v < (__fp16)0.f)
+                    ptr[0] = v * (__fp16)slope;
+
+                ptr += 1;
+            }
+        }
+    }
+
+    return 0;
+}
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
