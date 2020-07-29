@@ -93,6 +93,7 @@ static int test_interp_2()
            || test_interp(a, 3, 0.8f, 0.8f, 0, 0)
            || test_interp(a, 3, 1.f, 1.f, 10, 12)
            || test_interp(a, 3, 1.f, 1.f, 2, 2)
+           || test_interp(a, 3, 1.f, 1.f, 6, 7)
            || test_interp(a, 3, 1.f, 1.f, 16, 17)
 
            || test_interp(b, 3, 2.f, 2.f, 0, 0)
@@ -101,6 +102,7 @@ static int test_interp_2()
            || test_interp(b, 3, 0.8f, 0.8f, 0, 0)
            || test_interp(b, 3, 1.f, 1.f, 10, 12)
            || test_interp(b, 3, 1.f, 1.f, 2, 2)
+           || test_interp(b, 3, 1.f, 1.f, 6, 7)
            || test_interp(b, 3, 1.f, 1.f, 18, 19);
 }
 
