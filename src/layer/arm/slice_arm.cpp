@@ -74,12 +74,14 @@ int Slice_arm::destroy_pipeline(const Option& opt)
 
 int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    int elembits = bottom_blobs[0].elembits();
+
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
 #endif
 
-    if (opt.use_bf16_storage)
+    if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
 
     const Mat& bottom_blob = bottom_blobs[0];
