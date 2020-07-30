@@ -35,8 +35,10 @@ namespace ncnn {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "interp_bicubic_fp16s.h"
 #include "interp_bicubic_pack4_fp16s.h"
+#include "interp_bicubic_pack8_fp16s.h"
 #include "interp_bilinear_fp16s.h"
 #include "interp_bilinear_pack4_fp16s.h"
+#include "interp_bilinear_pack8_fp16s.h"
 #endif
 #endif
 
@@ -496,6 +498,91 @@ int Interp_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opti
     top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
+
+    if (elempack == 8)
+    {
+        if (resize_type == 1) // nearest
+        {
+            const float hs = outh ? h / (float)outh : 1.f / height_scale;
+            const float ws = outw ? w / (float)outw : 1.f / width_scale;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const Mat src = bottom_blob.channel(q);
+                Mat dst = top_blob.channel(q);
+
+                for (int y = 0; y < outh; y++)
+                {
+                    int in_y = std::min((int)(y * hs), (h - 1));
+
+                    const __fp16* ptr = src.row<const __fp16>(in_y);
+                    __fp16* outptr = dst.row<__fp16>(y);
+                    for (int x = 0; x < outw; x++)
+                    {
+                        int in_x = std::min((int)(x * ws), (w - 1));
+
+                        float16x8_t _p = vld1q_f16(ptr + in_x * 8);
+                        vst1q_f16(outptr, _p);
+
+                        outptr += 8;
+                    }
+                }
+            }
+        }
+
+        if (resize_type == 2) // bilinear
+        {
+            int* buf = new int[outw + outh + outw * 2 + outh * 2];
+
+            int* xofs = buf;        //new int[outw];
+            int* yofs = buf + outw; //new int[outh];
+
+            __fp16* alpha = (__fp16*)(buf + outw + outh);           //new __fp16[outw * 2];
+            __fp16* beta = (__fp16*)(buf + outw + outh + outw * 2); //new __fp16[outh * 2];
+
+            linear_coeffs_fp16sa(w, outw, xofs, alpha);
+            linear_coeffs_fp16sa(h, outh, yofs, beta);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const Mat src = bottom_blob.channel(q);
+                Mat dst = top_blob.channel(q);
+
+                resize_bilinear_image_pack8_fp16sa(src, dst, alpha, xofs, beta, yofs);
+            }
+
+            delete[] buf;
+        }
+
+        if (resize_type == 3) // bicubic
+        {
+            int* buf = new int[outw + outh + outw * 4 + outh * 4];
+
+            int* xofs = buf;        //new int[outw];
+            int* yofs = buf + outw; //new int[outh];
+
+            __fp16* alpha = (__fp16*)(buf + outw + outh);           //new __fp16[outw * 4];
+            __fp16* beta = (__fp16*)(buf + outw + outh + outw * 4); //new __fp16[outh * 4];
+
+            cubic_coeffs_fp16sa(w, outw, xofs, alpha);
+            cubic_coeffs_fp16sa(h, outh, yofs, beta);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const Mat src = bottom_blob.channel(q);
+                Mat dst = top_blob.channel(q);
+
+                resize_bicubic_image_pack8_fp16sa(src, dst, alpha, xofs, beta, yofs);
+            }
+
+            delete[] buf;
+        }
+
+        return 0;
+    }
 
     if (elempack == 4)
     {
