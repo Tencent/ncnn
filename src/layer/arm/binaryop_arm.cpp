@@ -781,6 +781,630 @@ int BinaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 template<typename Op>
+static int binary_op_pack8_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int channels = a.c;
+    int size = w * h;
+    size_t elemsize = a.elemsize;
+    int elempack = a.elempack;
+
+    int w1 = b.w;
+    int h1 = b.h;
+    int channels1 = b.c;
+    int size1 = w1 * h1;
+    size_t elemsize1 = b.elemsize;
+    int elempack1 = b.elempack;
+
+    if (a.dims == 3)
+    {
+        if (b.dims == 3)
+        {
+            if (w1 == 1 && h1 == 1 && channels1 == channels)
+            {
+                // special type 1
+                c.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+                if (c.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const __fp16* ptr = a.channel(q);
+                    __fp16* outptr = c.channel(q);
+                    const __fp16* b0 = b.channel(q);
+                    float16x8_t _b0 = vld1q_f16(b0);
+                    for (int i = 0; i < size; i++)
+                    {
+                        float16x8_t _p = vld1q_f16(ptr);
+                        float16x8_t _outp = op(_p, _b0);
+                        vst1q_f16(outptr, _outp);
+                        ptr += 8;
+                        outptr += 8;
+                    }
+                }
+
+                return 0;
+            }
+
+            if (w1 == w && h1 == h && channels1 == 1 && elempack1 == 1)
+            {
+                // special type 2
+                c.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+                if (c.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const __fp16* ptr = a.channel(q);
+                    const __fp16* ptr1 = b;
+                    __fp16* outptr = c.channel(q);
+                    for (int i = 0; i < size; i++)
+                    {
+                        float16x8_t _p = vld1q_f16(ptr);
+                        float16x8_t _p1 = vdupq_n_f16(*ptr1);
+                        float16x8_t _outp = op(_p, _p1);
+                        vst1q_f16(outptr, _outp);
+                        ptr += 8;
+                        ptr1 += 1;
+                        outptr += 8;
+                    }
+                }
+
+                return 0;
+            }
+
+            if (w == 1 && h == 1 && channels1 == channels)
+            {
+                // special type 3
+                c.create(w1, h1, channels1, elemsize1, elempack1, opt.blob_allocator);
+                if (c.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels1; q++)
+                {
+                    const __fp16* a0 = a.channel(q);
+                    __fp16* outptr = c.channel(q);
+                    const __fp16* ptr1 = b.channel(q);
+                    float16x8_t _a0 = vld1q_f16(a0);
+                    for (int i = 0; i < size1; i++)
+                    {
+                        float16x8_t _p1 = vld1q_f16(ptr1);
+                        float16x8_t _outp = op(_a0, _p1);
+                        vst1q_f16(outptr, _outp);
+                        ptr1 += 8;
+                        outptr += 8;
+                    }
+                }
+
+                return 0;
+            }
+
+            if (w1 == w && h1 == h && channels == 1 && elempack == 1)
+            {
+                // special type 4
+                c.create(w1, h1, channels1, elemsize1, elempack1, opt.blob_allocator);
+                if (c.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels1; q++)
+                {
+                    const __fp16* ptr = a;
+                    const __fp16* ptr1 = b.channel(q);
+                    __fp16* outptr = c.channel(q);
+                    for (int i = 0; i < size1; i++)
+                    {
+                        float16x8_t _p = vdupq_n_f16(*ptr);
+                        float16x8_t _p1 = vld1q_f16(ptr1);
+                        float16x8_t _outp = op(_p, _p1);
+                        vst1q_f16(outptr, _outp);
+                        ptr += 1;
+                        ptr1 += 8;
+                        outptr += 8;
+                    }
+                }
+
+                return 0;
+            }
+
+            // type 19
+            c.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            if (c.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const __fp16* ptr = a.channel(q);
+                const __fp16* ptr1 = b.channel(q);
+                __fp16* outptr = c.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    float16x8_t _p = vld1q_f16(ptr);
+                    float16x8_t _p1 = vld1q_f16(ptr1);
+                    float16x8_t _outp = op(_p, _p1);
+                    vst1q_f16(outptr, _outp);
+                    ptr += 8;
+                    ptr1 += 8;
+                    outptr += 8;
+                }
+            }
+
+            return 0;
+        }
+
+        c.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+        if (c.empty())
+            return -100;
+
+        if (b.dims == 2)
+        {
+            // type 18
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const __fp16* ptr = a.channel(q);
+                const __fp16* ptr1 = b.row<const __fp16>(q);
+                __fp16* outptr = c.channel(q);
+
+                for (int y = 0; y < h; y++)
+                {
+                    float16x8_t _b0 = vld1q_f16(ptr1);
+                    for (int x = 0; x < w; x++)
+                    {
+                        float16x8_t _p = vld1q_f16(ptr);
+                        float16x8_t _outp = op(_p, _b0);
+                        vst1q_f16(outptr, _outp);
+                        ptr += 8;
+                        outptr += 8;
+                    }
+
+                    ptr1 += 8;
+                }
+            }
+
+            return 0;
+        }
+
+        if (b.dims == 1)
+        {
+            if (b.w == 1 && elempack1 == 1)
+            {
+                // type 16
+                float16x8_t _b0 = vdupq_n_f16(((const __fp16*)b)[0]);
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const __fp16* ptr = a.channel(q);
+                    __fp16* outptr = c.channel(q);
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        float16x8_t _p = vld1q_f16(ptr);
+                        float16x8_t _outp = op(_p, _b0);
+                        vst1q_f16(outptr, _outp);
+                        ptr += 8;
+                        outptr += 8;
+                    }
+                }
+
+                return 0;
+            }
+
+            // type 17
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const __fp16* ptr = a.channel(q);
+                float16x8_t _b0 = vld1q_f16((const __fp16*)b + q * 8);
+                __fp16* outptr = c.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    float16x8_t _p = vld1q_f16(ptr);
+                    float16x8_t _outp = op(_p, _b0);
+                    vst1q_f16(outptr, _outp);
+                    ptr += 8;
+                    outptr += 8;
+                }
+            }
+
+            return 0;
+        }
+    }
+    else if (a.dims == 2)
+    {
+        if (b.dims == 3)
+        {
+            // type 14
+            c.create(w1, h1, channels1, elemsize1, elempack1, opt.blob_allocator);
+            if (c.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels1; q++)
+            {
+                const __fp16* ptr = a.row<const __fp16>(q);
+                const __fp16* ptr1 = b.channel(q);
+                __fp16* outptr = c.channel(q);
+
+                for (int y = 0; y < h1; y++)
+                {
+                    float16x8_t _a0 = vld1q_f16(ptr);
+                    for (int x = 0; x < w1; x++)
+                    {
+                        float16x8_t _p1 = vld1q_f16(ptr1);
+                        float16x8_t _outp = op(_a0, _p1);
+                        vst1q_f16(outptr, _outp);
+                        ptr1 += 8;
+                        outptr += 8;
+                    }
+
+                    ptr += 8;
+                }
+            }
+
+            return 0;
+        }
+
+        c.create(w, h, elemsize, elempack, opt.blob_allocator);
+        if (c.empty())
+            return -100;
+
+        if (b.dims == 2)
+        {
+            // type 13
+            const __fp16* ptr = a;
+            const __fp16* ptr1 = b;
+            __fp16* outptr = c;
+            for (int i = 0; i < size; i++)
+            {
+                float16x8_t _p = vld1q_f16(ptr);
+                float16x8_t _p1 = vld1q_f16(ptr1);
+                float16x8_t _outp = op(_p, _p1);
+                vst1q_f16(outptr, _outp);
+                ptr += 8;
+                ptr1 += 8;
+                outptr += 8;
+            }
+
+            return 0;
+        }
+
+        if (b.dims == 1)
+        {
+            c.create(w, h, elemsize, elempack, opt.blob_allocator);
+            if (c.empty())
+                return -100;
+
+            if (b.w == 1 && elempack1 == 1)
+            {
+                // type 11
+                float16x8_t _b0 = vdupq_n_f16(((const __fp16*)b)[0]);
+                const __fp16* ptr = a;
+                __fp16* outptr = c;
+                for (int i = 0; i < size; i++)
+                {
+                    float16x8_t _p = vld1q_f16(ptr);
+                    float16x8_t _outp = op(_p, _b0);
+                    vst1q_f16(outptr, _outp);
+                    ptr += 8;
+                    outptr += 8;
+                }
+
+                return 0;
+            }
+
+            // type 12
+            const __fp16* ptr = a;
+            const __fp16* ptr1 = b;
+            __fp16* outptr = c;
+
+            for (int y = 0; y < h; y++)
+            {
+                float16x8_t _b0 = vld1q_f16(ptr1);
+                for (int x = 0; x < w; x++)
+                {
+                    float16x8_t _p = vld1q_f16(ptr);
+                    float16x8_t _outp = op(_p, _b0);
+                    vst1q_f16(outptr, _outp);
+                    ptr += 8;
+                    outptr += 8;
+                }
+
+                ptr1 += 8;
+            }
+
+            return 0;
+        }
+    }
+    else if (a.dims == 1)
+    {
+        if (a.w == 1 && elempack == 1)
+        {
+            if (b.dims == 3)
+            {
+                // type 4
+                c.create(w1, h1, channels1, elemsize1, elempack1, opt.blob_allocator);
+                if (c.empty())
+                    return -100;
+
+                float16x8_t _a0 = vdupq_n_f16(((const __fp16*)a)[0]);
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels1; q++)
+                {
+                    const __fp16* ptr1 = b.channel(q);
+                    __fp16* outptr = c.channel(q);
+
+                    for (int i = 0; i < size1; i++)
+                    {
+                        float16x8_t _p1 = vld1q_f16(ptr1);
+                        float16x8_t _outp = op(_a0, _p1);
+                        vst1q_f16(outptr, _outp);
+                        ptr1 += 8;
+                        outptr += 8;
+                    }
+                }
+
+                return 0;
+            }
+
+            if (b.dims == 2)
+            {
+                // type 3
+                c.create(w1, h1, elemsize1, elempack1, opt.blob_allocator);
+                if (c.empty())
+                    return -100;
+
+                float16x8_t _a0 = vdupq_n_f16(((const __fp16*)a)[0]);
+                const __fp16* ptr1 = b;
+                __fp16* outptr = c;
+                for (int i = 0; i < size1; i++)
+                {
+                    float16x8_t _p1 = vld1q_f16(ptr1);
+                    float16x8_t _outp = op(_a0, _p1);
+                    vst1q_f16(outptr, _outp);
+                    ptr1 += 8;
+                    outptr += 8;
+                }
+
+                return 0;
+            }
+
+            if (b.dims == 1)
+            {
+                // type 2
+                c.create(w1, elemsize1, elempack1, opt.blob_allocator);
+                if (c.empty())
+                    return -100;
+
+                float16x8_t _a0 = vdupq_n_f16(((const __fp16*)a)[0]);
+                const __fp16* ptr1 = b;
+                __fp16* outptr = c;
+                for (int i = 0; i < w1; i++)
+                {
+                    float16x8_t _p1 = vld1q_f16(ptr1);
+                    float16x8_t _outp = op(_a0, _p1);
+                    vst1q_f16(outptr, _outp);
+                    ptr1 += 8;
+                    outptr += 8;
+                }
+
+                return 0;
+            }
+        }
+
+        if (b.dims == 3)
+        {
+            // type 9
+            c.create(w1, h1, channels1, elemsize1, elempack1, opt.blob_allocator);
+            if (c.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels1; q++)
+            {
+                float16x8_t _a0 = vld1q_f16((const __fp16*)a + q * 8);
+                const __fp16* ptr1 = b.channel(q);
+                __fp16* outptr = c.channel(q);
+
+                for (int i = 0; i < size1; i++)
+                {
+                    float16x8_t _p1 = vld1q_f16(ptr1);
+                    float16x8_t _outp = op(_a0, _p1);
+                    vst1q_f16(outptr, _outp);
+                    ptr1 += 8;
+                    outptr += 8;
+                }
+            }
+
+            return 0;
+        }
+
+        if (b.dims == 2)
+        {
+            // type 8
+            c.create(w1, h1, elemsize1, elempack1, opt.blob_allocator);
+            if (c.empty())
+                return -100;
+
+            const __fp16* ptr = a;
+            const __fp16* ptr1 = b;
+            __fp16* outptr = c;
+
+            for (int y = 0; y < h1; y++)
+            {
+                float16x8_t _a0 = vld1q_f16(ptr);
+                for (int x = 0; x < w1; x++)
+                {
+                    float16x8_t _p1 = vld1q_f16(ptr1);
+                    float16x8_t _outp = op(_a0, _p1);
+                    vst1q_f16(outptr, _outp);
+                    ptr1 += 8;
+                    outptr += 8;
+                }
+
+                ptr += 8;
+            }
+
+            return 0;
+        }
+
+        if (b.dims == 1)
+        {
+            c.create(w, elemsize, elempack, opt.blob_allocator);
+            if (c.empty())
+                return -100;
+
+            if (b.w == 1 && elempack1 == 1)
+            {
+                // type 6
+                float16x8_t _b0 = vdupq_n_f16(((const __fp16*)b)[0]);
+                const __fp16* ptr = a;
+                __fp16* outptr = c;
+                for (int i = 0; i < w; i++)
+                {
+                    float16x8_t _p = vld1q_f16(ptr);
+                    float16x8_t _outp = op(_p, _b0);
+                    vst1q_f16(outptr, _outp);
+                    ptr += 8;
+                    outptr += 8;
+                }
+
+                return 0;
+            }
+
+            // type 7
+            const __fp16* ptr = a;
+            const __fp16* ptr1 = b;
+            __fp16* outptr = c;
+            for (int i = 0; i < w; i++)
+            {
+                float16x8_t _p = vld1q_f16(ptr);
+                float16x8_t _p1 = vld1q_f16(ptr1);
+                float16x8_t _outp = op(_p, _p1);
+                vst1q_f16(outptr, _outp);
+                ptr += 8;
+                ptr1 += 8;
+                outptr += 8;
+            }
+        }
+    }
+
+    return 0;
+}
+
+template<typename Op>
+static int binary_op_scalar_inplace_pack8_fp16s(Mat& a, float b, const Option& opt)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int channels = a.c;
+    int size = w * h;
+
+    float16x8_t _b = vdupq_n_f16((__fp16)b);
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        __fp16* ptr = a.channel(q);
+
+        for (int i = 0; i < size; i++)
+        {
+            float16x8_t _p = vld1q_f16(ptr);
+            _p = op(_p, _b);
+            vst1q_f16(ptr, _p);
+            ptr += 8;
+        }
+    }
+
+    return 0;
+}
+
+struct binary_op_add_pack8_fp16s
+{
+    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
+    {
+        return vaddq_f16(x, y);
+    }
+};
+
+struct binary_op_sub_pack8_fp16s
+{
+    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
+    {
+        return vsubq_f16(x, y);
+    }
+};
+
+struct binary_op_mul_pack8_fp16s
+{
+    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
+    {
+        return vmulq_f16(x, y);
+    }
+};
+
+struct binary_op_div_pack8_fp16s
+{
+    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
+    {
+        return vdivq_f16(x, y);
+    }
+};
+
+struct binary_op_max_pack8_fp16s
+{
+    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
+    {
+        return vmaxq_f16(x, y);
+    }
+};
+
+struct binary_op_min_pack8_fp16s
+{
+    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
+    {
+        return vminq_f16(x, y);
+    }
+};
+
+struct binary_op_pow_pack8_fp16s
+{
+    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
+    {
+        float16x4_t z_low = vcvt_f16_f32(pow_ps(vcvt_f32_f16(vget_low_f16(x)), vcvt_f32_f16(vget_low_f16(y))));
+        float16x4_t z_high = vcvt_f16_f32(pow_ps(vcvt_f32_f16(vget_high_f16(x)), vcvt_f32_f16(vget_high_f16(y))));
+        return vcombine_f16(z_low, z_high);
+    }
+};
+
+struct binary_op_rsub_pack8_fp16s
+{
+    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
+    {
+        return vsubq_f16(y, x);
+    }
+};
+
+struct binary_op_rdiv_pack8_fp16s
+{
+    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
+    {
+        return vdivq_f16(y, x);
+    }
+};
+
+template<typename Op>
 static int binary_op_pack4_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 {
     Op op;
@@ -1942,6 +2566,36 @@ int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
     int elempack = bottom_blob.elempack;
     int elempack1 = bottom_blob1.elempack;
 
+    if (elempack == 8 || elempack1 == 8)
+    {
+        if (op_type == Operation_ADD)
+            return binary_op_pack8_fp16s<binary_op_add_pack8_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_SUB)
+            return binary_op_pack8_fp16s<binary_op_sub_pack8_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_MUL)
+            return binary_op_pack8_fp16s<binary_op_mul_pack8_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_DIV)
+            return binary_op_pack8_fp16s<binary_op_div_pack8_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_MAX)
+            return binary_op_pack8_fp16s<binary_op_max_pack8_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_MIN)
+            return binary_op_pack8_fp16s<binary_op_min_pack8_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_POW)
+            return binary_op_pack8_fp16s<binary_op_pow_pack8_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_RSUB)
+            return binary_op_pack8_fp16s<binary_op_rsub_pack8_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_RDIV)
+            return binary_op_pack8_fp16s<binary_op_rdiv_pack8_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
+    }
+
     if (elempack == 4 || elempack1 == 4)
     {
         if (op_type == Operation_ADD)
@@ -2008,6 +2662,36 @@ int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
 int BinaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int elempack = bottom_top_blob.elempack;
+
+    if (elempack == 8)
+    {
+        if (op_type == Operation_ADD)
+            return binary_op_scalar_inplace_pack8_fp16s<binary_op_add_pack8_fp16s>(bottom_top_blob, b, opt);
+
+        if (op_type == Operation_SUB)
+            return binary_op_scalar_inplace_pack8_fp16s<binary_op_sub_pack8_fp16s>(bottom_top_blob, b, opt);
+
+        if (op_type == Operation_MUL)
+            return binary_op_scalar_inplace_pack8_fp16s<binary_op_mul_pack8_fp16s>(bottom_top_blob, b, opt);
+
+        if (op_type == Operation_DIV)
+            return binary_op_scalar_inplace_pack8_fp16s<binary_op_div_pack8_fp16s>(bottom_top_blob, b, opt);
+
+        if (op_type == Operation_MAX)
+            return binary_op_scalar_inplace_pack8_fp16s<binary_op_max_pack8_fp16s>(bottom_top_blob, b, opt);
+
+        if (op_type == Operation_MIN)
+            return binary_op_scalar_inplace_pack8_fp16s<binary_op_min_pack8_fp16s>(bottom_top_blob, b, opt);
+
+        if (op_type == Operation_POW)
+            return binary_op_scalar_inplace_pack8_fp16s<binary_op_pow_pack8_fp16s>(bottom_top_blob, b, opt);
+
+        if (op_type == Operation_RSUB)
+            return binary_op_scalar_inplace_pack8_fp16s<binary_op_rsub_pack8_fp16s>(bottom_top_blob, b, opt);
+
+        if (op_type == Operation_RDIV)
+            return binary_op_scalar_inplace_pack8_fp16s<binary_op_rdiv_pack8_fp16s>(bottom_top_blob, b, opt);
+    }
 
     if (elempack == 4)
     {

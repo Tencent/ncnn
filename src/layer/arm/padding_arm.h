@@ -38,7 +38,6 @@ public:
     Mat per_channel_pad_data_bf16;
 
     // fp16
-    unsigned short value_fp16;
     Mat per_channel_pad_data_fp16;
 };
 
