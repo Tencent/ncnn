@@ -299,11 +299,29 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     {
         for (size_t i = 0; i < a.size(); i++)
         {
+            // resolve dst_elempack
+            int dims = a[i].dims;
+            int elemcount = 0;
+            if (dims == 1) elemcount = a[i].elempack * a[i].w;
+            if (dims == 2) elemcount = a[i].elempack * a[i].h;
+            if (dims == 3) elemcount = a[i].elempack * a[i].c;
+
+            int dst_elempack = 1;
+
 #if NCNN_AVX2
-            ncnn::convert_packing(a[i], a4[i], 8, opt);
+            if (elemcount % 8 == 0)
+                dst_elempack = 8;
+#elif NCNN_ARM82
+            if (elemcount % 8 == 0 && opt.use_fp16_arithmetic)
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
 #else
-            ncnn::convert_packing(a[i], a4[i], 4, opt);
+            if (elemcount % 4 == 0)
+                dst_elempack = 4;
 #endif
+
+            ncnn::convert_packing(a[i], a4[i], dst_elempack, opt);
         }
     }
     else
@@ -696,11 +714,29 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     ncnn::Mat a4;
     if (opt.use_packing_layout)
     {
+        // resolve dst_elempack
+        int dims = a.dims;
+        int elemcount = 0;
+        if (dims == 1) elemcount = a.elempack * a.w;
+        if (dims == 2) elemcount = a.elempack * a.h;
+        if (dims == 3) elemcount = a.elempack * a.c;
+
+        int dst_elempack = 1;
+
 #if NCNN_AVX2
-        ncnn::convert_packing(a, a4, 8, opt);
+        if (elemcount % 8 == 0)
+            dst_elempack = 8;
+#elif NCNN_ARM82
+        if (elemcount % 8 == 0 && opt.use_fp16_arithmetic)
+            dst_elempack = 8;
+        else if (elemcount % 4 == 0)
+            dst_elempack = 4;
 #else
-        ncnn::convert_packing(a, a4, 4, opt);
+        if (elemcount % 4 == 0)
+            dst_elempack = 4;
 #endif
+
+        ncnn::convert_packing(a, a4, dst_elempack, opt);
     }
     else
     {
