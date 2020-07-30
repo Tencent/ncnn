@@ -59,9 +59,6 @@ public:
     Mat weight_data_pack4to1;
 
     // fp16
-    Mat weight_data_pack4_fp16;
-    Mat weight_data_pack1to4_fp16;
-    Mat weight_data_pack4to1_fp16;
     Mat weight_data_fp16;
     Mat bias_data_fp16;
 

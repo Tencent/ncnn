@@ -106,5 +106,14 @@ static inline float16x4_t activation_ps(float16x4_t _v, int activation_type, con
     _v32 = activation_ps(_v32, activation_type, activation_params);
     return vcvt_f16_f32(_v32);
 }
+
+static inline float16x8_t activation_ps(float16x8_t _v, int activation_type, const ncnn::Mat& activation_params)
+{
+    float32x4_t _v32_low = vcvt_f32_f16(vget_low_f16(_v));
+    float32x4_t _v32_high = vcvt_f32_f16(vget_high_f16(_v));
+    _v32_low = activation_ps(_v32_low, activation_type, activation_params);
+    _v32_high = activation_ps(_v32_high, activation_type, activation_params);
+    return vcombine_f16(vcvt_f16_f32(_v32_low), vcvt_f16_f32(_v32_high));
+}
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON

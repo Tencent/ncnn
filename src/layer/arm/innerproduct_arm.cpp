@@ -657,7 +657,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
     int elempack = bottom_blob.elempack;
     int size = w * h;
 
-    if (elempack == 4)
+    if (elempack == 4 || elempack == 8)
     {
         // flatten
         Mat bottom_blob_flattened = bottom_blob;

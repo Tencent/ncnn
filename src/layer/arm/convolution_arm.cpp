@@ -1042,166 +1042,45 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
-    int elempack = (support_packing && opt.use_packing_layout && num_input % 4 == 0) ? 4 : 1;
-    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int elempack = 1;
+    int out_elempack = 1;
 
-    // pack4
-    if (elempack == 4 && out_elempack == 4)
+    if (opt.use_packing_layout)
     {
+        elempack = opt.use_fp16_arithmetic && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    }
+
+    // src = kw-kh-inch-outch
+    // dst = pb-pa-kw-kh-inch/pa-outch/pb
+    {
+        Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+
+        weight_data_fp16.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)2u * elempack * out_elempack, elempack * out_elempack);
+
+        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
-            // src = kw-kh-inch-outch
-            // dst = 4b-4a-kw-kh-inch/4a-outch/4b
-            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+            Mat g0 = weight_data_fp16.channel(q / out_elempack);
 
-            weight_data_pack4_fp16.create(maxk, num_input / 4, num_output / 4, (size_t)2 * 16, 16);
-
-            for (int q = 0; q + 3 < num_output; q += 4)
+            for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
-                const Mat k0 = weight_data_r2.channel(q);
-                const Mat k1 = weight_data_r2.channel(q + 1);
-                const Mat k2 = weight_data_r2.channel(q + 2);
-                const Mat k3 = weight_data_r2.channel(q + 3);
+                __fp16* g00 = g0.row<__fp16>(p / elempack);
 
-                Mat g0 = weight_data_pack4_fp16.channel(q / 4);
-
-                for (int p = 0; p + 3 < num_input; p += 4)
+                for (int k = 0; k < maxk; k++)
                 {
-                    const float* k00 = k0.row(p);
-                    const float* k01 = k0.row(p + 1);
-                    const float* k02 = k0.row(p + 2);
-                    const float* k03 = k0.row(p + 3);
-
-                    const float* k10 = k1.row(p);
-                    const float* k11 = k1.row(p + 1);
-                    const float* k12 = k1.row(p + 2);
-                    const float* k13 = k1.row(p + 3);
-
-                    const float* k20 = k2.row(p);
-                    const float* k21 = k2.row(p + 1);
-                    const float* k22 = k2.row(p + 2);
-                    const float* k23 = k2.row(p + 3);
-
-                    const float* k30 = k3.row(p);
-                    const float* k31 = k3.row(p + 1);
-                    const float* k32 = k3.row(p + 2);
-                    const float* k33 = k3.row(p + 3);
-
-                    __fp16* g00 = g0.row<__fp16>(p / 4);
-
-                    for (int k = 0; k < maxk; k++)
+                    for (int i = 0; i < elempack; i++)
                     {
-                        g00[0] = k00[k];
-                        g00[1] = k10[k];
-                        g00[2] = k20[k];
-                        g00[3] = k30[k];
+                        for (int j = 0; j < out_elempack; j++)
+                        {
+                            const float* k00 = weight_data_r2.channel(q + j).row(p + i);
 
-                        g00[4] = k01[k];
-                        g00[5] = k11[k];
-                        g00[6] = k21[k];
-                        g00[7] = k31[k];
+                            g00[0] = (__fp16)k00[k];
 
-                        g00[8] = k02[k];
-                        g00[9] = k12[k];
-                        g00[10] = k22[k];
-                        g00[11] = k32[k];
-
-                        g00[12] = k03[k];
-                        g00[13] = k13[k];
-                        g00[14] = k23[k];
-                        g00[15] = k33[k];
-
-                        g00 += 16;
+                            g00++;
+                        }
                     }
                 }
             }
-        }
-    }
-
-    // pack1to4
-    if (elempack == 1 && out_elempack == 4)
-    {
-        // src = kw-kh-inch-outch
-        // dst = 4b-kw-kh-inch-outch/4b
-        {
-            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-            weight_data_pack1to4_fp16.create(maxk, num_input, num_output / 4, (size_t)2 * 4, 4);
-
-            for (int q = 0; q + 3 < num_output; q += 4)
-            {
-                const Mat k0 = weight_data_r2.channel(q);
-                const Mat k1 = weight_data_r2.channel(q + 1);
-                const Mat k2 = weight_data_r2.channel(q + 2);
-                const Mat k3 = weight_data_r2.channel(q + 3);
-
-                Mat g0 = weight_data_pack1to4_fp16.channel(q / 4);
-
-                for (int p = 0; p < num_input; p++)
-                {
-                    const float* k00 = k0.row(p);
-                    const float* k10 = k1.row(p);
-                    const float* k20 = k2.row(p);
-                    const float* k30 = k3.row(p);
-
-                    __fp16* g00 = g0.row<__fp16>(p);
-
-                    for (int k = 0; k < maxk; k++)
-                    {
-                        g00[0] = k00[k];
-                        g00[1] = k10[k];
-                        g00[2] = k20[k];
-                        g00[3] = k30[k];
-
-                        g00 += 4;
-                    }
-                }
-            }
-        }
-    }
-
-    // pack4to1
-    if (elempack == 4 && out_elempack == 1)
-    {
-        {
-            // src = kw-kh-inch-outch
-            // dst = 4a-kw-kh-inch/4a-outch
-            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-            weight_data_pack4to1_fp16.create(maxk, num_input / 4, num_output, (size_t)2 * 4, 4);
-
-            for (int q = 0; q < num_output; q++)
-            {
-                const Mat k0 = weight_data_r2.channel(q);
-                Mat g0 = weight_data_pack4to1_fp16.channel(q);
-
-                for (int p = 0; p + 3 < num_input; p += 4)
-                {
-                    const float* k00 = k0.row(p);
-                    const float* k01 = k0.row(p + 1);
-                    const float* k02 = k0.row(p + 2);
-                    const float* k03 = k0.row(p + 3);
-
-                    __fp16* g00 = g0.row<__fp16>(p / 4);
-
-                    for (int k = 0; k < maxk; k++)
-                    {
-                        g00[0] = k00[k];
-                        g00[1] = k01[k];
-                        g00[2] = k02[k];
-                        g00[3] = k03[k];
-
-                        g00 += 4;
-                    }
-                }
-            }
-        }
-    }
-
-    // pack1
-    if (elempack == 1 && out_elempack == 1)
-    {
-        {
-            ncnn::cast_float32_to_float16(weight_data, weight_data_fp16, opt);
         }
     }
 
@@ -1287,7 +1166,7 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
                             _sum = vld1q_f32((const float*)bias_data + p * 4);
                         }
 
-                        const __fp16* kptr = weight_data_pack4_fp16.channel(p);
+                        const __fp16* kptr = weight_data_fp16.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1344,7 +1223,7 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
                             _sum = vld1q_f32((const float*)bias_data + p * 4);
                         }
 
-                        const __fp16* kptr = weight_data_pack1to4_fp16.channel(p);
+                        const __fp16* kptr = weight_data_fp16.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1393,7 +1272,7 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
                             sum = bias_data[p];
                         }
 
-                        const __fp16* kptr = weight_data_pack4to1_fp16.channel(p);
+                        const __fp16* kptr = weight_data_fp16.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1499,7 +1378,11 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+    }
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -1533,6 +1416,294 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
     }
 
+    if (elempack == 8 && out_elempack == 8)
+    {
+        {
+            // num_output
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p = 0; p < num_output / out_elempack; p++)
+            {
+                __fp16* outptr = top_blob.channel(p);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        float16x8_t _sum = vdupq_n_f16((__fp16)0.f);
+
+                        if (bias_term)
+                        {
+                            _sum = vld1q_f16(((const __fp16*)bias_data_fp16) + p * 8);
+                        }
+
+                        const __fp16* kptr = weight_data_fp16.channel(p);
+
+                        // channels
+                        for (int q = 0; q < channels; q++)
+                        {
+                            const Mat m = bottom_blob_bordered.channel(q);
+                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * 8;
+
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                float16x8_t _val = vld1q_f16(sptr + space_ofs[k] * 8);
+
+                                float16x8_t _w0 = vld1q_f16(kptr);
+                                float16x8_t _w1 = vld1q_f16(kptr + 8);
+                                float16x8_t _w2 = vld1q_f16(kptr + 16);
+                                float16x8_t _w3 = vld1q_f16(kptr + 24);
+                                float16x8_t _w4 = vld1q_f16(kptr + 32);
+                                float16x8_t _w5 = vld1q_f16(kptr + 40);
+                                float16x8_t _w6 = vld1q_f16(kptr + 48);
+                                float16x8_t _w7 = vld1q_f16(kptr + 56);
+
+                                _sum = vfmaq_laneq_f16(_sum, _w0, _val, 0);
+                                _sum = vfmaq_laneq_f16(_sum, _w1, _val, 1);
+                                _sum = vfmaq_laneq_f16(_sum, _w2, _val, 2);
+                                _sum = vfmaq_laneq_f16(_sum, _w3, _val, 3);
+                                _sum = vfmaq_laneq_f16(_sum, _w4, _val, 4);
+                                _sum = vfmaq_laneq_f16(_sum, _w5, _val, 5);
+                                _sum = vfmaq_laneq_f16(_sum, _w6, _val, 6);
+                                _sum = vfmaq_laneq_f16(_sum, _w7, _val, 7);
+
+                                kptr += 64;
+                            }
+                        }
+
+                        _sum = activation_ps(_sum, activation_type, activation_params);
+
+                        vst1q_f16(outptr + j * 8, _sum);
+                    }
+
+                    outptr += outw * 8;
+                }
+            }
+        }
+    }
+
+    if (elempack == 1 && out_elempack == 8)
+    {
+        {
+            // num_output
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p = 0; p < num_output / out_elempack; p++)
+            {
+                __fp16* outptr = top_blob.channel(p);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        float16x8_t _sum = vdupq_n_f16((__fp16)0.f);
+
+                        if (bias_term)
+                        {
+                            _sum = vld1q_f16(((const __fp16*)bias_data_fp16) + p * 8);
+                        }
+
+                        const __fp16* kptr = weight_data_fp16.channel(p);
+
+                        // channels
+                        for (int q = 0; q < channels; q++)
+                        {
+                            const Mat m = bottom_blob_bordered.channel(q);
+                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w;
+
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                float16x8_t _val = vdupq_n_f16(sptr[space_ofs[k]]);
+                                float16x8_t _w = vld1q_f16(kptr);
+                                _sum = vfmaq_f16(_sum, _val, _w);
+
+                                kptr += 8;
+                            }
+                        }
+
+                        _sum = activation_ps(_sum, activation_type, activation_params);
+
+                        vst1q_f16(outptr + j * 8, _sum);
+                    }
+
+                    outptr += outw * 8;
+                }
+            }
+        }
+    }
+
+    if (elempack == 4 && out_elempack == 8)
+    {
+        {
+            // num_output
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p = 0; p < num_output / out_elempack; p++)
+            {
+                __fp16* outptr = top_blob.channel(p);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        float16x8_t _sum = vdupq_n_f16((__fp16)0.f);
+
+                        if (bias_term)
+                        {
+                            _sum = vld1q_f16(((const __fp16*)bias_data_fp16) + p * 8);
+                        }
+
+                        const __fp16* kptr = weight_data_fp16.channel(p);
+
+                        // channels
+                        for (int q = 0; q < channels; q++)
+                        {
+                            const Mat m = bottom_blob_bordered.channel(q);
+                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * 4;
+
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                float16x4_t _val = vld1_f16(sptr + space_ofs[k] * 4);
+
+                                float16x8_t _w0 = vld1q_f16(kptr);
+                                float16x8_t _w1 = vld1q_f16(kptr + 8);
+                                float16x8_t _w2 = vld1q_f16(kptr + 16);
+                                float16x8_t _w3 = vld1q_f16(kptr + 24);
+
+                                _sum = vfmaq_lane_f16(_sum, _w0, _val, 0);
+                                _sum = vfmaq_lane_f16(_sum, _w1, _val, 1);
+                                _sum = vfmaq_lane_f16(_sum, _w2, _val, 2);
+                                _sum = vfmaq_lane_f16(_sum, _w3, _val, 3);
+
+                                kptr += 32;
+                            }
+                        }
+
+                        _sum = activation_ps(_sum, activation_type, activation_params);
+
+                        vst1q_f16(outptr + j * 8, _sum);
+                    }
+
+                    outptr += outw * 8;
+                }
+            }
+        }
+    }
+
+    if (elempack == 8 && out_elempack == 1)
+    {
+        {
+            // num_output
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p = 0; p < num_output; p++)
+            {
+                __fp16* outptr = top_blob.channel(p);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        float sum = 0.f;
+
+                        if (bias_term)
+                        {
+                            sum = bias_data[p];
+                        }
+
+                        const __fp16* kptr = weight_data_fp16.channel(p);
+
+                        // channels
+                        for (int q = 0; q < channels; q++)
+                        {
+                            const Mat m = bottom_blob_bordered.channel(q);
+                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * 8;
+
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                float16x8_t _val = vld1q_f16(sptr + space_ofs[k] * 8);
+                                float16x8_t _w = vld1q_f16(kptr);
+                                float16x8_t _s8 = vmulq_f16(_val, _w);
+
+                                float16x4_t _s4 = vadd_f16(vget_low_f16(_s8), vget_high_f16(_s8));
+                                sum += vaddvq_f32(vcvt_f32_f16(_s4)); // dot
+
+                                kptr += 8;
+                            }
+                        }
+
+                        sum = activation_ss(sum, activation_type, activation_params);
+
+                        outptr[j] = sum;
+                    }
+
+                    outptr += outw;
+                }
+            }
+        }
+    }
+
+    if (elempack == 8 && out_elempack == 4)
+    {
+        {
+            // num_output
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p = 0; p < num_output / out_elempack; p++)
+            {
+                __fp16* outptr = top_blob.channel(p);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        float16x4_t _sum = vdup_n_f16((__fp16)0.f);
+
+                        if (bias_term)
+                        {
+                            _sum = vld1_f16(((const __fp16*)bias_data_fp16) + p * 4);
+                        }
+
+                        const __fp16* kptr = weight_data_fp16.channel(p);
+
+                        // channels
+                        for (int q = 0; q < channels; q++)
+                        {
+                            const Mat m = bottom_blob_bordered.channel(q);
+                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * 8;
+
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                float16x8_t _val = vld1q_f16(sptr + space_ofs[k] * 8);
+
+                                float16x4_t _w0 = vld1_f16(kptr);
+                                float16x4_t _w1 = vld1_f16(kptr + 4);
+                                float16x4_t _w2 = vld1_f16(kptr + 8);
+                                float16x4_t _w3 = vld1_f16(kptr + 12);
+                                float16x4_t _w4 = vld1_f16(kptr + 16);
+                                float16x4_t _w5 = vld1_f16(kptr + 20);
+                                float16x4_t _w6 = vld1_f16(kptr + 24);
+                                float16x4_t _w7 = vld1_f16(kptr + 28);
+
+                                _sum = vfma_laneq_f16(_sum, _w0, _val, 0);
+                                _sum = vfma_laneq_f16(_sum, _w1, _val, 1);
+                                _sum = vfma_laneq_f16(_sum, _w2, _val, 2);
+                                _sum = vfma_laneq_f16(_sum, _w3, _val, 3);
+                                _sum = vfma_laneq_f16(_sum, _w4, _val, 4);
+                                _sum = vfma_laneq_f16(_sum, _w5, _val, 5);
+                                _sum = vfma_laneq_f16(_sum, _w6, _val, 6);
+                                _sum = vfma_laneq_f16(_sum, _w7, _val, 7);
+
+                                kptr += 32;
+                            }
+                        }
+
+                        _sum = activation_ps(_sum, activation_type, activation_params);
+
+                        vst1_f16(outptr + j * 4, _sum);
+                    }
+
+                    outptr += outw * 4;
+                }
+            }
+        }
+    }
+
     if (elempack == 4 && out_elempack == 4)
     {
         {
@@ -1553,7 +1724,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
                             _sum = vld1_f16(((const __fp16*)bias_data_fp16) + p * 4);
                         }
 
-                        const __fp16* kptr = weight_data_pack4_fp16.channel(p);
+                        const __fp16* kptr = weight_data_fp16.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1610,7 +1781,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
                             _sum = vld1_f16(((const __fp16*)bias_data_fp16) + p * 4);
                         }
 
-                        const __fp16* kptr = weight_data_pack1to4_fp16.channel(p);
+                        const __fp16* kptr = weight_data_fp16.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1659,7 +1830,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
                             sum = bias_data[p];
                         }
 
-                        const __fp16* kptr = weight_data_pack4to1_fp16.channel(p);
+                        const __fp16* kptr = weight_data_fp16.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
