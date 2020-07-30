@@ -88,6 +88,10 @@ public:
 #if __ARM_NEON
     void fill(float32x4_t _v);
     void fill(uint16x4_t _v);
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    void fill(float16x4_t _v);
+    void fill(float16x8_t _v);
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON
 #if __AVX__
     void fill(__m256 _v);
@@ -845,6 +849,29 @@ inline void Mat::fill(uint16x4_t _v)
         ptr += 4;
     }
 }
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+inline void Mat::fill(float16x4_t _v)
+{
+    int size = total();
+    __fp16* ptr = (__fp16*)data;
+    for (int i = 0; i < size; i++)
+    {
+        vst1_f16(ptr, _v);
+        ptr += 4;
+    }
+}
+
+inline void Mat::fill(float16x8_t _v)
+{
+    int size = total();
+    __fp16* ptr = (__fp16*)data;
+    for (int i = 0; i < size; i++)
+    {
+        vst1q_f16(ptr, _v);
+        ptr += 8;
+    }
+}
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON
 #if __AVX__
 inline void Mat::fill(__m256 _v)

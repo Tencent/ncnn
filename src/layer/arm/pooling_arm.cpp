@@ -373,6 +373,26 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
         if (pooling_type == PoolMethod_MAX)
         {
+            if (elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const __fp16* ptr = bottom_blob.channel(q);
+
+                    float16x8_t _max = vdupq_n_f16((__fp16)-FLT_MAX);
+                    for (int i = 0; i < size; i++)
+                    {
+                        float16x8_t _val = vld1q_f16(ptr);
+                        _max = vmaxq_f16(_max, _val);
+                        ptr += 8;
+                    }
+
+                    __fp16* outptr = top_blob;
+                    vst1q_f16(outptr + q * 8, _max);
+                }
+            }
+
             if (elempack == 4)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -497,6 +517,36 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     if (pooling_type == PoolMethod_MAX)
     {
+        if (elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const Mat m = bottom_blob_bordered.channel(q);
+                __fp16* outptr = top_blob.channel(q);
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * 8;
+
+                        float16x8_t _max = vdupq_n_f16((__fp16)-FLT_MAX);
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            float16x8_t _val = vld1q_f16(sptr + space_ofs[k] * 8);
+                            _max = vmaxq_f16(_max, _val);
+                        }
+
+                        vst1q_f16(outptr + j * 8, _max);
+                    }
+
+                    outptr += outw * 8;
+                }
+            }
+        }
+
         if (elempack == 4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -755,6 +805,11 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
     // max value in NxN window
     // avg value in NxN window
 
+    if (pooling_type == PoolMethod_MAX)
+    {
+        return forward_fp16s(bottom_blob, top_blob, opt);
+    }
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
@@ -771,49 +826,31 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
 
         int size = w * h;
 
-        if (pooling_type == PoolMethod_MAX)
-        {
-            if (elempack == 4)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const __fp16* ptr = bottom_blob.channel(q);
-
-                    float16x4_t _max = vdup_n_f16((__fp16)-FLT_MAX);
-                    for (int i = 0; i < size; i++)
-                    {
-                        float16x4_t _val = vld1_f16(ptr);
-                        _max = vmax_f16(_max, _val);
-                        ptr += 4;
-                    }
-
-                    __fp16* outptr = top_blob;
-                    vst1_f16(outptr + q * 4, _max);
-                }
-            }
-
-            if (elempack == 1)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const __fp16* ptr = bottom_blob.channel(q);
-
-                    __fp16 max = (__fp16)-FLT_MAX;
-                    for (int i = 0; i < size; i++)
-                    {
-                        max = std::max(max, ptr[i]);
-                    }
-
-                    __fp16* outptr = top_blob;
-                    outptr[q] = max;
-                }
-            }
-        }
-
         if (pooling_type == PoolMethod_AVE)
         {
+            if (elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const __fp16* ptr = bottom_blob.channel(q);
+
+                    float16x8_t _sum = vdupq_n_f16((__fp16)0.f);
+                    for (int i = 0; i < size; i++)
+                    {
+                        float16x8_t _val = vld1q_f16(ptr);
+                        _sum = vaddq_f16(_sum, _val);
+                        ptr += 8;
+                    }
+
+                    float16x8_t _inv_size = vdupq_n_f16((__fp16)(1.f / size));
+                    float16x8_t _avg = vmulq_f16(_sum, _inv_size);
+
+                    __fp16* outptr = top_blob;
+                    vst1q_f16(outptr + q * 8, _avg);
+                }
+            }
+
             if (elempack == 4)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -895,69 +932,6 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
     }
 
-    if (pooling_type == PoolMethod_MAX)
-    {
-        if (elempack == 4)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const Mat m = bottom_blob_bordered.channel(q);
-                __fp16* outptr = top_blob.channel(q);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * 4;
-
-                        float16x4_t _max = vdup_n_f16((__fp16)-FLT_MAX);
-
-                        for (int k = 0; k < maxk; k++)
-                        {
-                            float16x4_t _val = vld1_f16(sptr + space_ofs[k] * 4);
-                            _max = vmax_f16(_max, _val);
-                        }
-
-                        vst1_f16(outptr + j * 4, _max);
-                    }
-
-                    outptr += outw * 4;
-                }
-            }
-        }
-
-        if (elempack == 1)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const Mat m = bottom_blob_bordered.channel(q);
-                __fp16* outptr = top_blob.channel(q);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w;
-
-                        __fp16 max = (__fp16)-FLT_MAX;
-
-                        for (int k = 0; k < maxk; k++)
-                        {
-                            __fp16 val = sptr[space_ofs[k]];
-                            max = std::max(max, val);
-                        }
-
-                        outptr[j] = max;
-                    }
-
-                    outptr += outw;
-                }
-            }
-        }
-    }
-
     if (pooling_type == PoolMethod_AVE)
     {
         if (avgpool_count_include_pad == 0)
@@ -969,6 +943,61 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
             {
                 wtailpad = bottom_blob_bordered.w - bottom_blob.w - pad_left - pad_right;
                 htailpad = bottom_blob_bordered.h - bottom_blob.h - pad_top - pad_bottom;
+            }
+
+            if (elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const Mat m = bottom_blob_bordered.channel(q);
+                    __fp16* outptr = top_blob.channel(q);
+
+                    for (int i = 0; i < outh; i++)
+                    {
+                        int sy0 = i * stride_h;
+
+                        for (int j = 0; j < outw; j++)
+                        {
+                            int sx0 = j * stride_w;
+
+                            float16x8_t _sum = vdupq_n_f16((__fp16)0.f);
+                            int area = 0;
+
+                            for (int ki = 0; ki < kernel_h; ki++)
+                            {
+                                int sy = sy0 + ki;
+
+                                if (sy < pad_top)
+                                    continue;
+
+                                if (sy >= h - pad_bottom - htailpad)
+                                    break;
+
+                                for (int kj = 0; kj < kernel_w; kj++)
+                                {
+                                    int sx = sx0 + kj;
+
+                                    if (sx < pad_left)
+                                        continue;
+
+                                    if (sx >= w - pad_right - wtailpad)
+                                        break;
+
+                                    float16x8_t _val = vld1q_f16(m.row<const __fp16>(sy) + sx * 8);
+                                    _sum = vaddq_f16(_sum, _val);
+                                    area += 1;
+                                }
+                            }
+
+                            float16x8_t _inv_area = vdupq_n_f16((__fp16)(1.f / area));
+                            float16x8_t _avg = vmulq_f16(_sum, _inv_area);
+                            vst1q_f16(outptr + j * 8, _avg);
+                        }
+
+                        outptr += outw * 8;
+                    }
+                }
             }
 
             if (elempack == 4)
@@ -1082,6 +1111,39 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
 
         if (avgpool_count_include_pad == 1)
         {
+            if (elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const Mat m = bottom_blob_bordered.channel(q);
+                    __fp16* outptr = top_blob.channel(q);
+
+                    float16x8_t _inv_maxk = vdupq_n_f16((__fp16)(1.f / maxk));
+
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
+                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * 8;
+
+                            float16x8_t _sum = vdupq_n_f16((__fp16)0.f);
+
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                float16x8_t _val = vld1q_f16(sptr + space_ofs[k] * 8);
+                                _sum = vaddq_f16(_sum, _val);
+                            }
+
+                            float16x8_t _avg = vmulq_f16(_sum, _inv_maxk);
+                            vst1q_f16(outptr + j * 8, _avg);
+                        }
+
+                        outptr += outw * 8;
+                    }
+                }
+            }
+
             if (elempack == 4)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
