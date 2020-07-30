@@ -1323,7 +1323,7 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
                             sum = bias_data[p];
                         }
 
-                        const __fp16* kptr = (const __fp16*)weight_data_fp16 + maxk * channels * p;
+                        const __fp16* kptr = weight_data_fp16.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1881,7 +1881,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
                             sum = bias_data[p];
                         }
 
-                        const __fp16* kptr = (const __fp16*)weight_data_fp16 + maxk * channels * p;
+                        const __fp16* kptr = weight_data_fp16.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
