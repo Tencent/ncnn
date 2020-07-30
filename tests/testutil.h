@@ -283,6 +283,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!op->support_packing) opt.use_packing_layout = false;
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
     if (!op->support_fp16_storage) opt.use_fp16_storage = false;
+    if (!op->support_fp16_storage) opt.use_fp16_arithmetic = false;
     if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
 
     if (op->use_int8_inference)
@@ -700,6 +701,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!op->support_packing) opt.use_packing_layout = false;
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
     if (!op->support_fp16_storage) opt.use_fp16_storage = false;
+    if (!op->support_fp16_storage) opt.use_fp16_arithmetic = false;
     if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
 
     if (op->use_int8_inference)
