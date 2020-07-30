@@ -24,6 +24,9 @@ HardSwish_arm::HardSwish_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    support_fp16_storage = true;
+#endif
 #endif // __ARM_NEON
 
     support_bf16_storage = true;
@@ -32,6 +35,16 @@ HardSwish_arm::HardSwish_arm()
 int HardSwish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int elembits = bottom_top_blob.elembits();
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (opt.use_fp16_storage && elembits == 16)
+    {
+        if (opt.use_fp16_arithmetic)
+            return forward_inplace_fp16sa(bottom_top_blob, opt);
+        else
+            return forward_inplace_fp16s(bottom_top_blob, opt);
+    }
+#endif
 
     if (opt.use_bf16_storage && elembits == 16)
         return forward_inplace_bf16s(bottom_top_blob, opt);
@@ -112,6 +125,213 @@ int HardSwish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     return 0;
 }
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+int HardSwish_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    int size = w * h;
+    int elempack = bottom_top_blob.elempack;
+
+    if (elempack == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr = bottom_top_blob.channel(q);
+
+            float32x4_t _zero = vdupq_n_f32(0.f);
+            float32x4_t _one = vdupq_n_f32(1.f);
+            for (int i = 0; i < size; i++)
+            {
+                float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
+                float32x4_t _ans = vdupq_n_f32(beta);
+                _ans = vfmaq_n_f32(_ans, _p, alpha);
+                _ans = vmaxq_f32(_ans, _zero);
+                _ans = vminq_f32(_ans, _one);
+                _ans = vmulq_f32(_ans, _p);
+                vst1_f16(ptr, vcvt_f16_f32(_ans));
+
+                ptr += 4;
+            }
+        }
+
+        return 0;
+    }
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        __fp16* ptr = bottom_top_blob.channel(q);
+
+        float32x4_t _zero = vdupq_n_f32(0.f);
+        float32x4_t _one = vdupq_n_f32(1.f);
+
+        int i = 0;
+        for (; i + 3 < size; i += 4)
+        {
+            float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
+            float32x4_t _ans = vdupq_n_f32(beta);
+            _ans = vfmaq_n_f32(_ans, _p, alpha);
+            _ans = vmaxq_f32(_ans, _zero);
+            _ans = vminq_f32(_ans, _one);
+            _ans = vmulq_f32(_ans, _p);
+            vst1_f16(ptr, vcvt_f16_f32(_ans));
+
+            ptr += 4;
+        }
+        for (; i < size; i++)
+        {
+            float v = (float)*ptr;
+            if (v < lower)
+                v = 0.f;
+            else if (v > upper)
+                ;
+            else
+                v = v * (v * alpha + beta);
+            *ptr = (__fp16)v;
+            ++ptr;
+        }
+    }
+
+    return 0;
+}
+
+int HardSwish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    int size = w * h;
+    int elempack = bottom_top_blob.elempack;
+
+    if (elempack == 8)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr = bottom_top_blob.channel(q);
+
+            __fp16 alpha_fp16 = (__fp16)alpha;
+            __fp16 beta_fp16 = (__fp16)beta;
+
+            float16x8_t _zero = vdupq_n_f16((__fp16)0.f);
+            float16x8_t _one = vdupq_n_f16((__fp16)1.f);
+            for (int i = 0; i < size; i++)
+            {
+                float16x8_t _p = vld1q_f16(ptr);
+                float16x8_t _ans = vdupq_n_f16(beta_fp16);
+                _ans = vfmaq_n_f16(_ans, _p, alpha_fp16);
+                _ans = vmaxq_f16(_ans, _zero);
+                _ans = vminq_f16(_ans, _one);
+                _ans = vmulq_f16(_ans, _p);
+                vst1q_f16(ptr, _ans);
+
+                ptr += 8;
+            }
+        }
+
+        return 0;
+    }
+
+    if (elempack == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr = bottom_top_blob.channel(q);
+
+            __fp16 alpha_fp16 = (__fp16)alpha;
+            __fp16 beta_fp16 = (__fp16)beta;
+
+            float16x8_t _zero = vdupq_n_f16((__fp16)0.f);
+            float16x8_t _one = vdupq_n_f16((__fp16)1.f);
+
+            int i = 0;
+            for (; i + 1 < size; i += 2)
+            {
+                float16x8_t _p = vld1q_f16(ptr);
+                float16x8_t _ans = vdupq_n_f16(beta_fp16);
+                _ans = vfmaq_n_f16(_ans, _p, alpha_fp16);
+                _ans = vmaxq_f16(_ans, _zero);
+                _ans = vminq_f16(_ans, _one);
+                _ans = vmulq_f16(_ans, _p);
+                vst1q_f16(ptr, _ans);
+
+                ptr += 8;
+            }
+            for (; i < size; i++)
+            {
+                float16x4_t _p = vld1_f16(ptr);
+                float16x4_t _ans = vdup_n_f16(beta_fp16);
+                _ans = vfma_n_f16(_ans, _p, alpha_fp16);
+                _ans = vmax_f16(_ans, vget_low_f16(_zero));
+                _ans = vmin_f16(_ans, vget_low_f16(_one));
+                _ans = vmul_f16(_ans, _p);
+                vst1_f16(ptr, _ans);
+
+                ptr += 4;
+            }
+        }
+
+        return 0;
+    }
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        __fp16* ptr = bottom_top_blob.channel(q);
+
+        __fp16 alpha_fp16 = (__fp16)alpha;
+        __fp16 beta_fp16 = (__fp16)beta;
+
+        float16x8_t _zero = vdupq_n_f16((__fp16)0.f);
+        float16x8_t _one = vdupq_n_f16((__fp16)1.f);
+
+        int i = 0;
+        for (; i + 7 < size; i += 8)
+        {
+            float16x8_t _p = vld1q_f16(ptr);
+            float16x8_t _ans = vdupq_n_f16(beta_fp16);
+            _ans = vfmaq_n_f16(_ans, _p, alpha_fp16);
+            _ans = vmaxq_f16(_ans, _zero);
+            _ans = vminq_f16(_ans, _one);
+            _ans = vmulq_f16(_ans, _p);
+            vst1q_f16(ptr, _ans);
+
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            float16x4_t _p = vld1_f16(ptr);
+            float16x4_t _ans = vdup_n_f16(beta_fp16);
+            _ans = vfma_n_f16(_ans, _p, alpha_fp16);
+            _ans = vmax_f16(_ans, vget_low_f16(_zero));
+            _ans = vmin_f16(_ans, vget_low_f16(_one));
+            _ans = vmul_f16(_ans, _p);
+            vst1_f16(ptr, _ans);
+
+            ptr += 4;
+        }
+        for (; i < size; i++)
+        {
+            __fp16 v = *ptr;
+            if (v < (__fp16)lower)
+                v = (__fp16)0.f;
+            else if (v > (__fp16)upper)
+                ;
+            else
+                v = v * (v * alpha_fp16 + beta_fp16);
+            *ptr = v;
+            ++ptr;
+        }
+    }
+
+    return 0;
+}
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 int HardSwish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
