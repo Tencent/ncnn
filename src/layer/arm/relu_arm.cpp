@@ -349,6 +349,53 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
     int size = w * h;
     int elempack = bottom_top_blob.elempack;
 
+    if (elempack == 8)
+    {
+        if (slope == 0.f)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                __fp16* ptr = bottom_top_blob.channel(q);
+
+                float16x8_t _zero = vdupq_n_f16((__fp16)0.f);
+
+                for (int i = 0; i < size; i++)
+                {
+                    float16x8_t _p = vld1q_f16(ptr);
+                    _p = vmaxq_f16(_p, _zero);
+                    vst1q_f16(ptr, _p);
+
+                    ptr += 8;
+                }
+            }
+        }
+        else
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                __fp16* ptr = bottom_top_blob.channel(q);
+
+                float16x8_t _zero = vdupq_n_f16((__fp16)0.f);
+                float16x8_t _slope = vdupq_n_f16((__fp16)slope);
+
+                for (int i = 0; i < size; i++)
+                {
+                    float16x8_t _p = vld1q_f16(ptr);
+                    uint16x8_t _lemask = vcleq_f16(_p, _zero);
+                    float16x8_t _ps = vmulq_f16(_p, _slope);
+                    _p = vbslq_f16(_lemask, _ps, _p);
+                    vst1q_f16(ptr, _p);
+
+                    ptr += 8;
+                }
+            }
+        }
+
+        return 0;
+    }
+
     if (elempack == 4)
     {
         if (slope == 0.f)
@@ -358,11 +405,21 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
             {
                 __fp16* ptr = bottom_top_blob.channel(q);
 
-                float16x4_t _zero = vdup_n_f16((__fp16)0.f);
-                for (int i=0; i<size; i++)
+                float16x8_t _zero = vdupq_n_f16((__fp16)0.f);
+
+                int i = 0;
+                for (; i + 1 < size; i += 2)
+                {
+                    float16x8_t _p = vld1q_f16(ptr);
+                    _p = vmaxq_f16(_p, _zero);
+                    vst1q_f16(ptr, _p);
+
+                    ptr += 8;
+                }
+                for (; i < size; i++)
                 {
                     float16x4_t _p = vld1_f16(ptr);
-                    _p = vmax_f16(_p, _zero);
+                    _p = vmax_f16(_p, vget_low_f16(_zero));
                     vst1_f16(ptr, _p);
 
                     ptr += 4;
@@ -376,13 +433,25 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
             {
                 __fp16* ptr = bottom_top_blob.channel(q);
 
-                float16x4_t _zero = vdup_n_f16((__fp16)0.f);
-                float16x4_t _slope = vdup_n_f16((__fp16)slope);
-                for (int i = 0; i < size; i++)
+                float16x8_t _zero = vdupq_n_f16((__fp16)0.f);
+                float16x8_t _slope = vdupq_n_f16((__fp16)slope);
+
+                int i = 0;
+                for (; i + 1 < size; i += 2)
+                {
+                    float16x8_t _p = vld1q_f16(ptr);
+                    uint16x8_t _lemask = vcleq_f16(_p, _zero);
+                    float16x8_t _ps = vmulq_f16(_p, _slope);
+                    _p = vbslq_f16(_lemask, _ps, _p);
+                    vst1q_f16(ptr, _p);
+
+                    ptr += 8;
+                }
+                for (; i < size; i++)
                 {
                     float16x4_t _p = vld1_f16(ptr);
-                    uint16x4_t _lemask = vcle_f16(_p, _zero);
-                    float16x4_t _ps = vmul_f16(_p, _slope);
+                    uint16x4_t _lemask = vcle_f16(_p, vget_low_f16(_zero));
+                    float16x4_t _ps = vmul_f16(_p, vget_low_f16(_slope));
                     _p = vbsl_f16(_lemask, _ps, _p);
                     vst1_f16(ptr, _p);
 
@@ -401,18 +470,25 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
         {
             __fp16* ptr = bottom_top_blob.channel(q);
 
+            float16x8_t _zero = vdupq_n_f16((__fp16)0.f);
+
             int i = 0;
-#if __ARM_NEON
-            float16x4_t _zero = vdup_n_f16((__fp16)0.f);
+            for (; i + 7 < size; i += 8)
+            {
+                float16x8_t _p = vld1q_f16(ptr);
+                _p = vmaxq_f16(_p, _zero);
+                vst1q_f16(ptr, _p);
+
+                ptr += 8;
+            }
             for (; i + 3 < size; i += 4)
             {
                 float16x4_t _p = vld1_f16(ptr);
-                _p = vmax_f16(_p, _zero);
+                _p = vmax_f16(_p, vget_low_f16(_zero));
                 vst1_f16(ptr, _p);
 
                 ptr += 4;
             }
-#endif // __ARM_NEON
             for (; i < size; i++)
             {
                 __fp16 v = ptr[0];
@@ -430,21 +506,30 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
         {
             __fp16* ptr = bottom_top_blob.channel(q);
 
+            float16x8_t _zero = vdupq_n_f16((__fp16)0.f);
+            float16x8_t _slope = vdupq_n_f16((__fp16)slope);
+
             int i = 0;
-#if __ARM_NEON
-            float16x4_t _zero = vdup_n_f16((__fp16)0.f);
-            float16x4_t _slope = vdup_n_f16((__fp16)slope);
+            for (; i + 7 < size; i += 8)
+            {
+                float16x8_t _p = vld1q_f16(ptr);
+                uint16x8_t _lemask = vcleq_f16(_p, _zero);
+                float16x8_t _ps = vmulq_f16(_p, _slope);
+                _p = vbslq_f16(_lemask, _ps, _p);
+                vst1q_f16(ptr, _p);
+
+                ptr += 8;
+            }
             for (; i + 3 < size; i += 4)
             {
                 float16x4_t _p = vld1_f16(ptr);
-                uint16x4_t _lemask = vcle_f16(_p, _zero);
-                float16x4_t _ps = vmul_f16(_p, _slope);
+                uint16x4_t _lemask = vcle_f16(_p, vget_low_f16(_zero));
+                float16x4_t _ps = vmul_f16(_p, vget_low_f16(_slope));
                 _p = vbsl_f16(_lemask, _ps, _p);
                 vst1_f16(ptr, _p);
 
                 ptr += 4;
             }
-#endif // __ARM_NEON
             for (; i < size; i++)
             {
                 __fp16 v = ptr[0];
