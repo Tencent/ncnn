@@ -14,11 +14,7 @@
 
 #include "slice_arm.h"
 
-#include "layer_type.h"
-
-#if __ARM_NEON
-#include <arm_neon.h>
-#endif // __ARM_NEON
+#include <algorithm>
 
 namespace ncnn {
 
