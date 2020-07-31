@@ -14,8 +14,6 @@
 
 #include "concat_arm.h"
 
-#include "layer_type.h"
-
 #include <algorithm>
 
 namespace ncnn {

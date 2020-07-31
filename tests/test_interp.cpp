@@ -38,7 +38,8 @@ static int test_interp(const ncnn::Mat& a, int resize_type, float height_scale, 
 static int test_interp_0()
 {
     ncnn::Mat a = RandomMat(15, 16, 7);
-    ncnn::Mat b = RandomMat(14, 17, 16);
+    ncnn::Mat b = RandomMat(14, 17, 12);
+    ncnn::Mat c = RandomMat(13, 14, 24);
 
     return 0
            || test_interp(a, 1, 2.f, 2.f, 0, 0)
@@ -55,13 +56,22 @@ static int test_interp_0()
            || test_interp(b, 1, 0.8f, 0.8f, 0, 0)
            || test_interp(b, 1, 1.f, 1.f, 10, 12)
            || test_interp(b, 1, 1.f, 1.f, 2, 2)
-           || test_interp(b, 1, 1.f, 1.f, 14, 17);
+           || test_interp(b, 1, 1.f, 1.f, 14, 17)
+
+           || test_interp(c, 1, 2.f, 2.f, 0, 0)
+           || test_interp(c, 1, 4.f, 0.5f, 0, 0)
+           || test_interp(c, 1, 1.2f, 1.2f, 0, 0)
+           || test_interp(c, 1, 0.8f, 0.8f, 0, 0)
+           || test_interp(c, 1, 1.f, 1.f, 10, 12)
+           || test_interp(c, 1, 1.f, 1.f, 2, 2)
+           || test_interp(c, 1, 1.f, 1.f, 14, 17);
 }
 
 static int test_interp_1()
 {
     ncnn::Mat a = RandomMat(15, 16, 7);
-    ncnn::Mat b = RandomMat(14, 17, 16);
+    ncnn::Mat b = RandomMat(14, 17, 12);
+    ncnn::Mat c = RandomMat(13, 14, 24);
 
     return 0
            || test_interp(a, 2, 2.f, 2.f, 0, 0)
@@ -78,13 +88,22 @@ static int test_interp_1()
            || test_interp(b, 2, 0.8f, 0.8f, 0, 0)
            || test_interp(b, 2, 1.f, 1.f, 10, 12)
            || test_interp(b, 2, 1.f, 1.f, 2, 2)
-           || test_interp(b, 2, 1.f, 1.f, 14, 17);
+           || test_interp(b, 2, 1.f, 1.f, 14, 17)
+
+           || test_interp(c, 2, 2.f, 2.f, 0, 0)
+           || test_interp(c, 2, 4.f, 0.5f, 0, 0)
+           || test_interp(c, 2, 1.2f, 1.2f, 0, 0)
+           || test_interp(c, 2, 0.8f, 0.8f, 0, 0)
+           || test_interp(c, 2, 1.f, 1.f, 10, 12)
+           || test_interp(c, 2, 1.f, 1.f, 2, 2)
+           || test_interp(c, 2, 1.f, 1.f, 14, 17);
 }
 
 static int test_interp_2()
 {
     ncnn::Mat a = RandomMat(16, 17, 13);
-    ncnn::Mat b = RandomMat(18, 19, 16);
+    ncnn::Mat b = RandomMat(18, 19, 12);
+    ncnn::Mat c = RandomMat(13, 14, 24);
 
     return 0
            || test_interp(a, 3, 2.f, 2.f, 0, 0)
@@ -103,7 +122,16 @@ static int test_interp_2()
            || test_interp(b, 3, 1.f, 1.f, 10, 12)
            || test_interp(b, 3, 1.f, 1.f, 2, 2)
            || test_interp(b, 3, 1.f, 1.f, 6, 7)
-           || test_interp(b, 3, 1.f, 1.f, 18, 19);
+           || test_interp(b, 3, 1.f, 1.f, 18, 19)
+
+           || test_interp(c, 3, 2.f, 2.f, 0, 0)
+           || test_interp(c, 3, 4.f, 0.5f, 0, 0)
+           || test_interp(c, 3, 1.2f, 1.2f, 0, 0)
+           || test_interp(c, 3, 0.8f, 0.8f, 0, 0)
+           || test_interp(c, 3, 1.f, 1.f, 10, 12)
+           || test_interp(c, 3, 1.f, 1.f, 2, 2)
+           || test_interp(c, 3, 1.f, 1.f, 6, 7)
+           || test_interp(c, 3, 1.f, 1.f, 18, 19);
 }
 
 int main()
