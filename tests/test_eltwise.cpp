@@ -119,11 +119,11 @@ static int test_eltwise_2()
 static int test_eltwise_3()
 {
     std::vector<ncnn::Mat> a(5);
-    a[0] = RandomMat(12, 4, 6);
-    a[1] = RandomMat(12, 4, 6);
-    a[2] = RandomMat(12, 4, 6);
-    a[3] = RandomMat(12, 4, 6);
-    a[4] = RandomMat(12, 4, 6);
+    a[0] = RandomMat(12, 4, 16);
+    a[1] = RandomMat(12, 4, 16);
+    a[2] = RandomMat(12, 4, 16);
+    a[3] = RandomMat(12, 4, 16);
+    a[4] = RandomMat(12, 4, 16);
 
     return 0
            || test_eltwise(a, 0, ncnn::Mat())

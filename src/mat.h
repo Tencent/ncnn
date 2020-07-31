@@ -600,6 +600,7 @@ void resize_nearest(const Mat& src, Mat& dst, int w, int h, const Option& opt = 
 void resize_bilinear(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
 void resize_bicubic(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
 void convert_packing(const Mat& src, Mat& dst, int elempack, const Option& opt = Option());
+void flatten(const Mat& src, Mat& dst, const Option& opt = Option());
 void cast_float32_to_float16(const Mat& src, Mat& dst, const Option& opt = Option());
 void cast_float16_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
 void cast_int8_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
