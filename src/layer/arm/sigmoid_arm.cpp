@@ -35,7 +35,9 @@ Sigmoid_arm::Sigmoid_arm()
 
 int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    if (opt.use_bf16_storage)
+    int elembits = bottom_top_blob.elembits();
+
+    if (opt.use_bf16_storage && elembits == 16)
         return forward_inplace_bf16s(bottom_top_blob, opt);
 
     int w = bottom_top_blob.w;

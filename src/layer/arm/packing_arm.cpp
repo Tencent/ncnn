@@ -23,31 +23,38 @@ namespace ncnn {
 Packing_arm::Packing_arm()
 {
     support_packing = true;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    support_fp16_storage = true;
+#endif
 
     support_bf16_storage = true;
 }
 
 int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
+    int elembits = bottom_blob.elembits();
 
-    bool elemtype_is_bf16 = (elemsize == 2u && elempack == 1) || (elemsize == 8u && elempack == 4);
-    bool elemtype_is_fp32 = (elemsize == 4u && elempack == 1) || (elemsize == 16u && elempack == 4);
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (opt.use_fp16_storage && elembits == 16)
+        return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
+#endif
 
-    if (opt.use_bf16_storage && elemtype_is_bf16)
-        return forward_bf16s(bottom_blob, top_blob, opt);
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 
     if (use_padding)
     {
         return Packing::forward(bottom_blob, top_blob, opt);
     }
 
-    if (!elemtype_is_fp32)
+    if (elembits != 32)
     {
         // non-fp32 type
         return Packing::forward(bottom_blob, top_blob, opt);
     }
+
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
 
     if (elempack == out_elempack)
     {
@@ -314,7 +321,7 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     return 0;
 }
 
-int Packing_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     if (use_padding)
     {

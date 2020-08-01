@@ -35,21 +35,24 @@ static int test_clip(const ncnn::Mat& a, float min, float max)
 static int test_clip_0()
 {
     return 0
-           || test_clip(RandomMat(5, 7, 16), -1.f, 1.f)
+           || test_clip(RandomMat(5, 7, 24), -1.f, 1.f)
+           || test_clip(RandomMat(7, 9, 12), -1.f, 1.f)
            || test_clip(RandomMat(3, 5, 13), -1.f, 1.f);
 }
 
 static int test_clip_1()
 {
     return 0
-           || test_clip(RandomMat(6, 16), -1.f, 1.f)
-           || test_clip(RandomMat(7, 15), -1.f, 1.f);
+           || test_clip(RandomMat(15, 24), -1.f, 1.f)
+           || test_clip(RandomMat(17, 12), -1.f, 1.f)
+           || test_clip(RandomMat(19, 15), -1.f, 1.f);
 }
 
 static int test_clip_2()
 {
     return 0
            || test_clip(RandomMat(128), -1.f, 1.f)
+           || test_clip(RandomMat(124), -1.f, 1.f)
            || test_clip(RandomMat(127), -1.f, 1.f);
 }
 

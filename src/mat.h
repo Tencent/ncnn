@@ -88,6 +88,10 @@ public:
 #if __ARM_NEON
     void fill(float32x4_t _v);
     void fill(uint16x4_t _v);
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    void fill(float16x4_t _v);
+    void fill(float16x8_t _v);
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON
 #if __AVX__
     void fill(__m256 _v);
@@ -130,6 +134,9 @@ public:
 
     bool empty() const;
     size_t total() const;
+
+    // bits per element
+    int elembits() const;
 
     // shape only
     Mat shape() const;
@@ -336,6 +343,9 @@ public:
     bool empty() const;
     size_t total() const;
 
+    // bits per element
+    int elembits() const;
+
     // shape only
     Mat shape() const;
 
@@ -442,6 +452,9 @@ public:
 
     bool empty() const;
     size_t total() const;
+
+    // bits per element
+    int elembits() const;
 
     // shape only
     Mat shape() const;
@@ -587,6 +600,7 @@ void resize_nearest(const Mat& src, Mat& dst, int w, int h, const Option& opt = 
 void resize_bilinear(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
 void resize_bicubic(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
 void convert_packing(const Mat& src, Mat& dst, int elempack, const Option& opt = Option());
+void flatten(const Mat& src, Mat& dst, const Option& opt = Option());
 void cast_float32_to_float16(const Mat& src, Mat& dst, const Option& opt = Option());
 void cast_float16_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
 void cast_int8_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
@@ -836,6 +850,29 @@ inline void Mat::fill(uint16x4_t _v)
         ptr += 4;
     }
 }
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+inline void Mat::fill(float16x4_t _v)
+{
+    int size = total();
+    __fp16* ptr = (__fp16*)data;
+    for (int i = 0; i < size; i++)
+    {
+        vst1_f16(ptr, _v);
+        ptr += 4;
+    }
+}
+
+inline void Mat::fill(float16x8_t _v)
+{
+    int size = total();
+    __fp16* ptr = (__fp16*)data;
+    for (int i = 0; i < size; i++)
+    {
+        vst1q_f16(ptr, _v);
+        ptr += 8;
+    }
+}
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON
 #if __AVX__
 inline void Mat::fill(__m256 _v)
@@ -1254,6 +1291,11 @@ inline bool Mat::empty() const
 inline size_t Mat::total() const
 {
     return cstep * c;
+}
+
+inline int Mat::elembits() const
+{
+    return elempack ? elemsize * 8 / elempack : 0;
 }
 
 inline Mat Mat::shape() const
@@ -1744,6 +1786,11 @@ inline size_t VkMat::total() const
     return cstep * c;
 }
 
+inline int VkMat::elembits() const
+{
+    return elempack ? elemsize * 8 / elempack : 0;
+}
+
 inline Mat VkMat::shape() const
 {
     if (dims == 1)
@@ -2135,6 +2182,11 @@ inline bool VkImageMat::empty() const
 inline size_t VkImageMat::total() const
 {
     return w * h * c;
+}
+
+inline int VkImageMat::elembits() const
+{
+    return elempack ? elemsize * 8 / elempack : 0;
 }
 
 inline Mat VkImageMat::shape() const

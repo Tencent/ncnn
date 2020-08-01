@@ -35,21 +35,24 @@ static int test_elu(const ncnn::Mat& a)
 static int test_elu_0()
 {
     return 0
-           || test_elu(RandomMat(5, 7, 16))
+           || test_elu(RandomMat(5, 7, 24))
+           || test_elu(RandomMat(7, 9, 12))
            || test_elu(RandomMat(3, 5, 13));
 }
 
 static int test_elu_1()
 {
     return 0
-           || test_elu(RandomMat(6, 16))
-           || test_elu(RandomMat(7, 15));
+           || test_elu(RandomMat(15, 24))
+           || test_elu(RandomMat(17, 12))
+           || test_elu(RandomMat(19, 15));
 }
 
 static int test_elu_2()
 {
     return 0
            || test_elu(RandomMat(128))
+           || test_elu(RandomMat(124))
            || test_elu(RandomMat(127));
 }
 
