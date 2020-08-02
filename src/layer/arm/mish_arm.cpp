@@ -28,6 +28,9 @@ Mish_arm::Mish_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    support_fp16_storage = true;
+#endif
 #endif // __ARM_NEON
 
     support_bf16_storage = true;
@@ -36,6 +39,11 @@ Mish_arm::Mish_arm()
 int Mish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int elembits = bottom_top_blob.elembits();
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (opt.use_fp16_storage && elembits == 16)
+        return forward_inplace_fp16s(bottom_top_blob, opt);
+#endif
 
     if (opt.use_bf16_storage && elembits == 16)
         return forward_inplace_bf16s(bottom_top_blob, opt);
@@ -97,6 +105,86 @@ int Mish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+int Mish_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    int size = w * h;
+    int elempack = bottom_top_blob.elempack;
+
+    if (elempack == 8)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr = bottom_top_blob.channel(q);
+
+            for (int i = 0; i < size; i++)
+            {
+                float16x8_t _p = vld1q_f16(ptr);
+                float32x4_t _p_low = vcvt_f32_f16(vget_low_f16(_p));
+                float32x4_t _p_high = vcvt_f32_f16(vget_high_f16(_p));
+                _p_low = vmulq_f32(_p_low, tanh_ps(log_ps(vaddq_f32(exp_ps(_p_low), vdupq_n_f32(1.f)))));
+                _p_high = vmulq_f32(_p_high, tanh_ps(log_ps(vaddq_f32(exp_ps(_p_high), vdupq_n_f32(1.f)))));
+                _p = vcombine_f16(vcvt_f16_f32(_p_low), vcvt_f16_f32(_p_high));
+                vst1q_f16(ptr, _p);
+
+                ptr += 8;
+            }
+        }
+
+        return 0;
+    }
+
+    if (elempack == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr = bottom_top_blob.channel(q);
+
+            for (int i = 0; i < size; i++)
+            {
+                float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
+                _p = vmulq_f32(_p, tanh_ps(log_ps(vaddq_f32(exp_ps(_p), vdupq_n_f32(1.f)))));
+                vst1_f16(ptr, vcvt_f16_f32(_p));
+
+                ptr += 4;
+            }
+        }
+
+        return 0;
+    }
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        __fp16* ptr = bottom_top_blob.channel(q);
+
+        int i = 0;
+        for (; i + 3 < size; i += 4)
+        {
+            float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
+            _p = vmulq_f32(_p, tanh_ps(log_ps(vaddq_f32(exp_ps(_p), vdupq_n_f32(1.f)))));
+            vst1_f16(ptr, vcvt_f16_f32(_p));
+
+            ptr += 4;
+        }
+        for (; i < size; i++)
+        {
+            float v = (float)*ptr;
+            v = v * tanh(log(exp(v) + 1.f));
+            *ptr = (__fp16)v;
+            ptr++;
+        }
+    }
+
+    return 0;
+}
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 int Mish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
