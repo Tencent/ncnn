@@ -1129,6 +1129,9 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             }
         }
 
+        // clang-format off
+        // *INDENT-OFF*
+#if NCNN_ARM82
         if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
         {
             if (bottom_blob.elemsize / bottom_blob.elempack == 4u && layer->support_fp16_storage)
@@ -1144,7 +1147,9 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                 bottom_blob = bottom_blob_fp32;
             }
         }
-        else if (opt.use_bf16_storage)
+        else
+#endif // NCNN_ARM82
+        if (opt.use_bf16_storage)
         {
             if (bottom_blob.elemsize / bottom_blob.elempack == 4u && layer->support_bf16_storage)
             {
@@ -1159,6 +1164,8 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                 bottom_blob = bottom_blob_fp32;
             }
         }
+        // *INDENT-ON*
+        // clang-format on
 
         if (opt.use_packing_layout)
         {
@@ -1255,6 +1262,9 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                 }
             }
 
+            // clang-format off
+            // *INDENT-OFF*
+#if NCNN_ARM82
             if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
             {
                 if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 4u && layer->support_fp16_storage)
@@ -1270,7 +1280,9 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                     bottom_blobs[i] = bottom_blob_fp32;
                 }
             }
-            else if (opt.use_bf16_storage)
+            else
+#endif // NCNN_ARM82
+            if (opt.use_bf16_storage)
             {
                 if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 4u && layer->support_bf16_storage)
                 {
@@ -1285,6 +1297,8 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                     bottom_blobs[i] = bottom_blob_fp32;
                 }
             }
+            // *INDENT-ON*
+            // clang-format on
 
             if (opt.use_packing_layout)
             {
