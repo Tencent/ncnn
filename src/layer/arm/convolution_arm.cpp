@@ -2261,12 +2261,12 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(sptr + space_ofs[k] * 4), 16));
+                                float32x4_t _val = vcvt_f32_bf16(vld1_u16(sptr + space_ofs[k] * 4));
 
-                                float32x4_t _w0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr), 16));
-                                float32x4_t _w1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr + 4), 16));
-                                float32x4_t _w2 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr + 8), 16));
-                                float32x4_t _w3 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr + 12), 16));
+                                float32x4_t _w0 = vcvt_f32_bf16(vld1_u16(kptr));
+                                float32x4_t _w1 = vcvt_f32_bf16(vld1_u16(kptr + 4));
+                                float32x4_t _w2 = vcvt_f32_bf16(vld1_u16(kptr + 8));
+                                float32x4_t _w3 = vcvt_f32_bf16(vld1_u16(kptr + 12));
 
 #if __aarch64__
                                 _sum = vmlaq_laneq_f32(_sum, _w0, _val, 0);
@@ -2286,7 +2286,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 
                         _sum = activation_ps(_sum, activation_type, activation_params);
 
-                        vst1_u16(outptr + j * 4, vshrn_n_u32(vreinterpretq_u32_f32(_sum), 16));
+                        vst1_u16(outptr + j * 4, vcvt_bf16_f32(_sum));
                     }
 
                     outptr += outw * 4;
@@ -2354,7 +2354,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
                             for (int k = 0; k < maxk; k++)
                             {
                                 float32x4_t _val = vdupq_n_f32(bfloat16_to_float32(sptr[space_ofs[k]]));
-                                float32x4_t _w = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr), 16));
+                                float32x4_t _w = vcvt_f32_bf16(vld1_u16(kptr));
                                 _sum = vmlaq_f32(_sum, _val, _w);
 
                                 kptr += 4;
@@ -2363,7 +2363,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 
                         _sum = activation_ps(_sum, activation_type, activation_params);
 
-                        vst1_u16(outptr + j * 4, vshrn_n_u32(vreinterpretq_u32_f32(_sum), 16));
+                        vst1_u16(outptr + j * 4, vcvt_bf16_f32(_sum));
                     }
 
                     outptr += outw * 4;
@@ -2433,8 +2433,8 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(sptr + space_ofs[k] * 4), 16));
-                                float32x4_t _w = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr), 16));
+                                float32x4_t _val = vcvt_f32_bf16(vld1_u16(sptr + space_ofs[k] * 4));
+                                float32x4_t _w = vcvt_f32_bf16(vld1_u16(kptr));
                                 float32x4_t _s4 = vmulq_f32(_val, _w);
 #if __aarch64__
                                 sum += vaddvq_f32(_s4); // dot

@@ -109,7 +109,7 @@ static void resize_bilinear_image_bf16s(const Mat& src, Mat& dst, float* alpha, 
             float32x4_t _D = vmulq_f32(_rows0, _b0);
             _D = vmlaq_f32(_D, _rows1, _b1);
 
-            vst1_u16(Dp, vshrn_n_u32(vreinterpretq_u32_f32(_D), 16));
+            vst1_u16(Dp, vcvt_bf16_f32(_D));
 
             float32x4_t _rows0n = vld1q_f32(rows0p + 4);
             float32x4_t _rows1n = vld1q_f32(rows1p + 4);
@@ -117,7 +117,7 @@ static void resize_bilinear_image_bf16s(const Mat& src, Mat& dst, float* alpha, 
             float32x4_t _Dn = vmulq_f32(_rows0n, _b0);
             _Dn = vmlaq_f32(_Dn, _rows1n, _b1);
 
-            vst1_u16(Dp + 4, vshrn_n_u32(vreinterpretq_u32_f32(_Dn), 16));
+            vst1_u16(Dp + 4, vcvt_bf16_f32(_Dn));
 
             Dp += 8;
             rows0p += 8;

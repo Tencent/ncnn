@@ -30,6 +30,9 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+protected:
+    void cut_padding(const Mat& top_blob_bordered, Mat& top_blob, const Option& opt) const;
+
 public:
     // param
     int num_output;
