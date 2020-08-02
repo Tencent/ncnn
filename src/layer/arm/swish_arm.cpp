@@ -122,11 +122,11 @@ int Swish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
 
             for (int i = 0; i < size; i++)
             {
-                float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
                 float32x4_t _q = vaddq_f32(_one, exp_ps(vnegq_f32(_p)));
                 float32x4_t _r = vrecpeq_f32(_q);
                 _p = vmulq_f32(_p, vmulq_f32(vrecpsq_f32(_q, _r), _r));
-                vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+                vst1_u16(ptr, vcvt_bf16_f32(_p));
                 ptr += 4;
             }
         }
@@ -150,11 +150,11 @@ int Swish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
 #if __ARM_NEON
         for (; nn > 0; nn--)
         {
-            float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+            float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
             float32x4_t _q = vaddq_f32(_one, exp_ps(vnegq_f32(_p)));
             float32x4_t _r = vrecpeq_f32(_q);
             _p = vmulq_f32(_p, vmulq_f32(vrecpsq_f32(_q, _r), _r));
-            vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+            vst1_u16(ptr, vcvt_bf16_f32(_p));
             ptr += 4;
         }
 #endif // __ARM_NEON

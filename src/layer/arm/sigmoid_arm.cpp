@@ -132,14 +132,14 @@ int Sigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
             float32x4_t _one = vdupq_n_f32(1.f);
             for (int i = 0; i < size; i++)
             {
-                float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
                 _p = vnegq_f32(_p);
                 _p = exp_ps(_p);
                 _p = vaddq_f32(_p, _one);
                 float32x4_t _outp = vrecpeq_f32(_p);
                 _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
-                //                 _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
-                vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                // _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
+                vst1_u16(ptr, vcvt_bf16_f32(_outp));
 
                 ptr += 4;
             }
@@ -165,14 +165,14 @@ int Sigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
         float32x4_t _one = vdupq_n_f32(1.f);
         for (; nn > 0; nn--)
         {
-            float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+            float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
             _p = vnegq_f32(_p);
             _p = exp_ps(_p);
             _p = vaddq_f32(_p, _one);
             float32x4_t _outp = vrecpeq_f32(_p);
             _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
-            //             _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
-            vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+            // _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
+            vst1_u16(ptr, vcvt_bf16_f32(_outp));
 
             ptr += 4;
         }

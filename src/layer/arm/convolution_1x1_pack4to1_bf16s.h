@@ -2124,9 +2124,9 @@ static void conv1x1s1_sgemm_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top
 
             for (int q = 0; q < inch; q++)
             {
-                float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(tmpptr), 16));
+                float32x4_t _r0 = vcvt_f32_bf16(vld1_u16(tmpptr));
 
-                float32x4_t _k0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr), 16));
+                float32x4_t _k0 = vcvt_f32_bf16(vld1_u16(kptr));
 
                 _sum0 = vmlaq_f32(_sum0, _r0, _k0);
 

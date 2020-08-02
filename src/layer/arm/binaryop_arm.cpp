@@ -2794,12 +2794,12 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                     const unsigned short* ptr = a.channel(q);
                     unsigned short* outptr = c.channel(q);
                     const unsigned short* b0 = b.channel(q);
-                    float32x4_t _b0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(b0), 16));
+                    float32x4_t _b0 = vcvt_f32_bf16(vld1_u16(b0));
                     for (int i = 0; i < size; i++)
                     {
-                        float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
                         float32x4_t _outp = op(_p, _b0);
-                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                        vst1_u16(outptr, vcvt_bf16_f32(_outp));
                         ptr += 4;
                         outptr += 4;
                     }
@@ -2823,10 +2823,10 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                     unsigned short* outptr = c.channel(q);
                     for (int i = 0; i < size; i++)
                     {
-                        float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
                         float32x4_t _p1 = vdupq_n_f32(bfloat16_to_float32(*ptr1));
                         float32x4_t _outp = op(_p, _p1);
-                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                        vst1_u16(outptr, vcvt_bf16_f32(_outp));
                         ptr += 4;
                         ptr1 += 1;
                         outptr += 4;
@@ -2849,12 +2849,12 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                     const unsigned short* a0 = a.channel(q);
                     unsigned short* outptr = c.channel(q);
                     const unsigned short* ptr1 = b.channel(q);
-                    float32x4_t _a0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(a0), 16));
+                    float32x4_t _a0 = vcvt_f32_bf16(vld1_u16(a0));
                     for (int i = 0; i < size1; i++)
                     {
-                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                        float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                         float32x4_t _outp = op(_a0, _p1);
-                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                        vst1_u16(outptr, vcvt_bf16_f32(_outp));
                         ptr1 += 4;
                         outptr += 4;
                     }
@@ -2879,9 +2879,9 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                     for (int i = 0; i < size1; i++)
                     {
                         float32x4_t _p = vdupq_n_f32(bfloat16_to_float32(*ptr));
-                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                        float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                         float32x4_t _outp = op(_p, _p1);
-                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                        vst1_u16(outptr, vcvt_bf16_f32(_outp));
                         ptr += 1;
                         ptr1 += 4;
                         outptr += 4;
@@ -2905,10 +2905,10 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
 
                 for (int i = 0; i < size; i++)
                 {
-                    float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-                    float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                    float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+                    float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                     float32x4_t _outp = op(_p, _p1);
-                    vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                    vst1_u16(outptr, vcvt_bf16_f32(_outp));
                     ptr += 4;
                     ptr1 += 4;
                     outptr += 4;
@@ -2934,12 +2934,12 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
 
                 for (int y = 0; y < h; y++)
                 {
-                    float32x4_t _b0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                    float32x4_t _b0 = vcvt_f32_bf16(vld1_u16(ptr1));
                     for (int x = 0; x < w; x++)
                     {
-                        float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
                         float32x4_t _outp = op(_p, _b0);
-                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                        vst1_u16(outptr, vcvt_bf16_f32(_outp));
                         ptr += 4;
                         outptr += 4;
                     }
@@ -2965,9 +2965,9 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
 
                     for (int i = 0; i < size; i++)
                     {
-                        float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
                         float32x4_t _outp = op(_p, _b0);
-                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                        vst1_u16(outptr, vcvt_bf16_f32(_outp));
                         ptr += 4;
                         outptr += 4;
                     }
@@ -2981,14 +2981,14 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
             for (int q = 0; q < channels; q++)
             {
                 const unsigned short* ptr = a.channel(q);
-                float32x4_t _b0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16((const unsigned short*)b + q * 4), 16));
+                float32x4_t _b0 = vcvt_f32_bf16(vld1_u16((const unsigned short*)b + q * 4));
                 unsigned short* outptr = c.channel(q);
 
                 for (int i = 0; i < size; i++)
                 {
-                    float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                    float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
                     float32x4_t _outp = op(_p, _b0);
-                    vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                    vst1_u16(outptr, vcvt_bf16_f32(_outp));
                     ptr += 4;
                     outptr += 4;
                 }
@@ -3015,12 +3015,12 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
 
                 for (int y = 0; y < h1; y++)
                 {
-                    float32x4_t _a0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                    float32x4_t _a0 = vcvt_f32_bf16(vld1_u16(ptr));
                     for (int x = 0; x < w1; x++)
                     {
-                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                        float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                         float32x4_t _outp = op(_a0, _p1);
-                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                        vst1_u16(outptr, vcvt_bf16_f32(_outp));
                         ptr1 += 4;
                         outptr += 4;
                     }
@@ -3044,10 +3044,10 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
             unsigned short* outptr = c;
             for (int i = 0; i < size; i++)
             {
-                float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-                float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+                float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                 float32x4_t _outp = op(_p, _p1);
-                vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                vst1_u16(outptr, vcvt_bf16_f32(_outp));
                 ptr += 4;
                 ptr1 += 4;
                 outptr += 4;
@@ -3070,9 +3070,9 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                 unsigned short* outptr = c;
                 for (int i = 0; i < size; i++)
                 {
-                    float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                    float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
                     float32x4_t _outp = op(_p, _b0);
-                    vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                    vst1_u16(outptr, vcvt_bf16_f32(_outp));
                     ptr += 4;
                     outptr += 4;
                 }
@@ -3087,12 +3087,12 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
 
             for (int y = 0; y < h; y++)
             {
-                float32x4_t _b0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                float32x4_t _b0 = vcvt_f32_bf16(vld1_u16(ptr1));
                 for (int x = 0; x < w; x++)
                 {
-                    float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                    float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
                     float32x4_t _outp = op(_p, _b0);
-                    vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                    vst1_u16(outptr, vcvt_bf16_f32(_outp));
                     ptr += 4;
                     outptr += 4;
                 }
@@ -3123,9 +3123,9 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
 
                     for (int i = 0; i < size1; i++)
                     {
-                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                        float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                         float32x4_t _outp = op(_a0, _p1);
-                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                        vst1_u16(outptr, vcvt_bf16_f32(_outp));
                         ptr1 += 4;
                         outptr += 4;
                     }
@@ -3146,9 +3146,9 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                 unsigned short* outptr = c;
                 for (int i = 0; i < size1; i++)
                 {
-                    float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                    float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                     float32x4_t _outp = op(_a0, _p1);
-                    vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                    vst1_u16(outptr, vcvt_bf16_f32(_outp));
                     ptr1 += 4;
                     outptr += 4;
                 }
@@ -3168,9 +3168,9 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                 unsigned short* outptr = c;
                 for (int i = 0; i < w1; i++)
                 {
-                    float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                    float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                     float32x4_t _outp = op(_a0, _p1);
-                    vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                    vst1_u16(outptr, vcvt_bf16_f32(_outp));
                     ptr1 += 4;
                     outptr += 4;
                 }
@@ -3189,15 +3189,15 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels1; q++)
             {
-                float32x4_t _a0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16((const unsigned short*)a + q * 4), 16));
+                float32x4_t _a0 = vcvt_f32_bf16(vld1_u16((const unsigned short*)a + q * 4));
                 const unsigned short* ptr1 = b.channel(q);
                 unsigned short* outptr = c.channel(q);
 
                 for (int i = 0; i < size1; i++)
                 {
-                    float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                    float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                     float32x4_t _outp = op(_a0, _p1);
-                    vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                    vst1_u16(outptr, vcvt_bf16_f32(_outp));
                     ptr1 += 4;
                     outptr += 4;
                 }
@@ -3219,12 +3219,12 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
 
             for (int y = 0; y < h1; y++)
             {
-                float32x4_t _a0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                float32x4_t _a0 = vcvt_f32_bf16(vld1_u16(ptr));
                 for (int x = 0; x < w1; x++)
                 {
-                    float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                    float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                     float32x4_t _outp = op(_a0, _p1);
-                    vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                    vst1_u16(outptr, vcvt_bf16_f32(_outp));
                     ptr1 += 4;
                     outptr += 4;
                 }
@@ -3249,9 +3249,9 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
                 unsigned short* outptr = c;
                 for (int i = 0; i < w; i++)
                 {
-                    float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                    float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
                     float32x4_t _outp = op(_p, _b0);
-                    vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                    vst1_u16(outptr, vcvt_bf16_f32(_outp));
                     ptr += 4;
                     outptr += 4;
                 }
@@ -3265,10 +3265,10 @@ static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Optio
             unsigned short* outptr = c;
             for (int i = 0; i < w; i++)
             {
-                float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-                float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+                float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                 float32x4_t _outp = op(_p, _p1);
-                vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                vst1_u16(outptr, vcvt_bf16_f32(_outp));
                 ptr += 4;
                 ptr1 += 4;
                 outptr += 4;
@@ -3298,9 +3298,9 @@ static int binary_op_scalar_inplace_pack4_bf16s(Mat& a, float b, const Option& o
 
         for (int i = 0; i < size; i++)
         {
-            float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+            float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
             _p = op(_p, _b);
-            vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+            vst1_u16(ptr, vcvt_bf16_f32(_p));
             ptr += 4;
         }
     }
