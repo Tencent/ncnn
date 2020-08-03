@@ -53,7 +53,6 @@ int Yolov3DetectionOutput::load_param(const ParamDict& pd)
     return 0;
 }
 
-
 static inline float intersection_area(const Yolov3DetectionOutput::BBoxRect& a, const Yolov3DetectionOutput::BBoxRect& b)
 {
     if (a.xmin > b.xmax || a.xmax < b.xmin || a.ymin > b.ymax || a.ymax < b.ymin)
@@ -178,10 +177,10 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
         size_t mask_offset = b * num_box;
         int net_w = (int)(anchors_scale[b] * w);
         int net_h = (int)(anchors_scale[b] * h);
-        //printf("%d %d\n", net_w, net_h);
+//printf("%d %d\n", net_w, net_h);
 
-        //printf("%d %d %d\n", w, h, channels);
-        #pragma omp parallel for num_threads(opt.num_threads)
+//printf("%d %d %d\n", w, h, channels);
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < num_box; pp++)
         {
             int p = pp * channels_per_box;

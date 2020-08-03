@@ -16,8 +16,8 @@
 #include "testutil.h"
 
 static int test_yolov3detectionoutput(const std::vector<ncnn::Mat>& a, int num_class,
-    int num_box, float confidence_threshold, float nms_threshold,
-    ncnn::Mat &biases, ncnn::Mat &mask, ncnn::Mat &anchors_scale)
+                                      int num_box, float confidence_threshold, float nms_threshold,
+                                      ncnn::Mat& biases, ncnn::Mat& mask, ncnn::Mat& anchors_scale)
 {
     ncnn::ParamDict pd;
     pd.set(0, num_class);
@@ -41,7 +41,7 @@ static int test_yolov3detectionoutput(const std::vector<ncnn::Mat>& a, int num_c
     return ret;
 }
 
-static ncnn::Mat create_mat_from(const float *src, int length)
+static ncnn::Mat create_mat_from(const float* src, int length)
 {
     ncnn::Mat ret(length);
     memcpy(ret.data, src, length * sizeof(float));
@@ -50,11 +50,11 @@ static ncnn::Mat create_mat_from(const float *src, int length)
 
 static int test_yolov3detectionoutput_v4()
 {
-    const float b[] = { 12, 16, 19, 36, 40, 28, 36, 75, 76, 55, 72, 146, 142, 110, 192, 243, 459, 401 };
-    const float m[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
-    const float s[] = { 9.6, 17.6, 33.6 };
+    const float b[] = {12, 16, 19, 36, 40, 28, 36, 75, 76, 55, 72, 146, 142, 110, 192, 243, 459, 401};
+    const float m[] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+    const float s[] = {9.6, 17.6, 33.6};
 
-    ncnn::Mat biases = create_mat_from(b, sizeof(b)/sizeof(b[0]));
+    ncnn::Mat biases = create_mat_from(b, sizeof(b) / sizeof(b[0]));
     ncnn::Mat mask = create_mat_from(m, sizeof(m) / sizeof(m[0]));
     ncnn::Mat anchors_scale = create_mat_from(s, sizeof(s) / sizeof(s[0]));
 
@@ -64,14 +64,14 @@ static int test_yolov3detectionoutput_v4()
     a[2] = RandomMat(19, 19, 255);
 
     return 0
-        || test_yolov3detectionoutput(a, 80, 3, 0.55f, 0.45f, biases, mask, anchors_scale);
+           || test_yolov3detectionoutput(a, 80, 3, 0.55f, 0.45f, biases, mask, anchors_scale);
 }
 
 static int test_yolov3detectionoutput_v4tiny()
 {
-    const float b[] = { 10, 14, 23, 27, 37, 58, 81, 82, 135, 169, 344, 319 };
-    const float m[] = { 3, 4, 5, 1, 2, 3 };
-    const float s[] = { 33.6, 16.8 };
+    const float b[] = {10, 14, 23, 27, 37, 58, 81, 82, 135, 169, 344, 319};
+    const float m[] = {3, 4, 5, 1, 2, 3};
+    const float s[] = {33.6, 16.8};
 
     ncnn::Mat biases = create_mat_from(b, sizeof(b) / sizeof(b[0]));
     ncnn::Mat mask = create_mat_from(m, sizeof(m) / sizeof(m[0]));
@@ -82,14 +82,14 @@ static int test_yolov3detectionoutput_v4tiny()
     a[1] = RandomMat(26, 26, 255);
 
     return 0
-        || test_yolov3detectionoutput(a, 80, 3, 0.4f, 0.45f, biases, mask, anchors_scale);
+           || test_yolov3detectionoutput(a, 80, 3, 0.4f, 0.45f, biases, mask, anchors_scale);
 }
 
 static int test_yolov3detectionoutput_v3()
 {
-    const float b[] = { 10, 13, 16, 30, 33, 23, 30, 61, 62, 45, 59, 119, 116, 90, 156, 198, 373, 326 };
-    const float m[] = { 6, 7, 8, 3, 4, 5, 0, 1, 2 };
-    const float s[] = { 32, 16, 8 };
+    const float b[] = {10, 13, 16, 30, 33, 23, 30, 61, 62, 45, 59, 119, 116, 90, 156, 198, 373, 326};
+    const float m[] = {6, 7, 8, 3, 4, 5, 0, 1, 2};
+    const float s[] = {32, 16, 8};
 
     ncnn::Mat biases = create_mat_from(b, sizeof(b) / sizeof(b[0]));
     ncnn::Mat mask = create_mat_from(m, sizeof(m) / sizeof(m[0]));
@@ -101,14 +101,14 @@ static int test_yolov3detectionoutput_v3()
     a[2] = RandomMat(76, 76, 255);
 
     return 0
-        || test_yolov3detectionoutput(a, 80, 3, 0.6f, 0.45f, biases, mask, anchors_scale);
+           || test_yolov3detectionoutput(a, 80, 3, 0.6f, 0.45f, biases, mask, anchors_scale);
 }
 
 static int test_yolov3detectionoutput_v3tiny()
 {
-    const float b[] = { 10, 14, 23, 27, 37, 58, 81, 82, 135, 169, 344, 319 };
-    const float m[] = { 3, 4, 5, 1, 2, 3 };
-    const float s[] = { 32, 16 };
+    const float b[] = {10, 14, 23, 27, 37, 58, 81, 82, 135, 169, 344, 319};
+    const float m[] = {3, 4, 5, 1, 2, 3};
+    const float s[] = {32, 16};
 
     ncnn::Mat biases = create_mat_from(b, sizeof(b) / sizeof(b[0]));
     ncnn::Mat mask = create_mat_from(m, sizeof(m) / sizeof(m[0]));
@@ -119,7 +119,7 @@ static int test_yolov3detectionoutput_v3tiny()
     a[1] = RandomMat(26, 26, 255);
 
     return 0
-        || test_yolov3detectionoutput(a, 80, 3, 0.3f, 0.45f, biases, mask, anchors_scale);
+           || test_yolov3detectionoutput(a, 80, 3, 0.3f, 0.45f, biases, mask, anchors_scale);
 }
 
 int main()

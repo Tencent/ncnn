@@ -24,7 +24,6 @@ namespace ncnn {
 
 Yolov3DetectionOutput_x86::Yolov3DetectionOutput_x86()
 {
-
 }
 
 static inline float sigmoid(float x)
@@ -58,10 +57,10 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
         size_t mask_offset = b * num_box;
         int net_w = (int)(anchors_scale[b] * w);
         int net_h = (int)(anchors_scale[b] * h);
-        //printf("%d %d\n", net_w, net_h);
+//printf("%d %d\n", net_w, net_h);
 
-        //printf("%d %d %d\n", w, h, channels);
-        #pragma omp parallel for num_threads(opt.num_threads)
+//printf("%d %d %d\n", w, h, channels);
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < num_box; pp++)
         {
             int p = pp * channels_per_box;
@@ -110,8 +109,8 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
                     // find class index with max class score
                     int class_index = 0;
                     float class_score = -std::numeric_limits<float>::max();
-                    float *ptr = ((float *)scores.data) + i * w + j;
-                    float *end = ptr + num_class * cs;
+                    float* ptr = ((float*)scores.data) + i * w + j;
+                    float* end = ptr + num_class * cs;
                     int q = 0;
 #if __AVX__
                     unsigned long index;
@@ -139,7 +138,7 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
                     }
 #endif
 
-                    for ( ; ptr < end; ptr += cs, q++)
+                    for (; ptr < end; ptr += cs, q++)
                     {
                         if (*ptr > class_score)
                         {
@@ -235,6 +234,5 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
 
     return 0;
 }
-
 
 } // namespace ncnn
