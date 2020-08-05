@@ -34,6 +34,9 @@ namespace ncnn {
 #include "convolutiondepthwise_3x3_pack4_bf16s.h"
 #include "convolutiondepthwise_5x5_pack4.h"
 #include "convolutiondepthwise_5x5_pack4_bf16s.h"
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "convolutiondepthwise_3x3_pack8_fp16s.h"
+#endif
 #endif // __ARM_NEON
 
 ConvolutionDepthWise_arm::ConvolutionDepthWise_arm()
@@ -823,6 +826,25 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
     {
         if (elempack == 8)
         {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                convdw3x3s1_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw3x3s2_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else
             {
                 const int maxk = kernel_w * kernel_h;
 
