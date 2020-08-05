@@ -237,7 +237,9 @@ int cpu_support_x86_avx2()
     return cpu_info[1] & 0x00000020;
 #else
     // TODO gcc-specific
-    __builtin_cpu_init();
+    #if !(defined(__clang__) & __clang_major__ < 6)
+        __builtin_cpu_init();
+    #endif
     return __builtin_cpu_supports("avx2");
 #endif
 #else
