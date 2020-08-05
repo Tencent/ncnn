@@ -1022,7 +1022,7 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
         {
             // reuse all rows
         }
-        else if (sy == prev_sy1 + 4)
+        else if (sy == prev_sy1 + 1)
         {
             // hresize one row
             short* rows0_old = rows0;
