@@ -358,16 +358,49 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
             {
                 __fp16* ptr = bottom_top_blob.channel(q);
 
-                float16x8_t _zero = vdupq_n_f16((__fp16)0.f);
+                asm volatile(
+                    "eor    v16.16b, v16.16b, v16.16b \n"
 
-                for (int i = 0; i < size; i++)
-                {
-                    float16x8_t _p = vld1q_f16(ptr);
-                    _p = vmaxq_f16(_p, _zero);
-                    vst1q_f16(ptr, _p);
+                    "lsr    w4, %w2, #2             \n" // w4 = nn = size >> 2
+                    "cmp    w4, #0                  \n"
+                    "beq    1f                      \n"
 
-                    ptr += 8;
-                }
+                    "0:                             \n"
+                    "prfm   pldl1keep, [%0, #512]   \n"
+                    "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
+                    "fmax   v0.8h, v0.8h, v16.8h    \n"
+                    "fmax   v1.8h, v1.8h, v16.8h    \n"
+                    "fmax   v2.8h, v2.8h, v16.8h    \n"
+                    "fmax   v3.8h, v3.8h, v16.8h    \n"
+                    "subs   w4, w4, #1              \n"
+                    "st1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
+                    "bne    0b                      \n"
+                    "1:                             \n"
+
+                    "and    w4, %w2, #3             \n" // w4 = remain = size & 3
+
+                    "cmp    w4, #2                  \n" // w4 >= 2
+                    "blt    2f                      \n"
+                    "prfm   pldl1keep, [%0, #256]   \n"
+                    "ld1    {v0.8h, v1.8h}, [%0]    \n"
+                    "fmax   v0.8h, v0.8h, v16.8h    \n"
+                    "fmax   v1.8h, v1.8h, v16.8h    \n"
+                    "sub    w4, w4, #2              \n"
+                    "st1    {v0.8h, v1.8h}, [%0], #32 \n"
+                    "2:                             \n"
+
+                    "cmp    w4, #0                  \n" // w4 > 0
+                    "beq    3f                      \n"
+                    "prfm   pldl1keep, [%0, #128]   \n"
+                    "ld1    {v0.8h}, [%0]           \n"
+                    "fmax   v0.8h, v0.8h, v16.8h    \n"
+                    "st1    {v0.8h}, [%0], #16      \n"
+                    "3:                             \n"
+
+                    : "=r"(ptr) // %0
+                    : "0"(ptr),
+                    "r"(size) // %2
+                    : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16");
             }
         }
         else
