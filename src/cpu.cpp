@@ -236,10 +236,10 @@ int cpu_support_x86_avx2()
     __cpuid(cpu_info, 7);
     return cpu_info[1] & 0x00000020;
 #else
-    // TODO gcc-specific
-    #if !(defined(__clang__) & __clang_major__ < 6)
-        __builtin_cpu_init();
-    #endif
+// TODO gcc-specific
+#if !(defined(__clang__) & __clang_major__ < 6)
+    __builtin_cpu_init();
+#endif
     return __builtin_cpu_supports("avx2");
 #endif
 #else
@@ -538,7 +538,7 @@ int set_cpu_thread_affinity(size_t thread_affinity_mask)
     // set affinity for each thread
     set_omp_num_threads(num_threads);
     std::vector<int> ssarets(num_threads, 0);
-    #pragma omp parallel for num_threads(num_threads)
+#pragma omp parallel for num_threads(num_threads)
     for (int i = 0; i < num_threads; i++)
     {
         ssarets[i] = set_sched_affinity(thread_affinity_mask);
