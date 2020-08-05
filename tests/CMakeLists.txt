@@ -21,6 +21,7 @@ endmacro()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src/layer)
 
+ncnn_add_test(mat_pixel_resize)
 ncnn_add_test(mat_pixel_rotate)
 ncnn_add_test(mat_pixel)
 ncnn_add_test(squeezenet)
