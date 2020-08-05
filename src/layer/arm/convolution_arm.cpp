@@ -57,6 +57,7 @@ namespace ncnn {
 #include "convolution_7x7_pack1to4_bf16s.h"
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "convolution_1x1_pack8_fp16s.h"
+#include "convolution_3x3_pack1to8_fp16s.h"
 #include "convolution_3x3_pack8_fp16s.h"
 #endif
 #endif // __ARM_NEON
@@ -1532,6 +1533,16 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
 
     if (elempack == 1 && out_elempack == 8)
     {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv3x3s2_pack1to8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)

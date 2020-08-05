@@ -35,6 +35,56 @@ Crop_arm::Crop_arm()
 }
 
 #if __ARM_NEON
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+static void crop_pack8_neon(const Mat& src, Mat& dst, int top, int left)
+{
+    int w = dst.w;
+    int h = dst.h;
+    int right = src.w - dst.w - left;
+
+    const float* ptr = src.row(top) + left * 8;
+    float* outptr = dst;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            float32x4_t _p0 = vld1q_f32(ptr);
+            float32x4_t _p1 = vld1q_f32(ptr + 4);
+            vst1q_f32(outptr, _p0);
+            vst1q_f32(outptr + 4, _p1);
+            ptr += 8;
+            outptr += 8;
+        }
+
+        ptr += (left + right) * 8;
+    }
+}
+
+static void crop_pack8_fp16_neon(const Mat& src, Mat& dst, int top, int left)
+{
+    int w = dst.w;
+    int h = dst.h;
+    int right = src.w - dst.w - left;
+
+    const __fp16* ptr = src.row<__fp16>(top) + left * 8;
+    __fp16* outptr = dst;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            float16x8_t _p = vld1q_f16(ptr);
+            vst1q_f16(outptr, _p);
+            ptr += 8;
+            outptr += 8;
+        }
+
+        ptr += (left + right) * 8;
+    }
+}
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
 static void crop_pack4_neon(const Mat& src, Mat& dst, int top, int left)
 {
     int w = dst.w;
@@ -92,6 +142,109 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     int elempack = bottom_blob.elempack;
 
 #if __ARM_NEON
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (elempack == 8)
+    {
+        int _woffset, _hoffset, _coffset;
+        int _outw, _outh, _outc;
+        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+
+        if (dims == 1)
+        {
+            int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw / out_elempack == w)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (_woffset % 8 == 0 && out_elempack == 8)
+            {
+                if (elemsize == 16u)
+                    crop_pack8_fp16_neon(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack8_neon(bottom_blob, top_blob, 0, _woffset / elempack);
+
+                return 0;
+            }
+        }
+
+        if (dims == 2)
+        {
+            int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh / out_elempack == h)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (_hoffset % 8 == 0 && out_elempack == 8)
+            {
+                if (elemsize == 16u)
+                    crop_pack8_fp16_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack8_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+
+                return 0;
+            }
+        }
+
+        if (dims == 3)
+        {
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_coffset % 8 == 0 && out_elempack == 8)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h)
+                {
+                    top_blob = bottom_blob_sliced.clone();
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                if (_outw == w && _outh == h && _outc / out_elempack == channels)
+                {
+                    top_blob = bottom_blob;
+                    return 0;
+                }
+
+                top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    const Mat m = bottom_blob_sliced.channel(q);
+                    Mat borderm = top_blob.channel(q);
+
+                    if (elemsize == 16u)
+                        crop_pack8_fp16_neon(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack8_neon(m, borderm, _hoffset, _woffset);
+                }
+
+                return 0;
+            }
+        }
+    }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
     if (elempack == 4)
     {
         int _woffset, _hoffset, _coffset;
@@ -223,6 +376,116 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     Mat& top_blob = top_blobs[0];
 
 #if __ARM_NEON
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (elempack == 8)
+    {
+        int _woffset, _hoffset, _coffset;
+        int _outw, _outh, _outc;
+        if (woffset == -233)
+        {
+            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+        }
+        else
+        {
+            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+        }
+
+        if (dims == 1)
+        {
+            int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw / out_elempack == w)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (_woffset % 8 == 0 && out_elempack == 8)
+            {
+                if (elemsize == 16u)
+                    crop_pack8_fp16_neon(bottom_blob, top_blob, 0, _woffset / elempack);
+                else
+                    crop_pack8_neon(bottom_blob, top_blob, 0, _woffset / elempack);
+
+                return 0;
+            }
+        }
+
+        if (dims == 2)
+        {
+            int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh / out_elempack == h)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (_hoffset % 8 == 0 && out_elempack == 8)
+            {
+                if (elemsize == 16u)
+                    crop_pack8_fp16_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                else
+                    crop_pack8_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+
+                return 0;
+            }
+        }
+
+        if (dims == 3)
+        {
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_coffset % 8 == 0 && out_elempack == 8)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h)
+                {
+                    top_blob = bottom_blob_sliced.clone();
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                if (_outw == w && _outh == h && _outc / out_elempack == channels)
+                {
+                    top_blob = bottom_blob;
+                    return 0;
+                }
+
+                top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    const Mat m = bottom_blob_sliced.channel(q);
+                    Mat borderm = top_blob.channel(q);
+
+                    if (elemsize == 16u)
+                        crop_pack8_fp16_neon(m, borderm, _hoffset, _woffset);
+                    else
+                        crop_pack8_neon(m, borderm, _hoffset, _woffset);
+                }
+
+                return 0;
+            }
+        }
+    }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
     if (elempack == 4)
     {
         int _woffset, _hoffset, _coffset;
