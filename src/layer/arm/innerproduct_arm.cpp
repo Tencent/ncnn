@@ -951,11 +951,11 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 #if __ARM_NEON
             for (; i + 3 < size; i += 4)
             {
-                float32x4_t _m = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(m), 16));
-                float32x4_t _w0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(w0), 16));
-                float32x4_t _w1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(w1), 16));
-                float32x4_t _w2 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(w2), 16));
-                float32x4_t _w3 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(w3), 16));
+                float32x4_t _m = vcvt_f32_bf16(vld1_u16(m));
+                float32x4_t _w0 = vcvt_f32_bf16(vld1_u16(w0));
+                float32x4_t _w1 = vcvt_f32_bf16(vld1_u16(w1));
+                float32x4_t _w2 = vcvt_f32_bf16(vld1_u16(w2));
+                float32x4_t _w3 = vcvt_f32_bf16(vld1_u16(w3));
 
                 _sum0 = vmlaq_f32(_sum0, _m, _w0);
                 _sum1 = vmlaq_f32(_sum1, _m, _w1);
@@ -1080,8 +1080,8 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 #if __ARM_NEON
             for (; i + 3 < size; i += 4)
             {
-                float32x4_t _m = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(m), 16));
-                float32x4_t _w = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(w), 16));
+                float32x4_t _m = vcvt_f32_bf16(vld1_u16(m));
+                float32x4_t _w = vcvt_f32_bf16(vld1_u16(w));
 
                 _sum = vmlaq_f32(_sum, _m, _w);
 

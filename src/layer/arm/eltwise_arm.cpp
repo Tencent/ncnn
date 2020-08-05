@@ -2249,10 +2249,10 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
 
                     for (int i = 0; i < size; i++)
                     {
-                        float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                        float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+                        float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                         _p = vmulq_f32(_p, _p1);
-                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+                        vst1_u16(outptr, vcvt_bf16_f32(_p));
 
                         ptr += 4;
                         ptr1 += 4;
@@ -2274,10 +2274,10 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
 
                         for (int i = 0; i < size; i++)
                         {
-                            float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-                            float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                            float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+                            float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                             _p = vaddq_f32(_p, _p1);
-                            vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+                            vst1_u16(outptr, vcvt_bf16_f32(_p));
 
                             ptr += 4;
                             ptr1 += 4;
@@ -2299,11 +2299,11 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
 
                         for (int i = 0; i < size; i++)
                         {
-                            float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-                            float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                            float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+                            float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                             _p = vmulq_f32(_p, _coeff0);
                             _p = vmlaq_f32(_p, _p1, _coeff1);
-                            vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+                            vst1_u16(outptr, vcvt_bf16_f32(_p));
 
                             ptr += 4;
                             ptr1 += 4;
@@ -2324,10 +2324,10 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
 
                     for (int i = 0; i < size; i++)
                     {
-                        float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                        float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+                        float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                         _p = vmaxq_f32(_p, _p1);
-                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+                        vst1_u16(outptr, vcvt_bf16_f32(_p));
 
                         ptr += 4;
                         ptr1 += 4;
@@ -2450,8 +2450,8 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
 
                 for (int i = 0; i < size; i++)
                 {
-                    float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-                    float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                    float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+                    float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                     _p = vmulq_f32(_p, _p1);
                     vst1q_f32(outptr, _p);
 
@@ -2474,7 +2474,7 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     for (int i = 0; i < size; i++)
                     {
                         float32x4_t _p = vld1q_f32(outptr);
-                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr));
                         _p = vmulq_f32(_p, _p1);
                         vst1q_f32(outptr, _p);
 
@@ -2496,9 +2496,9 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     for (int i = 0; i < size; i++)
                     {
                         float32x4_t _p = vld1q_f32(ptr0);
-                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr));
                         _p = vmulq_f32(_p, _p1);
-                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+                        vst1_u16(outptr, vcvt_bf16_f32(_p));
 
                         ptr += 4;
                         ptr0 += 4;
@@ -2522,8 +2522,8 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
 
                     for (int i = 0; i < size; i++)
                     {
-                        float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                        float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+                        float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                         _p = vaddq_f32(_p, _p1);
                         vst1q_f32(outptr, _p);
 
@@ -2546,7 +2546,7 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                         for (int i = 0; i < size; i++)
                         {
                             float32x4_t _p = vld1q_f32(outptr);
-                            float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                            float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr));
                             _p = vaddq_f32(_p, _p1);
                             vst1q_f32(outptr, _p);
 
@@ -2568,9 +2568,9 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                         for (int i = 0; i < size; i++)
                         {
                             float32x4_t _p = vld1q_f32(ptr0);
-                            float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                            float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr));
                             _p = vaddq_f32(_p, _p1);
-                            vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+                            vst1_u16(outptr, vcvt_bf16_f32(_p));
 
                             ptr += 4;
                             ptr0 += 4;
@@ -2594,8 +2594,8 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
 
                     for (int i = 0; i < size; i++)
                     {
-                        float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                        float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+                        float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                         _p = vmulq_f32(_p, _coeff0);
                         _p = vmlaq_f32(_p, _p1, _coeff1);
                         vst1q_f32(outptr, _p);
@@ -2620,7 +2620,7 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                         for (int i = 0; i < size; i++)
                         {
                             float32x4_t _p = vld1q_f32(outptr);
-                            float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                            float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr));
                             _p = vmlaq_f32(_p, _p1, _coeff);
                             vst1q_f32(outptr, _p);
 
@@ -2643,9 +2643,9 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                         for (int i = 0; i < size; i++)
                         {
                             float32x4_t _p = vld1q_f32(ptr0);
-                            float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                            float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr));
                             _p = vmlaq_f32(_p, _p1, _coeff);
-                            vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+                            vst1_u16(outptr, vcvt_bf16_f32(_p));
 
                             ptr += 4;
                             ptr0 += 4;
@@ -2668,8 +2668,8 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
 
                 for (int i = 0; i < size; i++)
                 {
-                    float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-                    float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr1), 16));
+                    float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+                    float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr1));
                     _p = vmaxq_f32(_p, _p1);
                     vst1q_f32(outptr, _p);
 
@@ -2692,7 +2692,7 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     for (int i = 0; i < size; i++)
                     {
                         float32x4_t _p = vld1q_f32(outptr);
-                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr));
                         _p = vmaxq_f32(_p, _p1);
                         vst1q_f32(outptr, _p);
 
@@ -2714,9 +2714,9 @@ int Eltwise_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector
                     for (int i = 0; i < size; i++)
                     {
                         float32x4_t _p = vld1q_f32(ptr0);
-                        float32x4_t _p1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        float32x4_t _p1 = vcvt_f32_bf16(vld1_u16(ptr));
                         _p = vmaxq_f32(_p, _p1);
-                        vst1_u16(outptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+                        vst1_u16(outptr, vcvt_bf16_f32(_p));
 
                         ptr += 4;
                         ptr0 += 4;

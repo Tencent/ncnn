@@ -106,7 +106,7 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < outh; i++)
         {
             unsigned char* outptr = (unsigned char*)top_blob + i * w * out_elemsize;
@@ -144,7 +144,7 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < outc; q++)
         {
             Mat out = top_blob.channel(q);

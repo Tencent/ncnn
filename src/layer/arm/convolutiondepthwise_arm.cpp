@@ -34,6 +34,9 @@ namespace ncnn {
 #include "convolutiondepthwise_3x3_pack4_bf16s.h"
 #include "convolutiondepthwise_5x5_pack4.h"
 #include "convolutiondepthwise_5x5_pack4_bf16s.h"
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "convolutiondepthwise_3x3_pack8_fp16s.h"
+#endif
 #endif // __ARM_NEON
 
 ConvolutionDepthWise_arm::ConvolutionDepthWise_arm()
@@ -823,6 +826,25 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
     {
         if (elempack == 8)
         {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                convdw3x3s1_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw3x3s2_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else
             {
                 const int maxk = kernel_w * kernel_h;
 
@@ -1205,14 +1227,14 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(sptr + space_ofs[k] * 4), 16));
-                                float32x4_t _w = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr + k * 4), 16));
+                                float32x4_t _val = vcvt_f32_bf16(vld1_u16(sptr + space_ofs[k] * 4));
+                                float32x4_t _w = vcvt_f32_bf16(vld1_u16(kptr + k * 4));
                                 _sum = vmlaq_f32(_sum, _val, _w);
                             }
 
                             _sum = activation_ps(_sum, activation_type, activation_params);
 
-                            vst1_u16(outptr + j * 4, vshrn_n_u32(vreinterpretq_u32_f32(_sum), 16));
+                            vst1_u16(outptr + j * 4, vcvt_bf16_f32(_sum));
                         }
 
                         outptr += outw * 4;

@@ -1247,13 +1247,13 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                     float32x4_t _max = vdupq_n_f32(-FLT_MAX);
                     for (int i = 0; i < size; i++)
                     {
-                        float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        float32x4_t _val = vcvt_f32_bf16(vld1_u16(ptr));
                         _max = vmaxq_f32(_max, _val);
                         ptr += 4;
                     }
 
                     unsigned short* outptr = top_blob;
-                    vst1_u16(outptr + q * 4, vshrn_n_u32(vreinterpretq_u32_f32(_max), 16));
+                    vst1_u16(outptr + q * 4, vcvt_bf16_f32(_max));
                 }
             }
 #endif // __ARM_NEON
@@ -1290,7 +1290,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                     float32x4_t _sum = vdupq_n_f32(0.f);
                     for (int i = 0; i < size; i++)
                     {
-                        float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                        float32x4_t _val = vcvt_f32_bf16(vld1_u16(ptr));
                         _sum = vaddq_f32(_sum, _val);
                         ptr += 4;
                     }
@@ -1299,7 +1299,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                     float32x4_t _avg = vmulq_f32(_sum, _inv_size);
 
                     unsigned short* outptr = top_blob;
-                    vst1_u16(outptr + q * 4, vshrn_n_u32(vreinterpretq_u32_f32(_avg), 16));
+                    vst1_u16(outptr + q * 4, vcvt_bf16_f32(_avg));
                 }
             }
 #endif // __ARM_NEON
@@ -1383,11 +1383,11 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                         for (int k = 0; k < maxk; k++)
                         {
-                            float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(sptr + space_ofs[k] * 4), 16));
+                            float32x4_t _val = vcvt_f32_bf16(vld1_u16(sptr + space_ofs[k] * 4));
                             _max = vmaxq_f32(_max, _val);
                         }
 
-                        vst1_u16(outptr + j * 4, vshrn_n_u32(vreinterpretq_u32_f32(_max), 16));
+                        vst1_u16(outptr + j * 4, vcvt_bf16_f32(_max));
                     }
 
                     outptr += outw * 4;
@@ -1480,7 +1480,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
                                     if (sx >= w - pad_right - wtailpad)
                                         break;
 
-                                    float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(m.row<const unsigned short>(sy) + sx * 4), 16));
+                                    float32x4_t _val = vcvt_f32_bf16(vld1_u16(m.row<const unsigned short>(sy) + sx * 4));
                                     _sum = vaddq_f32(_sum, _val);
                                     area += 1;
                                 }
@@ -1488,7 +1488,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                             float32x4_t _inv_area = vdupq_n_f32(1.f / area);
                             float32x4_t _avg = vmulq_f32(_sum, _inv_area);
-                            vst1_u16(outptr + j * 4, vshrn_n_u32(vreinterpretq_u32_f32(_avg), 16));
+                            vst1_u16(outptr + j * 4, vcvt_bf16_f32(_avg));
                         }
 
                         outptr += outw * 4;
@@ -1574,12 +1574,12 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(sptr + space_ofs[k] * 4), 16));
+                                float32x4_t _val = vcvt_f32_bf16(vld1_u16(sptr + space_ofs[k] * 4));
                                 _sum = vaddq_f32(_sum, _val);
                             }
 
                             float32x4_t _avg = vmulq_f32(_sum, _inv_maxk);
-                            vst1_u16(outptr + j * 4, vshrn_n_u32(vreinterpretq_u32_f32(_avg), 16));
+                            vst1_u16(outptr + j * 4, vcvt_bf16_f32(_avg));
                         }
 
                         outptr += outw * 4;

@@ -750,9 +750,9 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                 //                 float32x4_t _zero = vdupq_n_f32(0.f);
                 //                 for (int i=0; i<size; i++)
                 //                 {
-                //                     float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                //                     float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
                 //                     _p = vmaxq_f32(_p, _zero);
-                //                     vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+                //                     vst1_u16(ptr, vcvt_bf16_f32(_p));
                 //
                 //                     ptr += 4;
                 //                 }
@@ -769,11 +769,11 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                 float32x4_t _slope = vdupq_n_f32(slope);
                 for (int i = 0; i < size; i++)
                 {
-                    float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                    float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
                     uint32x4_t _lemask = vcleq_f32(_p, _zero);
                     float32x4_t _ps = vmulq_f32(_p, _slope);
                     _p = vbslq_f32(_lemask, _ps, _p);
-                    vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+                    vst1_u16(ptr, vcvt_bf16_f32(_p));
 
                     ptr += 4;
                 }
@@ -796,9 +796,9 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
             float32x4_t _zero = vdupq_n_f32(0.f);
             for (; i + 3 < size; i += 4)
             {
-                float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
                 _p = vmaxq_f32(_p, _zero);
-                vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+                vst1_u16(ptr, vcvt_bf16_f32(_p));
 
                 ptr += 4;
             }
@@ -826,11 +826,11 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
             float32x4_t _slope = vdupq_n_f32(slope);
             for (; i + 3 < size; i += 4)
             {
-                float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
+                float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
                 uint32x4_t _lemask = vcleq_f32(_p, _zero);
                 float32x4_t _ps = vmulq_f32(_p, _slope);
                 _p = vbslq_f32(_lemask, _ps, _p);
-                vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_p), 16));
+                vst1_u16(ptr, vcvt_bf16_f32(_p));
 
                 ptr += 4;
             }

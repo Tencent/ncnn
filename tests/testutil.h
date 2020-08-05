@@ -1095,7 +1095,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 
         if (opt.use_fp16_arithmetic)
         {
-            epsilon_fp16 = epsilon * 500; // 0.5
+            epsilon_fp16 = epsilon * 1000; // 1.0
         }
 
         std::vector<ncnn::Mat> top_shapes;
@@ -1199,7 +1199,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 
         if (opt.use_fp16_arithmetic)
         {
-            epsilon_fp16 = epsilon * 500; // 0.5
+            epsilon_fp16 = epsilon * 1000; // 1.0
         }
 
         ncnn::Mat top_shape;

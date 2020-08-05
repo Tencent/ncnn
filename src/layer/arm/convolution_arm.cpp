@@ -55,6 +55,11 @@ namespace ncnn {
 #include "convolution_5x5_pack4_bf16s.h"
 #include "convolution_7x7_pack1to4.h"
 #include "convolution_7x7_pack1to4_bf16s.h"
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "convolution_1x1_pack8_fp16s.h"
+#include "convolution_3x3_pack1to8_fp16s.h"
+#include "convolution_3x3_pack8_fp16s.h"
+#endif
 #endif // __ARM_NEON
 
 Convolution_arm::Convolution_arm()
@@ -1084,6 +1089,23 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
         }
     }
 
+    // pack8
+    if (elempack == 8 && out_elempack == 8)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv1x1s1_sgemm_transform_kernel_pack8_fp16sa_neon(weight_data, weight_data_fp16, num_input, num_output);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv1x1s1_sgemm_transform_kernel_pack8_fp16sa_neon(weight_data, weight_data_fp16, num_input, num_output);
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_winograd64_transform_kernel_pack8_fp16sa_neon(weight_data, weight_data_fp16, num_input, num_output);
+        }
+    }
+
     ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
 
     return 0;
@@ -1418,6 +1440,34 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
 
     if (elempack == 8 && out_elempack == 8)
     {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv1x1s1_sgemm_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv1x1s2_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_winograd64_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -1483,6 +1533,16 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
 
     if (elempack == 1 && out_elempack == 8)
     {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv3x3s2_pack1to8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -2261,12 +2321,12 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(sptr + space_ofs[k] * 4), 16));
+                                float32x4_t _val = vcvt_f32_bf16(vld1_u16(sptr + space_ofs[k] * 4));
 
-                                float32x4_t _w0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr), 16));
-                                float32x4_t _w1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr + 4), 16));
-                                float32x4_t _w2 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr + 8), 16));
-                                float32x4_t _w3 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr + 12), 16));
+                                float32x4_t _w0 = vcvt_f32_bf16(vld1_u16(kptr));
+                                float32x4_t _w1 = vcvt_f32_bf16(vld1_u16(kptr + 4));
+                                float32x4_t _w2 = vcvt_f32_bf16(vld1_u16(kptr + 8));
+                                float32x4_t _w3 = vcvt_f32_bf16(vld1_u16(kptr + 12));
 
 #if __aarch64__
                                 _sum = vmlaq_laneq_f32(_sum, _w0, _val, 0);
@@ -2286,7 +2346,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 
                         _sum = activation_ps(_sum, activation_type, activation_params);
 
-                        vst1_u16(outptr + j * 4, vshrn_n_u32(vreinterpretq_u32_f32(_sum), 16));
+                        vst1_u16(outptr + j * 4, vcvt_bf16_f32(_sum));
                     }
 
                     outptr += outw * 4;
@@ -2354,7 +2414,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
                             for (int k = 0; k < maxk; k++)
                             {
                                 float32x4_t _val = vdupq_n_f32(bfloat16_to_float32(sptr[space_ofs[k]]));
-                                float32x4_t _w = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr), 16));
+                                float32x4_t _w = vcvt_f32_bf16(vld1_u16(kptr));
                                 _sum = vmlaq_f32(_sum, _val, _w);
 
                                 kptr += 4;
@@ -2363,7 +2423,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 
                         _sum = activation_ps(_sum, activation_type, activation_params);
 
-                        vst1_u16(outptr + j * 4, vshrn_n_u32(vreinterpretq_u32_f32(_sum), 16));
+                        vst1_u16(outptr + j * 4, vcvt_bf16_f32(_sum));
                     }
 
                     outptr += outw * 4;
@@ -2433,8 +2493,8 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                float32x4_t _val = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(sptr + space_ofs[k] * 4), 16));
-                                float32x4_t _w = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr), 16));
+                                float32x4_t _val = vcvt_f32_bf16(vld1_u16(sptr + space_ofs[k] * 4));
+                                float32x4_t _w = vcvt_f32_bf16(vld1_u16(kptr));
                                 float32x4_t _s4 = vmulq_f32(_val, _w);
 #if __aarch64__
                                 sum += vaddvq_f32(_s4); // dot
