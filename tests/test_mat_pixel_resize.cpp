@@ -17,6 +17,7 @@
 
 #include <math.h>
 #include <string.h>
+#include <algorithm>
 
 static struct prng_rand_t g_prng_rand_state;
 #define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
