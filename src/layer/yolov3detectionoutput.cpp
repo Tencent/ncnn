@@ -146,7 +146,7 @@ void Yolov3DetectionOutput::nms_sorted_bboxes(std::vector<BBoxRect>& bboxes, std
     }
 }
 
-static inline float sigmoid(float x)
+float Yolov3DetectionOutput::sigmoid(float x) const
 {
     return static_cast<float>(1.f / (1.f + exp(-x)));
 }

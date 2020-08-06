@@ -26,11 +26,6 @@ Yolov3DetectionOutput_x86::Yolov3DetectionOutput_x86()
 {
 }
 
-static inline float sigmoid(float x)
-{
-    return static_cast<float>(1.f / (1.f + exp(-x)));
-}
-
 int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     // gather all box

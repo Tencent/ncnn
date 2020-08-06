@@ -49,6 +49,7 @@ public:
         float ymax;
         int label;
     };
+    float sigmoid(float x) const;
     void qsort_descent_inplace(std::vector<BBoxRect>& datas, std::vector<float>& scores, int left, int right) const;
     void qsort_descent_inplace(std::vector<BBoxRect>& datas, std::vector<float>& scores) const;
     void nms_sorted_bboxes(std::vector<BBoxRect>& bboxes, std::vector<size_t>& picked, float nms_threshold) const;
