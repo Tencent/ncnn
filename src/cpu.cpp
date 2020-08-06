@@ -214,7 +214,7 @@ int cpu_support_arm_asimdhp()
 
 int cpu_support_x86_avx2()
 {
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(_WIN64)
 #ifdef _MSC_VER
     // TODO move to init function
     int cpu_info[4];
@@ -236,8 +236,10 @@ int cpu_support_x86_avx2()
     __cpuid(cpu_info, 7);
     return cpu_info[1] & 0x00000020;
 #else
-    // TODO gcc-specific
+// TODO gcc-specific
+#if !(defined(__clang__) && __clang_major__ < 6)
     __builtin_cpu_init();
+#endif
     return __builtin_cpu_supports("avx2");
 #endif
 #else
