@@ -42,7 +42,7 @@ typedef struct
 #define CPU_ISSET(cpu, cpusetp) \
     ((cpusetp)->__bits[(cpu) / __NCPUBITS] & (1UL << ((cpu) % __NCPUBITS)))
 
-}
+} // namespace ncnn
 #endif
 
 namespace ncnn {

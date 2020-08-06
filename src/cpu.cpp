@@ -366,8 +366,6 @@ static int get_max_freq_khz(int cpuid)
 
 static int set_sched_affinity(cpu_set_t thread_affinity_mask)
 {
-
-
     // set affinity for thread
 #ifdef __GLIBC__
     pid_t pid = syscall(SYS_gettid);
@@ -422,7 +420,8 @@ static cpu_set_t g_thread_affinity_mask_big = {0};
 
 static int setup_thread_affinity_masks()
 {
-    for (int i = 0; i < g_cpucount; ++i) {
+    for (int i = 0; i < g_cpucount; ++i)
+    {
         CPU_CLR(i, &g_thread_affinity_mask_all);
     }
 
@@ -501,7 +500,7 @@ int set_cpu_thread_affinity(cpu_set_t thread_affinity_mask)
     // set affinity for each thread
     set_omp_num_threads(num_threads);
     std::vector<int> ssarets(num_threads, 0);
-    #pragma omp parallel for num_threads(num_threads)
+#pragma omp parallel for num_threads(num_threads)
     for (int i = 0; i < num_threads; i++)
     {
         ssarets[i] = set_sched_affinity(thread_affinity_mask);
