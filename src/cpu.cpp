@@ -214,7 +214,7 @@ int cpu_support_arm_asimdhp()
 
 int cpu_support_x86_avx2()
 {
-#if defined(__x86_64__) || defined(_WIN32)
+#if defined(__x86_64__) || defined(_WIN64)
 #ifdef _MSC_VER
     // TODO move to init function
     int cpu_info[4];
