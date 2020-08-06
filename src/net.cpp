@@ -2758,6 +2758,20 @@ int Extractor::extract(int blob_index, Mat& feat)
         feat = bottom_blob_unpacked;
     }
 
+    // clang-format off
+    // *INDENT-OFF*
+#if NCNN_ARM82
+    if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
+    {
+        if (feat.elemsize / feat.elempack == 2u)
+        {
+            Mat feat_fp32;
+            cast_float16_to_float32(feat, feat_fp32, opt);
+            feat = feat_fp32;
+        }
+    }
+    else
+#endif // NCNN_ARM82
     if (opt.use_bf16_storage)
     {
         if (feat.elemsize / feat.elempack == 2u)
@@ -2767,6 +2781,8 @@ int Extractor::extract(int blob_index, Mat& feat)
             feat = feat_fp32;
         }
     }
+    // *INDENT-ON*
+    // clang-format on
 
     set_kmp_blocktime(old_blocktime);
 
