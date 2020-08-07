@@ -214,7 +214,7 @@ int cpu_support_arm_asimdhp()
 
 int cpu_support_x86_avx2()
 {
-#if defined(__ANDROID__) || defined(__IOS__) || defined(__arm__) || defined(__aarch64__) || defined(__riscv) || defined(__mips__)
+#if defined(__ANDROID__) || defined(__IOS__) || defined(__arm__) || defined(__aarch64__) || defined(__riscv) || defined(__mips__) || defined(__wasm__)
     return 0;
 #elif defined(_MSC_VER)
     // TODO move to init function
