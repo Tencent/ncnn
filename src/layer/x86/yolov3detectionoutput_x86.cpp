@@ -15,6 +15,11 @@
 #include <immintrin.h>
 #endif
 
+#if defined(__clang__) && defined(__x86_64__)
+#undef __FAST_MATH__
+#undef __FINITE_MATH_ONLY__
+#endif
+
 #include "yolov3detectionoutput_x86.h"
 
 #include <limits>
