@@ -236,9 +236,9 @@ int cpu_support_x86_avx2()
     __cpuid(cpu_info, 7);
     return cpu_info[1] & 0x00000020;
 #elif defined(__clang__) || defined(__GNUC__)
-    #if __clang_major__>=6
+#if __clang_major__>=6
     __builtin_cpu_init();
-    #endif
+#endif
     return __builtin_cpu_supports("avx2");
 #endif
 #else
