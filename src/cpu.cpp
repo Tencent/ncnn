@@ -214,7 +214,9 @@ int cpu_support_arm_asimdhp()
 
 int cpu_support_x86_avx2()
 {
-#ifdef _MSC_VER
+#if defined(__ANDROID__) || defined(__IOS__) || defined(__arm__) || defined(__riscv) || defined(__mips_msa)
+    return 0;
+#elif defined(_MSC_VER)
     // TODO move to init function
     int cpu_info[4];
     __cpuid(cpu_info, 0);
@@ -234,13 +236,10 @@ int cpu_support_x86_avx2()
 
     __cpuid(cpu_info, 7);
     return cpu_info[1] & 0x00000020;
-#elif defined(__clang__)
+#elif defined(__clang__) || defined(__GNUC__)
     #if __clang_major__>=6
     __builtin_cpu_init();
     #endif
-    return __builtin_cpu_supports("avx2");
-#elif defined(__GNUC__) // gcc
-    __builtin_cpu_init();
     return __builtin_cpu_supports("avx2");
 #else
     return 0;
