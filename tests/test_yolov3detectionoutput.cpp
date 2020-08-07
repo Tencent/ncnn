@@ -48,6 +48,13 @@ static ncnn::Mat create_mat_from(const float* src, int length)
     return ret;
 }
 
+static ncnn::Mat MyRandomMat(int w, int h, int c)
+{
+    ncnn::Mat m(w, h, c);
+    Randomize(m, -15.f, 1.5f);
+    return m;
+}
+
 static int test_yolov3detectionoutput_v4()
 {
     const float b[] = {12, 16, 19, 36, 40, 28, 36, 75, 76, 55, 72, 146, 142, 110, 192, 243, 459, 401};
@@ -59,9 +66,9 @@ static int test_yolov3detectionoutput_v4()
     ncnn::Mat anchors_scale = create_mat_from(s, sizeof(s) / sizeof(s[0]));
 
     std::vector<ncnn::Mat> a(3);
-    a[0] = RandomMat(76, 76, 255);
-    a[1] = RandomMat(38, 38, 255);
-    a[2] = RandomMat(19, 19, 255);
+    a[0] = MyRandomMat(76, 76, 255);
+    a[1] = MyRandomMat(38, 38, 255);
+    a[2] = MyRandomMat(19, 19, 255);
 
     return 0
            || test_yolov3detectionoutput(a, 80, 3, 0.55f, 0.45f, biases, mask, anchors_scale);
@@ -78,8 +85,8 @@ static int test_yolov3detectionoutput_v4tiny()
     ncnn::Mat anchors_scale = create_mat_from(s, sizeof(s) / sizeof(s[0]));
 
     std::vector<ncnn::Mat> a(2);
-    a[0] = RandomMat(13, 13, 255);
-    a[1] = RandomMat(26, 26, 255);
+    a[0] = MyRandomMat(13, 13, 255);
+    a[1] = MyRandomMat(26, 26, 255);
 
     return 0
            || test_yolov3detectionoutput(a, 80, 3, 0.4f, 0.45f, biases, mask, anchors_scale);
@@ -96,9 +103,9 @@ static int test_yolov3detectionoutput_v3()
     ncnn::Mat anchors_scale = create_mat_from(s, sizeof(s) / sizeof(s[0]));
 
     std::vector<ncnn::Mat> a(3);
-    a[0] = RandomMat(19, 19, 255);
-    a[1] = RandomMat(38, 38, 255);
-    a[2] = RandomMat(76, 76, 255);
+    a[0] = MyRandomMat(19, 19, 255);
+    a[1] = MyRandomMat(38, 38, 255);
+    a[2] = MyRandomMat(76, 76, 255);
 
     return 0
            || test_yolov3detectionoutput(a, 80, 3, 0.6f, 0.45f, biases, mask, anchors_scale);
@@ -115,8 +122,8 @@ static int test_yolov3detectionoutput_v3tiny()
     ncnn::Mat anchors_scale = create_mat_from(s, sizeof(s) / sizeof(s[0]));
 
     std::vector<ncnn::Mat> a(2);
-    a[0] = RandomMat(13, 13, 255);
-    a[1] = RandomMat(26, 26, 255);
+    a[0] = MyRandomMat(13, 13, 255);
+    a[1] = MyRandomMat(26, 26, 255);
 
     return 0
            || test_yolov3detectionoutput(a, 80, 3, 0.3f, 0.45f, biases, mask, anchors_scale);
