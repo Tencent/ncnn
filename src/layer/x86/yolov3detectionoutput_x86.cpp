@@ -15,11 +15,6 @@
 #include <immintrin.h>
 #endif
 
-#if defined(__clang__) && defined(__x86_64__)
-#undef __FAST_MATH__
-#undef __FINITE_MATH_ONLY__
-#endif
-
 #include "yolov3detectionoutput_x86.h"
 
 #include <limits>
@@ -96,8 +91,6 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
             {
                 for (int j = 0; j < w; j++)
                 {
-                    // box score
-                    float box_score = sigmoid(box_score_ptr[0]);
                     // find class index with max class score
                     int class_index = 0;
                     float class_score = -std::numeric_limits<float>::max();
@@ -139,6 +132,9 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
                         }
                     }
                     class_score = sigmoid(class_score);
+
+                    // box score
+                    float box_score = sigmoid(box_score_ptr[0]);
 
                     //printf( "%d %f %f\n", class_index, box_score, class_score);
 
