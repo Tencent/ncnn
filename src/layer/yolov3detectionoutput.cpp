@@ -204,9 +204,6 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
             {
                 for (int j = 0; j < w; j++)
                 {
-                    // box score
-                    float box_score = sigmoid(box_score_ptr[0]);
-
                     // find class index with max class score
                     int class_index = 0;
                     float class_score = -std::numeric_limits<float>::max();
@@ -219,11 +216,9 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
                             class_score = score;
                         }
                     }
-                    class_score = sigmoid(class_score);
 
-                    //printf( "%d %f %f\n", class_index, box_score, class_score);
-
-                    float confidence = box_score * class_score;
+                    //sigmoid(box_score) * sigmoid(class_score)
+                    float confidence = 1.f / ((1.f + exp(-box_score_ptr[0]) * (1.f + exp(-class_score))));
                     if (confidence >= confidence_threshold)
                     {
                         // region box
