@@ -214,9 +214,8 @@ int cpu_support_arm_asimdhp()
 
 int cpu_support_x86_avx2()
 {
-#if defined(__ANDROID__) || defined(__IOS__) || defined(__arm__) || defined(__aarch64__) || defined(__riscv) || defined(__mips__) || defined(__wasm__)
-    return 0;
-#elif defined(_MSC_VER)
+#if (_M_AMD64 || __x86_64__) || (_M_IX86 || __i386__)
+#if defined(_MSC_VER)
     // TODO move to init function
     int cpu_info[4];
     __cpuid(cpu_info, 0);
@@ -241,6 +240,7 @@ int cpu_support_x86_avx2()
     __builtin_cpu_init();
     #endif
     return __builtin_cpu_supports("avx2");
+#endif
 #else
     return 0;
 #endif
