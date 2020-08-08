@@ -245,7 +245,7 @@ int cpu_support_x86_avx2()
     return __builtin_cpu_supports("avx2");
 #else
     // TODO: other x86 compilers checking avx2 here
-	NCNN_LOGE("AVX2 detection method is unknown for current compiler");
+    NCNN_LOGE("AVX2 detection method is unknown for current compiler");
     return 0;
 #endif
 #else
@@ -544,7 +544,7 @@ int set_cpu_thread_affinity(size_t thread_affinity_mask)
     // set affinity for each thread
     set_omp_num_threads(num_threads);
     std::vector<int> ssarets(num_threads, 0);
-    #pragma omp parallel for num_threads(num_threads)
+#pragma omp parallel for num_threads(num_threads)
     for (int i = 0; i < num_threads; i++)
     {
         ssarets[i] = set_sched_affinity(thread_affinity_mask);
