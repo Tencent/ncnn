@@ -245,7 +245,7 @@ int cpu_support_x86_avx2()
     return __builtin_cpu_supports("avx2");
 #else
     // TODO: other x86 compilers checking avx2 here
-    fprintf(stderr, "AVX2 detection method is unknown for current compiler. See file %s, line %d\n", __FILE__, __LINE__);
+	NCNN_LOGE("AVX2 detection method is unknown for current compiler");
     return 0;
 #endif
 #else
