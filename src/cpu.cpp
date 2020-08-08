@@ -243,6 +243,9 @@ int cpu_support_x86_avx2()
 #elif defined(__GNUC__)
     __builtin_cpu_init();
     return __builtin_cpu_supports("avx2");
+#else
+    // TODO: other x86 compilers checking avx2 here
+    return 0;
 #endif
 #else
     return 0;
