@@ -172,7 +172,26 @@ if(NCNN_OPENMP)
 endif()
 
 if(NCNN_VULKAN)
-    find_package(Vulkan REQUIRED)
+    find_package(Vulkan QUIET)
+    if(Vulkan_FOUND)
+        set(Vulkan_LIB Vulkan::Vulkan)
+    else()
+        if(DEFINED ENV{VULKAN_SDK})
+            list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/../source/VulkanTools/cmake")
+        else()
+            message(FATAL_ERROR "!! CMake didn't find Vulkan. One of the following helps:\n"
+                "1. export env var VULKAN_SDK before cmake, e.g.\n"
+                "    export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/x86_64\n"
+                "2. use pkg-config in CMakeLists.txt"
+            )
+        endif()
+
+        find_package(Vulkan REQUIRED)
+        if(Vulkan_FOUND)
+            set(Vulkan_LIB Vulkan::Vulkan)
+        endif()
+    endif()
+
     target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
 
     if(NCNN_VULKAN_ONLINE_SPIRV)
