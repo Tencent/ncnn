@@ -51,7 +51,6 @@ static int detect_mobilenet(const cv::Mat& bgr, std::vector<Object>& objects)
     in.substract_mean_normalize(mean_vals, norm_vals);
 
     ncnn::Extractor ex = mobilenet.create_extractor();
-    //     ex.set_num_threads(4);
 
     ex.input("data", in);
 

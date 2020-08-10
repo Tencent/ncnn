@@ -138,7 +138,6 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
     in.substract_mean_normalize(mean_vals, norm_vals);
 
     ncnn::Extractor ex = yolact.create_extractor();
-    //     ex.set_num_threads(4);
 
     ex.input("input.1", in);
 
