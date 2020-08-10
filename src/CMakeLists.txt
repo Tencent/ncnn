@@ -173,9 +173,7 @@ endif()
 
 if(NCNN_VULKAN)
     find_package(Vulkan QUIET)
-    if(Vulkan_FOUND)
-        set(Vulkan_LIB Vulkan::Vulkan)
-    else()
+    if(NOT Vulkan_FOUND)
         if(DEFINED ENV{VULKAN_SDK})
             list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/../source/VulkanTools/cmake")
         else()
@@ -185,11 +183,7 @@ if(NCNN_VULKAN)
                 "2. use pkg-config in CMakeLists.txt"
             )
         endif()
-
         find_package(Vulkan REQUIRED)
-        if(Vulkan_FOUND)
-            set(Vulkan_LIB Vulkan::Vulkan)
-        endif()
     endif()
 
     target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
