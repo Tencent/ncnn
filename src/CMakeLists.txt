@@ -175,12 +175,17 @@ if(NCNN_VULKAN)
     find_package(Vulkan QUIET)
     if(NOT Vulkan_FOUND)
         if(DEFINED ENV{VULKAN_SDK})
-            list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/../source/VulkanTools/cmake")
+			if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+				list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/../source/VulkanTools/cmake")
+			elseif(CMAKE_SYSTEM_NAME MATCHE "Windows")
+				list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/Samples/cmake/FindVulkan.cmake")
+			else()
+				message(FATAL_ERROR "TODO: config for MacOSX")
+			endif()
         else()
-            message(FATAL_ERROR "!! CMake didn't find Vulkan. One of the following helps:\n"
-                "1. export env var VULKAN_SDK before cmake, e.g.\n"
-                "    export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/x86_64\n"
-                "2. use pkg-config in CMakeLists.txt"
+            message(FATAL_ERROR "!! CMake didn't find Vulkan. Please set VULKAN_SDK env var:\n"
+                "Linux: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/x86_64\n"
+				"Windows: set VULKAN_SDK=E:/lib/VulkanSDK/1.2.148.0\n"
             )
         endif()
         find_package(Vulkan REQUIRED)
