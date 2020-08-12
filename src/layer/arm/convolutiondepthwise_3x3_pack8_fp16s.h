@@ -66,23 +66,25 @@ static void convdw3x3s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "mov    v25.16b, %21.16b            \n" // sum01
                     "mov    v26.16b, %21.16b            \n" // sum02
                     "mov    v27.16b, %21.16b            \n" // sum03
+
+                    "fmla   v24.8h, %15.8h, v12.8h      \n"
+                    "fmla   v25.8h, %15.8h, v13.8h      \n"
+
                     "mov    v28.16b, %21.16b            \n" // sum10
                     "mov    v29.16b, %21.16b            \n" // sum11
                     "mov    v30.16b, %21.16b            \n" // sum12
                     "mov    v31.16b, %21.16b            \n" // sum13
 
-                    "fmla   v24.8h, %15.8h, v12.8h      \n"
-                    "fmla   v25.8h, %15.8h, v13.8h      \n"
                     "fmla   v26.8h, %15.8h, v14.8h      \n"
                     "fmla   v27.8h, %15.8h, v15.8h      \n"
+
+                    "prfm   pldl1keep, [%3, #256]       \n"
+                    "ld1    {v16.8h, v17.8h}, [%3]      \n" // r14 r15
 
                     "fmla   v28.8h, %12.8h, v12.8h      \n"
                     "fmla   v29.8h, %12.8h, v13.8h      \n"
                     "fmla   v30.8h, %12.8h, v14.8h      \n"
                     "fmla   v31.8h, %12.8h, v15.8h      \n"
-
-                    "prfm   pldl1keep, [%3, #256]       \n"
-                    "ld1    {v16.8h, v17.8h}, [%3]      \n" // r14 r15
 
                     "fmla   v24.8h, %16.8h, v13.8h      \n"
                     "fmla   v25.8h, %16.8h, v14.8h      \n"
@@ -94,13 +96,13 @@ static void convdw3x3s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "fmla   v30.8h, %13.8h, v15.8h      \n"
                     "fmla   v31.8h, %13.8h, v16.8h      \n"
 
+                    "prfm   pldl1keep, [%4, #512]       \n"
+                    "ld1    {v18.8h, v19.8h, v20.8h, v21.8h}, [%4], #64 \n" // r20 r21 r22 r23
+
                     "fmla   v24.8h, %17.8h, v14.8h      \n"
                     "fmla   v25.8h, %17.8h, v15.8h      \n"
                     "fmla   v26.8h, %17.8h, v16.8h      \n"
                     "fmla   v27.8h, %17.8h, v17.8h      \n"
-
-                    "prfm   pldl1keep, [%4, #512]       \n"
-                    "ld1    {v18.8h, v19.8h, v20.8h, v21.8h}, [%4], #64 \n" // r20 r21 r22 r23
 
                     "fmla   v28.8h, %14.8h, v14.8h      \n"
                     "fmla   v29.8h, %14.8h, v15.8h      \n"
@@ -112,13 +114,13 @@ static void convdw3x3s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "fmla   v26.8h, %18.8h, v20.8h      \n"
                     "fmla   v27.8h, %18.8h, v21.8h      \n"
 
+                    "prfm   pldl1keep, [%4, #256]       \n"
+                    "ld1    {v22.8h, v23.8h}, [%4]      \n" // r24 r25
+
                     "fmla   v28.8h, %15.8h, v18.8h      \n"
                     "fmla   v29.8h, %15.8h, v19.8h      \n"
                     "fmla   v30.8h, %15.8h, v20.8h      \n"
                     "fmla   v31.8h, %15.8h, v21.8h      \n"
-
-                    "prfm   pldl1keep, [%4, #256]       \n"
-                    "ld1    {v22.8h, v23.8h}, [%4]      \n" // r24 r25
 
                     "fmla   v24.8h, %19.8h, v19.8h      \n"
                     "fmla   v25.8h, %19.8h, v20.8h      \n"
@@ -130,13 +132,13 @@ static void convdw3x3s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "fmla   v30.8h, %16.8h, v21.8h      \n"
                     "fmla   v31.8h, %16.8h, v22.8h      \n"
 
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v12.8h, v13.8h, v14.8h, v15.8h}, [%2], #64 \n" // r00 r01 r02 r03
+
                     "fmla   v24.8h, %20.8h, v20.8h      \n"
                     "fmla   v25.8h, %20.8h, v21.8h      \n"
                     "fmla   v26.8h, %20.8h, v22.8h      \n"
                     "fmla   v27.8h, %20.8h, v23.8h      \n"
-
-                    "prfm   pldl1keep, [%2, #512]       \n"
-                    "ld1    {v12.8h, v13.8h, v14.8h, v15.8h}, [%2], #64 \n" // r00 r01 r02 r03
 
                     "fmla   v28.8h, %17.8h, v20.8h      \n"
                     "fmla   v29.8h, %17.8h, v21.8h      \n"
@@ -151,21 +153,21 @@ static void convdw3x3s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "fmla   v26.8h, %12.8h, v14.8h      \n"
                     "fmla   v27.8h, %12.8h, v15.8h      \n"
 
+                    "prfm   pldl1keep, [%2, #256]       \n"
+                    "ld1    {v16.8h, v17.8h}, [%2]      \n" // r04 r05
+
                     "fmla   v28.8h, %18.8h, v18.8h      \n"
                     "fmla   v29.8h, %18.8h, v19.8h      \n"
                     "fmla   v30.8h, %18.8h, v20.8h      \n"
                     "fmla   v31.8h, %18.8h, v21.8h      \n"
 
-                    "prfm   pldl1keep, [%2, #256]       \n"
-                    "ld1    {v16.8h, v17.8h}, [%2]      \n" // r04 r05
+                    "prfm   pldl1keep, [%5, #256]       \n"
+                    "ld1    {v22.8h, v23.8h}, [%5]      \n" // r34 r35
 
                     "fmla   v24.8h, %13.8h, v13.8h      \n"
                     "fmla   v25.8h, %13.8h, v14.8h      \n"
                     "fmla   v26.8h, %13.8h, v15.8h      \n"
                     "fmla   v27.8h, %13.8h, v16.8h      \n"
-
-                    "prfm   pldl1keep, [%5, #256]       \n"
-                    "ld1    {v22.8h, v23.8h}, [%5]      \n" // r34 r35
 
                     "fmla   v28.8h, %19.8h, v19.8h      \n"
                     "fmla   v29.8h, %19.8h, v20.8h      \n"
@@ -224,13 +226,14 @@ static void convdw3x3s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "fmla   v30.8h, %12.8h, v16.8h      \n"
                     "fmla   v29.8h, %15.8h, v17.8h      \n"
                     "fmla   v31.8h, %12.8h, v17.8h      \n"
+
+                    "prfm   pldl1keep, [%4, #512]       \n"
+                    "ld1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%4] \n" // r20 r21 r22 r23
+
                     "fmla   v28.8h, %16.8h, v17.8h      \n"
                     "fmla   v30.8h, %13.8h, v17.8h      \n"
                     "fmla   v29.8h, %16.8h, v18.8h      \n"
                     "fmla   v31.8h, %13.8h, v18.8h      \n"
-
-                    "prfm   pldl1keep, [%4, #512]       \n"
-                    "ld1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%4] \n" // r20 r21 r22 r23
 
                     "fmla   v28.8h, %17.8h, v18.8h      \n"
                     "fmla   v30.8h, %14.8h, v18.8h      \n"
@@ -241,21 +244,22 @@ static void convdw3x3s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "fmla   v30.8h, %15.8h, v20.8h      \n"
                     "fmla   v29.8h, %18.8h, v21.8h      \n"
                     "fmla   v31.8h, %15.8h, v21.8h      \n"
+
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v12.8h, v13.8h, v14.8h, v15.8h}, [%2] \n" // r00 r01 r02 r03
+
                     "fmla   v28.8h, %19.8h, v21.8h      \n"
                     "fmla   v30.8h, %16.8h, v21.8h      \n"
                     "fmla   v29.8h, %19.8h, v22.8h      \n"
                     "fmla   v31.8h, %16.8h, v22.8h      \n"
 
-                    "prfm   pldl1keep, [%2, #512]       \n"
-                    "ld1    {v12.8h, v13.8h, v14.8h, v15.8h}, [%2] \n" // r00 r01 r02 r03
+                    "prfm   pldl1keep, [%5, #512]       \n"
+                    "ld1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%5] \n" // r30 r31 r32 r33
 
                     "fmla   v28.8h, %20.8h, v22.8h      \n"
                     "fmla   v30.8h, %17.8h, v22.8h      \n"
                     "fmla   v29.8h, %20.8h, v23.8h      \n"
                     "fmla   v31.8h, %17.8h, v23.8h      \n"
-
-                    "prfm   pldl1keep, [%5, #512]       \n"
-                    "ld1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%5] \n" // r30 r31 r32 r33
 
                     "fmla   v28.8h, %12.8h, v12.8h      \n"
                     "fmla   v30.8h, %18.8h, v24.8h      \n"
@@ -311,40 +315,46 @@ static void convdw3x3s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "mov    v28.16b, %21.16b            \n" // sum00
                     "mov    v30.16b, %21.16b            \n" // sum10
 
-                    "fmla   v28.8h, %15.8h, v15.8h      \n"
-                    "fmla   v30.8h, %12.8h, v15.8h      \n"
-                    "fmla   v28.8h, %16.8h, v16.8h      \n"
-                    "fmla   v30.8h, %13.8h, v16.8h      \n"
+                    "fmul   v29.8h, %15.8h, v15.8h      \n"
+                    "fmul   v31.8h, %12.8h, v15.8h      \n"
 
                     "prfm   pldl1keep, [%4, #384]       \n"
                     "ld1    {v18.8h, v19.8h, v20.8h}, [%4] \n" // r20 r21 r22
 
-                    "fmla   v28.8h, %17.8h, v17.8h      \n"
-                    "fmla   v30.8h, %14.8h, v17.8h      \n"
+                    "fmla   v28.8h, %16.8h, v16.8h      \n"
+                    "fmla   v30.8h, %13.8h, v16.8h      \n"
 
-                    "fmla   v28.8h, %18.8h, v18.8h      \n"
-                    "fmla   v30.8h, %15.8h, v18.8h      \n"
+                    "fmla   v29.8h, %17.8h, v17.8h      \n"
+                    "fmla   v31.8h, %14.8h, v17.8h      \n"
 
                     "prfm   pldl1keep, [%2, #384]       \n"
                     "ld1    {v12.8h, v13.8h, v14.8h}, [%2] \n" // r00 r01 r02
 
-                    "fmla   v28.8h, %19.8h, v19.8h      \n"
-                    "fmla   v30.8h, %16.8h, v19.8h      \n"
-                    "fmla   v28.8h, %20.8h, v20.8h      \n"
-                    "fmla   v30.8h, %17.8h, v20.8h      \n"
+                    "fmla   v28.8h, %18.8h, v18.8h      \n"
+                    "fmla   v30.8h, %15.8h, v18.8h      \n"
+
+                    "fmla   v29.8h, %19.8h, v19.8h      \n"
+                    "fmla   v31.8h, %16.8h, v19.8h      \n"
 
                     "prfm   pldl1keep, [%5, #384]       \n"
                     "ld1    {v21.8h, v22.8h, v23.8h}, [%5] \n" // r30 r31 r32
 
-                    "fmla   v28.8h, %12.8h, v12.8h      \n"
-                    "fmla   v30.8h, %18.8h, v21.8h      \n"
+                    "fmla   v28.8h, %20.8h, v20.8h      \n"
+                    "fmla   v30.8h, %17.8h, v20.8h      \n"
+
+                    "fmla   v29.8h, %12.8h, v12.8h      \n"
+                    "fmla   v31.8h, %18.8h, v21.8h      \n"
                     "fmla   v28.8h, %13.8h, v13.8h      \n"
                     "fmla   v30.8h, %19.8h, v22.8h      \n"
-                    "fmla   v28.8h, %14.8h, v14.8h      \n"
-                    "fmla   v30.8h, %20.8h, v23.8h      \n"
+                    "fmla   v29.8h, %14.8h, v14.8h      \n"
+                    "fmla   v31.8h, %20.8h, v23.8h      \n"
 
                     "add    %2, %2, #16                 \n"
                     "add    %3, %3, #16                 \n"
+
+                    "fadd   v28.8h, v28.8h, v29.8h      \n"
+                    "fadd   v30.8h, v30.8h, v31.8h      \n"
+
                     "add    %4, %4, #16                 \n"
                     "add    %5, %5, #16                 \n"
 
@@ -373,7 +383,7 @@ static void convdw3x3s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "w"(_k21),  // %19
                     "w"(_k22),  // %20
                     "w"(_bias0) // %21
-                    : "memory", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v30");
+                    : "memory", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31");
             }
 
             r0 += 2 * 8 + w * 8;
@@ -489,34 +499,39 @@ static void convdw3x3s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "mov    v28.16b, %17.16b            \n" // sum00
                     "mov    v29.16b, %17.16b            \n" // sum01
 
+                    "fmul   v30.8h, %8.8h, v12.8h       \n"
+                    "fmul   v31.8h, %8.8h, v13.8h       \n"
+
                     "prfm   pldl1keep, [%2, #512]       \n"
                     "ld1    {v16.8h, v17.8h, v18.8h, v19.8h}, [%2] \n" // r10 r11 r12 r13
 
-                    "fmla   v28.8h, %8.8h, v12.8h       \n"
-                    "fmla   v29.8h, %8.8h, v13.8h       \n"
                     "fmla   v28.8h, %9.8h, v13.8h       \n"
                     "fmla   v29.8h, %9.8h, v14.8h       \n"
-                    "fmla   v28.8h, %10.8h, v14.8h      \n"
-                    "fmla   v29.8h, %10.8h, v15.8h      \n"
+                    "fmla   v30.8h, %10.8h, v14.8h      \n"
+                    "fmla   v31.8h, %10.8h, v15.8h      \n"
 
                     "prfm   pldl1keep, [%3, #512]       \n"
                     "ld1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%3] \n" // r20 r21 r22 r23
 
                     "fmla   v28.8h, %11.8h, v16.8h      \n"
                     "fmla   v29.8h, %11.8h, v17.8h      \n"
-                    "fmla   v28.8h, %12.8h, v17.8h      \n"
-                    "fmla   v29.8h, %12.8h, v18.8h      \n"
+                    "fmla   v30.8h, %12.8h, v17.8h      \n"
+                    "fmla   v31.8h, %12.8h, v18.8h      \n"
                     "fmla   v28.8h, %13.8h, v18.8h      \n"
                     "fmla   v29.8h, %13.8h, v19.8h      \n"
 
-                    "fmla   v28.8h, %14.8h, v20.8h      \n"
-                    "fmla   v29.8h, %14.8h, v21.8h      \n"
+                    "fmla   v30.8h, %14.8h, v20.8h      \n"
+                    "fmla   v31.8h, %14.8h, v21.8h      \n"
                     "fmla   v28.8h, %15.8h, v21.8h      \n"
                     "fmla   v29.8h, %15.8h, v22.8h      \n"
-                    "fmla   v28.8h, %16.8h, v22.8h      \n"
-                    "fmla   v29.8h, %16.8h, v23.8h      \n"
+                    "fmla   v30.8h, %16.8h, v22.8h      \n"
+                    "fmla   v31.8h, %16.8h, v23.8h      \n"
 
                     "add    %1, %1, #32                 \n"
+
+                    "fadd   v28.8h, v28.8h, v30.8h      \n"
+                    "fadd   v29.8h, v29.8h, v31.8h      \n"
+
                     "add    %2, %2, #32                 \n"
                     "add    %3, %3, #32                 \n"
 
@@ -540,7 +555,7 @@ static void convdw3x3s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "w"(_k21),  // %15
                     "w"(_k22),  // %16
                     "w"(_bias0) // %17
-                    : "memory", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29");
+                    : "memory", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31");
             }
             for (; j < outw; j++)
             {
@@ -550,25 +565,30 @@ static void convdw3x3s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
 
                     "mov    v28.16b, %17.16b            \n" // sum00
 
+                    "fmul   v29.8h, %8.8h, v12.8h       \n"
+
                     "prfm   pldl1keep, [%2, #384]       \n"
                     "ld1    {v15.8h, v16.8h, v17.8h}, [%2] \n" // r10 r11 r12
 
-                    "fmla   v28.8h, %8.8h, v12.8h       \n"
-                    "fmla   v28.8h, %9.8h, v13.8h       \n"
-                    "fmla   v28.8h, %10.8h, v14.8h      \n"
+                    "fmul   v30.8h, %9.8h, v13.8h       \n"
+                    "fmul   v28.8h, %10.8h, v14.8h      \n"
 
                     "prfm   pldl1keep, [%3, #384]       \n"
                     "ld1    {v18.8h, v19.8h, v20.8h}, [%3] \n" // r20 r21 r22
 
-                    "fmla   v28.8h, %11.8h, v15.8h      \n"
-                    "fmla   v28.8h, %12.8h, v16.8h      \n"
+                    "fmla   v29.8h, %11.8h, v15.8h      \n"
+                    "fmla   v30.8h, %12.8h, v16.8h      \n"
                     "fmla   v28.8h, %13.8h, v17.8h      \n"
 
-                    "fmla   v28.8h, %14.8h, v18.8h      \n"
-                    "fmla   v28.8h, %15.8h, v19.8h      \n"
+                    "fmla   v29.8h, %14.8h, v18.8h      \n"
+                    "fmla   v30.8h, %15.8h, v19.8h      \n"
                     "fmla   v28.8h, %16.8h, v20.8h      \n"
 
                     "add    %1, %1, #16                 \n"
+
+                    "fadd   v29.8h, v29.8h, v30.8h      \n"
+                    "fadd   v28.8h, v28.8h, v29.8h      \n"
+
                     "add    %2, %2, #16                 \n"
                     "add    %3, %3, #16                 \n"
 
@@ -592,7 +612,7 @@ static void convdw3x3s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "w"(_k21),  // %15
                     "w"(_k22),  // %16
                     "w"(_bias0) // %17
-                    : "memory", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v28");
+                    : "memory", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v28", "v29", "v30");
             }
 
             r0 += 2 * 8;
@@ -648,168 +668,237 @@ static void convdw3x3s2_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
             int j = 0;
             for (; j + 3 < outw; j += 4)
             {
-                float16x8_t _sum0 = _bias0;
-                float16x8_t _sum1 = _bias0;
-                float16x8_t _sum2 = _bias0;
-                float16x8_t _sum3 = _bias0;
+                asm volatile(
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n" // r00 r01 r02 r03
 
-                float16x8_t _r00 = vld1q_f16(r0);
-                float16x8_t _r01 = vld1q_f16(r0 + 8);
-                float16x8_t _r02 = vld1q_f16(r0 + 16);
-                float16x8_t _r03 = vld1q_f16(r0 + 24);
-                float16x8_t _r04 = vld1q_f16(r0 + 32);
-                float16x8_t _r05 = vld1q_f16(r0 + 40);
-                float16x8_t _r06 = vld1q_f16(r0 + 48);
-                float16x8_t _r07 = vld1q_f16(r0 + 56);
-                float16x8_t _r08 = vld1q_f16(r0 + 64);
-                float16x8_t _r10 = vld1q_f16(r1);
-                float16x8_t _r11 = vld1q_f16(r1 + 8);
-                float16x8_t _r12 = vld1q_f16(r1 + 16);
-                float16x8_t _r13 = vld1q_f16(r1 + 24);
-                float16x8_t _r14 = vld1q_f16(r1 + 32);
-                float16x8_t _r15 = vld1q_f16(r1 + 40);
-                float16x8_t _r16 = vld1q_f16(r1 + 48);
-                float16x8_t _r17 = vld1q_f16(r1 + 56);
-                float16x8_t _r18 = vld1q_f16(r1 + 64);
-                float16x8_t _r20 = vld1q_f16(r2);
-                float16x8_t _r21 = vld1q_f16(r2 + 8);
-                float16x8_t _r22 = vld1q_f16(r2 + 16);
-                float16x8_t _r23 = vld1q_f16(r2 + 24);
-                float16x8_t _r24 = vld1q_f16(r2 + 32);
-                float16x8_t _r25 = vld1q_f16(r2 + 40);
-                float16x8_t _r26 = vld1q_f16(r2 + 48);
-                float16x8_t _r27 = vld1q_f16(r2 + 56);
-                float16x8_t _r28 = vld1q_f16(r2 + 64);
+                    "mov    v28.16b, %17.16b            \n" // sum00
+                    "mov    v29.16b, %17.16b            \n" // sum01
+                    "mov    v30.16b, %17.16b            \n" // sum02
+                    "mov    v31.16b, %17.16b            \n" // sum03
 
-                _sum0 = vfmaq_f16(_sum0, _k00, _r00);
-                _sum0 = vfmaq_f16(_sum0, _k01, _r01);
-                _sum0 = vfmaq_f16(_sum0, _k02, _r02);
-                _sum0 = vfmaq_f16(_sum0, _k10, _r10);
-                _sum0 = vfmaq_f16(_sum0, _k11, _r11);
-                _sum0 = vfmaq_f16(_sum0, _k12, _r12);
-                _sum0 = vfmaq_f16(_sum0, _k20, _r20);
-                _sum0 = vfmaq_f16(_sum0, _k21, _r21);
-                _sum0 = vfmaq_f16(_sum0, _k22, _r22);
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%1], #64 \n" // r04 r05 r06 r07
 
-                _sum1 = vfmaq_f16(_sum1, _k00, _r02);
-                _sum1 = vfmaq_f16(_sum1, _k01, _r03);
-                _sum1 = vfmaq_f16(_sum1, _k02, _r04);
-                _sum1 = vfmaq_f16(_sum1, _k10, _r12);
-                _sum1 = vfmaq_f16(_sum1, _k11, _r13);
-                _sum1 = vfmaq_f16(_sum1, _k12, _r14);
-                _sum1 = vfmaq_f16(_sum1, _k20, _r22);
-                _sum1 = vfmaq_f16(_sum1, _k21, _r23);
-                _sum1 = vfmaq_f16(_sum1, _k22, _r24);
+                    "fmla   v28.8h, %8.8h, v0.8h        \n"
+                    "fmla   v29.8h, %8.8h, v2.8h        \n"
+                    "fmla   v30.8h, %8.8h, v4.8h        \n"
+                    "fmla   v31.8h, %8.8h, v6.8h        \n"
 
-                _sum2 = vfmaq_f16(_sum2, _k00, _r04);
-                _sum2 = vfmaq_f16(_sum2, _k01, _r05);
-                _sum2 = vfmaq_f16(_sum2, _k02, _r06);
-                _sum2 = vfmaq_f16(_sum2, _k10, _r14);
-                _sum2 = vfmaq_f16(_sum2, _k11, _r15);
-                _sum2 = vfmaq_f16(_sum2, _k12, _r16);
-                _sum2 = vfmaq_f16(_sum2, _k20, _r24);
-                _sum2 = vfmaq_f16(_sum2, _k21, _r25);
-                _sum2 = vfmaq_f16(_sum2, _k22, _r26);
+                    "prfm   pldl1keep, [%1, #128]       \n"
+                    "ld1    {v8.8h}, [%1]               \n" // r08
 
-                _sum3 = vfmaq_f16(_sum3, _k00, _r06);
-                _sum3 = vfmaq_f16(_sum3, _k01, _r07);
-                _sum3 = vfmaq_f16(_sum3, _k02, _r08);
-                _sum3 = vfmaq_f16(_sum3, _k10, _r16);
-                _sum3 = vfmaq_f16(_sum3, _k11, _r17);
-                _sum3 = vfmaq_f16(_sum3, _k12, _r18);
-                _sum3 = vfmaq_f16(_sum3, _k20, _r26);
-                _sum3 = vfmaq_f16(_sum3, _k21, _r27);
-                _sum3 = vfmaq_f16(_sum3, _k22, _r28);
+                    "fmla   v28.8h, %9.8h, v1.8h        \n"
+                    "fmla   v29.8h, %9.8h, v3.8h        \n"
+                    "fmla   v30.8h, %9.8h, v5.8h        \n"
+                    "fmla   v31.8h, %9.8h, v7.8h        \n"
 
-                vst1q_f16(outptr0, _sum0);
-                vst1q_f16(outptr0 + 8, _sum1);
-                vst1q_f16(outptr0 + 16, _sum2);
-                vst1q_f16(outptr0 + 24, _sum3);
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v16.8h, v17.8h, v18.8h, v19.8h}, [%2], #64 \n" // r10 r11 r12 r13
 
-                r0 += 8 * 8;
-                r1 += 8 * 8;
-                r2 += 8 * 8;
-                outptr0 += 32;
+                    "fmla   v28.8h, %10.8h, v2.8h       \n"
+                    "fmla   v29.8h, %10.8h, v4.8h       \n"
+                    "fmla   v30.8h, %10.8h, v6.8h       \n"
+                    "fmla   v31.8h, %10.8h, v8.8h       \n"
+
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%2], #64 \n" // r14 r15 r16 r17
+
+                    "fmla   v28.8h, %11.8h, v16.8h      \n"
+                    "fmla   v29.8h, %11.8h, v18.8h      \n"
+                    "fmla   v30.8h, %11.8h, v20.8h      \n"
+                    "fmla   v31.8h, %11.8h, v22.8h      \n"
+
+                    "prfm   pldl1keep, [%2, #128]       \n"
+                    "ld1    {v24.8h}, [%2]              \n" // r18
+
+                    "fmla   v28.8h, %12.8h, v17.8h      \n"
+                    "fmla   v29.8h, %12.8h, v19.8h      \n"
+                    "fmla   v30.8h, %12.8h, v21.8h      \n"
+                    "fmla   v31.8h, %12.8h, v23.8h      \n"
+
+                    "prfm   pldl1keep, [%3, #512]       \n"
+                    "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%3], #64 \n" // r20 r21 r22 r23
+
+                    "fmla   v28.8h, %13.8h, v18.8h      \n"
+                    "fmla   v29.8h, %13.8h, v20.8h      \n"
+                    "fmla   v30.8h, %13.8h, v22.8h      \n"
+                    "fmla   v31.8h, %13.8h, v24.8h      \n"
+
+                    "prfm   pldl1keep, [%3, #512]       \n"
+                    "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%3], #64 \n" // r24 r25 r26 r27
+
+                    "fmla   v28.8h, %14.8h, v0.8h       \n"
+                    "fmla   v29.8h, %14.8h, v2.8h       \n"
+                    "fmla   v30.8h, %14.8h, v4.8h       \n"
+                    "fmla   v31.8h, %14.8h, v6.8h       \n"
+
+                    "prfm   pldl1keep, [%3, #128]       \n"
+                    "ld1    {v8.8h}, [%3]               \n" // r28
+
+                    "fmla   v28.8h, %15.8h, v1.8h       \n"
+                    "fmla   v29.8h, %15.8h, v3.8h       \n"
+                    "fmla   v30.8h, %15.8h, v5.8h       \n"
+                    "fmla   v31.8h, %15.8h, v7.8h       \n"
+
+                    "fmla   v28.8h, %16.8h, v2.8h       \n"
+                    "fmla   v29.8h, %16.8h, v4.8h       \n"
+                    "fmla   v30.8h, %16.8h, v6.8h       \n"
+                    "fmla   v31.8h, %16.8h, v8.8h       \n"
+
+                    "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0], #64 \n"
+
+                    : "=r"(outptr0), // %0
+                    "=r"(r0),      // %1
+                    "=r"(r1),      // %2
+                    "=r"(r2)       // %3
+                    : "0"(outptr0),
+                    "1"(r0),
+                    "2"(r1),
+                    "3"(r2),
+                    "w"(_k00),  // %8
+                    "w"(_k01),  // %9
+                    "w"(_k02),  // %10
+                    "w"(_k10),  // %11
+                    "w"(_k11),  // %12
+                    "w"(_k12),  // %13
+                    "w"(_k20),  // %14
+                    "w"(_k21),  // %15
+                    "w"(_k22),  // %16
+                    "w"(_bias0) // %17
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v28", "v29", "v30", "v31");
             }
             for (; j + 1 < outw; j += 2)
             {
-                float16x8_t _sum0 = _bias0;
-                float16x8_t _sum1 = _bias0;
+                asm volatile(
+                    "prfm   pldl1keep, [%1, #512]       \n"
+                    "ld1    {v12.8h, v13.8h, v14.8h, v15.8h}, [%1], #64 \n" // r00 r01 r02 r03
 
-                float16x8_t _r00 = vld1q_f16(r0);
-                float16x8_t _r01 = vld1q_f16(r0 + 8);
-                float16x8_t _r02 = vld1q_f16(r0 + 16);
-                float16x8_t _r03 = vld1q_f16(r0 + 24);
-                float16x8_t _r04 = vld1q_f16(r0 + 32);
-                float16x8_t _r10 = vld1q_f16(r1);
-                float16x8_t _r11 = vld1q_f16(r1 + 8);
-                float16x8_t _r12 = vld1q_f16(r1 + 16);
-                float16x8_t _r13 = vld1q_f16(r1 + 24);
-                float16x8_t _r14 = vld1q_f16(r1 + 32);
-                float16x8_t _r20 = vld1q_f16(r2);
-                float16x8_t _r21 = vld1q_f16(r2 + 8);
-                float16x8_t _r22 = vld1q_f16(r2 + 16);
-                float16x8_t _r23 = vld1q_f16(r2 + 24);
-                float16x8_t _r24 = vld1q_f16(r2 + 32);
+                    "mov    v28.16b, %17.16b            \n" // sum00
+                    "mov    v29.16b, %17.16b            \n" // sum01
 
-                _sum0 = vfmaq_f16(_sum0, _k00, _r00);
-                _sum0 = vfmaq_f16(_sum0, _k01, _r01);
-                _sum0 = vfmaq_f16(_sum0, _k02, _r02);
-                _sum0 = vfmaq_f16(_sum0, _k10, _r10);
-                _sum0 = vfmaq_f16(_sum0, _k11, _r11);
-                _sum0 = vfmaq_f16(_sum0, _k12, _r12);
-                _sum0 = vfmaq_f16(_sum0, _k20, _r20);
-                _sum0 = vfmaq_f16(_sum0, _k21, _r21);
-                _sum0 = vfmaq_f16(_sum0, _k22, _r22);
+                    "fmul   v30.8h, %8.8h, v12.8h       \n"
+                    "fmul   v31.8h, %8.8h, v14.8h       \n"
 
-                _sum1 = vfmaq_f16(_sum1, _k00, _r02);
-                _sum1 = vfmaq_f16(_sum1, _k01, _r03);
-                _sum1 = vfmaq_f16(_sum1, _k02, _r04);
-                _sum1 = vfmaq_f16(_sum1, _k10, _r12);
-                _sum1 = vfmaq_f16(_sum1, _k11, _r13);
-                _sum1 = vfmaq_f16(_sum1, _k12, _r14);
-                _sum1 = vfmaq_f16(_sum1, _k20, _r22);
-                _sum1 = vfmaq_f16(_sum1, _k21, _r23);
-                _sum1 = vfmaq_f16(_sum1, _k22, _r24);
+                    "prfm   pldl1keep, [%1, #128]       \n"
+                    "ld1    {v16.8h}, [%1]              \n" // r04
 
-                vst1q_f16(outptr0, _sum0);
-                vst1q_f16(outptr0 + 8, _sum1);
+                    "fmla   v28.8h, %9.8h, v13.8h       \n"
+                    "fmla   v29.8h, %9.8h, v15.8h       \n"
 
-                r0 += 4 * 8;
-                r1 += 4 * 8;
-                r2 += 4 * 8;
-                outptr0 += 16;
+                    "prfm   pldl1keep, [%2, #512]       \n"
+                    "ld1    {v17.8h, v18.8h, v19.8h, v20.8h}, [%2], #64 \n" // r10 r11 r12 r13
+
+                    "fmla   v30.8h, %10.8h, v14.8h      \n"
+                    "fmla   v31.8h, %10.8h, v16.8h      \n"
+
+                    "prfm   pldl1keep, [%1, #128]       \n"
+                    "ld1    {v21.8h}, [%1]              \n" // r14
+
+                    "fmla   v28.8h, %11.8h, v17.8h      \n"
+                    "fmla   v29.8h, %11.8h, v19.8h      \n"
+
+                    "prfm   pldl1keep, [%3, #512]       \n"
+                    "ld1    {v22.8h, v23.8h, v24.8h, v25.8h}, [%3], #64 \n" // r20 r21 r22 r23
+
+                    "fmla   v30.8h, %12.8h, v18.8h      \n"
+                    "fmla   v31.8h, %12.8h, v20.8h      \n"
+
+                    "fmla   v28.8h, %13.8h, v19.8h      \n"
+                    "fmla   v29.8h, %13.8h, v21.8h      \n"
+
+                    "prfm   pldl1keep, [%1, #128]       \n"
+                    "ld1    {v26.8h}, [%1]              \n" // r24
+
+                    "fmla   v30.8h, %14.8h, v22.8h      \n"
+                    "fmla   v31.8h, %14.8h, v24.8h      \n"
+
+                    "fmla   v28.8h, %15.8h, v23.8h      \n"
+                    "fmla   v29.8h, %15.8h, v25.8h      \n"
+                    "fmla   v30.8h, %16.8h, v24.8h      \n"
+                    "fmla   v31.8h, %16.8h, v26.8h      \n"
+
+                    "fadd   v28.8h, v28.8h, v30.8h      \n"
+                    "fadd   v29.8h, v29.8h, v31.8h      \n"
+
+                    "st1    {v28.8h, v29.8h}, [%0], #32 \n"
+
+                    : "=r"(outptr0), // %0
+                    "=r"(r0),      // %1
+                    "=r"(r1),      // %2
+                    "=r"(r2)       // %3
+                    : "0"(outptr0),
+                    "1"(r0),
+                    "2"(r1),
+                    "3"(r2),
+                    "w"(_k00),  // %8
+                    "w"(_k01),  // %9
+                    "w"(_k02),  // %10
+                    "w"(_k10),  // %11
+                    "w"(_k11),  // %12
+                    "w"(_k12),  // %13
+                    "w"(_k20),  // %14
+                    "w"(_k21),  // %15
+                    "w"(_k22),  // %16
+                    "w"(_bias0) // %17
+                    : "memory", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v28", "v29", "v30", "v31");
             }
             for (; j < outw; j++)
             {
-                float16x8_t _sum0 = _bias0;
+                asm volatile(
+                    "prfm   pldl1keep, [%1, #384]       \n"
+                    "ld1    {v12.8h, v13.8h, v14.8h}, [%1] \n" // r00 r01 r02
 
-                float16x8_t _r00 = vld1q_f16(r0);
-                float16x8_t _r01 = vld1q_f16(r0 + 8);
-                float16x8_t _r02 = vld1q_f16(r0 + 16);
-                float16x8_t _r10 = vld1q_f16(r1);
-                float16x8_t _r11 = vld1q_f16(r1 + 8);
-                float16x8_t _r12 = vld1q_f16(r1 + 16);
-                float16x8_t _r20 = vld1q_f16(r2);
-                float16x8_t _r21 = vld1q_f16(r2 + 8);
-                float16x8_t _r22 = vld1q_f16(r2 + 16);
+                    "mov    v28.16b, %17.16b            \n" // sum00
 
-                _sum0 = vfmaq_f16(_sum0, _k00, _r00);
-                _sum0 = vfmaq_f16(_sum0, _k01, _r01);
-                _sum0 = vfmaq_f16(_sum0, _k02, _r02);
-                _sum0 = vfmaq_f16(_sum0, _k10, _r10);
-                _sum0 = vfmaq_f16(_sum0, _k11, _r11);
-                _sum0 = vfmaq_f16(_sum0, _k12, _r12);
-                _sum0 = vfmaq_f16(_sum0, _k20, _r20);
-                _sum0 = vfmaq_f16(_sum0, _k21, _r21);
-                _sum0 = vfmaq_f16(_sum0, _k22, _r22);
+                    "fmul   v29.8h, %8.8h, v12.8h       \n"
 
-                vst1q_f16(outptr0, _sum0);
+                    "prfm   pldl1keep, [%2, #384]       \n"
+                    "ld1    {v15.8h, v16.8h, v17.8h}, [%2] \n" // r10 r11 r12
 
-                r0 += 2 * 8;
-                r1 += 2 * 8;
-                r2 += 2 * 8;
-                outptr0 += 8;
+                    "fmul   v30.8h, %9.8h, v13.8h       \n"
+                    "fmla   v28.8h, %10.8h, v14.8h      \n"
+
+                    "prfm   pldl1keep, [%3, #384]       \n"
+                    "ld1    {v18.8h, v19.8h, v20.8h}, [%3] \n" // r20 r21 r22
+
+                    "fmla   v29.8h, %11.8h, v15.8h      \n"
+                    "fmla   v30.8h, %12.8h, v16.8h      \n"
+                    "fmla   v28.8h, %13.8h, v17.8h      \n"
+
+                    "fmla   v29.8h, %14.8h, v18.8h      \n"
+                    "fmla   v30.8h, %15.8h, v19.8h      \n"
+                    "fmla   v28.8h, %16.8h, v20.8h      \n"
+
+                    "add    %1, %1, #32                 \n"
+
+                    "fadd   v29.8h, v29.8h, v30.8h      \n"
+                    "fadd   v28.8h, v28.8h, v29.8h      \n"
+
+                    "add    %2, %2, #32                 \n"
+                    "add    %3, %3, #32                 \n"
+
+                    "st1    {v28.8h}, [%0], #16         \n"
+
+                    : "=r"(outptr0), // %0
+                    "=r"(r0),      // %1
+                    "=r"(r1),      // %2
+                    "=r"(r2)       // %3
+                    : "0"(outptr0),
+                    "1"(r0),
+                    "2"(r1),
+                    "3"(r2),
+                    "w"(_k00),  // %8
+                    "w"(_k01),  // %9
+                    "w"(_k02),  // %10
+                    "w"(_k10),  // %11
+                    "w"(_k11),  // %12
+                    "w"(_k12),  // %13
+                    "w"(_k20),  // %14
+                    "w"(_k21),  // %15
+                    "w"(_k22),  // %16
+                    "w"(_bias0) // %17
+                    : "memory", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v28", "v29", "v30");
             }
 
             r0 += tailstep;
