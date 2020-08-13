@@ -58,8 +58,10 @@ namespace ncnn {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "convolution_1x1_fp16s.h"
 #include "convolution_1x1_pack8_fp16s.h"
+#include "convolution_1x1_pack8to1_fp16s.h"
 #include "convolution_3x3_pack1to8_fp16s.h"
 #include "convolution_3x3_pack8_fp16s.h"
+#include "convolution_3x3_pack8to1_fp16s.h"
 #include "convolution_5x5_pack8_fp16s.h"
 #include "convolution_7x7_pack1to8_fp16s.h"
 #endif
@@ -1109,6 +1111,23 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
         }
     }
 
+    // pack8to1
+    if (elempack == 8 && out_elempack == 1)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv1x1s1_sgemm_transform_kernel_pack8to1_fp16sa_neon(weight_data, weight_data_fp16, num_input, num_output);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv1x1s1_sgemm_transform_kernel_pack8to1_fp16sa_neon(weight_data, weight_data_fp16, num_input, num_output);
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_winograd64_transform_kernel_pack8to1_fp16sa_neon(weight_data, weight_data_fp16, num_input, num_output);
+        }
+    }
+
     // pack1
     if (elempack == 1 && out_elempack == 1)
     {
@@ -1706,6 +1725,37 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
 
     if (elempack == 8 && out_elempack == 1)
     {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv1x1s1_sgemm_pack8to1_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv1x1s2_pack8to1_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            // TODO more proper condition
+            conv3x3s1_winograd64_pack8to1_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+            //             conv3x3s1_pack8to1_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
