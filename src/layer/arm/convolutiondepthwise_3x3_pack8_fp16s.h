@@ -571,7 +571,7 @@ static void convdw3x3s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "ld1    {v15.8h, v16.8h, v17.8h}, [%2] \n" // r10 r11 r12
 
                     "fmul   v30.8h, %9.8h, v13.8h       \n"
-                    "fmul   v28.8h, %10.8h, v14.8h      \n"
+                    "fmla   v28.8h, %10.8h, v14.8h      \n"
 
                     "prfm   pldl1keep, [%3, #384]       \n"
                     "ld1    {v18.8h, v19.8h, v20.8h}, [%3] \n" // r20 r21 r22
