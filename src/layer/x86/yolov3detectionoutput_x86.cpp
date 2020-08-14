@@ -27,51 +27,6 @@ Yolov3DetectionOutput_x86::Yolov3DetectionOutput_x86()
 {
 }
 
-static inline float intersection_area(const Yolov3DetectionOutput::BBoxRect& a, const Yolov3DetectionOutput::BBoxRect& b)
-{
-    if (a.xmin > b.xmax || a.xmax < b.xmin || a.ymin > b.ymax || a.ymax < b.ymin)
-    {
-        // no intersection
-        return 0.f;
-    }
-
-    float inter_width = std::min(a.xmax, b.xmax) - std::max(a.xmin, b.xmin);
-    float inter_height = std::min(a.ymax, b.ymax) - std::max(a.ymin, b.ymin);
-
-    return inter_width * inter_height;
-}
-
-void Yolov3DetectionOutput_x86::nms_sorted_bboxes(std::vector<BBoxRect>& bboxes, std::vector<size_t>& picked, float nms_threshold) const
-{
-    picked.clear();
-
-    const size_t n = bboxes.size();
-
-    for (size_t i = 0; i < n; i++)
-    {
-        const BBoxRect& a = bboxes[i];
-
-        int keep = 1;
-        for (int j = 0; j < (int)picked.size(); j++)
-        {
-            const BBoxRect& b = bboxes[picked[j]];
-
-            // intersection over union
-            float inter_area = intersection_area(a, b);
-            float union_area = a.area + b.area - inter_area;
-            // float IoU = inter_area / union_area
-            if (inter_area > nms_threshold * union_area)
-            {
-                keep = 0;
-                break;
-            }
-        }
-
-        if (keep)
-            picked.push_back(i);
-    }
-}
-
 static inline float sigmoid(float x)
 {
     return static_cast<float>(1.f / (1.f + exp(-x)));
@@ -256,7 +211,7 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
     for (int i = 0; i < num_detected; i++)
     {
         const BBoxRect& r = bbox_rects[i];
-        float score = r.score; // bbox_scores[i];
+        float score = r.score;
         float* outptr = top_blob.row(i);
 
         outptr[0] = static_cast<float>(r.label + 1); // +1 for prepend background class

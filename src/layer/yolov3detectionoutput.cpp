@@ -67,46 +67,6 @@ static inline float intersection_area(const Yolov3DetectionOutput::BBoxRect& a, 
     return inter_width * inter_height;
 }
 
-void Yolov3DetectionOutput::qsort_descent_inplace(std::vector<BBoxRect>& datas, std::vector<float>& scores, int left, int right) const
-{
-    int i = left;
-    int j = right;
-    float p = scores[(left + right) / 2];
-
-    while (i <= j)
-    {
-        while (scores[i] > p)
-            i++;
-
-        while (scores[j] < p)
-            j--;
-
-        if (i <= j)
-        {
-            // swap
-            std::swap(datas[i], datas[j]);
-            std::swap(scores[i], scores[j]);
-
-            i++;
-            j--;
-        }
-    }
-
-    if (left < j)
-        qsort_descent_inplace(datas, scores, left, j);
-
-    if (i < right)
-        qsort_descent_inplace(datas, scores, i, right);
-}
-
-void Yolov3DetectionOutput::qsort_descent_inplace(std::vector<BBoxRect>& datas, std::vector<float>& scores) const
-{
-    if (datas.empty() || scores.empty())
-        return;
-
-    qsort_descent_inplace(datas, scores, 0, static_cast<int>(scores.size() - 1));
-}
-
 void Yolov3DetectionOutput::qsort_descent_inplace(std::vector<BBoxRect>& datas, int left, int right) const
 {
     int i = left;
@@ -164,9 +124,12 @@ void Yolov3DetectionOutput::nms_sorted_bboxes(std::vector<BBoxRect>& bboxes, std
             // intersection over union
             float inter_area = intersection_area(a, b);
             float union_area = a.area + b.area - inter_area;
-            //             float IoU = inter_area / union_area
-            if (inter_area / union_area > nms_threshold)
+            // float IoU = inter_area / union_area
+            if (inter_area > nms_threshold * union_area)
+            {
                 keep = 0;
+                break;
+            }
         }
 
         if (keep)
@@ -183,14 +146,11 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
 {
     // gather all box
     std::vector<BBoxRect> all_bbox_rects;
-    std::vector<float> all_bbox_scores;
 
     for (size_t b = 0; b < bottom_blobs.size(); b++)
     {
         std::vector<std::vector<BBoxRect> > all_box_bbox_rects;
-        std::vector<std::vector<float> > all_box_bbox_scores;
         all_box_bbox_rects.resize(num_box);
-        all_box_bbox_scores.resize(num_box);
         const Mat& bottom_top_blobs = bottom_blobs[b];
 
         int w = bottom_top_blobs.w;
@@ -264,7 +224,6 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
 
                         BBoxRect c = { confidence, bbox_xmin, bbox_ymin, bbox_xmax, bbox_ymax, area, class_index };
                         all_box_bbox_rects[pp].push_back(c);
-                        all_box_bbox_scores[pp].push_back(confidence);
                     }
 
                     xptr++;
@@ -280,15 +239,13 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
         for (int i = 0; i < num_box; i++)
         {
             const std::vector<BBoxRect>& box_bbox_rects = all_box_bbox_rects[i];
-            const std::vector<float>& box_bbox_scores = all_box_bbox_scores[i];
 
             all_bbox_rects.insert(all_bbox_rects.end(), box_bbox_rects.begin(), box_bbox_rects.end());
-            all_bbox_scores.insert(all_bbox_scores.end(), box_bbox_scores.begin(), box_bbox_scores.end());
         }
     }
 
     // global sort inplace
-    qsort_descent_inplace(all_bbox_rects, all_bbox_scores);
+    qsort_descent_inplace(all_bbox_rects);
 
     // apply nms
     std::vector<size_t> picked;
@@ -296,13 +253,11 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
 
     // select
     std::vector<BBoxRect> bbox_rects;
-    std::vector<float> bbox_scores;
 
     for (size_t i = 0; i < picked.size(); i++)
     {
         size_t z = picked[i];
         bbox_rects.push_back(all_bbox_rects[z]);
-        bbox_scores.push_back(all_bbox_scores[z]);
     }
 
     // fill result
@@ -318,7 +273,7 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
     for (int i = 0; i < num_detected; i++)
     {
         const BBoxRect& r = bbox_rects[i];
-        float score = bbox_scores[i];
+        float score = r.score;
         float* outptr = top_blob.row(i);
 
         outptr[0] = static_cast<float>(r.label + 1); // +1 for prepend background class

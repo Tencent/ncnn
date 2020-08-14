@@ -25,9 +25,6 @@ public:
     Yolov3DetectionOutput_x86();
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
-
-protected:
-    void nms_sorted_bboxes(std::vector<BBoxRect>& bboxes, std::vector<size_t>& picked, float nms_threshold) const;
 };
 
 } // namespace ncnn
