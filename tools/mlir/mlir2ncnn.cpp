@@ -86,6 +86,11 @@ class TensorFlowDialect : public mlir::Dialect
 public:
     TensorFlowDialect(mlir::MLIRContext* context);
 
+    static StringRef getDialectNamespace()
+    {
+        return "tf";
+    }
+
     Attribute parseAttribute(DialectAsmParser& parser, Type type) const override;
 
     // Parse a type registered to this dialect.
@@ -107,48 +112,8 @@ public:
 #define GET_OP_CLASSES
 #include "tf_ops.h.inc"
 
-namespace {
-struct TFInlinerInterface : public DialectInlinerInterface
-{
-    using DialectInlinerInterface::DialectInlinerInterface;
-
-    //===--------------------------------------------------------------------===//
-    // Analysis Hooks
-    //===--------------------------------------------------------------------===//
-
-    // Defines the legality of inlining TF operations.
-    bool isLegalToInline(Operation*, Region*,
-                         BlockAndValueMapping&) const final
-    {
-        // TODO(riverriddle) For now, enable inlining all operations. This isn't
-        // correct in the face of operations that cannot be duplicated, but this
-        // requires more intricate side-effect modeling.
-        return true;
-    }
-
-    //===--------------------------------------------------------------------===//
-    // Transformation Hooks
-    //===--------------------------------------------------------------------===//
-
-    // Attempts to materialize a conversion for a type mismatch between a call
-    // from this dialect, and a callable region. This method should generate an
-    // operation that takes 'input' as the only operand, and produces a single
-    // result of 'resultType'. If a conversion can not be generated, nullptr
-    // should be returned.
-    Operation* materializeCallConversion(OpBuilder& builder, Value input,
-                                         Type result_type,
-                                         Location conversion_loc) const final
-    {
-        if (!result_type.isa<TensorType>() || !input.getType().isa<TensorType>())
-            return nullptr;
-        return builder.create<TF::CastOp>(conversion_loc, result_type, input,
-                                          /*truncate=*/builder.getBoolAttr(false));
-    }
-};
-} // end anonymous namespace
-
 TensorFlowDialect::TensorFlowDialect(mlir::MLIRContext* context)
-    : mlir::Dialect("tf", context)
+    : mlir::Dialect("tf", context, TypeID::get<TensorFlowDialect>())
 {
     addOperations<
 #define GET_OP_LIST
@@ -160,7 +125,6 @@ TensorFlowDialect::TensorFlowDialect(mlir::MLIRContext* context)
 #define HANDLE_LAST_TF_TYPE(tftype, enumerant, name) tftype##Type
 #include "tf_types.def"
     >();
-    addInterfaces<TFInlinerInterface>();
     addAttributes<ShapeAttr, FuncAttr>();
 
     // Support unknown operations because not all TensorFlow operations are
@@ -302,7 +266,6 @@ Type ParseTypeWithSubtype(MLIRContext* context, DialectAsmParser& parser,
     if (parser.parseGreater()) return Type();
     return TypeWithSubtype::getChecked(subtypes, context, loc);
 }
-
 } // anonymous namespace
 
 Type TensorFlowDialect::ParseResourceType(DialectAsmParser& parser,
@@ -684,7 +647,7 @@ int main(int argc, char** argv)
         {
             bool isBinaryOp = false;
             // TODO add more binaryop
-            if (op == "tf.BiasAdd" || op == "tf.AddV2" || op == "tf.Sub" || op == "tf.Mul")
+            if (op == "tf.BiasAdd" || op == "tf.AddV2" || op == "tf.Sub" || op == "tf.Maximum" || op == "tf.Minimum" || op == "tf.Mul")
             {
                 isBinaryOp = true;
             }
@@ -844,6 +807,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "InnerProduct");
         }
+        else if (op == "tf.Maximum")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (op == "tf.MaxPool")
         {
             fprintf(pp, "%-16s", "Pooling");
@@ -868,6 +835,10 @@ int main(int argc, char** argv)
                 fprintf(pp, "%-16s", "Reduction");
             }
         }
+        else if (op == "tf.Minimum")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (op == "tf.Mul")
         {
             fprintf(pp, "%-16s", "BinaryOp");
@@ -891,6 +862,10 @@ int main(int argc, char** argv)
         else if (op == "tf.Reshape")
         {
             fprintf(pp, "%-16s", "Reshape");
+        }
+        else if (op == "tf.ResizeBilinear")
+        {
+            fprintf(pp, "%-16s", "Interp");
         }
         else if (op == "tf.ResizeNearestNeighbor")
         {
@@ -1392,6 +1367,11 @@ int main(int argc, char** argv)
                 }
             }
         }
+        else if (op == "tf.Maximum")
+        {
+            int op_type = 4;
+            fprintf(pp, " 0=%d", op_type);
+        }
         else if (op == "tf.MaxPool")
         {
             std::vector<int> ksize = get_operation_attr_ai(operation, "ksize");
@@ -1444,6 +1424,11 @@ int main(int argc, char** argv)
             {
                 // TODO
             }
+        }
+        else if (op == "tf.Minimum")
+        {
+            int op_type = 5;
+            fprintf(pp, " 0=%d", op_type);
         }
         else if (op == "tf.Mul")
         {
@@ -1503,6 +1488,23 @@ int main(int argc, char** argv)
 
             // FIXME may not always be the case
             fprintf(pp, " 3=1");
+        }
+        else if (op == "tf.ResizeBilinear")
+        {
+            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            const mlir::Attribute& P = weights[weight_name];
+
+            std::vector<int> size = get_attr_ai(P);
+
+            int align_corners = get_operation_attr_b(operation, "align_corners");
+            int half_pixel_centers = get_operation_attr_b(operation, "half_pixel_centers");
+            if (!(align_corners == 0 && half_pixel_centers == 1))
+            {
+                fprintf(stderr, "Unsupported ResizeBilinear align_corners %d half_pixel_centers %d !\n", align_corners, half_pixel_centers);
+            }
+
+            fprintf(pp, " 0=2"); // bilinear
+            fprintf(pp, " 3=%d 4=%d", size[1], size[0]);
         }
         else if (op == "tf.ResizeNearestNeighbor")
         {
