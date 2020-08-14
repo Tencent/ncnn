@@ -50,7 +50,7 @@ public:
         float ymax;
         float area;
         int label;
-   };
+    };
 
     void qsort_descent_inplace(std::vector<BBoxRect>& datas, int left, int right) const;
     void qsort_descent_inplace(std::vector<BBoxRect>& datas) const;
