@@ -35,7 +35,7 @@ static int test_yolov3detectionoutput(const std::vector<ncnn::Mat>& a, int num_c
     {
         fprintf(stderr, "test_yolov3detectionoutput failed a.dims=%d a=(%d %d %d) ", a[0].dims, a[0].w, a[0].h, a[0].c);
         fprintf(stderr, " num_class=%d num_box=%d", num_class, num_box);
-        fprintf(stderr, " confidence_threshold=%f nms_threshold=%f", confidence_threshold, nms_threshold);
+        fprintf(stderr, " confidence_threshold=%f nms_threshold=%f\n", confidence_threshold, nms_threshold);
     }
 
     return ret;

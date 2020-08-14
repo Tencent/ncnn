@@ -107,22 +107,50 @@ void Yolov3DetectionOutput::qsort_descent_inplace(std::vector<BBoxRect>& datas, 
     qsort_descent_inplace(datas, scores, 0, static_cast<int>(scores.size() - 1));
 }
 
+void Yolov3DetectionOutput::qsort_descent_inplace(std::vector<BBoxRect>& datas, int left, int right) const
+{
+    int i = left;
+    int j = right;
+    float p = datas[(left + right) / 2].score;
+
+    while (i <= j)
+    {
+        while (datas[i].score > p)
+            i++;
+
+        while (datas[j].score < p)
+            j--;
+
+        if (i <= j)
+        {
+            // swap
+            std::swap(datas[i], datas[j]);
+
+            i++;
+            j--;
+        }
+    }
+
+    if (left < j)
+        qsort_descent_inplace(datas, left, j);
+
+    if (i < right)
+        qsort_descent_inplace(datas, i, right);
+}
+
+void Yolov3DetectionOutput::qsort_descent_inplace(std::vector<BBoxRect>& datas) const
+{
+    if (datas.empty())
+        return;
+
+    qsort_descent_inplace(datas, 0, static_cast<int>(datas.size() - 1));
+}
+
 void Yolov3DetectionOutput::nms_sorted_bboxes(std::vector<BBoxRect>& bboxes, std::vector<size_t>& picked, float nms_threshold) const
 {
     picked.clear();
 
     const size_t n = bboxes.size();
-
-    std::vector<float> areas(n);
-    for (size_t i = 0; i < n; i++)
-    {
-        const BBoxRect& r = bboxes[i];
-
-        float width = r.xmax - r.xmin;
-        float height = r.ymax - r.ymin;
-
-        areas[i] = width * height;
-    }
 
     for (size_t i = 0; i < n; i++)
     {
@@ -135,7 +163,7 @@ void Yolov3DetectionOutput::nms_sorted_bboxes(std::vector<BBoxRect>& bboxes, std
 
             // intersection over union
             float inter_area = intersection_area(a, b);
-            float union_area = areas[i] + areas[picked[j]] - inter_area;
+            float union_area = a.area + b.area - inter_area;
             //             float IoU = inter_area / union_area
             if (inter_area / union_area > nms_threshold)
                 keep = 0;
@@ -232,7 +260,9 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
                         float bbox_xmax = bbox_cx + bbox_w * 0.5f;
                         float bbox_ymax = bbox_cy + bbox_h * 0.5f;
 
-                        BBoxRect c = {bbox_xmin, bbox_ymin, bbox_xmax, bbox_ymax, class_index};
+                        float area = bbox_w * bbox_h;
+
+                        BBoxRect c = { confidence, bbox_xmin, bbox_ymin, bbox_xmax, bbox_ymax, area, class_index };
                         all_box_bbox_rects[pp].push_back(c);
                         all_box_bbox_scores[pp].push_back(confidence);
                     }

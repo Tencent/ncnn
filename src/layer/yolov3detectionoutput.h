@@ -43,14 +43,21 @@ public:
 public:
     struct BBoxRect
     {
+        float score;
         float xmin;
         float ymin;
         float xmax;
         float ymax;
+        float area;
         int label;
-    };
+
+        bool operator < (const BBoxRect& right) const { return score > right.score; }
+   };
+
     void qsort_descent_inplace(std::vector<BBoxRect>& datas, std::vector<float>& scores, int left, int right) const;
     void qsort_descent_inplace(std::vector<BBoxRect>& datas, std::vector<float>& scores) const;
+    void qsort_descent_inplace(std::vector<BBoxRect>& datas, int left, int right) const;
+    void qsort_descent_inplace(std::vector<BBoxRect>& datas) const;
     void nms_sorted_bboxes(std::vector<BBoxRect>& bboxes, std::vector<size_t>& picked, float nms_threshold) const;
 };
 
