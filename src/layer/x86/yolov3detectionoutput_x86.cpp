@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -11,10 +11,11 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
+#if __AVX__
+#include <immintrin.h>
+#endif
 
-#include "yolov3detectionoutput.h"
-
-#include "layer_type.h"
+#include "yolov3detectionoutput_x86.h"
 
 #include <algorithm>
 #include <limits>
@@ -22,119 +23,8 @@
 
 namespace ncnn {
 
-Yolov3DetectionOutput::Yolov3DetectionOutput()
+Yolov3DetectionOutput_x86::Yolov3DetectionOutput_x86()
 {
-    one_blob_only = false;
-    support_inplace = false;
-
-    //softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
-
-    // set param
-    ncnn::ParamDict pd;
-    pd.set(0, 0); // axis
-
-    //softmax->load_param(pd);
-}
-
-Yolov3DetectionOutput::~Yolov3DetectionOutput()
-{
-    //delete softmax;
-}
-
-int Yolov3DetectionOutput::load_param(const ParamDict& pd)
-{
-    num_class = pd.get(0, 20);
-    num_box = pd.get(1, 5);
-    confidence_threshold = pd.get(2, 0.01f);
-    nms_threshold = pd.get(3, 0.45f);
-    biases = pd.get(4, Mat());
-    mask = pd.get(5, Mat());
-    anchors_scale = pd.get(6, Mat());
-    return 0;
-}
-
-static inline float intersection_area(const Yolov3DetectionOutput::BBoxRect& a, const Yolov3DetectionOutput::BBoxRect& b)
-{
-    if (a.xmin > b.xmax || a.xmax < b.xmin || a.ymin > b.ymax || a.ymax < b.ymin)
-    {
-        // no intersection
-        return 0.f;
-    }
-
-    float inter_width = std::min(a.xmax, b.xmax) - std::max(a.xmin, b.xmin);
-    float inter_height = std::min(a.ymax, b.ymax) - std::max(a.ymin, b.ymin);
-
-    return inter_width * inter_height;
-}
-
-void Yolov3DetectionOutput::qsort_descent_inplace(std::vector<BBoxRect>& datas, int left, int right) const
-{
-    int i = left;
-    int j = right;
-    float p = datas[(left + right) / 2].score;
-
-    while (i <= j)
-    {
-        while (datas[i].score > p)
-            i++;
-
-        while (datas[j].score < p)
-            j--;
-
-        if (i <= j)
-        {
-            // swap
-            std::swap(datas[i], datas[j]);
-
-            i++;
-            j--;
-        }
-    }
-
-    if (left < j)
-        qsort_descent_inplace(datas, left, j);
-
-    if (i < right)
-        qsort_descent_inplace(datas, i, right);
-}
-
-void Yolov3DetectionOutput::qsort_descent_inplace(std::vector<BBoxRect>& datas) const
-{
-    if (datas.empty())
-        return;
-
-    qsort_descent_inplace(datas, 0, static_cast<int>(datas.size() - 1));
-}
-
-void Yolov3DetectionOutput::nms_sorted_bboxes(std::vector<BBoxRect>& bboxes, std::vector<size_t>& picked, float nms_threshold) const
-{
-    picked.clear();
-
-    const size_t n = bboxes.size();
-
-    for (size_t i = 0; i < n; i++)
-    {
-        const BBoxRect& a = bboxes[i];
-
-        int keep = 1;
-        for (int j = 0; j < (int)picked.size(); j++)
-        {
-            const BBoxRect& b = bboxes[picked[j]];
-
-            // intersection over union
-            float inter_area = intersection_area(a, b);
-            float union_area = a.area + b.area - inter_area;
-            // float IoU = inter_area / union_area
-            if (inter_area > nms_threshold * union_area)
-            {
-                keep = 0;
-                break;
-            }
-        }
-
-        if (keep)
-            picked.push_back(i);
-    }
 }
 
 static inline float sigmoid(float x)
@@ -142,7 +32,7 @@ static inline float sigmoid(float x)
     return static_cast<float>(1.f / (1.f + exp(-x)));
 }
 
-int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     // gather all box
     std::vector<BBoxRect> all_bbox_rects;
@@ -188,11 +78,18 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
             Mat scores = bottom_top_blobs.channel_range(p + 5, num_class);
             //softmax->forward_inplace(scores, opt);
 
+            const int cs = scores.cstep;
+
+#if __AVX__
+            const __m256i vi = _mm256_setr_epi32(
+                                   0, cs * 1, cs * 2, cs * 3, cs * 4, cs * 5, cs * 6, cs * 7);
+#endif
+
             for (int i = 0; i < h; i++)
             {
                 for (int j = 0; j < w; j++)
                 {
-                    // find class index with max class score
+#if 0
                     int class_index = 0;
                     float class_score = -std::numeric_limits<float>::max();
                     for (int q = 0; q < num_class; q++)
@@ -204,7 +101,48 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
                             class_score = score;
                         }
                     }
+#else
+                    // find class index with max class score
+                    int class_index = 0;
+                    float class_score = -std::numeric_limits<float>::max();
+                    float* ptr = ((float*)scores.data) + i * w + j;
+                    float* end = ptr + num_class * cs;
+                    int q = 0;
+#if __AVX__
+                    unsigned long index;
 
+                    for (; ptr < end; ptr += 8 * cs, q += 8)
+                    {
+                        __m256 p = _mm256_i32gather_ps(ptr, vi, 4);
+                        __m256 t = _mm256_max_ps(p, _mm256_permute2f128_ps(p, p, 1));
+                        t = _mm256_max_ps(t, _mm256_permute_ps(t, 0x4e));
+                        t = _mm256_max_ps(t, _mm256_permute_ps(t, 0xb1));
+                        float score = _mm_cvtss_f32(_mm256_extractf128_ps(t, 0));
+
+                        if (score > class_score)
+                        {
+                            __m256 mi = _mm256_cmp_ps(p, t, _CMP_EQ_OQ);
+                            int mask = _mm256_movemask_ps(mi);
+#ifdef _MSC_VER
+                            BitScanForward(&index, mask);
+#else
+                            index = __builtin_ctz(mask);
+#endif
+                            class_index = q + index;
+                            class_score = score;
+                        }
+                    }
+#endif
+
+                    for (; ptr < end; ptr += cs, q++)
+                    {
+                        if (*ptr > class_score)
+                        {
+                            class_index = q;
+                            class_score = *ptr;
+                        }
+                    }
+#endif
                     //sigmoid(box_score) * sigmoid(class_score)
                     float confidence = 1.f / ((1.f + exp(-box_score_ptr[0]) * (1.f + exp(-class_score))));
                     if (confidence >= confidence_threshold)
