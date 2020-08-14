@@ -72,11 +72,6 @@ public:
     // have static shape. If all dimensions have known size (>= 0), it has static
     // shape.
     bool hasStaticShape() const;
-
-    static bool kindof(unsigned kind)
-    {
-        return kind == AttrKind::SHAPE;
-    }
 };
 
 // Custom attribute to model AttrValue.value.func (NameAttrList type attribute).
@@ -103,11 +98,6 @@ public:
     SymbolRefAttr GetName() const;
 
     DictionaryAttr GetAttrs() const;
-
-    static bool kindof(unsigned kind)
-    {
-        return kind == AttrKind::FUNC;
-    }
 };
 
 } // namespace TF
