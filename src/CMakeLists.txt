@@ -172,7 +172,28 @@ if(NCNN_OPENMP)
 endif()
 
 if(NCNN_VULKAN)
-    find_package(Vulkan REQUIRED)
+    find_package(Vulkan QUIET)
+    if(NOT Vulkan_FOUND)
+        message(STATUS "=== CMAKE_SYSTEM_NAME is: ${CMAKE_SYSTEM_NAME}")
+        if(DEFINED ENV{VULKAN_SDK})
+            if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+                list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/../source/VulkanTools/cmake")
+            elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
+                list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/Samples/cmake")
+            elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+                message(WARNING "Failed to find vulkan since cmake too old\n"
+                    "cmake >= 3.7 required. Consider `brew upgrade cmake`")
+            endif()
+        else()
+            message(FATAL_ERROR "!! CMake didn't find Vulkan. Please set VULKAN_SDK env var, e.g.:\n"
+                "Linux: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/x86_64\n"
+                "Windows: set VULKAN_SDK=E:/lib/VulkanSDK/1.2.148.0\n"
+                "MacOS: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/macOS\n"
+            )
+        endif()
+        find_package(Vulkan REQUIRED)
+    endif()
+
     target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
 
     if(NCNN_VULKAN_ONLINE_SPIRV)
