@@ -138,6 +138,7 @@ ncnn_add_layer(Mish)
 ncnn_add_layer(StatisticsPooling)
 ncnn_add_layer(Swish)
 ncnn_add_layer(Gemm)
+ncnn_add_layer(GroupNorm)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
