@@ -1834,16 +1834,15 @@ int main(int argc, char** argv)
             int transA = get_node_attr_i(node, "transA", 0);
             int transB = get_node_attr_i(node, "transB", 0);
 
-            if (alpha == 1.f && beta == 1.f)
+            if (alpha == 1.f && beta == 1.f && transA == 0 && transB == 1)
             {
                 // InnerProduct-like A * B + C
-                if (transA == 0 && transB == 1)
-                {
-                    fprintf(pp, "%-16s", "InnerProduct");
-                }
+                fprintf(pp, "%-16s", "InnerProduct");
             }
-
-            // TODO
+            else
+            {
+                fprintf(pp, "%-16s", "Gemm");
+            }
         }
         else if (op == "GlobalAveragePool")
         {
@@ -2548,24 +2547,29 @@ int main(int argc, char** argv)
             int transA = get_node_attr_i(node, "transA", 0);
             int transB = get_node_attr_i(node, "transB", 0);
 
-            if (alpha == 1.f && beta == 1.f)
+            if (alpha == 1.f && beta == 1.f && transA == 0 && transB == 1)
             {
                 // InnerProduct-like A * B + C
-                if (transA == 0 && transB == 1)
-                {
-                    const onnx::TensorProto& B = weights[node.input(1)];
-                    const onnx::TensorProto& C = weights[node.input(2)];
+                const onnx::TensorProto& B = weights[node.input(1)];
+                const onnx::TensorProto& C = weights[node.input(2)];
 
-                    fprintf(pp, " 0=%d", get_tensor_proto_data_size(C));
-                    fprintf(pp, " 1=1");
-                    fprintf(pp, " 2=%d", get_tensor_proto_data_size(B));
+                fprintf(pp, " 0=%d", get_tensor_proto_data_size(C));
+                fprintf(pp, " 1=1");
+                fprintf(pp, " 2=%d", get_tensor_proto_data_size(B));
 
-                    int quantize_tag = 0;
-                    fwrite(&quantize_tag, sizeof(int), 1, bp);
+                int quantize_tag = 0;
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
 
-                    fwrite_tensor_proto_data(B, bp);
-                    fwrite_tensor_proto_data(C, bp);
-                }
+                fwrite_tensor_proto_data(B, bp);
+                fwrite_tensor_proto_data(C, bp);
+            }
+            else
+            {
+                // gemm
+                fprintf(pp, " 0=%e", alpha);
+                fprintf(pp, " 1=%e", beta);
+                fprintf(pp, " 2=%d", transA);
+                fprintf(pp, " 3=%d", transB);
             }
         }
         else if (op == "GlobalAveragePool")
