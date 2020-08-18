@@ -805,7 +805,18 @@ int main(int argc, char** argv)
         }
         else if (op == "tf.MatMul")
         {
-            fprintf(pp, "%-16s", "InnerProduct");
+            int transpose_a = get_operation_attr_b(operation, "transpose_a");
+            int transpose_b = get_operation_attr_b(operation, "transpose_b");
+
+            if (transpose_a == 0 && transpose_b == 1)
+            {
+                // InnerProduct-like A * B + C
+                fprintf(pp, "%-16s", "InnerProduct");
+            }
+            else
+            {
+                fprintf(pp, "%-16s", "Gemm");
+            }
         }
         else if (op == "tf.Maximum")
         {
@@ -1334,37 +1345,52 @@ int main(int argc, char** argv)
         }
         else if (op == "tf.MatMul")
         {
-            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
-            const mlir::Attribute& W = weights[weight_name];
+            int transpose_a = get_operation_attr_b(operation, "transpose_a");
+            int transpose_b = get_operation_attr_b(operation, "transpose_b");
 
-            llvm::ArrayRef<int64_t> shape = W.getType().cast<mlir::RankedTensorType>().getShape();
-
-            //             assert(shape.size() == 2)
-
-            // inch-outch
-            int num_input = shape[0];
-            int num_output = shape[1];
-            int weight_data_size = shape[0] * shape[1];
-
-            fprintf(pp, " 0=%d", num_output);
-            fprintf(pp, " 2=%d", weight_data_size);
-
-            std::vector<float> v = get_attr_af(W);
-
-            // reorder i-o to o-i
+            if (transpose_a == 0 && transpose_b == 1)
             {
-                int quantize_tag = 0;
-                fwrite(&quantize_tag, sizeof(int), 1, bp);
+                // InnerProduct-like A * B + C
+                std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+                const mlir::Attribute& W = weights[weight_name];
 
-                float tmp;
-                for (int p = 0; p < num_output; p++)
+                llvm::ArrayRef<int64_t> shape = W.getType().cast<mlir::RankedTensorType>().getShape();
+
+                //             assert(shape.size() == 2)
+
+                // inch-outch
+                int num_input = shape[0];
+                int num_output = shape[1];
+                int weight_data_size = shape[0] * shape[1];
+
+                fprintf(pp, " 0=%d", num_output);
+                fprintf(pp, " 2=%d", weight_data_size);
+
+                std::vector<float> v = get_attr_af(W);
+
+                // reorder i-o to o-i
                 {
-                    for (int q = 0; q < num_input; q++)
+                    int quantize_tag = 0;
+                    fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                    float tmp;
+                    for (int p = 0; p < num_output; p++)
                     {
-                        tmp = v[q * num_output + p];
-                        fwrite(&tmp, sizeof(float), 1, bp);
+                        for (int q = 0; q < num_input; q++)
+                        {
+                            tmp = v[q * num_output + p];
+                            fwrite(&tmp, sizeof(float), 1, bp);
+                        }
                     }
                 }
+            }
+            else
+            {
+                // gemm
+                fprintf(pp, " 0=1.0"); // alpha
+                fprintf(pp, " 1=1.0"); // beta
+                fprintf(pp, " 2=%d", transpose_a);
+                fprintf(pp, " 3=%d", transpose_b);
             }
         }
         else if (op == "tf.Maximum")
