@@ -66,7 +66,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack8_fp16sa_neon(const Mat& k
 
     // interleave
     // src = 64-inch-outch
-    // dst = 4b-4a-inch/4a-64-outch/4b;
+    // dst = 8b-8a-inch/8a-64-outch/8b
     kernel_tm_pack8.create(inch / 8, 64, outch / 8, (size_t)2u * 64, 64);
 
     int q = 0;
