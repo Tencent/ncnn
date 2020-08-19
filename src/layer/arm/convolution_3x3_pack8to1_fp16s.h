@@ -370,7 +370,9 @@ static void conv3x3s1_winograd64_pack8to1_fp16sa_neon(const Mat& bottom_blob, Ma
         //         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
         Mat bottom_blob_tm2;
         if (tiles >= 8)
-            bottom_blob_tm2.create(8 * inch, tiles / 8 + tiles % 8, 64, 2u * elempack, elempack, opt.workspace_allocator);
+            bottom_blob_tm2.create(8 * inch, tiles / 8 + (tiles % 8) / 4 + tiles % 4, 64, 2u * elempack, elempack, opt.workspace_allocator);
+        else if (tiles >= 4)
+            bottom_blob_tm2.create(4 * inch, tiles / 4 + tiles % 4, 64, 2u * elempack, elempack, opt.workspace_allocator);
         else // if (tiles >= 1)
             bottom_blob_tm2.create(1 * inch, tiles, 64, 2u * elempack, elempack, opt.workspace_allocator);
 
@@ -418,9 +420,33 @@ static void conv3x3s1_winograd64_pack8to1_fp16sa_neon(const Mat& bottom_blob, Ma
                     r0 += bottom_blob_tm.cstep * 8;
                 }
             }
+            for (; i + 3 < tiles; i += 4)
+            {
+                __fp16* tm2p = tm2.row<__fp16>(i / 8 + (i % 8) / 4);
+
+                const __fp16* r0 = bottom_blob_tm;
+
+                r0 += (r * tiles + i) * 8;
+
+                for (int q = 0; q < inch; q++)
+                {
+                    // transpose 8x4
+                    asm volatile(
+                        "prfm   pldl1keep, [%0, #256]   \n"
+                        "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
+                        "st4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
+                        : "=r"(r0),  // %0
+                        "=r"(tm2p) // %1
+                        : "0"(r0),
+                        "1"(tm2p)
+                        : "memory", "v0", "v1", "v2", "v3");
+
+                    r0 += bottom_blob_tm.cstep * 8;
+                }
+            }
             for (; i < tiles; i++)
             {
-                __fp16* tm2p = tm2.row<__fp16>(i / 8 + i % 8);
+                __fp16* tm2p = tm2.row<__fp16>(i / 8 + (i % 8) / 4 + i % 4);
 
                 const __fp16* r0 = bottom_blob_tm;
 
@@ -615,9 +641,150 @@ static void conv3x3s1_winograd64_pack8to1_fp16sa_neon(const Mat& bottom_blob, Ma
                         "10"(kptr)
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
+                for (; i + 3 < tiles; i += 4)
+                {
+                    const __fp16* r0 = bb2.row<const __fp16>(i / 8 + (i % 8) / 4);
+
+                    const __fp16* kptr = kernel01_tm.row<const __fp16>(r);
+
+                    int nn = inch; // inch always > 0
+
+                    asm volatile(
+                        "eor    v24.16b, v24.16b, v24.16b   \n"
+                        "eor    v25.16b, v25.16b, v25.16b   \n"
+                        "eor    v26.16b, v26.16b, v26.16b   \n"
+                        "eor    v27.16b, v27.16b, v27.16b   \n"
+                        "eor    v28.16b, v28.16b, v28.16b   \n"
+                        "eor    v29.16b, v29.16b, v29.16b   \n"
+                        "eor    v30.16b, v30.16b, v30.16b   \n"
+                        "eor    v31.16b, v31.16b, v31.16b   \n"
+
+                        "0:                                 \n"
+
+                        "prfm   pldl1keep, [%9, #256]       \n"
+                        "ld1    {v16.4h, v17.4h, v18.4h, v19.4h}, [%9], #32 \n"
+
+                        "prfm   pldl1keep, [%10, #512]      \n"
+                        "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%10], #64 \n"
+
+                        "fmla   v24.4h, v16.4h, v0.h[0]     \n"
+                        "fmla   v25.4h, v16.4h, v0.h[1]     \n"
+                        "fmla   v26.4h, v16.4h, v0.h[2]     \n"
+                        "fmla   v27.4h, v16.4h, v0.h[3]     \n"
+                        "fmla   v28.4h, v16.4h, v0.h[4]     \n"
+                        "fmla   v29.4h, v16.4h, v0.h[5]     \n"
+                        "fmla   v30.4h, v16.4h, v0.h[6]     \n"
+                        "fmla   v31.4h, v16.4h, v0.h[7]     \n"
+
+                        "fmla   v24.4h, v17.4h, v1.h[0]     \n"
+                        "fmla   v25.4h, v17.4h, v1.h[1]     \n"
+                        "fmla   v26.4h, v17.4h, v1.h[2]     \n"
+                        "fmla   v27.4h, v17.4h, v1.h[3]     \n"
+                        "fmla   v28.4h, v17.4h, v1.h[4]     \n"
+                        "fmla   v29.4h, v17.4h, v1.h[5]     \n"
+                        "fmla   v30.4h, v17.4h, v1.h[6]     \n"
+                        "fmla   v31.4h, v17.4h, v1.h[7]     \n"
+
+                        "prfm   pldl1keep, [%9, #256]       \n"
+                        "ld1    {v20.4h, v21.4h, v22.4h, v23.4h}, [%9], #32 \n"
+
+                        "fmla   v24.4h, v18.4h, v2.h[0]     \n"
+                        "fmla   v25.4h, v18.4h, v2.h[1]     \n"
+                        "fmla   v26.4h, v18.4h, v2.h[2]     \n"
+                        "fmla   v27.4h, v18.4h, v2.h[3]     \n"
+                        "fmla   v28.4h, v18.4h, v2.h[4]     \n"
+                        "fmla   v29.4h, v18.4h, v2.h[5]     \n"
+                        "fmla   v30.4h, v18.4h, v2.h[6]     \n"
+                        "fmla   v31.4h, v18.4h, v2.h[7]     \n"
+
+                        "prfm   pldl1keep, [%10, #512]      \n"
+                        "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%10], #64 \n"
+
+                        "fmla   v24.4h, v19.4h, v3.h[0]     \n"
+                        "fmla   v25.4h, v19.4h, v3.h[1]     \n"
+                        "fmla   v26.4h, v19.4h, v3.h[2]     \n"
+                        "fmla   v27.4h, v19.4h, v3.h[3]     \n"
+                        "fmla   v28.4h, v19.4h, v3.h[4]     \n"
+                        "fmla   v29.4h, v19.4h, v3.h[5]     \n"
+                        "fmla   v30.4h, v19.4h, v3.h[6]     \n"
+                        "fmla   v31.4h, v19.4h, v3.h[7]     \n"
+
+                        "fmla   v24.4h, v20.4h, v4.h[0]     \n"
+                        "fmla   v25.4h, v20.4h, v4.h[1]     \n"
+                        "fmla   v26.4h, v20.4h, v4.h[2]     \n"
+                        "fmla   v27.4h, v20.4h, v4.h[3]     \n"
+                        "fmla   v28.4h, v20.4h, v4.h[4]     \n"
+                        "fmla   v29.4h, v20.4h, v4.h[5]     \n"
+                        "fmla   v30.4h, v20.4h, v4.h[6]     \n"
+                        "fmla   v31.4h, v20.4h, v4.h[7]     \n"
+
+                        "fmla   v24.4h, v21.4h, v5.h[0]     \n"
+                        "fmla   v25.4h, v21.4h, v5.h[1]     \n"
+                        "fmla   v26.4h, v21.4h, v5.h[2]     \n"
+                        "fmla   v27.4h, v21.4h, v5.h[3]     \n"
+                        "fmla   v28.4h, v21.4h, v5.h[4]     \n"
+                        "fmla   v29.4h, v21.4h, v5.h[5]     \n"
+                        "fmla   v30.4h, v21.4h, v5.h[6]     \n"
+                        "fmla   v31.4h, v21.4h, v5.h[7]     \n"
+
+                        "fmla   v24.4h, v22.4h, v6.h[0]     \n"
+                        "fmla   v25.4h, v22.4h, v6.h[1]     \n"
+                        "fmla   v26.4h, v22.4h, v6.h[2]     \n"
+                        "fmla   v27.4h, v22.4h, v6.h[3]     \n"
+                        "fmla   v28.4h, v22.4h, v6.h[4]     \n"
+                        "fmla   v29.4h, v22.4h, v6.h[5]     \n"
+                        "fmla   v30.4h, v22.4h, v6.h[6]     \n"
+                        "fmla   v31.4h, v22.4h, v6.h[7]     \n"
+
+                        "subs   %w0, %w0, #1                \n"
+
+                        "fmla   v24.4h, v23.4h, v7.h[0]     \n"
+                        "fmla   v25.4h, v23.4h, v7.h[1]     \n"
+                        "fmla   v26.4h, v23.4h, v7.h[2]     \n"
+                        "fmla   v27.4h, v23.4h, v7.h[3]     \n"
+                        "fmla   v28.4h, v23.4h, v7.h[4]     \n"
+                        "fmla   v29.4h, v23.4h, v7.h[5]     \n"
+                        "fmla   v30.4h, v23.4h, v7.h[6]     \n"
+                        "fmla   v31.4h, v23.4h, v7.h[7]     \n"
+
+                        "bne    0b                          \n"
+
+                        "st1    {v24.4h}, [%1], #8          \n"
+                        "st1    {v25.4h}, [%2], #8          \n"
+                        "st1    {v26.4h}, [%3], #8          \n"
+                        "st1    {v27.4h}, [%4], #8          \n"
+                        "st1    {v28.4h}, [%5], #8          \n"
+                        "st1    {v29.4h}, [%6], #8          \n"
+                        "st1    {v30.4h}, [%7], #8          \n"
+                        "st1    {v31.4h}, [%8], #8          \n"
+
+                        : "=r"(nn),         // %0
+                        "=r"(output0_tm), // %1
+                        "=r"(output1_tm), // %2
+                        "=r"(output2_tm), // %3
+                        "=r"(output3_tm), // %4
+                        "=r"(output4_tm), // %5
+                        "=r"(output5_tm), // %6
+                        "=r"(output6_tm), // %7
+                        "=r"(output7_tm), // %8
+                        "=r"(r0),         // %9
+                        "=r"(kptr)        // %10
+                        : "0"(nn),
+                        "1"(output0_tm),
+                        "2"(output1_tm),
+                        "3"(output2_tm),
+                        "4"(output3_tm),
+                        "5"(output4_tm),
+                        "6"(output5_tm),
+                        "7"(output6_tm),
+                        "8"(output7_tm),
+                        "9"(r0),
+                        "10"(kptr)
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                }
                 for (; i < tiles; i++)
                 {
-                    const __fp16* r0 = bb2.row<const __fp16>(i / 8 + i % 8);
+                    const __fp16* r0 = bb2.row<const __fp16>(i / 8 + (i % 8) / 4 + i % 4);
 
                     const __fp16* kptr = kernel01_tm.row<const __fp16>(r);
 
@@ -751,9 +918,58 @@ static void conv3x3s1_winograd64_pack8to1_fp16sa_neon(const Mat& bottom_blob, Ma
                         "3"(kptr)
                         : "cc", "memory", "v0", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v30");
                 }
+                for (; i + 3 < tiles; i += 4)
+                {
+                    const __fp16* r0 = bb2.row<const __fp16>(i / 8 + (i % 8) / 4);
+
+                    const __fp16* kptr = kernel0_tm.row<const __fp16>(r);
+
+                    int nn = inch; // inch always > 0
+
+                    asm volatile(
+                        "eor    v30.16b, v30.16b, v30.16b   \n"
+
+                        "0:                                 \n"
+
+                        "prfm   pldl1keep, [%2, #256]       \n"
+                        "ld1    {v16.4h, v17.4h, v18.4h, v19.4h}, [%2], #32 \n"
+
+                        "prfm   pldl1keep, [%3, #128]       \n"
+                        "ld1    {v0.8h}, [%3], #16          \n"
+
+                        "fmla   v30.4h, v16.4h, v0.h[0]     \n"
+                        "fmla   v30.4h, v17.4h, v0.h[1]     \n"
+
+                        "prfm   pldl1keep, [%2, #256]       \n"
+                        "ld1    {v20.4h, v21.4h, v22.4h, v23.4h}, [%2], #32 \n"
+
+                        "fmla   v30.4h, v18.4h, v0.h[2]     \n"
+                        "fmla   v30.4h, v19.4h, v0.h[3]     \n"
+
+                        "subs   %w0, %w0, #1                \n"
+
+                        "fmla   v30.4h, v20.4h, v0.h[4]     \n"
+                        "fmla   v30.4h, v21.4h, v0.h[5]     \n"
+                        "fmla   v30.4h, v22.4h, v0.h[6]     \n"
+                        "fmla   v30.4h, v23.4h, v0.h[7]     \n"
+
+                        "bne    0b                          \n"
+
+                        "st1    {v30.4h}, [%1], #8          \n"
+
+                        : "=r"(nn),         // %0
+                        "=r"(output0_tm), // %1
+                        "=r"(r0),         // %2
+                        "=r"(kptr)        // %3
+                        : "0"(nn),
+                        "1"(output0_tm),
+                        "2"(r0),
+                        "3"(kptr)
+                        : "cc", "memory", "v0", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v30");
+                }
                 for (; i < tiles; i++)
                 {
-                    const __fp16* r0 = bb2.row<const __fp16>(i / 8 + i % 8);
+                    const __fp16* r0 = bb2.row<const __fp16>(i / 8 + (i % 8) / 4 + i % 4);
 
                     const __fp16* kptr = kernel0_tm.row<const __fp16>(r);
 
