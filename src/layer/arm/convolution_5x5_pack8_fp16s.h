@@ -1111,8 +1111,7 @@ static void conv5x5s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, c
                         "4"(r3),
                         "5"(r4),
                         "6"(kptr)
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31"
-                    );
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31");
                 }
                 for (; j + 1 < outw; j += 2)
                 {
@@ -1780,8 +1779,7 @@ static void conv5x5s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, c
                         "4"(r3),
                         "5"(r4),
                         "6"(kptr)
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v8", "v9", "v10", "v11", "v12", "v13", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31"
-                    );
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v8", "v9", "v10", "v11", "v12", "v13", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31");
                 }
                 for (; j < outw; j++)
                 {
@@ -2250,8 +2248,7 @@ static void conv5x5s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, c
                         "4"(r3),
                         "5"(r4),
                         "6"(kptr)
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11", "v12", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31"
-                    );
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11", "v12", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31");
                 }
 
                 r0 += 4 * 8;
@@ -2969,8 +2966,7 @@ static void conv5x5s2_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, c
                         "4"(r3),
                         "5"(r4),
                         "6"(kptr)
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31"
-                    );
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31");
                 }
                 for (; j < outw; j++)
                 {
@@ -3439,8 +3435,7 @@ static void conv5x5s2_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, c
                         "4"(r3),
                         "5"(r4),
                         "6"(kptr)
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11", "v12", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31"
-                    );
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11", "v12", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31");
                 }
 
                 r0 += tailstep;

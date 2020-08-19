@@ -115,18 +115,18 @@ static void conv1x1s1_sgemm_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_b
 
                     "sub    %0, %0, #128            \n"
 
-                    "uzp1   v20.8h, v0.8h, v4.8h    \n"// 0
-                    "uzp1   v21.8h, v16.8h, v1.8h   \n"// 1
-                    "uzp1   v22.8h, v5.8h, v17.8h   \n"// 2
-                    "uzp1   v23.8h, v2.8h, v6.8h    \n"// 3
-                    "uzp1   v24.8h, v18.8h, v3.8h   \n"// 4
-                    "uzp1   v25.8h, v7.8h, v19.8h   \n"// 5
-                    "uzp2   v26.8h, v0.8h, v4.8h    \n"// 6
-                    "uzp2   v27.8h, v16.8h, v1.8h   \n"// 7
-                    "uzp2   v28.8h, v5.8h, v17.8h   \n"// 8
-                    "uzp2   v29.8h, v2.8h, v6.8h    \n"// 9
-                    "uzp2   v30.8h, v18.8h, v3.8h   \n"// 10
-                    "uzp2   v31.8h, v7.8h, v19.8h   \n"// 11
+                    "uzp1   v20.8h, v0.8h, v4.8h    \n" // 0
+                    "uzp1   v21.8h, v16.8h, v1.8h   \n" // 1
+                    "uzp1   v22.8h, v5.8h, v17.8h   \n" // 2
+                    "uzp1   v23.8h, v2.8h, v6.8h    \n" // 3
+                    "uzp1   v24.8h, v18.8h, v3.8h   \n" // 4
+                    "uzp1   v25.8h, v7.8h, v19.8h   \n" // 5
+                    "uzp2   v26.8h, v0.8h, v4.8h    \n" // 6
+                    "uzp2   v27.8h, v16.8h, v1.8h   \n" // 7
+                    "uzp2   v28.8h, v5.8h, v17.8h   \n" // 8
+                    "uzp2   v29.8h, v2.8h, v6.8h    \n" // 9
+                    "uzp2   v30.8h, v18.8h, v3.8h   \n" // 10
+                    "uzp2   v31.8h, v7.8h, v19.8h   \n" // 11
 
                     "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%1], #64 \n"
                     "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%1], #64 \n"
