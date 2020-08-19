@@ -163,10 +163,10 @@ static void conv3x3s1_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%0], #64 \n"
                         "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0], #64 \n"
 
-                        : "=r"(outptr0),    // %0
-                        "=r"(r0),           // %1
-                        "=r"(r1),           // %2
-                        "=r"(r2)            // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
                         "1"(r0),
                         "2"(r1),
@@ -248,10 +248,10 @@ static void conv3x3s1_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
 
                         "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0], #64 \n"
 
-                        : "=r"(outptr0),    // %0
-                        "=r"(r0),           // %1
-                        "=r"(r1),           // %2
-                        "=r"(r2)            // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
                         "1"(r0),
                         "2"(r1),
@@ -309,10 +309,10 @@ static void conv3x3s1_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
 
                         "st1    {v30.8h, v31.8h}, [%0], #32 \n"
 
-                        : "=r"(outptr0),    // %0
-                        "=r"(r0),           // %1
-                        "=r"(r1),           // %2
-                        "=r"(r2)            // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
                         "1"(r0),
                         "2"(r1),
@@ -361,10 +361,10 @@ static void conv3x3s1_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
 
                         "st1    {v30.8h}, [%0], #16         \n"
 
-                        : "=r"(outptr0),    // %0
-                        "=r"(r0),           // %1
-                        "=r"(r1),           // %2
-                        "=r"(r2)            // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
                         "1"(r0),
                         "2"(r1),
@@ -503,10 +503,10 @@ static void conv3x3s2_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
 
                         "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%0], #64 \n"
 
-                        : "=r"(outptr0),    // %0
-                        "=r"(r0),           // %1
-                        "=r"(r1),           // %2
-                        "=r"(r2)            // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
                         "1"(r0),
                         "2"(r1),
@@ -563,10 +563,10 @@ static void conv3x3s2_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
 
                         "st1    {v30.8h, v31.8h}, [%0], #32 \n"
 
-                        : "=r"(outptr0),    // %0
-                        "=r"(r0),           // %1
-                        "=r"(r1),           // %2
-                        "=r"(r2)            // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
                         "1"(r0),
                         "2"(r1),
@@ -615,10 +615,10 @@ static void conv3x3s2_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
 
                         "st1    {v30.8h}, [%0], #16         \n"
 
-                        : "=r"(outptr0),    // %0
-                        "=r"(r0),           // %1
-                        "=r"(r1),           // %2
-                        "=r"(r2)            // %3
+                        : "=r"(outptr0), // %0
+                        "=r"(r0),      // %1
+                        "=r"(r1),      // %2
+                        "=r"(r2)       // %3
                         : "0"(outptr0),
                         "1"(r0),
                         "2"(r1),

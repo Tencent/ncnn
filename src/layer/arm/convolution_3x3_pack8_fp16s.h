@@ -394,18 +394,18 @@ static void conv3x3s1_winograd64_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& 
 
                         "sub    %0, %0, #128            \n"
 
-                        "uzp1   v20.8h, v0.8h, v4.8h    \n"// 0
-                        "uzp1   v21.8h, v16.8h, v1.8h   \n"// 1
-                        "uzp1   v22.8h, v5.8h, v17.8h   \n"// 2
-                        "uzp1   v23.8h, v2.8h, v6.8h    \n"// 3
-                        "uzp1   v24.8h, v18.8h, v3.8h   \n"// 4
-                        "uzp1   v25.8h, v7.8h, v19.8h   \n"// 5
-                        "uzp2   v26.8h, v0.8h, v4.8h    \n"// 6
-                        "uzp2   v27.8h, v16.8h, v1.8h   \n"// 7
-                        "uzp2   v28.8h, v5.8h, v17.8h   \n"// 8
-                        "uzp2   v29.8h, v2.8h, v6.8h    \n"// 9
-                        "uzp2   v30.8h, v18.8h, v3.8h   \n"// 10
-                        "uzp2   v31.8h, v7.8h, v19.8h   \n"// 11
+                        "uzp1   v20.8h, v0.8h, v4.8h    \n" // 0
+                        "uzp1   v21.8h, v16.8h, v1.8h   \n" // 1
+                        "uzp1   v22.8h, v5.8h, v17.8h   \n" // 2
+                        "uzp1   v23.8h, v2.8h, v6.8h    \n" // 3
+                        "uzp1   v24.8h, v18.8h, v3.8h   \n" // 4
+                        "uzp1   v25.8h, v7.8h, v19.8h   \n" // 5
+                        "uzp2   v26.8h, v0.8h, v4.8h    \n" // 6
+                        "uzp2   v27.8h, v16.8h, v1.8h   \n" // 7
+                        "uzp2   v28.8h, v5.8h, v17.8h   \n" // 8
+                        "uzp2   v29.8h, v2.8h, v6.8h    \n" // 9
+                        "uzp2   v30.8h, v18.8h, v3.8h   \n" // 10
+                        "uzp2   v31.8h, v7.8h, v19.8h   \n" // 11
 
                         "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%1], #64 \n"
                         "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%1], #64 \n"
@@ -447,7 +447,7 @@ static void conv3x3s1_winograd64_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& 
 
                         "st1    {v16.8h, v17.8h, v18.8h, v19.8h}, [%1], #64 \n"
                         "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%1], #64 \n"
-                        : "=r"(r0),  // %0
+                        : "=r"(r0),    // %0
                         "=r"(tmpptr) // %1
                         : "0"(r0),
                         "1"(tmpptr)
@@ -470,7 +470,7 @@ static void conv3x3s1_winograd64_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& 
                         "prfm   pldl1keep, [%0, #512]   \n"
                         "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
                         "st1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
-                        : "=r"(r0),  // %0
+                        : "=r"(r0),    // %0
                         "=r"(tmpptr) // %1
                         : "0"(r0),
                         "1"(tmpptr)
@@ -493,7 +493,7 @@ static void conv3x3s1_winograd64_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& 
                         "prfm   pldl1keep, [%0, #256]   \n"
                         "ld1    {v0.8h, v1.8h}, [%0]    \n"
                         "st1    {v0.8h, v1.8h}, [%1], #32 \n"
-                        : "=r"(r0),  // %0
+                        : "=r"(r0),    // %0
                         "=r"(tmpptr) // %1
                         : "0"(r0),
                         "1"(tmpptr)
@@ -516,7 +516,7 @@ static void conv3x3s1_winograd64_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& 
                         "prfm   pldl1keep, [%0, #128]   \n"
                         "ld1    {v0.8h}, [%0]           \n"
                         "st1    {v0.8h}, [%1], #16      \n"
-                        : "=r"(r0),  // %0
+                        : "=r"(r0),    // %0
                         "=r"(tmpptr) // %1
                         : "0"(r0),
                         "1"(tmpptr)
@@ -694,10 +694,10 @@ static void conv3x3s1_winograd64_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& 
                         "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%1], #64 \n"
                         "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%1], #64 \n"
 
-                        : "=r"(nn),      // %0
+                        : "=r"(nn),         // %0
                         "=r"(output0_tm), // %1
-                        "=r"(r0),  // %2
-                        "=r"(k0)    // %3
+                        "=r"(r0),         // %2
+                        "=r"(k0)          // %3
                         : "0"(nn),
                         "1"(output0_tm),
                         "2"(r0),
@@ -815,10 +815,10 @@ static void conv3x3s1_winograd64_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& 
 
                         "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%1], #64 \n"
 
-                        : "=r"(nn),      // %0
+                        : "=r"(nn),         // %0
                         "=r"(output0_tm), // %1
-                        "=r"(r0),  // %2
-                        "=r"(k0)    // %3
+                        "=r"(r0),         // %2
+                        "=r"(k0)          // %3
                         : "0"(nn),
                         "1"(output0_tm),
                         "2"(r0),
@@ -895,10 +895,10 @@ static void conv3x3s1_winograd64_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& 
 
                         "st1    {v16.8h, v17.8h, v18.8h, v19.8h}, [%1], #64 \n"
 
-                        : "=r"(nn),      // %0
+                        : "=r"(nn),         // %0
                         "=r"(output0_tm), // %1
-                        "=r"(r0),  // %2
-                        "=r"(k0)    // %3
+                        "=r"(r0),         // %2
+                        "=r"(k0)          // %3
                         : "0"(nn),
                         "1"(output0_tm),
                         "2"(r0),
@@ -957,10 +957,10 @@ static void conv3x3s1_winograd64_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& 
 
                         "st1    {v16.8h, v17.8h}, [%1], #32 \n"
 
-                        : "=r"(nn),      // %0
+                        : "=r"(nn),         // %0
                         "=r"(output0_tm), // %1
-                        "=r"(r0),  // %2
-                        "=r"(k0)    // %3
+                        "=r"(r0),         // %2
+                        "=r"(k0)          // %3
                         : "0"(nn),
                         "1"(output0_tm),
                         "2"(r0),
@@ -1006,10 +1006,10 @@ static void conv3x3s1_winograd64_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& 
 
                         "st1    {v16.8h}, [%1], #16         \n"
 
-                        : "=r"(nn),      // %0
+                        : "=r"(nn),         // %0
                         "=r"(output0_tm), // %1
-                        "=r"(r0),  // %2
-                        "=r"(k0)    // %3
+                        "=r"(r0),         // %2
+                        "=r"(k0)          // %3
                         : "0"(nn),
                         "1"(output0_tm),
                         "2"(r0),
@@ -1704,8 +1704,7 @@ static void conv3x3s2_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, c
                         "2"(r1),
                         "3"(r2),
                         "4"(kptr)
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31"
-                    );
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31");
                 }
                 for (; j + 1 < outw; j += 2)
                 {
@@ -1977,8 +1976,7 @@ static void conv3x3s2_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, c
                         "2"(r1),
                         "3"(r2),
                         "4"(kptr)
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31"
-                    );
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31");
                 }
                 for (; j < outw; j++)
                 {
@@ -2175,8 +2173,7 @@ static void conv3x3s2_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, c
                         "2"(r1),
                         "3"(r2),
                         "4"(kptr)
-                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31"
-                    );
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31");
                 }
 
                 r0 += tailstep;

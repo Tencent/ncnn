@@ -32,8 +32,8 @@ static void convdw5x5s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
 
         const __fp16* k0 = kernel.row<const __fp16>(g);
 
-       __fp16* outptr0 = out.row<__fp16>(0);
-       __fp16* outptr1 = out.row<__fp16>(1);
+        __fp16* outptr0 = out.row<__fp16>(0);
+        __fp16* outptr1 = out.row<__fp16>(1);
 
         const Mat img0 = bottom_blob.channel(g);
 
@@ -396,7 +396,7 @@ static void convdw5x5s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "6"(r4),
                     "7"(r5),
                     "8"(k0),
-                    "r"(bias0_data_ptr)   // %18
+                    "r"(bias0_data_ptr) // %18
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
 
@@ -611,7 +611,7 @@ static void convdw5x5s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "6"(r4),
                     "7"(r5),
                     "8"(k0),
-                    "w"(_bias0)   // %18
+                    "w"(_bias0) // %18
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
             for (; j < outw; j++)
@@ -769,7 +769,7 @@ static void convdw5x5s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "6"(r4),
                     "7"(r5),
                     "8"(k0),
-                    "w"(_bias0)   // %18
+                    "w"(_bias0) // %18
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v30", "v31");
             }
 
@@ -991,7 +991,7 @@ static void convdw5x5s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "4"(r3),
                     "5"(r4),
                     "6"(k0),
-                    "w"(_bias0)   // %14
+                    "w"(_bias0) // %14
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
             }
             for (; j + 1 < outw; j += 2)
@@ -1135,7 +1135,7 @@ static void convdw5x5s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "4"(r3),
                     "5"(r4),
                     "6"(k0),
-                    "w"(_bias0)   // %14
+                    "w"(_bias0) // %14
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v30", "v31");
             }
             for (; j < outw; j++)
@@ -1257,7 +1257,7 @@ static void convdw5x5s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "4"(r3),
                     "5"(r4),
                     "6"(k0),
-                    "w"(_bias0)   // %14
+                    "w"(_bias0) // %14
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v30");
             }
 
@@ -1292,7 +1292,7 @@ static void convdw5x5s2_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
 
         const __fp16* k0 = kernel.row<const __fp16>(g);
 
-       __fp16* outptr0 = out.row<__fp16>(0);
+        __fp16* outptr0 = out.row<__fp16>(0);
 
         const Mat img0 = bottom_blob.channel(g);
 

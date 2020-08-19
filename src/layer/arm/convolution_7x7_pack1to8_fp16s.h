@@ -607,8 +607,7 @@ static void conv7x7s2_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "6"(r5),
                         "7"(r6),
                         "8"(kptr)
-                        : "memory", "v0", "v1", "v2", "v4", "v5", "v6", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-                    );
+                        : "memory", "v0", "v1", "v2", "v4", "v5", "v6", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
                 for (; j + 3 < outw; j += 4)
                 {
@@ -957,8 +956,7 @@ static void conv7x7s2_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "6"(r5),
                         "7"(r6),
                         "8"(kptr)
-                        : "memory", "v0", "v1", "v2", "v3", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31"
-                    );
+                        : "memory", "v0", "v1", "v2", "v3", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31");
                 }
                 for (; j < outw; j++)
                 {
@@ -1141,8 +1139,7 @@ static void conv7x7s2_pack1to8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob
                         "6"(r5),
                         "7"(r6),
                         "8"(kptr)
-                        : "memory", "v0", "v1", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31"
-                    );
+                        : "memory", "v0", "v1", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v28", "v29", "v30", "v31");
                 }
 
                 r0 += tailstep;
