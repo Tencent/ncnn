@@ -96,7 +96,9 @@ static void conv1x1s1_sgemm_pack8to1_fp16sa_neon(const Mat& bottom_blob, Mat& to
     // interleave
     Mat tmp;
     if (size >= 8)
-        tmp.create(8, inch, size / 8 + size % 8, elemsize, elempack, opt.workspace_allocator);
+        tmp.create(8, inch, size / 8 + (size % 8) / 4 + size % 4, elemsize, elempack, opt.workspace_allocator);
+    else if (size >= 4)
+        tmp.create(4, inch, size / 4 + size % 4, elemsize, elempack, opt.workspace_allocator);
     else // if (size >= 1)
         tmp.create(1, inch, size, elemsize, elempack, opt.workspace_allocator);
     {
@@ -146,6 +148,36 @@ static void conv1x1s1_sgemm_pack8to1_fp16sa_neon(const Mat& bottom_blob, Mat& to
         }
 
         remain_size_start += nn_size << 3;
+        nn_size = (size - remain_size_start) >> 2;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
+        {
+            int i = remain_size_start + ii * 4;
+
+            const __fp16* img0 = bottom_blob.channel(0);
+            img0 += i * 8;
+
+            __fp16* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+
+            for (int q = 0; q < inch; q++)
+            {
+                // transpose 8x4
+                asm volatile(
+                    "prfm   pldl1keep, [%0, #256]   \n"
+                    "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
+                    "st4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
+                    : "=r"(img0),  // %0
+                    "=r"(tmpptr) // %1
+                    : "0"(img0),
+                    "1"(tmpptr)
+                    : "memory", "v0", "v1", "v2", "v3");
+
+                img0 += bottom_blob.cstep * 8;
+            }
+        }
+
+        remain_size_start += nn_size << 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < size; i++)
@@ -153,7 +185,7 @@ static void conv1x1s1_sgemm_pack8to1_fp16sa_neon(const Mat& bottom_blob, Mat& to
             const __fp16* img0 = bottom_blob.channel(0);
             img0 += i * 8;
 
-            __fp16* tmpptr = tmp.channel(i / 8 + i % 8);
+            __fp16* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
 
             for (int q = 0; q < inch; q++)
             {
@@ -337,9 +369,150 @@ static void conv1x1s1_sgemm_pack8to1_fp16sa_neon(const Mat& bottom_blob, Mat& to
                 "w"(_bias0) // %22
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
         }
+        for (; i + 3 < size; i += 4)
+        {
+            __fp16* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+            const __fp16* kptr = kernel.channel(p / 8);
+
+            int nn = inch; // inch always > 0
+
+            asm volatile(
+                "dup    v24.4h, %22.h[0]            \n"
+                "dup    v25.4h, %22.h[1]            \n"
+                "dup    v26.4h, %22.h[2]            \n"
+                "dup    v27.4h, %22.h[3]            \n"
+                "dup    v28.4h, %22.h[4]            \n"
+                "dup    v29.4h, %22.h[5]            \n"
+                "dup    v30.4h, %22.h[6]            \n"
+                "dup    v31.4h, %22.h[7]            \n"
+
+                "0:                                 \n"
+
+                "prfm   pldl1keep, [%9, #256]       \n"
+                "ld1    {v16.4h, v17.4h, v18.4h, v19.4h}, [%9], #32 \n"
+
+                "prfm   pldl1keep, [%10, #512]      \n"
+                "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%10], #64 \n"
+
+                "fmla   v24.4h, v16.4h, v0.h[0]     \n"
+                "fmla   v25.4h, v16.4h, v0.h[1]     \n"
+                "fmla   v26.4h, v16.4h, v0.h[2]     \n"
+                "fmla   v27.4h, v16.4h, v0.h[3]     \n"
+                "fmla   v28.4h, v16.4h, v0.h[4]     \n"
+                "fmla   v29.4h, v16.4h, v0.h[5]     \n"
+                "fmla   v30.4h, v16.4h, v0.h[6]     \n"
+                "fmla   v31.4h, v16.4h, v0.h[7]     \n"
+
+                "fmla   v24.4h, v17.4h, v1.h[0]     \n"
+                "fmla   v25.4h, v17.4h, v1.h[1]     \n"
+                "fmla   v26.4h, v17.4h, v1.h[2]     \n"
+                "fmla   v27.4h, v17.4h, v1.h[3]     \n"
+                "fmla   v28.4h, v17.4h, v1.h[4]     \n"
+                "fmla   v29.4h, v17.4h, v1.h[5]     \n"
+                "fmla   v30.4h, v17.4h, v1.h[6]     \n"
+                "fmla   v31.4h, v17.4h, v1.h[7]     \n"
+
+                "prfm   pldl1keep, [%9, #256]       \n"
+                "ld1    {v20.4h, v21.4h, v22.4h, v23.4h}, [%9], #32 \n"
+
+                "fmla   v24.4h, v18.4h, v2.h[0]     \n"
+                "fmla   v25.4h, v18.4h, v2.h[1]     \n"
+                "fmla   v26.4h, v18.4h, v2.h[2]     \n"
+                "fmla   v27.4h, v18.4h, v2.h[3]     \n"
+                "fmla   v28.4h, v18.4h, v2.h[4]     \n"
+                "fmla   v29.4h, v18.4h, v2.h[5]     \n"
+                "fmla   v30.4h, v18.4h, v2.h[6]     \n"
+                "fmla   v31.4h, v18.4h, v2.h[7]     \n"
+
+                "prfm   pldl1keep, [%10, #512]      \n"
+                "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%10], #64 \n"
+
+                "fmla   v24.4h, v19.4h, v3.h[0]     \n"
+                "fmla   v25.4h, v19.4h, v3.h[1]     \n"
+                "fmla   v26.4h, v19.4h, v3.h[2]     \n"
+                "fmla   v27.4h, v19.4h, v3.h[3]     \n"
+                "fmla   v28.4h, v19.4h, v3.h[4]     \n"
+                "fmla   v29.4h, v19.4h, v3.h[5]     \n"
+                "fmla   v30.4h, v19.4h, v3.h[6]     \n"
+                "fmla   v31.4h, v19.4h, v3.h[7]     \n"
+
+                "fmla   v24.4h, v20.4h, v4.h[0]     \n"
+                "fmla   v25.4h, v20.4h, v4.h[1]     \n"
+                "fmla   v26.4h, v20.4h, v4.h[2]     \n"
+                "fmla   v27.4h, v20.4h, v4.h[3]     \n"
+                "fmla   v28.4h, v20.4h, v4.h[4]     \n"
+                "fmla   v29.4h, v20.4h, v4.h[5]     \n"
+                "fmla   v30.4h, v20.4h, v4.h[6]     \n"
+                "fmla   v31.4h, v20.4h, v4.h[7]     \n"
+
+                "fmla   v24.4h, v21.4h, v5.h[0]     \n"
+                "fmla   v25.4h, v21.4h, v5.h[1]     \n"
+                "fmla   v26.4h, v21.4h, v5.h[2]     \n"
+                "fmla   v27.4h, v21.4h, v5.h[3]     \n"
+                "fmla   v28.4h, v21.4h, v5.h[4]     \n"
+                "fmla   v29.4h, v21.4h, v5.h[5]     \n"
+                "fmla   v30.4h, v21.4h, v5.h[6]     \n"
+                "fmla   v31.4h, v21.4h, v5.h[7]     \n"
+
+                "fmla   v24.4h, v22.4h, v6.h[0]     \n"
+                "fmla   v25.4h, v22.4h, v6.h[1]     \n"
+                "fmla   v26.4h, v22.4h, v6.h[2]     \n"
+                "fmla   v27.4h, v22.4h, v6.h[3]     \n"
+                "fmla   v28.4h, v22.4h, v6.h[4]     \n"
+                "fmla   v29.4h, v22.4h, v6.h[5]     \n"
+                "fmla   v30.4h, v22.4h, v6.h[6]     \n"
+                "fmla   v31.4h, v22.4h, v6.h[7]     \n"
+
+                "subs   %w0, %w0, #1                \n"
+
+                "fmla   v24.4h, v23.4h, v7.h[0]     \n"
+                "fmla   v25.4h, v23.4h, v7.h[1]     \n"
+                "fmla   v26.4h, v23.4h, v7.h[2]     \n"
+                "fmla   v27.4h, v23.4h, v7.h[3]     \n"
+                "fmla   v28.4h, v23.4h, v7.h[4]     \n"
+                "fmla   v29.4h, v23.4h, v7.h[5]     \n"
+                "fmla   v30.4h, v23.4h, v7.h[6]     \n"
+                "fmla   v31.4h, v23.4h, v7.h[7]     \n"
+
+                "bne    0b                          \n"
+
+                "st1    {v24.4h}, [%1], #8          \n"
+                "st1    {v25.4h}, [%2], #8          \n"
+                "st1    {v26.4h}, [%3], #8          \n"
+                "st1    {v27.4h}, [%4], #8          \n"
+                "st1    {v28.4h}, [%5], #8          \n"
+                "st1    {v29.4h}, [%6], #8          \n"
+                "st1    {v30.4h}, [%7], #8          \n"
+                "st1    {v31.4h}, [%8], #8          \n"
+
+                : "=r"(nn),      // %0
+                "=r"(outptr0), // %1
+                "=r"(outptr1), // %2
+                "=r"(outptr2), // %3
+                "=r"(outptr3), // %4
+                "=r"(outptr4), // %5
+                "=r"(outptr5), // %6
+                "=r"(outptr6), // %7
+                "=r"(outptr7), // %8
+                "=r"(tmpptr),  // %9
+                "=r"(kptr)     // %10
+                : "0"(nn),
+                "1"(outptr0),
+                "2"(outptr1),
+                "3"(outptr2),
+                "4"(outptr3),
+                "5"(outptr4),
+                "6"(outptr5),
+                "7"(outptr6),
+                "8"(outptr7),
+                "9"(tmpptr),
+                "10"(kptr),
+                "w"(_bias0) // %22
+                : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+        }
         for (; i < size; i++)
         {
-            __fp16* tmpptr = tmp.channel(i / 8 + i % 8);
+            __fp16* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
             const __fp16* kptr = kernel.channel(p / 8);
 
             int nn = inch; // inch always > 0
@@ -469,9 +642,58 @@ static void conv1x1s1_sgemm_pack8to1_fp16sa_neon(const Mat& bottom_blob, Mat& to
                 "w"(_bias0) // %8
                 : "cc", "memory", "v0", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v30");
         }
+        for (; i + 3 < size; i += 4)
+        {
+            __fp16* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+            const __fp16* kptr = kernel.channel(p / 8 + p % 8);
+
+            int nn = inch; // inch always > 0
+
+            asm volatile(
+                "mov    v30.16b, %8.16b             \n"
+
+                "0:                                 \n"
+
+                "prfm   pldl1keep, [%2, #256]       \n"
+                "ld1    {v16.4h, v17.4h, v18.4h, v19.4h}, [%2], #32 \n"
+
+                "prfm   pldl1keep, [%3, #128]       \n"
+                "ld1    {v0.8h}, [%3], #16          \n"
+
+                "fmla   v30.4h, v16.4h, v0.h[0]     \n"
+                "fmla   v30.4h, v17.4h, v0.h[1]     \n"
+
+                "prfm   pldl1keep, [%2, #256]       \n"
+                "ld1    {v20.4h, v21.4h, v22.4h, v23.4h}, [%2], #32 \n"
+
+                "fmla   v30.4h, v18.4h, v0.h[2]     \n"
+                "fmla   v30.4h, v19.4h, v0.h[3]     \n"
+
+                "subs   %w0, %w0, #1                \n"
+
+                "fmla   v30.4h, v20.4h, v0.h[4]     \n"
+                "fmla   v30.4h, v21.4h, v0.h[5]     \n"
+                "fmla   v30.4h, v22.4h, v0.h[6]     \n"
+                "fmla   v30.4h, v23.4h, v0.h[7]     \n"
+
+                "bne    0b                          \n"
+
+                "st1    {v30.4h}, [%1], #8          \n"
+
+                : "=r"(nn),      // %0
+                "=r"(outptr0), // %1
+                "=r"(tmpptr),  // %2
+                "=r"(kptr)     // %3
+                : "0"(nn),
+                "1"(outptr0),
+                "2"(tmpptr),
+                "3"(kptr),
+                "w"(_bias0) // %8
+                : "cc", "memory", "v0", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v30");
+        }
         for (; i < size; i++)
         {
-            __fp16* tmpptr = tmp.channel(i / 8 + i % 8);
+            __fp16* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
             const __fp16* kptr = kernel.channel(p / 8 + p % 8);
 
             float16x8_t _sum0 = vdupq_n_f16((__fp16)0.f);
