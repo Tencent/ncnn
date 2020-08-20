@@ -57,6 +57,7 @@ namespace ncnn {
 #include "convolution_7x7_pack1to4_bf16s.h"
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "convolution_1x1_fp16s.h"
+#include "convolution_1x1_pack4_fp16s.h"
 #include "convolution_1x1_pack8_fp16s.h"
 #include "convolution_1x1_pack4to8_fp16s.h"
 #include "convolution_1x1_pack8to1_fp16s.h"
@@ -1161,10 +1162,23 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
         }
     }
 
-    // pack1
-    if (elempack == 1 && out_elempack == 1)
+    // pack4
+    if (elempack == 4 && out_elempack == 4 && opt.use_fp16_arithmetic)
     {
-        if (opt.use_fp16_arithmetic && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv1x1s1_sgemm_transform_kernel_pack4_fp16sa_neon(weight_data, weight_data_fp16, num_input, num_output);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv1x1s1_sgemm_transform_kernel_pack4_fp16sa_neon(weight_data, weight_data_fp16, num_input, num_output);
+        }
+    }
+
+    // pack1
+    if (elempack == 1 && out_elempack == 1 && opt.use_fp16_arithmetic)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv1x1s1_sgemm_transform_kernel_fp16sa_neon(weight_data, weight_data_fp16, num_input, num_output);
         }
@@ -1956,6 +1970,25 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
 
     if (elempack == 4 && out_elempack == 4)
     {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv1x1s1_sgemm_pack4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv1x1s2_pack4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
