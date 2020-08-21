@@ -14,8 +14,6 @@
 
 #include "hardsigmoid.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 HardSigmoid::HardSigmoid()

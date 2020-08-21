@@ -14,7 +14,6 @@
 
 #include "mat.h"
 
-#include <algorithm>
 #include <limits.h>
 #include <math.h>
 #if __ARM_NEON

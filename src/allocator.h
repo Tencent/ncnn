@@ -24,7 +24,6 @@
 
 #include "platform.h"
 
-#include <list>
 #include <stdlib.h>
 
 #if NCNN_VULKAN

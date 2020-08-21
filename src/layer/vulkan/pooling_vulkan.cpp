@@ -17,7 +17,6 @@
 #include "layer_shader_type.h"
 #include "layer_type.h"
 
-#include <algorithm>
 #include <float.h>
 
 namespace ncnn {

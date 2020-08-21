@@ -14,8 +14,6 @@
 
 #include "eltwise.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 Eltwise::Eltwise()

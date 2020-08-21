@@ -14,8 +14,6 @@
 
 #include "concat_arm.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 Concat_arm::Concat_arm()

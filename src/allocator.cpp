@@ -17,8 +17,6 @@
 #include "gpu.h"
 #include "pipeline.h"
 
-#include <algorithm>
-
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
 #endif // __ANDROID_API__ >= 26
@@ -41,8 +39,7 @@ PoolAllocator::~PoolAllocator()
     if (!payouts.empty())
     {
         NCNN_LOGE("FATAL ERROR! pool allocator destroyed too early");
-        std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
-        for (; it != payouts.end(); it++)
+        for (auto it = payouts.begin(); it != payouts.end(); ++it)
         {
             void* ptr = it->second;
             NCNN_LOGE("%p still in use", ptr);
@@ -54,8 +51,7 @@ void PoolAllocator::clear()
 {
     budgets_lock.lock();
 
-    std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
-    for (; it != budgets.end(); it++)
+    for (auto it = budgets.begin(); it != budgets.end(); ++it)
     {
         void* ptr = it->second;
         ncnn::fastFree(ptr);
@@ -81,8 +77,7 @@ void* PoolAllocator::fastMalloc(size_t size)
     budgets_lock.lock();
 
     // find free budget
-    std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
-    for (; it != budgets.end(); it++)
+    for (auto it = budgets.begin(); it != budgets.end(); ++it)
     {
         size_t bs = it->first;
 
@@ -124,8 +119,7 @@ void PoolAllocator::fastFree(void* ptr)
     payouts_lock.lock();
 
     // return to budgets
-    std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
-    for (; it != payouts.end(); it++)
+    for (auto it = payouts.begin(); it != payouts.end(); ++it)
     {
         if (it->second == ptr)
         {
@@ -163,8 +157,7 @@ UnlockedPoolAllocator::~UnlockedPoolAllocator()
     if (!payouts.empty())
     {
         NCNN_LOGE("FATAL ERROR! unlocked pool allocator destroyed too early");
-        std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
-        for (; it != payouts.end(); it++)
+        for (auto it = payouts.begin(); it != payouts.end(); ++it)
         {
             void* ptr = it->second;
             NCNN_LOGE("%p still in use", ptr);
@@ -174,8 +167,7 @@ UnlockedPoolAllocator::~UnlockedPoolAllocator()
 
 void UnlockedPoolAllocator::clear()
 {
-    std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
-    for (; it != budgets.end(); it++)
+    for (auto it = budgets.begin(); it != budgets.end(); ++it)
     {
         void* ptr = it->second;
         ncnn::fastFree(ptr);
@@ -197,8 +189,7 @@ void UnlockedPoolAllocator::set_size_compare_ratio(float scr)
 void* UnlockedPoolAllocator::fastMalloc(size_t size)
 {
     // find free budget
-    std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
-    for (; it != budgets.end(); it++)
+    for (auto it = budgets.begin(); it != budgets.end(); ++it)
     {
         size_t bs = it->first;
 
@@ -226,8 +217,7 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
 void UnlockedPoolAllocator::fastFree(void* ptr)
 {
     // return to budgets
-    std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
-    for (; it != payouts.end(); it++)
+    for (auto it = payouts.begin(); it != payouts.end(); ++it)
     {
         if (it->second == ptr)
         {

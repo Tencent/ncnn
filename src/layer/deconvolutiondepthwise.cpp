@@ -16,8 +16,6 @@
 
 #include "layer_type.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 DeconvolutionDepthWise::DeconvolutionDepthWise()

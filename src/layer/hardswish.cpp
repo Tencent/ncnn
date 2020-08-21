@@ -14,8 +14,6 @@
 
 #include "hardswish.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 HardSwish::HardSwish()

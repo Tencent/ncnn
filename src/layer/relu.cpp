@@ -14,8 +14,6 @@
 
 #include "relu.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 ReLU::ReLU()

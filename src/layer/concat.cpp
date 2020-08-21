@@ -14,8 +14,6 @@
 
 #include "concat.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 Concat::Concat()

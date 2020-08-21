@@ -14,8 +14,6 @@
 
 #include "interp.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 Interp::Interp()

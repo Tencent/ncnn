@@ -16,8 +16,6 @@
 
 #include "layer_shader_type.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 PixelShuffle_vulkan::PixelShuffle_vulkan()

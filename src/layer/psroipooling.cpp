@@ -14,7 +14,6 @@
 
 #include "psroipooling.h"
 
-#include <algorithm>
 #include <math.h>
 
 namespace ncnn {
