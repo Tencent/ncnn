@@ -14,7 +14,7 @@
 
 #include "platform.h"
 
-#ifdef NCNN_SIMPLESTL
+#if NCNN_SIMPLESTL
 
 #include <stdlib.h>
 

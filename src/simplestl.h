@@ -15,17 +15,25 @@
 #ifndef NCNN_SIMPLESTL_H
 #define NCNN_SIMPLESTL_H
 
-// #include <new>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
+#if !NCNN_SIMPLESTL
+
+#include <new>
+
+#else
+
+// operator new and delete
 void* operator new(size_t sz) noexcept;
 void* operator new(size_t sz, void*) noexcept;
 void* operator new[](size_t sz) noexcept;
 void* operator new[](size_t sz, void*) noexcept;
 void operator delete(void *ptr) noexcept;
 void operator delete[](void *ptr) noexcept;
+
+#endif
 
 // minimal stl data structure implementation
 namespace std {
