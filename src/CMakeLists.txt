@@ -40,6 +40,7 @@ set(ncnn_SRCS
     paramdict.cpp
     pipeline.cpp
     pipelinecache.cpp
+    simplestl.cpp
 )
 
 if(ANDROID)
