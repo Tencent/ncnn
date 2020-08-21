@@ -158,6 +158,8 @@ configure_file(layer_shader_spv_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shad
 configure_file(layer_shader_type_enum.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
+# add math lib explicitly
+target_link_libraries(ncnn PUBLIC -lm)
 
 target_include_directories(ncnn
     PUBLIC
