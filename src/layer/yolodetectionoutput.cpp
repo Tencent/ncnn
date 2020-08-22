@@ -199,7 +199,7 @@ int YoloDetectionOutput::forward_inplace(std::vector<Mat>& bottom_top_blobs, con
         all_box_bbox_rects.resize(num_box);
         all_box_bbox_scores.resize(num_box);
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < num_box; pp++)
         {
             int p = pp * channels_per_box;

@@ -193,9 +193,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
         // check blob shape
         if (!vkdev->shape_support_image_storage(shape_winograd_bordered_packed)
-                || !vkdev->shape_support_image_storage(shape_winograd_input_transformed_packed)
-                || !vkdev->shape_support_image_storage(shape_winograd_gemm_packed)
-                || !vkdev->shape_support_image_storage(shape_winograd_out_bordered_packed))
+            || !vkdev->shape_support_image_storage(shape_winograd_input_transformed_packed)
+            || !vkdev->shape_support_image_storage(shape_winograd_gemm_packed)
+            || !vkdev->shape_support_image_storage(shape_winograd_out_bordered_packed))
         {
             support_image_storage = false;
             opt.use_image_storage = false;
@@ -743,10 +743,9 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
                 {1.0f, 0.0f, 0.0f},
                 {1.0f / 2, 1.0f / 2, 1.0f / 2},
                 {1.0f / 2, -1.0f / 2, 1.0f / 2},
-                {0.0f, 0.0f, 1.0f}
-            };
+                {0.0f, 0.0f, 1.0f}};
 
-            #pragma omp parallel for
+#pragma omp parallel for
             for (int p = 0; p < num_output; p++)
             {
                 for (int q = 0; q < num_input; q++)
@@ -873,10 +872,9 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
                 {1.0f, 0.0f, 0.0f},
                 {1.0f / 2, 1.0f / 2, 1.0f / 2},
                 {1.0f / 2, -1.0f / 2, 1.0f / 2},
-                {0.0f, 0.0f, 1.0f}
-            };
+                {0.0f, 0.0f, 1.0f}};
 
-            #pragma omp parallel for
+#pragma omp parallel for
             for (int p = 0; p < num_output; p++)
             {
                 for (int q = 0; q < num_input; q++)

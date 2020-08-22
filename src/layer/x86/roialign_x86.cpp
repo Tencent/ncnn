@@ -277,7 +277,7 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             sampling_ratio,
             pre_calc);
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
@@ -349,7 +349,7 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             roi_bin_grid_w,
             pre_calc);
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);

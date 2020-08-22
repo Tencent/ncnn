@@ -321,8 +321,8 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
                 constants[7].i = sqsum_workspace.cstep;
 
                 const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8
-                                           : elempack == 4 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4
-                                           : pipeline_normalize_reduce_sum4_fp16_to_fp32;
+                                                         : elempack == 4 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4
+                                                                         : pipeline_normalize_reduce_sum4_fp16_to_fp32;
 
                 cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace);
             }
@@ -373,8 +373,8 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
                 constants[7].i = sqsum_workspace_reduced.cstep;
 
                 const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp32_pack8[pb % 2]
-                                           : elempack == 4 ? pipeline_normalize_reduce_sum4_fp32_pack4[pb % 2]
-                                           : pipeline_normalize_reduce_sum4_fp32[pb % 2];
+                                                         : elempack == 4 ? pipeline_normalize_reduce_sum4_fp32_pack4[pb % 2]
+                                                                         : pipeline_normalize_reduce_sum4_fp32[pb % 2];
 
                 cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace_reduced);
 
@@ -400,8 +400,8 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         constants[3].i = sqsum_workspace.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_coeffs_pack8
-                                   : elempack == 4 ? pipeline_normalize_coeffs_pack4
-                                   : pipeline_normalize_coeffs;
+                                                 : elempack == 4 ? pipeline_normalize_coeffs_pack4
+                                                                 : pipeline_normalize_coeffs;
 
         cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace);
     }
@@ -421,8 +421,8 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         constants[4].i = bottom_top_blob.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_norm_pack8
-                                   : elempack == 4 ? pipeline_normalize_norm_pack4
-                                   : pipeline_normalize_norm;
+                                                 : elempack == 4 ? pipeline_normalize_norm_pack4
+                                                                 : pipeline_normalize_norm;
 
         cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
@@ -482,8 +482,8 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
                 constants[7].i = 0; //sqsum_workspace.cstep;
 
                 const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8
-                                           : elempack == 4 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4
-                                           : pipeline_normalize_reduce_sum4_fp16_to_fp32;
+                                                         : elempack == 4 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4
+                                                                         : pipeline_normalize_reduce_sum4_fp16_to_fp32;
 
                 cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace);
             }
@@ -534,8 +534,8 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
                 constants[7].i = 0; //sqsum_workspace_reduced.cstep;
 
                 const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp32_pack8[pb % 2]
-                                           : elempack == 4 ? pipeline_normalize_reduce_sum4_fp32_pack4[pb % 2]
-                                           : pipeline_normalize_reduce_sum4_fp32[pb % 2];
+                                                         : elempack == 4 ? pipeline_normalize_reduce_sum4_fp32_pack4[pb % 2]
+                                                                         : pipeline_normalize_reduce_sum4_fp32[pb % 2];
 
                 cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace_reduced);
 
@@ -561,8 +561,8 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
         constants[3].i = 0; //sqsum_workspace.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_coeffs_pack8
-                                   : elempack == 4 ? pipeline_normalize_coeffs_pack4
-                                   : pipeline_normalize_coeffs;
+                                                 : elempack == 4 ? pipeline_normalize_coeffs_pack4
+                                                                 : pipeline_normalize_coeffs;
 
         cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace);
     }
@@ -583,8 +583,8 @@ int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cm
         constants[4].i = 0; //bottom_top_blob.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_norm_pack8
-                                   : elempack == 4 ? pipeline_normalize_norm_pack4
-                                   : pipeline_normalize_norm;
+                                                 : elempack == 4 ? pipeline_normalize_norm_pack4
+                                                                 : pipeline_normalize_norm;
 
         cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }

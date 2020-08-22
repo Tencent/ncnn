@@ -123,7 +123,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     int nn_num_output = num_output >> 3;
     int remain_num_output_start = nn_num_output << 3;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = pp * 8;
@@ -236,7 +236,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     int nn_offset = remain_num_output_start;
     remain_num_output_start += (nn_num_output << 2);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = nn_offset + (pp * 4);
@@ -308,8 +308,8 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         _mm_storeu_ps(output_ptr + p, _mm256_castps256_ps128(_sums_a));
     }
 
-    // num_output
-    #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++)
     {
         float sum = 0.f;
@@ -374,7 +374,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
     int nn_num_output = num_output >> 3;
     int remain_num_output_start = nn_num_output << 3;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = pp * 8;
@@ -520,7 +520,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
     int nn_offset = remain_num_output_start;
     remain_num_output_start += (nn_num_output << 2);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = nn_offset + (pp * 4);
@@ -611,8 +611,8 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
         _mm_storeu_ps(output_ptr + p, _mm256_castps256_ps128(_sums_a));
     }
 
-    // num_output
-    #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++)
     {
         float sum = 0.f;

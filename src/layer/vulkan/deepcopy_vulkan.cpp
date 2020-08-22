@@ -159,8 +159,8 @@ int DeepCopy_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComput
     constants[4].i = bottom_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_deepcopy_pack8
-                               : elempack == 4 ? pipeline_deepcopy_pack4
-                               : pipeline_deepcopy;
+                                             : elempack == 4 ? pipeline_deepcopy_pack4
+                                                             : pipeline_deepcopy;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -187,8 +187,8 @@ int DeepCopy_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob
     constants[4].i = 0; //bottom_blob.cstep;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_deepcopy_pack8
-                               : elempack == 4 ? pipeline_deepcopy_pack4
-                               : pipeline_deepcopy;
+                                             : elempack == 4 ? pipeline_deepcopy_pack4
+                                                             : pipeline_deepcopy;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

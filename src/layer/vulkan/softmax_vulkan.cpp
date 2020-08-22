@@ -330,8 +330,8 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
         constants[9].i = max_workspace.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_max_pack8
-                                   : elempack == 4 ? pipeline_softmax_reduce_max_pack4
-                                   : pipeline_softmax_reduce_max;
+                                                 : elempack == 4 ? pipeline_softmax_reduce_max_pack4
+                                                                 : pipeline_softmax_reduce_max;
 
         cmd.record_pipeline(pipeline, bindings, constants, max_workspace);
     }
@@ -355,8 +355,8 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
         constants[9].i = max_workspace.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_exp_sub_max_pack8
-                                   : elempack == 4 ? pipeline_softmax_exp_sub_max_pack4
-                                   : pipeline_softmax_exp_sub_max;
+                                                 : elempack == 4 ? pipeline_softmax_exp_sub_max_pack4
+                                                                 : pipeline_softmax_exp_sub_max;
 
         cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
@@ -380,8 +380,8 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
         constants[9].i = sum_workspace.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_sum_pack8
-                                   : elempack == 4 ? pipeline_softmax_reduce_sum_pack4
-                                   : pipeline_softmax_reduce_sum;
+                                                 : elempack == 4 ? pipeline_softmax_reduce_sum_pack4
+                                                                 : pipeline_softmax_reduce_sum;
 
         cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
     }
@@ -405,8 +405,8 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
         constants[9].i = sum_workspace.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_div_sum_pack8
-                                   : elempack == 4 ? pipeline_softmax_div_sum_pack4
-                                   : pipeline_softmax_div_sum;
+                                                 : elempack == 4 ? pipeline_softmax_div_sum_pack4
+                                                                 : pipeline_softmax_div_sum;
 
         cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
@@ -476,8 +476,8 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
         constants[9].i = 0; //max_workspace.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_max_pack8
-                                   : elempack == 4 ? pipeline_softmax_reduce_max_pack4
-                                   : pipeline_softmax_reduce_max;
+                                                 : elempack == 4 ? pipeline_softmax_reduce_max_pack4
+                                                                 : pipeline_softmax_reduce_max;
 
         cmd.record_pipeline(pipeline, bindings, constants, max_workspace);
     }
@@ -502,8 +502,8 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
         constants[9].i = 0; //max_workspace.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_exp_sub_max_pack8
-                                   : elempack == 4 ? pipeline_softmax_exp_sub_max_pack4
-                                   : pipeline_softmax_exp_sub_max;
+                                                 : elempack == 4 ? pipeline_softmax_exp_sub_max_pack4
+                                                                 : pipeline_softmax_exp_sub_max;
 
         cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }
@@ -527,8 +527,8 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
         constants[9].i = 0; //sum_workspace.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_sum_pack8
-                                   : elempack == 4 ? pipeline_softmax_reduce_sum_pack4
-                                   : pipeline_softmax_reduce_sum;
+                                                 : elempack == 4 ? pipeline_softmax_reduce_sum_pack4
+                                                                 : pipeline_softmax_reduce_sum;
 
         cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
     }
@@ -553,8 +553,8 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
         constants[9].i = 0; //sum_workspace.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_div_sum_pack8
-                                   : elempack == 4 ? pipeline_softmax_div_sum_pack4
-                                   : pipeline_softmax_div_sum;
+                                                 : elempack == 4 ? pipeline_softmax_div_sum_pack4
+                                                                 : pipeline_softmax_div_sum;
 
         cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }

@@ -194,7 +194,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
     // depth-wise
     if (channels == group && group == num_output)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
         {
             float* outptr = top_blob.channel(g);
@@ -268,9 +268,9 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
         const int num_output_g = num_output / group;
 
 #ifdef _WIN32
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
 #else // _WIN32
-        #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
+#pragma omp parallel for collapse(2) num_threads(opt.num_threads)
 #endif // _WIN32
         for (int g = 0; g < group; g++)
         {
@@ -432,8 +432,8 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
 
         const int channels_g = channels / group;
 
-// quantize, scale and round to nearest
-        #pragma omp parallel for num_threads(opt.num_threads)
+        // quantize, scale and round to nearest
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
         {
             Option opt_g = opt;
@@ -489,7 +489,7 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
     // depth-wise
     if (channels == group && group == num_output)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
         {
             signed char* outptr = top_blob.channel(g);
@@ -570,9 +570,9 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
         const int num_output_g = num_output / group;
 
 #ifdef _WIN32
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
 #else // _WIN32
-        #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
+#pragma omp parallel for collapse(2) num_threads(opt.num_threads)
 #endif // _WIN32
         for (int g = 0; g < group; g++)
         {
