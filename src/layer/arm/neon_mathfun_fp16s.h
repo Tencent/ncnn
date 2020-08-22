@@ -41,6 +41,161 @@
 
 #include <arm_neon.h>
 
+#define c_inv_mant_mask_f16 -31745 // ~0x7c00u
+#define c_cephes_SQRTHF 0.707106781186547524
+#define c_cephes_log_p0 7.0376836292E-2
+#define c_cephes_log_p1 -1.1514610310E-1
+#define c_cephes_log_p2 1.1676998740E-1
+#define c_cephes_log_p3 -1.2420140846E-1
+#define c_cephes_log_p4 +1.4249322787E-1
+#define c_cephes_log_p5 -1.6668057665E-1
+#define c_cephes_log_p6 +2.0000714765E-1
+#define c_cephes_log_p7 -2.4999993993E-1
+#define c_cephes_log_p8 +3.3333331174E-1
+#define c_cephes_log_q1 -2.12194440e-4
+#define c_cephes_log_q2 0.693359375
+
+/* natural logarithm computed for 4 simultaneous float
+ *   return NaN for x <= 0
+ */
+static inline float16x4_t log_ps(float16x4_t x)
+{
+    float16x4_t one = vdup_n_f16(1);
+
+    x = vmax_f16(x, vdup_n_f16(0)); /* force flush to zero on denormal values */
+    uint16x4_t invalid_mask = vcle_f16(x, vdup_n_f16(0));
+
+    int16x4_t ux = vreinterpret_s16_f16(x);
+
+    int16x4_t emm0 = vshr_n_s16(ux, 10);
+
+    /* keep only the fractional part */
+    ux = vand_s16(ux, vdup_n_s16(c_inv_mant_mask_f16));
+    ux = vorr_s16(ux, vreinterpret_s16_f16(vdup_n_f16(0.5f)));
+    x = vreinterpret_f16_s16(ux);
+
+    emm0 = vsub_s16(emm0, vdup_n_s16(0xf));
+    float16x4_t e = vcvt_f16_s16(emm0);
+
+    e = vadd_f16(e, one);
+
+    /* part2:
+     *     if( x < SQRTHF ) {
+     *       e -= 1;
+     *       x = x + x - 1.0;
+     *     } else { x = x - 1.0; }
+     */
+    uint16x4_t mask = vclt_f16(x, vdup_n_f16(c_cephes_SQRTHF));
+    float16x4_t tmp = vreinterpret_f16_u16(vand_u16(vreinterpret_u16_f16(x), mask));
+    x = vsub_f16(x, one);
+    e = vsub_f16(e, vreinterpret_f16_u16(vand_u16(vreinterpret_u16_f16(one), mask)));
+    x = vadd_f16(x, tmp);
+
+    float16x4_t z = vmul_f16(x, x);
+
+    float16x4_t y = vdup_n_f16(c_cephes_log_p0);
+    y = vmul_f16(y, x);
+    y = vadd_f16(y, vdup_n_f16(c_cephes_log_p1));
+    y = vmul_f16(y, x);
+    y = vadd_f16(y, vdup_n_f16(c_cephes_log_p2));
+    y = vmul_f16(y, x);
+    y = vadd_f16(y, vdup_n_f16(c_cephes_log_p3));
+    y = vmul_f16(y, x);
+    y = vadd_f16(y, vdup_n_f16(c_cephes_log_p4));
+    y = vmul_f16(y, x);
+    y = vadd_f16(y, vdup_n_f16(c_cephes_log_p5));
+    y = vmul_f16(y, x);
+    y = vadd_f16(y, vdup_n_f16(c_cephes_log_p6));
+    y = vmul_f16(y, x);
+    y = vadd_f16(y, vdup_n_f16(c_cephes_log_p7));
+    y = vmul_f16(y, x);
+    y = vadd_f16(y, vdup_n_f16(c_cephes_log_p8));
+    y = vmul_f16(y, x);
+
+    y = vmul_f16(y, z);
+
+    tmp = vmul_f16(e, vdup_n_f16(c_cephes_log_q1));
+    y = vadd_f16(y, tmp);
+
+    tmp = vmul_f16(z, vdup_n_f16(0.5f));
+    y = vsub_f16(y, tmp);
+
+    tmp = vmul_f16(e, vdup_n_f16(c_cephes_log_q2));
+    x = vadd_f16(x, y);
+    x = vadd_f16(x, tmp);
+    x = vreinterpret_f16_u16(vorr_u16(vreinterpret_u16_f16(x), invalid_mask)); // negative arg will be NAN
+    return x;
+}
+
+static inline float16x8_t log_ps(float16x8_t x)
+{
+    float16x8_t one = vdupq_n_f16(1);
+
+    x = vmaxq_f16(x, vdupq_n_f16(0)); /* force flush to zero on denormal values */
+    uint16x8_t invalid_mask = vcleq_f16(x, vdupq_n_f16(0));
+
+    int16x8_t ux = vreinterpretq_s16_f16(x);
+
+    int16x8_t emm0 = vshrq_n_s16(ux, 10);
+
+    /* keep only the fractional part */
+    ux = vandq_s16(ux, vdupq_n_s16(c_inv_mant_mask_f16));
+    ux = vorrq_s16(ux, vreinterpretq_s16_f16(vdupq_n_f16(0.5f)));
+    x = vreinterpretq_f16_s16(ux);
+
+    emm0 = vsubq_s16(emm0, vdupq_n_s16(0xf));
+    float16x8_t e = vcvtq_f16_s16(emm0);
+
+    e = vaddq_f16(e, one);
+
+    /* part2:
+     *     if( x < SQRTHF ) {
+     *       e -= 1;
+     *       x = x + x - 1.0;
+     *     } else { x = x - 1.0; }
+     */
+    uint16x8_t mask = vcltq_f16(x, vdupq_n_f16(c_cephes_SQRTHF));
+    float16x8_t tmp = vreinterpretq_f16_u16(vandq_u16(vreinterpretq_u16_f16(x), mask));
+    x = vsubq_f16(x, one);
+    e = vsubq_f16(e, vreinterpretq_f16_u16(vandq_u16(vreinterpretq_u16_f16(one), mask)));
+    x = vaddq_f16(x, tmp);
+
+    float16x8_t z = vmulq_f16(x, x);
+
+    float16x8_t y = vdupq_n_f16(c_cephes_log_p0);
+    y = vmulq_f16(y, x);
+    y = vaddq_f16(y, vdupq_n_f16(c_cephes_log_p1));
+    y = vmulq_f16(y, x);
+    y = vaddq_f16(y, vdupq_n_f16(c_cephes_log_p2));
+    y = vmulq_f16(y, x);
+    y = vaddq_f16(y, vdupq_n_f16(c_cephes_log_p3));
+    y = vmulq_f16(y, x);
+    y = vaddq_f16(y, vdupq_n_f16(c_cephes_log_p4));
+    y = vmulq_f16(y, x);
+    y = vaddq_f16(y, vdupq_n_f16(c_cephes_log_p5));
+    y = vmulq_f16(y, x);
+    y = vaddq_f16(y, vdupq_n_f16(c_cephes_log_p6));
+    y = vmulq_f16(y, x);
+    y = vaddq_f16(y, vdupq_n_f16(c_cephes_log_p7));
+    y = vmulq_f16(y, x);
+    y = vaddq_f16(y, vdupq_n_f16(c_cephes_log_p8));
+    y = vmulq_f16(y, x);
+
+    y = vmulq_f16(y, z);
+
+    tmp = vmulq_f16(e, vdupq_n_f16(c_cephes_log_q1));
+    y = vaddq_f16(y, tmp);
+
+    tmp = vmulq_f16(z, vdupq_n_f16(0.5f));
+    y = vsubq_f16(y, tmp);
+
+    tmp = vmulq_f16(e, vdupq_n_f16(c_cephes_log_q2));
+    x = vaddq_f16(x, y);
+    x = vaddq_f16(x, tmp);
+    x = vreinterpretq_f16_u16(vorrq_u16(vreinterpretq_u16_f16(x), invalid_mask)); // negative arg will be NAN
+    return x;
+}
+
 #define c_exp_hi_f16 10.7421875f
 #define c_exp_lo_f16 -10.7421875f
 
@@ -175,6 +330,133 @@ static inline float16x8_t exp_ps(float16x8_t x)
     float16x8_t pow2n = vreinterpretq_f16_s16(mm);
 
     y = vmulq_f16(y, pow2n);
+    return y;
+}
+
+// tanh neon vector version
+// refer the scalar version from Cephes Math Library
+
+#define c_cephes_HALFMAXLOGF_f16 4.5078125f
+#define c_cephes_tanh_C1     0.625f
+
+#define c_cephes_tanh_p0 -5.70498872745E-3
+#define c_cephes_tanh_p1 +2.06390887954E-2
+#define c_cephes_tanh_p2 -5.37397155531E-2
+#define c_cephes_tanh_p3 +1.33314422036E-1
+#define c_cephes_tanh_p4 -3.33332819422E-1
+
+/* Single precision hyperbolic tangent computed for 4 simultaneous float */
+static inline float16x4_t tanh_ps(float16x4_t x)
+{
+    float16x4_t x2 = vabs_f16(x);
+
+    uint16x4_t mask_l = vcge_f16(x2, vdup_n_f16(c_cephes_tanh_C1));
+    uint16x4_t mask_l2 = vcgt_f16(x2, vdup_n_f16(c_cephes_HALFMAXLOGF_f16));
+
+    // abs(x) >= 0.625
+    // tanh(x) = 1 − 2 / (exp(2x) + 1)
+    float16x4_t _one = vdup_n_f16(1.f);
+    float16x4_t _two = vdup_n_f16(2.f);
+    float16x4_t exp_x_x = exp_ps(vadd_f16(x, x));
+    float16x4_t y0 = vsub_f16(_one, vdiv_f16(_two, vadd_f16(exp_x_x, _one)));
+
+    // abs(x) < 0.625
+    /*
+        z = x2 * x2;
+        z =
+        (((( -5.70498872745E-3 * z
+        + 2.06390887954E-2) * z
+        - 5.37397155531E-2) * z
+        + 1.33314422036E-1) * z
+        - 3.33332819422E-1) * z * x
+        + x;
+    */
+    static const __fp16 cephes_tanh_p[5] = {c_cephes_tanh_p0, c_cephes_tanh_p1, c_cephes_tanh_p2, c_cephes_tanh_p3, c_cephes_tanh_p4};
+    float16x4_t y = vld1_dup_f16(cephes_tanh_p + 0);
+    float16x4_t c1 = vld1_dup_f16(cephes_tanh_p + 1);
+    float16x4_t c2 = vld1_dup_f16(cephes_tanh_p + 2);
+    float16x4_t c3 = vld1_dup_f16(cephes_tanh_p + 3);
+    float16x4_t c4 = vld1_dup_f16(cephes_tanh_p + 4);
+
+    float16x4_t z = vmul_f16(x, x);
+
+    y = vmul_f16(y, z);
+    y = vadd_f16(y, c1);
+    y = vmul_f16(y, z);
+    y = vadd_f16(y, c2);
+    y = vmul_f16(y, z);
+    y = vadd_f16(y, c3);
+    y = vmul_f16(y, z);
+    y = vadd_f16(y, c4);
+
+    y = vmul_f16(y, z);
+    y = vmul_f16(y, x);
+    y = vadd_f16(y, x);
+
+    // abs(x) > HALFMAXLOGF
+    // return 1.0 or -1.0
+    uint16x4_t mask_pos = vcgt_f16(x2, vdup_n_f16(0.f));
+    float16x4_t y1 = vreinterpret_f16_u16(vbsl_u16(mask_pos, vreinterpret_u16_f16(vdup_n_f16(1.f)), vreinterpret_u16_f16(vdup_n_f16(-1.f))));
+
+    y = vreinterpret_f16_u16(vbsl_u16(mask_l, vreinterpret_u16_f16(y0), vreinterpret_u16_f16(y)));
+    y = vreinterpret_f16_u16(vbsl_u16(mask_l2, vreinterpret_u16_f16(y1), vreinterpret_u16_f16(y)));
+    return y;
+}
+
+static inline float16x8_t tanh_ps(float16x8_t x)
+{
+    float16x8_t x2 = vabsq_f16(x);
+
+    uint16x8_t mask_l = vcgeq_f16(x2, vdupq_n_f16(c_cephes_tanh_C1));
+    uint16x8_t mask_l2 = vcgtq_f16(x2, vdupq_n_f16(c_cephes_HALFMAXLOGF_f16));
+
+    // abs(x) >= 0.625
+    // tanh(x) = 1 − 2 / (exp(2x) + 1)
+    float16x8_t _one = vdupq_n_f16(1.f);
+    float16x8_t _two = vdupq_n_f16(2.f);
+    float16x8_t exp_x_x = exp_ps(vaddq_f16(x, x));
+    float16x8_t y0 = vsubq_f16(_one, vdivq_f16(_two, vaddq_f16(exp_x_x, _one)));
+
+    // abs(x) < 0.625
+    /*
+     *        z = x2 * x2;
+     *        z =
+     *        (((( -5.70498872745E-3 * z
+     *        + 2.06390887954E-2) * z
+     *        - 5.37397155531E-2) * z
+     *        + 1.33314422036E-1) * z
+     *        - 3.33332819422E-1) * z * x
+     *        + x;
+     */
+    static const __fp16 cephes_tanh_p[5] = {c_cephes_tanh_p0, c_cephes_tanh_p1, c_cephes_tanh_p2, c_cephes_tanh_p3, c_cephes_tanh_p4};
+    float16x8_t y = vld1q_dup_f16(cephes_tanh_p + 0);
+    float16x8_t c1 = vld1q_dup_f16(cephes_tanh_p + 1);
+    float16x8_t c2 = vld1q_dup_f16(cephes_tanh_p + 2);
+    float16x8_t c3 = vld1q_dup_f16(cephes_tanh_p + 3);
+    float16x8_t c4 = vld1q_dup_f16(cephes_tanh_p + 4);
+
+    float16x8_t z = vmulq_f16(x, x);
+
+    y = vmulq_f16(y, z);
+    y = vaddq_f16(y, c1);
+    y = vmulq_f16(y, z);
+    y = vaddq_f16(y, c2);
+    y = vmulq_f16(y, z);
+    y = vaddq_f16(y, c3);
+    y = vmulq_f16(y, z);
+    y = vaddq_f16(y, c4);
+
+    y = vmulq_f16(y, z);
+    y = vmulq_f16(y, x);
+    y = vaddq_f16(y, x);
+
+    // abs(x) > HALFMAXLOGF
+    // return 1.0 or -1.0
+    uint16x8_t mask_pos = vcgtq_f16(x2, vdupq_n_f16(0.f));
+    float16x8_t y1 = vreinterpretq_f16_u16(vbslq_u16(mask_pos, vreinterpretq_u16_f16(vdupq_n_f16(1.f)), vreinterpretq_u16_f16(vdupq_n_f16(-1.f))));
+
+    y = vreinterpretq_f16_u16(vbslq_u16(mask_l, vreinterpretq_u16_f16(y0), vreinterpretq_u16_f16(y)));
+    y = vreinterpretq_f16_u16(vbslq_u16(mask_l2, vreinterpretq_u16_f16(y1), vreinterpretq_u16_f16(y)));
     return y;
 }
 
