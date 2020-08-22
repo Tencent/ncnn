@@ -156,8 +156,8 @@ int ShuffleChannel_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, Vk
     constants[10].i = reverse ? channels * elempack / group : group;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_shufflechannel_pack8
-                                             : elempack == 4 ? pipeline_shufflechannel_pack4
-                                                             : pipeline_shufflechannel;
+                               : elempack == 4 ? pipeline_shufflechannel_pack4
+                               : pipeline_shufflechannel;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -194,8 +194,8 @@ int ShuffleChannel_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& to
     constants[10].i = reverse ? channels * elempack / group : group;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_shufflechannel_pack8
-                                             : elempack == 4 ? pipeline_shufflechannel_pack4
-                                                             : pipeline_shufflechannel;
+                               : elempack == 4 ? pipeline_shufflechannel_pack4
+                               : pipeline_shufflechannel;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

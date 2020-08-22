@@ -225,7 +225,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < top_blob.c; q++)
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
@@ -327,7 +327,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < top_blob.c; q++)
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
@@ -466,7 +466,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < top_blob.c; q++)
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
@@ -575,7 +575,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < top_blob.c; q++)
                 {
                     const Mat m = bottom_blob_sliced.channel(q);

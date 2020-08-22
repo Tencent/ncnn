@@ -60,7 +60,7 @@ int ROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     float bin_size_w = (float)roi_w / (float)pooled_width;
     float bin_size_h = (float)roi_h / (float)pooled_height;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         const float* ptr = bottom_blob.channel(q);

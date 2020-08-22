@@ -76,7 +76,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
             if (sums.empty())
                 return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 const float* ptr = a.row(i);
@@ -104,7 +104,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
             // w h -> X h
             b.create(h, elemsize, opt.blob_allocator);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 const float* ptr = a.row(i);
@@ -152,7 +152,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
             if (sums.empty())
                 return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -180,7 +180,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
             // w h c -> X X c
             b.create(channels, elemsize, opt.blob_allocator);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -201,7 +201,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
             // w h c -> X h c
             b.create(h, channels, elemsize, opt.blob_allocator);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -232,7 +232,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
 
             mins.fill(v0);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -275,7 +275,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
 
             mins.fill(v0);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -332,7 +332,7 @@ static int reduction_op(const Mat& a, Mat& b, float v0, bool reduce_w, bool redu
 
             b.fill(v0);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -393,7 +393,7 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
             if (sums.empty())
                 return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 const float* ptr = a.row(i);
@@ -421,7 +421,7 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
             // w h -> 1 h
             b.create(1, h, elemsize, opt.blob_allocator);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 const float* ptr = a.row(i);
@@ -471,7 +471,7 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
             if (sums.empty())
                 return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -499,7 +499,7 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
             // w h c -> 1 1 c
             b.create(1, 1, channels, elemsize, opt.blob_allocator);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -522,7 +522,7 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
             // w h c -> 1 h c
             b.create(1, h, channels, elemsize, opt.blob_allocator);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -554,7 +554,7 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
 
             mins.fill(v0);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -597,7 +597,7 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
 
             mins.fill(v0);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -653,7 +653,7 @@ static int reduction_op_keepdims(const Mat& a, Mat& b, float v0, bool reduce_w, 
             b.create(w, 1, channels, elemsize, opt.blob_allocator);
             b.fill(v0);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -686,7 +686,7 @@ static int reduction_post_process(Mat& a, float coeff, const Option& opt)
     {
         int w = a.w;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < w; i++)
             a[i] = mathop(a[i]) * coeff;
     }
@@ -694,7 +694,7 @@ static int reduction_post_process(Mat& a, float coeff, const Option& opt)
     {
         int size = a.w * a.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < size; i++)
             a[i] = mathop(a[i]) * coeff;
     }
@@ -704,13 +704,13 @@ static int reduction_post_process(Mat& a, float coeff, const Option& opt)
         int size = a.w * a.h;
         if (c == 1)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < size; i++)
                 a[i] = mathop(a[i]) * coeff;
         }
         else
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
             {
                 float* outptr = a.channel(q);

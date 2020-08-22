@@ -424,7 +424,7 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
 
     if (bottom_blob.dims == 1)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             Mat top_blob_c = top_blob.channel(q);
@@ -439,7 +439,7 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
         const float hs = outh ? h / (float)outh : 1.f / height_scale;
         const float ws = outw ? w / (float)outw : 1.f / width_scale;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
@@ -469,7 +469,7 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
         linear_coeffs(w, outw, xofs, alpha);
         linear_coeffs(h, outh, yofs, beta);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; ++q)
         {
             const Mat src = bottom_blob.channel(q);
@@ -494,7 +494,7 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
         cubic_coeffs(w, outw, xofs, alpha);
         cubic_coeffs(h, outh, yofs, beta);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const Mat src = bottom_blob.channel(q);
