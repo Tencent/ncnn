@@ -61,15 +61,21 @@ void swap(T& a, T& b)
 template<typename T1, typename T2>
 struct pair
 {
-    pair() : first(), second() { }
-    pair(const T1& t1, const T2& t2) : first(t1), second(t2) { }
+    pair()
+        : first(), second()
+    {
+    }
+    pair(const T1& t1, const T2& t2)
+        : first(t1), second(t2)
+    {
+    }
 
     T1 first;
     T2 second;
 };
 
 template <class T1, class T2>
-pair<T1,T2> make_pair(const T1& t1, const T2& t2)
+pair<T1, T2> make_pair(const T1& t1, const T2& t2)
 {
     return pair<T1, T2>(t1, t2);
 }
@@ -81,17 +87,33 @@ struct node
     node* next_ = nullptr;
     T data_;
 
-    node() : data_() { }
-    node(const T& t) : data_(t) { }
+    node()
+        : data_()
+    {
+    }
+    node(const T& t)
+        : data_(t)
+    {
+    }
 };
 
 template<typename T>
 struct iter_list
 {
-    iter_list() { }
-    iter_list(node<T>* n) : curr_(n) { }
-    iter_list(const iter_list& i): curr_(i.curr_) { }
-    ~iter_list() { }
+    iter_list()
+    {
+    }
+    iter_list(node<T>* n)
+        : curr_(n)
+    {
+    }
+    iter_list(const iter_list& i)
+        : curr_(i.curr_)
+    {
+    }
+    ~iter_list()
+    {
+    }
 
     iter_list& operator=(const iter_list& i)
     {
@@ -128,7 +150,7 @@ struct iter_list
         return *this;
     }
 
-    node<T> *curr_ = nullptr;
+    node<T>* curr_ = nullptr;
 };
 
 template<typename T>
@@ -172,7 +194,8 @@ struct list
 
     void clear()
     {
-        while (count_ > 0) {
+        while (count_ > 0)
+        {
             pop_front();
         }
     }
@@ -230,7 +253,7 @@ struct list
     {
         if (pos != end())
         {
-            node<T> *temp = pos.curr_;
+            node<T>* temp = pos.curr_;
             if (temp == head_)
             {
                 ++pos;
