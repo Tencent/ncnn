@@ -351,58 +351,67 @@ static void conv1x1s1_sgemm_pack4_fp16sa_neon(const Mat& bottom_blob, Mat& top_b
             __fp16* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
             const __fp16* kptr = kernel.channel(pp);
 
-            float16x8_t _sum0 = _bias0;
-            float16x8_t _sum1 = _bias0;
-            float16x8_t _sum2 = _bias0;
-            float16x8_t _sum3 = _bias0;
+            int nn = inch; // inch always > 0
 
-            for (int q = 0; q < inch; q++)
-            {
-                float16x4_t _r0 = vld1_f16(tmpptr);
-                float16x4_t _r1 = vld1_f16(tmpptr + 4);
-                float16x4_t _r2 = vld1_f16(tmpptr + 8);
-                float16x4_t _r3 = vld1_f16(tmpptr + 12);
+            asm volatile(
+                "mov    v24.16b, %10.16b            \n"
+                "mov    v25.16b, %10.16b            \n"
+                "mov    v26.16b, %10.16b            \n"
+                "mov    v27.16b, %10.16b            \n"
 
-                float16x8_t _k0 = vld1q_f16(kptr);
-                float16x8_t _k1 = vld1q_f16(kptr + 8);
-                float16x8_t _k2 = vld1q_f16(kptr + 16);
-                float16x8_t _k3 = vld1q_f16(kptr + 24);
+                "0:                                 \n"
 
-                _sum0 = vfmaq_lane_f16(_sum0, _k0, _r0, 0);
-                _sum1 = vfmaq_lane_f16(_sum1, _k0, _r0, 1);
-                _sum2 = vfmaq_lane_f16(_sum2, _k0, _r0, 2);
-                _sum3 = vfmaq_lane_f16(_sum3, _k0, _r0, 3);
+                "prfm   pldl1keep, [%3, #256]       \n"
+                "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%3], #32 \n" // r01 r23 r45 r67
 
-                _sum0 = vfmaq_lane_f16(_sum0, _k1, _r1, 0);
-                _sum1 = vfmaq_lane_f16(_sum1, _k1, _r1, 1);
-                _sum2 = vfmaq_lane_f16(_sum2, _k1, _r1, 2);
-                _sum3 = vfmaq_lane_f16(_sum3, _k1, _r1, 3);
+                "prfm   pldl1keep, [%4, #512]       \n"
+                "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%4], #64 \n" // k0123
 
-                _sum0 = vfmaq_lane_f16(_sum0, _k2, _r2, 0);
-                _sum1 = vfmaq_lane_f16(_sum1, _k2, _r2, 1);
-                _sum2 = vfmaq_lane_f16(_sum2, _k2, _r2, 2);
-                _sum3 = vfmaq_lane_f16(_sum3, _k2, _r2, 3);
+                "fmla   v24.8h, v4.8h, v0.h[0]      \n"
+                "fmla   v25.8h, v4.8h, v0.h[1]      \n"
+                "fmla   v26.8h, v4.8h, v0.h[2]      \n"
+                "fmla   v27.8h, v4.8h, v0.h[3]      \n"
 
-                _sum0 = vfmaq_lane_f16(_sum0, _k3, _r3, 0);
-                _sum1 = vfmaq_lane_f16(_sum1, _k3, _r3, 1);
-                _sum2 = vfmaq_lane_f16(_sum2, _k3, _r3, 2);
-                _sum3 = vfmaq_lane_f16(_sum3, _k3, _r3, 3);
+                "fmla   v24.8h, v5.8h, v1.h[0]      \n"
+                "fmla   v25.8h, v5.8h, v1.h[1]      \n"
+                "fmla   v26.8h, v5.8h, v1.h[2]      \n"
+                "fmla   v27.8h, v5.8h, v1.h[3]      \n"
 
-                kptr += 32;
-                tmpptr += 16;
-            }
+                "fmla   v24.8h, v6.8h, v2.h[0]      \n"
+                "fmla   v25.8h, v6.8h, v2.h[1]      \n"
+                "fmla   v26.8h, v6.8h, v2.h[2]      \n"
+                "fmla   v27.8h, v6.8h, v2.h[3]      \n"
 
-            vst1_f16(outptr0, vget_low_f16(_sum0));
-            vst1_f16(outptr0 + 4, vget_low_f16(_sum1));
-            vst1_f16(outptr0 + 8, vget_low_f16(_sum2));
-            vst1_f16(outptr0 + 12, vget_low_f16(_sum3));
-            vst1_f16(outptr1, vget_high_f16(_sum0));
-            vst1_f16(outptr1 + 4, vget_high_f16(_sum1));
-            vst1_f16(outptr1 + 8, vget_high_f16(_sum2));
-            vst1_f16(outptr1 + 12, vget_high_f16(_sum3));
+                "subs   %w0, %w0, #1                \n"
 
-            outptr0 += 16;
-            outptr1 += 16;
+                "fmla   v24.8h, v7.8h, v3.h[0]      \n"
+                "fmla   v25.8h, v7.8h, v3.h[1]      \n"
+                "fmla   v26.8h, v7.8h, v3.h[2]      \n"
+                "fmla   v27.8h, v7.8h, v3.h[3]      \n"
+
+                "bne    0b                          \n"
+
+                "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%1], #32 \n"
+
+                "ext    v24.16b, v24.16b, v24.16b, #8 \n"
+                "ext    v25.16b, v25.16b, v25.16b, #8 \n"
+                "ext    v26.16b, v26.16b, v26.16b, #8 \n"
+                "ext    v27.16b, v27.16b, v27.16b, #8 \n"
+
+                "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%2], #32 \n"
+
+                : "=r"(nn),      // %0
+                "=r"(outptr0), // %1
+                "=r"(outptr1), // %2
+                "=r"(tmpptr),  // %3
+                "=r"(kptr)     // %4
+                : "0"(nn),
+                "1"(outptr0),
+                "2"(outptr1),
+                "3"(tmpptr),
+                "4"(kptr),
+                "w"(_bias0) // %10
+                : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v24", "v25", "v26", "v27");
         }
         for (; i < size; i++)
         {
@@ -531,53 +540,58 @@ static void conv1x1s1_sgemm_pack4_fp16sa_neon(const Mat& bottom_blob, Mat& top_b
             __fp16* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
             const __fp16* kptr = kernel.channel(p / 2 + p % 2);
 
-            float16x4_t _sum0 = _bias0;
-            float16x4_t _sum1 = _bias0;
-            float16x4_t _sum2 = _bias0;
-            float16x4_t _sum3 = _bias0;
+            int nn = inch; // inch always > 0
 
-            for (int q = 0; q < inch; q++)
-            {
-                float16x4_t _r0 = vld1_f16(tmpptr);
-                float16x4_t _r1 = vld1_f16(tmpptr + 4);
-                float16x4_t _r2 = vld1_f16(tmpptr + 8);
-                float16x4_t _r3 = vld1_f16(tmpptr + 12);
+            asm volatile(
+                "mov    v24.16b, %8.16b             \n"
+                "mov    v25.16b, %8.16b             \n"
+                "mov    v26.16b, %8.16b             \n"
+                "mov    v27.16b, %8.16b             \n"
 
-                float16x4_t _k0 = vld1_f16(kptr);
-                float16x4_t _k1 = vld1_f16(kptr + 4);
-                float16x4_t _k2 = vld1_f16(kptr + 8);
-                float16x4_t _k3 = vld1_f16(kptr + 12);
+                "0:                                 \n"
 
-                _sum0 = vfma_lane_f16(_sum0, _k0, _r0, 0);
-                _sum1 = vfma_lane_f16(_sum1, _k0, _r0, 1);
-                _sum2 = vfma_lane_f16(_sum2, _k0, _r0, 2);
-                _sum3 = vfma_lane_f16(_sum3, _k0, _r0, 3);
+                "prfm   pldl1keep, [%2, #256]       \n"
+                "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%2], #32 \n" // r01 r23 r45 r67
 
-                _sum0 = vfma_lane_f16(_sum0, _k1, _r1, 0);
-                _sum1 = vfma_lane_f16(_sum1, _k1, _r1, 1);
-                _sum2 = vfma_lane_f16(_sum2, _k1, _r1, 2);
-                _sum3 = vfma_lane_f16(_sum3, _k1, _r1, 3);
+                "prfm   pldl1keep, [%3, #256]       \n"
+                "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%3], #32 \n" // k0123
 
-                _sum0 = vfma_lane_f16(_sum0, _k2, _r2, 0);
-                _sum1 = vfma_lane_f16(_sum1, _k2, _r2, 1);
-                _sum2 = vfma_lane_f16(_sum2, _k2, _r2, 2);
-                _sum3 = vfma_lane_f16(_sum3, _k2, _r2, 3);
+                "fmla   v24.4h, v4.4h, v0.h[0]      \n"
+                "fmla   v25.4h, v4.4h, v0.h[1]      \n"
+                "fmla   v26.4h, v4.4h, v0.h[2]      \n"
+                "fmla   v27.4h, v4.4h, v0.h[3]      \n"
 
-                _sum0 = vfma_lane_f16(_sum0, _k3, _r3, 0);
-                _sum1 = vfma_lane_f16(_sum1, _k3, _r3, 1);
-                _sum2 = vfma_lane_f16(_sum2, _k3, _r3, 2);
-                _sum3 = vfma_lane_f16(_sum3, _k3, _r3, 3);
+                "fmla   v24.4h, v5.4h, v1.h[0]      \n"
+                "fmla   v25.4h, v5.4h, v1.h[1]      \n"
+                "fmla   v26.4h, v5.4h, v1.h[2]      \n"
+                "fmla   v27.4h, v5.4h, v1.h[3]      \n"
 
-                kptr += 16;
-                tmpptr += 16;
-            }
+                "fmla   v24.4h, v6.4h, v2.h[0]      \n"
+                "fmla   v25.4h, v6.4h, v2.h[1]      \n"
+                "fmla   v26.4h, v6.4h, v2.h[2]      \n"
+                "fmla   v27.4h, v6.4h, v2.h[3]      \n"
 
-            vst1_f16(outptr0, _sum0);
-            vst1_f16(outptr0 + 4, _sum1);
-            vst1_f16(outptr0 + 8, _sum2);
-            vst1_f16(outptr0 + 12, _sum3);
+                "subs   %w0, %w0, #1                \n"
 
-            outptr0 += 16;
+                "fmla   v24.4h, v7.4h, v3.h[0]      \n"
+                "fmla   v25.4h, v7.4h, v3.h[1]      \n"
+                "fmla   v26.4h, v7.4h, v3.h[2]      \n"
+                "fmla   v27.4h, v7.4h, v3.h[3]      \n"
+
+                "bne    0b                          \n"
+
+                "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%1], #32 \n"
+
+                : "=r"(nn),      // %0
+                "=r"(outptr0), // %1
+                "=r"(tmpptr),  // %2
+                "=r"(kptr)     // %3
+                : "0"(nn),
+                "1"(outptr0),
+                "2"(tmpptr),
+                "3"(kptr),
+                "w"(_bias0) // %8
+                : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v24", "v25", "v26", "v27");
         }
         for (; i < size; i++)
         {
