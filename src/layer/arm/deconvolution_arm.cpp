@@ -31,6 +31,10 @@ namespace ncnn {
 #include "deconvolution_3x3.h"
 #include "deconvolution_4x4.h"
 
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "deconvolution_4x4_fp16s.h"
+#endif
+
 Deconvolution_arm::Deconvolution_arm()
 {
 #if __ARM_NEON
@@ -780,6 +784,14 @@ int Deconvolution_arm::create_pipeline_fp16s(const Option& opt)
                     }
                 }
             }
+        }
+    }
+
+    if (elempack == 1 && out_elempack == 1 && opt.use_fp16_arithmetic)
+    {
+        if (kernel_w == 4 && kernel_h == 4 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+        {
+            ncnn::cast_float32_to_float16(weight_data, weight_data_fp16, opt);
         }
     }
 
@@ -1802,6 +1814,16 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
     if (elempack == 1 && out_elempack == 1)
     {
+        if (kernel_w == 4 && kernel_h == 4 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+        {
+            deconv4x4s2_fp16sa_neon(bottom_blob, top_blob_bordered, weight_data_fp16, bias_data_fp16, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob_bordered, opt);
+            }
+        }
+        else
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
