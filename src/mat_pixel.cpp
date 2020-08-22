@@ -106,15 +106,15 @@ static int from_rgb(const unsigned char* rgb, int w, int h, int stride, Mat& m, 
                 "vst1.f32   {d16-d19}, [%4 :128]!\n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(rgb),  // %1
-                "=r"(ptr0), // %2
-                "=r"(ptr1), // %3
-                "=r"(ptr2)  // %4
+                  "=r"(rgb),  // %1
+                  "=r"(ptr0), // %2
+                  "=r"(ptr1), // %3
+                  "=r"(ptr2)  // %4
                 : "0"(nn),
-                "1"(rgb),
-                "2"(ptr0),
-                "3"(ptr1),
-                "4"(ptr2)
+                  "1"(rgb),
+                  "2"(ptr0),
+                  "3"(ptr1),
+                  "4"(ptr2)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10");
         }
 #endif // __aarch64__
@@ -275,11 +275,11 @@ static int from_gray(const unsigned char* gray, int w, int h, int stride, Mat& m
                 "vst1.f32   {d4-d7}, [%2 :128]! \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(gray), // %1
-                "=r"(ptr)   // %2
+                  "=r"(gray), // %1
+                  "=r"(ptr)   // %2
                 : "0"(nn),
-                "1"(gray),
-                "2"(ptr)
+                  "1"(gray),
+                  "2"(ptr)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9");
         }
 #endif // __aarch64__
@@ -447,17 +447,17 @@ static int from_rgba(const unsigned char* rgba, int w, int h, int stride, Mat& m
                 "vst1.f32   {d20-d23}, [%5 :128]!\n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(rgba), // %1
-                "=r"(ptr0), // %2
-                "=r"(ptr1), // %3
-                "=r"(ptr2), // %4
-                "=r"(ptr3)  // %5
+                  "=r"(rgba), // %1
+                  "=r"(ptr0), // %2
+                  "=r"(ptr1), // %3
+                  "=r"(ptr2), // %4
+                  "=r"(ptr3)  // %5
                 : "0"(nn),
-                "1"(rgba),
-                "2"(ptr0),
-                "3"(ptr1),
-                "4"(ptr2),
-                "5"(ptr3)
+                  "1"(rgba),
+                  "2"(ptr0),
+                  "3"(ptr1),
+                  "4"(ptr2),
+                  "5"(ptr3)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
         }
 #endif // __aarch64__
@@ -643,15 +643,15 @@ static int from_rgb2bgr(const unsigned char* rgb, int w, int h, int stride, Mat&
                 "vst1.f32   {d16-d19}, [%2 :128]!\n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(rgb),  // %1
-                "=r"(ptr0), // %2
-                "=r"(ptr1), // %3
-                "=r"(ptr2)  // %4
+                  "=r"(rgb),  // %1
+                  "=r"(ptr0), // %2
+                  "=r"(ptr1), // %3
+                  "=r"(ptr2)  // %4
                 : "0"(nn),
-                "1"(rgb),
-                "2"(ptr0),
-                "3"(ptr1),
-                "4"(ptr2)
+                  "1"(rgb),
+                  "2"(ptr0),
+                  "3"(ptr1),
+                  "4"(ptr2)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10");
         }
 #endif // __aarch64__
@@ -820,14 +820,14 @@ static int from_rgb2gray(const unsigned char* rgb, int w, int h, int stride, Mat
                 "vst1.f32   {d0-d3}, [%2 :128]! \n"
                 "bne        0b                  \n"
                 : "=r"(nn),  // %0
-                "=r"(rgb), // %1
-                "=r"(ptr)  // %2
+                  "=r"(rgb), // %1
+                  "=r"(ptr)  // %2
                 : "0"(nn),
-                "1"(rgb),
-                "2"(ptr),
-                "r"(R2Y), // %6
-                "r"(G2Y), // %7
-                "r"(B2Y)  // %8
+                  "1"(rgb),
+                  "2"(ptr),
+                  "r"(R2Y), // %6
+                  "r"(G2Y), // %7
+                  "r"(B2Y)  // %8
                 : "cc", "memory", "q0", "q1", "q2", "q8", "q9");
         }
 #endif // __aarch64__
@@ -1010,14 +1010,14 @@ static int from_bgr2gray(const unsigned char* bgr, int w, int h, int stride, Mat
                 "vst1.f32   {d0-d3}, [%2 :128]! \n"
                 "bne        0b                  \n"
                 : "=r"(nn),  // %0
-                "=r"(bgr), // %1
-                "=r"(ptr)  // %2
+                  "=r"(bgr), // %1
+                  "=r"(ptr)  // %2
                 : "0"(nn),
-                "1"(bgr),
-                "2"(ptr),
-                "r"(R2Y), // %6
-                "r"(G2Y), // %7
-                "r"(B2Y)  // %8
+                  "1"(bgr),
+                  "2"(ptr),
+                  "r"(R2Y), // %6
+                  "r"(G2Y), // %7
+                  "r"(B2Y)  // %8
                 : "cc", "memory", "q0", "q1", "q2", "q8", "q9");
         }
 #endif // __aarch64__
@@ -1210,15 +1210,15 @@ static int from_gray2rgb(const unsigned char* gray, int w, int h, int stride, Ma
                 "vst1.f32   {d4-d7}, [%4 :128]! \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(gray), // %1
-                "=r"(ptr0), // %2
-                "=r"(ptr1), // %3
-                "=r"(ptr2)  // %4
+                  "=r"(gray), // %1
+                  "=r"(ptr0), // %2
+                  "=r"(ptr1), // %3
+                  "=r"(ptr2)  // %4
                 : "0"(nn),
-                "1"(gray),
-                "2"(ptr0),
-                "3"(ptr1),
-                "4"(ptr2)
+                  "1"(gray),
+                  "2"(ptr0),
+                  "3"(ptr1),
+                  "4"(ptr2)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9");
         }
 #endif // __aarch64__
@@ -1403,15 +1403,15 @@ static int from_rgba2rgb(const unsigned char* rgba, int w, int h, int stride, Ma
                 "vst1.f32   {d16-d19}, [%4 :128]!\n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(rgba), // %1
-                "=r"(ptr0), // %2
-                "=r"(ptr1), // %3
-                "=r"(ptr2)  // %4
+                  "=r"(rgba), // %1
+                  "=r"(ptr0), // %2
+                  "=r"(ptr1), // %3
+                  "=r"(ptr2)  // %4
                 : "0"(nn),
-                "1"(rgba),
-                "2"(ptr0),
-                "3"(ptr1),
-                "4"(ptr2)
+                  "1"(rgba),
+                  "2"(ptr0),
+                  "3"(ptr1),
+                  "4"(ptr2)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9");
         }
 #endif // __aarch64__
@@ -1516,15 +1516,15 @@ static int from_rgba2bgr(const unsigned char* rgba, int w, int h, int stride, Ma
                 "vst1.f32   {d16-d19}, [%2 :128]!\n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(rgba), // %1
-                "=r"(ptr0), // %2
-                "=r"(ptr1), // %3
-                "=r"(ptr2)  // %4
+                  "=r"(rgba), // %1
+                  "=r"(ptr0), // %2
+                  "=r"(ptr1), // %3
+                  "=r"(ptr2)  // %4
                 : "0"(nn),
-                "1"(rgba),
-                "2"(ptr0),
-                "3"(ptr1),
-                "4"(ptr2)
+                  "1"(rgba),
+                  "2"(ptr0),
+                  "3"(ptr1),
+                  "4"(ptr2)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10");
         }
 #endif // __aarch64__
@@ -1622,14 +1622,14 @@ static int from_rgba2gray(const unsigned char* rgba, int w, int h, int stride, M
                 "vst1.f32   {d0-d3}, [%2 :128]! \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(rgba), // %1
-                "=r"(ptr)   // %2
+                  "=r"(rgba), // %1
+                  "=r"(ptr)   // %2
                 : "0"(nn),
-                "1"(rgba),
-                "2"(ptr),
-                "r"(R2Y), // %6
-                "r"(G2Y), // %7
-                "r"(B2Y)  // %8
+                  "1"(rgba),
+                  "2"(ptr),
+                  "r"(R2Y), // %6
+                  "r"(G2Y), // %7
+                  "r"(B2Y)  // %8
                 : "cc", "memory", "q0", "q1", "q2", "q8", "q9");
         }
 #endif // __aarch64__
@@ -1743,17 +1743,17 @@ static int from_rgba2bgra(const unsigned char* rgba, int w, int h, int stride, M
                 "vst1.f32   {d20-d23}, [%5 :128]!\n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(rgba), // %1
-                "=r"(ptr0), // %2
-                "=r"(ptr1), // %3
-                "=r"(ptr2), // %4
-                "=r"(ptr3)  // %5
+                  "=r"(rgba), // %1
+                  "=r"(ptr0), // %2
+                  "=r"(ptr1), // %3
+                  "=r"(ptr2), // %4
+                  "=r"(ptr3)  // %5
                 : "0"(nn),
-                "1"(rgba),
-                "2"(ptr0),
-                "3"(ptr1),
-                "4"(ptr2),
-                "5"(ptr3)
+                  "1"(rgba),
+                  "2"(ptr0),
+                  "3"(ptr1),
+                  "4"(ptr2),
+                  "5"(ptr3)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
         }
 #endif // __aarch64__
@@ -1932,14 +1932,14 @@ static int from_bgra2gray(const unsigned char* bgra, int w, int h, int stride, M
                 "vst1.f32   {d0-d3}, [%2 :128]! \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(bgra), // %1
-                "=r"(ptr)   // %2
+                  "=r"(bgra), // %1
+                  "=r"(ptr)   // %2
                 : "0"(nn),
-                "1"(bgra),
-                "2"(ptr),
-                "r"(R2Y), // %6
-                "r"(G2Y), // %7
-                "r"(B2Y)  // %8
+                  "1"(bgra),
+                  "2"(ptr),
+                  "r"(R2Y), // %6
+                  "r"(G2Y), // %7
+                  "r"(B2Y)  // %8
                 : "cc", "memory", "q0", "q1", "q2", "q8", "q9");
         }
 #endif // __aarch64__
@@ -2069,22 +2069,22 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
                 "bne        0b                  \n"
                 "sub        %3, #8              \n"
                 : "=r"(nn),    // %0
-                "=r"(yptr0), // %1
-                "=r"(yptr1), // %2
-                "=r"(vuptr), // %3
-                "=r"(rgb0),  // %4
-                "=r"(rgb1)   // %5
+                  "=r"(yptr0), // %1
+                  "=r"(yptr1), // %2
+                  "=r"(vuptr), // %3
+                  "=r"(rgb0),  // %4
+                  "=r"(rgb1)   // %5
                 : "0"(nn),
-                "1"(yptr0),
-                "2"(yptr1),
-                "3"(vuptr),
-                "4"(rgb0),
-                "5"(rgb1),
-                "w"(_v128), // %12
-                "w"(_v90),  // %13
-                "w"(_v46),  // %14
-                "w"(_v22),  // %15
-                "w"(_v113)  // %16
+                  "1"(yptr0),
+                  "2"(yptr1),
+                  "3"(vuptr),
+                  "4"(rgb0),
+                  "5"(rgb1),
+                  "w"(_v128), // %12
+                  "w"(_v90),  // %13
+                  "w"(_v46),  // %14
+                  "w"(_v22),  // %15
+                  "w"(_v113)  // %16
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12", "d26");
         }
 #endif // __aarch64__

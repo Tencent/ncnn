@@ -42,12 +42,12 @@ void* operator new[](size_t sz, void*) noexcept
     return ptr;
 }
 
-void operator delete(void *ptr) noexcept
+void operator delete(void* ptr)noexcept
 {
     free(ptr);
 }
 
-void operator delete[](void *ptr) noexcept
+void operator delete[](void* ptr) noexcept
 {
     free(ptr);
 }

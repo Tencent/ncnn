@@ -103,7 +103,7 @@ int SPP::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 
         if (pooling_type == PoolMethod_MAX)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat m(w, h, bottom_blob_bordered.channel(q));
@@ -132,7 +132,7 @@ int SPP::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
         }
         else if (pooling_type == PoolMethod_AVE)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat m(w, h, bottom_blob_bordered.channel(q));

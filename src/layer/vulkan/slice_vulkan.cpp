@@ -481,8 +481,8 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             constants[10].i = woffset;
 
             const Pipeline* pipeline = elempack == 8 ? pipeline_slice_pack8[i % 2]
-                                       : elempack == 4 ? pipeline_slice_pack4[i % 2]
-                                       : pipeline_slice[i % 2];
+                                                     : elempack == 4 ? pipeline_slice_pack4[i % 2]
+                                                                     : pipeline_slice[i % 2];
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -641,8 +641,8 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             constants[10].i = hoffset;
 
             const Pipeline* pipeline = elempack == 8 ? pipeline_slice_pack8[i % 2]
-                                       : elempack == 4 ? pipeline_slice_pack4[i % 2]
-                                       : pipeline_slice[i % 2];
+                                                     : elempack == 4 ? pipeline_slice_pack4[i % 2]
+                                                                     : pipeline_slice[i % 2];
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -699,8 +699,8 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
             constants[10].i = woffset;
 
             const Pipeline* pipeline = elempack == 8 ? pipeline_slice_pack8[i % 2]
-                                       : elempack == 4 ? pipeline_slice_pack4[i % 2]
-                                       : pipeline_slice[i % 2];
+                                                     : elempack == 4 ? pipeline_slice_pack4[i % 2]
+                                                                     : pipeline_slice[i % 2];
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -967,8 +967,8 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
             constants[10].i = woffset;
 
             const Pipeline* pipeline = elempack == 8 ? pipeline_slice_pack8[i % 2]
-                                       : elempack == 4 ? pipeline_slice_pack4[i % 2]
-                                       : pipeline_slice[i % 2];
+                                                     : elempack == 4 ? pipeline_slice_pack4[i % 2]
+                                                                     : pipeline_slice[i % 2];
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -1127,8 +1127,8 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
             constants[10].i = hoffset;
 
             const Pipeline* pipeline = elempack == 8 ? pipeline_slice_pack8[i % 2]
-                                       : elempack == 4 ? pipeline_slice_pack4[i % 2]
-                                       : pipeline_slice[i % 2];
+                                                     : elempack == 4 ? pipeline_slice_pack4[i % 2]
+                                                                     : pipeline_slice[i % 2];
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -1185,8 +1185,8 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
             constants[10].i = woffset;
 
             const Pipeline* pipeline = elempack == 8 ? pipeline_slice_pack8[i % 2]
-                                       : elempack == 4 ? pipeline_slice_pack4[i % 2]
-                                       : pipeline_slice[i % 2];
+                                                     : elempack == 4 ? pipeline_slice_pack4[i % 2]
+                                                                     : pipeline_slice[i % 2];
 
             cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

@@ -30,8 +30,8 @@ void* operator new(size_t sz) noexcept;
 void* operator new(size_t sz, void*) noexcept;
 void* operator new[](size_t sz) noexcept;
 void* operator new[](size_t sz, void*) noexcept;
-void operator delete(void *ptr) noexcept;
-void operator delete[](void *ptr) noexcept;
+void operator delete(void* ptr)noexcept;
+void operator delete[](void* ptr) noexcept;
 
 #endif
 
@@ -74,7 +74,7 @@ struct pair
     T2 second;
 };
 
-template <class T1, class T2>
+template<class T1, class T2>
 pair<T1, T2> make_pair(const T1& t1, const T2& t2)
 {
     return pair<T1, T2>(t1, t2);

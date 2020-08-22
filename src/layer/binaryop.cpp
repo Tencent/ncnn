@@ -69,7 +69,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 if (c.empty())
                     return -100;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = a.channel(q);
@@ -91,7 +91,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 if (c.empty())
                     return -100;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = a.channel(q);
@@ -113,7 +113,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 if (c.empty())
                     return -100;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels1; q++)
                 {
                     const float* a0 = a.channel(q);
@@ -135,7 +135,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 if (c.empty())
                     return -100;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels1; q++)
                 {
                     const float* ptr = a;
@@ -155,7 +155,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             if (c.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -177,8 +177,8 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
         if (b.dims == 2)
         {
-            // type 18
-            #pragma omp parallel for num_threads(opt.num_threads)
+// type 18
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -207,7 +207,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             {
                 // type 16
                 const float b0 = b[0];
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = a.channel(q);
@@ -222,8 +222,8 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 return 0;
             }
 
-            // type 17
-            #pragma omp parallel for num_threads(opt.num_threads)
+// type 17
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
@@ -248,7 +248,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             if (c.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels1; q++)
             {
                 const float* ptr = a.row(q);
@@ -335,7 +335,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                     return -100;
 
                 const float a0 = a[0];
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels1; q++)
                 {
                     const float* ptr1 = b.channel(q);
@@ -390,7 +390,7 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             if (c.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels1; q++)
             {
                 const float a0 = a[q];
@@ -470,7 +470,7 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
     int channels = a.c;
     int size = w * h;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = a.channel(q);

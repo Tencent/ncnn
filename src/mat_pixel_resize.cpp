@@ -273,15 +273,15 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
                 "sub        %0, #16         \n"
                 "sub        %1, #16         \n"
                 : "=r"(rows0p), // %0
-                "=r"(rows1p), // %1
-                "=r"(Dp),     // %2
-                "=r"(nn)      // %3
+                  "=r"(rows1p), // %1
+                  "=r"(Dp),     // %2
+                  "=r"(nn)      // %3
                 : "0"(rows0p),
-                "1"(rows1p),
-                "2"(Dp),
-                "3"(nn),
-                "r"(b0), // %8
-                "r"(b1)  // %9
+                  "1"(rows1p),
+                  "2"(Dp),
+                  "3"(nn),
+                  "r"(b0), // %8
+                  "r"(b1)  // %9
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12");
         }
 #endif // __aarch64__
@@ -582,15 +582,15 @@ void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstr
                 "sub        %0, #16         \n"
                 "sub        %1, #16         \n"
                 : "=r"(rows0p), // %0
-                "=r"(rows1p), // %1
-                "=r"(Dp),     // %2
-                "=r"(nn)      // %3
+                  "=r"(rows1p), // %1
+                  "=r"(Dp),     // %2
+                  "=r"(nn)      // %3
                 : "0"(rows0p),
-                "1"(rows1p),
-                "2"(Dp),
-                "3"(nn),
-                "r"(b0), // %8
-                "r"(b1)  // %9
+                  "1"(rows1p),
+                  "2"(Dp),
+                  "3"(nn),
+                  "r"(b0), // %8
+                  "r"(b1)  // %9
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12");
         }
 #endif // __aarch64__
@@ -902,15 +902,15 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
                 "sub        %0, #16         \n"
                 "sub        %1, #16         \n"
                 : "=r"(rows0p), // %0
-                "=r"(rows1p), // %1
-                "=r"(Dp),     // %2
-                "=r"(nn)      // %3
+                  "=r"(rows1p), // %1
+                  "=r"(Dp),     // %2
+                  "=r"(nn)      // %3
                 : "0"(rows0p),
-                "1"(rows1p),
-                "2"(Dp),
-                "3"(nn),
-                "r"(b0), // %8
-                "r"(b1)  // %9
+                  "1"(rows1p),
+                  "2"(Dp),
+                  "3"(nn),
+                  "r"(b0), // %8
+                  "r"(b1)  // %9
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12");
         }
 #endif // __aarch64__
@@ -1202,15 +1202,15 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
                 "sub        %0, #16         \n"
                 "sub        %1, #16         \n"
                 : "=r"(rows0p), // %0
-                "=r"(rows1p), // %1
-                "=r"(Dp),     // %2
-                "=r"(nn)      // %3
+                  "=r"(rows1p), // %1
+                  "=r"(Dp),     // %2
+                  "=r"(nn)      // %3
                 : "0"(rows0p),
-                "1"(rows1p),
-                "2"(Dp),
-                "3"(nn),
-                "r"(b0), // %8
-                "r"(b1)  // %9
+                  "1"(rows1p),
+                  "2"(Dp),
+                  "3"(nn),
+                  "r"(b0), // %8
+                  "r"(b1)  // %9
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12");
         }
 #endif // __aarch64__

@@ -61,7 +61,7 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         if (square_sum_blob.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_top_blob.channel(q);
@@ -99,7 +99,7 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             float scale = a * scale_data[0];
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
@@ -112,7 +112,7 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
         else
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
@@ -130,7 +130,7 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (across_spatial && !across_channel)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -178,7 +178,7 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             float scale = scale_data[0];
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < size; i++)
             {
                 float ssum = 0.f;
@@ -205,7 +205,7 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 square_sum_blob[i] = a * scale;
             }
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
@@ -218,7 +218,7 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
         else
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < size; i++)
             {
                 float ssum = 0.f;
@@ -245,7 +245,7 @@ int Normalize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 square_sum_blob[i] = a;
             }
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
