@@ -208,7 +208,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return -100;
 
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < num_output; p++)
     {
         float* outptr = top_blob.channel(p);
@@ -395,7 +395,7 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         return -100;
 
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < num_output; p++)
     {
         signed char* outptr = top_blob.channel(p);

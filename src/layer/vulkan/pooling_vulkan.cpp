@@ -329,8 +329,8 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         constants[9].i = top_blob.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_pack8
-                                                 : elempack == 4 ? pipeline_pooling_global_pack4
-                                                                 : pipeline_pooling_global;
+                                   : elempack == 4 ? pipeline_pooling_global_pack4
+                                   : pipeline_pooling_global;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -466,8 +466,8 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[11].i = htailpad;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_pack8
-                                             : elempack == 4 ? pipeline_pooling_pack4
-                                                             : pipeline_pooling;
+                               : elempack == 4 ? pipeline_pooling_pack4
+                               : pipeline_pooling;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -505,8 +505,8 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         constants[9].i = 0; //top_blob.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_pack8
-                                                 : elempack == 4 ? pipeline_pooling_global_pack4
-                                                                 : pipeline_pooling_global;
+                                   : elempack == 4 ? pipeline_pooling_global_pack4
+                                   : pipeline_pooling_global;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -642,8 +642,8 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     constants[11].i = htailpad;
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_pack8
-                                             : elempack == 4 ? pipeline_pooling_pack4
-                                                             : pipeline_pooling;
+                               : elempack == 4 ? pipeline_pooling_pack4
+                               : pipeline_pooling;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

@@ -262,8 +262,8 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[12].i = front / out_elempack;
 
     const Pipeline* pipeline = out_elempack == 8 ? pipeline_padding_pack8
-                                                 : out_elempack == 4 ? pipeline_padding_pack4
-                                                                     : pipeline_padding;
+                               : out_elempack == 4 ? pipeline_padding_pack4
+                               : pipeline_padding;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -370,8 +370,8 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     constants[12].i = _front / out_elempack;
 
     const Pipeline* pipeline = out_elempack == 8 ? pipeline_padding_pack8
-                                                 : out_elempack == 4 ? pipeline_padding_pack4
-                                                                     : pipeline_padding;
+                               : out_elempack == 4 ? pipeline_padding_pack4
+                               : pipeline_padding;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -460,8 +460,8 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     constants[12].i = front / out_elempack;
 
     const Pipeline* pipeline = out_elempack == 8 ? pipeline_padding_pack8
-                                                 : out_elempack == 4 ? pipeline_padding_pack4
-                                                                     : pipeline_padding;
+                               : out_elempack == 4 ? pipeline_padding_pack4
+                               : pipeline_padding;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -570,8 +570,8 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     constants[12].i = _front / out_elempack;
 
     const Pipeline* pipeline = out_elempack == 8 ? pipeline_padding_pack8
-                                                 : out_elempack == 4 ? pipeline_padding_pack4
-                                                                     : pipeline_padding;
+                               : out_elempack == 4 ? pipeline_padding_pack4
+                               : pipeline_padding;
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

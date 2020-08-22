@@ -71,7 +71,7 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             float* box = (float*)top_blob + i * w * num_prior * 4;
@@ -161,7 +161,7 @@ int PriorBox::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (top_blob.empty())
         return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < h; i++)
     {
         float* box = (float*)top_blob + i * w * num_prior * 4;

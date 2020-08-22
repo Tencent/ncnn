@@ -69,7 +69,7 @@ int PSROIPooling::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     float bin_size_w = roi_w / (float)pooled_width;
     float bin_size_h = roi_h / (float)pooled_height;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < output_dim; q++)
     {
         float* outptr = top_blob.channel(q);
