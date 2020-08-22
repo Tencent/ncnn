@@ -143,9 +143,7 @@ static inline float16x4_t activation_ps(float16x4_t _v, int activation_type, con
     }
     else if (activation_type == 5)
     {
-        float32x4_t _v32 = vcvt_f32_f16(_v);
-        _v32 = vmulq_f32(_v32, tanh_ps(log_ps(vaddq_f32(exp_ps(_v32), vdupq_n_f32(1.f)))));
-        _v = vcvt_f16_f32(_v32);
+        _v = vmul_f16(_v, tanh_ps(log_ps(vadd_f16(exp_ps(_v), vdup_n_f16(1.f)))));
     }
 
     return _v;
@@ -179,11 +177,7 @@ static inline float16x8_t activation_ps(float16x8_t _v, int activation_type, con
     }
     else if (activation_type == 5)
     {
-        float32x4_t _v32_low = vcvt_f32_f16(vget_low_f16(_v));
-        float32x4_t _v32_high = vcvt_f32_f16(vget_high_f16(_v));
-        _v32_low = vmulq_f32(_v32_low, tanh_ps(log_ps(vaddq_f32(exp_ps(_v32_low), vdupq_n_f32(1.f)))));
-        _v32_high = vmulq_f32(_v32_high, tanh_ps(log_ps(vaddq_f32(exp_ps(_v32_high), vdupq_n_f32(1.f)))));
-        _v = vcombine_f16(vcvt_f16_f32(_v32_low), vcvt_f16_f32(_v32_high));
+        _v = vmulq_f16(_v, tanh_ps(log_ps(vaddq_f16(exp_ps(_v), vdupq_n_f16(1.f)))));
     }
 
     return _v;
