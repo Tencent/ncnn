@@ -24,9 +24,8 @@ void* operator new(size_t sz) noexcept
     return ptr;
 }
 
-void* operator new(size_t sz, void*) noexcept
+void* operator new(size_t sz, void* ptr) noexcept
 {
-    void* ptr = malloc(sz);
     return ptr;
 }
 
@@ -36,9 +35,8 @@ void* operator new[](size_t sz) noexcept
     return ptr;
 }
 
-void* operator new[](size_t sz, void*) noexcept
+void* operator new[](size_t sz, void* ptr) noexcept
 {
-    void* ptr = malloc(sz);
     return ptr;
 }
 
