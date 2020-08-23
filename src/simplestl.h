@@ -38,19 +38,19 @@ void operator delete[](void *ptr) noexcept;
 // minimal stl data structure implementation
 namespace std {
 
-template<class T>
+template<typename T>
 const T& max(const T& a, const T& b)
 {
     return (a < b) ? b : a;
 }
 
-template<class T>
+template<typename T>
 const T& min(const T& a, const T& b)
 {
     return (a > b) ? b : a;
 }
 
-template<class T>
+template<typename T>
 void swap(T& a, T& b)
 {
     T temp(a);
@@ -74,7 +74,38 @@ struct pair
     T2 second;
 };
 
-template <class T1, class T2>
+template<typename T1, typename T2>
+bool operator==(const pair<T1, T2>& x, const pair<T1, T2>& y)
+{
+    return (x.first == y.first && x.second == y.second);
+}
+template<typename T1, typename T2>
+bool operator<(const pair<T1, T2>& x, const pair<T1, T2>& y)
+{
+    return x.first < y.first || (!(y.first < x.first) && x.second < y.second);
+}
+template<typename T1, typename T2>
+bool operator!=(const pair<T1, T2>& x, const pair<T1, T2>& y)
+{
+    return !(x == y);
+}
+template<typename T1, typename T2>
+bool operator>(const pair<T1, T2>& x, const pair<T1, T2>& y)
+{
+    return y < x;
+}
+template<typename T1, typename T2>
+bool operator<=(const pair<T1, T2>& x, const pair<T1, T2>& y)
+{
+    return !(y < x);
+}
+template<typename T1, typename T2>
+bool operator>=(const pair<T1, T2>& x, const pair<T1, T2>& y)
+{
+    return !(x < y);
+}
+
+template<typename T1, typename T2>
 pair<T1, T2> make_pair(const T1& t1, const T2& t2)
 {
     return pair<T1, T2>(t1, t2);
@@ -277,6 +308,24 @@ protected:
     node<T>* head_ = nullptr;
     node<T>* tail_ = nullptr;
     size_t count_ = 0;
+};
+
+template<typename T>
+struct greater
+{
+    bool operator()(const T& x, const T& y) const
+    {
+        return (x > y);
+    }
+};
+
+template<typename T>
+struct less
+{
+    bool operator()(const T& x, const T& y) const
+    {
+        return (x < y);
+    }
 };
 
 template<typename RandomAccessIter, typename Compare>
