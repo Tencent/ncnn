@@ -153,10 +153,11 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             float a = a_data[i];
             float b = b_data[i];
 
+            int j = 0;
+#if __ARM_NEON
             float32x4_t _a = vdupq_n_f32(a);
             float32x4_t _b = vdupq_n_f32(b);
 
-            int j = 0;
             for (; j + 3 < w; j += 4)
             {
                 float32x4_t _p = vld1q_f32(ptr);
@@ -165,6 +166,7 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                 ptr += 4;
             }
+#endif // __ARM_NEON
             for (; j < w; j++)
             {
                 *ptr = b * *ptr + a;
