@@ -279,6 +279,23 @@ protected:
     size_t count_ = 0;
 };
 
+template<typename RandomAccessIter, typename Compare>
+void partial_sort(RandomAccessIter first, RandomAccessIter middle, RandomAccessIter last, Compare comp)
+{
+    // [TODO] heap sort should be used here, but we simply use bubble sort now
+    for (auto i = first; i < middle; ++i)
+    {
+        // bubble sort
+        for (auto j = last - 1; j > first; --j)
+        {
+            if (comp(*j, *(j - 1)))
+            {
+                swap(*j, *(j - 1));
+            }
+        }
+    }
+}
+
 template<typename T>
 struct vector
 {
