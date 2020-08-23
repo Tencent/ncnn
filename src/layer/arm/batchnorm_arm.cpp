@@ -663,6 +663,7 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
     int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
 
+#if __ARM_NEON
     if (elempack == 4)
     {
         if (dims == 1)
@@ -678,7 +679,7 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
                 float32x4_t _b = vld1q_f32((const float*)b_data + i * 4);
 
                 float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
-                _p = vfmaq_f32(_a, _p, _b);
+                _p = vmlaq_f32(_a, _p, _b);
                 vst1_u16(ptr, vcvt_bf16_f32(_p));
             }
         }
@@ -699,7 +700,7 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
                 for (int j = 0; j < w; j++)
                 {
                     float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
-                    _p = vfmaq_f32(_a, _p, _b);
+                    _p = vmlaq_f32(_a, _p, _b);
                     vst1_u16(ptr, vcvt_bf16_f32(_p));
 
                     ptr += 4;
@@ -725,7 +726,7 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
                 for (int i = 0; i < size; i++)
                 {
                     float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
-                    _p = vfmaq_f32(_a, _p, _b);
+                    _p = vmlaq_f32(_a, _p, _b);
                     vst1_u16(ptr, vcvt_bf16_f32(_p));
 
                     ptr += 4;
@@ -735,6 +736,7 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
 
         return 0;
     }
+#endif // __ARM_NEON
 
     if (dims == 1)
     {
@@ -762,18 +764,20 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
             float a = a_data[i];
             float b = b_data[i];
 
+            int j = 0;
+#if __ARM_NEON
             float32x4_t _a = vdupq_n_f32(a);
             float32x4_t _b = vdupq_n_f32(b);
 
-            int j = 0;
             for (; j + 3 < w; j += 4)
             {
                 float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
-                _p = vfmaq_f32(_a, _p, _b);
+                _p = vmlaq_f32(_a, _p, _b);
                 vst1_u16(ptr, vcvt_bf16_f32(_p));
 
                 ptr += 4;
             }
+#endif // __ARM_NEON
             for (; j < w; j++)
             {
                 *ptr = float32_to_bfloat16(b * bfloat16_to_float32(*ptr) + a);
@@ -798,18 +802,20 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
             float a = a_data[q];
             float b = b_data[q];
 
+            int j = 0;
+#if __ARM_NEON
             float32x4_t _a = vdupq_n_f32(a);
             float32x4_t _b = vdupq_n_f32(b);
 
-            int j = 0;
             for (; j + 3 < size; j += 4)
             {
                 float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
-                _p = vfmaq_f32(_a, _p, _b);
+                _p = vmlaq_f32(_a, _p, _b);
                 vst1_u16(ptr, vcvt_bf16_f32(_p));
 
                 ptr += 4;
             }
+#endif // __ARM_NEON
             for (; j < size; j++)
             {
                 *ptr = float32_to_bfloat16(b * bfloat16_to_float32(*ptr) + a);
