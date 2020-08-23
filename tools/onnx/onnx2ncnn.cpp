@@ -27,7 +27,7 @@
 #include <set>
 #include <stdio.h>
 
-static bool read_proto_from_binary(const char* filepath, google::protobuf::Message* message)
+static bool read_proto_from_binary(const char* filepath, onnx::ModelProto* message)
 {
     std::ifstream fs(filepath, std::ifstream::in | std::ifstream::binary);
     if (!fs.is_open())
@@ -3074,7 +3074,10 @@ int main(int argc, char** argv)
             {
                 // opset 11+
                 scales = get_node_attr_from_input_af(weights[node.input(2)]);
-                sizes = get_node_attr_from_input_ai(weights[node.input(3)]);
+                if (node.input_size() >= 4)
+                {
+                    sizes = get_node_attr_from_input_ai(weights[node.input(3)]);
+                }
             }
 
             int resize_type = 1;
