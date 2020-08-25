@@ -61,6 +61,11 @@ public:
     PipelineCache* pipeline_cache;
 #endif // NCNN_VULKAN
 
+    // the time openmp threads busy-wait for more work before going to sleep
+    // default value is 20ms to keep the cores enabled
+    // without too much extra power consumption afterwards
+    int openmp_blocktime;
+
     // enable winograd convolution optimization
     // improve convolution 3x3 stride1 performace, may consume more memory
     // changes should be applied before loading network structure and weight

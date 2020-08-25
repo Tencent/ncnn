@@ -36,21 +36,24 @@ static int test_noop(const ncnn::Mat& a)
 static int test_noop_0()
 {
     return 0
-           || test_noop(RandomMat(5, 7, 16))
+           || test_noop(RandomMat(5, 7, 24))
+           || test_noop(RandomMat(7, 9, 12))
            || test_noop(RandomMat(3, 5, 13));
 }
 
 static int test_noop_1()
 {
     return 0
-           || test_noop(RandomMat(6, 16))
-           || test_noop(RandomMat(7, 15));
+           || test_noop(RandomMat(15, 24))
+           || test_noop(RandomMat(17, 12))
+           || test_noop(RandomMat(19, 15));
 }
 
 static int test_noop_2()
 {
     return 0
            || test_noop(RandomMat(128))
+           || test_noop(RandomMat(124))
            || test_noop(RandomMat(127));
 }
 

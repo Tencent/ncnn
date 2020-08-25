@@ -47,7 +47,7 @@ int InstanceNorm::load_model(const ModelBin& mb)
 
 int InstanceNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    // x = (x - mean) / (sqrt(var) + eps) * gamma + beta
+    // x = (x - mean) / (sqrt(var + eps)) * gamma + beta
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;

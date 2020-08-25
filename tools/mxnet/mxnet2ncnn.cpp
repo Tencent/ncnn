@@ -26,6 +26,7 @@ class MXNetNode
 {
 public:
     bool has_attr(const char* key) const;
+    bool is_attr_scalar(const char* key) const;
 
     class AttrProxy
     {
@@ -102,6 +103,18 @@ bool MXNetNode::has_attr(const char* key) const
     return it != attrs.end();
 }
 
+bool MXNetNode::is_attr_scalar(const char* key) const
+{
+    const std::map<std::string, std::string>::const_iterator it = attrs.find(key);
+    if (it == attrs.end())
+        return false;
+
+    if (it->second.empty())
+        return false;
+
+    return it->second[0] != '(';
+}
+
 int MXNetNode::attr_i(const char* key) const
 {
     const std::map<std::string, std::string>::const_iterator it = attrs.find(key);
@@ -154,6 +167,12 @@ std::vector<int> MXNetNode::attr_ai(const char* key) const
     // (1,2,3)
     std::vector<int> list;
 
+    if (is_attr_scalar(key))
+    {
+        list.push_back(attr_i(key));
+        return list;
+    }
+
     int i = 0;
     int c = 0;
     int nconsumed = 0;
@@ -199,6 +218,12 @@ std::vector<float> MXNetNode::attr_af(const char* key) const
 
     // (0.1,0.2,0.3)
     std::vector<float> list;
+
+    if (is_attr_scalar(key))
+    {
+        list.push_back(attr_f(key));
+        return list;
+    }
 
     float i = 0.f;
     int c = 0;
@@ -1287,6 +1312,10 @@ int main(int argc, char** argv)
                 fprintf(pp, "%-16s", "Deconvolution");
             }
         }
+        else if (n.op == "dot")
+        {
+            fprintf(pp, "%-16s", "Gemm");
+        }
         else if (n.op == "Dropout")
         {
             fprintf(pp, "%-16s", "Dropout");
@@ -1912,6 +1941,36 @@ int main(int argc, char** argv)
             fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
         }
+        else if (n.op == "cos")
+        {
+            int op_type = 10;
+            fprintf(pp, " 0=%d", op_type);
+        }
+        else if (n.op == "Crop")
+        {
+            int num_args = n.attr("num_args");
+            std::vector<int> offset = n.attr("offset");
+
+            int woffset = 0;
+            int hoffset = 0;
+            if (offset.size() == 2)
+            {
+                woffset = offset[1];
+                hoffset = offset[0];
+            }
+
+            fprintf(pp, " 0=%d", woffset);
+            fprintf(pp, " 1=%d", hoffset);
+            fprintf(pp, " 2=0");
+
+            if (num_args == 1)
+            {
+                std::vector<int> h_w = n.attr("h_w");
+                fprintf(pp, " 3=%d", h_w[1]);
+                fprintf(pp, " 4=%d", h_w[0]);
+                fprintf(pp, " 5=0");
+            }
+        }
         else if (n.op == "Deconvolution")
         {
             int num_filter = n.attr("num_filter");
@@ -2031,35 +2090,14 @@ int main(int argc, char** argv)
 
             fwrite(bias_data.data(), sizeof(float), bias_data.size(), bp);
         }
-        else if (n.op == "cos")
+        else if (n.op == "dot")
         {
-            int op_type = 10;
-            fprintf(pp, " 0=%d", op_type);
-        }
-        else if (n.op == "Crop")
-        {
-            int num_args = n.attr("num_args");
-            std::vector<int> offset = n.attr("offset");
-
-            int woffset = 0;
-            int hoffset = 0;
-            if (offset.size() == 2)
-            {
-                woffset = offset[1];
-                hoffset = offset[0];
-            }
-
-            fprintf(pp, " 0=%d", woffset);
-            fprintf(pp, " 1=%d", hoffset);
-            fprintf(pp, " 2=0");
-
-            if (num_args == 1)
-            {
-                std::vector<int> h_w = n.attr("h_w");
-                fprintf(pp, " 3=%d", h_w[1]);
-                fprintf(pp, " 4=%d", h_w[0]);
-                fprintf(pp, " 5=0");
-            }
+            int transpose_a = n.attr("transpose_a");
+            int transpose_b = n.attr("transpose_b");
+            fprintf(pp, " 0=1.0"); // alpha
+            fprintf(pp, " 1=1.0"); // beta
+            fprintf(pp, " 2=%d", transpose_a);
+            fprintf(pp, " 3=%d", transpose_b);
         }
         else if (n.op == "Dropout")
         {

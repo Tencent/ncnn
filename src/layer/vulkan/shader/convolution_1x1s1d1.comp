@@ -172,7 +172,7 @@ void main()
     image3d_st1(top_blob, ivec3(sx4.b, sy4.b, gz), sum.b);
     image3d_st1(top_blob, ivec3(sx4.a, sy4.a, gz), sum.a);
 #else
-    const int gi = gz * psc(outcstep) + gx;
+    const int gi = gz * psc(outcstep) / 4 + gx;
 
 #if NCNN_fp16_packed
     top_blob_data[gi] = sum;

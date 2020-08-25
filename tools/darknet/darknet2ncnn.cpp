@@ -472,7 +472,7 @@ void parse_cfg(std::deque<Section*>& dnet, int merge_output)
             s->w = p->out_w;
             s->c = p->out_c;
             s->out_h = (s->h + s->padding - s->size) / s->stride + 1;
-            s->out_w = s->out_h;
+            s->out_w = (s->w + s->padding - s->size) / s->stride + 1;
             s->out_c = s->c;
 
 #if OUTPUT_LAYER_MAP

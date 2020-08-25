@@ -232,6 +232,8 @@ Layer* create_layer(int index)
     if (index < 0 || index >= layer_registry_entry_count)
         return 0;
 
+    // clang-format off
+    // *INDENT-OFF*
     layer_creator_func layer_creator = 0;
 #if NCNN_RUNTIME_CPU && NCNN_AVX2
     if (ncnn::cpu_support_x86_avx2())
@@ -241,15 +243,17 @@ Layer* create_layer(int index)
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_AVX2
 #if NCNN_RUNTIME_CPU && NCNN_ARM82
-        if (ncnn::cpu_support_arm_asimdhp())
-        {
-            layer_creator = layer_registry_arm82[index].creator;
-        }
-        else
+    if (ncnn::cpu_support_arm_asimdhp())
+    {
+        layer_creator = layer_registry_arm82[index].creator;
+    }
+    else
 #endif // NCNN_RUNTIME_CPU && NCNN_ARM82
-        {
-            layer_creator = layer_registry[index].creator;
-        }
+    {
+        layer_creator = layer_registry[index].creator;
+    }
+    // *INDENT-ON*
+    // clang-format on
     if (!layer_creator)
         return 0;
 

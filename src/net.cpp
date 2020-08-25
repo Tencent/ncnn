@@ -16,6 +16,7 @@
 
 #include "convolution.h"
 #include "convolutiondepthwise.h"
+#include "cpu.h"
 #include "datareader.h"
 #include "layer_type.h"
 #include "modelbin.h"
@@ -143,6 +144,10 @@ int Net::load_param(const DataReader& dr)
     blobs.resize((size_t)blob_count);
 
 #if NCNN_VULKAN
+    // TODO enable gpu when bf16 conversion implemented
+    if (opt.use_bf16_storage)
+        opt.use_vulkan_compute = false;
+
     if (opt.use_vulkan_compute)
     {
         if (!vkdev) vkdev = get_gpu_device();
@@ -195,6 +200,8 @@ int Net::load_param(const DataReader& dr)
             // no int8 gpu or packing layout support yet
             opt.use_vulkan_compute = false;
             opt.use_packing_layout = false;
+            opt.use_fp16_storage = false;
+            opt.use_bf16_storage = false;
         }
 
 #if NCNN_VULKAN
@@ -345,6 +352,10 @@ int Net::load_param_bin(const DataReader& dr)
     blobs.resize(blob_count);
 
 #if NCNN_VULKAN
+    // TODO enable gpu when bf16 conversion implemented
+    if (opt.use_bf16_storage)
+        opt.use_vulkan_compute = false;
+
     if (opt.use_vulkan_compute)
     {
         if (!vkdev) vkdev = get_gpu_device();
@@ -395,6 +406,8 @@ int Net::load_param_bin(const DataReader& dr)
             // no int8 gpu or packing layout support yet
             opt.use_vulkan_compute = false;
             opt.use_packing_layout = false;
+            opt.use_fp16_storage = false;
+            opt.use_bf16_storage = false;
         }
 
 #if NCNN_VULKAN
@@ -534,6 +547,8 @@ int Net::load_model(const DataReader& dr)
             // no int8 gpu or packing layout support yet
             opt.use_vulkan_compute = false;
             opt.use_packing_layout = false;
+            opt.use_fp16_storage = false;
+            opt.use_bf16_storage = false;
         }
     }
 
@@ -1114,6 +1129,26 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             }
         }
 
+        // clang-format off
+        // *INDENT-OFF*
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
+        {
+            if (bottom_blob.elemsize / bottom_blob.elempack == 4u && layer->support_fp16_storage)
+            {
+                Mat bottom_blob_fp16;
+                cast_float32_to_float16(bottom_blob, bottom_blob_fp16, opt);
+                bottom_blob = bottom_blob_fp16;
+            }
+            if (bottom_blob.elemsize / bottom_blob.elempack == 2u && !layer->support_fp16_storage)
+            {
+                Mat bottom_blob_fp32;
+                cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+                bottom_blob = bottom_blob_fp32;
+            }
+        }
+        else
+#endif // NCNN_ARM82
         if (opt.use_bf16_storage)
         {
             if (bottom_blob.elemsize / bottom_blob.elempack == 4u && layer->support_bf16_storage)
@@ -1129,17 +1164,37 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                 bottom_blob = bottom_blob_fp32;
             }
         }
+        // *INDENT-ON*
+        // clang-format on
 
         if (opt.use_packing_layout)
         {
+            // resolve dst_elempack
+            int dims = bottom_blob.dims;
+            int elemcount = 0;
+            if (dims == 1) elemcount = bottom_blob.elempack * bottom_blob.w;
+            if (dims == 2) elemcount = bottom_blob.elempack * bottom_blob.h;
+            if (dims == 3) elemcount = bottom_blob.elempack * bottom_blob.c;
+
+            int dst_elempack = 1;
+            if (layer->support_packing)
+            {
 #if NCNN_AVX2
-            int elempack = layer->support_packing ? 8 : 1;
+                if (elemcount % 8 == 0)
+                    dst_elempack = 8;
+#elif NCNN_ARM82
+                if (elemcount % 8 == 0 && opt.use_fp16_arithmetic && layer->support_fp16_storage)
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
 #else
-            int elempack = layer->support_packing ? 4 : 1;
+                if (elemcount % 4 == 0)
+                    dst_elempack = 4;
 #endif
+            }
 
             Mat bottom_blob_packed;
-            convert_packing(bottom_blob, bottom_blob_packed, elempack, opt);
+            convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, opt);
             bottom_blob = bottom_blob_packed;
         }
 
@@ -1207,6 +1262,26 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                 }
             }
 
+            // clang-format off
+            // *INDENT-OFF*
+#if NCNN_ARM82
+            if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
+            {
+                if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 4u && layer->support_fp16_storage)
+                {
+                    Mat bottom_blob_fp16;
+                    cast_float32_to_float16(bottom_blobs[i], bottom_blob_fp16, opt);
+                    bottom_blobs[i] = bottom_blob_fp16;
+                }
+                if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 2u && !layer->support_fp16_storage)
+                {
+                    Mat bottom_blob_fp32;
+                    cast_float16_to_float32(bottom_blobs[i], bottom_blob_fp32, opt);
+                    bottom_blobs[i] = bottom_blob_fp32;
+                }
+            }
+            else
+#endif // NCNN_ARM82
             if (opt.use_bf16_storage)
             {
                 if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 4u && layer->support_bf16_storage)
@@ -1222,17 +1297,37 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                     bottom_blobs[i] = bottom_blob_fp32;
                 }
             }
+            // *INDENT-ON*
+            // clang-format on
 
             if (opt.use_packing_layout)
             {
+                // resolve dst_elempack
+                int dims = bottom_blobs[i].dims;
+                int elemcount = 0;
+                if (dims == 1) elemcount = bottom_blobs[i].elempack * bottom_blobs[i].w;
+                if (dims == 2) elemcount = bottom_blobs[i].elempack * bottom_blobs[i].h;
+                if (dims == 3) elemcount = bottom_blobs[i].elempack * bottom_blobs[i].c;
+
+                int dst_elempack = 1;
+                if (layer->support_packing)
+                {
 #if NCNN_AVX2
-                int elempack = layer->support_packing ? 8 : 1;
+                    if (elemcount % 8 == 0)
+                        dst_elempack = 8;
+#elif NCNN_ARM82
+                    if (elemcount % 8 == 0 && opt.use_fp16_arithmetic && layer->support_fp16_storage)
+                        dst_elempack = 8;
+                    else if (elemcount % 4 == 0)
+                        dst_elempack = 4;
 #else
-                int elempack = layer->support_packing ? 4 : 1;
+                    if (elemcount % 4 == 0)
+                        dst_elempack = 4;
 #endif
+                }
 
                 Mat bottom_blob_packed;
-                convert_packing(bottom_blobs[i], bottom_blob_packed, elempack, opt);
+                convert_packing(bottom_blobs[i], bottom_blob_packed, dst_elempack, opt);
                 bottom_blobs[i] = bottom_blob_packed;
             }
         }
@@ -2556,6 +2651,9 @@ int Extractor::extract(int blob_index, Mat& feat)
     if (blob_index < 0 || blob_index >= (int)blob_mats.size())
         return -1;
 
+    int old_blocktime = get_kmp_blocktime();
+    set_kmp_blocktime(opt.openmp_blocktime);
+
     int ret = 0;
 
     if (blob_mats[blob_index].dims == 0)
@@ -2660,6 +2758,34 @@ int Extractor::extract(int blob_index, Mat& feat)
         feat = bottom_blob_unpacked;
     }
 
+    // clang-format off
+    // *INDENT-OFF*
+#if NCNN_ARM82
+    if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
+    {
+        if (feat.elemsize / feat.elempack == 2u)
+        {
+            Mat feat_fp32;
+            cast_float16_to_float32(feat, feat_fp32, opt);
+            feat = feat_fp32;
+        }
+    }
+    else
+#endif // NCNN_ARM82
+    if (opt.use_bf16_storage)
+    {
+        if (feat.elemsize / feat.elempack == 2u)
+        {
+            Mat feat_fp32;
+            cast_bfloat16_to_float32(feat, feat_fp32, opt);
+            feat = feat_fp32;
+        }
+    }
+    // *INDENT-ON*
+    // clang-format on
+
+    set_kmp_blocktime(old_blocktime);
+
     return ret;
 }
 
@@ -2751,6 +2877,9 @@ int Extractor::extract(int blob_index, VkImageMat& feat, VkCompute& cmd)
     if (blob_index < 0 || blob_index >= (int)blob_mats.size())
         return -1;
 
+    int old_blocktime = get_kmp_blocktime();
+    set_kmp_blocktime(opt.openmp_blocktime);
+
     int ret = 0;
 
     if (blob_mats_gpu_image[blob_index].dims == 0)
@@ -2766,6 +2895,8 @@ int Extractor::extract(int blob_index, VkImageMat& feat, VkCompute& cmd)
     }
 
     feat = blob_mats_gpu_image[blob_index];
+
+    set_kmp_blocktime(old_blocktime);
 
     return ret;
 }

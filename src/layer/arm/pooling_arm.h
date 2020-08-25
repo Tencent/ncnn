@@ -27,6 +27,10 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
     int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 };
 

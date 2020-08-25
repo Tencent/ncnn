@@ -3,6 +3,8 @@
 # This dirty script eat td files :P
 # https://github.com/tensorflow/tensorflow/tree/master/tensorflow/compiler/mlir/tensorflow/ir
 
+sed -i 's!tensorflow/compiler/mlir/tensorflow/ir/!!g' *.td
+
 sed -i '/let hasCanonicalizer = 1;/d' *.td
 sed -i '/let hasFolder = 1;/d' *.td
 sed -i '/StringRef GetOptimalLayout(const RuntimeDevices& devices);/d' *.td

@@ -93,25 +93,25 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r1 = img0.row<const unsigned short>(1);
             const unsigned short* r2 = img0.row<const unsigned short>(2);
 
-            float32x4_t _k00_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
-            float32x4_t _k02_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
-            float32x4_t _k10_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
-            float32x4_t _k11_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
-            float32x4_t _k12_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
-            float32x4_t _k20_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
-            float32x4_t _k21_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
-            float32x4_t _k22_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
+            float32x4_t _k00_0 = vcvt_f32_bf16(vld1_u16(k0));
+            float32x4_t _k01_0 = vcvt_f32_bf16(vld1_u16(k0 + 4));
+            float32x4_t _k02_0 = vcvt_f32_bf16(vld1_u16(k0 + 8));
+            float32x4_t _k10_0 = vcvt_f32_bf16(vld1_u16(k0 + 12));
+            float32x4_t _k11_0 = vcvt_f32_bf16(vld1_u16(k0 + 16));
+            float32x4_t _k12_0 = vcvt_f32_bf16(vld1_u16(k0 + 20));
+            float32x4_t _k20_0 = vcvt_f32_bf16(vld1_u16(k0 + 24));
+            float32x4_t _k21_0 = vcvt_f32_bf16(vld1_u16(k0 + 28));
+            float32x4_t _k22_0 = vcvt_f32_bf16(vld1_u16(k0 + 32));
 
-            float32x4_t _k00_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1), 16));
-            float32x4_t _k01_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 4), 16));
-            float32x4_t _k02_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 8), 16));
-            float32x4_t _k10_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 12), 16));
-            float32x4_t _k11_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 16), 16));
-            float32x4_t _k12_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 20), 16));
-            float32x4_t _k20_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 24), 16));
-            float32x4_t _k21_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 28), 16));
-            float32x4_t _k22_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 32), 16));
+            float32x4_t _k00_1 = vcvt_f32_bf16(vld1_u16(k1));
+            float32x4_t _k01_1 = vcvt_f32_bf16(vld1_u16(k1 + 4));
+            float32x4_t _k02_1 = vcvt_f32_bf16(vld1_u16(k1 + 8));
+            float32x4_t _k10_1 = vcvt_f32_bf16(vld1_u16(k1 + 12));
+            float32x4_t _k11_1 = vcvt_f32_bf16(vld1_u16(k1 + 16));
+            float32x4_t _k12_1 = vcvt_f32_bf16(vld1_u16(k1 + 20));
+            float32x4_t _k20_1 = vcvt_f32_bf16(vld1_u16(k1 + 24));
+            float32x4_t _k21_1 = vcvt_f32_bf16(vld1_u16(k1 + 28));
+            float32x4_t _k22_1 = vcvt_f32_bf16(vld1_u16(k1 + 32));
 
             int i = 0;
 
@@ -370,9 +370,9 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                     float32x4_t _sum00 = vld1q_f32(outptr0);
                     float32x4_t _sum10 = vld1q_f32(outptr0 + 4);
 
-                    float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
-                    float32x4_t _r1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r1), 16));
-                    float32x4_t _r2 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r2), 16));
+                    float32x4_t _r0 = vcvt_f32_bf16(vld1_u16(r0));
+                    float32x4_t _r1 = vcvt_f32_bf16(vld1_u16(r1));
+                    float32x4_t _r2 = vcvt_f32_bf16(vld1_u16(r2));
 
                     _sum00 = vfmaq_laneq_f32(_sum00, _k00_0, _r0, 0);
                     _sum00 = vfmaq_laneq_f32(_sum00, _k01_0, _r0, 1);
@@ -424,25 +424,25 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r1 = img0.row<const unsigned short>(1);
             const unsigned short* r2 = img0.row<const unsigned short>(2);
 
-            float32x4_t _k00_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
-            float32x4_t _k02_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
-            float32x4_t _k10_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
-            float32x4_t _k11_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
-            float32x4_t _k12_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
-            float32x4_t _k20_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
-            float32x4_t _k21_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
-            float32x4_t _k22_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
+            float32x4_t _k00_0 = vcvt_f32_bf16(vld1_u16(k0));
+            float32x4_t _k01_0 = vcvt_f32_bf16(vld1_u16(k0 + 4));
+            float32x4_t _k02_0 = vcvt_f32_bf16(vld1_u16(k0 + 8));
+            float32x4_t _k10_0 = vcvt_f32_bf16(vld1_u16(k0 + 12));
+            float32x4_t _k11_0 = vcvt_f32_bf16(vld1_u16(k0 + 16));
+            float32x4_t _k12_0 = vcvt_f32_bf16(vld1_u16(k0 + 20));
+            float32x4_t _k20_0 = vcvt_f32_bf16(vld1_u16(k0 + 24));
+            float32x4_t _k21_0 = vcvt_f32_bf16(vld1_u16(k0 + 28));
+            float32x4_t _k22_0 = vcvt_f32_bf16(vld1_u16(k0 + 32));
 
-            float32x4_t _k00_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1), 16));
-            float32x4_t _k01_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 4), 16));
-            float32x4_t _k02_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 8), 16));
-            float32x4_t _k10_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 12), 16));
-            float32x4_t _k11_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 16), 16));
-            float32x4_t _k12_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 20), 16));
-            float32x4_t _k20_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 24), 16));
-            float32x4_t _k21_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 28), 16));
-            float32x4_t _k22_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 32), 16));
+            float32x4_t _k00_1 = vcvt_f32_bf16(vld1_u16(k1));
+            float32x4_t _k01_1 = vcvt_f32_bf16(vld1_u16(k1 + 4));
+            float32x4_t _k02_1 = vcvt_f32_bf16(vld1_u16(k1 + 8));
+            float32x4_t _k10_1 = vcvt_f32_bf16(vld1_u16(k1 + 12));
+            float32x4_t _k11_1 = vcvt_f32_bf16(vld1_u16(k1 + 16));
+            float32x4_t _k12_1 = vcvt_f32_bf16(vld1_u16(k1 + 20));
+            float32x4_t _k20_1 = vcvt_f32_bf16(vld1_u16(k1 + 24));
+            float32x4_t _k21_1 = vcvt_f32_bf16(vld1_u16(k1 + 28));
+            float32x4_t _k22_1 = vcvt_f32_bf16(vld1_u16(k1 + 32));
 
             int i = 0;
 
@@ -722,9 +722,9 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                     float32x4_t _sum00 = vld1q_f32(outptr0);
                     float32x4_t _sum10 = vld1q_f32(outptr0 + 4);
 
-                    float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
-                    float32x4_t _r1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r1), 16));
-                    float32x4_t _r2 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r2), 16));
+                    float32x4_t _r0 = vcvt_f32_bf16(vld1_u16(r0));
+                    float32x4_t _r1 = vcvt_f32_bf16(vld1_u16(r1));
+                    float32x4_t _r2 = vcvt_f32_bf16(vld1_u16(r2));
 
                     _sum00 = vfmaq_laneq_f32(_sum00, _k00_0, _r0, 0);
                     _sum00 = vfmaq_laneq_f32(_sum00, _k01_0, _r0, 1);
@@ -746,8 +746,8 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                     _sum10 = vfmaq_laneq_f32(_sum10, _k21_1, _r2, 1);
                     _sum10 = vfmaq_laneq_f32(_sum10, _k22_1, _r2, 2);
 
-                    vst1_u16(outptr0_bf16, vshrn_n_u32(vreinterpretq_u32_f32(_sum00), 16));
-                    vst1_u16(outptr1_bf16, vshrn_n_u32(vreinterpretq_u32_f32(_sum10), 16));
+                    vst1_u16(outptr0_bf16, vcvt_bf16_f32(_sum00));
+                    vst1_u16(outptr1_bf16, vcvt_bf16_f32(_sum10));
 
                     r0 += 1;
                     r1 += 1;
@@ -789,15 +789,15 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r1 = img0.row<unsigned short>(1);
             const unsigned short* r2 = img0.row<unsigned short>(2);
 
-            float32x4_t _k00 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
-            float32x4_t _k02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
-            float32x4_t _k10 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
-            float32x4_t _k11 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
-            float32x4_t _k12 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
-            float32x4_t _k20 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
-            float32x4_t _k21 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
-            float32x4_t _k22 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
+            float32x4_t _k00 = vcvt_f32_bf16(vld1_u16(k0));
+            float32x4_t _k01 = vcvt_f32_bf16(vld1_u16(k0 + 4));
+            float32x4_t _k02 = vcvt_f32_bf16(vld1_u16(k0 + 8));
+            float32x4_t _k10 = vcvt_f32_bf16(vld1_u16(k0 + 12));
+            float32x4_t _k11 = vcvt_f32_bf16(vld1_u16(k0 + 16));
+            float32x4_t _k12 = vcvt_f32_bf16(vld1_u16(k0 + 20));
+            float32x4_t _k20 = vcvt_f32_bf16(vld1_u16(k0 + 24));
+            float32x4_t _k21 = vcvt_f32_bf16(vld1_u16(k0 + 28));
+            float32x4_t _k22 = vcvt_f32_bf16(vld1_u16(k0 + 32));
 
             int i = 0;
 
@@ -1305,9 +1305,9 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
 
-                    float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
-                    float32x4_t _r1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r1), 16));
-                    float32x4_t _r2 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r2), 16));
+                    float32x4_t _r0 = vcvt_f32_bf16(vld1_u16(r0));
+                    float32x4_t _r1 = vcvt_f32_bf16(vld1_u16(r1));
+                    float32x4_t _r2 = vcvt_f32_bf16(vld1_u16(r2));
 
 #if __aarch64__
                     _sum0 = vfmaq_laneq_f32(_sum0, _k00, _r0, 0);
@@ -1358,15 +1358,15 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r1 = img0.row<unsigned short>(1);
             const unsigned short* r2 = img0.row<unsigned short>(2);
 
-            float32x4_t _k00 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
-            float32x4_t _k02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
-            float32x4_t _k10 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
-            float32x4_t _k11 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
-            float32x4_t _k12 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
-            float32x4_t _k20 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
-            float32x4_t _k21 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
-            float32x4_t _k22 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
+            float32x4_t _k00 = vcvt_f32_bf16(vld1_u16(k0));
+            float32x4_t _k01 = vcvt_f32_bf16(vld1_u16(k0 + 4));
+            float32x4_t _k02 = vcvt_f32_bf16(vld1_u16(k0 + 8));
+            float32x4_t _k10 = vcvt_f32_bf16(vld1_u16(k0 + 12));
+            float32x4_t _k11 = vcvt_f32_bf16(vld1_u16(k0 + 16));
+            float32x4_t _k12 = vcvt_f32_bf16(vld1_u16(k0 + 20));
+            float32x4_t _k20 = vcvt_f32_bf16(vld1_u16(k0 + 24));
+            float32x4_t _k21 = vcvt_f32_bf16(vld1_u16(k0 + 28));
+            float32x4_t _k22 = vcvt_f32_bf16(vld1_u16(k0 + 32));
 
             int i = 0;
 
@@ -1907,9 +1907,9 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
 
-                    float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
-                    float32x4_t _r1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r1), 16));
-                    float32x4_t _r2 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r2), 16));
+                    float32x4_t _r0 = vcvt_f32_bf16(vld1_u16(r0));
+                    float32x4_t _r1 = vcvt_f32_bf16(vld1_u16(r1));
+                    float32x4_t _r2 = vcvt_f32_bf16(vld1_u16(r2));
 
 #if __aarch64__
                     _sum0 = vfmaq_laneq_f32(_sum0, _k00, _r0, 0);
@@ -1933,7 +1933,7 @@ static void conv3x3s1_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                     _sum0 = vmlaq_lane_f32(_sum0, _k22, vget_high_f32(_r2), 0);
 #endif
 
-                    vst1_u16(outptr0_bf16, vshrn_n_u32(vreinterpretq_u32_f32(_sum0), 16));
+                    vst1_u16(outptr0_bf16, vcvt_bf16_f32(_sum0));
 
                     r0 += 1;
                     r1 += 1;
@@ -2036,25 +2036,25 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r1 = img0.row<const unsigned short>(1);
             const unsigned short* r2 = img0.row<const unsigned short>(2);
 
-            float32x4_t _k00_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
-            float32x4_t _k02_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
-            float32x4_t _k10_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
-            float32x4_t _k11_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
-            float32x4_t _k12_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
-            float32x4_t _k20_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
-            float32x4_t _k21_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
-            float32x4_t _k22_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
+            float32x4_t _k00_0 = vcvt_f32_bf16(vld1_u16(k0));
+            float32x4_t _k01_0 = vcvt_f32_bf16(vld1_u16(k0 + 4));
+            float32x4_t _k02_0 = vcvt_f32_bf16(vld1_u16(k0 + 8));
+            float32x4_t _k10_0 = vcvt_f32_bf16(vld1_u16(k0 + 12));
+            float32x4_t _k11_0 = vcvt_f32_bf16(vld1_u16(k0 + 16));
+            float32x4_t _k12_0 = vcvt_f32_bf16(vld1_u16(k0 + 20));
+            float32x4_t _k20_0 = vcvt_f32_bf16(vld1_u16(k0 + 24));
+            float32x4_t _k21_0 = vcvt_f32_bf16(vld1_u16(k0 + 28));
+            float32x4_t _k22_0 = vcvt_f32_bf16(vld1_u16(k0 + 32));
 
-            float32x4_t _k00_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1), 16));
-            float32x4_t _k01_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 4), 16));
-            float32x4_t _k02_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 8), 16));
-            float32x4_t _k10_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 12), 16));
-            float32x4_t _k11_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 16), 16));
-            float32x4_t _k12_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 20), 16));
-            float32x4_t _k20_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 24), 16));
-            float32x4_t _k21_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 28), 16));
-            float32x4_t _k22_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 32), 16));
+            float32x4_t _k00_1 = vcvt_f32_bf16(vld1_u16(k1));
+            float32x4_t _k01_1 = vcvt_f32_bf16(vld1_u16(k1 + 4));
+            float32x4_t _k02_1 = vcvt_f32_bf16(vld1_u16(k1 + 8));
+            float32x4_t _k10_1 = vcvt_f32_bf16(vld1_u16(k1 + 12));
+            float32x4_t _k11_1 = vcvt_f32_bf16(vld1_u16(k1 + 16));
+            float32x4_t _k12_1 = vcvt_f32_bf16(vld1_u16(k1 + 20));
+            float32x4_t _k20_1 = vcvt_f32_bf16(vld1_u16(k1 + 24));
+            float32x4_t _k21_1 = vcvt_f32_bf16(vld1_u16(k1 + 28));
+            float32x4_t _k22_1 = vcvt_f32_bf16(vld1_u16(k1 + 32));
 
             int i = 0;
 
@@ -2341,9 +2341,9 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                     float32x4_t _sum0 = vld1q_f32(outptr0);
                     float32x4_t _sum1 = vld1q_f32(outptr0 + 4);
 
-                    float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
-                    float32x4_t _r1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r1), 16));
-                    float32x4_t _r2 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r2), 16));
+                    float32x4_t _r0 = vcvt_f32_bf16(vld1_u16(r0));
+                    float32x4_t _r1 = vcvt_f32_bf16(vld1_u16(r1));
+                    float32x4_t _r2 = vcvt_f32_bf16(vld1_u16(r2));
 
                     _sum0 = vfmaq_laneq_f32(_sum0, _k00_0, _r0, 0);
                     _sum0 = vfmaq_laneq_f32(_sum0, _k01_0, _r0, 1);
@@ -2395,25 +2395,25 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r1 = img0.row<const unsigned short>(1);
             const unsigned short* r2 = img0.row<const unsigned short>(2);
 
-            float32x4_t _k00_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
-            float32x4_t _k02_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
-            float32x4_t _k10_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
-            float32x4_t _k11_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
-            float32x4_t _k12_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
-            float32x4_t _k20_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
-            float32x4_t _k21_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
-            float32x4_t _k22_0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
+            float32x4_t _k00_0 = vcvt_f32_bf16(vld1_u16(k0));
+            float32x4_t _k01_0 = vcvt_f32_bf16(vld1_u16(k0 + 4));
+            float32x4_t _k02_0 = vcvt_f32_bf16(vld1_u16(k0 + 8));
+            float32x4_t _k10_0 = vcvt_f32_bf16(vld1_u16(k0 + 12));
+            float32x4_t _k11_0 = vcvt_f32_bf16(vld1_u16(k0 + 16));
+            float32x4_t _k12_0 = vcvt_f32_bf16(vld1_u16(k0 + 20));
+            float32x4_t _k20_0 = vcvt_f32_bf16(vld1_u16(k0 + 24));
+            float32x4_t _k21_0 = vcvt_f32_bf16(vld1_u16(k0 + 28));
+            float32x4_t _k22_0 = vcvt_f32_bf16(vld1_u16(k0 + 32));
 
-            float32x4_t _k00_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1), 16));
-            float32x4_t _k01_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 4), 16));
-            float32x4_t _k02_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 8), 16));
-            float32x4_t _k10_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 12), 16));
-            float32x4_t _k11_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 16), 16));
-            float32x4_t _k12_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 20), 16));
-            float32x4_t _k20_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 24), 16));
-            float32x4_t _k21_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 28), 16));
-            float32x4_t _k22_1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k1 + 32), 16));
+            float32x4_t _k00_1 = vcvt_f32_bf16(vld1_u16(k1));
+            float32x4_t _k01_1 = vcvt_f32_bf16(vld1_u16(k1 + 4));
+            float32x4_t _k02_1 = vcvt_f32_bf16(vld1_u16(k1 + 8));
+            float32x4_t _k10_1 = vcvt_f32_bf16(vld1_u16(k1 + 12));
+            float32x4_t _k11_1 = vcvt_f32_bf16(vld1_u16(k1 + 16));
+            float32x4_t _k12_1 = vcvt_f32_bf16(vld1_u16(k1 + 20));
+            float32x4_t _k20_1 = vcvt_f32_bf16(vld1_u16(k1 + 24));
+            float32x4_t _k21_1 = vcvt_f32_bf16(vld1_u16(k1 + 28));
+            float32x4_t _k22_1 = vcvt_f32_bf16(vld1_u16(k1 + 32));
 
             int i = 0;
 
@@ -2722,9 +2722,9 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                     float32x4_t _sum0 = vld1q_f32(outptr0);
                     float32x4_t _sum1 = vld1q_f32(outptr0 + 4);
 
-                    float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
-                    float32x4_t _r1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r1), 16));
-                    float32x4_t _r2 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r2), 16));
+                    float32x4_t _r0 = vcvt_f32_bf16(vld1_u16(r0));
+                    float32x4_t _r1 = vcvt_f32_bf16(vld1_u16(r1));
+                    float32x4_t _r2 = vcvt_f32_bf16(vld1_u16(r2));
 
                     _sum0 = vfmaq_laneq_f32(_sum0, _k00_0, _r0, 0);
                     _sum0 = vfmaq_laneq_f32(_sum0, _k01_0, _r0, 1);
@@ -2746,8 +2746,8 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                     _sum1 = vfmaq_laneq_f32(_sum1, _k21_1, _r2, 1);
                     _sum1 = vfmaq_laneq_f32(_sum1, _k22_1, _r2, 2);
 
-                    vst1_u16(outptr0_bf16, vshrn_n_u32(vreinterpretq_u32_f32(_sum0), 16));
-                    vst1_u16(outptr1_bf16, vshrn_n_u32(vreinterpretq_u32_f32(_sum1), 16));
+                    vst1_u16(outptr0_bf16, vcvt_bf16_f32(_sum0));
+                    vst1_u16(outptr1_bf16, vcvt_bf16_f32(_sum1));
 
                     r0 += 2;
                     r1 += 2;
@@ -2789,15 +2789,15 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r1 = img0.row<const unsigned short>(1);
             const unsigned short* r2 = img0.row<const unsigned short>(2);
 
-            float32x4_t _k00 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
-            float32x4_t _k02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
-            float32x4_t _k10 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
-            float32x4_t _k11 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
-            float32x4_t _k12 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
-            float32x4_t _k20 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
-            float32x4_t _k21 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
-            float32x4_t _k22 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
+            float32x4_t _k00 = vcvt_f32_bf16(vld1_u16(k0));
+            float32x4_t _k01 = vcvt_f32_bf16(vld1_u16(k0 + 4));
+            float32x4_t _k02 = vcvt_f32_bf16(vld1_u16(k0 + 8));
+            float32x4_t _k10 = vcvt_f32_bf16(vld1_u16(k0 + 12));
+            float32x4_t _k11 = vcvt_f32_bf16(vld1_u16(k0 + 16));
+            float32x4_t _k12 = vcvt_f32_bf16(vld1_u16(k0 + 20));
+            float32x4_t _k20 = vcvt_f32_bf16(vld1_u16(k0 + 24));
+            float32x4_t _k21 = vcvt_f32_bf16(vld1_u16(k0 + 28));
+            float32x4_t _k22 = vcvt_f32_bf16(vld1_u16(k0 + 32));
 
             int i = 0;
 
@@ -3199,9 +3199,9 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
 
-                    float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
-                    float32x4_t _r1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r1), 16));
-                    float32x4_t _r2 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r2), 16));
+                    float32x4_t _r0 = vcvt_f32_bf16(vld1_u16(r0));
+                    float32x4_t _r1 = vcvt_f32_bf16(vld1_u16(r1));
+                    float32x4_t _r2 = vcvt_f32_bf16(vld1_u16(r2));
 
 #if __aarch64__
                     _sum0 = vfmaq_laneq_f32(_sum0, _k00, _r0, 0);
@@ -3252,15 +3252,15 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
             const unsigned short* r1 = img0.row<const unsigned short>(1);
             const unsigned short* r2 = img0.row<const unsigned short>(2);
 
-            float32x4_t _k00 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0), 16));
-            float32x4_t _k01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 4), 16));
-            float32x4_t _k02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 8), 16));
-            float32x4_t _k10 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 12), 16));
-            float32x4_t _k11 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 16), 16));
-            float32x4_t _k12 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 20), 16));
-            float32x4_t _k20 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 24), 16));
-            float32x4_t _k21 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 28), 16));
-            float32x4_t _k22 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(k0 + 32), 16));
+            float32x4_t _k00 = vcvt_f32_bf16(vld1_u16(k0));
+            float32x4_t _k01 = vcvt_f32_bf16(vld1_u16(k0 + 4));
+            float32x4_t _k02 = vcvt_f32_bf16(vld1_u16(k0 + 8));
+            float32x4_t _k10 = vcvt_f32_bf16(vld1_u16(k0 + 12));
+            float32x4_t _k11 = vcvt_f32_bf16(vld1_u16(k0 + 16));
+            float32x4_t _k12 = vcvt_f32_bf16(vld1_u16(k0 + 20));
+            float32x4_t _k20 = vcvt_f32_bf16(vld1_u16(k0 + 24));
+            float32x4_t _k21 = vcvt_f32_bf16(vld1_u16(k0 + 28));
+            float32x4_t _k22 = vcvt_f32_bf16(vld1_u16(k0 + 32));
 
             int i = 0;
 
@@ -3686,9 +3686,9 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                 {
                     float32x4_t _sum0 = vld1q_f32(outptr0);
 
-                    float32x4_t _r0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
-                    float32x4_t _r1 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r1), 16));
-                    float32x4_t _r2 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r2), 16));
+                    float32x4_t _r0 = vcvt_f32_bf16(vld1_u16(r0));
+                    float32x4_t _r1 = vcvt_f32_bf16(vld1_u16(r1));
+                    float32x4_t _r2 = vcvt_f32_bf16(vld1_u16(r2));
 
 #if __aarch64__
                     _sum0 = vfmaq_laneq_f32(_sum0, _k00, _r0, 0);
@@ -3712,7 +3712,7 @@ static void conv3x3s2_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob,
                     _sum0 = vmlaq_lane_f32(_sum0, _k22, vget_high_f32(_r2), 0);
 #endif
 
-                    vst1_u16(outptr0_bf16, vshrn_n_u32(vreinterpretq_u32_f32(_sum0), 16));
+                    vst1_u16(outptr0_bf16, vcvt_bf16_f32(_sum0));
 
                     r0 += 2;
                     r1 += 2;

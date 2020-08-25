@@ -14,12 +14,12 @@
 
 #include "sigmoid_mips.h"
 
-#if __MIPS_MSA
+#if __mips_msa
 #include "mips_common.h"
 #include "mips_mathfun.h"
 
 #include <msa.h>
-#endif // __MIPS_MSA
+#endif // __mips_msa
 
 #include <math.h>
 
@@ -37,14 +37,14 @@ int Sigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     {
         float* ptr = bottom_top_blob.channel(q);
 
-#if __MIPS_MSA
+#if __mips_msa
         int nn = size >> 2;
         int remain = size - (nn << 2);
 #else
         int remain = size;
-#endif // __MIPS_MSA
+#endif // __mips_msa
 
-#if __MIPS_MSA
+#if __mips_msa
         v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
         for (; nn > 0; nn--)
         {
@@ -57,7 +57,7 @@ int Sigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             ptr += 4;
         }
-#endif // __MIPS_MSA
+#endif // __mips_msa
         for (; remain > 0; remain--)
         {
             *ptr = 1.f / (1.f + exp(-*ptr));

@@ -59,6 +59,9 @@ void set_omp_dynamic(int dynamic);
 
 int get_omp_thread_num();
 
+int get_kmp_blocktime();
+void set_kmp_blocktime(int time_ms);
+
 } // namespace ncnn
 
 #endif // NCNN_CPU_H

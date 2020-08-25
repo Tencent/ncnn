@@ -93,14 +93,14 @@ static void conv3x3s1_winograd64_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat
 
                     for (int m = 0; m < 8; m++)
                     {
-                        float32x4_t _r00 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
-                        float32x4_t _r01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 4), 16));
-                        float32x4_t _r02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 8), 16));
-                        float32x4_t _r03 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 12), 16));
-                        float32x4_t _r04 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 16), 16));
-                        float32x4_t _r05 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 20), 16));
-                        float32x4_t _r06 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 24), 16));
-                        float32x4_t _r07 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 28), 16));
+                        float32x4_t _r00 = vcvt_f32_bf16(vld1_u16(r0));
+                        float32x4_t _r01 = vcvt_f32_bf16(vld1_u16(r0 + 4));
+                        float32x4_t _r02 = vcvt_f32_bf16(vld1_u16(r0 + 8));
+                        float32x4_t _r03 = vcvt_f32_bf16(vld1_u16(r0 + 12));
+                        float32x4_t _r04 = vcvt_f32_bf16(vld1_u16(r0 + 16));
+                        float32x4_t _r05 = vcvt_f32_bf16(vld1_u16(r0 + 20));
+                        float32x4_t _r06 = vcvt_f32_bf16(vld1_u16(r0 + 24));
+                        float32x4_t _r07 = vcvt_f32_bf16(vld1_u16(r0 + 28));
 
                         float32x4_t _tmp0m = vmlaq_n_f32(vsubq_f32(_r00, _r06), vsubq_f32(_r04, _r02), 5.25f);
                         float32x4_t _tmp7m = vmlaq_n_f32(vsubq_f32(_r07, _r01), vsubq_f32(_r03, _r05), 5.25f);

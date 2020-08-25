@@ -73,12 +73,6 @@ public:
     // digest -> artifact
     struct pipeline_cache_digest
     {
-        pipeline_cache_digest()
-        {
-            d0 = 0;
-            d1 = 0;
-        }
-
         pipeline_cache_digest(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
                               uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z);
         pipeline_cache_digest(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations,
@@ -131,8 +125,6 @@ public:
         ShaderInfo shader_info; // TODO use pointer ?
     };
 
-    mutable pipeline_cache_digest last_digest;
-    mutable int last_digest_index;
     mutable std::vector<pipeline_cache_digest> cache_digests;
     mutable std::vector<pipeline_cache_artifact> cache_artifacts;
     mutable Mutex cache_lock;
