@@ -34,6 +34,7 @@ public:
     // param
     int channels;
     float eps;
+    int affine;
 
     // model
     Mat gamma_data;

@@ -15,13 +15,14 @@
 #include "layer/instancenorm.h"
 #include "testutil.h"
 
-static int test_instancenorm(const ncnn::Mat& a, float eps)
+static int test_instancenorm(const ncnn::Mat& a, float eps, int affine)
 {
     int channels = a.c;
 
     ncnn::ParamDict pd;
     pd.set(0, channels);
     pd.set(1, eps);
+    pd.set(2, affine);
 
     std::vector<ncnn::Mat> weights(2);
     weights[0] = RandomMat(channels);
@@ -39,8 +40,12 @@ static int test_instancenorm(const ncnn::Mat& a, float eps)
 static int test_instancenorm_0()
 {
     return 0
-           || test_instancenorm(RandomMat(6, 4, 2), 0.01f)
-           || test_instancenorm(RandomMat(3, 3, 8), 0.002f);
+           || test_instancenorm(RandomMat(6, 4, 2), 0.01f, 0)
+           || test_instancenorm(RandomMat(3, 3, 12), 0.002f, 0)
+           || test_instancenorm(RandomMat(5, 7, 16), 0.02f, 0)
+           || test_instancenorm(RandomMat(6, 4, 2), 0.01f, 1)
+           || test_instancenorm(RandomMat(3, 3, 12), 0.002f, 1)
+           || test_instancenorm(RandomMat(5, 7, 16), 0.02f, 1);
 }
 
 int main()
