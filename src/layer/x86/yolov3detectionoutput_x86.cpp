@@ -107,11 +107,12 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
                     float class_score = -std::numeric_limits<float>::max();
                     float* ptr = ((float*)scores.data) + i * w + j;
                     float* end = ptr + num_class * cs;
+                    float* end8 = ptr + (num_class & -8) * cs;
                     int q = 0;
 #if __AVX__
                     unsigned long index;
 
-                    for (; ptr < end; ptr += 8 * cs, q += 8)
+                    for (; ptr < end8; ptr += 8 * cs, q += 8)
                     {
                         __m256 p = _mm256_i32gather_ps(ptr, vi, 4);
                         __m256 t = _mm256_max_ps(p, _mm256_permute2f128_ps(p, p, 1));
