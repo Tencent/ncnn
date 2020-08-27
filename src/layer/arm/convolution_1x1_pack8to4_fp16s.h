@@ -17,7 +17,7 @@ static void conv1x1s1_sgemm_transform_kernel_pack8to4_fp16sa_neon(const Mat& ker
     // interleave
     // src = inch-outch
     // dst = 4b-8a-inch/8a-outch/4
-    kernel_tm_pack8to4.create(4*8, inch / 8, outch / 8 + (outch % 8) / 4, (size_t)2u * 2, 2);
+    kernel_tm_pack8to4.create(4 * 8, inch / 8, outch / 8 + (outch % 8) / 4, (size_t)2u * 2, 2);
 
     int p = 0;
     for (; p + 7 < outch; p += 8)
