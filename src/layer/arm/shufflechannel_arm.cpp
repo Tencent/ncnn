@@ -60,6 +60,75 @@ int ShuffleChannel_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 #if __ARM_NEON
     if (elempack == 4)
     {
+        if (_group == 2 && channels % _group != 0)
+        {
+            int w = bottom_blob.w;
+            int h = bottom_blob.h;
+            int size = w * h;
+            size_t elemsize = bottom_blob.elemsize;
+
+            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            int channels_per_group = channels / _group;
+
+            // TODO unroll me
+            for (int q = 0; q < channels_per_group; q++)
+            {
+                const float* ptr0 = bottom_blob.channel(q);
+                const float* ptr1 = bottom_blob.channel(channels_per_group + q);
+                const float* ptr2 = bottom_blob.channel(channels_per_group + q + 1);
+                float* outptr0 = top_blob.channel(q * 2);
+                float* outptr1 = top_blob.channel(q * 2 + 1);
+
+                for (int i = 0; i < size; i++)
+                {
+                    float32x4_t _p0 = vld1q_f32(ptr0);
+                    float32x4_t _p1 = vld1q_f32(ptr1);
+                    float32x4_t _p2 = vld1q_f32(ptr2);
+
+                    float32x4_t _p12 = vextq_f32(_p1, _p2, 2);
+
+                    float32x4x2_t _p01 = vzipq_f32(_p0, _p12);
+
+                    vst1q_f32(outptr0, _p01.val[0]);
+                    vst1q_f32(outptr1, _p01.val[1]);
+
+                    ptr0 += 4;
+                    ptr1 += 4;
+                    ptr2 += 4;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                }
+            }
+
+            // handle the last channel
+            {
+                const float* ptr0 = bottom_blob.channel(channels_per_group);
+                const float* ptr1 = bottom_blob.channel(channels_per_group + channels_per_group);
+                float* outptr0 = top_blob.channel(channels_per_group * 2);
+
+                ptr1 += 2;
+
+                for (int i = 0; i < size; i++)
+                {
+                    float32x4_t _p0 = vld1q_f32(ptr0);
+                    float32x4_t _p1 = vld1q_f32(ptr1);
+
+                    float32x4x2_t _p01 = vzipq_f32(_p0, _p1);
+
+                    vst1q_f32(outptr0, _p01.val[0]);
+
+                    ptr0 += 4;
+                    ptr1 += 4;
+                    outptr0 += 4;
+                }
+            }
+
+            return 0;
+        }
+
         if (_group > 4 || channels % _group != 0)
         {
             // slow path for too large group or shuffle inside elempack
@@ -236,6 +305,76 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (elempack == 8)
     {
+        if (_group == 2 && channels % _group != 0)
+        {
+            int w = bottom_blob.w;
+            int h = bottom_blob.h;
+            int size = w * h;
+            size_t elemsize = bottom_blob.elemsize;
+
+            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            int channels_per_group = channels / _group;
+
+            // TODO unroll me
+            for (int q = 0; q < channels_per_group; q++)
+            {
+                const __fp16* ptr0 = bottom_blob.channel(q);
+                const __fp16* ptr1 = bottom_blob.channel(channels_per_group + q);
+                const __fp16* ptr2 = bottom_blob.channel(channels_per_group + q + 1);
+                __fp16* outptr0 = top_blob.channel(q * 2);
+                __fp16* outptr1 = top_blob.channel(q * 2 + 1);
+
+                for (int i = 0; i < size; i++)
+                {
+                    float16x8_t _p0 = vld1q_f16(ptr0);
+                    float16x8_t _p1 = vld1q_f16(ptr1);
+                    float16x8_t _p2 = vld1q_f16(ptr2);
+
+                    float16x8_t _p12 = vextq_f16(_p1, _p2, 4);
+
+                    float16x8x2_t _p01 = vzipq_f16(_p0, _p12);
+
+                    vst1q_f16(outptr0, _p01.val[0]);
+                    vst1q_f16(outptr1, _p01.val[1]);
+
+                    ptr0 += 8;
+                    ptr1 += 8;
+                    ptr2 += 8;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                }
+            }
+
+            // handle the last channel
+            {
+                const __fp16* ptr0 = bottom_blob.channel(channels_per_group);
+                const __fp16* ptr1 = bottom_blob.channel(channels_per_group + channels_per_group);
+                __fp16* outptr0 = top_blob.channel(channels_per_group * 2);
+
+                ptr1 += 4;
+
+                for (int i = 0; i < size; i++)
+                {
+                    float16x4_t _p0 = vld1_f16(ptr0);
+                    float16x4_t _p1 = vld1_f16(ptr1);
+
+                    float16x4x2_t _p01 = vzip_f16(_p0, _p1);
+
+                    vst1_f16(outptr0, _p01.val[0]);
+                    vst1_f16(outptr0 + 4, _p01.val[1]);
+
+                    ptr0 += 8;
+                    ptr1 += 8;
+                    outptr0 += 8;
+                }
+            }
+
+            return 0;
+        }
+
         if (_group > 4 || channels % _group != 0)
         {
             // slow path for too large group or shuffle inside elempack
@@ -396,6 +535,75 @@ int ShuffleChannel_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blo
 #if __ARM_NEON
     if (elempack == 4)
     {
+        if (_group == 2 && channels % _group != 0)
+        {
+            int w = bottom_blob.w;
+            int h = bottom_blob.h;
+            int size = w * h;
+            size_t elemsize = bottom_blob.elemsize;
+
+            top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            int channels_per_group = channels / _group;
+
+            // TODO unroll me
+            for (int q = 0; q < channels_per_group; q++)
+            {
+                const unsigned short* ptr0 = bottom_blob.channel(q);
+                const unsigned short* ptr1 = bottom_blob.channel(channels_per_group + q);
+                const unsigned short* ptr2 = bottom_blob.channel(channels_per_group + q + 1);
+                unsigned short* outptr0 = top_blob.channel(q * 2);
+                unsigned short* outptr1 = top_blob.channel(q * 2 + 1);
+
+                for (int i = 0; i < size; i++)
+                {
+                    uint16x4_t _p0 = vld1_u16(ptr0);
+                    uint16x4_t _p1 = vld1_u16(ptr1);
+                    uint16x4_t _p2 = vld1_u16(ptr2);
+
+                    uint16x4_t _p12 = vext_u16(_p1, _p2, 2);
+
+                    uint16x4x2_t _p01 = vzip_u16(_p0, _p12);
+
+                    vst1_u16(outptr0, _p01.val[0]);
+                    vst1_u16(outptr1, _p01.val[1]);
+
+                    ptr0 += 4;
+                    ptr1 += 4;
+                    ptr2 += 4;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                }
+            }
+
+            // handle the last channel
+            {
+                const unsigned short* ptr0 = bottom_blob.channel(channels_per_group);
+                const unsigned short* ptr1 = bottom_blob.channel(channels_per_group + channels_per_group);
+                unsigned short* outptr0 = top_blob.channel(channels_per_group * 2);
+
+                ptr1 += 2;
+
+                for (int i = 0; i < size; i++)
+                {
+                    uint16x4_t _p0 = vld1_u16(ptr0);
+                    uint16x4_t _p1 = vld1_u16(ptr1);
+
+                    uint16x4x2_t _p01 = vzip_u16(_p0, _p1);
+
+                    vst1_u16(outptr0, _p01.val[0]);
+
+                    ptr0 += 4;
+                    ptr1 += 4;
+                    outptr0 += 4;
+                }
+            }
+
+            return 0;
+        }
+
         if (_group > 4 || channels % _group != 0)
         {
             // slow path for too large group or shuffle inside elempack

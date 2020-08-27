@@ -98,6 +98,30 @@ static int check_top3(const std::vector<float>& cls_scores, float epsilon = 0.00
     return 0;
 }
 
+static std::string read_file_string(const char* filepath)
+{
+    FILE* fp = fopen(filepath, "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "fopen %s failed\n", filepath);
+        return std::string();
+    }
+
+    fseek(fp, 0, SEEK_END);
+    int len = ftell(fp);
+    rewind(fp);
+
+    std::string s;
+    s.resize(len + 1); // +1 for '\0'
+
+    fread((char*)s.c_str(), 1, len, fp);
+    fclose(fp);
+
+    s[len] = '\0';
+
+    return s;
+}
+
 static ncnn::Mat read_file_content(const char* filepath)
 {
     FILE* fp = fopen(filepath, "rb");
@@ -125,6 +149,7 @@ static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float e
 
     squeezenet.opt = opt;
 
+    std::string param_str;
     ncnn::Mat param_data;
     ncnn::Mat model_data;
     if (load_model_type == 0)
@@ -136,9 +161,9 @@ static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float e
     if (load_model_type == 1)
     {
         // load from plain model memory
-        param_data = read_file_content("../../examples/squeezenet_v1.1.param");
+        param_str = read_file_string("../../examples/squeezenet_v1.1.param");
         model_data = read_file_content("../../examples/squeezenet_v1.1.bin");
-        squeezenet.load_param_mem((const char*)param_data);
+        squeezenet.load_param_mem((const char*)param_str.c_str());
         squeezenet.load_model((const unsigned char*)model_data);
     }
     if (load_model_type == 2)

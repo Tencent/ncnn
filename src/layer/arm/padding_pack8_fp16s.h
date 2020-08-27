@@ -154,7 +154,7 @@ static void padding_constant_pack8_fp16s_neon(const Mat& src, Mat& dst, int top,
         "r"(right),       // %7
         "r"(top_size),    // %8
         "r"(bottom_size), // %9
-        "w"(_v)            // %10
+        "w"(_v)           // %10
         : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v16", "v17", "v18", "v19");
 }
 

@@ -129,11 +129,11 @@ static int test_mat_pixel_0()
     for (int c = 1; c <= 4; c++)
     {
         int ret = 0
-            || test_mat_pixel_resize(24, 48, c, 24, 48)
-            || test_mat_pixel_resize(13, 17, c, 11, 14)
-            || test_mat_pixel_resize(33, 23, c, 5, 6)
-            || test_mat_pixel_resize(5, 4, c, 11, 16)
-            || test_mat_pixel_resize(23, 11, c, 15, 21);
+                  || test_mat_pixel_resize(24, 48, c, 24, 48)
+                  || test_mat_pixel_resize(13, 17, c, 11, 14)
+                  || test_mat_pixel_resize(33, 23, c, 5, 6)
+                  || test_mat_pixel_resize(5, 4, c, 11, 16)
+                  || test_mat_pixel_resize(23, 11, c, 15, 21);
 
         if (ret != 0)
             return ret;
