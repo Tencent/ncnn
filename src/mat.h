@@ -668,6 +668,8 @@ inline Mat::Mat(const Mat& m)
         NCNN_XADD(refcount, 1);
 }
 
+// With these constructors I cannot prove that data is aligned to MALLOC_ALIGN...
+// Unless, of course, we yell at users to guarantee these.
 inline Mat::Mat(int _w, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(1), w(_w), h(1), c(1)
 {
@@ -781,6 +783,7 @@ inline void Mat::fill(float _v)
     }
 #endif // __aarch64__
 #endif // __ARM_NEON
+    #pragma omp simd
     for (; remain > 0; remain--)
     {
         *ptr++ = _v;
@@ -832,6 +835,8 @@ inline void Mat::fill(int _v)
             : "cc", "memory");
     }
 #endif // __aarch64__
+#else
+    #pragma omp simd
 #endif // __ARM_NEON
     for (; remain > 0; remain--)
     {
@@ -1320,6 +1325,7 @@ inline Mat Mat::shape() const
     return Mat();
 }
 
+// Again, no guarantee for keeping alignment -- even in mat's own methods! Duh.
 inline Mat Mat::channel(int _c)
 {
     return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
