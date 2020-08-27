@@ -112,7 +112,7 @@ static std::string read_file_string(const char* filepath)
     rewind(fp);
 
     std::string s;
-    s.resize(len + 1);// +1 for '\0'
+    s.resize(len + 1); // +1 for '\0'
 
     fread((char*)s.c_str(), 1, len, fp);
     fclose(fp);
