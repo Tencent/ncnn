@@ -179,7 +179,6 @@ int ParamDict::load_param(const DataReader& dr)
     int id = 0;
     while (dr.scan("%d=", &id) == 1)
     {
-        fprintf(stderr, "id = %d\n", id);
         bool is_array = id <= -23300;
         if (is_array)
         {
@@ -238,7 +237,6 @@ int ParamDict::load_param(const DataReader& dr)
                 NCNN_LOGE("ParamDict read value failed");
                 return -1;
             }
-            fprintf(stderr, "vstr = %s\n", vstr);
 
             bool is_float = vstr_is_float(vstr);
 
