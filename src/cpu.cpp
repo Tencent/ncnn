@@ -377,6 +377,18 @@ static int get_max_freq_khz(int cpuid)
     return max_freq_khz;
 }
 
+#if __GLIBC__ == 1 || (__GLIBC__ == 2 && __GLIBC_MINOR__ < 30)
+static inline pid_t gettid(void)
+{
+    return syscall(SYS_gettid);
+}
+#elif defined(PI3)
+static inline pid_t gettid(void)
+{
+    return getpid();
+}
+#endif
+
 static int set_sched_affinity(size_t thread_affinity_mask)
 {
     // cpu_set_t definition
@@ -395,14 +407,7 @@ static int set_sched_affinity(size_t thread_affinity_mask)
     memset((cpusetp), 0, sizeof(cpu_set_t))
 
     // set affinity for thread
-#ifdef __GLIBC__
-    pid_t pid = syscall(SYS_gettid);
-#else
-#ifdef PI3
-    pid_t pid = getpid();
-#else
     pid_t pid = gettid();
-#endif
 #endif
     cpu_set_t mask;
     NCNN_CPU_ZERO(&mask);

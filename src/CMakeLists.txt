@@ -238,7 +238,7 @@ else()
 
     if(PI3)
         target_compile_options(ncnn
-            PRIVATE -march=native -mfpu=neon -mfloat-abi=hard)
+            PRIVATE -mcpu=cortex-a53 -mfpu=neon -mfloat-abi=hard)
         target_compile_definitions(ncnn
             PRIVATE __ARM_NEON __ANDROID__)
     endif()
