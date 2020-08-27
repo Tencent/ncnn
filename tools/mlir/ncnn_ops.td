@@ -38,6 +38,20 @@ def NCNN_InstanceNormOp : NCNN_Op<"InstanceNorm", [NoSideEffect]> {
 
   let arguments = (ins
     F32Tensor:$x,
+    F32Attr:$epsilon
+  );
+
+  let results = (outs
+    F32Tensor:$y
+  );
+
+  let hasCanonicalizer = 1;
+}
+
+def NCNN_InstanceNormAffineOp : NCNN_Op<"InstanceNormAffine", [NoSideEffect]> {
+
+  let arguments = (ins
+    F32Tensor:$x,
     F32Tensor:$gamma,
     F32Tensor:$beta,
     F32Attr:$epsilon

@@ -30,7 +30,13 @@ namespace ncnn {
 
 void InstanceNormOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
 {
-    results.insert<FuseInstanceNormPattern>(context);
+    results.insert<FuseInstanceNormPattern0>(context);
+    results.insert<FuseInstanceNormPattern1>(context);
+}
+
+void InstanceNormAffineOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
+{
+    results.insert<FuseInstanceNormAffinePattern>(context);
 }
 
 } // namespace ncnn
