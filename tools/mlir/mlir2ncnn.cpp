@@ -416,6 +416,18 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Noop");
         }
+        else if (op == "ncnn.BinaryOp")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (op == "ncnn.KerasConv2D")
+        {
+            fprintf(pp, "%-16s", "Convolution");
+        }
+        else if (op == "ncnn.KerasDense")
+        {
+            fprintf(pp, "%-16s", "InnerProduct");
+        }
         else if (op == "ncnn.InstanceNorm")
         {
             fprintf(pp, "%-16s", "InstanceNorm");
@@ -616,6 +628,141 @@ int main(int argc, char** argv)
 
         if (op == "std.return")
         {
+        }
+        else if (op == "ncnn.BinaryOp")
+        {
+            int op_type = get_operation_attr_i(operation, "op_type");
+            int with_scalar = get_operation_attr_i(operation, "with_scalar");
+            float b = get_operation_attr_f(operation, "b");
+
+            fprintf(pp, " 0=%d", op_type);
+            fprintf(pp, " 1=%d", with_scalar);
+            fprintf(pp, " 2=%e", b);
+        }
+        else if (op == "ncnn.KerasConv2D")
+        {
+            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            std::string bias_name = get_mlir_value_uniq_id(operation.getOperand(2));
+            const mlir::Attribute& W = weights[weight_name];
+            const mlir::Attribute& B = weights[bias_name];
+
+            llvm::ArrayRef<int64_t> shape = W.getType().cast<mlir::RankedTensorType>().getShape();
+
+            //             assert(shape.size() == 4)
+
+            // kh-kw-inch-outch
+            int kernel_size_h = shape[0];
+            int kernel_size_w = shape[1];
+            int num_input = shape[2];
+            int num_output = shape[3];
+            int weight_data_size = kernel_size_h * kernel_size_w * num_input * num_output;
+
+            fprintf(pp, " 0=%d", num_output);
+            fprintf(pp, " 1=%d", kernel_size_w);
+            fprintf(pp, " 11=%d", kernel_size_h);
+            fprintf(pp, " 6=%d", weight_data_size);
+
+            std::vector<int> dilations = get_operation_attr_ai(operation, "dilations");
+            std::vector<int> strides = get_operation_attr_ai(operation, "strides");
+            std::string padding = get_operation_attr_s(operation, "padding");
+
+            if (dilations.size() == 4)
+            {
+                fprintf(pp, " 2=%d", dilations[2]);
+                fprintf(pp, " 12=%d", dilations[1]);
+            }
+
+            if (strides.size() == 4)
+            {
+                fprintf(pp, " 3=%d", strides[2]);
+                fprintf(pp, " 13=%d", strides[1]);
+            }
+
+            if (padding == "EXPLICIT")
+            {
+                // nhwc = [[0, 0], [pad_top, pad_bottom], [pad_left, pad_right], [0, 0]]
+                std::vector<int> explicit_paddings = get_operation_attr_ai(operation, "explicit_paddings");
+
+                fprintf(pp, " 4=%d", explicit_paddings[4]);
+                fprintf(pp, " 15=%d", explicit_paddings[5]);
+                fprintf(pp, " 14=%d", explicit_paddings[2]);
+                fprintf(pp, " 16=%d", explicit_paddings[3]);
+            }
+            else if (padding == "VALID")
+            {
+                fprintf(pp, " 4=%d", 0);
+            }
+            else if (padding == "SAME")
+            {
+                fprintf(pp, " 4=%d", -233);
+            }
+
+            std::vector<float> v = get_attr_af(W);
+            std::vector<float> bv = get_attr_af(B);
+
+            // reorder h-w-i-o to o-i-h-w
+            {
+                int quantize_tag = 0;
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                float tmp;
+                for (int p = 0; p < num_output; p++)
+                {
+                    for (int q = 0; q < num_input; q++)
+                    {
+                        for (int i = 0; i < kernel_size_h; i++)
+                        {
+                            for (int j = 0; j < kernel_size_w; j++)
+                            {
+                                tmp = v[i * kernel_size_w * num_input * num_output + j * num_input * num_output + q * num_output + p];
+                                fwrite(&tmp, sizeof(float), 1, bp);
+                            }
+                        }
+                    }
+                }
+            }
+
+            fwrite(bv.data(), sizeof(float), bv.size(), bp);
+        }
+        else if (op == "ncnn.KerasDense")
+        {
+            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            std::string bias_name = get_mlir_value_uniq_id(operation.getOperand(2));
+            const mlir::Attribute& W = weights[weight_name];
+            const mlir::Attribute& B = weights[bias_name];
+
+            llvm::ArrayRef<int64_t> shape = W.getType().cast<mlir::RankedTensorType>().getShape();
+
+            //             assert(shape.size() == 2)
+
+            // inch-outch
+            int num_input = shape[0];
+            int num_output = shape[1];
+            int weight_data_size = shape[0] * shape[1];
+
+            fprintf(pp, " 0=%d", num_output);
+            fprintf(pp, " 2=%d", weight_data_size);
+
+            std::vector<float> v = get_attr_af(W);
+            std::vector<float> bv = get_attr_af(B);
+
+            // reorder i-o to o-i
+            {
+                int quantize_tag = 0;
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                float tmp;
+                for (int p = 0; p < num_output; p++)
+                {
+                    for (int q = 0; q < num_input; q++)
+                    {
+                        tmp = v[q * num_output + p];
+                        fwrite(&tmp, sizeof(float), 1, bp);
+                    }
+                }
+            }
+
+            fwrite(bv.data(), sizeof(float), bv.size(), bp);
         }
         else if (op == "ncnn.InstanceNorm")
         {
