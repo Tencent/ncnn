@@ -249,7 +249,7 @@ endif()
 
 check_ipo_supported(RESULT result)
 if(result AND CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
-    set_target_properties(TARGET ncnn PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    set_target_properties(TARGET ncnn PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
 if(NCNN_DISABLE_RTTI)
