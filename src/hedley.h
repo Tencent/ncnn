@@ -1,3 +1,4 @@
+// clang-format off
 /* Hedley - https://nemequ.github.io/hedley
  * Created by Evan Nemerson <evan@nemerson.com>
  *
@@ -1983,3 +1984,4 @@ HEDLEY_DIAGNOSTIC_POP
 #endif
 
 #endif /* !defined(HEDLEY_VERSION) || (HEDLEY_VERSION < X) */
+// clang-format on
