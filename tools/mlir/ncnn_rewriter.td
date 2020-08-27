@@ -22,7 +22,71 @@ def get_attr_f : NativeCodeCall<"$0.getValue<FloatAttr>(0)">;
 
 def EqualOperands : Constraint<CPred<"$0 == $1">>;
 
-def FuseInstanceNormPattern : Pat<
+def FuseInstanceNormPattern0 : Pat<
+    (TF_MulOp
+        (TF_RsqrtOp
+            (TF_AddV2Op
+                (TF_MeanOp
+                    (TF_SquaredDifferenceOp
+                        (TF_MeanOp:$mean
+                            $x,
+                            (TF_ConstOp:$reduce_axis ElementsAttr),
+                            ConstBoolAttrTrue // keep_dims
+                        ),
+                        $x_
+                    ),
+                    $reduce_axis_,
+                    ConstBoolAttrTrue // keep_dims
+                ),
+                (TF_ConstOp ElementsAttr:$epsilon)
+            )
+        ),
+        (TF_SubOp $x__, $mean_)
+    ),
+
+    (NCNN_InstanceNormOp $x, (get_attr_f $epsilon)),
+
+    [
+        (EqualOperands $x, $x_),
+        (EqualOperands $x, $x__),
+        (EqualOperands $reduce_axis, $reduce_axis_),
+        (EqualOperands $mean, $mean_)
+    ]
+>;
+
+def FuseInstanceNormPattern1 : Pat<
+    (TF_MulOp
+        (TF_RsqrtOp
+            (TF_AddV2Op
+                (TF_MeanOp
+                    (TF_SquaredDifferenceOp
+                        $x_,
+                        (TF_MeanOp:$mean
+                            $x,
+                            (TF_ConstOp:$reduce_axis ElementsAttr),
+                            ConstBoolAttrTrue // keep_dims
+                        )
+                    ),
+                    $reduce_axis_,
+                    ConstBoolAttrTrue // keep_dims
+                ),
+                (TF_ConstOp ElementsAttr:$epsilon)
+            )
+        ),
+        (TF_SubOp $x__, $mean_)
+    ),
+
+    (NCNN_InstanceNormOp $x, (get_attr_f $epsilon)),
+
+    [
+        (EqualOperands $x, $x_),
+        (EqualOperands $x, $x__),
+        (EqualOperands $reduce_axis, $reduce_axis_),
+        (EqualOperands $mean, $mean_)
+    ]
+>;
+
+def FuseInstanceNormAffinePattern : Pat<
     (TF_ReshapeOp
         (TF_AddV2Op
             (TF_MulOp
@@ -56,7 +120,7 @@ def FuseInstanceNormPattern : Pat<
         (TF_ConstOp ElementsAttr)
     ),
 
-    (NCNN_InstanceNormOp $x, $gamma, $beta, (get_attr_f $epsilon)),
+    (NCNN_InstanceNormAffineOp $x, $gamma, $beta, (get_attr_f $epsilon)),
 
     [
         (EqualOperands $reshaped, $reshaped_),
