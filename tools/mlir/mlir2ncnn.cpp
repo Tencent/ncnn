@@ -420,6 +420,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "InstanceNorm");
         }
+        else if (op == "ncnn.InstanceNormAffine")
+        {
+            fprintf(pp, "%-16s", "InstanceNorm");
+        }
         else if (op == "tf.AddN")
         {
             fprintf(pp, "%-16s", "Eltwise");
@@ -617,6 +621,14 @@ int main(int argc, char** argv)
         {
             float eps = get_operation_attr_f(operation, "epsilon");
 
+            fprintf(pp, " 0=0"); // channels
+            fprintf(pp, " 1=%e", eps);
+            fprintf(pp, " 2=0"); // affine
+        }
+        else if (op == "ncnn.InstanceNormAffine")
+        {
+            float eps = get_operation_attr_f(operation, "epsilon");
+
             std::string gamma_name = get_mlir_value_uniq_id(operation.getOperand(1));
             std::string beta_name = get_mlir_value_uniq_id(operation.getOperand(2));
             const mlir::Attribute& G = weights[gamma_name];
@@ -629,6 +641,7 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 0=%d", channels);
             fprintf(pp, " 1=%e", eps);
+            fprintf(pp, " 2=1"); // affine
 
             fwrite(gv.data(), sizeof(float), gv.size(), bp);
             fwrite(bv.data(), sizeof(float), bv.size(), bp);
