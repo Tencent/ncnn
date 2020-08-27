@@ -296,7 +296,7 @@ if(NCNN_OPENMP AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
         target_link_libraries(ncnn PRIVATE "${OpenMP_CXX_FLAGS}")
     endif()
 else()
-    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND (NOT CMAKE CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")))
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND (NOT CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")))
         # This does not require the real openmp library.
         target_compile_options(ncnn PRIVATE -fopenmp-simd)
     endif()
