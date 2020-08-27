@@ -22,7 +22,8 @@
 #endif
 
 layout (constant_id = 0) const float eps = 0;
-layout (constant_id = 1) const int w = 0;
+layout (constant_id = 1) const int affine = 0;
+layout (constant_id = 2) const int w = 0;
 
 #if NCNN_image_shader
 layout (binding = 0, imfmtc1) writeonly uniform unfp image1D coeffs_blob;
@@ -50,17 +51,31 @@ void main()
 #if NCNN_image_shader
     afp mean = image1d_ld1(mean_blob, gx);
     afp var = image1d_ld1(var_blob, gx);
-    afp gamma = image1d_ld1(gamma_blob, gx);
-    afp beta = image1d_ld1(beta_blob, gx);
 #else
     afp mean = buffer_ld1(mean_data, gx);
     afp var = buffer_ld1(var_data, gx);
-    afp gamma = buffer_ld1(gamma_data, gx);
-    afp beta = buffer_ld1(beta_data, gx);
 #endif
 
-    afp a = gamma / (sqrt(var + afp(eps)));
-    afp b = - mean * a + beta;
+    afp a;
+    afp b;
+    if (affine == 0)
+    {
+        a = afp(1.f) / (sqrt(var + afp(eps)));
+        b = - mean * a;
+    }
+    else
+    {
+#if NCNN_image_shader
+        afp gamma = image1d_ld1(gamma_blob, gx);
+        afp beta = image1d_ld1(beta_blob, gx);
+#else
+        afp gamma = buffer_ld1(gamma_data, gx);
+        afp beta = buffer_ld1(beta_data, gx);
+#endif
+
+        a = gamma / (sqrt(var + afp(eps)));
+        b = - mean * a + beta;
+    }
 
 #if NCNN_image_shader
     image1d_st1(coeffs_blob, gx*2, a);

@@ -23,7 +23,8 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #endif
 
 layout (constant_id = 0) const float eps = 0;
-layout (constant_id = 1) const int w = 0;
+layout (constant_id = 1) const int affine = 0;
+layout (constant_id = 2) const int w = 0;
 
 #if NCNN_image_shader
 layout (binding = 0, imfmtc4) writeonly uniform unfp image1D coeffs_blob;
@@ -51,21 +52,35 @@ void main()
 #if NCNN_image_shader
     afpvec8 mean = image1d_ld8(mean_blob, gx);
     afpvec8 var = image1d_ld8(var_blob, gx);
-    afpvec8 gamma = image1d_ld8(gamma_blob, gx);
-    afpvec8 beta = image1d_ld8(beta_blob, gx);
 #else
     afpvec8 mean = buffer_ld8(mean_data, gx);
     afpvec8 var = buffer_ld8(var_data, gx);
-    afpvec8 gamma = buffer_ld8(gamma_data, gx);
-    afpvec8 beta = buffer_ld8(beta_data, gx);
 #endif
 
     afpvec8 a;
     afpvec8 b;
-    a[0] = gamma[0] / (sqrt(var[0] + afp(eps)));
-    a[1] = gamma[1] / (sqrt(var[1] + afp(eps)));
-    b[0] = - mean[0] * a[0] + beta[0];
-    b[1] = - mean[1] * a[1] + beta[1];
+    if (affine == 0)
+    {
+        a[0] = afp(1.f) / (sqrt(var[0] + afp(eps)));
+        a[1] = afp(1.f) / (sqrt(var[1] + afp(eps)));
+        b[0] = - mean[0] * a[0];
+        b[1] = - mean[1] * a[1];
+    }
+    else
+    {
+#if NCNN_image_shader
+        afpvec8 gamma = image1d_ld8(gamma_blob, gx);
+        afpvec8 beta = image1d_ld8(beta_blob, gx);
+#else
+        afpvec8 gamma = buffer_ld8(gamma_data, gx);
+        afpvec8 beta = buffer_ld8(beta_data, gx);
+#endif
+
+        a[0] = gamma[0] / (sqrt(var[0] + afp(eps)));
+        a[1] = gamma[1] / (sqrt(var[1] + afp(eps)));
+        b[0] = - mean[0] * a[0] + beta[0];
+        b[1] = - mean[1] * a[1] + beta[1];
+    }
 
 #if NCNN_image_shader
     image1d_st8(coeffs_blob, gx*2, a);

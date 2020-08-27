@@ -229,9 +229,10 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     }
 
     {
-        std::vector<vk_specialization_type> specializations(2);
+        std::vector<vk_specialization_type> specializations(3);
         specializations[0].f = eps;
-        specializations[1].i = channels / elempack;
+        specializations[1].i = affine;
+        specializations[2].i = channels / elempack;
 
         Mat local_size_xyz(std::min(64, channels / elempack), 1, 1, (void*)0);
         if (workspace_shape_packed.dims != 0)
@@ -371,6 +372,9 @@ int InstanceNorm_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int InstanceNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
+    if (affine == 0)
+        return 0;
+
     int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 
     Mat gamma_data_packed;

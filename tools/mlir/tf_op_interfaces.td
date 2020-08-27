@@ -37,19 +37,19 @@ def TF_LayoutSensitiveInterface : OpInterface<"LayoutSensitiveInterface"> {
     depending on arguments shape/type and execution device (CPU or GPU).
   }];
 
-  let methods = [
-    InterfaceMethod<
-      [{Returns current operation data format (data layout).}],
-      "StringRef", "data_format", (ins)
-    >,
-    InterfaceMethod<
-      [{Returns indices of layout dependent arguments.}],
-      "SmallVector<unsigned, 4>", "GetLayoutDependentArgs", (ins)
-    >,
-    InterfaceMethod<
-      [{Returns indices of layout dependent results.}],
-      "SmallVector<unsigned, 4>", "GetLayoutDependentResults", (ins)
-    >,
+//   let methods = [
+//     InterfaceMethod<
+//       [{Returns current operation data format (data layout).}],
+//       "StringRef", "data_format", (ins)
+//     >,
+//     InterfaceMethod<
+//       [{Returns indices of layout dependent arguments.}],
+//       "SmallVector<unsigned, 4>", "GetLayoutDependentArgs", (ins)
+//     >,
+//     InterfaceMethod<
+//       [{Returns indices of layout dependent results.}],
+//       "SmallVector<unsigned, 4>", "GetLayoutDependentResults", (ins)
+//     >,
 //     InterfaceMethod<
 //       [{Returns the optimal data layout based on the available devices.}],
 //       "StringRef", "GetOptimalLayout", (ins "const RuntimeDevices&":$devices)
@@ -59,8 +59,8 @@ def TF_LayoutSensitiveInterface : OpInterface<"LayoutSensitiveInterface"> {
 //         data format. If data format is not supported, must return failure.}],
 //       "LogicalResult", "UpdateDataFormat", (ins "StringRef":$data_format)
 //     >,
-  ];
-
+//   ];
+//
 //   let verify = [{
 //     return VerifyLayoutSensitiveInterface($_op);
 //   }];
@@ -81,15 +81,15 @@ def TF_FoldOperandsTransposeInterface : OpInterface<"FoldOperandsTransposeInterf
                  -> Mean($arg, Transpose($reduction_dims))
   }];
 
-  let methods = [
-    InterfaceMethod<
-      [{Returns indices of layout dependent arguments.}],
-      "SmallVector<unsigned, 4>", "GetLayoutDependentArgs", (ins)
-    >,
-    InterfaceMethod<
-      [{Returns indices of layout dependent results.}],
-      "SmallVector<unsigned, 4>", "GetLayoutDependentResults", (ins)
-    >,
+//   let methods = [
+//     InterfaceMethod<
+//       [{Returns indices of layout dependent arguments.}],
+//       "SmallVector<unsigned, 4>", "GetLayoutDependentArgs", (ins)
+//     >,
+//     InterfaceMethod<
+//       [{Returns indices of layout dependent results.}],
+//       "SmallVector<unsigned, 4>", "GetLayoutDependentResults", (ins)
+//     >,
 //     InterfaceMethod<
 //       [{Updates operation attributes and operands to account for the folded
 //         permutation. If folding of permutation is not possible, must return
@@ -97,8 +97,8 @@ def TF_FoldOperandsTransposeInterface : OpInterface<"FoldOperandsTransposeInterf
 //       "LogicalResult", "FoldOperandsPermutation",
 //       (ins "ArrayRef<int64_t>":$permutation)
 //     >,
-  ];
-
+//   ];
+//
 //   let verify = [{
 //     return VerifyFoldOperandsTransposeInterface($_op);
 //   }];
