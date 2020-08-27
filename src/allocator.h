@@ -45,6 +45,9 @@ namespace ncnn {
 #define MALLOC_ALIGN 16
 #endif
 
+// For marking allocated things as aligned. Will evaluate twice on GCC!
+#define NCNN_ASSUME_ALIGNED(ptr) HEDLEY_ASSUME_ALIGNED(ptr, MALLOC_ALIGN)
+
 // Aligns a pointer to the specified number of bytes
 // ptr Aligned pointer
 // n Alignment size that must be a power of two
@@ -63,6 +66,7 @@ static inline size_t alignSize(size_t sz, int n)
     return (sz + n - 1) & -n;
 }
 
+// Aligned malloc.
 static inline void* fastMalloc(size_t size)
 {
 #if _MSC_VER

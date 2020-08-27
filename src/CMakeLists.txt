@@ -300,6 +300,7 @@ if(NCNN_INSTALL_SDK)
         cpu.h
         datareader.h
         gpu.h
+        hedley.h
         layer.h
         layer_shader_type.h
         layer_type.h
