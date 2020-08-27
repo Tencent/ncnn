@@ -190,6 +190,8 @@ struct iter_list
 template<typename T>
 struct list
 {
+    typedef iter_list<T> iterator;
+
     list()
     {
         head_ = new node<T>();

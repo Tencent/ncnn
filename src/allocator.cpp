@@ -39,7 +39,8 @@ PoolAllocator::~PoolAllocator()
     if (!payouts.empty())
     {
         NCNN_LOGE("FATAL ERROR! pool allocator destroyed too early");
-        for (auto it = payouts.begin(); it != payouts.end(); ++it)
+        std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
+        for (; it != payouts.end(); ++it)
         {
             void* ptr = it->second;
             NCNN_LOGE("%p still in use", ptr);
@@ -51,7 +52,8 @@ void PoolAllocator::clear()
 {
     budgets_lock.lock();
 
-    for (auto it = budgets.begin(); it != budgets.end(); ++it)
+    std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
+    for (; it != budgets.end(); ++it)
     {
         void* ptr = it->second;
         ncnn::fastFree(ptr);
@@ -77,7 +79,8 @@ void* PoolAllocator::fastMalloc(size_t size)
     budgets_lock.lock();
 
     // find free budget
-    for (auto it = budgets.begin(); it != budgets.end(); ++it)
+    std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
+    for (; it != budgets.end(); ++it)
     {
         size_t bs = it->first;
 
@@ -119,7 +122,8 @@ void PoolAllocator::fastFree(void* ptr)
     payouts_lock.lock();
 
     // return to budgets
-    for (auto it = payouts.begin(); it != payouts.end(); ++it)
+    std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
+    for (; it != payouts.end(); ++it)
     {
         if (it->second == ptr)
         {
@@ -157,7 +161,8 @@ UnlockedPoolAllocator::~UnlockedPoolAllocator()
     if (!payouts.empty())
     {
         NCNN_LOGE("FATAL ERROR! unlocked pool allocator destroyed too early");
-        for (auto it = payouts.begin(); it != payouts.end(); ++it)
+        std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
+        for (; it != payouts.end(); ++it)
         {
             void* ptr = it->second;
             NCNN_LOGE("%p still in use", ptr);
@@ -167,7 +172,8 @@ UnlockedPoolAllocator::~UnlockedPoolAllocator()
 
 void UnlockedPoolAllocator::clear()
 {
-    for (auto it = budgets.begin(); it != budgets.end(); ++it)
+    std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
+    for (; it != budgets.end(); ++it)
     {
         void* ptr = it->second;
         ncnn::fastFree(ptr);
@@ -189,7 +195,8 @@ void UnlockedPoolAllocator::set_size_compare_ratio(float scr)
 void* UnlockedPoolAllocator::fastMalloc(size_t size)
 {
     // find free budget
-    for (auto it = budgets.begin(); it != budgets.end(); ++it)
+    std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
+    for (; it != budgets.end(); ++it)
     {
         size_t bs = it->first;
 
@@ -217,7 +224,8 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
 void UnlockedPoolAllocator::fastFree(void* ptr)
 {
     // return to budgets
-    for (auto it = payouts.begin(); it != payouts.end(); ++it)
+    std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
+    for (; it != payouts.end(); ++it)
     {
         if (it->second == ptr)
         {
