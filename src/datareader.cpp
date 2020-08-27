@@ -63,7 +63,7 @@ int DataReaderFromMemory::scan(const char* format, void* p) const
 {
     size_t fmtlen = strlen(format);
 
-    char* format_with_n = new char[fmtlen + 3];
+    char* format_with_n = new char[fmtlen + 4];
     sprintf(format_with_n, "%s%%n", format);
 
     int nconsumed = 0;
