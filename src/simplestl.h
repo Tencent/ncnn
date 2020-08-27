@@ -116,16 +116,16 @@ pair<T1, T2> make_pair(const T1& t1, const T2& t2)
 template<typename T>
 struct node
 {
-    node* prev_ = nullptr;
-    node* next_ = nullptr;
+    node* prev_;
+    node* next_;
     T data_;
 
     node()
-        : data_()
+        : prev_(nullptr), next_(nullptr), data_()
     {
     }
     node(const T& t)
-        : data_(t)
+        : prev_(nullptr), next_(nullptr), data_(t)
     {
     }
 };
@@ -134,6 +134,7 @@ template<typename T>
 struct iter_list
 {
     iter_list()
+        : curr_(nullptr)
     {
     }
     iter_list(node<T>* n)
@@ -183,7 +184,7 @@ struct iter_list
         return *this;
     }
 
-    node<T>* curr_ = nullptr;
+    node<T>* curr_;
 };
 
 template<typename T>
@@ -193,6 +194,7 @@ struct list
     {
         head_ = new node<T>();
         tail_ = head_;
+        count_ = 0;
     }
     ~list()
     {
@@ -203,6 +205,7 @@ struct list
     {
         head_ = new node<T>();
         tail_ = head_;
+        count_ = 0;
 
         for (iter_list<T> i = l.begin(); i != l.end(); ++i)
         {
@@ -307,9 +310,9 @@ struct list
     }
 
 protected:
-    node<T>* head_ = nullptr;
-    node<T>* tail_ = nullptr;
-    size_t count_ = 0;
+    node<T>* head_;
+    node<T>* tail_;
+    size_t count_;
 };
 
 template<typename T>
