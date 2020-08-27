@@ -248,7 +248,7 @@ else()
 endif()
 
 check_ipo_supported(RESULT result)
-if(result and CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
+if(result AND CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
     set_target_properties(TARGET ncnn PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
