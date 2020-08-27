@@ -161,6 +161,10 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 ### 技术交流QQ群：637093648(超多大佬)  答案：卷卷卷卷卷
 
+### Telegram Group
+
+https://t.me/ncnnyes
+
 ---
 
 ### License
