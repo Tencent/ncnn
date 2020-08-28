@@ -162,12 +162,12 @@ add_library(ncnn STATIC ${ncnn_SRCS})
 
 if(NCNN_SIMPLESTL)
     # link math lib explicitly
-    target_link_libraries(ncnn PUBLIC -lm)
+    target_link_libraries(ncnn PUBLIC m)
 
     # do not link gcc lib on darwin and emscripten
     if(CMAKE_CXX_COMPILER_ID MATCHES "(Clang|GNU)" AND NOT CMAKE_SYSTEM_NAME MATCHES "(Darwin|Emscripten)")
         # for cpu_support_x86_avx2
-        target_link_libraries(ncnn PUBLIC -lgcc)
+        target_link_libraries(ncnn PUBLIC gcc)
     endif()
 endif()
 
