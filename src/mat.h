@@ -782,9 +782,9 @@ inline void Mat::fill(float _v)
             : "cc", "memory");
     }
 #endif // __aarch64__
-#endif // __ARM_NEON
     #pragma omp simd
-    for (; remain > 0; remain--)
+#endif // __ARM_NEON
+    for (int x = remain; x > 0; x--)
     {
         *ptr++ = _v;
     }
@@ -838,7 +838,7 @@ inline void Mat::fill(int _v)
 #else
     #pragma omp simd
 #endif // __ARM_NEON
-    for (; remain > 0; remain--)
+    for (int x = remain; x > 0; x--)
     {
         *ptr++ = _v;
     }
