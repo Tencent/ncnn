@@ -19,8 +19,6 @@
 #include "option.h"
 #include "pipeline.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 VkCompute::VkCompute(const VulkanDevice* _vkdev)

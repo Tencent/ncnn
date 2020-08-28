@@ -40,6 +40,7 @@ set(ncnn_SRCS
     paramdict.cpp
     pipeline.cpp
     pipelinecache.cpp
+    simplestl.cpp
 )
 
 if(ANDROID)
@@ -158,6 +159,17 @@ configure_file(layer_shader_spv_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shad
 configure_file(layer_shader_type_enum.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
+
+if(NCNN_SIMPLESTL)
+    # link math lib explicitly
+    target_link_libraries(ncnn PUBLIC m)
+
+    # do not link gcc lib on darwin and emscripten
+    if(CMAKE_CXX_COMPILER_ID MATCHES "(Clang|GNU)" AND NOT CMAKE_SYSTEM_NAME MATCHES "(Darwin|Emscripten)")
+        # for cpu_support_x86_avx2
+        target_link_libraries(ncnn PUBLIC gcc)
+    endif()
+endif()
 
 target_include_directories(ncnn
     PUBLIC

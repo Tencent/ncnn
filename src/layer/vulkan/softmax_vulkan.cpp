@@ -16,8 +16,6 @@
 
 #include "layer_shader_type.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 Softmax_vulkan::Softmax_vulkan()

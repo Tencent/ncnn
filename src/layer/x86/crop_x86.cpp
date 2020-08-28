@@ -18,8 +18,6 @@
 
 #include "crop_x86.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 Crop_x86::Crop_x86()

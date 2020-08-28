@@ -174,6 +174,8 @@ public:
 #if NCNN_SIMPLESTL
 #include "simplestl.h"
 #else
+#include <algorithm>
+#include <list>
 #include <vector>
 #include <string>
 #endif

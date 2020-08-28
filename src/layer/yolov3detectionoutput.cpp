@@ -16,8 +16,7 @@
 
 #include "layer_type.h"
 
-#include <algorithm>
-#include <limits>
+#include <float.h>
 #include <math.h>
 
 namespace ncnn {
@@ -194,7 +193,7 @@ int Yolov3DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::ve
                 {
                     // find class index with max class score
                     int class_index = 0;
-                    float class_score = -std::numeric_limits<float>::max();
+                    float class_score = -FLT_MAX;
                     for (int q = 0; q < num_class; q++)
                     {
                         float score = scores.channel(q).row(i)[j];

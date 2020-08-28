@@ -14,8 +14,6 @@
 
 #include "crop.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 Crop::Crop()
