@@ -19,7 +19,6 @@
 #include "pipelinecache.h"
 #include "option.h"
 
-#include <algorithm>
 #include <math.h>
 
 #if __ANDROID_API__ >= 26

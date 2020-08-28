@@ -17,7 +17,6 @@
 #include "testutil.h"
 
 #include <stdio.h>
-#include <algorithm>
 
 static ncnn::Mat generate_ncnn_logo(int pixel_type_to, int w, int h)
 {

@@ -19,7 +19,6 @@
 #include "mat.h"
 #include "prng.h"
 
-#include <algorithm>
 #include <math.h>
 #include <stdio.h>
 

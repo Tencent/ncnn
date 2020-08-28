@@ -17,8 +17,6 @@
 #include "layer_type.h"
 #include "layer_shader_type.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 Reshape_vulkan::Reshape_vulkan()
