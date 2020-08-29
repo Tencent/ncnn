@@ -324,6 +324,7 @@ VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());
 
 #if NCNN_VULKAN_ONLINE_SPIRV
 // online spirv compilation
+int compile_spirv_module(const char* comp_data, int comp_data_size, const Option& opt, std::vector<uint32_t>& spirv);
 int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<uint32_t>& spirv);
 #endif
 
