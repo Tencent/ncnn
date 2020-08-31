@@ -39,13 +39,18 @@ layout (binding = 3) readonly buffer gamma_blob { sfpvec4 gamma_data[]; };
 layout (binding = 4) readonly buffer beta_blob { sfpvec4 beta_data[]; };
 #endif
 
+layout (push_constant) uniform parameter
+{
+    int w;
+} p;
+
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x);
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= w || gy >= 1 || gz >= 1)
+    if (gx >= psc(w) || gy >= 1 || gz >= 1)
         return;
 
 #if NCNN_image_shader
