@@ -17,8 +17,46 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#include <stdio.h>
+
 #include <vector>
+#include <iostream>
+#include <fstream>
+#include <chrono>
+
+#include <string.h>
+#include <stdio.h>
+
+#include <sys/ioctl.h>
+#include <linux/fb.h>
+#include <fcntl.h>
+
+#define NCNN_PROFILING
+
+#define ENABLE_LINUX_FB_SUPPORT
+
+int framebuffer_width = 240;
+int framebuffer_depth = 16;
+cv::Size2f frame_size;
+
+#ifdef ENABLE_LINUX_FB_SUPPORT
+struct framebuffer_info { 
+    uint32_t bits_per_pixel; uint32_t xres_virtual; 
+};
+
+struct framebuffer_info get_framebuffer_info(const char* framebuffer_device_path) {
+    struct framebuffer_info info;
+    struct fb_var_screeninfo screen_info;
+    int fd = -1;
+    fd = open(framebuffer_device_path, O_RDWR);
+    if (fd >= 0) {
+        if (!ioctl(fd, FBIOGET_VSCREENINFO, &screen_info)) {
+            info.xres_virtual = screen_info.xres_virtual;
+            info.bits_per_pixel = screen_info.bits_per_pixel;
+        }
+    }
+    return info;
+};
+#endif
 
 #define YOLOV4_TINY 1 //0 or undef for yolov4
 
@@ -29,35 +67,54 @@ struct Object
     float prob;
 };
 
-static int detect_yolov4(const cv::Mat& bgr, std::vector<Object>& objects)
+static int init_yolov4(char *filename, ncnn::Net *yolov4){
+
+/* --> Set the params you need for the ncnn inference <-- */
+
+    yolov4->opt.num_threads = 4; //You need to compile with libgomp for multi thread support
+    
+    yolov4->opt.use_winograd_convolution = true;
+    yolov4->opt.use_sgemm_convolution = true;
+    yolov4->opt.use_fp16_packed = true;
+    yolov4->opt.use_fp16_storage = true;
+    yolov4->opt.use_fp16_arithmetic = true;
+    yolov4->opt.use_packing_layout = true;
+    yolov4->opt.use_shader_pack8 = false;
+    yolov4->opt.use_image_storage = false;
+
+/* --> End of setting params <-- */
+
+    char paramname[100];
+    sprintf(paramname, "%s.param", filename);
+
+    char modelname[100];
+    sprintf(modelname, "%s.bin", filename);
+
+    int ret = yolov4->load_param(paramname);  
+    if(ret != 0){
+        return ret;
+    }
+
+    ret = yolov4->load_model(modelname);
+    if(ret != 0){
+        return ret;
+    }
+
+    return 0;
+}
+
+static int detect_yolov4(const cv::Mat& bgr, std::vector<Object>& objects, int target_size, ncnn::Net *yolov4)
 {
-    ncnn::Net yolov4;
-
-    yolov4.opt.use_vulkan_compute = true;
-
-    // original pretrained model from https://github.com/AlexeyAB/darknet
-    // the ncnn model https://drive.google.com/drive/folders/1YzILvh0SKQPS_lrb33dmGNq7aVTKPWS0?usp=sharing
-    // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-#if YOLOV4_TINY
-    yolov4.load_param("yolov4-tiny-opt.param");
-    yolov4.load_model("yolov4-tiny-opt.bin");
-    const int target_size = 416;
-#else
-    yolov4.load_param("yolov4-opt.param");
-    yolov4.load_model("yolov4-opt.bin");
-    const int target_size = 608;
-#endif
-
     int img_w = bgr.cols;
     int img_h = bgr.rows;
 
-    ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, target_size, target_size);
+    ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR2RGB, bgr.cols, bgr.rows, target_size, target_size);
 
     const float mean_vals[3] = {0, 0, 0};
     const float norm_vals[3] = {1 / 255.f, 1 / 255.f, 1 / 255.f};
     in.substract_mean_normalize(mean_vals, norm_vals);
 
-    ncnn::Extractor ex = yolov4.create_extractor();
+    ncnn::Extractor ex = yolov4->create_extractor();
 
     ex.input("data", in);
 
@@ -84,7 +141,7 @@ static int detect_yolov4(const cv::Mat& bgr, std::vector<Object>& objects)
     return 0;
 }
 
-static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
+static int draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects, std::ofstream& fbdevice, int is_using_gui, int is_still_picture)
 {
     static const char* class_names[] = {"background", "person", "bicycle",
                                         "car", "motorbike", "aeroplane", "bus", "train", "truck",
@@ -135,31 +192,175 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
     }
 
-    cv::imshow("image", image);
-    cv::waitKey(0);
+    if(is_using_gui){
+        cv::imshow("image", image);
+        if(is_still_picture){
+            cv::waitKey(0);
+        }else{
+            cv::waitKey(1);
+        }
+    }else{
+#ifdef ENABLE_LINUX_FB_SUPPORT
+        frame_size = image.size();
+
+        cv::cvtColor(image, image, cv::COLOR_BGR2BGR565);
+        
+        for (int y = 0; y < frame_size.height ; y++){
+            fbdevice.seekp(y*framebuffer_width*2);
+            fbdevice.write(reinterpret_cast<char*>(image.ptr(y)),frame_size.width*2);
+        }
+#else
+        fprintf(stderr, "Linux Framebuffer support not enabled.\n");
+        return -1;
+#endif
+    }
+    
 }
 
-int main(int argc, char** argv)
-{
-    if (argc != 2)
-    {
-        fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
-        return -1;
-    }
+int main(int argc, char** argv){
 
-    const char* imagepath = argv[1];
-
-    cv::Mat m = cv::imread(imagepath, 1);
-    if (m.empty())
-    {
-        fprintf(stderr, "cv::imread %s failed\n", imagepath);
-        return -1;
-    }
-
+    cv::Mat frame;
     std::vector<Object> objects;
-    detect_yolov4(m, objects);
 
-    draw_objects(m, objects);
+    cv::VideoCapture cap;
+    
+    ncnn::Net yolov4;
+
+    std::ofstream ofs; //For writing to linux framebuffer
+
+    const char* devicepath;
+
+    int detection_resolution = 0;
+    int is_using_gui = 1;
+    int is_streaming = 0;
+
+    if (argc < 5){
+        fprintf(stderr, "Usage: %s [v4l inpude device or image file] {\"gui\", [output devices]} [ncnn filename] [detection input size]\n", argv[0]);
+        fprintf(stderr, "For output to gui, use \"gui\" as output devices, and for linux framebuffer, use /dev/fb* as output devices.");
+        return -1;
+    }
+
+    detection_resolution = std::stoi(argv[4]);
+    if(detection_resolution <= 0){
+        fprintf(stderr, "Invalid input resolution %s.\n", argv[4]);
+        return -1;
+    }
+
+    if(strstr(argv[1], "/dev/video") == NULL){
+        frame = cv::imread(argv[1], 1);
+        if(frame.empty()){
+            fprintf(stderr, "Failed to read image %s.\n", argv[1]);
+            return -1;
+        }
+    }else{
+        devicepath = argv[1];
+
+        cap.open(devicepath);
+
+        if (!cap.isOpened()){
+            fprintf(stderr, "Failed to open %s", devicepath);
+            return -1;
+        }
+
+        cap.set(cv::CAP_PROP_BUFFERSIZE, 1);
+
+        if(detection_resolution < 240){
+            cap.set(cv::CAP_PROP_FRAME_WIDTH, 320);
+            cap.set(cv::CAP_PROP_FRAME_HEIGHT, 240);
+        }
+        
+        cap >> frame;
+
+        if(frame.empty()){
+            fprintf(stderr, "Failed to read from device %s.\n", devicepath);
+            return -1;
+        }
+
+        is_streaming = 1;
+    }
+
+#ifdef NCNN_PROFILING
+    auto t_load_start = std::chrono::high_resolution_clock::now();
+#endif
+
+    int ret = init_yolov4(argv[3], &yolov4);
+    if(ret != 0){
+        fprintf(stderr, "Failed to load model or param %s, error %d", argv[3], ret);
+        return -1;
+    }
+
+#ifdef NCNN_PROFILING
+    auto t_load_end = std::chrono::high_resolution_clock::now();
+    auto t_load_duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_load_start - t_load_end).count();
+    fprintf(stdout, "NCNN Init time %dms\n", t_load_duration);
+#endif
+
+    if(strstr(argv[2], "gui") == NULL){
+#ifdef ENABLE_LINUX_FB_SUPPORT
+        if(strstr(argv[2], "/dev/fb") == NULL){
+            fprintf(stderr, "The device %s you are pointing to may not be a valid linux fb sink.", argv[2]);
+        }
+
+        framebuffer_info fb_info = get_framebuffer_info(argv[2]);
+        framebuffer_width = fb_info.xres_virtual;
+        framebuffer_depth = fb_info.bits_per_pixel;
+
+        ofs.open(argv[2]);
+        if(ofs.bad()){
+            fprintf(stderr, "Failed to open device %s.", argv[2]);
+            return -1;
+        }
+
+        is_using_gui = 0;
+#else
+        fprintf(stderr, "Linux Framebuffer support not enabled.\n");
+        return -1;
+#endif
+    }
+
+    while(1){
+
+        if(is_streaming){
+#ifdef NCNN_PROFILING
+            auto t_capture_start = std::chrono::high_resolution_clock::now();
+#endif
+            cap >> frame;
+#ifdef NCNN_PROFILING
+            auto t_capture_end = std::chrono::high_resolution_clock::now();
+            auto t_capture_duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_capture_start - t_capture_end).count();
+            fprintf(stdout, "NCNN OpenCV capture time %dms\n", t_capture_duration);
+#endif
+            if (frame.empty()){
+                fprintf(stderr, "OpenCV Failed to Capture from device %s\n", devicepath);
+                return -1;
+            }
+        }
+
+#ifdef NCNN_PROFILING
+        auto t_detect_start = std::chrono::high_resolution_clock::now();
+#endif
+        detect_yolov4(frame, objects, detection_resolution, &yolov4);
+#ifdef NCNN_PROFILING
+        auto t_detect_end = std::chrono::high_resolution_clock::now();
+        auto t_detect_duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_detect_start - t_detect_end).count();
+        fprintf(stdout, "NCNN detection time %dms\n", t_detect_duration);
+#endif
+
+
+#ifdef NCNN_PROFILING
+        auto t_draw_start = std::chrono::high_resolution_clock::now();
+#endif
+        draw_objects(frame, objects, ofs, is_using_gui, !is_streaming);
+#ifdef NCNN_PROFILING
+        auto t_draw_end = std::chrono::high_resolution_clock::now();
+        auto t_draw_duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_draw_start - t_draw_end).count();
+        fprintf(stdout, "NCNN OpenCV draw result time %dms\n", t_draw_duration);
+#endif
+
+        if(!is_streaming){
+            return 0;
+        }
+    }
 
     return 0;
 }
