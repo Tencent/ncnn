@@ -56,10 +56,10 @@ static void resize_bicubic_image_pack4_bf16s(const Mat& src, Mat& dst, float* al
 
                 float32x4_t _a0123 = vld1q_f32(alphap);
 
-                float32x4_t _S30 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p - 4), 16));
-                float32x4_t _S31 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p + 0), 16));
-                float32x4_t _S32 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p + 4), 16));
-                float32x4_t _S33 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p + 8), 16));
+                float32x4_t _S30 = vcvt_f32_bf16(vld1_u16(S3p - 4));
+                float32x4_t _S31 = vcvt_f32_bf16(vld1_u16(S3p + 0));
+                float32x4_t _S32 = vcvt_f32_bf16(vld1_u16(S3p + 4));
+                float32x4_t _S33 = vcvt_f32_bf16(vld1_u16(S3p + 8));
                 float32x4_t _rows3 = vmulq_lane_f32(_S30, vget_low_f32(_a0123), 0);
                 _rows3 = vmlaq_lane_f32(_rows3, _S31, vget_low_f32(_a0123), 1);
                 _rows3 = vmlaq_lane_f32(_rows3, _S32, vget_high_f32(_a0123), 0);
@@ -92,14 +92,14 @@ static void resize_bicubic_image_pack4_bf16s(const Mat& src, Mat& dst, float* al
 
                 float32x4_t _a0123 = vld1q_f32(alphap);
 
-                float32x4_t _S20 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S2p - 4), 16));
-                float32x4_t _S21 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S2p + 0), 16));
-                float32x4_t _S22 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S2p + 4), 16));
-                float32x4_t _S23 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S2p + 8), 16));
-                float32x4_t _S30 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p - 4), 16));
-                float32x4_t _S31 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p + 0), 16));
-                float32x4_t _S32 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p + 4), 16));
-                float32x4_t _S33 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p + 8), 16));
+                float32x4_t _S20 = vcvt_f32_bf16(vld1_u16(S2p - 4));
+                float32x4_t _S21 = vcvt_f32_bf16(vld1_u16(S2p + 0));
+                float32x4_t _S22 = vcvt_f32_bf16(vld1_u16(S2p + 4));
+                float32x4_t _S23 = vcvt_f32_bf16(vld1_u16(S2p + 8));
+                float32x4_t _S30 = vcvt_f32_bf16(vld1_u16(S3p - 4));
+                float32x4_t _S31 = vcvt_f32_bf16(vld1_u16(S3p + 0));
+                float32x4_t _S32 = vcvt_f32_bf16(vld1_u16(S3p + 4));
+                float32x4_t _S33 = vcvt_f32_bf16(vld1_u16(S3p + 8));
                 float32x4_t _rows2 = vmulq_lane_f32(_S20, vget_low_f32(_a0123), 0);
                 float32x4_t _rows3 = vmulq_lane_f32(_S30, vget_low_f32(_a0123), 0);
                 _rows2 = vmlaq_lane_f32(_rows2, _S21, vget_low_f32(_a0123), 1);
@@ -141,18 +141,18 @@ static void resize_bicubic_image_pack4_bf16s(const Mat& src, Mat& dst, float* al
 
                 float32x4_t _a0123 = vld1q_f32(alphap);
 
-                float32x4_t _S10 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S1p - 4), 16));
-                float32x4_t _S11 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S1p + 0), 16));
-                float32x4_t _S12 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S1p + 4), 16));
-                float32x4_t _S13 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S1p + 8), 16));
-                float32x4_t _S20 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S2p - 4), 16));
-                float32x4_t _S21 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S2p + 0), 16));
-                float32x4_t _S22 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S2p + 4), 16));
-                float32x4_t _S23 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S2p + 8), 16));
-                float32x4_t _S30 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p - 4), 16));
-                float32x4_t _S31 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p + 0), 16));
-                float32x4_t _S32 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p + 4), 16));
-                float32x4_t _S33 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p + 8), 16));
+                float32x4_t _S10 = vcvt_f32_bf16(vld1_u16(S1p - 4));
+                float32x4_t _S11 = vcvt_f32_bf16(vld1_u16(S1p + 0));
+                float32x4_t _S12 = vcvt_f32_bf16(vld1_u16(S1p + 4));
+                float32x4_t _S13 = vcvt_f32_bf16(vld1_u16(S1p + 8));
+                float32x4_t _S20 = vcvt_f32_bf16(vld1_u16(S2p - 4));
+                float32x4_t _S21 = vcvt_f32_bf16(vld1_u16(S2p + 0));
+                float32x4_t _S22 = vcvt_f32_bf16(vld1_u16(S2p + 4));
+                float32x4_t _S23 = vcvt_f32_bf16(vld1_u16(S2p + 8));
+                float32x4_t _S30 = vcvt_f32_bf16(vld1_u16(S3p - 4));
+                float32x4_t _S31 = vcvt_f32_bf16(vld1_u16(S3p + 0));
+                float32x4_t _S32 = vcvt_f32_bf16(vld1_u16(S3p + 4));
+                float32x4_t _S33 = vcvt_f32_bf16(vld1_u16(S3p + 8));
                 float32x4_t _rows1 = vmulq_lane_f32(_S10, vget_low_f32(_a0123), 0);
                 float32x4_t _rows2 = vmulq_lane_f32(_S20, vget_low_f32(_a0123), 0);
                 float32x4_t _rows3 = vmulq_lane_f32(_S30, vget_low_f32(_a0123), 0);
@@ -196,22 +196,22 @@ static void resize_bicubic_image_pack4_bf16s(const Mat& src, Mat& dst, float* al
                 float32x4_t _a0123 = vld1q_f32(alphap);
 
                 // TODO check the generated assembly on armv7
-                float32x4_t _S00 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S0p - 4), 16));
-                float32x4_t _S01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S0p + 0), 16));
-                float32x4_t _S02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S0p + 4), 16));
-                float32x4_t _S03 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S0p + 8), 16));
-                float32x4_t _S10 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S1p - 4), 16));
-                float32x4_t _S11 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S1p + 0), 16));
-                float32x4_t _S12 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S1p + 4), 16));
-                float32x4_t _S13 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S1p + 8), 16));
-                float32x4_t _S20 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S2p - 4), 16));
-                float32x4_t _S21 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S2p + 0), 16));
-                float32x4_t _S22 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S2p + 4), 16));
-                float32x4_t _S23 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S2p + 8), 16));
-                float32x4_t _S30 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p - 4), 16));
-                float32x4_t _S31 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p + 0), 16));
-                float32x4_t _S32 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p + 4), 16));
-                float32x4_t _S33 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(S3p + 8), 16));
+                float32x4_t _S00 = vcvt_f32_bf16(vld1_u16(S0p - 4));
+                float32x4_t _S01 = vcvt_f32_bf16(vld1_u16(S0p + 0));
+                float32x4_t _S02 = vcvt_f32_bf16(vld1_u16(S0p + 4));
+                float32x4_t _S03 = vcvt_f32_bf16(vld1_u16(S0p + 8));
+                float32x4_t _S10 = vcvt_f32_bf16(vld1_u16(S1p - 4));
+                float32x4_t _S11 = vcvt_f32_bf16(vld1_u16(S1p + 0));
+                float32x4_t _S12 = vcvt_f32_bf16(vld1_u16(S1p + 4));
+                float32x4_t _S13 = vcvt_f32_bf16(vld1_u16(S1p + 8));
+                float32x4_t _S20 = vcvt_f32_bf16(vld1_u16(S2p - 4));
+                float32x4_t _S21 = vcvt_f32_bf16(vld1_u16(S2p + 0));
+                float32x4_t _S22 = vcvt_f32_bf16(vld1_u16(S2p + 4));
+                float32x4_t _S23 = vcvt_f32_bf16(vld1_u16(S2p + 8));
+                float32x4_t _S30 = vcvt_f32_bf16(vld1_u16(S3p - 4));
+                float32x4_t _S31 = vcvt_f32_bf16(vld1_u16(S3p + 0));
+                float32x4_t _S32 = vcvt_f32_bf16(vld1_u16(S3p + 4));
+                float32x4_t _S33 = vcvt_f32_bf16(vld1_u16(S3p + 8));
                 float32x4_t _rows0 = vmulq_lane_f32(_S00, vget_low_f32(_a0123), 0);
                 float32x4_t _rows1 = vmulq_lane_f32(_S10, vget_low_f32(_a0123), 0);
                 float32x4_t _rows2 = vmulq_lane_f32(_S20, vget_low_f32(_a0123), 0);
@@ -258,7 +258,7 @@ static void resize_bicubic_image_pack4_bf16s(const Mat& src, Mat& dst, float* al
             _D = vmlaq_lane_f32(_D, _rows1, vget_low_f32(_b0123), 1);
             _D = vmlaq_lane_f32(_D, _rows2, vget_high_f32(_b0123), 0);
             _D = vmlaq_lane_f32(_D, _rows3, vget_high_f32(_b0123), 1);
-            vst1_u16(Dp, vshrn_n_u32(vreinterpretq_u32_f32(_D), 16));
+            vst1_u16(Dp, vcvt_bf16_f32(_D));
 
             Dp += 4;
             rows0p += 4;

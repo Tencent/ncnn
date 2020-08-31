@@ -2242,10 +2242,10 @@ static void conv1x1s1_sgemm_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
 
             for (; q + 3 < inch; q += 4)
             {
-                float32x4_t _p0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(tmpptr), 16));
+                float32x4_t _p0 = vcvt_f32_bf16(vld1_u16(tmpptr));
                 tmpptr += 4;
 
-                float32x4_t _k0 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(kptr), 16));
+                float32x4_t _k0 = vcvt_f32_bf16(vld1_u16(kptr));
                 kptr += 4;
 
 #if __aarch64__

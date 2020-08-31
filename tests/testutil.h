@@ -19,7 +19,6 @@
 #include "mat.h"
 #include "prng.h"
 
-#include <algorithm>
 #include <math.h>
 #include <stdio.h>
 
@@ -32,7 +31,7 @@ static struct prng_rand_t g_prng_rand_state;
 #define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
 #define RAND()      prng_rand(&g_prng_rand_state)
 
-static float RandomFloat(float a = -1.5f, float b = 1.5f)
+static float RandomFloat(float a = -1.2f, float b = 1.2f)
 {
     float random = ((float)RAND()) / (float)uint64_t(-1); //RAND_MAX;
     float diff = b - a;
@@ -40,7 +39,7 @@ static float RandomFloat(float a = -1.5f, float b = 1.5f)
     return a + r;
 }
 
-static void Randomize(ncnn::Mat& m, float a = -1.5f, float b = 1.5f)
+static void Randomize(ncnn::Mat& m, float a = -1.2f, float b = 1.2f)
 {
     for (size_t i = 0; i < m.total(); i++)
     {
@@ -283,6 +282,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!op->support_packing) opt.use_packing_layout = false;
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
     if (!op->support_fp16_storage) opt.use_fp16_storage = false;
+    if (!op->support_fp16_storage) opt.use_fp16_arithmetic = false;
     if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
 
     if (op->use_int8_inference)
@@ -299,11 +299,29 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     {
         for (size_t i = 0; i < a.size(); i++)
         {
+            // resolve dst_elempack
+            int dims = a[i].dims;
+            int elemcount = 0;
+            if (dims == 1) elemcount = a[i].elempack * a[i].w;
+            if (dims == 2) elemcount = a[i].elempack * a[i].h;
+            if (dims == 3) elemcount = a[i].elempack * a[i].c;
+
+            int dst_elempack = 1;
+
 #if NCNN_AVX2
-            ncnn::convert_packing(a[i], a4[i], 8, opt);
+            if (elemcount % 8 == 0)
+                dst_elempack = 8;
+#elif NCNN_ARM82
+            if (elemcount % 8 == 0 && opt.use_fp16_arithmetic)
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
 #else
-            ncnn::convert_packing(a[i], a4[i], 4, opt);
+            if (elemcount % 4 == 0)
+                dst_elempack = 4;
 #endif
+
+            ncnn::convert_packing(a[i], a4[i], dst_elempack, opt);
         }
     }
     else
@@ -311,22 +329,22 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         a4 = a;
     }
 
-    if (opt.use_bf16_storage)
-    {
-        for (size_t i = 0; i < a4.size(); i++)
-        {
-            ncnn::Mat a_bf16;
-            ncnn::cast_float32_to_bfloat16(a4[i], a_bf16, opt);
-            a4[i] = a_bf16;
-        }
-    }
-    else if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage)
     {
         for (size_t i = 0; i < a4.size(); i++)
         {
             ncnn::Mat a_fp16;
             ncnn::cast_float32_to_float16(a4[i], a_fp16, opt);
             a4[i] = a_fp16;
+        }
+    }
+    else if (opt.use_bf16_storage)
+    {
+        for (size_t i = 0; i < a4.size(); i++)
+        {
+            ncnn::Mat a_bf16;
+            ncnn::cast_float32_to_bfloat16(a4[i], a_bf16, opt);
+            a4[i] = a_bf16;
         }
     }
 
@@ -346,21 +364,21 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         op->forward(a4, c, opt);
     }
 
-    if (opt.use_bf16_storage)
-    {
-        for (size_t i = 0; i < c.size(); i++)
-        {
-            ncnn::Mat c_fp32;
-            ncnn::cast_bfloat16_to_float32(c[i], c_fp32, opt);
-            c[i] = c_fp32;
-        }
-    }
-    else if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage)
     {
         for (size_t i = 0; i < c.size(); i++)
         {
             ncnn::Mat c_fp32;
             ncnn::cast_float16_to_float32(c[i], c_fp32, opt);
+            c[i] = c_fp32;
+        }
+    }
+    else if (opt.use_bf16_storage)
+    {
+        for (size_t i = 0; i < c.size(); i++)
+        {
+            ncnn::Mat c_fp32;
+            ncnn::cast_bfloat16_to_float32(c[i], c_fp32, opt);
             c[i] = c_fp32;
         }
     }
@@ -682,6 +700,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!op->support_packing) opt.use_packing_layout = false;
     if (!op->support_bf16_storage) opt.use_bf16_storage = false;
     if (!op->support_fp16_storage) opt.use_fp16_storage = false;
+    if (!op->support_fp16_storage) opt.use_fp16_arithmetic = false;
     if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
 
     if (op->use_int8_inference)
@@ -696,28 +715,46 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     ncnn::Mat a4;
     if (opt.use_packing_layout)
     {
+        // resolve dst_elempack
+        int dims = a.dims;
+        int elemcount = 0;
+        if (dims == 1) elemcount = a.elempack * a.w;
+        if (dims == 2) elemcount = a.elempack * a.h;
+        if (dims == 3) elemcount = a.elempack * a.c;
+
+        int dst_elempack = 1;
+
 #if NCNN_AVX2
-        ncnn::convert_packing(a, a4, 8, opt);
+        if (elemcount % 8 == 0)
+            dst_elempack = 8;
+#elif NCNN_ARM82
+        if (elemcount % 8 == 0 && opt.use_fp16_arithmetic)
+            dst_elempack = 8;
+        else if (elemcount % 4 == 0)
+            dst_elempack = 4;
 #else
-        ncnn::convert_packing(a, a4, 4, opt);
+        if (elemcount % 4 == 0)
+            dst_elempack = 4;
 #endif
+
+        ncnn::convert_packing(a, a4, dst_elempack, opt);
     }
     else
     {
         a4 = a;
     }
 
-    if (opt.use_bf16_storage)
-    {
-        ncnn::Mat a_bf16;
-        ncnn::cast_float32_to_bfloat16(a4, a_bf16, opt);
-        a4 = a_bf16;
-    }
-    else if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage)
     {
         ncnn::Mat a_fp16;
         ncnn::cast_float32_to_float16(a4, a_fp16, opt);
         a4 = a_fp16;
+    }
+    else if (opt.use_bf16_storage)
+    {
+        ncnn::Mat a_bf16;
+        ncnn::cast_float32_to_bfloat16(a4, a_bf16, opt);
+        a4 = a_bf16;
     }
 
     if (op->support_inplace)
@@ -730,16 +767,16 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         op->forward(a4, c, opt);
     }
 
-    if (opt.use_bf16_storage)
-    {
-        ncnn::Mat c_fp32;
-        ncnn::cast_bfloat16_to_float32(c, c_fp32, opt);
-        c = c_fp32;
-    }
-    else if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage)
     {
         ncnn::Mat c_fp32;
         ncnn::cast_float16_to_float32(c, c_fp32, opt);
+        c = c_fp32;
+    }
+    else if (opt.use_bf16_storage)
+    {
+        ncnn::Mat c_fp32;
+        ncnn::cast_bfloat16_to_float32(c, c_fp32, opt);
         c = c_fp32;
     }
 
@@ -1057,7 +1094,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 
         if (opt.use_fp16_arithmetic)
         {
-            epsilon_fp16 = epsilon * 500; // 0.5
+            epsilon_fp16 = epsilon * 1000; // 1.0
         }
 
         std::vector<ncnn::Mat> top_shapes;
@@ -1161,7 +1198,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 
         if (opt.use_fp16_arithmetic)
         {
-            epsilon_fp16 = epsilon * 500; // 0.5
+            epsilon_fp16 = epsilon * 1000; // 1.0
         }
 
         ncnn::Mat top_shape;

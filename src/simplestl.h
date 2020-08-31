@@ -15,13 +15,342 @@
 #ifndef NCNN_SIMPLESTL_H
 #define NCNN_SIMPLESTL_H
 
-#include <new>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
+#if !NCNN_SIMPLESTL
+
+#include <new>
+
+#else
+
+// operator new and delete
+void* operator new(size_t sz) noexcept;
+void* operator new(size_t sz, void*) noexcept;
+void* operator new[](size_t sz) noexcept;
+void* operator new[](size_t sz, void*) noexcept;
+void operator delete(void *ptr) noexcept;
+void operator delete(void *ptr, size_t sz) noexcept;
+void operator delete[](void *ptr) noexcept;
+void operator delete[](void *ptr, size_t sz) noexcept;
+
+#endif
+
 // minimal stl data structure implementation
 namespace std {
+
+template<typename T>
+const T& max(const T& a, const T& b)
+{
+    return (a < b) ? b : a;
+}
+
+template<typename T>
+const T& min(const T& a, const T& b)
+{
+    return (a > b) ? b : a;
+}
+
+template<typename T>
+void swap(T& a, T& b)
+{
+    T temp(a);
+    a = b;
+    b = temp;
+}
+
+template<typename T1, typename T2>
+struct pair
+{
+    pair()
+        : first(), second()
+    {
+    }
+    pair(const T1& t1, const T2& t2)
+        : first(t1), second(t2)
+    {
+    }
+
+    T1 first;
+    T2 second;
+};
+
+template<typename T1, typename T2>
+bool operator==(const pair<T1, T2>& x, const pair<T1, T2>& y)
+{
+    return (x.first == y.first && x.second == y.second);
+}
+template<typename T1, typename T2>
+bool operator<(const pair<T1, T2>& x, const pair<T1, T2>& y)
+{
+    return x.first < y.first || (!(y.first < x.first) && x.second < y.second);
+}
+template<typename T1, typename T2>
+bool operator!=(const pair<T1, T2>& x, const pair<T1, T2>& y)
+{
+    return !(x == y);
+}
+template<typename T1, typename T2>
+bool operator>(const pair<T1, T2>& x, const pair<T1, T2>& y)
+{
+    return y < x;
+}
+template<typename T1, typename T2>
+bool operator<=(const pair<T1, T2>& x, const pair<T1, T2>& y)
+{
+    return !(y < x);
+}
+template<typename T1, typename T2>
+bool operator>=(const pair<T1, T2>& x, const pair<T1, T2>& y)
+{
+    return !(x < y);
+}
+
+template<typename T1, typename T2>
+pair<T1, T2> make_pair(const T1& t1, const T2& t2)
+{
+    return pair<T1, T2>(t1, t2);
+}
+
+template<typename T>
+struct node
+{
+    node* prev_;
+    node* next_;
+    T data_;
+
+    node()
+        : prev_(nullptr), next_(nullptr), data_()
+    {
+    }
+    node(const T& t)
+        : prev_(nullptr), next_(nullptr), data_(t)
+    {
+    }
+};
+
+template<typename T>
+struct iter_list
+{
+    iter_list()
+        : curr_(nullptr)
+    {
+    }
+    iter_list(node<T>* n)
+        : curr_(n)
+    {
+    }
+    iter_list(const iter_list& i)
+        : curr_(i.curr_)
+    {
+    }
+    ~iter_list()
+    {
+    }
+
+    iter_list& operator=(const iter_list& i)
+    {
+        curr_ = i.curr_;
+        return *this;
+    }
+
+    T& operator*()
+    {
+        return curr_->data_;
+    }
+    T* operator->()
+    {
+        return &(curr_->data_);
+    }
+
+    bool operator==(const iter_list& i)
+    {
+        return curr_ == i.curr_;
+    }
+    bool operator!=(const iter_list& i)
+    {
+        return curr_ != i.curr_;
+    }
+
+    iter_list& operator++()
+    {
+        curr_ = curr_->next_;
+        return *this;
+    }
+    iter_list& operator--()
+    {
+        curr_ = curr_->prev_;
+        return *this;
+    }
+
+    node<T>* curr_;
+};
+
+template<typename T>
+struct list
+{
+    typedef iter_list<T> iterator;
+
+    list()
+    {
+        head_ = new node<T>();
+        tail_ = head_;
+        count_ = 0;
+    }
+    ~list()
+    {
+        clear();
+        delete head_;
+    }
+    list(const list& l)
+    {
+        head_ = new node<T>();
+        tail_ = head_;
+        count_ = 0;
+
+        for (iter_list<T> i = l.begin(); i != l.end(); ++i)
+        {
+            push_back(*i);
+        }
+    }
+
+    list& operator=(const list& l)
+    {
+        if (this == &l)
+        {
+            return *this;
+        }
+        clear();
+
+        for (iter_list<T> i = l.begin(); i != l.end(); ++i)
+        {
+            push_back(*i);
+        }
+        return *this;
+    }
+
+    void clear()
+    {
+        while (count_ > 0)
+        {
+            pop_front();
+        }
+    }
+
+    void pop_front()
+    {
+        if (count_ > 0)
+        {
+            head_ = head_->next_;
+            delete head_->prev_;
+            head_->prev_ = nullptr;
+            --count_;
+        }
+    }
+
+    size_t size() const
+    {
+        return count_;
+    }
+    iter_list<T> begin() const
+    {
+        return iter_list<T>(head_);
+    }
+    iter_list<T> end() const
+    {
+        return iter_list<T>(tail_);
+    }
+    bool empty() const
+    {
+        return count_ == 0;
+    }
+
+    void push_back(const T& t)
+    {
+        if (count_ == 0)
+        {
+            head_ = new node<T>(t);
+            head_->prev_ = nullptr;
+            head_->next_ = tail_;
+            tail_->prev_ = head_;
+            count_ = 1;
+        }
+        else
+        {
+            node<T>* temp = new node<T>(t);
+            temp->prev_ = tail_->prev_;
+            temp->next_ = tail_;
+            tail_->prev_->next_ = temp;
+            tail_->prev_ = temp;
+            ++count_;
+        }
+    }
+
+    iter_list<T> erase(iter_list<T> pos)
+    {
+        if (pos != end())
+        {
+            node<T>* temp = pos.curr_;
+            if (temp == head_)
+            {
+                ++pos;
+                temp->next_->prev_ = nullptr;
+                head_ = temp->next_;
+            }
+            else
+            {
+                --pos;
+                temp->next_->prev_ = temp->prev_;
+                temp->prev_->next_ = temp->next_;
+                ++pos;
+            }
+            delete temp;
+            --count_;
+        }
+        return pos;
+    }
+
+protected:
+    node<T>* head_;
+    node<T>* tail_;
+    size_t count_;
+};
+
+template<typename T>
+struct greater
+{
+    bool operator()(const T& x, const T& y) const
+    {
+        return (x > y);
+    }
+};
+
+template<typename T>
+struct less
+{
+    bool operator()(const T& x, const T& y) const
+    {
+        return (x < y);
+    }
+};
+
+template<typename RandomAccessIter, typename Compare>
+void partial_sort(RandomAccessIter first, RandomAccessIter middle, RandomAccessIter last, Compare comp)
+{
+    // [TODO] heap sort should be used here, but we simply use bubble sort now
+    for (auto i = first; i < middle; ++i)
+    {
+        // bubble sort
+        for (auto j = last - 1; j > first; --j)
+        {
+            if (comp(*j, *(j - 1)))
+            {
+                swap(*j, *(j - 1));
+            }
+        }
+    }
+}
 
 template<typename T>
 struct vector

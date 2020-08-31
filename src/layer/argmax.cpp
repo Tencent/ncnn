@@ -14,7 +14,6 @@
 
 #include "argmax.h"
 
-#include <algorithm>
 #include <functional>
 
 namespace ncnn {

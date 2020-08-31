@@ -200,6 +200,7 @@ int Net::load_param(const DataReader& dr)
             // no int8 gpu or packing layout support yet
             opt.use_vulkan_compute = false;
             opt.use_packing_layout = false;
+            opt.use_fp16_storage = false;
             opt.use_bf16_storage = false;
         }
 
@@ -405,6 +406,7 @@ int Net::load_param_bin(const DataReader& dr)
             // no int8 gpu or packing layout support yet
             opt.use_vulkan_compute = false;
             opt.use_packing_layout = false;
+            opt.use_fp16_storage = false;
             opt.use_bf16_storage = false;
         }
 
@@ -545,6 +547,7 @@ int Net::load_model(const DataReader& dr)
             // no int8 gpu or packing layout support yet
             opt.use_vulkan_compute = false;
             opt.use_packing_layout = false;
+            opt.use_fp16_storage = false;
             opt.use_bf16_storage = false;
         }
     }
@@ -1126,6 +1129,26 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             }
         }
 
+        // clang-format off
+        // *INDENT-OFF*
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
+        {
+            if (bottom_blob.elemsize / bottom_blob.elempack == 4u && layer->support_fp16_storage)
+            {
+                Mat bottom_blob_fp16;
+                cast_float32_to_float16(bottom_blob, bottom_blob_fp16, opt);
+                bottom_blob = bottom_blob_fp16;
+            }
+            if (bottom_blob.elemsize / bottom_blob.elempack == 2u && !layer->support_fp16_storage)
+            {
+                Mat bottom_blob_fp32;
+                cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+                bottom_blob = bottom_blob_fp32;
+            }
+        }
+        else
+#endif // NCNN_ARM82
         if (opt.use_bf16_storage)
         {
             if (bottom_blob.elemsize / bottom_blob.elempack == 4u && layer->support_bf16_storage)
@@ -1141,25 +1164,39 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                 bottom_blob = bottom_blob_fp32;
             }
         }
+        // *INDENT-ON*
+        // clang-format on
 
         if (opt.use_packing_layout)
         {
+            // resolve dst_elempack
+            int dims = bottom_blob.dims;
+            int elemcount = 0;
+            if (dims == 1) elemcount = bottom_blob.elempack * bottom_blob.w;
+            if (dims == 2) elemcount = bottom_blob.elempack * bottom_blob.h;
+            if (dims == 3) elemcount = bottom_blob.elempack * bottom_blob.c;
+
+            int dst_elempack = 1;
+            if (layer->support_packing)
+            {
 #if NCNN_AVX2
-            int elempack = layer->support_packing ? 8 : 1;
+                if (elemcount % 8 == 0)
+                    dst_elempack = 8;
+#elif NCNN_ARM82
+                if (elemcount % 8 == 0 && opt.use_fp16_arithmetic && layer->support_fp16_storage)
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
 #else
-            int elempack = layer->support_packing ? 4 : 1;
+                if (elemcount % 4 == 0)
+                    dst_elempack = 4;
 #endif
+            }
 
             Mat bottom_blob_packed;
-            convert_packing(bottom_blob, bottom_blob_packed, elempack, opt);
+            convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, opt);
             bottom_blob = bottom_blob_packed;
         }
-
-        Option opt1 = opt;
-        if (!layer->support_packing) opt1.use_packing_layout = false;
-        if (!layer->support_fp16_storage) opt1.use_fp16_storage = false;
-        if (!layer->support_bf16_storage) opt1.use_bf16_storage = false;
-        if (!layer->use_int8_inference) opt1.use_int8_inference = false;
 
         // forward
         if (opt.lightmode && layer->support_inplace)
@@ -1167,11 +1204,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             Mat& bottom_top_blob = bottom_blob;
 #if NCNN_BENCHMARK
             double start = get_current_time();
-            int ret = layer->forward_inplace(bottom_top_blob, opt1);
+            int ret = layer->forward_inplace(bottom_top_blob, opt);
             double end = get_current_time();
             benchmark(layer, bottom_top_blob, bottom_top_blob, start, end);
 #else
-            int ret = layer->forward_inplace(bottom_top_blob, opt1);
+            int ret = layer->forward_inplace(bottom_top_blob, opt);
 #endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
@@ -1184,11 +1221,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             Mat top_blob;
 #if NCNN_BENCHMARK
             double start = get_current_time();
-            int ret = layer->forward(bottom_blob, top_blob, opt1);
+            int ret = layer->forward(bottom_blob, top_blob, opt);
             double end = get_current_time();
             benchmark(layer, bottom_blob, top_blob, start, end);
 #else
-            int ret = layer->forward(bottom_blob, top_blob, opt1);
+            int ret = layer->forward(bottom_blob, top_blob, opt);
 #endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
@@ -1225,6 +1262,26 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                 }
             }
 
+            // clang-format off
+            // *INDENT-OFF*
+#if NCNN_ARM82
+            if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
+            {
+                if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 4u && layer->support_fp16_storage)
+                {
+                    Mat bottom_blob_fp16;
+                    cast_float32_to_float16(bottom_blobs[i], bottom_blob_fp16, opt);
+                    bottom_blobs[i] = bottom_blob_fp16;
+                }
+                if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 2u && !layer->support_fp16_storage)
+                {
+                    Mat bottom_blob_fp32;
+                    cast_float16_to_float32(bottom_blobs[i], bottom_blob_fp32, opt);
+                    bottom_blobs[i] = bottom_blob_fp32;
+                }
+            }
+            else
+#endif // NCNN_ARM82
             if (opt.use_bf16_storage)
             {
                 if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 4u && layer->support_bf16_storage)
@@ -1240,26 +1297,40 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                     bottom_blobs[i] = bottom_blob_fp32;
                 }
             }
+            // *INDENT-ON*
+            // clang-format on
 
             if (opt.use_packing_layout)
             {
+                // resolve dst_elempack
+                int dims = bottom_blobs[i].dims;
+                int elemcount = 0;
+                if (dims == 1) elemcount = bottom_blobs[i].elempack * bottom_blobs[i].w;
+                if (dims == 2) elemcount = bottom_blobs[i].elempack * bottom_blobs[i].h;
+                if (dims == 3) elemcount = bottom_blobs[i].elempack * bottom_blobs[i].c;
+
+                int dst_elempack = 1;
+                if (layer->support_packing)
+                {
 #if NCNN_AVX2
-                int elempack = layer->support_packing ? 8 : 1;
+                    if (elemcount % 8 == 0)
+                        dst_elempack = 8;
+#elif NCNN_ARM82
+                    if (elemcount % 8 == 0 && opt.use_fp16_arithmetic && layer->support_fp16_storage)
+                        dst_elempack = 8;
+                    else if (elemcount % 4 == 0)
+                        dst_elempack = 4;
 #else
-                int elempack = layer->support_packing ? 4 : 1;
+                    if (elemcount % 4 == 0)
+                        dst_elempack = 4;
 #endif
+                }
 
                 Mat bottom_blob_packed;
-                convert_packing(bottom_blobs[i], bottom_blob_packed, elempack, opt);
+                convert_packing(bottom_blobs[i], bottom_blob_packed, dst_elempack, opt);
                 bottom_blobs[i] = bottom_blob_packed;
             }
         }
-
-        Option opt1 = opt;
-        if (!layer->support_packing) opt1.use_packing_layout = false;
-        if (!layer->support_fp16_storage) opt1.use_fp16_storage = false;
-        if (!layer->support_bf16_storage) opt1.use_bf16_storage = false;
-        if (!layer->use_int8_inference) opt1.use_int8_inference = false;
 
         // forward
         if (opt.lightmode && layer->support_inplace)
@@ -1267,11 +1338,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             std::vector<Mat>& bottom_top_blobs = bottom_blobs;
 #if NCNN_BENCHMARK
             double start = get_current_time();
-            int ret = layer->forward_inplace(bottom_top_blobs, opt1);
+            int ret = layer->forward_inplace(bottom_top_blobs, opt);
             double end = get_current_time();
             benchmark(layer, start, end);
 #else
-            int ret = layer->forward_inplace(bottom_top_blobs, opt1);
+            int ret = layer->forward_inplace(bottom_top_blobs, opt);
 #endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
@@ -1289,11 +1360,11 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             std::vector<Mat> top_blobs(layer->tops.size());
 #if NCNN_BENCHMARK
             double start = get_current_time();
-            int ret = layer->forward(bottom_blobs, top_blobs, opt1);
+            int ret = layer->forward(bottom_blobs, top_blobs, opt);
             double end = get_current_time();
             benchmark(layer, start, end);
 #else
-            int ret = layer->forward(bottom_blobs, top_blobs, opt1);
+            int ret = layer->forward(bottom_blobs, top_blobs, opt);
 #endif // NCNN_BENCHMARK
             if (ret != 0)
                 return ret;
@@ -2687,6 +2758,20 @@ int Extractor::extract(int blob_index, Mat& feat)
         feat = bottom_blob_unpacked;
     }
 
+    // clang-format off
+    // *INDENT-OFF*
+#if NCNN_ARM82
+    if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
+    {
+        if (feat.elemsize / feat.elempack == 2u)
+        {
+            Mat feat_fp32;
+            cast_float16_to_float32(feat, feat_fp32, opt);
+            feat = feat_fp32;
+        }
+    }
+    else
+#endif // NCNN_ARM82
     if (opt.use_bf16_storage)
     {
         if (feat.elemsize / feat.elempack == 2u)
@@ -2696,6 +2781,8 @@ int Extractor::extract(int blob_index, Mat& feat)
             feat = feat_fp32;
         }
     }
+    // *INDENT-ON*
+    // clang-format on
 
     set_kmp_blocktime(old_blocktime);
 

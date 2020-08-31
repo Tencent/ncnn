@@ -18,10 +18,11 @@ limitations under the License.
 #ifndef TENSORFLOW_COMPILER_MLIR_TENSORFLOW_IR_TF_TRAITS_H_
 #define TENSORFLOW_COMPILER_MLIR_TENSORFLOW_IR_TF_TRAITS_H_
 
-#include "mlir/IR/OpDefinition.h"       // from @llvm-project
-#include "mlir/IR/StandardTypes.h"      // from @llvm-project
-#include "mlir/IR/TypeUtilities.h"      // from @llvm-project
-#include "mlir/Support/LogicalResult.h" // from @llvm-project
+#include "mlir/IR/OpDefinition.h"                 // from @llvm-project
+#include "mlir/IR/StandardTypes.h"                // from @llvm-project
+#include "mlir/IR/TypeUtilities.h"                // from @llvm-project
+#include "mlir/Interfaces/SideEffectInterfaces.h" // from @llvm-project
+#include "mlir/Support/LogicalResult.h"           // from @llvm-project
 #include "tf_types.h"
 
 namespace mlir {
@@ -33,7 +34,7 @@ static inline LogicalResult VerifyRefTypeMatch(mlir::Type type,
         mlir::Type maybe_ref_type)
 {
     if (auto ref_type = maybe_ref_type.dyn_cast<mlir::TF::TensorFlowRefType>())
-        return success(ref_type.RemoveRef().getKind() == type.getKind());
+        return success(ref_type.RemoveRef().getTypeID() == type.getTypeID());
     return failure();
 }
 
@@ -70,10 +71,85 @@ public:
     }
 };
 
+// Verifies that op has the same operand and result element types (or type
+// itself, if scalar) after resolving reference types (i.e., after converting
+// reference types to their corresponding TensorFlow or standard types).
+template<typename ConcreteType>
+class SameOperandsAndResultElementTypeResolveRef
+    : public TraitBase<ConcreteType,
+      SameOperandsAndResultElementTypeResolveRef>
+{
+public:
+    static LogicalResult verifyTrait(Operation* op)
+    {
+        Type element_type;
+        if (op->getNumResults() > 0)
+        {
+            element_type = mlir::TF::GetElementTypeOrSelfResolveRef(op->getResult(0).getType());
+        }
+        else if (op->getNumOperands() > 0)
+        {
+            element_type = mlir::TF::GetElementTypeOrSelfResolveRef(op->getOperand(0).getType());
+        }
+        else
+        {
+            // Nothing to check.
+            return success();
+        }
+        // Verify that all result element types are compatible to `element_type`.
+        for (const auto& result_type : op->getResultTypes())
+        {
+            if (mlir::TF::GetElementTypeOrSelfResolveRef(result_type) != element_type)
+            {
+                return op->emitOpError(
+                           "requires compatible element types for all operands and results");
+            }
+        }
+        // Verify that all operand element types are compatible to `element_type`.
+        for (const auto& operand_type : op->getOperandTypes())
+        {
+            if (mlir::TF::GetElementTypeOrSelfResolveRef(operand_type) != element_type)
+            {
+                return op->emitOpError(
+                           "requires compatible element types for all operands and results");
+            }
+        }
+        return success();
+    }
+};
+
 // Layout agnostic operations do not depend on the operands data layout (data
 // format), as and example all element wise operations are layout agnostic.
 template<typename ConcreteType>
 class LayoutAgnostic : public TraitBase<ConcreteType, LayoutAgnostic>
+{
+};
+
+// Trait to indicate operations that cannot be duplicated as they might carry
+// certain state around within their implementations.
+template<typename ConcreteType>
+class CannotDuplicate : public TraitBase<ConcreteType, CannotDuplicate>
+{
+public:
+    static LogicalResult verifyTrait(Operation* op)
+    {
+        if (MemoryEffectOpInterface::hasNoEffect(op))
+            return op->emitError(
+                       "operations with no side effects cannot have CannotDuplicate trait");
+        return success();
+    }
+};
+
+// Coefficient-wise binary operation with implicit broadcasting support, for
+// example tf.Sub operation.
+template<typename ConcreteType>
+class CwiseBinary : public TraitBase<ConcreteType, CwiseBinary>
+{
+};
+
+// Coefficient-wise unary operation, for example tf.Sqrt operation.
+template<typename ConcreteType>
+class CwiseUnary : public TraitBase<ConcreteType, CwiseUnary>
 {
 };
 

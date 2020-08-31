@@ -15,7 +15,7 @@
 #include "layer/packing.h"
 #include "testutil.h"
 
-static int test_packing_cpu(const ncnn::Mat& a, int in_elempack, int out_elempack)
+static int test_packing_cpu_fp32(const ncnn::Mat& a, int in_elempack, int out_elempack)
 {
     ncnn::ParamDict pd;
     pd.set(0, out_elempack);
@@ -26,6 +26,8 @@ static int test_packing_cpu(const ncnn::Mat& a, int in_elempack, int out_elempac
     opt.num_threads = 1;
     opt.use_vulkan_compute = false;
     opt.use_int8_inference = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
     opt.use_packing_layout = false;
 
     ncnn::Layer* op = ncnn::create_layer("Packing");
@@ -53,11 +55,77 @@ static int test_packing_cpu(const ncnn::Mat& a, int in_elempack, int out_elempac
 
     if (CompareMat(b, c, 0.001) != 0)
     {
-        fprintf(stderr, "test_packing_cpu failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
+        fprintf(stderr, "test_packing_cpu_fp32 failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
         return -1;
     }
 
     return 0;
+}
+
+static int test_packing_cpu_fp16(const ncnn::Mat& a, int in_elempack, int out_elempack)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, out_elempack);
+
+    std::vector<ncnn::Mat> weights(0);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_vulkan_compute = false;
+    opt.use_int8_inference = false;
+    opt.use_fp16_storage = true;
+    opt.use_fp16_arithmetic = true;
+    opt.use_packing_layout = false;
+
+    ncnn::Layer* op = ncnn::create_layer("Packing");
+
+    if (!op->support_fp16_storage)
+    {
+        delete op;
+        return 0;
+    }
+
+    op->load_param(pd);
+
+    ncnn::ModelBinFromMatArray mb(weights.data());
+
+    op->load_model(mb);
+
+    op->create_pipeline(opt);
+
+    ncnn::Mat a16;
+    ncnn::cast_float32_to_float16(a, a16);
+
+    ncnn::Mat ap;
+    ncnn::convert_packing(a16, ap, in_elempack);
+
+    ncnn::Mat b;
+    ((ncnn::Packing*)op)->ncnn::Packing::forward(ap, b, opt);
+
+    ncnn::Mat c;
+    op->forward(ap, c, opt);
+
+    op->destroy_pipeline(opt);
+
+    delete op;
+
+    ncnn::Mat c32;
+    ncnn::cast_float16_to_float32(c, c32);
+
+    if (CompareMat(b, c32, 0.001) != 0)
+    {
+        fprintf(stderr, "test_packing_cpu_fp16 failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_packing_cpu(const ncnn::Mat& a, int in_elempack, int out_elempack)
+{
+    return 0
+           || test_packing_cpu_fp32(a, in_elempack, out_elempack)
+           || test_packing_cpu_fp16(a, in_elempack, out_elempack);
 }
 
 #if NCNN_VULKAN

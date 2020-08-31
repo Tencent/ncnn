@@ -27,6 +27,9 @@ public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 protected:
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
+#endif
     int forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const;
     int forward_inplace_int8_neon(Mat& bottom_top_blob, const Option& opt) const;
 };

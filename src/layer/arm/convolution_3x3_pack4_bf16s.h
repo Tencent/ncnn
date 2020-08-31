@@ -93,14 +93,14 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
 
                     for (int m = 0; m < 8; m++)
                     {
-                        float32x4_t _r00 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0), 16));
-                        float32x4_t _r01 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 4), 16));
-                        float32x4_t _r02 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 8), 16));
-                        float32x4_t _r03 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 12), 16));
-                        float32x4_t _r04 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 16), 16));
-                        float32x4_t _r05 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 20), 16));
-                        float32x4_t _r06 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 24), 16));
-                        float32x4_t _r07 = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(r0 + 28), 16));
+                        float32x4_t _r00 = vcvt_f32_bf16(vld1_u16(r0));
+                        float32x4_t _r01 = vcvt_f32_bf16(vld1_u16(r0 + 4));
+                        float32x4_t _r02 = vcvt_f32_bf16(vld1_u16(r0 + 8));
+                        float32x4_t _r03 = vcvt_f32_bf16(vld1_u16(r0 + 12));
+                        float32x4_t _r04 = vcvt_f32_bf16(vld1_u16(r0 + 16));
+                        float32x4_t _r05 = vcvt_f32_bf16(vld1_u16(r0 + 20));
+                        float32x4_t _r06 = vcvt_f32_bf16(vld1_u16(r0 + 24));
+                        float32x4_t _r07 = vcvt_f32_bf16(vld1_u16(r0 + 28));
 
                         float32x4_t _tmp0m = vmlaq_n_f32(vsubq_f32(_r00, _r06), vsubq_f32(_r04, _r02), 5.25f);
                         float32x4_t _tmp7m = vmlaq_n_f32(vsubq_f32(_r07, _r01), vsubq_f32(_r03, _r05), 5.25f);
@@ -1786,9 +1786,9 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                         float32x4_t _out00 = vaddq_f32(_bias0, vaddq_f32(vaddq_f32(_tmp00, _tmp024a), vmlaq_n_f32(_tmp024b, _tmp024c, 32.f)));
                         float32x4_t _out02 = vaddq_f32(_bias0, vmlaq_n_f32(vmlaq_n_f32(_tmp024a, _tmp024b, 4.f), _tmp024c, 8.f));
                         float32x4_t _out04 = vaddq_f32(_bias0, vmlaq_n_f32(vmlaq_n_f32(_tmp024a, _tmp024b, 16.f), _tmp024c, 2.f));
-                        vst1_u16(output0, vshrn_n_u32(vreinterpretq_u32_f32(_out00), 16));
-                        vst1_u16(output0 + 8, vshrn_n_u32(vreinterpretq_u32_f32(_out02), 16));
-                        vst1_u16(output0 + 16, vshrn_n_u32(vreinterpretq_u32_f32(_out04), 16));
+                        vst1_u16(output0, vcvt_bf16_f32(_out00));
+                        vst1_u16(output0 + 8, vcvt_bf16_f32(_out02));
+                        vst1_u16(output0 + 16, vcvt_bf16_f32(_out04));
 
                         //                         output0[0] = bias0 + tmp0[0] + tmp024a + tmp024b + tmp024c * 32;
                         //                         output0[2] = bias0 + tmp024a + tmp024b * 4 + tmp024c * 8;
@@ -1797,9 +1797,9 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
                         float32x4_t _out01 = vaddq_f32(_bias0, vmlaq_n_f32(vmlaq_n_f32(_tmp135a, _tmp135b, 2.f), _tmp135c, 16.f));
                         float32x4_t _out03 = vaddq_f32(_bias0, vmlaq_n_f32(vmlaq_n_f32(_tmp135a, _tmp135b, 8.f), _tmp135c, 4.f));
                         float32x4_t _out05 = vaddq_f32(_bias0, vaddq_f32(vaddq_f32(_tmp07, _tmp135a), vmlaq_n_f32(_tmp135c, _tmp135b, 32.f)));
-                        vst1_u16(output0 + 4, vshrn_n_u32(vreinterpretq_u32_f32(_out01), 16));
-                        vst1_u16(output0 + 12, vshrn_n_u32(vreinterpretq_u32_f32(_out03), 16));
-                        vst1_u16(output0 + 20, vshrn_n_u32(vreinterpretq_u32_f32(_out05), 16));
+                        vst1_u16(output0 + 4, vcvt_bf16_f32(_out01));
+                        vst1_u16(output0 + 12, vcvt_bf16_f32(_out03));
+                        vst1_u16(output0 + 20, vcvt_bf16_f32(_out05));
 
                         //                         output0[1] = bias0 + tmp135a + tmp135b + tmp135b + tmp135c * 16;
                         //                         output0[3] = bias0 + tmp135a + tmp135b * 8 + tmp135c * 4;

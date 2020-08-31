@@ -17,7 +17,11 @@
 #include <math.h>
 
 #if __ARM_NEON
+#include <arm_neon.h>
 #include "neon_mathfun.h"
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "neon_mathfun_fp16s.h"
+#endif
 #include "neon_activation.h"
 #endif // __ARM_NEON
 

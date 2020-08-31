@@ -28,12 +28,16 @@ int InstanceNorm::load_param(const ParamDict& pd)
 {
     channels = pd.get(0, 0);
     eps = pd.get(1, 0.001f);
+    affine = pd.get(2, 1);
 
     return 0;
 }
 
 int InstanceNorm::load_model(const ModelBin& mb)
 {
+    if (affine == 0)
+        return 0;
+
     gamma_data = mb.load(channels, 1);
     if (gamma_data.empty())
         return -100;
@@ -47,14 +51,15 @@ int InstanceNorm::load_model(const ModelBin& mb)
 
 int InstanceNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    // x = (x - mean) / (sqrt(var) + eps) * gamma + beta
+    // x = (x - mean) / (sqrt(var + eps)) * gamma + beta
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int c = bottom_top_blob.c;
     int size = w * h;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
+    for (int q = 0; q < c; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
@@ -77,11 +82,21 @@ int InstanceNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         // the var maybe minus due to accuracy
         //float var = sqsum / size - mean * mean;
 
-        float gamma = gamma_data[q];
-        float beta = beta_data[q];
+        float a;
+        float b;
+        if (affine)
+        {
+            float gamma = gamma_data[q];
+            float beta = beta_data[q];
 
-        float a = static_cast<float>(gamma / (sqrt(var + eps)));
-        float b = -mean * a + beta;
+            a = static_cast<float>(gamma / (sqrt(var + eps)));
+            b = -mean * a + beta;
+        }
+        else
+        {
+            a = static_cast<float>(1.f / (sqrt(var + eps)));
+            b = -mean * a;
+        }
 
         for (int i = 0; i < size; i++)
         {
