@@ -24,6 +24,8 @@
 
 namespace ncnn {
 
+#define NCNN_CPU_SETSIZE   1024
+#define NCNN_NCPUBITS (8 * sizeof(unsigned long))
 class CpuSet
 {
 public:
@@ -31,8 +33,6 @@ public:
     {
 #if defined __ANDROID__ || defined __linux__
         CPU_ZERO(&m_bits);
-#else
-        m_bits = {0};
 #endif
     }
 
@@ -88,12 +88,9 @@ private:
 #if defined __ANDROID__ || defined __linux__
     cpu_set_t m_bits;
 #else
-#define NCNN_CPU_SETSIZE   1024
-#define NCNN_NCPUBITS (8 * sizeof(unsigned long))
-    unsigned long m_bits[NCNN_CPU_SETSIZE / NCNN_NCPUBITS];
+    unsigned long m_bits[NCNN_CPU_SETSIZE / NCNN_NCPUBITS] = {0};
 #endif
 };
-
 // test optional cpu features
 // neon = armv7 neon or aarch64 asimd
 int cpu_support_arm_neon();
