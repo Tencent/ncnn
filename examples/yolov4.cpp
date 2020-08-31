@@ -27,10 +27,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#include <sys/ioctl.h>
-#include <linux/fb.h>
-#include <fcntl.h>
-
 #define NCNN_PROFILING
 #define ENABLE_LINUX_FB_SUPPORT
 
@@ -39,6 +35,10 @@ int framebuffer_depth = 16;
 cv::Size2f frame_size;
 
 #ifdef ENABLE_LINUX_FB_SUPPORT
+#include <sys/ioctl.h>
+#include <linux/fb.h>
+#include <fcntl.h>
+
 struct framebuffer_info { 
     uint32_t bits_per_pixel; uint32_t xres_virtual; 
 };
@@ -119,7 +119,6 @@ static int detect_yolov4(const cv::Mat& bgr, std::vector<Object>& objects, int t
     ncnn::Mat out;
     ex.extract("output", out);
 
-    //     printf("%d %d %d\n", out.w, out.h, out.c);
     objects.clear();
     for (int i = 0; i < out.h; i++)
     {
@@ -204,7 +203,7 @@ static int draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects, 
         cv::cvtColor(image, image, cv::COLOR_BGR2BGR565);
         
         for (int y = 0; y < frame_size.height ; y++){
-            fbdevice.seekp(y*framebuffer_width*2);
+            fbdevice.seekp((long)y*framebuffer_width*2);
             fbdevice.write(reinterpret_cast<char*>(image.ptr(y)),frame_size.width*2);
         }
 #else
@@ -292,7 +291,7 @@ int main(int argc, char** argv){
 #ifdef NCNN_PROFILING
     auto t_load_end = std::chrono::high_resolution_clock::now();
     auto t_load_duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_load_start - t_load_end).count();
-    fprintf(stdout, "NCNN Init time %dms\n", t_load_duration);
+    fprintf(stdout, "NCNN Init time %ldms\n", t_load_duration);
 #endif
 
     if(strstr(argv[2], "gui") == NULL){
@@ -328,7 +327,7 @@ int main(int argc, char** argv){
 #ifdef NCNN_PROFILING
             auto t_capture_end = std::chrono::high_resolution_clock::now();
             auto t_capture_duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_capture_start - t_capture_end).count();
-            fprintf(stdout, "NCNN OpenCV capture time %dms\n", t_capture_duration);
+            fprintf(stdout, "NCNN OpenCV capture time %ldms\n", t_capture_duration);
 #endif
             if (frame.empty()){
                 fprintf(stderr, "OpenCV Failed to Capture from device %s\n", devicepath);
@@ -343,7 +342,7 @@ int main(int argc, char** argv){
 #ifdef NCNN_PROFILING
         auto t_detect_end = std::chrono::high_resolution_clock::now();
         auto t_detect_duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_detect_start - t_detect_end).count();
-        fprintf(stdout, "NCNN detection time %dms\n", t_detect_duration);
+        fprintf(stdout, "NCNN detection time %ldms\n", t_detect_duration);
 #endif
 
 
@@ -354,7 +353,7 @@ int main(int argc, char** argv){
 #ifdef NCNN_PROFILING
         auto t_draw_end = std::chrono::high_resolution_clock::now();
         auto t_draw_duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_draw_start - t_draw_end).count();
-        fprintf(stdout, "NCNN OpenCV draw result time %dms\n", t_draw_duration);
+        fprintf(stdout, "NCNN OpenCV draw result time %ldms\n", t_draw_duration);
 #endif
 
         if(!is_streaming){
