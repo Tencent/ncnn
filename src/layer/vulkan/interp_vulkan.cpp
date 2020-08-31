@@ -264,16 +264,77 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
+
+    int outh = output_height;
+    int outw = output_width;
+    if (outh == 0 || outw == 0)
+    {
+        outh = static_cast<int>(h * height_scale);
+        outw = static_cast<int>(w * width_scale);
+    }
+
+    VkMat reference_blob;
+    reference_blob.w = outw;
+    reference_blob.h = outh;
+
+    std::vector<VkMat> bottom_blobs(2);
+    bottom_blobs[0] = bottom_blob;
+    bottom_blobs[1] = reference_blob;
+
+    std::vector<VkMat> top_blobs(1);
+
+    int ret = forward(bottom_blobs, top_blobs, cmd, opt);
+
+    top_blob = top_blobs[0];
+
+    return ret;
+}
+
+int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+
+    int outh = output_height;
+    int outw = output_width;
+    if (outh == 0 || outw == 0)
+    {
+        outh = static_cast<int>(h * height_scale);
+        outw = static_cast<int>(w * width_scale);
+    }
+
+    VkImageMat reference_blob;
+    reference_blob.w = outw;
+    reference_blob.h = outh;
+
+    std::vector<VkImageMat> bottom_blobs(2);
+    bottom_blobs[0] = bottom_blob;
+    bottom_blobs[1] = reference_blob;
+
+    std::vector<VkImageMat> top_blobs(1);
+
+    int ret = forward(bottom_blobs, top_blobs, cmd, opt);
+
+    top_blob = top_blobs[0];
+
+    return ret;
+}
+
+int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+{
+    const VkMat& bottom_blob = bottom_blobs[0];
+    const VkMat& reference_blob = bottom_blobs[1];
+    VkMat& top_blob = top_blobs[0];
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    int outw = output_width;
-    int outh = output_height;
-    if (outw == 0 || outh == 0)
-    {
-        outw = w * width_scale;
-        outh = h * height_scale;
-    }
+    int outh = reference_blob.h;
+    int outw = reference_blob.w;
 
     if (outh == h && outw == w)
     {
@@ -387,21 +448,20 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
     return 0;
 }
 
-int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
+int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
+    const VkImageMat& bottom_blob = bottom_blobs[0];
+    const VkImageMat& reference_blob = bottom_blobs[1];
+    VkImageMat& top_blob = top_blobs[0];
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    int outw = output_width;
-    int outh = output_height;
-    if (outw == 0 || outh == 0)
-    {
-        outw = w * width_scale;
-        outh = h * height_scale;
-    }
+    int outh = reference_blob.h;
+    int outw = reference_blob.w;
 
     if (outh == h && outw == w)
     {

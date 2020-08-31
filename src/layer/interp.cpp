@@ -29,11 +29,17 @@ int Interp::load_param(const ParamDict& pd)
     width_scale = pd.get(2, 1.f);
     output_height = pd.get(3, 0);
     output_width = pd.get(4, 0);
+    dynamic_target_size = pd.get(5, 0);
 
     if (resize_type < 0 || resize_type > 3)
     {
         NCNN_LOGE("unsupported resize type %d", resize_type);
         return -1;
+    }
+
+    if (dynamic_target_size == 1)
+    {
+        one_blob_only = false;
     }
 
     return 0;
@@ -397,7 +403,6 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
 
     int outh = output_height;
     int outw = output_width;
@@ -412,6 +417,38 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
         outh = static_cast<int>(h * height_scale);
         outw = static_cast<int>(w * width_scale);
     }
+
+    Mat reference_blob;
+    reference_blob.w = outw;
+    reference_blob.h = outh;
+
+    std::vector<Mat> bottom_blobs(2);
+    bottom_blobs[0] = bottom_blob;
+    bottom_blobs[1] = reference_blob;
+
+    std::vector<Mat> top_blobs(1);
+
+    int ret = forward(bottom_blobs, top_blobs, opt);
+
+    top_blob = top_blobs[0];
+
+    return ret;
+}
+
+int Interp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& reference_blob = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+
+    int outh = reference_blob.h;
+    int outw = reference_blob.w;
+
     if (outh == h && outw == w)
     {
         top_blob = bottom_blob;
