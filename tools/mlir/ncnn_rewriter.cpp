@@ -28,9 +28,31 @@ namespace mlir {
 
 namespace ncnn {
 
+void BinaryOpOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
+{
+    results.insert<FuseBinaryOpPattern0>(context);
+    results.insert<FuseBinaryOpPattern1>(context);
+}
+
+void KerasConv2DOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
+{
+    results.insert<FuseKerasConv2DOpPattern>(context);
+}
+
+void KerasDenseOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
+{
+    results.insert<FuseKerasDenseOpPattern>(context);
+}
+
 void InstanceNormOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
 {
-    results.insert<FuseInstanceNormPattern>(context);
+    results.insert<FuseInstanceNormPattern0>(context);
+    results.insert<FuseInstanceNormPattern1>(context);
+}
+
+void InstanceNormAffineOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
+{
+    results.insert<FuseInstanceNormAffinePattern>(context);
 }
 
 } // namespace ncnn

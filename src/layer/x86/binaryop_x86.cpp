@@ -18,7 +18,6 @@
 
 #include "binaryop_x86.h"
 
-#include <algorithm>
 #include <math.h>
 
 namespace ncnn {

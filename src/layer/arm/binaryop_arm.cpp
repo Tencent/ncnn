@@ -14,7 +14,6 @@
 
 #include "binaryop_arm.h"
 
-#include <algorithm>
 #include <math.h>
 
 #if __ARM_NEON

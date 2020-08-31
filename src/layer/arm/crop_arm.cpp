@@ -14,8 +14,6 @@
 
 #include "crop_arm.h"
 
-#include <algorithm>
-
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON

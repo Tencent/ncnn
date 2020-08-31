@@ -15,7 +15,6 @@
 // License for the specific language governing permissions and limitations under
 // the License.
 
-#include <algorithm>
 #if __AVX__
 #include <immintrin.h>
 #endif

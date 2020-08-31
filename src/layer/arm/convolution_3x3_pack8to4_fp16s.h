@@ -623,11 +623,11 @@ static void conv3x3s1_winograd64_pack8to4_fp16sa_neon(const Mat& bottom_blob, Ma
                         "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%2], #32 \n"
                         "st1    {v28.4h, v29.4h, v30.4h, v31.4h}, [%2], #32 \n"
 
-                        : "=r"(nn),      // %0
+                        : "=r"(nn),         // %0
                         "=r"(output0_tm), // %1
                         "=r"(output1_tm), // %2
-                        "=r"(r0),  // %3
-                        "=r"(kptr)     // %4
+                        "=r"(r0),         // %3
+                        "=r"(kptr)        // %4
                         : "0"(nn),
                         "1"(output0_tm),
                         "2"(output1_tm),
@@ -713,11 +713,11 @@ static void conv3x3s1_winograd64_pack8to4_fp16sa_neon(const Mat& bottom_blob, Ma
 
                         "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%2], #32 \n"
 
-                        : "=r"(nn),      // %0
+                        : "=r"(nn),         // %0
                         "=r"(output0_tm), // %1
                         "=r"(output1_tm), // %2
-                        "=r"(r0),  // %3
-                        "=r"(kptr)     // %4
+                        "=r"(r0),         // %3
+                        "=r"(kptr)        // %4
                         : "0"(nn),
                         "1"(output0_tm),
                         "2"(output1_tm),
@@ -893,10 +893,10 @@ static void conv3x3s1_winograd64_pack8to4_fp16sa_neon(const Mat& bottom_blob, Ma
                         "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%1], #32 \n"
                         "st1    {v28.4h, v29.4h, v30.4h, v31.4h}, [%1], #32 \n"
 
-                        : "=r"(nn),      // %0
+                        : "=r"(nn),         // %0
                         "=r"(output0_tm), // %1
-                        "=r"(r0),  // %2
-                        "=r"(kptr)     // %3
+                        "=r"(r0),         // %2
+                        "=r"(kptr)        // %3
                         : "0"(nn),
                         "1"(output0_tm),
                         "2"(r0),
@@ -970,10 +970,10 @@ static void conv3x3s1_winograd64_pack8to4_fp16sa_neon(const Mat& bottom_blob, Ma
 
                         "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%1], #32 \n"
 
-                        : "=r"(nn),      // %0
+                        : "=r"(nn),         // %0
                         "=r"(output0_tm), // %1
-                        "=r"(r0),  // %2
-                        "=r"(kptr)     // %3
+                        "=r"(r0),         // %2
+                        "=r"(kptr)        // %3
                         : "0"(nn),
                         "1"(output0_tm),
                         "2"(r0),
