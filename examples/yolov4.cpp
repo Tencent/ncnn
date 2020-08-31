@@ -15,6 +15,7 @@
 #include "net.h"
 
 #include <opencv2/core/core.hpp>
+#include <opencv2/videoio/videoio.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
@@ -31,7 +32,6 @@
 #include <fcntl.h>
 
 #define NCNN_PROFILING
-
 #define ENABLE_LINUX_FB_SUPPORT
 
 int framebuffer_width = 240;
@@ -57,8 +57,6 @@ struct framebuffer_info get_framebuffer_info(const char* framebuffer_device_path
     return info;
 };
 #endif
-
-#define YOLOV4_TINY 1 //0 or undef for yolov4
 
 struct Object
 {
