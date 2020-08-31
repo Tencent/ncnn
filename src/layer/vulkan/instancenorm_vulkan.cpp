@@ -52,7 +52,11 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+    int _channels = channels;
+    if (shape.dims == 3) _channels = shape.c;
+
+    int elempack = 1;
+    if (_channels != 0) elempack = opt.use_shader_pack8 && _channels % 8 == 0 ? 8 : _channels % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     if (opt.use_fp16_storage)
@@ -69,16 +73,17 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     }
 
     Mat shape_packed;
-    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, channels / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
 
     // TODO resolve workspace_shape.w
-    Mat workspace_shape_packed(1, 1, channels / elempack, (void*)0, elemsize, elempack);
+    Mat workspace_shape_packed;
+    if (_channels != 0) workspace_shape_packed = Mat(1, 1, _channels / elempack, (void*)0, elemsize, elempack);
 
     {
         Mat local_size_xyz;
         if (opt.use_image_storage)
         {
-            local_size_xyz = Mat(4, 4, std::min(4, channels / elempack), (void*)0);
+            local_size_xyz = Mat(4, 4, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
             if (workspace_shape_packed.dims != 0)
             {
                 local_size_xyz.w = 4;
@@ -88,7 +93,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         }
         else
         {
-            local_size_xyz = Mat(16, 1, std::min(4, channels / elempack), (void*)0);
+            local_size_xyz = Mat(16, 1, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
             if (workspace_shape_packed.dims != 0)
             {
                 local_size_xyz.w = 16;
@@ -98,7 +103,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack1
-        if (elempack == 1)
+        if (elempack == 1 || _channels == 0)
         {
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32 = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32->set_optimal_local_size_xyz(local_size_xyz);
@@ -113,7 +118,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack4
-        if (elempack == 4)
+        if (elempack == 4 || _channels == 0)
         {
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4 = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack4->set_optimal_local_size_xyz(local_size_xyz);
@@ -128,7 +133,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         }
 
         // pack8
-        if (elempack == 8)
+        if (elempack == 8 || _channels == 0)
         {
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8 = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_sum4_fp16_to_fp32_pack8->set_optimal_local_size_xyz(local_size_xyz);
@@ -150,7 +155,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         specializations[2].i = workspace_shape_packed.c;
         specializations[3].i = 0; // TODO resolve workspace_shape_packed.cstep;
 
-        Mat local_size_xyz(std::min(64, channels / elempack), 1, 1, (void*)0);
+        Mat local_size_xyz(_channels ? std::min(64, _channels / elempack) : 64, 1, 1, (void*)0);
         if (workspace_shape_packed.dims != 0)
         {
             local_size_xyz.w = std::min(64, workspace_shape_packed.c);
@@ -158,21 +163,21 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
             local_size_xyz.c = 1;
         }
 
-        if (elempack == 1)
+        if (elempack == 1 || _channels == 0)
         {
             pipeline_instancenorm_reduce_mean = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_mean->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_reduce_mean->create(LayerShaderType::instancenorm_reduce_mean, opt, specializations);
         }
 
-        if (elempack == 4)
+        if (elempack == 4 || _channels == 0)
         {
             pipeline_instancenorm_reduce_mean_pack4 = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_mean_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_reduce_mean_pack4->create(LayerShaderType::instancenorm_reduce_mean_pack4, opt, specializations);
         }
 
-        if (elempack == 8)
+        if (elempack == 8 || _channels == 0)
         {
             pipeline_instancenorm_reduce_mean_pack8 = new Pipeline(vkdev);
             pipeline_instancenorm_reduce_mean_pack8->set_optimal_local_size_xyz(local_size_xyz);
@@ -181,7 +186,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
     }
 
     Mat square_workspace_packed;
-    if (shape.dims == 3) square_workspace_packed = Mat(shape.w, shape.h, channels / elempack, (void*)0, elempack * 4u, elempack);
+    if (shape.dims == 3) square_workspace_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elempack * 4u, elempack);
 
     {
         std::vector<vk_specialization_type> specializations(0 + 10);
@@ -196,7 +201,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         specializations[0 + 8].i = square_workspace_packed.c;
         specializations[0 + 9].i = square_workspace_packed.cstep;
 
-        Mat local_size_xyz(4, 4, std::min(4, channels / elempack), (void*)0);
+        Mat local_size_xyz(4, 4, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
         if (square_workspace_packed.dims != 0)
         {
             local_size_xyz.w = std::min(4, square_workspace_packed.w);
@@ -204,21 +209,21 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
             local_size_xyz.c = std::min(4, square_workspace_packed.c);
         }
 
-        if (elempack == 1)
+        if (elempack == 1 || _channels == 0)
         {
             pipeline_instancenorm_sub_mean_square = new Pipeline(vkdev);
             pipeline_instancenorm_sub_mean_square->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_sub_mean_square->create(LayerShaderType::instancenorm_sub_mean_square, opt, specializations);
         }
 
-        if (elempack == 4)
+        if (elempack == 4 || _channels == 0)
         {
             pipeline_instancenorm_sub_mean_square_pack4 = new Pipeline(vkdev);
             pipeline_instancenorm_sub_mean_square_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_sub_mean_square_pack4->create(LayerShaderType::instancenorm_sub_mean_square_pack4, opt, specializations);
         }
 
-        if (elempack == 8)
+        if (elempack == 8 || _channels == 0)
         {
             pipeline_instancenorm_sub_mean_square_pack8 = new Pipeline(vkdev);
             pipeline_instancenorm_sub_mean_square_pack8->set_optimal_local_size_xyz(local_size_xyz);
@@ -230,9 +235,9 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         std::vector<vk_specialization_type> specializations(3);
         specializations[0].f = eps;
         specializations[1].i = affine;
-        specializations[2].i = channels / elempack;
+        specializations[2].i = _channels / elempack;
 
-        Mat local_size_xyz(std::min(64, channels / elempack), 1, 1, (void*)0);
+        Mat local_size_xyz(_channels ? std::min(64, _channels / elempack) : 64, 1, 1, (void*)0);
         if (workspace_shape_packed.dims != 0)
         {
             local_size_xyz.w = std::min(64, workspace_shape_packed.c);
@@ -240,21 +245,21 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
             local_size_xyz.c = 1;
         }
 
-        if (elempack == 1)
+        if (elempack == 1 || _channels == 0)
         {
             pipeline_instancenorm_coeffs = new Pipeline(vkdev);
             pipeline_instancenorm_coeffs->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_coeffs->create(LayerShaderType::instancenorm_coeffs, opt, specializations);
         }
 
-        if (elempack == 4)
+        if (elempack == 4 || _channels == 0)
         {
             pipeline_instancenorm_coeffs_pack4 = new Pipeline(vkdev);
             pipeline_instancenorm_coeffs_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_coeffs_pack4->create(LayerShaderType::instancenorm_coeffs_pack4, opt, specializations);
         }
 
-        if (elempack == 8)
+        if (elempack == 8 || _channels == 0)
         {
             pipeline_instancenorm_coeffs_pack8 = new Pipeline(vkdev);
             pipeline_instancenorm_coeffs_pack8->set_optimal_local_size_xyz(local_size_xyz);
@@ -270,7 +275,7 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
         specializations[0 + 3].i = shape_packed.c;
         specializations[0 + 4].i = shape_packed.cstep;
 
-        Mat local_size_xyz(4, 4, std::min(4, channels / elempack), (void*)0);
+        Mat local_size_xyz(4, 4, _channels ? std::min(4, _channels / elempack) : 4, (void*)0);
         if (shape_packed.dims != 0)
         {
             local_size_xyz.w = std::min(4, shape_packed.w);
@@ -278,21 +283,21 @@ int InstanceNorm_vulkan::create_pipeline(const Option& opt)
             local_size_xyz.c = std::min(4, shape_packed.c);
         }
 
-        if (elempack == 1)
+        if (elempack == 1 || _channels == 0)
         {
             pipeline_instancenorm_norm = new Pipeline(vkdev);
             pipeline_instancenorm_norm->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_norm->create(LayerShaderType::instancenorm_norm, opt, specializations);
         }
 
-        if (elempack == 4)
+        if (elempack == 4 || _channels == 0)
         {
             pipeline_instancenorm_norm_pack4 = new Pipeline(vkdev);
             pipeline_instancenorm_norm_pack4->set_optimal_local_size_xyz(local_size_xyz);
             pipeline_instancenorm_norm_pack4->create(LayerShaderType::instancenorm_norm_pack4, opt, specializations);
         }
 
-        if (elempack == 8)
+        if (elempack == 8 || _channels == 0)
         {
             pipeline_instancenorm_norm_pack8 = new Pipeline(vkdev);
             pipeline_instancenorm_norm_pack8->set_optimal_local_size_xyz(local_size_xyz);
@@ -606,7 +611,8 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
         bindings[3] = gamma_data_gpu;
         bindings[4] = beta_data_gpu;
 
-        std::vector<vk_constant_type> constants(0);
+        std::vector<vk_constant_type> constants(1);
+        constants[0].i = c;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_coeffs_pack8
                                    : elempack == 4 ? pipeline_instancenorm_coeffs_pack4
@@ -840,7 +846,8 @@ int InstanceNorm_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute&
         bindings[3] = gamma_data_gpu_image;
         bindings[4] = beta_data_gpu_image;
 
-        std::vector<vk_constant_type> constants(0);
+        std::vector<vk_constant_type> constants(1);
+        constants[0].i = c;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_instancenorm_coeffs_pack8
                                    : elempack == 4 ? pipeline_instancenorm_coeffs_pack4
