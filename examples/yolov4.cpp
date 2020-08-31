@@ -214,6 +214,8 @@ static int draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects, 
         return -1;
 #endif
     }
+
+    return 0;
     
 }
 
