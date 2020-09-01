@@ -9,7 +9,7 @@ endmacro()
 
 find_package(OpenCV QUIET COMPONENTS core highgui imgproc imgcodecs videoio)
 if(NOT OpenCV_FOUND)
-    find_package(OpenCV QUIET COMPONENTS core highgui imgproc videoio)
+    find_package(OpenCV QUIET COMPONENTS core highgui imgproc)
 endif()
 
 if(OpenCV_FOUND)
