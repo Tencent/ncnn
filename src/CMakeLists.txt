@@ -323,6 +323,7 @@ if(NCNN_INSTALL_SDK)
         paramdict.h
         pipeline.h
         pipelinecache.h
+        simplestl.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/platform.h
