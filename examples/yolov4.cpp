@@ -46,7 +46,7 @@ static int init_yolov4(ncnn::Net* yolov4, int* target_size)
 
     yolov4->opt.num_threads = 4; //You need to compile with libgomp for multi thread support
 
-    yolov4->opt.use_vulkan_compute = true; //You need to compile with libvulkan for multi thread support
+    yolov4->opt.use_vulkan_compute = true; //You need to compile with libvulkan for gpu support
 
     yolov4->opt.use_winograd_convolution = true;
     yolov4->opt.use_sgemm_convolution = true;
