@@ -45,7 +45,7 @@ jobs:
       env:
         CC: clang
         CXX: clang++
-      run: mkdir build && cd build && cmake -DNCNN_STDIO=ON -DNCNN_STRING=ON -DNCNN_SIMPLESTL=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host-c.gcc.toolchain.cmake -DNCNN_STDIO=ON -DNCNN_STRING=ON -DNCNN_SIMPLESTL=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
     - name: build
       run: cmake --build build -j 2
     - name: test

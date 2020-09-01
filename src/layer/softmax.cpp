@@ -14,7 +14,6 @@
 
 #include "softmax.h"
 
-#include <algorithm>
 #include <float.h>
 #include <math.h>
 

@@ -16,4 +16,4 @@ SET ( CMAKE_CXX_FLAGS "-std=c++11 -march=mips32r6 -mmsa -fopenmp ${CMAKE_CXX_FLA
 # other settings
 add_definitions(-D__MIPS_MSA)
 add_definitions(-DLINUX)
-SET ( LINUX true)
+SET ( LINUX true )

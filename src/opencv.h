@@ -21,8 +21,6 @@
 
 #include "mat.h"
 
-#include <algorithm>
-
 #if defined(_MSC_VER) || defined(__GNUC__)
 #pragma push_macro("min")
 #pragma push_macro("max")

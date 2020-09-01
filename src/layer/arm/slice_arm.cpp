@@ -14,8 +14,6 @@
 
 #include "slice_arm.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 Slice_arm::Slice_arm()
