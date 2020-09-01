@@ -15,9 +15,12 @@
 #include "net.h"
 
 #include <opencv2/core/core.hpp>
-#include <opencv2/videoio/videoio.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+
+#if CV_MAJOR_VERSION < 3
+#include <opencv2/videoio/videoio.hpp>
+#endif
 
 #include <vector>
 
@@ -43,7 +46,7 @@ static int init_yolov4(ncnn::Net* yolov4, int* target_size)
 
     yolov4->opt.num_threads = 4; //You need to compile with libgomp for multi thread support
 
-    yolov4->opt.use_vulkan_compute = true; ////You need to compile with libvulkan for multi thread support
+    yolov4->opt.use_vulkan_compute = true; //You need to compile with libvulkan for multi thread support
 
     yolov4->opt.use_winograd_convolution = true;
     yolov4->opt.use_sgemm_convolution = true;
@@ -280,7 +283,7 @@ int main(int argc, char** argv)
         double t_detect_start = ncnn::get_current_time();
 #endif
 
-        detect_yolov4(frame, objects, target_size, &yolov4); //Creat an extractor and run detection
+        detect_yolov4(frame, objects, target_size, &yolov4); //Create an extractor and run detection
 
 #ifdef NCNN_PROFILING
         double t_detect_end = ncnn::get_current_time();
