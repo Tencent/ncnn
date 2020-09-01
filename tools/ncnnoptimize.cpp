@@ -3749,7 +3749,7 @@ int main(int argc, char** argv)
 
     NetOptimize optimizer;
 
-    if (flag == 65536)
+    if (flag == 65536 || flag == 1)
     {
         optimizer.storage_type = 1;
     }
