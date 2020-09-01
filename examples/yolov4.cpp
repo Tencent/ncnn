@@ -39,14 +39,14 @@ struct Object
     float prob;
 };
 
-static int init_yolov4(ncnn::Net *yolov4, int *target_size){
-
-/* --> Set the params you need for the ncnn inference <-- */
+static int init_yolov4(ncnn::Net* yolov4, int* target_size)
+{
+    /* --> Set the params you need for the ncnn inference <-- */
 
     yolov4->opt.num_threads = 4; //You need to compile with libgomp for multi thread support
-    
+
     yolov4->opt.use_vulkan_compute = true; ////You need to compile with libvulkan for multi thread support
-    
+
     yolov4->opt.use_winograd_convolution = true;
     yolov4->opt.use_sgemm_convolution = true;
     yolov4->opt.use_fp16_packed = true;
@@ -56,36 +56,38 @@ static int init_yolov4(ncnn::Net *yolov4, int *target_size){
     yolov4->opt.use_shader_pack8 = false;
     yolov4->opt.use_image_storage = false;
 
-/* --> End of setting params <-- */
+    /* --> End of setting params <-- */
     int ret = 0;
-    
+
     // original pretrained model from https://github.com/AlexeyAB/darknet
     // the ncnn model https://drive.google.com/drive/folders/1YzILvh0SKQPS_lrb33dmGNq7aVTKPWS0?usp=sharing
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
 #ifdef YOLOV4_TINY
-    const char *yolov4_param = "yolov4-tiny-opt.param";
-    const char *yolov4_model = "yolov4-tiny-opt.bin";
+    const char* yolov4_param = "yolov4-tiny-opt.param";
+    const char* yolov4_model = "yolov4-tiny-opt.bin";
     *target_size = 416;
 #else
-    const char *yolov4_param = "yolov4-opt.param";
-    const char *yolov4_model = "yolov4-opt.param";
+    const char* yolov4_param = "yolov4-opt.param";
+    const char* yolov4_model = "yolov4-opt.param";
     *target_size = 608;
 #endif
 
     ret = yolov4->load_param(yolov4_param);
-    if(ret != 0){
+    if (ret != 0)
+    {
         return ret;
     }
 
     ret = yolov4->load_model(yolov4_model);
-    if(ret != 0){
+    if (ret != 0)
+    {
         return ret;
     }
 
     return 0;
 }
 
-static int detect_yolov4(const cv::Mat& bgr, std::vector<Object>& objects, int target_size, ncnn::Net *yolov4)
+static int detect_yolov4(const cv::Mat& bgr, std::vector<Object>& objects, int target_size, ncnn::Net* yolov4)
 {
     int img_w = bgr.cols;
     int img_h = bgr.rows;
@@ -139,8 +141,7 @@ static int draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects, 
                                         "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard",
                                         "cell phone", "microwave", "oven", "toaster", "sink",
                                         "refrigerator", "book", "clock", "vase", "scissors",
-                                        "teddy bear", "hair drier", "toothbrush"
-                                       };
+                                        "teddy bear", "hair drier", "toothbrush"};
 
     cv::Mat image = bgr.clone();
 
@@ -174,24 +175,26 @@ static int draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects, 
     }
 
     cv::imshow("image", image);
-    
-    if(is_streaming){
+
+    if (is_streaming)
+    {
         cv::waitKey(1);
-    }else{
+    }
+    else
+    {
         cv::waitKey(0);
     }
 
     return 0;
-    
 }
 
-int main(int argc, char** argv){
-
+int main(int argc, char** argv)
+{
     cv::Mat frame;
     std::vector<Object> objects;
 
     cv::VideoCapture cap;
-    
+
     ncnn::Net yolov4;
 
     const char* devicepath;
@@ -199,19 +202,21 @@ int main(int argc, char** argv){
     int target_size = 0;
     int is_streaming = 0;
 
-    if (argc < 2){
+    if (argc < 2)
+    {
         fprintf(stderr, "Usage: %s [v4l inpude device or image]\n", argv[0]);
         return -1;
     }
 
     devicepath = argv[1];
 
-    #ifdef NCNN_PROFILING
+#ifdef NCNN_PROFILING
     auto t_load_start = std::chrono::high_resolution_clock::now();
 #endif
 
     int ret = init_yolov4(&yolov4, &target_size); //We load model and param first!
-    if(ret != 0){
+    if (ret != 0)
+    {
         fprintf(stderr, "Failed to load model or param, error %d", ret);
         return -1;
     }
@@ -222,23 +227,29 @@ int main(int argc, char** argv){
     fprintf(stdout, "NCNN Init time %ldms\n", t_load_duration);
 #endif
 
-    if(strstr(devicepath, "/dev/video") == NULL){
+    if (strstr(devicepath, "/dev/video") == NULL)
+    {
         frame = cv::imread(argv[1], 1);
-        if(frame.empty()){
+        if (frame.empty())
+        {
             fprintf(stderr, "Failed to read image %s.\n", argv[1]);
             return -1;
         }
-    }else{
+    }
+    else
+    {
         cap.open(devicepath);
 
-        if (!cap.isOpened()){
+        if (!cap.isOpened())
+        {
             fprintf(stderr, "Failed to open %s", devicepath);
             return -1;
         }
-        
+
         cap >> frame;
 
-        if(frame.empty()){
+        if (frame.empty())
+        {
             fprintf(stderr, "Failed to read from device %s.\n", devicepath);
             return -1;
         }
@@ -246,8 +257,10 @@ int main(int argc, char** argv){
         is_streaming = 1;
     }
 
-    while(1){
-        if(is_streaming){
+    while (1)
+    {
+        if (is_streaming)
+        {
 #ifdef NCNN_PROFILING
             auto t_capture_start = std::chrono::high_resolution_clock::now();
 #endif
@@ -259,7 +272,8 @@ int main(int argc, char** argv){
             auto t_capture_duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_capture_end - t_capture_start).count();
             fprintf(stdout, "NCNN OpenCV capture time %ldms\n", t_capture_duration);
 #endif
-            if (frame.empty()){
+            if (frame.empty())
+            {
                 fprintf(stderr, "OpenCV Failed to Capture from device %s\n", devicepath);
                 return -1;
             }
@@ -277,7 +291,6 @@ int main(int argc, char** argv){
         fprintf(stdout, "NCNN detection time %ldms\n", t_detect_duration);
 #endif
 
-
 #ifdef NCNN_PROFILING
         auto t_draw_start = std::chrono::high_resolution_clock::now();
 #endif
@@ -290,7 +303,8 @@ int main(int argc, char** argv){
         fprintf(stdout, "NCNN OpenCV draw result time %ldms\n", t_draw_duration);
 #endif
 
-        if(!is_streaming){ //If it is a still image, exit!
+        if (!is_streaming)
+        { //If it is a still image, exit!
             return 0;
         }
     }
