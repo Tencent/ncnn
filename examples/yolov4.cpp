@@ -141,7 +141,8 @@ static int draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects, 
                                         "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard",
                                         "cell phone", "microwave", "oven", "toaster", "sink",
                                         "refrigerator", "book", "clock", "vase", "scissors",
-                                        "teddy bear", "hair drier", "toothbrush"};
+                                        "teddy bear", "hair drier", "toothbrush"
+                                       };
 
     cv::Mat image = bgr.clone();
 
@@ -304,7 +305,7 @@ int main(int argc, char** argv)
 #endif
 
         if (!is_streaming)
-        { //If it is a still image, exit!
+        {   //If it is a still image, exit!
             return 0;
         }
     }
