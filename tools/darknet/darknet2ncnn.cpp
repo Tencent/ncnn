@@ -467,7 +467,7 @@ void parse_cfg(std::deque<Section*>& dnet, int merge_output)
         else if (s->name == "maxpool")
         {
             if (s->padding == -1)
-                s->padding = s->size - 1;
+                s->padding = s->stride * int((s->size - 1) / 2);
             s->h = p->out_h;
             s->w = p->out_w;
             s->c = p->out_c;
@@ -485,6 +485,8 @@ void parse_cfg(std::deque<Section*>& dnet, int merge_output)
             s->param.push_back(format("1=%d", s->size));     //kernel_w
             s->param.push_back(format("2=%d", s->stride));   //stride_w
             s->param.push_back("5=1");                       //pad_mode=SAME_UPPER
+            s->param.push_back(format("3=%d", s->padding));  //pad_left
+            s->param.push_back(format("13=%d", s->padding)); //pad_top
             s->param.push_back(format("14=%d", s->padding)); //pad_right
             s->param.push_back(format("15=%d", s->padding)); //pad_bottom
         }
