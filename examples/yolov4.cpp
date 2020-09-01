@@ -18,7 +18,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-#if CV_MAJOR_VERSION < 3
+#if CV_MAJOR_VERSION >= 3
 #include <opencv2/videoio/videoio.hpp>
 #endif
 
