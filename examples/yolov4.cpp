@@ -20,16 +20,14 @@
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include <vector>
-#include <iostream>
 
-#include <string.h>
 #include <stdio.h>
 
 #define NCNN_PROFILING
 #define YOLOV4_TINY //Using yolov4_tiny, if undef, using original yolov4
 
 #ifdef NCNN_PROFILING
-#include <chrono>
+#include "benchmark.h"
 #endif
 
 struct Object
@@ -212,7 +210,7 @@ int main(int argc, char** argv)
     devicepath = argv[1];
 
 #ifdef NCNN_PROFILING
-    auto t_load_start = std::chrono::high_resolution_clock::now();
+    double t_load_start = ncnn::get_current_time();
 #endif
 
     int ret = init_yolov4(&yolov4, &target_size); //We load model and param first!
@@ -223,9 +221,8 @@ int main(int argc, char** argv)
     }
 
 #ifdef NCNN_PROFILING
-    auto t_load_end = std::chrono::high_resolution_clock::now();
-    auto t_load_duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_load_end - t_load_start).count();
-    fprintf(stdout, "NCNN Init time %ldms\n", t_load_duration);
+    double t_load_end = ncnn::get_current_time();
+    fprintf(stdout, "NCNN Init time %.02lfms\n", t_load_end - t_load_start);
 #endif
 
     if (strstr(devicepath, "/dev/video") == NULL)
@@ -263,15 +260,14 @@ int main(int argc, char** argv)
         if (is_streaming)
         {
 #ifdef NCNN_PROFILING
-            auto t_capture_start = std::chrono::high_resolution_clock::now();
+            double t_capture_start = ncnn::get_current_time();
 #endif
 
             cap >> frame;
 
 #ifdef NCNN_PROFILING
-            auto t_capture_end = std::chrono::high_resolution_clock::now();
-            auto t_capture_duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_capture_end - t_capture_start).count();
-            fprintf(stdout, "NCNN OpenCV capture time %ldms\n", t_capture_duration);
+            double t_capture_end = ncnn::get_current_time();
+            fprintf(stdout, "NCNN OpenCV capture time %.02lfms\n", t_capture_end - t_capture_start);
 #endif
             if (frame.empty())
             {
@@ -281,27 +277,25 @@ int main(int argc, char** argv)
         }
 
 #ifdef NCNN_PROFILING
-        auto t_detect_start = std::chrono::high_resolution_clock::now();
+        double t_detect_start = ncnn::get_current_time();
 #endif
 
         detect_yolov4(frame, objects, target_size, &yolov4); //Creat an extractor and run detection
 
 #ifdef NCNN_PROFILING
-        auto t_detect_end = std::chrono::high_resolution_clock::now();
-        auto t_detect_duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_detect_end - t_detect_start).count();
-        fprintf(stdout, "NCNN detection time %ldms\n", t_detect_duration);
+        double t_detect_end = ncnn::get_current_time();
+        fprintf(stdout, "NCNN detection time %.02lfms\n", t_detect_end - t_detect_start);
 #endif
 
 #ifdef NCNN_PROFILING
-        auto t_draw_start = std::chrono::high_resolution_clock::now();
+        double t_draw_start = ncnn::get_current_time();
 #endif
 
         draw_objects(frame, objects, is_streaming); //Draw detection results on opencv image
 
 #ifdef NCNN_PROFILING
-        auto t_draw_end = std::chrono::high_resolution_clock::now();
-        auto t_draw_duration = std::chrono::duration_cast<std::chrono::milliseconds>(t_draw_end - t_draw_start).count();
-        fprintf(stdout, "NCNN OpenCV draw result time %ldms\n", t_draw_duration);
+        double t_draw_end = ncnn::get_current_time();
+        fprintf(stdout, "NCNN OpenCV draw result time %.02lfms\n", t_draw_end - t_draw_start);
 #endif
 
         if (!is_streaming)
