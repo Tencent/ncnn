@@ -69,7 +69,7 @@ static int init_yolov4(ncnn::Net* yolov4, int* target_size)
     *target_size = 416;
 #else
     const char* yolov4_param = "yolov4-opt.param";
-    const char* yolov4_model = "yolov4-opt.param";
+    const char* yolov4_model = "yolov4-opt.bin";
     *target_size = 608;
 #endif
 
