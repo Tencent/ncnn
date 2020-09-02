@@ -20,7 +20,7 @@ static int test_instancenorm(const ncnn::Mat& a, float eps, int affine)
     int channels = a.c;
 
     ncnn::ParamDict pd;
-    pd.set(0, channels);
+    pd.set(0, affine ? channels : 0);
     pd.set(1, eps);
     pd.set(2, affine);
 
@@ -31,7 +31,7 @@ static int test_instancenorm(const ncnn::Mat& a, float eps, int affine)
     int ret = test_layer<ncnn::InstanceNorm>("InstanceNorm", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_instancenorm failed a.dims=%d a=(%d %d %d) eps=%f\n", a.dims, a.w, a.h, a.c, eps);
+        fprintf(stderr, "test_instancenorm failed a.dims=%d a=(%d %d %d) eps=%f affine=%d\n", a.dims, a.w, a.h, a.c, eps, affine);
     }
 
     return ret;

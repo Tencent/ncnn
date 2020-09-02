@@ -697,6 +697,8 @@ int main(int argc, char** argv)
                 fprintf(pp, " 4=%d", -233);
             }
 
+            fprintf(pp, " 5=1"); // bias_term
+
             std::vector<float> v = get_attr_af(W);
             std::vector<float> bv = get_attr_af(B);
 
@@ -741,6 +743,7 @@ int main(int argc, char** argv)
             int weight_data_size = shape[0] * shape[1];
 
             fprintf(pp, " 0=%d", num_output);
+            fprintf(pp, " 1=1"); // bias_term
             fprintf(pp, " 2=%d", weight_data_size);
 
             std::vector<float> v = get_attr_af(W);
@@ -808,6 +811,8 @@ int main(int argc, char** argv)
             std::vector<int> ksize = get_operation_attr_ai(operation, "ksize");
             std::vector<int> strides = get_operation_attr_ai(operation, "strides");
             std::string padding = get_operation_attr_s(operation, "padding");
+
+            fprintf(pp, " 0=1"); // avg pool
 
             if (ksize.size() == 4)
             {
@@ -1253,6 +1258,8 @@ int main(int argc, char** argv)
             std::vector<int> ksize = get_operation_attr_ai(operation, "ksize");
             std::vector<int> strides = get_operation_attr_ai(operation, "strides");
             std::string padding = get_operation_attr_s(operation, "padding");
+
+            fprintf(pp, " 0=0"); // max pool
 
             if (ksize.size() == 4)
             {
