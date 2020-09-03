@@ -19,9 +19,6 @@ endif()
 
 project(ncnn)
 
-option(ENABLE_PIC "Generate position independent code" ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ${ENABLE_PIC})
-
 if(MSVC)
     option(BUILD_WITH_STATIC_CRT "Enables use of statically linked CRT for statically linked ncnn" OFF)
     if(BUILD_WITH_STATIC_CRT)
