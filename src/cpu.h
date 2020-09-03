@@ -52,8 +52,8 @@ typedef struct
 
 namespace ncnn {
 
-#define NCNN_CPU_SETSIZE   1024
-#define NCNN_NCPUBITS (8 * sizeof(unsigned long))
+#define NCNN_CPU_SETSIZE 1024
+#define NCNN_NCPUBITS    (8 * sizeof(unsigned long))
 class CpuSet
 {
 public:
