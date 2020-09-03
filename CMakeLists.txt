@@ -17,23 +17,16 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
 endif()
 
+# enable CMAKE_MSVC_RUNTIME_LIBRARY
+cmake_policy(SET CMP0091 NEW)
+
 project(ncnn)
 
 if(MSVC)
-    option(BUILD_WITH_STATIC_CRT "Enables use of statically linked CRT for statically linked ncnn" OFF)
-    if(BUILD_WITH_STATIC_CRT)
-      foreach(flag_var
-              CMAKE_C_FLAGS CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_RELEASE
-              CMAKE_C_FLAGS_MINSIZEREL CMAKE_C_FLAGS_RELWITHDEBINFO
-              CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
-              CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-        if(${flag_var} MATCHES "/MD")
-          string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
-        endif()
-        if(${flag_var} MATCHES "/MDd")
-          string(REGEX REPLACE "/MDd" "/MTd" ${flag_var} "${${flag_var}}")
-        endif()
-      endforeach(flag_var)
+    option(NCNN_BUILD_WITH_STATIC_CRT "Enables use of statically linked CRT for statically linked ncnn" OFF)
+    if(NCNN_BUILD_WITH_STATIC_CRT)
+        # is cmake version before 3.15 ok?
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     endif()
 endif()
 
