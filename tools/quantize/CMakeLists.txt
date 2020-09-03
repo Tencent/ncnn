@@ -1,9 +1,14 @@
-find_package(OpenCV QUIET COMPONENTS core highgui imgproc imgcodecs)
+find_package(OpenCV QUIET COMPONENTS opencv_world)
+if(NOT OpenCV_FOUND)
+    find_package(OpenCV QUIET COMPONENTS core highgui imgproc imgcodecs)
+endif()
 if(NOT OpenCV_FOUND)
     find_package(OpenCV QUIET COMPONENTS core highgui imgproc)
 endif()
 
 if(OpenCV_FOUND)
+    include_directories(${OpenCV_INCLUDE_DIRS})
+
     add_executable(ncnn2table ncnn2table.cpp)
     target_compile_definitions(ncnn2table PRIVATE -DOpenCV_VERSION_MAJOR=${OpenCV_VERSION_MAJOR})
     target_link_libraries(ncnn2table PRIVATE ncnn ${OpenCV_LIBS})
