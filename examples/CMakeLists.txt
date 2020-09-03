@@ -1,5 +1,6 @@
 macro(ncnn_add_example name)
     add_executable(${name} ${name}.cpp)
+    target_include_directories(${name} PRIVATE ${OpenCV_INCLUDE_DIRS})
     target_link_libraries(${name} PRIVATE ncnn ${OpenCV_LIBS})
 
     # add test to a virtual project group
@@ -15,7 +16,6 @@ if(NOT OpenCV_FOUND)
 endif()
 
 if(OpenCV_FOUND)
-    include_directories(${OpenCV_INCLUDE_DIRS})
     message(STATUS "OpenCV library: ${OpenCV_INSTALL_PATH}")
     message(STATUS "    version: ${OpenCV_VERSION}")
     message(STATUS "    libraries: ${OpenCV_LIBS}")
