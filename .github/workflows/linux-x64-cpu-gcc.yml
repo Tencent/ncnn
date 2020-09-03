@@ -2,7 +2,7 @@ name: linux-x64-cpu-gcc
 on: [push, pull_request]
 jobs:
   linux-gcc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v2
     - name: update
@@ -32,7 +32,7 @@ jobs:
       run: cd build && ctest --output-on-failure -j 2
 
   linux-gcc-nostdio-nostring:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v2
     - name: configure
