@@ -39,6 +39,14 @@
 #endif // __ANDROID_API__ >= 9
 #endif // NCNN_PIXEL
 
+#if !defined(HEDLEY_MSVC_VERSION) || HEDLEY_MSVC_VERSION_CHECK(19, 20, 0)
+#define NCNN_OMP_SIMD            HEDLEY_PRAGMA(omp simd)
+#define NCNN_OMP_SIMD_EX(Extra)  HEDLEY_PRAGMA(omp simd Extra)
+#else
+#define NCNN_OMP_SIMD
+#define NCNN_OMP_SIMD_EX(Extra)
+#endif
+
 namespace ncnn {
 
 #if NCNN_VULKAN
@@ -782,7 +790,7 @@ inline void Mat::fill(float _v)
             : "cc", "memory");
     }
 #endif // __aarch64__
-    #pragma omp simd
+    NCNN_OMP_SIMD
 #endif // __ARM_NEON
     for (int x = remain; x > 0; x--)
     {
@@ -836,7 +844,7 @@ inline void Mat::fill(int _v)
     }
 #endif // __aarch64__
 #else
-    #pragma omp simd
+    NCNN_OMP_SIMD
 #endif // __ARM_NEON
     for (int x = remain; x > 0; x--)
     {

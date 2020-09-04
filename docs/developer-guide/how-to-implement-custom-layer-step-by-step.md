@@ -260,6 +260,7 @@ int MyLayer::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         float* outptr = top_blob.channel(q);
         const float gamma = gamma_data[q];
 
+        NCNN_OMP_SIMD
         for (int i=0; i<size; i++)
         {
             outptr[i] = (ptr[i] + eps) * gamma ;
@@ -288,6 +289,7 @@ int MyLayer::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
         const float gamma = gamma_data[q];
 
+        NCNN_OMP_SIMD
         for (int i=0; i<size; i++)
         {
             ptr[i] = (ptr[i] + eps) * gamma ;
