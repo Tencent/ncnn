@@ -170,9 +170,6 @@ target_include_directories(ncnn
 
 if(NCNN_OPENMP)
     find_package(OpenMP)
-    if(NOT TARGET OpenMP::OpenMP_CXX AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
-        target_compile_options(ncnn PRIVATE ${OpenMP_CXX_FLAGS})
-    endif()
 endif()
 
 if(NCNN_VULKAN)
@@ -291,7 +288,7 @@ if(NCNN_OPENMP AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
     elseif(OpenMP_CXX_FOUND)
         target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-        target_compile_options(ncnn PRIVATE /openmp:experimental)
+        target_link_libraries(ncnn PRIVATE -openmp:experimental)
     else()
         target_link_libraries(ncnn PRIVATE "${OpenMP_CXX_FLAGS}")
     endif()
