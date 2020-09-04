@@ -16,7 +16,7 @@ matrix:
     - name: "linux-gcc-arm64"
       os: linux
       arch: arm64
-      dist: bionic
+      dist: focal
       compiler: gcc
       env:
         - NAME=linux-gcc
@@ -25,7 +25,7 @@ matrix:
     - name: "linux-clang-arm64"
       os: linux
       arch: arm64
-      dist: bionic
+      dist: focal
       compiler: clang
       env:
         - NAME=linux-clang
@@ -41,7 +41,7 @@ matrix:
     - name: "test-coverage-arm64"
       os: linux
       arch: arm64
-      dist: bionic
+      dist: focal
       compiler: gcc
       env:
         - NAME=test-coverage-arm64
@@ -50,7 +50,7 @@ matrix:
     - name: "linux-gcc-arm32"
       os: linux
       arch: arm64
-      dist: bionic
+      dist: focal
       env:
         - NAME=linux-gcc-arm32
         - BEFORE_BUILD="sudo apt-get update && sudo dpkg --add-architecture armhf && sudo rm /etc/apt/sources.list.d/mongodb*.list && sudo apt-get update && sudo apt-get -y install crossbuild-essential-armhf libc6:armhf libstdc++-5-dev:armhf linux-libc-dev:armhf"
@@ -59,14 +59,16 @@ matrix:
     - name: "test-coverage-arm32"
       os: linux
       arch: arm64
-      dist: bionic
+      dist: focal
       env:
         - NAME=test-coverage-arm32
         - BEFORE_BUILD="sudo apt-get update && sudo dpkg --add-architecture armhf && sudo rm /etc/apt/sources.list.d/mongodb*.list && sudo apt-get update && sudo apt-get -y install crossbuild-essential-armhf libc6:armhf libstdc++-5-dev:armhf linux-libc-dev:armhf"
         - BUILD="mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF - .. && make -j2 && ctest --output-on-failure -j 2 && lcov -d ./src -c -o lcov.info && lcov -r lcov.info '/usr/*' -o lcov.info && lcov --list lcov.info && bash <(curl -s https://codecov.io/bash) -f lcov.info"
 
 before_install:
+  - printf '%s\n' "${BEFORE_BUILD}" >&2
   - eval "${BEFORE_BUILD}"
 
 script:
+  - printf '%s\n' "${BUILD}" >&2
   - eval "${BUILD}"
