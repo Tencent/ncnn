@@ -23,6 +23,7 @@
 #endif
 
 #include "platform.h"
+#include "hedley.h"
 
 #include <list>
 #include <stdlib.h>
