@@ -279,12 +279,10 @@ static int get_cpucount()
 #elif __IOS__
     size_t len = sizeof(count);
     sysctlbyname("hw.ncpu", &count, &len, NULL, 0);
-#else
-#ifdef _OPENMP
+#elif defined(_OPENMP)
     count = omp_get_max_threads();
 #else
     count = 1;
-#endif // _OPENMP
 #endif
 
     if (count < 1)
@@ -408,7 +406,6 @@ static int set_sched_affinity(size_t thread_affinity_mask)
 
     // set affinity for thread
     pid_t pid = gettid();
-#endif
     cpu_set_t mask;
     NCNN_CPU_ZERO(&mask);
     for (int i = 0; i < (int)sizeof(size_t) * 8; i++)
