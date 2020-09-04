@@ -1,4 +1,8 @@
 find_package(OpenCV QUIET COMPONENTS opencv_world)
+# for opencv 2.4 on ubuntu 16.04, there is no opencv_world but OpenCV_FOUND will be TRUE
+if("${OpenCV_LIBS}" STREQUAL "")
+    set(OpenCV_FOUND FALSE)
+endif()
 if(NOT OpenCV_FOUND)
     find_package(OpenCV QUIET COMPONENTS core highgui imgproc imgcodecs)
 endif()
