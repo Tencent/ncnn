@@ -53,6 +53,6 @@ jobs:
         mkdir build; cd build
         cmake -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON ..
     - name: build
-      run: cmake --build build --config Release -j 2
+      run: cmake --build build --verbose --config Release -j 2
     - name: test
       run: cd build; ctest -C Release --output-on-failure -j 2

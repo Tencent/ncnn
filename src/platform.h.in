@@ -163,7 +163,7 @@ public:
 class Thread
 {
 public:
-    Thread(void* (*/*start*/)(void*), void* /*args*/ = 0) {}
+    Thread(void* (* /*start*/)(void*), void* /*args*/ = 0) {}
     ~Thread() {}
     void join() {}
 };

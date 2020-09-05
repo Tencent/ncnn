@@ -1,4 +1,5 @@
-
+cmake_minimum_required(VERSION 3.9) # CMP0069 NEW
+include(CheckIPOSupported)
 ##############################################
 
 configure_file(platform.h.in ${CMAKE_CURRENT_BINARY_DIR}/platform.h)
@@ -181,9 +182,6 @@ target_include_directories(ncnn
 
 if(NCNN_OPENMP)
     find_package(OpenMP)
-    if(NOT TARGET OpenMP::OpenMP_CXX AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
-        target_compile_options(ncnn PRIVATE ${OpenMP_CXX_FLAGS})
-    endif()
 endif()
 
 if(NCNN_VULKAN)
@@ -230,7 +228,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC"
     OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
     target_compile_definitions(ncnn
         PRIVATE _SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_DEPRECATE)
+    target_compile_options(ncnn PRIVATE /fp:fast)
 else()
+    # Assume GCC/Clang. Might bite us in the future.
     target_compile_options(ncnn
         PRIVATE -Wall -Wextra -Wno-unused-function)
     if(NOT NCNN_DISABLE_PIC)
@@ -240,23 +240,25 @@ else()
                 INTERFACE_POSITION_INDEPENDENT_CODE ON)
     endif()
 
-    if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
-        if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-            target_compile_options(ncnn PRIVATE -Ofast)
-        endif()
-
-        target_compile_options(ncnn PRIVATE -ffast-math)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        # Debug build can still use some SSE
+        target_compile_options(ncnn PRIVATE -ftree-vectorize)
     endif()
-
+    # No need for -O3 since Release does that. And -Ofast is just -O3 -ffast-math.
+    target_compile_options(ncnn PRIVATE -ffast-math)
     if(PI3)
         target_compile_options(ncnn
-            PRIVATE -march=native -mfpu=neon -mfloat-abi=hard)
+            PRIVATE -mcpu=cortex-a53 -mfpu=neon -mfloat-abi=hard)
         target_compile_definitions(ncnn
             PRIVATE __ARM_NEON __ANDROID__)
     endif()
     # target_compile_options(ncnn PRIVATE -march=native)
-    # set_target_properties(ncnn PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
     target_compile_options(ncnn PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
+endif()
+
+check_ipo_supported(RESULT result)
+if(result AND NCNN_BUILD_LTO AND CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
+    set_target_properties(ncnn PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
 endif()
 
 if(NCNN_DISABLE_RTTI)
@@ -274,8 +276,9 @@ endif()
 
 if(NOT NCNN_RUNTIME_CPU AND NCNN_AVX2 AND NCNN_TARGET_ARCH STREQUAL "x86")
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
-        target_compile_options(ncnn PRIVATE /arch:AVX2 /DAVX2 /fp:strict)
+        target_compile_options(ncnn PRIVATE /arch:AVX2 /DAVX2)
     else()
+        # FIXME: f16c is unused, and we do have routines that can use it!
         target_compile_options(ncnn PRIVATE -mfma -mf16c -mavx2)
     endif()
 endif()
@@ -294,10 +297,20 @@ if(NCNN_OPENMP AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
     if(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
         target_compile_options(ncnn PRIVATE -fopenmp)
         target_link_libraries(ncnn PUBLIC -fopenmp -static-openmp)
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+        target_compile_options(ncnn PRIVATE -openmp:experimental)
+        target_link_libraries(ncnn PRIVATE OpenMP::OpenMP_CXX)
     elseif(OpenMP_CXX_FOUND)
+        target_compile_options(ncnn PRIVATE "${OpenMP_CXX_FLAGS}")
         target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
     else()
+        target_compile_options(ncnn PRIVATE "${OpenMP_CXX_FLAGS}")
         target_link_libraries(ncnn PRIVATE "${OpenMP_CXX_FLAGS}")
+    endif()
+else()
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND (NOT CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC")))
+        # This does not require the real openmp library.
+        target_compile_options(ncnn PRIVATE -fopenmp-simd)
     endif()
 endif()
 
@@ -312,6 +325,7 @@ if(NCNN_INSTALL_SDK)
         cpu.h
         datareader.h
         gpu.h
+        hedley.h
         layer.h
         layer_shader_type.h
         layer_type.h

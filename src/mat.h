@@ -39,6 +39,14 @@
 #endif // __ANDROID_API__ >= 9
 #endif // NCNN_PIXEL
 
+#if !defined(HEDLEY_MSVC_VERSION) || HEDLEY_MSVC_VERSION_CHECK(19, 20, 0)
+#define NCNN_OMP_SIMD            HEDLEY_PRAGMA(omp simd)
+#define NCNN_OMP_SIMD_EX(Extra)  HEDLEY_PRAGMA(omp simd Extra)
+#else
+#define NCNN_OMP_SIMD
+#define NCNN_OMP_SIMD_EX(Extra)
+#endif
+
 namespace ncnn {
 
 #if NCNN_VULKAN
@@ -668,6 +676,8 @@ inline Mat::Mat(const Mat& m)
         NCNN_XADD(refcount, 1);
 }
 
+// With these constructors I cannot prove that data is aligned to MALLOC_ALIGN...
+// Unless, of course, we yell at users to guarantee these.
 inline Mat::Mat(int _w, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(1), w(_w), h(1), c(1)
 {
@@ -780,8 +790,9 @@ inline void Mat::fill(float _v)
             : "cc", "memory");
     }
 #endif // __aarch64__
+    NCNN_OMP_SIMD
 #endif // __ARM_NEON
-    for (; remain > 0; remain--)
+    for (int x = remain; x > 0; x--)
     {
         *ptr++ = _v;
     }
@@ -832,8 +843,10 @@ inline void Mat::fill(int _v)
             : "cc", "memory");
     }
 #endif // __aarch64__
+#else
+    NCNN_OMP_SIMD
 #endif // __ARM_NEON
-    for (; remain > 0; remain--)
+    for (int x = remain; x > 0; x--)
     {
         *ptr++ = _v;
     }
@@ -1320,6 +1333,7 @@ inline Mat Mat::shape() const
     return Mat();
 }
 
+// Again, no guarantee for keeping alignment -- even in mat's own methods! Duh.
 inline Mat Mat::channel(int _c)
 {
     return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
