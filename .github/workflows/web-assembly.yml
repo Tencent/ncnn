@@ -12,6 +12,6 @@ jobs:
         ./emsdk install latest
         ./emsdk activate latest
     - name: configure
-      run: source emsdk/emsdk_env.sh && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake ..
+      run: source emsdk/emsdk_env.sh && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j 2
