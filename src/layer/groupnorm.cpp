@@ -29,12 +29,16 @@ int GroupNorm::load_param(const ParamDict& pd)
     group = pd.get(0, 1);
     channels = pd.get(1, 0);
     eps = pd.get(2, 0.001f);
+    affine = pd.get(3, 1);
 
     return 0;
 }
 
 int GroupNorm::load_model(const ModelBin& mb)
 {
+    if (affine == 0)
+        return 0;
+
     gamma_data = mb.load(channels, 1);
     if (gamma_data.empty())
         return -100;
@@ -87,11 +91,21 @@ int GroupNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         for (int q = 0; q < channels_per_group; q++)
         {
-            float gamma = gamma_data[g * channels_per_group + q];
-            float beta = beta_data[g * channels_per_group + q];
+            float a;
+            float b;
+            if (affine)
+            {
+                float gamma = gamma_data[g * channels_per_group + q];
+                float beta = beta_data[g * channels_per_group + q];
 
-            float a = static_cast<float>(gamma / sqrt(var + eps));
-            float b = -mean * a + beta;
+                a = static_cast<float>(gamma / sqrt(var + eps));
+                b = -mean * a + beta;
+            }
+            else
+            {
+                a = static_cast<float>(1.f / (sqrt(var + eps)));
+                b = -mean * a;
+            }
 
             float* ptr = bottom_top_blob_g.channel(q);
 

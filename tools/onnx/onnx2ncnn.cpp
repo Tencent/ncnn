@@ -1101,6 +1101,183 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
     }
 }
 
+static void fuse_groupnorm(onnx::GraphProto* mutable_graph, std::map<std::string, onnx::TensorProto>& weights, std::map<std::string, onnx::TensorProto>& binaryop_weights, std::map<std::string, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count, std::vector<std::string>& reduced_binaryop_weights)
+{
+    int node_count = mutable_graph->node_size();
+    for (int i = 0; i < node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // GroupNorm <= X - Reshape - InstanceNormalization - Reshape - Mul - Add
+        if (node->op_type() == "Reshape")
+        {
+            if (node_reference.find(node->output(0)) == node_reference.end() || node_reference[node->output(0)] != 1)
+                continue;
+
+            std::vector<int> shape;
+            if (node->input_size() == 1)
+            {
+                shape = get_node_attr_ai(*node, "shape");
+            }
+            else
+            {
+                // skip weight reshape
+                if (weights.find(node->input(1)) == weights.end())
+                    continue;
+
+                shape = get_node_attr_from_input_ai(weights[node->input(1)]);
+            }
+
+            // 0, group, -1
+            if (shape.size() != 3)
+                continue;
+
+            if (shape[0] != 0 || shape[2] != -1)
+                continue;
+
+            int groups = shape[1];
+
+            if (i + 4 >= node_count)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i + 1);
+            onnx::NodeProto* node3 = mutable_graph->mutable_node(i + 2);
+            onnx::NodeProto* node4 = mutable_graph->mutable_node(i + 3);
+            onnx::NodeProto* node5 = mutable_graph->mutable_node(i + 4);
+
+            if (node2->op_type() != "InstanceNormalization" || node3->op_type() != "Reshape" || node4->op_type() != "Mul" || node5->op_type() != "Add")
+                continue;
+
+            if (node_reference.find(node2->output(0)) == node_reference.end() || node_reference[node2->output(0)] != 1)
+                continue;
+
+            if (node_reference.find(node3->output(0)) == node_reference.end() || node_reference[node3->output(0)] != 1)
+                continue;
+
+            if (node_reference.find(node4->output(0)) == node_reference.end() || node_reference[node4->output(0)] != 1)
+                continue;
+
+            if (node2->input(0) != node->output(0) || node3->input(0) != node2->output(0)
+                    || node4->input(0) != node3->output(0) || node5->input(0) != node4->output(0))
+                continue;
+
+            // +eps
+            float eps = get_node_attr_f(*node2, "epsilon", 1e-05);
+
+            // InstanceNormalization S=1 B=0
+            std::vector<float> S = get_node_attr_from_input_af(weights[node2->input(1)]);
+            std::vector<float> B = get_node_attr_from_input_af(weights[node2->input(2)]);
+            if (S.size() != groups || B.size() != groups)
+                continue;
+
+            bool instancenorm_affine = false;
+            for (int j = 0; j < groups; j++)
+            {
+                if (S[j] != 1.f || B[j] != 0.f)
+                {
+                    instancenorm_affine = true;
+                    break;
+                }
+            }
+
+            if (instancenorm_affine)
+                continue;
+
+            std::vector<int> shape2;
+            if (node3->input_size() == 1)
+            {
+                shape2 = get_node_attr_ai(*node3, "shape");
+            }
+            else
+            {
+                // skip weight reshape
+                if (weights.find(node3->input(1)) == weights.end())
+                    continue;
+
+                shape2 = get_node_attr_from_input_ai(weights[node3->input(1)]);
+            }
+
+            // 1, channels, w, h
+            if (shape2.size() != 4)
+                continue;
+
+            if (shape2[0] != 1)
+                continue;
+
+            int channels = shape2[1];
+
+            // affine
+            int affine = 1;
+            std::vector<float> affine_S = get_node_attr_from_input_af(binaryop_weights[node4->input(1)]);
+            std::vector<float> affine_B = get_node_attr_from_input_af(binaryop_weights[node5->input(1)]);
+            if (affine_S.size() == 1 && affine_S[0] == 1.f && affine_B.size() == 1 && affine_B[0] == 0.f)
+            {
+                affine = 0;
+            }
+            else if (affine_S.size() != channels && affine_B.size() != channels)
+            {
+                // we only allow per-channel affine
+                continue;
+            }
+
+            // reduce
+            node->set_op_type("noop_reducedncnn");
+            node2->set_op_type("noop_reducedncnn");
+            node3->set_op_type("noop_reducedncnn");
+            node4->set_op_type("noop_reducedncnn");
+
+            node_reference.erase(node_reference.find(node->output(0)));
+            node_reference.erase(node_reference.find(node2->output(0)));
+            node_reference.erase(node_reference.find(node3->output(0)));
+            node_reference.erase(node_reference.find(node4->output(0)));
+            blob_names.erase(node->output(0));
+            blob_names.erase(node2->output(0));
+            blob_names.erase(node3->output(0));
+            blob_names.erase(node4->output(0));
+
+            std::string affine_scale = node4->input(1);
+            std::string affine_bias = node5->input(1);
+
+            if (affine)
+            {
+                weights[affine_scale] = binaryop_weights[affine_scale];
+                weights[affine_bias] = binaryop_weights[affine_bias];
+            }
+
+            reduced_binaryop_weights.push_back(affine_scale);
+            reduced_binaryop_weights.push_back(affine_bias);
+
+            node5->set_op_type("GroupNorm");
+            node5->clear_input();
+            node5->add_input(node->input(0));
+            if (affine)
+            {
+                node5->add_input(affine_scale);
+                node5->add_input(affine_bias);
+            }
+
+            onnx::AttributeProto* attr_groups = node5->add_attribute();
+            attr_groups->set_name("groups");
+            attr_groups->set_i(groups);
+
+            onnx::AttributeProto* attr_channels = node5->add_attribute();
+            attr_channels->set_name("channels");
+            attr_channels->set_i(channels);
+
+            onnx::AttributeProto* attr_eps = node5->add_attribute();
+            attr_eps->set_name("epsilon");
+            attr_eps->set_f(eps);
+
+            onnx::AttributeProto* attr_affine = node5->add_attribute();
+            attr_affine->set_name("affine");
+            attr_affine->set_i(affine);
+
+            reduced_node_count += 4;
+            i += 4;
+        }
+    }
+}
+
 static void fuse_flatten(onnx::GraphProto* mutable_graph, std::map<std::string, onnx::TensorProto>& weights, std::map<std::string, onnx::TensorProto>& binaryop_weights, std::map<std::string, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count, std::vector<std::string>& reduced_binaryop_weights)
 {
     int node_count = mutable_graph->node_size();
@@ -1543,6 +1720,7 @@ int main(int argc, char** argv)
     fuse_batchnorm1d_squeeze_unsqueeze(mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
     fuse_unsqueeze_prelu(mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
     fuse_normalize(mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
+    fuse_groupnorm(mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
     fuse_flatten(mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
     fuse_pixelshuffle(mutable_graph, weights, binaryop_weights, node_reference, blob_names, reduced_node_count, reduced_binaryop_weights);
 
@@ -1851,6 +2029,10 @@ int main(int argc, char** argv)
         else if (op == "GlobalMaxPool")
         {
             fprintf(pp, "%-16s", "Pooling");
+        }
+        else if (op == "GroupNorm")
+        {
+            fprintf(pp, "%-16s", "GroupNorm");
         }
         else if (op == "HardSigmoid")
         {
@@ -2588,6 +2770,26 @@ int main(int argc, char** argv)
             fprintf(pp, " 0=%d", pool);
             fprintf(pp, " 4=%d", global_pool);
         }
+        else if (op == "GroupNorm")
+        {
+            int groups = get_node_attr_i(node, "groups", 1);
+            int channels = get_node_attr_i(node, "channels", 1);
+            float eps = get_node_attr_f(node, "epsilon", 1e-5f);
+            int affine = get_node_attr_i(node, "affine", 1);
+
+            fprintf(pp, " 0=%d", groups);
+            fprintf(pp, " 1=%d", channels);
+            fprintf(pp, " 2=%e", eps);
+            fprintf(pp, " 3=%d", affine);
+            if (affine)
+            {
+                const onnx::TensorProto& scale = weights[node.input(1)];
+                const onnx::TensorProto& B = weights[node.input(2)];
+
+                fwrite_tensor_proto_data(scale, bp);
+                fwrite_tensor_proto_data(B, bp);
+            }
+        }
         else if (op == "HardSigmoid")
         {
             float alpha = get_node_attr_f(node, "alpha", 0.2f);
@@ -2623,14 +2825,34 @@ int main(int argc, char** argv)
         else if (op == "InstanceNormalization")
         {
             float eps = get_node_attr_f(node, "epsilon", 1e-5f);
-            const onnx::TensorProto& scale = weights[node.input(1)];
-            const onnx::TensorProto& B = weights[node.input(2)];
-            int channels = get_tensor_proto_data_size(scale);
+
+            // discard affine-less S=1 B=0
+            std::vector<float> affine_S = get_node_attr_from_input_af(weights[node.input(1)]);
+            std::vector<float> affine_B = get_node_attr_from_input_af(weights[node.input(2)]);
+            int channels = affine_S.size();
+            int affine = 0;
+            {
+                for (int j = 0; j < channels; j++)
+                {
+                    if (affine_S[j] != 1.f || affine_B[j] != 0.f)
+                    {
+                        affine = 1;
+                        break;
+                    }
+                }
+            }
 
             fprintf(pp, " 0=%d", channels);
             fprintf(pp, " 1=%e", eps);
-            fwrite_tensor_proto_data(scale, bp);
-            fwrite_tensor_proto_data(B, bp);
+            fprintf(pp, " 2=%d", affine);
+            if (affine)
+            {
+                const onnx::TensorProto& scale = weights[node.input(1)];
+                const onnx::TensorProto& B = weights[node.input(2)];
+
+                fwrite_tensor_proto_data(scale, bp);
+                fwrite_tensor_proto_data(B, bp);
+            }
         }
         else if (op == "LeakyRelu")
         {
