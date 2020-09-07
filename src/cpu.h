@@ -18,8 +18,6 @@
 #include <stddef.h>
 #if defined __ANDROID__ || defined __linux__
 #include <sched.h>
-#else
-#include <cstring>
 #endif
 
 #if defined __ANDROID__ || defined __linux__
@@ -28,44 +26,33 @@
 
 namespace ncnn {
 
-#define NCNN_CPU_SETSIZE 1024
-#define NCNN_NCPUBITS    (8 * sizeof(unsigned long))
+#if defined __ANDROID__ || defined __linux__
 class CpuSet
 {
 public:
     CpuSet()
     {
-#if defined __ANDROID__ || defined __linux__
         zero();
-#endif
     }
 
     void set(int cpu)
     {
-#if defined __ANDROID__ || defined __linux__
         CPU_SET(cpu, &m_bits);
-#endif
     }
 
     void zero()
     {
-#if defined __ANDROID__ || defined __linux__
         CPU_ZERO(&m_bits);
-#endif
     }
 
     void clr(int cpu)
     {
-#if defined __ANDROID__ || defined __linux__
         CPU_CLR(cpu, &m_bits);
-#endif
     }
 
     bool isset(int cpu) const
     {
-#if defined __ANDROID__ || defined __linux__
         return CPU_ISSET(cpu, &m_bits);
-#endif
     }
     friend int set_sched_affinity(const CpuSet&);
 
@@ -81,10 +68,13 @@ protected:
     }
 
 private:
-#if defined __ANDROID__ || defined __linux__
     cpu_set_t m_bits;
-#endif
 };
+#else
+class CpuSet{
+};
+#endif
+
 // test optional cpu features
 // neon = armv7 neon or aarch64 asimd
 int cpu_support_arm_neon();
