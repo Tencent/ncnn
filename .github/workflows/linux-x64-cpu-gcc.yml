@@ -10,7 +10,7 @@ jobs:
     - name: protobuf
       run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: configure
-      run: mkdir build && cd build && cmake ..
+      run: mkdir build && cd build && cmake -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j 2
     - name: test
@@ -25,7 +25,7 @@ jobs:
     - name: protobuf
       run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: configure
-      run: mkdir build && cd build && cmake -DNCNN_AVX2=ON ..
+      run: mkdir build && cd build && cmake -DNCNN_AVX2=ON -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j 2
     - name: test
