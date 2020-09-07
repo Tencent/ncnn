@@ -49,7 +49,7 @@ option(NCNN_SYSTEM_GLSLANG "use system glslang library" OFF)
 option(NCNN_REQUANT "auto merge int8 quant and dequant" OFF)
 option(NCNN_RUNTIME_CPU "runtime dispatch cpu routines" ON)
 option(NCNN_DISABLE_PIC "disable position-independent code" OFF)
-option(NCNN_BUILD_TESTS "build tests" ON)
+option(NCNN_BUILD_TESTS "build tests" OFF)
 option(NCNN_COVERAGE "build for coverage" OFF)
 option(NCNN_BUILD_BENCHMARK "build benchmark" ON)
 
