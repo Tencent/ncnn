@@ -67,7 +67,8 @@ private:
     cpu_set_t m_bits;
 };
 #else
-class CpuSet{
+class CpuSet
+{
 };
 #endif
 
