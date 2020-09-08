@@ -30,38 +30,42 @@ public:
         zero();
     }
 
+#if defined __ANDROID__ || defined __linux__
     void set(int cpu)
     {
-#if defined __ANDROID__ || defined __linux__
         CPU_SET(cpu, &m_bits);
-#else
-#endif
     }
+#else
+    void set(int cpu) {}
+#endif
 
     void zero()
     {
 #if defined __ANDROID__ || defined __linux__
         CPU_ZERO(&m_bits);
-#else
 #endif
     }
 
+#if defined __ANDROID__ || defined __linux__
     void clr(int cpu)
     {
-#if defined __ANDROID__ || defined __linux__
         CPU_CLR(cpu, &m_bits);
-#else
-#endif
     }
+#else
+    void clr(int) {}
+#endif
 
+#if defined __ANDROID__ || defined __linux__
     bool isset(int cpu) const
     {
-#if defined __ANDROID__ || defined __linux__
         return CPU_ISSET(cpu, &m_bits);
-#else
-        return true;
-#endif
     }
+#else
+    bool isset(int) const
+    {
+        return true;
+    }
+#endif
     friend int set_sched_affinity(const CpuSet&);
 
 #if defined __ANDROID__ || defined __linux__
