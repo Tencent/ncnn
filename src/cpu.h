@@ -36,7 +36,7 @@ public:
         CPU_SET(cpu, &m_bits);
     }
 #else
-    void set(int cpu) {}
+    void set(int) {}
 #endif
 
     void zero()
