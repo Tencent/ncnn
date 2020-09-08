@@ -17,7 +17,20 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE release CACHE STRING "Choose the type of build" FORCE)
 endif()
 
+if(NOT CMAKE_VERSION VERSION_LESS "3.15")
+    # enable CMAKE_MSVC_RUNTIME_LIBRARY
+    cmake_policy(SET CMP0091 NEW)
+endif()
+
 project(ncnn)
+
+if(MSVC AND NOT CMAKE_VERSION VERSION_LESS "3.15")
+    option(NCNN_BUILD_WITH_STATIC_CRT "Enables use of statically linked CRT for statically linked ncnn" OFF)
+    if(NCNN_BUILD_WITH_STATIC_CRT)
+        # cmake before version 3.15 not work
+        set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    endif()
+endif()
 
 option(NCNN_OPENMP "openmp support" ON)
 option(NCNN_STDIO "load model from external file" ON)
@@ -36,7 +49,7 @@ option(NCNN_SYSTEM_GLSLANG "use system glslang library" OFF)
 option(NCNN_REQUANT "auto merge int8 quant and dequant" OFF)
 option(NCNN_RUNTIME_CPU "runtime dispatch cpu routines" ON)
 option(NCNN_DISABLE_PIC "disable position-independent code" OFF)
-option(NCNN_BUILD_TESTS "build tests" ON)
+option(NCNN_BUILD_TESTS "build tests" OFF)
 option(NCNN_COVERAGE "build for coverage" OFF)
 option(NCNN_BUILD_BENCHMARK "build benchmark" ON)
 
@@ -66,6 +79,8 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(mips)")
     set(NCNN_TARGET_ARCH mips)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
     set(NCNN_TARGET_ARCH riscv)
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc)")
+    set(NCNN_TARGET_ARCH powerpc)
 else()
     set(NCNN_TARGET_ARCH x86)
     option(NCNN_AVX2 "optimize x86 platform with avx2" ON)
