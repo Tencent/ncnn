@@ -22,7 +22,6 @@
 
 namespace ncnn {
 
-#if defined __ANDROID__ || defined __linux__
 class CpuSet
 {
 public:
@@ -33,25 +32,39 @@ public:
 
     void set(int cpu)
     {
+#if defined __ANDROID__ || defined __linux__
         CPU_SET(cpu, &m_bits);
+#else
+#endif
     }
 
     void zero()
     {
+#if defined __ANDROID__ || defined __linux__
         CPU_ZERO(&m_bits);
+#else
+#endif
     }
 
     void clr(int cpu)
     {
+#if defined __ANDROID__ || defined __linux__
         CPU_CLR(cpu, &m_bits);
+#else
+#endif
     }
 
     bool isset(int cpu) const
     {
+#if defined __ANDROID__ || defined __linux__
         return CPU_ISSET(cpu, &m_bits);
+#else
+        return true;
+#endif
     }
     friend int set_sched_affinity(const CpuSet&);
 
+#if defined __ANDROID__ || defined __linux__
 protected:
     void* data_ptr() const
     {
@@ -62,15 +75,11 @@ protected:
     {
         return sizeof(m_bits);
     }
+#endif
 
 private:
     cpu_set_t m_bits;
 };
-#else
-class CpuSet
-{
-};
-#endif
 
 // test optional cpu features
 // neon = armv7 neon or aarch64 asimd
