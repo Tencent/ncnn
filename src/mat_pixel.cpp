@@ -2401,6 +2401,118 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
     return Mat();
 }
 
+Mat Mat::from_pixels_roi(const unsigned char* pixels, int type, int w, int h, int roix, int roiy, int roiw, int roih, Allocator* allocator)
+{
+    if (roix < 0 || roiy < 0 || roiw <= 0 || roih <= 0 || roix + roiw > w || roiy + roih > h)
+    {
+        NCNN_LOGE("roi %d %d %d %d out of image %d %d", roix, roiy, roiw, roih, w, h);
+        return Mat();
+    }
+
+    int type_from = type & PIXEL_FORMAT_MASK;
+
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
+        return from_pixels(pixels + (roiy * w + roix) * 3, type, roiw, roih, w * 3, allocator);
+    }
+    else if (type_from == PIXEL_GRAY)
+    {
+        return from_pixels(pixels + (roiy * w + roix) * 1, type, roiw, roih, w * 1, allocator);
+    }
+    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
+    {
+        return from_pixels(pixels + (roiy * w + roix) * 4, type, roiw, roih, w * 4, allocator);
+    }
+
+    // unknown convert type
+    NCNN_LOGE("unknown convert type %d", type);
+    return Mat();
+}
+
+Mat Mat::from_pixels_roi(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, Allocator* allocator)
+{
+    if (roix < 0 || roiy < 0 || roiw <= 0 || roih <= 0 || roix + roiw > w || roiy + roih > h)
+    {
+        NCNN_LOGE("roi %d %d %d %d out of image %d %d", roix, roiy, roiw, roih, w, h);
+        return Mat();
+    }
+
+    int type_from = type & PIXEL_FORMAT_MASK;
+
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
+        return from_pixels(pixels + roiy * stride + roix * 3, type, roiw, roih, stride, allocator);
+    }
+    else if (type_from == PIXEL_GRAY)
+    {
+        return from_pixels(pixels + roiy * stride + roix * 1, type, roiw, roih, stride, allocator);
+    }
+    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
+    {
+        return from_pixels(pixels + roiy * stride + roix * 4, type, roiw, roih, stride, allocator);
+    }
+
+    // unknown convert type
+    NCNN_LOGE("unknown convert type %d", type);
+    return Mat();
+}
+
+Mat Mat::from_pixels_roi_resize(const unsigned char* pixels, int type, int w, int h, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator)
+{
+    if (roix < 0 || roiy < 0 || roiw <= 0 || roih <= 0 || roix + roiw > w || roiy + roih > h)
+    {
+        NCNN_LOGE("roi %d %d %d %d out of image %d %d", roix, roiy, roiw, roih, w, h);
+        return Mat();
+    }
+
+    int type_from = type & PIXEL_FORMAT_MASK;
+
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
+        return from_pixels_resize(pixels + (roiy * w + roix) * 3, type, roiw, roih, w * 3, target_width, target_height, allocator);
+    }
+    else if (type_from == PIXEL_GRAY)
+    {
+        return from_pixels_resize(pixels + (roiy * w + roix) * 1, type, roiw, roih, w * 1, target_width, target_height, allocator);
+    }
+    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
+    {
+        return from_pixels_resize(pixels + (roiy * w + roix) * 4, type, roiw, roih, w * 4, target_width, target_height, allocator);
+    }
+
+    // unknown convert type
+    NCNN_LOGE("unknown convert type %d", type);
+    return Mat();
+}
+
+Mat Mat::from_pixels_roi_resize(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator)
+{
+    if (roix < 0 || roiy < 0 || roiw <= 0 || roih <= 0 || roix + roiw > w || roiy + roih > h)
+    {
+        NCNN_LOGE("roi %d %d %d %d out of image %d %d", roix, roiy, roiw, roih, w, h);
+        return Mat();
+    }
+
+    int type_from = type & PIXEL_FORMAT_MASK;
+
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
+        return from_pixels_resize(pixels + roiy * stride + roix * 3, type, roiw, roih, stride, target_width, target_height, allocator);
+    }
+    else if (type_from == PIXEL_GRAY)
+    {
+        return from_pixels_resize(pixels + roiy * stride + roix * 1, type, roiw, roih, stride, target_width, target_height, allocator);
+    }
+    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
+    {
+        return from_pixels_resize(pixels + roiy * stride + roix * 4, type, roiw, roih, stride, target_width, target_height, allocator);
+    }
+
+    // unknown convert type
+    NCNN_LOGE("unknown convert type %d", type);
+    return Mat();
+}
+
 void Mat::to_pixels(unsigned char* pixels, int type) const
 {
     int type_to = (type & PIXEL_CONVERT_MASK) ? (type >> PIXEL_CONVERT_SHIFT) : (type & PIXEL_FORMAT_MASK);
