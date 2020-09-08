@@ -2372,6 +2372,8 @@ void VulkanDevice::destroy_utility_operator()
 {
     Option opt;
     opt.use_vulkan_compute = true;
+    opt.use_fp16_arithmetic = false;
+    opt.use_int8_arithmetic = false;
     opt.pipeline_cache = 0;
 
     // from buffer | image
