@@ -2336,6 +2336,11 @@ const ncnn::Packing_vulkan* VulkanDevice::get_utility_operator(int storage_type_
         return 0;
     }
 
+    // fp16/int8 arithmetic are not necessary for packing
+    // and may conflict with storage options
+    opt.use_fp16_arithmetic = false;
+    opt.use_int8_arithmetic = false;
+
     // enable pack8 for pack8to1/pack8to4
     opt.use_shader_pack8 = true;
 
