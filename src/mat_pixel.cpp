@@ -100,10 +100,10 @@ static int from_rgb(const unsigned char* rgb, int w, int h, int stride, Mat& m, 
                 "vcvt.f32.u32   q3, q3          \n"
                 "vcvt.f32.u32   q8, q8          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
                 "vcvt.f32.u32   q9, q9          \n"
-                "vst1.f32   {d4-d7}, [%3 :128]! \n"
-                "vst1.f32   {d16-d19}, [%4 :128]!\n"
+                "vst1.f32   {d4-d7}, [%3]!      \n"
+                "vst1.f32   {d16-d19}, [%4]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(rgb),  // %1
@@ -271,8 +271,8 @@ static int from_gray(const unsigned char* gray, int w, int h, int stride, Mat& m
                 "vcvt.f32.u32   q2, q2          \n"
                 "vcvt.f32.u32   q3, q3          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
-                "vst1.f32   {d4-d7}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
+                "vst1.f32   {d4-d7}, [%2]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(gray), // %1
@@ -439,12 +439,12 @@ static int from_rgba(const unsigned char* rgba, int w, int h, int stride, Mat& m
                 "vcvt.f32.u32   q8, q8          \n"
                 "vcvt.f32.u32   q9, q9          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
                 "vcvt.f32.u32   q10, q10        \n"
                 "vcvt.f32.u32   q11, q11        \n"
-                "vst1.f32   {d4-d7}, [%3 :128]! \n"
-                "vst1.f32   {d16-d19}, [%4 :128]!\n"
-                "vst1.f32   {d20-d23}, [%5 :128]!\n"
+                "vst1.f32   {d4-d7}, [%3]!      \n"
+                "vst1.f32   {d16-d19}, [%4]!    \n"
+                "vst1.f32   {d20-d23}, [%5]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(rgba), // %1
@@ -637,10 +637,10 @@ static int from_rgb2bgr(const unsigned char* rgb, int w, int h, int stride, Mat&
                 "vcvt.f32.u32   q3, q3          \n"
                 "vcvt.f32.u32   q8, q8          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%4 :128]! \n"
+                "vst1.f32   {d0-d3}, [%4]!      \n"
                 "vcvt.f32.u32   q9, q9          \n"
-                "vst1.f32   {d4-d7}, [%3 :128]! \n"
-                "vst1.f32   {d16-d19}, [%2 :128]!\n"
+                "vst1.f32   {d4-d7}, [%3]!      \n"
+                "vst1.f32   {d16-d19}, [%2]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(rgb),  // %1
@@ -817,7 +817,7 @@ static int from_rgb2gray(const unsigned char* rgb, int w, int h, int stride, Mat
                 "vcvt.f32.u32   q0, q0          \n"
                 "vcvt.f32.u32   q1, q1          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),  // %0
                 "=r"(rgb), // %1
@@ -1007,7 +1007,7 @@ static int from_bgr2gray(const unsigned char* bgr, int w, int h, int stride, Mat
                 "vcvt.f32.u32   q0, q0          \n"
                 "vcvt.f32.u32   q1, q1          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),  // %0
                 "=r"(bgr), // %1
@@ -1202,12 +1202,12 @@ static int from_gray2rgb(const unsigned char* gray, int w, int h, int stride, Ma
                 "vcvt.f32.u32   q2, q2          \n"
                 "vcvt.f32.u32   q3, q3          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
-                "vst1.f32   {d4-d7}, [%2 :128]! \n"
-                "vst1.f32   {d0-d3}, [%3 :128]! \n"
-                "vst1.f32   {d4-d7}, [%3 :128]! \n"
-                "vst1.f32   {d0-d3}, [%4 :128]! \n"
-                "vst1.f32   {d4-d7}, [%4 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
+                "vst1.f32   {d4-d7}, [%2]!      \n"
+                "vst1.f32   {d0-d3}, [%3]!      \n"
+                "vst1.f32   {d4-d7}, [%3]!      \n"
+                "vst1.f32   {d0-d3}, [%4]!      \n"
+                "vst1.f32   {d4-d7}, [%4]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(gray), // %1
@@ -1397,10 +1397,10 @@ static int from_rgba2rgb(const unsigned char* rgba, int w, int h, int stride, Ma
                 "vcvt.f32.u32   q3, q3          \n"
                 "vcvt.f32.u32   q8, q8          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
                 "vcvt.f32.u32   q9, q9          \n"
-                "vst1.f32   {d4-d7}, [%3 :128]! \n"
-                "vst1.f32   {d16-d19}, [%4 :128]!\n"
+                "vst1.f32   {d4-d7}, [%3]!      \n"
+                "vst1.f32   {d16-d19}, [%4]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(rgba), // %1
@@ -1510,10 +1510,10 @@ static int from_rgba2bgr(const unsigned char* rgba, int w, int h, int stride, Ma
                 "vcvt.f32.u32   q3, q3          \n"
                 "vcvt.f32.u32   q8, q8          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%4 :128]! \n"
+                "vst1.f32   {d0-d3}, [%4]!      \n"
                 "vcvt.f32.u32   q9, q9          \n"
-                "vst1.f32   {d4-d7}, [%3 :128]! \n"
-                "vst1.f32   {d16-d19}, [%2 :128]!\n"
+                "vst1.f32   {d4-d7}, [%3]!      \n"
+                "vst1.f32   {d16-d19}, [%2]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(rgba), // %1
@@ -1619,7 +1619,7 @@ static int from_rgba2gray(const unsigned char* rgba, int w, int h, int stride, M
                 "vcvt.f32.u32   q0, q0          \n"
                 "vcvt.f32.u32   q1, q1          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(rgba), // %1
@@ -1734,13 +1734,13 @@ static int from_rgba2bgra(const unsigned char* rgba, int w, int h, int stride, M
                 "vcvt.f32.u32   q3, q3          \n"
                 "vcvt.f32.u32   q8, q8          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%4 :128]! \n"
+                "vst1.f32   {d0-d3}, [%4]!      \n"
                 "vcvt.f32.u32   q9, q9          \n"
                 "vcvt.f32.u32   q10, q10        \n"
-                "vst1.f32   {d4-d7}, [%3 :128]! \n"
+                "vst1.f32   {d4-d7}, [%3]!      \n"
                 "vcvt.f32.u32   q11, q11        \n"
-                "vst1.f32   {d16-d19}, [%2 :128]!\n"
-                "vst1.f32   {d20-d23}, [%5 :128]!\n"
+                "vst1.f32   {d16-d19}, [%2]!    \n"
+                "vst1.f32   {d20-d23}, [%5]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(rgba), // %1
@@ -1929,7 +1929,7 @@ static int from_bgra2gray(const unsigned char* bgra, int w, int h, int stride, M
                 "vcvt.f32.u32   q0, q0          \n"
                 "vcvt.f32.u32   q1, q1          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(bgra), // %1
@@ -2394,6 +2394,118 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
         resize_bilinear_c4(pixels, w, h, stride, dst, target_width, target_height, target_width * 4);
 
         return Mat::from_pixels(dst, type, target_width, target_height, allocator);
+    }
+
+    // unknown convert type
+    NCNN_LOGE("unknown convert type %d", type);
+    return Mat();
+}
+
+Mat Mat::from_pixels_roi(const unsigned char* pixels, int type, int w, int h, int roix, int roiy, int roiw, int roih, Allocator* allocator)
+{
+    if (roix < 0 || roiy < 0 || roiw <= 0 || roih <= 0 || roix + roiw > w || roiy + roih > h)
+    {
+        NCNN_LOGE("roi %d %d %d %d out of image %d %d", roix, roiy, roiw, roih, w, h);
+        return Mat();
+    }
+
+    int type_from = type & PIXEL_FORMAT_MASK;
+
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
+        return from_pixels(pixels + (roiy * w + roix) * 3, type, roiw, roih, w * 3, allocator);
+    }
+    else if (type_from == PIXEL_GRAY)
+    {
+        return from_pixels(pixels + (roiy * w + roix) * 1, type, roiw, roih, w * 1, allocator);
+    }
+    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
+    {
+        return from_pixels(pixels + (roiy * w + roix) * 4, type, roiw, roih, w * 4, allocator);
+    }
+
+    // unknown convert type
+    NCNN_LOGE("unknown convert type %d", type);
+    return Mat();
+}
+
+Mat Mat::from_pixels_roi(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, Allocator* allocator)
+{
+    if (roix < 0 || roiy < 0 || roiw <= 0 || roih <= 0 || roix + roiw > w || roiy + roih > h)
+    {
+        NCNN_LOGE("roi %d %d %d %d out of image %d %d", roix, roiy, roiw, roih, w, h);
+        return Mat();
+    }
+
+    int type_from = type & PIXEL_FORMAT_MASK;
+
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
+        return from_pixels(pixels + roiy * stride + roix * 3, type, roiw, roih, stride, allocator);
+    }
+    else if (type_from == PIXEL_GRAY)
+    {
+        return from_pixels(pixels + roiy * stride + roix * 1, type, roiw, roih, stride, allocator);
+    }
+    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
+    {
+        return from_pixels(pixels + roiy * stride + roix * 4, type, roiw, roih, stride, allocator);
+    }
+
+    // unknown convert type
+    NCNN_LOGE("unknown convert type %d", type);
+    return Mat();
+}
+
+Mat Mat::from_pixels_roi_resize(const unsigned char* pixels, int type, int w, int h, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator)
+{
+    if (roix < 0 || roiy < 0 || roiw <= 0 || roih <= 0 || roix + roiw > w || roiy + roih > h)
+    {
+        NCNN_LOGE("roi %d %d %d %d out of image %d %d", roix, roiy, roiw, roih, w, h);
+        return Mat();
+    }
+
+    int type_from = type & PIXEL_FORMAT_MASK;
+
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
+        return from_pixels_resize(pixels + (roiy * w + roix) * 3, type, roiw, roih, w * 3, target_width, target_height, allocator);
+    }
+    else if (type_from == PIXEL_GRAY)
+    {
+        return from_pixels_resize(pixels + (roiy * w + roix) * 1, type, roiw, roih, w * 1, target_width, target_height, allocator);
+    }
+    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
+    {
+        return from_pixels_resize(pixels + (roiy * w + roix) * 4, type, roiw, roih, w * 4, target_width, target_height, allocator);
+    }
+
+    // unknown convert type
+    NCNN_LOGE("unknown convert type %d", type);
+    return Mat();
+}
+
+Mat Mat::from_pixels_roi_resize(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator)
+{
+    if (roix < 0 || roiy < 0 || roiw <= 0 || roih <= 0 || roix + roiw > w || roiy + roih > h)
+    {
+        NCNN_LOGE("roi %d %d %d %d out of image %d %d", roix, roiy, roiw, roih, w, h);
+        return Mat();
+    }
+
+    int type_from = type & PIXEL_FORMAT_MASK;
+
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
+        return from_pixels_resize(pixels + roiy * stride + roix * 3, type, roiw, roih, stride, target_width, target_height, allocator);
+    }
+    else if (type_from == PIXEL_GRAY)
+    {
+        return from_pixels_resize(pixels + roiy * stride + roix * 1, type, roiw, roih, stride, target_width, target_height, allocator);
+    }
+    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
+    {
+        return from_pixels_resize(pixels + roiy * stride + roix * 4, type, roiw, roih, stride, target_width, target_height, allocator);
     }
 
     // unknown convert type

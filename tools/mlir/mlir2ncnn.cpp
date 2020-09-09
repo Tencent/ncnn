@@ -249,11 +249,12 @@ int main(int argc, char** argv)
     const char* ncnn_prototxt = argc >= 4 ? argv[2] : "ncnn.param";
     const char* ncnn_modelbin = argc >= 4 ? argv[3] : "ncnn.bin";
 
-    mlir::registerDialect<mlir::StandardOpsDialect>();
-    mlir::registerDialect<mlir::TF::TensorFlowDialect>();
-    mlir::registerDialect<mlir::ncnn::NCNNDialect>();
+    mlir::MLIRContext context(/*loadAllDialects=*/false);
 
-    mlir::MLIRContext context;
+    context.getOrLoadDialect<mlir::StandardOpsDialect>();
+    context.getOrLoadDialect<mlir::TF::TensorFlowDialect>();
+    context.getOrLoadDialect<mlir::ncnn::NCNNDialect>();
+
     mlir::OwningModuleRef m = mlir::parseSourceFile(mlirpath, &context);
 
     mlir::PassManager pm(&context);

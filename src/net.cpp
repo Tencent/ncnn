@@ -166,6 +166,14 @@ int Net::load_param(const DataReader& dr)
         if (vkdev->info.bug_storage_buffer_no_l1) opt.use_image_storage = true;
 
         if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
+
+        // fp16a makes no sense when fp16 storage disabled
+        if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
+    }
+    else
+    {
+        // fp16a makes no sense when fp16 storage disabled
+        if (!opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
     }
 #endif // NCNN_VULKAN
 
@@ -374,6 +382,14 @@ int Net::load_param_bin(const DataReader& dr)
         if (vkdev->info.bug_storage_buffer_no_l1) opt.use_image_storage = true;
 
         if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
+
+        // fp16a makes no sense when fp16 storage disabled
+        if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
+    }
+    else
+    {
+        // fp16a makes no sense when fp16 storage disabled
+        if (!opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
     }
 #endif // NCNN_VULKAN
 
@@ -1183,7 +1199,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                 if (elemcount % 8 == 0)
                     dst_elempack = 8;
 #elif NCNN_ARM82
-                if (elemcount % 8 == 0 && opt.use_fp16_arithmetic && layer->support_fp16_storage)
+                if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && layer->support_fp16_storage)
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
@@ -1316,7 +1332,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                     if (elemcount % 8 == 0)
                         dst_elempack = 8;
 #elif NCNN_ARM82
-                    if (elemcount % 8 == 0 && opt.use_fp16_arithmetic && layer->support_fp16_storage)
+                    if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && layer->support_fp16_storage)
                         dst_elempack = 8;
                     else if (elemcount % 4 == 0)
                         dst_elempack = 4;
