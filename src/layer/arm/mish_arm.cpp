@@ -122,30 +122,6 @@ int Mish_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
     int size = w * h;
     int elempack = bottom_top_blob.elempack;
 
-    if (elempack == 8)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            __fp16* ptr = bottom_top_blob.channel(q);
-
-            for (int i = 0; i < size; i++)
-            {
-                float16x8_t _p = vld1q_f16(ptr);
-                float32x4_t _p_low = vcvt_f32_f16(vget_low_f16(_p));
-                float32x4_t _p_high = vcvt_f32_f16(vget_high_f16(_p));
-                _p_low = vmulq_f32(_p_low, tanh_ps(log_ps(vaddq_f32(exp_ps(_p_low), vdupq_n_f32(1.f)))));
-                _p_high = vmulq_f32(_p_high, tanh_ps(log_ps(vaddq_f32(exp_ps(_p_high), vdupq_n_f32(1.f)))));
-                _p = vcombine_f16(vcvt_f16_f32(_p_low), vcvt_f16_f32(_p_high));
-                vst1q_f16(ptr, _p);
-
-                ptr += 8;
-            }
-        }
-
-        return 0;
-    }
-
     if (elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
