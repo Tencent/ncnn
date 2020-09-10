@@ -40,7 +40,7 @@ layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image1D top_blob;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
@@ -67,11 +67,11 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) || gy >= 1 || gz >= 1)
+    if (gx >= 1 || gy >= 1 || gz >= psc(outc))
         return;
 
     int size = psc(w) * psc(h);
-    int v_offset = gx * psc(cstep);
+    int v_offset = gz * psc(cstep);
 
     afp res;
 
@@ -84,7 +84,7 @@ void main()
         {
             for (int x = 0; x < psc(w); x++)
             {
-                afp v = image3d_ld1(bottom_blob, ivec3(x, y, gx));
+                afp v = image3d_ld1(bottom_blob, ivec3(x, y, gz));
                 res = max(res, v);
             }
         }
@@ -105,7 +105,7 @@ void main()
         {
             for (int x = 0; x < psc(w); x++)
             {
-                res += image3d_ld1(bottom_blob, ivec3(x, y, gx));
+                res += image3d_ld1(bottom_blob, ivec3(x, y, gz));
             }
         }
 #else
@@ -119,8 +119,10 @@ void main()
     }
 
 #if NCNN_image_shader
-    image1d_st1(top_blob, gx, res);
+    image3d_st1(top_blob, ivec3(gx, gy, gz), res);
 #else
-    buffer_st1(top_blob_data, gx, res);
+    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+    buffer_st1(top_blob_data, gi, res);
 #endif
 }

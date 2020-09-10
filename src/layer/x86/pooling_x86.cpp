@@ -102,6 +102,7 @@ int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob,
                 }
             }
 
+            top_blob = top_blob.reshape(1, 1, channels, opt.blob_allocator);
             return 0;
         }
 

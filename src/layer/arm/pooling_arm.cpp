@@ -123,6 +123,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 }
             }
 
+            top_blob = top_blob.reshape(1, 1, channels, opt.blob_allocator);
             return 0;
         }
 
@@ -476,6 +477,7 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
             }
         }
 
+        top_blob = top_blob.reshape(1, 1, channels, opt.blob_allocator);
         return 0;
     }
 
@@ -893,6 +895,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
             }
         }
 
+        top_blob = top_blob.reshape(1, 1, channels, opt.blob_allocator);
         return 0;
     }
 
@@ -1323,6 +1326,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
             }
         }
 
+        top_blob = top_blob.reshape(1, 1, channels, opt.blob_allocator);
         return 0;
     }
 

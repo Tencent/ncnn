@@ -95,7 +95,8 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 top_blob[q] = sum / size;
             }
         }
-
+        
+        top_blob = top_blob.reshape(1, 1, channels, opt.blob_allocator);
         return 0;
     }
 
