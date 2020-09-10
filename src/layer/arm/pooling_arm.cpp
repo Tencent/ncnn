@@ -83,7 +83,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (pooling_type == PoolMethod_MAX)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob.channel(q);
@@ -102,7 +102,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             }
             else if (pooling_type == PoolMethod_AVE)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob.channel(q);
@@ -179,7 +179,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 return 0;
             }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat m = bottom_blob_bordered.channel(q);
@@ -219,7 +219,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     htailpad = bottom_blob_bordered.h - bottom_blob.h - pad_top - pad_bottom;
                 }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -273,7 +273,7 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             }
             else // if (avgpool_count_include_pad == 1)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -376,7 +376,7 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
         {
             if (elempack == 8)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const __fp16* ptr = bottom_blob.channel(q);
@@ -396,7 +396,7 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
             if (elempack == 4)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const __fp16* ptr = bottom_blob.channel(q);
@@ -416,7 +416,7 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
             if (elempack == 1)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const __fp16* ptr = bottom_blob.channel(q);
@@ -437,7 +437,7 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
         {
             if (elempack == 4)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const __fp16* ptr = bottom_blob.channel(q);
@@ -460,7 +460,7 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
             if (elempack == 1)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const __fp16* ptr = bottom_blob.channel(q);
@@ -521,7 +521,7 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         if (elempack == 8)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat m = bottom_blob_bordered.channel(q);
@@ -551,7 +551,7 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
         if (elempack == 4)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat m = bottom_blob_bordered.channel(q);
@@ -581,7 +581,7 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
         if (elempack == 1)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat m = bottom_blob_bordered.channel(q);
@@ -625,7 +625,7 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
             if (elempack == 4)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -680,7 +680,7 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
             if (elempack == 1)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -736,7 +736,7 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
         {
             if (elempack == 4)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -769,7 +769,7 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
             if (elempack == 1)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -832,7 +832,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
         {
             if (elempack == 8)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const __fp16* ptr = bottom_blob.channel(q);
@@ -855,7 +855,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             if (elempack == 4)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const __fp16* ptr = bottom_blob.channel(q);
@@ -878,7 +878,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             if (elempack == 1)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const __fp16* ptr = bottom_blob.channel(q);
@@ -950,7 +950,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             if (elempack == 8)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -1005,7 +1005,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             if (elempack == 4)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -1060,7 +1060,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             if (elempack == 1)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -1116,7 +1116,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
         {
             if (elempack == 8)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -1149,7 +1149,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             if (elempack == 4)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -1182,7 +1182,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             if (elempack == 1)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -1242,7 +1242,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if __ARM_NEON
             if (elempack == 4)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const unsigned short* ptr = bottom_blob.channel(q);
@@ -1263,7 +1263,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
             if (elempack == 1)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const unsigned short* ptr = bottom_blob.channel(q);
@@ -1285,7 +1285,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if __ARM_NEON
             if (elempack == 4)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const unsigned short* ptr = bottom_blob.channel(q);
@@ -1309,7 +1309,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
             if (elempack == 1)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const unsigned short* ptr = bottom_blob.channel(q);
@@ -1371,7 +1371,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if __ARM_NEON
         if (elempack == 4)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat m = bottom_blob_bordered.channel(q);
@@ -1402,7 +1402,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
         if (elempack == 1)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat m = bottom_blob_bordered.channel(q);
@@ -1447,7 +1447,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if __ARM_NEON
             if (elempack == 4)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -1503,7 +1503,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
             if (elempack == 1)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -1560,7 +1560,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if __ARM_NEON
             if (elempack == 4)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -1594,7 +1594,7 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
             if (elempack == 1)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
