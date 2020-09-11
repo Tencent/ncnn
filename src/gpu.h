@@ -119,6 +119,13 @@ public:
     // property
     bool unified_compute_transfer_queue;
 
+    // subgroup
+    uint32_t subgroup_size;
+    bool support_subgroup_basic;
+    bool support_subgroup_vote;
+    bool support_subgroup_ballot;
+    bool support_subgroup_shuffle;
+
     // bug is not feature
     bool bug_storage_buffer_no_l1;
     bool bug_layout_binding_id_alias;

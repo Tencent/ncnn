@@ -746,6 +746,38 @@ int create_gpu_instance()
 
         gpu_info.unified_compute_transfer_queue = gpu_info.compute_queue_family_index == gpu_info.transfer_queue_family_index;
 
+        // additional device properties
+        gpu_info.subgroup_size = 32;
+        gpu_info.support_subgroup_basic = false;
+        gpu_info.support_subgroup_vote = false;
+        gpu_info.support_subgroup_ballot = false;
+        gpu_info.support_subgroup_shuffle = false;
+        if (support_VK_KHR_get_physical_device_properties2)
+        {
+            void* queryDeviceProperties = 0;
+
+            // query subgroup
+            VkPhysicalDeviceSubgroupProperties physicalDeviceSubgroupProperties;
+            physicalDeviceSubgroupProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
+            physicalDeviceSubgroupProperties.pNext = queryDeviceProperties;
+            queryDeviceProperties = &physicalDeviceSubgroupProperties;
+
+            VkPhysicalDeviceProperties2KHR queryProperties;
+            queryProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
+            queryProperties.pNext = queryDeviceProperties;
+
+            vkGetPhysicalDeviceProperties2KHR(physicalDevice, &queryProperties);
+
+            gpu_info.subgroup_size = physicalDeviceSubgroupProperties.subgroupSize;
+            if (physicalDeviceSubgroupProperties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT)
+            {
+                gpu_info.support_subgroup_basic = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_BASIC_BIT;
+                gpu_info.support_subgroup_vote = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_VOTE_BIT;
+                gpu_info.support_subgroup_ballot = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_BALLOT_BIT;
+                gpu_info.support_subgroup_shuffle = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+            }
+        }
+
         // cache memory properties
         vkGetPhysicalDeviceMemoryProperties(physicalDevice, &gpu_info.physicalDeviceMemoryProperties);
 
@@ -880,7 +912,7 @@ int create_gpu_instance()
             }
 
             VkPhysicalDeviceFeatures2KHR queryFeatures;
-            queryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR,
+            queryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR;
             queryFeatures.pNext = queryExtensionFeatures;
 
             vkGetPhysicalDeviceFeatures2KHR(physicalDevice, &queryFeatures);
@@ -940,6 +972,10 @@ int create_gpu_instance()
         NCNN_LOGE("[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
                   gpu_info.support_int8_storage, gpu_info.support_int8_arithmetic);
+
+        NCNN_LOGE("[%u %s]  subgroup=%u  basic=%d  vote=%d  ballot=%d  shuffle=%d", i, physicalDeviceProperties.deviceName,
+                  gpu_info.subgroup_size, gpu_info.support_subgroup_basic, gpu_info.support_subgroup_vote,
+                  gpu_info.support_subgroup_ballot, gpu_info.support_subgroup_shuffle);
 
         gpu_info_index++;
     }
