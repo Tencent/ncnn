@@ -36,7 +36,9 @@ public:
         CPU_SET(cpu, &m_bits);
     }
 #else
-    void set(int) {}
+    void set(int)
+    {
+    }
 #endif
 
     void zero()
@@ -52,7 +54,9 @@ public:
         CPU_CLR(cpu, &m_bits);
     }
 #else
-    void clr(int) {}
+    void clr(int)
+    {
+    }
 #endif
 
 #if defined __ANDROID__ || defined __linux__
