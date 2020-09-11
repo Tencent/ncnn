@@ -502,14 +502,29 @@ int create_gpu_instance()
         enabledExtensions.push_back("VK_KHR_android_surface");
 #endif // __ANDROID_API__ >= 26
 
+    uint32_t instance_api_version = VK_MAKE_VERSION(1, 0, 0);
+    typedef VkResult (VKAPI_PTR *PFN_vkEnumerateInstanceVersion)(uint32_t* pApiVersion);
+    PFN_vkEnumerateInstanceVersion vkEnumerateInstanceVersion = (PFN_vkEnumerateInstanceVersion)vkGetInstanceProcAddr(0, "vkEnumerateInstanceVersion");
+    if (vkEnumerateInstanceVersion)
+    {
+        ret = vkEnumerateInstanceVersion(&instance_api_version);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkEnumerateInstanceVersion failed %d", ret);
+            return -1;
+        }
+    }
+
+    // NCNN_LOGE("instance apiVersion = %u.%u.%u", VK_VERSION_MAJOR(instance_api_version), VK_VERSION_MINOR(instance_api_version), VK_VERSION_PATCH(instance_api_version));
+
     VkApplicationInfo applicationInfo;
     applicationInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     applicationInfo.pNext = 0;
     applicationInfo.pApplicationName = "ncnn";
     applicationInfo.applicationVersion = 0;
     applicationInfo.pEngineName = "ncnn";
-    applicationInfo.engineVersion = 20200727;
-    applicationInfo.apiVersion = VK_MAKE_VERSION(1, 0, 0);
+    applicationInfo.engineVersion = 20200909;
+    applicationInfo.apiVersion = instance_api_version;
 
     VkInstanceCreateInfo instanceCreateInfo;
     instanceCreateInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -747,7 +762,7 @@ int create_gpu_instance()
         gpu_info.unified_compute_transfer_queue = gpu_info.compute_queue_family_index == gpu_info.transfer_queue_family_index;
 
         // additional device properties
-        gpu_info.subgroup_size = 32;
+        gpu_info.subgroup_size = 64;
         gpu_info.support_subgroup_basic = false;
         gpu_info.support_subgroup_vote = false;
         gpu_info.support_subgroup_ballot = false;
@@ -756,11 +771,13 @@ int create_gpu_instance()
         {
             void* queryDeviceProperties = 0;
 
+#if VK_VERSION_1_1
             // query subgroup
             VkPhysicalDeviceSubgroupProperties physicalDeviceSubgroupProperties;
             physicalDeviceSubgroupProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
             physicalDeviceSubgroupProperties.pNext = queryDeviceProperties;
             queryDeviceProperties = &physicalDeviceSubgroupProperties;
+#endif
 
             VkPhysicalDeviceProperties2KHR queryProperties;
             queryProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
@@ -2958,6 +2975,24 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.push_back(std::make_pair("NCNN_image_shader", "1"));
     }
 
+    if (opt.use_subgroup_basic)
+    {
+        custom_defines.push_back(std::make_pair("NCNN_subgroup_basic", "1"));
+
+        if (opt.use_subgroup_vote)
+        {
+            custom_defines.push_back(std::make_pair("NCNN_subgroup_vote", "1"));
+        }
+        if (opt.use_subgroup_ballot)
+        {
+            custom_defines.push_back(std::make_pair("NCNN_subgroup_ballot", "1"));
+        }
+        if (opt.use_subgroup_shuffle)
+        {
+            custom_defines.push_back(std::make_pair("NCNN_subgroup_shuffle", "1"));
+        }
+    }
+
     std::string preamble;
     std::vector<std::string> processes;
 
@@ -2984,13 +3019,21 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         s.setSourceEntryPoint("main");
 
         s.setEnvInput(glslang::EShSourceGlsl, EShLangCompute, glslang::EShClientVulkan, 1);
-        s.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_0);
-        s.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_0);
+
+        if (opt.use_subgroup_basic)
+        {
+            // subgroup need vulkan-1.1 and spirv-1.3
+            s.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_1);
+            s.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_3);
+        }
+        else
+        {
+            s.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_0);
+            s.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_0);
+        }
 
         TBuiltInResource resources = get_default_TBuiltInResource();
 
-        // although vulkan 1.1 accept glsl directly
-        // ncnn resolve_shader_info() only works with the intermediate spirv code
         bool pr = s.parse(&resources, 100, false, EShMsgDefault);
         if (!pr)
         {
@@ -3113,6 +3156,11 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
             {
                 id_types[id] = id_types[type];
             }
+            if (storage_class == 12) // StorageBuffer
+            {
+                id_types[type] = 1;
+                id_types[id] = id_types[type];
+            }
         }
         else if (op == 59) // OpVariable
         {
@@ -3124,6 +3172,10 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
                 id_types[var_id] = id_types[id];
             }
             if (storage_class == 2) // Uniform
+            {
+                id_types[var_id] = id_types[id];
+            }
+            if (storage_class == 12) // StorageBuffer
             {
                 id_types[var_id] = id_types[id];
             }
