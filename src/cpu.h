@@ -81,8 +81,10 @@ protected:
     }
 #endif
 
+#if defined __ANDROID__ || defined __linux__
 private:
     cpu_set_t m_bits;
+#endif
 };
 
 // test optional cpu features
