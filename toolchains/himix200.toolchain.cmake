@@ -15,7 +15,8 @@ SET ( CROSS_COMPILATION_ARM himix200 )
 SET ( CROSS_COMPILATION_ARCHITECTURE armv7-a )
 
 # set g++ param
-SET ( CMAKE_CXX_FLAGS "-std=c++11 -march=armv7-a -mfloat-abi=softfp -mfpu=neon-vfpv4 -fopenmp ${CMAKE_CXX_FLAGS}" )
+SET ( CMAKE_CXX_FLAGS "-march=armv7-a -mfloat-abi=softfp -mfpu=neon-vfpv4 ${CMAKE_CXX_FLAGS}" )
 
-add_definitions(-D__ARM_NEON)
-add_definitions(-D__ANDROID__)
+# cache flags
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "c++ flags")
