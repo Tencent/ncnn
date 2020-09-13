@@ -437,7 +437,7 @@ static int get_max_freq_khz(int cpuid)
     return max_freq_khz;
 }
 
-int set_sched_affinity(const CpuSet& thread_affinity_mask)
+static int set_sched_affinity(const CpuSet& thread_affinity_mask)
 {
     // set affinity for thread
 #ifdef __GLIBC__
