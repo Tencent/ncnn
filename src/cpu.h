@@ -16,8 +16,9 @@
 #define NCNN_CPU_H
 
 #include <stddef.h>
+
 #if defined __ANDROID__ || defined __linux__
-#include <sched.h>
+#include <sched.h> // cpu_set_t
 #endif
 
 namespace ncnn {
@@ -25,65 +26,16 @@ namespace ncnn {
 class CpuSet
 {
 public:
-    CpuSet()
-    {
-        zero();
-    }
+    CpuSet();
+    void enable(int cpu);
+    void disable(int cpu);
+    void disable_all();
+    bool is_enabled(int cpu) const;
+    int num_enabled() const;
 
+public:
 #if defined __ANDROID__ || defined __linux__
-    void set(int cpu)
-    {
-        CPU_SET(cpu, &m_bits);
-    }
-#else
-    void set(int) {}
-#endif
-
-    void zero()
-    {
-#if defined __ANDROID__ || defined __linux__
-        CPU_ZERO(&m_bits);
-#endif
-    }
-
-#if defined __ANDROID__ || defined __linux__
-    void clr(int cpu)
-    {
-        CPU_CLR(cpu, &m_bits);
-    }
-#else
-    void clr(int) {}
-#endif
-
-#if defined __ANDROID__ || defined __linux__
-    bool isset(int cpu) const
-    {
-        return CPU_ISSET(cpu, &m_bits);
-    }
-#else
-    bool isset(int) const
-    {
-        return true;
-    }
-#endif
-    friend int set_sched_affinity(const CpuSet&);
-
-#if defined __ANDROID__ || defined __linux__
-protected:
-    void* data_ptr() const
-    {
-        return (void*)(&m_bits);
-    }
-
-    size_t data_size() const
-    {
-        return sizeof(m_bits);
-    }
-#endif
-
-#if defined __ANDROID__ || defined __linux__
-private:
-    cpu_set_t m_bits;
+    cpu_set_t cpu_set;
 #endif
 };
 
