@@ -173,13 +173,13 @@ int CpuSet::num_enabled() const
     int num_enabled = 0;
     for (int i = 0; i < (int)sizeof(cpu_set_t) * 8; i++)
     {
-        if (thread_affinity_mask.is_enabled(i))
+        if (is_enabled(i))
             num_enabled++;
     }
 
     return num_enabled;
 }
-#else // defined __ANDROID__ || defined __linux__
+#else  // defined __ANDROID__ || defined __linux__
 CpuSet::CpuSet()
 {
 }
