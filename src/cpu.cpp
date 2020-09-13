@@ -142,6 +142,71 @@ static cpu_type_t g_hw_cputype = get_hw_cputype();
 static cpu_subtype_t g_hw_cpusubtype = get_hw_cpusubtype();
 #endif // __IOS__
 
+#if defined __ANDROID__ || defined __linux__
+CpuSet::CpuSet()
+{
+    disable_all();
+}
+
+void CpuSet::enable(int cpu)
+{
+    CPU_SET(cpu, &cpu_set);
+}
+
+void CpuSet::disable(int cpu)
+{
+    CPU_CLR(cpu, &cpu_set);
+}
+
+void CpuSet::disable_all()
+{
+    CPU_ZERO(&cpu_set);
+}
+
+bool CpuSet::is_enabled(int cpu) const
+{
+    return CPU_ISSET(cpu, &cpu_set);
+}
+
+int CpuSet::num_enabled() const
+{
+    int num_enabled = 0;
+    for (int i = 0; i < (int)sizeof(cpu_set_t) * 8; i++)
+    {
+        if (thread_affinity_mask.is_enabled(i))
+            num_enabled++;
+    }
+
+    return num_enabled;
+}
+#else // defined __ANDROID__ || defined __linux__
+CpuSet::CpuSet()
+{
+}
+
+void CpuSet::enable(int /* cpu */)
+{
+}
+
+void CpuSet::disable(int /* cpu */)
+{
+}
+
+void CpuSet::disable_all()
+{
+}
+
+bool CpuSet::is_enabled(int /* cpu */) const
+{
+    return true;
+}
+
+int CpuSet::num_enabled() const
+{
+    return get_cpu_count();
+}
+#endif // defined __ANDROID__ || defined __linux__
+
 int cpu_support_arm_neon()
 {
 #if defined __ANDROID__ || defined __linux__
@@ -385,7 +450,7 @@ int set_sched_affinity(const CpuSet& thread_affinity_mask)
 #endif
 #endif
 
-    int syscallret = syscall(__NR_sched_setaffinity, pid, thread_affinity_mask.data_size(), thread_affinity_mask.data_ptr());
+    int syscallret = syscall(__NR_sched_setaffinity, pid, sizeof(cpu_set_t), &thread_affinity_mask.cpu_set);
     if (syscallret)
     {
         NCNN_LOGE("syscall error %d", syscallret);
@@ -428,10 +493,7 @@ static CpuSet g_thread_affinity_mask_big;
 
 static int setup_thread_affinity_masks()
 {
-    for (int i = 0; i < g_cpucount; ++i)
-    {
-        g_thread_affinity_mask_all.clr(i);
-    }
+    g_thread_affinity_mask_all.disable_all();
 
 #if defined __ANDROID__ || defined __linux__
     int max_freq_khz_min = INT_MAX;
@@ -454,7 +516,7 @@ static int setup_thread_affinity_masks()
     int max_freq_khz_medium = (max_freq_khz_min + max_freq_khz_max) / 2;
     if (max_freq_khz_medium == max_freq_khz_max)
     {
-        g_thread_affinity_mask_little.zero();
+        g_thread_affinity_mask_little.disable_all();
         g_thread_affinity_mask_big = g_thread_affinity_mask_all;
         return 0;
     }
@@ -462,13 +524,13 @@ static int setup_thread_affinity_masks()
     for (int i = 0; i < g_cpucount; i++)
     {
         if (cpu_max_freq_khz[i] < max_freq_khz_medium)
-            g_thread_affinity_mask_little.set(i);
+            g_thread_affinity_mask_little.enable(i);
         else
-            g_thread_affinity_mask_big.set(i);
+            g_thread_affinity_mask_big.enable(i);
     }
 #else
     // TODO implement me for other platforms
-    g_thread_affinity_mask_little.zero();
+    g_thread_affinity_mask_little.disable_all();
     g_thread_affinity_mask_big = g_thread_affinity_mask_all;
 #endif
 
@@ -497,12 +559,7 @@ const CpuSet& get_cpu_thread_affinity_mask(int powersave)
 int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 {
 #if defined __ANDROID__ || defined __linux__
-    int num_threads = 0;
-    for (int i = 0; i < (int)sizeof(size_t) * 8; i++)
-    {
-        if (thread_affinity_mask.isset(i))
-            num_threads++;
-    }
+    int num_threads = thread_affinity_mask.num_enabled();
 
 #ifdef _OPENMP
     // set affinity for each thread
