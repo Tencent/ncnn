@@ -17,7 +17,27 @@
 
 #include <stddef.h>
 
+#if defined __ANDROID__ || defined __linux__
+#include <sched.h> // cpu_set_t
+#endif
+
 namespace ncnn {
+
+class CpuSet
+{
+public:
+    CpuSet();
+    void enable(int cpu);
+    void disable(int cpu);
+    void disable_all();
+    bool is_enabled(int cpu) const;
+    int num_enabled() const;
+
+public:
+#if defined __ANDROID__ || defined __linux__
+    cpu_set_t cpu_set;
+#endif
+};
 
 // test optional cpu features
 // neon = armv7 neon or aarch64 asimd
@@ -45,10 +65,10 @@ int get_cpu_powersave();
 int set_cpu_powersave(int powersave);
 
 // convenient wrapper
-size_t get_cpu_thread_affinity_mask(int powersave);
+const CpuSet& get_cpu_thread_affinity_mask(int powersave);
 
 // set explicit thread affinity
-int set_cpu_thread_affinity(size_t thread_affinity_mask);
+int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask);
 
 // misc function wrapper for openmp routines
 int get_omp_num_threads();
