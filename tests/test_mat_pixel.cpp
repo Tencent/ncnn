@@ -323,6 +323,38 @@ static int test_mat_pixel_roi_bgra(int w, int h, int roix, int roiy, int roiw, i
     return 0;
 }
 
+static int test_mat_pixel_yuv420sp2rgb(int w, int h)
+{
+    ncnn::Mat nv21 = RandomMat(w, h / 2 * 3, 1);
+
+    ncnn::Mat nv12 = nv21.clone();
+
+    // swap VU to UV
+    unsigned char* p = (unsigned char*)nv12 + w * h;
+    for (int i = 0; i < w * h / 4; i++)
+    {
+        unsigned char v = p[0];
+        unsigned char u = p[1];
+        p[0] = u;
+        p[1] = v;
+        p += 2;
+    }
+
+    ncnn::Mat rgb(w, h, 3u, 3);
+    yuv420sp2rgb(nv21, w, h, rgb);
+
+    ncnn::Mat rgb2(w, h, 3u, 3);
+    yuv420sp2rgb_nv12(nv12, w, h, rgb2);
+
+    if (memcmp(rgb, rgb2, w * h * 3) != 0)
+    {
+        fprintf(stderr, "test_mat_pixel_yuv420sp2rgb failed w=%d h=%d\n", w, h);
+        return -1;
+    }
+
+    return 0;
+}
+
 static int test_mat_pixel_0()
 {
     return 0
@@ -383,6 +415,15 @@ static int test_mat_pixel_5()
            || test_mat_pixel_roi_bgra(15, 15, 7, 3, 1, 1);
 }
 
+static int test_mat_pixel_6()
+{
+    return 0
+           || test_mat_pixel_yuv420sp2rgb(16, 16)
+           || test_mat_pixel_yuv420sp2rgb(12, 12)
+           || test_mat_pixel_yuv420sp2rgb(2, 2)
+           || test_mat_pixel_yuv420sp2rgb(6, 6);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -393,5 +434,6 @@ int main()
            || test_mat_pixel_2()
            || test_mat_pixel_3()
            || test_mat_pixel_4()
-           || test_mat_pixel_5();
+           || test_mat_pixel_5()
+           || test_mat_pixel_6();
 }

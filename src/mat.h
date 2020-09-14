@@ -529,6 +529,8 @@ union vk_constant_type
 #if NCNN_PIXEL
 // convert yuv420sp(nv21) to rgb, the fast approximate version
 void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
+// convert yuv420sp(nv12) to rgb, the fast approximate version
+void yuv420sp2rgb_nv12(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
 // convert yuv420sp(nv21) to rgb with half resize, the faster approximate version
 void yuv420sp2rgb_half(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
 // image pixel bilinear resize
@@ -541,7 +543,7 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
 void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
 void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
 void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
-// image pixel bilinear resize, convenient wrapper for yuv420sp(nv21)
+// image pixel bilinear resize, convenient wrapper for yuv420sp(nv21/nv12)
 void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 #endif // NCNN_PIXEL
 #if NCNN_PIXEL_ROTATE
@@ -566,7 +568,7 @@ void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, int srcstride
 void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
 void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
 void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
-// image pixel kanna rotate, convenient wrapper for yuv420sp(nv21)
+// image pixel kanna rotate, convenient wrapper for yuv420sp(nv21/nv12)
 void kanna_rotate_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
 #endif // NCNN_PIXEL_ROTATE
 
