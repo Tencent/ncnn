@@ -2,8 +2,8 @@
 SET ( CMAKE_SYSTEM_NAME Linux )
 SET ( CMAKE_SYSTEM_PROCESSOR x86 )
 # if gcc/g++ was installed:
-SET ( CMAKE_C_COMPILER "gcc" )
-SET ( CMAKE_CXX_COMPILER "g++" )
+SET ( CMAKE_C_COMPILER "clang" )
+SET ( CMAKE_CXX_COMPILER "clang++" )
 
 # set searching rules
 SET ( CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER )
