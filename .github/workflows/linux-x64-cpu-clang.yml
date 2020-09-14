@@ -55,6 +55,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+    - name: update
+      run: sudo apt-get update
+    - name: gcc-multilib
+      run: sudo apt-get install gcc-multilib
     - name: configure
       env:
         CC: clang

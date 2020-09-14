@@ -64,7 +64,7 @@ jobs:
     - name: configure
       run: |
         mkdir build; cd build
-        cmake -DCMAKE_GENERATOR_PLATFORM=x86 -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake -T v142,host=x64 -A Win32 -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
     - name: build
       run: cmake --build build --config Release -j 2
     - name: test
