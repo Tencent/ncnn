@@ -1,3 +1,11 @@
+### Git clone ncnn repo with submodule
+
+```
+$ git clone https://github.com/Tencent/ncnn.git
+$ cd <ncnn-root-dir>
+$ git submodule update --init
+```
+
 * [Build for Linux x86](#build-for-linux-x86)
 * [Build for Windows x64 using VS2017](#build-for-windows-x64-using-visual-studio-community-2017)
 * [Build for MacOSX](#build-for-macosx)
