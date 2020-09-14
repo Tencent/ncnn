@@ -58,7 +58,7 @@ jobs:
     - name: update
       run: sudo apt-get update
     - name: gcc-multilib
-      run: sudo apt-get install gcc-multilib
+      run: sudo apt-get install gcc-multilib g++-multilib
     - name: configure
       env:
         CC: clang
