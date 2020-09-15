@@ -61,18 +61,3 @@ jobs:
       run: cmake --build build -j 2
     - name: test
       run: cd build && ctest --output-on-failure -j 2
-
-  linux-gcc-x86:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: update
-      run: sudo apt-get update
-    - name: gcc-multilib
-      run: sudo apt-get install gcc-multilib g++-multilib
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-    - name: build
-      run: cmake --build build -j 2
-    - name: test
-      run: cd build && ctest --output-on-failure -j 2
