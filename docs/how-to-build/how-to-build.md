@@ -158,49 +158,26 @@ pick build/install folder for further usage
 ***
 
 ### Build for NVIDIA Jetson
-#### download Vulkan SDK from NVIDIA
-please click the `Vulkan SDK File` link on [https://developer.nvidia.com/embedded/vulkan](https://developer.nvidia.com/embedded/vulkan), at the time of writing we got `Vulkan_loader_demos_1.1.100.tar.gz`
-
-scp the downloaded SDK to your Jetson device
-
-```bash
-scp Vulkan_loader_demos_1.1.100.tar.gz USERNAME@JETSON_IP:~/
-```
-
-from this monment on, we will work on the Jetson device
+work on the Jetson device
 ```bash
 ssh USERNAME@JETSON_IP
 ```
 
-#### install Vulkan SDK
+#### install compile tools and Vulkan SDK
 
 ```bash
-cd ~/Vulkanloader_demos_1.1.100
-sudo cp loader/libvulkan.so.1.1.100 /usr/lib/aarch64-linux-gnu/
-cd /usr/lib/aarch64-linux-gnu/
-sudo rm -rf libvulkan.so.1 libvulkan.so
-sudo ln -s libvulkan.so.1.1.100 libvulkan.so
-sudo ln -s libvulkan.so.1.1.100 libvulkan.so.1
+sudo apt-get update && sudo apt-get install gcc g++ cmake git libvulkan-dev
 cd ~/
-```
-
-#### install glslang dependency
-```bash
-# glslang is a dependency of Tencent/ncnn
-git clone --depth=1 https://github.com/KhronosGroup/glslang.git
-cd glslang
-# assure that SPIR-V generated from HLSL is legal for Vulkan
-./update_glslang_sources.py
-mkdir -p build && cd build
-sudo make -j`nproc` install && cd ..
 ```
 
 #### compile ncnn
 ```bash
-git clone https://github.com/Tencent/ncnn.git
+git clone --depth=1 https://github.com/Tencent/ncnn.git
+# download submodule (glslang)
+cd ncnn && git submodule update --depth=1 --init
 # while aarch64-linux-gnu.toolchain.cmake would compile Tencent/ncnn as well
 # but why not compile with more native features w
-cd ncnn && mkdir -p build && cd build
+mkdir build && cd build
 cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/jetson.toolchain.cmake -DNCNN_VULKAN=ON -DCMAKE_BUILD_TYPE=Release ..
 make -j`nproc`
 sudo make install
