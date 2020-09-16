@@ -85,6 +85,7 @@ public:
     uint32_t driver_version;
     uint32_t vendor_id;
     uint32_t device_id;
+    std::string device_name;
     uint8_t pipeline_cache_uuid[VK_UUID_SIZE];
 
     // 0 = discrete gpu
