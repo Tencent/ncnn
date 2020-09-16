@@ -200,29 +200,28 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
         int i = 0;
 #if __AVX__
+        __m256 _a256 = _mm256_set1_ps(a);
+        __m256 _b256 = _mm256_set1_ps(b);
+        for (; i + 7 < size; i += 8)
         {
-            __m256 _a = _mm256_set1_ps(a);
-            __m256 _b = _mm256_set1_ps(b);
-            for (; i + 8 < size; i += 8)
-            {
-                __m256 _p = _mm256_loadu_ps(ptr);
-                _p = _mm256_fmadd_ps(_p, _b, _a);
-                _mm256_storeu_ps(ptr, _p);
-                ptr += 8;
-            }
+            __m256 _p = _mm256_loadu_ps(ptr);
+            _p = _mm256_fmadd_ps(_p, _b256, _a256);
+            _mm256_storeu_ps(ptr, _p);
+            ptr += 8;
         }
+        __m128 _a128 = _mm256_castps256_ps128(_a256);
+        __m128 _b128 = _mm256_castps256_ps128(_b256);
+#else
+        __m128 _a128 = _mm_set1_ps(a);
+        __m128 _b128 = _mm_set1_ps(b);
 #endif // __AVX__
+        for (; i + 3 < size; i += 4)
         {
-            __m128 _a = _mm_set1_ps(a);
-            __m128 _b = _mm_set1_ps(b);
-            for (; i + 3 < size; i += 4)
-            {
-                __m128 _p = _mm_loadu_ps(ptr);
-                _p = _mm_mul_ps(_p, _b);
-                _p = _mm_add_ps(_p, _a);
-                _mm_storeu_ps(ptr, _p);
-                ptr += 4;
-            }
+            __m128 _p = _mm_loadu_ps(ptr);
+            _p = _mm_mul_ps(_p, _b128);
+            _p = _mm_add_ps(_p, _a128);
+            _mm_storeu_ps(ptr, _p);
+            ptr += 4;
         }
 
         for (; i < size; i++)
