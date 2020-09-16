@@ -686,6 +686,7 @@ int create_gpu_instance()
         gpu_info.driver_version = physicalDeviceProperties.driverVersion;
         gpu_info.vendor_id = physicalDeviceProperties.vendorID;
         gpu_info.device_id = physicalDeviceProperties.deviceID;
+        gpu_info.device_name = std::string(physicalDeviceProperties.deviceName);
         memcpy(gpu_info.pipeline_cache_uuid, physicalDeviceProperties.pipelineCacheUUID, VK_UUID_SIZE);
 
         if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
