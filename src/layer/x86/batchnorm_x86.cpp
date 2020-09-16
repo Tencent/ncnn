@@ -24,9 +24,9 @@ namespace ncnn {
 
 BatchNorm_x86::BatchNorm_x86()
 {
-#if __AVX__
+#if !defined(__EMSCRIPTEN__)
     support_packing = true;
-#endif // __AVX__
+#endif // !defined(__EMSCRIPTEN__)
 }
 
 int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
