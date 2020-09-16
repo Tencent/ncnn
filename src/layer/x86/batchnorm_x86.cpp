@@ -32,6 +32,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
 
+#if !defined(__EMSCRIPTEN__)
 #if __AVX__
     if (elempack == 8)
     {
@@ -181,6 +182,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
         return 0;
     }
+#endif // !defined(__EMSCRIPTEN__)
 
     if (dims != 3)
         return BatchNorm::forward_inplace(bottom_top_blob, opt);
@@ -199,6 +201,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         float b = b_data[q];
 
         int i = 0;
+#if !defined(__EMSCRIPTEN__)
 #if __AVX__
         __m256 _a256 = _mm256_set1_ps(a);
         __m256 _b256 = _mm256_set1_ps(b);
@@ -223,6 +226,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             _mm_storeu_ps(ptr, _p);
             ptr += 4;
         }
+#endif // !defined(__EMSCRIPTEN__)
 
         for (; i < size; i++)
         {
