@@ -16,6 +16,8 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 ### Telegram Group https://t.me/ncnnyes
 
+### Discord Channel https://discord.gg/YRsxgmF
+
 ---
 
 ### Current building status matrix
