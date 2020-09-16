@@ -73,8 +73,8 @@ int Bias_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             ptr++;
         }
-    }
 #endif // !defined(__EMSCRIPTEN__)
+    }
 
     return 0;
 }
