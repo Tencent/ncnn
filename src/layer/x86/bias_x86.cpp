@@ -11,12 +11,10 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-#if !defined(__EMSCRIPTEN__)
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
-#endif // !defined(__EMSCRIPTEN__)
 
 #include "bias_x86.h"
 
@@ -38,7 +36,6 @@ int Bias_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float bias = bias_ptr[q];
 
         int i = 0;
-#if !defined(__EMSCRIPTEN__)
         __m128 _bias128;
 #if __AVX__
         {
@@ -73,7 +70,6 @@ int Bias_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             ptr++;
         }
-#endif // !defined(__EMSCRIPTEN__)
     }
 
     return 0;

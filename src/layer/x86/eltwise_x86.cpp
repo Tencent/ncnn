@@ -11,12 +11,10 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-#if !defined(__EMSCRIPTEN__)
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
-#endif // !defined(__EMSCRIPTEN__)
 
 #include "eltwise_x86.h"
 
@@ -24,9 +22,7 @@ namespace ncnn {
 
 Eltwise_x86::Eltwise_x86()
 {
-#if !defined(__EMSCRIPTEN__)
     support_packing = true;
-#endif // !defined(__EMSCRIPTEN__)
 }
 
 int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -44,7 +40,6 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     if (top_blob.empty())
         return -100;
 
-#if !defined(__EMSCRIPTEN__)
 #if __AVX__
     if (elempack == 8)
     {
@@ -442,7 +437,6 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
         return 0;
     }
-#endif // !defined(__EMSCRIPTEN__)
 
     if (op_type == Operation_PROD)
     {

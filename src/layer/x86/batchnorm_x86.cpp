@@ -11,12 +11,10 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-#if !defined(__EMSCRIPTEN__)
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
-#endif // !defined(__EMSCRIPTEN__)
 
 #include "batchnorm_x86.h"
 
@@ -24,9 +22,7 @@ namespace ncnn {
 
 BatchNorm_x86::BatchNorm_x86()
 {
-#if !defined(__EMSCRIPTEN__)
     support_packing = true;
-#endif // !defined(__EMSCRIPTEN__)
 }
 
 int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -34,7 +30,6 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
 
-#if !defined(__EMSCRIPTEN__)
 #if __AVX__
     if (elempack == 8)
     {
@@ -184,7 +179,6 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
         return 0;
     }
-#endif // !defined(__EMSCRIPTEN__)
 
     if (dims != 3)
         return BatchNorm::forward_inplace(bottom_top_blob, opt);
@@ -203,7 +197,6 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         float b = b_data[q];
 
         int i = 0;
-#if !defined(__EMSCRIPTEN__)
 #if __AVX__
         __m256 _a256 = _mm256_set1_ps(a);
         __m256 _b256 = _mm256_set1_ps(b);
@@ -228,7 +221,6 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             _mm_store_ps(ptr, _p);
             ptr += 4;
         }
-#endif // !defined(__EMSCRIPTEN__)
 
         for (; i < size; i++)
         {
