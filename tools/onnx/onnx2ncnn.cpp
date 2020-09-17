@@ -1728,7 +1728,7 @@ int main(int argc, char** argv)
         else
         {
             bool isBinaryOp = false;
-            if (op == "Add" || op == "Sub" || op == "Mul" || op == "Div")
+            if (op == "Add" || op == "Sub" || op == "Mul" || op == "Div" || op == "Max" || op == "Min" || op == "Pow")
             {
                 isBinaryOp = true;
             }
