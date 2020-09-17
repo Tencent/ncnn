@@ -243,7 +243,7 @@ else()
 
     if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
         if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-            target_compile_options(ncnn PRIVATE -msse)
+            target_compile_options(ncnn PRIVATE -msse -msse2 -msimd128)
         else()
             target_compile_options(ncnn PRIVATE -Ofast)
         endif()
