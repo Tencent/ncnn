@@ -120,13 +120,13 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             {
                 float* ptr = (float*)bottom_top_blob + i * 4;
 
-                __m128 _a = _mm_loadu_ps((const float*)a_data + i * 4);
-                __m128 _b = _mm_loadu_ps((const float*)b_data + i * 4);
+                __m128 _a = _mm_load_ps((const float*)a_data + i * 4);
+                __m128 _b = _mm_load_ps((const float*)b_data + i * 4);
 
-                __m128 _p = _mm_loadu_ps(ptr);
+                __m128 _p = _mm_load_ps(ptr);
                 _p = _mm_mul_ps(_p, _b);
                 _p = _mm_add_ps(_p, _a);
-                _mm_storeu_ps(ptr, _p);
+                _mm_store_ps(ptr, _p);
             }
         }
 
@@ -138,17 +138,17 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
-                __m128 _a = _mm_loadu_ps((const float*)a_data + i * 4);
-                __m128 _b = _mm_loadu_ps((const float*)b_data + i * 4);
+                __m128 _a = _mm_load_ps((const float*)a_data + i * 4);
+                __m128 _b = _mm_load_ps((const float*)b_data + i * 4);
 
                 float* ptr = bottom_top_blob.row(i);
 
                 for (int j = 0; j < w; j++)
                 {
-                    __m128 _p = _mm_loadu_ps(ptr);
+                    __m128 _p = _mm_load_ps(ptr);
                     _p = _mm_mul_ps(_p, _b);
                     _p = _mm_add_ps(_p, _a);
-                    _mm_storeu_ps(ptr, _p);
+                    _mm_store_ps(ptr, _p);
 
                     ptr += 4;
                 }
@@ -165,17 +165,17 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
             {
-                __m128 _a = _mm_loadu_ps((const float*)a_data + q * 4);
-                __m128 _b = _mm_loadu_ps((const float*)b_data + q * 4);
+                __m128 _a = _mm_load_ps((const float*)a_data + q * 4);
+                __m128 _b = _mm_load_ps((const float*)b_data + q * 4);
 
                 float* ptr = bottom_top_blob.channel(q);
 
                 for (int i = 0; i < size; i++)
                 {
-                    __m128 _p = _mm_loadu_ps(ptr);
+                    __m128 _p = _mm_load_ps(ptr);
                     _p = _mm_mul_ps(_p, _b);
                     _p = _mm_add_ps(_p, _a);
-                    _mm_storeu_ps(ptr, _p);
+                    _mm_store_ps(ptr, _p);
 
                     ptr += 4;
                 }
@@ -222,10 +222,10 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #endif // __AVX__
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = _mm_loadu_ps(ptr);
+            __m128 _p = _mm_load_ps(ptr);
             _p = _mm_mul_ps(_p, _b128);
             _p = _mm_add_ps(_p, _a128);
-            _mm_storeu_ps(ptr, _p);
+            _mm_store_ps(ptr, _p);
             ptr += 4;
         }
 #endif // !defined(__EMSCRIPTEN__)
