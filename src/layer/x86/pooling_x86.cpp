@@ -285,6 +285,18 @@ int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob,
     }
 #endif // __AVX__
 
+    if (elempack == 4)
+    {
+        // TODO implement pack4
+        Mat bottom_blob_unpacked;
+
+        Option opt_pack = opt;
+        opt_pack.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
+
+        return forward(bottom_blob_unpacked, top_blob, opt);
+    }
+
     if (kernel_w != kernel_h || stride_w != stride_h)
     {
         return Pooling::forward(bottom_blob, top_blob, opt);

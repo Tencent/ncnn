@@ -311,6 +311,8 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 #if NCNN_AVX2
             if (elemcount % 8 == 0)
                 dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
 #elif NCNN_ARM82
             if (elemcount % 8 == 0 && opt.use_fp16_arithmetic)
                 dst_elempack = 8;
@@ -727,6 +729,8 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 #if NCNN_AVX2
         if (elemcount % 8 == 0)
             dst_elempack = 8;
+        else if (elemcount % 4 == 0)
+            dst_elempack = 4;
 #elif NCNN_ARM82
         if (elemcount % 8 == 0 && opt.use_fp16_arithmetic)
             dst_elempack = 8;
