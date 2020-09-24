@@ -34,9 +34,9 @@ NCNNDialect::NCNNDialect(mlir::MLIRContext* context)
     allowUnknownOperations();
 }
 
+} // namespace ncnn
+
 #define GET_OP_CLASSES
 #include "ncnn_ops.cc.inc"
-
-} // namespace ncnn
 
 } // namespace mlir

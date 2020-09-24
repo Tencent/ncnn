@@ -59,10 +59,10 @@ public:
     Operation* materializeConstant(OpBuilder& builder, Attribute value, Type type, Location loc) override;
 };
 
+} // namespace TF
+
 #define GET_OP_CLASSES
 #include "tf_all_ops.h.inc"
-
-} // namespace TF
 
 } // namespace mlir
 
