@@ -235,9 +235,6 @@ Operation* TensorFlowDialect::materializeConstant(OpBuilder& builder,
     return builder.create<ConstOp>(loc, type, value);
 }
 
-#define GET_OP_CLASSES
-#include "tf_all_ops.cc.inc"
-
 // Builds a constant op with the specified attribute `value`. The result
 // op's type is deduced from `value`; if `value` is of scalar type,
 // wraps it up with a tensor type of empty shape.
@@ -322,5 +319,8 @@ LogicalResult WhileRegionOp::moveOutOfLoop(
 }
 
 } // namespace TF
+
+#define GET_OP_CLASSES
+#include "tf_all_ops.cc.inc"
 
 } // namespace mlir
