@@ -23,14 +23,14 @@ static void _ncnn_cpuid(int info_eax, int info_ecx, int* _cpu_info)
     __cpuidex(_cpu_info, info_eax, info_ecx);
 #elif defined(_M_IX86)
     __asm {
-			mov eax, info_eax
-			mov ecx, info_ecx
-			mov edi, _cpu_info
-			cpuid
-			mov [edi], eax
-			mov [edi + 4], ebx
-			mov [edi + 8], ecx
-			mov [edi + 12], edx
+        mov eax, info_eax
+        mov ecx, info_ecx
+        mov edi, _cpu_info
+        cpuid
+        mov [edi], eax
+        mov [edi + 4], ebx
+        mov [edi + 8], ecx
+        mov [edi + 12], edx
     }
 #else // Visual C but not x86
     if (info_ecx == 0)
@@ -56,7 +56,7 @@ static void _ncnn_cpuid(int info_eax, int info_ecx, int* _cpu_info)
         "cpuid                                     \n"
         : "=b"(info_ebx),
 #endif //  defined( __i386__) && defined(__PIC__)
-          "+a"(info_eax), "+c"(info_ecx), "=d"(info_edx));
+        "+a"(info_eax), "+c"(info_ecx), "=d"(info_edx));
     _cpu_info[0] = info_eax;
     _cpu_info[1] = info_ebx;
     _cpu_info[2] = info_ecx;
@@ -94,7 +94,7 @@ static int _ncnn_get_xcr0()
     // xgetbv unavailable to query for OSSave support.  Return 0.
     return 0;
 #endif // defined(_M_IX86) || defined(_M_X64) .. \
-       // Return optimization to previous setting.
+// Return optimization to previous setting.
 #if defined(_M_IX86) && (_MSC_VER < 1900)
 #pragma optimize("g", on)
 #endif
