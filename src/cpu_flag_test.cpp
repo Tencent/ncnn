@@ -56,7 +56,7 @@ static void _ncnn_cpuid(int info_eax, int info_ecx, int* _cpu_info)
         "cpuid                                     \n"
         : "=b"(info_ebx),
 #endif //  defined( __i386__) && defined(__PIC__)
-          "+a"(info_eax), "+c"(info_ecx), "=d"(info_edx));
+        "+a"(info_eax), "+c"(info_ecx), "=d"(info_edx));
     _cpu_info[0] = info_eax;
     _cpu_info[1] = info_ebx;
     _cpu_info[2] = info_ecx;
