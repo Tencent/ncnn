@@ -27,47 +27,49 @@
 #endif
 
 namespace ncnn {
-	enum CpuFlag {
-		CpuFlag_None = 0x0,
-		CpuFlag_Initialized = 0x1,
-		// arm
-		CpuFlag_ARM = 0x2,
-		CpuFlag_NEON = 0x4,
-		// x86
-		CpuFlag_X86 = 0x10,
-		CpuFlag_SSE2 = 0x20,
-		CpuFlag_SSSE3 = 0x40,
-		CpuFlag_SSE41 = 0x80,
-		CpuFlag_SSE42 = 0x100,
-		CpuFlag_AVX = 0x200,
-		CpuFlag_AVX2 = 0x400,
-		CpuFlag_ERMS = 0x800,
-		CpuFlag_FMA3 = 0x1000,
-		CpuFlag_F16C = 0x2000,
-		CpuFlag_GFNI = 0x4000,
-		CpuFlag_AVX512BW = 0x8000,
-		CpuFlag_AVX512VL = 0x10000,
-		CpuFlag_AVX512VBMI = 0x20000,
-		CpuFlag_AVX512VBMI2 = 0x40000,
-		CpuFlag_AVX512VBITALG = 0x80000,
-		CpuFlag_AVX512VPOPCNTDQ = 0x100000,
-		// mips
-		CpuFlag_MIPS = 0x200000,
-		CpuFlag_MSA = 0x400000,
-		CpuFlag_MMI = 0x800000,
-	};
+enum CpuFlag
+{
+    CpuFlag_None = 0x0,
+    CpuFlag_Initialized = 0x1,
+    // arm
+    CpuFlag_ARM = 0x2,
+    CpuFlag_NEON = 0x4,
+    // x86
+    CpuFlag_X86 = 0x10,
+    CpuFlag_SSE2 = 0x20,
+    CpuFlag_SSSE3 = 0x40,
+    CpuFlag_SSE41 = 0x80,
+    CpuFlag_SSE42 = 0x100,
+    CpuFlag_AVX = 0x200,
+    CpuFlag_AVX2 = 0x400,
+    CpuFlag_ERMS = 0x800,
+    CpuFlag_FMA3 = 0x1000,
+    CpuFlag_F16C = 0x2000,
+    CpuFlag_GFNI = 0x4000,
+    CpuFlag_AVX512BW = 0x8000,
+    CpuFlag_AVX512VL = 0x10000,
+    CpuFlag_AVX512VBMI = 0x20000,
+    CpuFlag_AVX512VBMI2 = 0x40000,
+    CpuFlag_AVX512VBITALG = 0x80000,
+    CpuFlag_AVX512VPOPCNTDQ = 0x100000,
+    // mips
+    CpuFlag_MIPS = 0x200000,
+    CpuFlag_MSA = 0x400000,
+    CpuFlag_MMI = 0x800000,
+};
 
-	class CpuFlagTest {
-	public:
-		CpuFlagTest ();
+class CpuFlagTest
+{
+public:
+    CpuFlagTest();
 
-		bool TestSupport (CpuFlag _flag);
+    bool TestSupport(CpuFlag _flag);
 
-		std::string GetSupportString ();
+    std::string GetSupportString();
 
-	private:
-		CpuFlag m_cpu_info = CpuFlag_None;
-	};
-}
+private:
+    CpuFlag m_cpu_info = CpuFlag_None;
+};
+} // namespace ncnn
 
 #endif //NCNN_INTEL_INSTRUCTION_TEST_H
