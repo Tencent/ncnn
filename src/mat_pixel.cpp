@@ -2582,7 +2582,7 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
 		int tmp_width=w;
 		int tmp_height=h;
 		unsigned char *tmp_data=(unsigned char*)pixels;
-		printf("type 0x%x,0x%x\n",type,type_from);
+		//printf("type 0x%x,0x%x\n",type,type_from);
 		//如果目标面积大于原始面积，先转RGB再拉伸（拉伸时间是一致的，转换较快）
 		//如果目标面积小于原始面积，先拉伸再转RGB（拉伸时间是一致的，转换较快）
 		if(w*h>target_width*target_height){
