@@ -1252,8 +1252,8 @@ void resize_bilinear_yuv420p(const unsigned char* src, int srcw, int srch, unsig
 		unsigned char* dstU = dst + w * h;
 		resize_bilinear_c1(srcU, srcw / 2, srch / 2, dstU, w / 2, h / 2);
 
-		const unsigned char* srcV = src + srcw * srch + ((srcw * srch)>>2);
-		unsigned char* dstV = dst + w * h +((w * h)>>2) ;
+		const unsigned char* srcV = src + srcw * srch + srcw * srch / 4;
+		unsigned char* dstV = dst + w * h +w * h / 4 ;
 		resize_bilinear_c1(srcV, srcw / 2, srch / 2, dstV, w / 2, h / 2);
 }
 

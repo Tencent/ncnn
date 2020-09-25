@@ -181,7 +181,7 @@ public:
         PIXEL_GRAY = 3,
         PIXEL_RGBA = 4,
         PIXEL_BGRA = 5,
-        PIXEL_YUV420P = 6,//yuv420p,又称yv12,yuv中常见的一种,格式为yyyyyyyyuuvv.
+        PIXEL_YUV420P = 6,
 
         PIXEL_RGB2BGR = PIXEL_RGB | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
         PIXEL_RGB2GRAY = PIXEL_RGB | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
