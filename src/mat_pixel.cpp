@@ -2468,6 +2468,13 @@ void yuv420sp2rgb_half(const unsigned char* yuv, int w, int h, unsigned char* rg
     }
 }
 
+void yuv420p2rgb(const unsigned char* yuv420p, int w, int h, unsigned char* rgb){
+	unsigned char *yuv420sp=(unsigned char *)malloc((w*h*3)>>1);
+	yuv420p2yuv420sp(yuv420p,	w,	h, yuv420sp);
+	yuv420sp2rgb(yuv420sp,w,h,rgb);
+	free(yuv420sp);
+
+}
 Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, Allocator* allocator)
 {
     int type_from = type & PIXEL_FORMAT_MASK;
@@ -2589,22 +2596,12 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
 			tmp_data =  (unsigned char*)malloc((target_width * target_height * 3)>>1);
 			tmp_width=target_width;
 			tmp_height=target_height;
-			
-			resize_bilinear_c1(pixels, w, h, tmp_data, target_width, target_height);
-			resize_bilinear_c1(pixels+w*h, w>>1, h>>1,  
-				(unsigned char*)tmp_data+target_width*target_height, 
-				target_width>>1, target_height>>1);
-			resize_bilinear_c1(pixels+((w*h*5)>>2), w>>1, h>>1,
-				(unsigned char*)tmp_data+((target_width*target_height*5)>>2), 
-				target_width/2, target_height/2);
+			resize_bilinear_yuv420p(pixels, w, h, tmp_data, target_width, target_height);
 		}
-		unsigned char *yuv420sp=(unsigned char *)malloc((tmp_width*tmp_height*3)>>1);
-		yuv420p2yuv420sp(tmp_data,  tmp_width,  tmp_height, yuv420sp);
 		Mat rgb(tmp_width,  tmp_height, (size_t)3u, 3);
-		yuv420sp2rgb(yuv420sp,tmp_width,  tmp_height,rgb);
+		yuv420p2rgb(tmp_data,tmp_width,  tmp_height,rgb);
 		if(tmp_data !=pixels)
 			free(tmp_data);
-		free(yuv420sp);
 		
 		int type_con = (type & PIXEL_CONVERT_MASK)>>PIXEL_CONVERT_SHIFT;
 		if(type_con==PIXEL_RGB){
