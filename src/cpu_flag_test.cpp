@@ -15,11 +15,9 @@
 #include "cpu_flag_test.h"
 
 namespace ncnn {
-CpuFlagTest::CpuFlagTest () {
-	static std::function<std::tuple<int, int, int, int> (int, int)> _cpuid = [] (int info_eax, int info_ecx) -> std::tuple<int, int, int, int> {
+	static void _ncnn_cpuid (int info_eax, int info_ecx, int *_cpu_info) {
 #if defined(_MSC_VER)
 		// Visual C version uses intrinsic or inline x86 assembly.
-		int _cpu_info [4] = { 0, 0, 0, 0 };
 #	if defined(_MSC_FULL_VER) && (_MSC_FULL_VER >= 160040219)
 		__cpuidex (_cpu_info, info_eax, info_ecx);
 #	elif defined(_M_IX86)
@@ -37,10 +35,9 @@ CpuFlagTest::CpuFlagTest () {
 		if (info_ecx == 0) {
 			__cpuid (_cpu_info, info_eax);
 		} else {
-			return { 0, 0, 0, 0 };
+			_cpu_info [0] = _cpu_info [1] = _cpu_info [2] = _cpu_info [3] = 0;
 		}
 #	endif
-		return { _cpu_info [0], _cpu_info [1], _cpu_info [2], _cpu_info [3] };
 		// GCC version uses inline x86 assembly.
 #else  // defined(_MSC_VER)
 		int info_ebx = 0, info_edx = 0;
@@ -56,19 +53,23 @@ CpuFlagTest::CpuFlagTest () {
 			: "=b"(info_ebx),
 #	endif  //  defined( __i386__) && defined(__PIC__)
 			"+a"(info_eax), "+c"(info_ecx), "=d"(info_edx));
-		return { info_eax, info_ebx, info_ecx, info_edx };
+		_cpu_info [0] = info_eax;
+		_cpu_info [1] = info_ebx;
+		_cpu_info [2] = info_ecx;
+		_cpu_info [3] = info_edx;
 #endif  // defined(_MSC_VER)
-	};
-	static std::function<int ()> _get_xcr0 = [] () {
+	}
+
+	static int _ncnn_get_xcr0 () {
 		// For VS2010 and earlier emit can be used:
-		//   _asm _emit 0x0f _asm _emit 0x01 _asm _emit 0xd0  // For VS2010 and earlier.
-		//  __asm {
-		//    xor        ecx, ecx    // xcr 0
-		//    xgetbv
-		//    mov        xcr0, eax
-		//  }
-		// For VS2013 and earlier 32 bit, the _xgetbv(0) optimizer produces bad code.
-		// https://code.google.com/p/libyuv/issues/detail?id=529
+			//   _asm _emit 0x0f _asm _emit 0x01 _asm _emit 0xd0  // For VS2010 and earlier.
+			//  __asm {
+			//    xor        ecx, ecx    // xcr 0
+			//    xgetbv
+			//    mov        xcr0, eax
+			//  }
+			// For VS2013 and earlier 32 bit, the _xgetbv(0) optimizer produces bad code.
+			// https://code.google.com/p/libyuv/issues/detail?id=529
 #if defined(_M_IX86) && (_MSC_VER < 1900)
 #	pragma optimize("g", off)
 #endif
@@ -76,85 +77,90 @@ CpuFlagTest::CpuFlagTest () {
      defined(__x86_64__)) &&                                     \
     !defined(__pnacl__) && !defined(__CLR_VER) && !defined(__native_client__)
 // X86 CPUs have xgetbv to detect OS saves high parts of ymm registers.
-			int xcr0 = 0;
+		int xcr0 = 0;
 #	if defined(_MSC_FULL_VER) && (_MSC_FULL_VER >= 160040219)
-			xcr0 = (int) _xgetbv (0);  // VS2010 SP1 required.  NOLINT
+		xcr0 = (int) _xgetbv (0);  // VS2010 SP1 required.  NOLINT
 #	elif defined(__i386__) || defined(__x86_64__)
-			asm (".byte 0x0f, 0x01, 0xd0" : "=a"(xcr0) : "c"(0) : "%edx");
+		asm (".byte 0x0f, 0x01, 0xd0" : "=a"(xcr0) : "c"(0) : "%edx");
 #	endif  // defined(__i386__) || defined(__x86_64__)
-			return xcr0;
+		return xcr0;
 #else
 // xgetbv unavailable to query for OSSave support.  Return 0.
-			return 0;
+		return 0;
 #endif  // defined(_M_IX86) || defined(_M_X64) ..
-			// Return optimization to previous setting.
+		// Return optimization to previous setting.
 #if defined(_M_IX86) && (_MSC_VER < 1900)
 #	pragma optimize("g", on)
 #endif
-	};
-	static std::function<CpuFlag ()> _x86_get_cpu_info = [] () {
-		CpuFlag _cpu_info = CpuFlag::None;
-		auto [_cpu_0_0, _cpu_0_1, _cpu_0_2, _cpu_0_3] = _cpuid (0, 0);
-		auto [_cpu_1_0, _cpu_1_1, _cpu_1_2, _cpu_1_3] = _cpuid (1, 0);
-		auto [_cpu_7_0, _cpu_7_1, _cpu_7_2, _cpu_7_3] = std::make_tuple (0, 0, 0, 0);
-		if (_cpu_0_0 >= 7) {
-			std::tie (_cpu_7_0, _cpu_7_1, _cpu_7_2, _cpu_7_3) = _cpuid (7, 0);
+	}
+
+	static CpuFlag _ncnn_x86_get_cpu_info () {
+		CpuFlag _cpu_info = CpuFlag_None;
+		int _cpu_0 [4] = { 0 };
+		int _cpu_1 [4] = { 0 };
+		int _cpu_7 [4] = { 0 };
+		_ncnn_cpuid (0, 0, _cpu_0);
+		_ncnn_cpuid (1, 0, _cpu_1);
+		if (_cpu_0 [0] >= 7) {
+			_ncnn_cpuid (7, 0, _cpu_7);
 		}
-		_cpu_info = (CpuFlag) ((int) CpuFlag::X86
-			| (int) ((_cpu_1_3 & 0x04000000) ? CpuFlag::SSE2 : CpuFlag::None)
-			| (int) ((_cpu_1_2 & 0x00000200) ? CpuFlag::SSSE3 : CpuFlag::None)
-			| (int) ((_cpu_1_2 & 0x00080000) ? CpuFlag::SSE41 : CpuFlag::None)
-			| (int) ((_cpu_1_2 & 0x00100000) ? CpuFlag::SSE42 : CpuFlag::None)
-			| (int) ((_cpu_7_1 & 0x00000200) ? CpuFlag::ERMS : CpuFlag::None));
+		_cpu_info = (CpuFlag) (CpuFlag_X86
+			| ((_cpu_1 [3] & 0x04000000) ? CpuFlag_SSE2 : CpuFlag_None)
+			| ((_cpu_1 [2] & 0x00000200) ? CpuFlag_SSSE3 : CpuFlag_None)
+			| ((_cpu_1 [2] & 0x00080000) ? CpuFlag_SSE41 : CpuFlag_None)
+			| ((_cpu_1 [2] & 0x00100000) ? CpuFlag_SSE42 : CpuFlag_None)
+			| ((_cpu_7 [1] & 0x00000200) ? CpuFlag_ERMS : CpuFlag_None));
 
 		// AVX requires OS saves YMM registers.
-		if (((_cpu_1_2 & 0x1c000000) == 0x1c000000) /*AVX and OSXSave*/ && ((_get_xcr0 () & 6) == 6) /*Test OS saves YMM registers*/) {
-			_cpu_info = (CpuFlag) ((int) _cpu_info
-				| (int) CpuFlag::AVX
-				| (int) ((_cpu_7_1 & 0x00000020) ? CpuFlag::AVX2 : CpuFlag::None)
-				| (int) ((_cpu_1_2 & 0x00001000) ? CpuFlag::FMA3 : CpuFlag::None)
-				| (int) ((_cpu_1_2 & 0x20000000) ? CpuFlag::F16C : CpuFlag::None));
+		if (((_cpu_1 [2] & 0x1c000000) == 0x1c000000) /*AVX and OSXSave*/ && ((_ncnn_get_xcr0 () & 6) == 6) /*Test OS saves YMM registers*/) {
+			_cpu_info = (CpuFlag) (_cpu_info
+				| CpuFlag_AVX
+				| ((_cpu_7 [1] & 0x00000020) ? CpuFlag_AVX2 : CpuFlag_None)
+				| ((_cpu_1 [2] & 0x00001000) ? CpuFlag_FMA3 : CpuFlag_None)
+				| ((_cpu_1 [2] & 0x20000000) ? CpuFlag_F16C : CpuFlag_None));
 
 			// Detect AVX512bw
-			if ((_get_xcr0 () & 0xe0) == 0xe0) {
-				_cpu_info = (CpuFlag) ((int) _cpu_info | (int) (_cpu_7_1 & 0x40000000) ? CpuFlag::AVX512BW : CpuFlag::None);
-				_cpu_info = (CpuFlag) ((int) _cpu_info | (int) (_cpu_7_1 & 0x80000000) ? CpuFlag::AVX512VL : CpuFlag::None);
-				_cpu_info = (CpuFlag) ((int) _cpu_info | (int) (_cpu_7_2 & 0x00000002) ? CpuFlag::AVX512VBMI : CpuFlag::None);
-				_cpu_info = (CpuFlag) ((int) _cpu_info | (int) (_cpu_7_2 & 0x00000040) ? CpuFlag::AVX512VBMI2 : CpuFlag::None);
-				_cpu_info = (CpuFlag) ((int) _cpu_info | (int) (_cpu_7_2 & 0x00001000) ? CpuFlag::AVX512VBITALG : CpuFlag::None);
-				_cpu_info = (CpuFlag) ((int) _cpu_info | (int) (_cpu_7_2 & 0x00004000) ? CpuFlag::AVX512VPOPCNTDQ : CpuFlag::None);
-				_cpu_info = (CpuFlag) ((int) _cpu_info | (int) (_cpu_7_2 & 0x00000100) ? CpuFlag::GFNI : CpuFlag::None);
+			if ((_ncnn_get_xcr0 () & 0xe0) == 0xe0) {
+				_cpu_info = (_cpu_info | (_cpu_7 [1] & 0x40000000) ? CpuFlag_AVX512BW : CpuFlag_None);
+				_cpu_info = (_cpu_info | (_cpu_7 [1] & 0x80000000) ? CpuFlag_AVX512VL : CpuFlag_None);
+				_cpu_info = (_cpu_info | (_cpu_7 [2] & 0x00000002) ? CpuFlag_AVX512VBMI : CpuFlag_None);
+				_cpu_info = (_cpu_info | (_cpu_7 [2] & 0x00000040) ? CpuFlag_AVX512VBMI2 : CpuFlag_None);
+				_cpu_info = (_cpu_info | (_cpu_7 [2] & 0x00001000) ? CpuFlag_AVX512VBITALG : CpuFlag_None);
+				_cpu_info = (_cpu_info | (_cpu_7 [2] & 0x00004000) ? CpuFlag_AVX512VPOPCNTDQ : CpuFlag_None);
+				_cpu_info = (_cpu_info | (_cpu_7 [2] & 0x00000100) ? CpuFlag_GFNI : CpuFlag_None);
 			}
 		}
 		return _cpu_info;
-	};
-	static std::function<CpuFlag (std::string, std::string)> _mips__get_cpu_info = [] (std::string cpuinfo_name, std::string ase) {
+	}
+
+	static CpuFlag _ncnn_mips__get_cpu_info (std::string cpuinfo_name, std::string ase) {
 		std::ifstream _ifs (cpuinfo_name, std::ios::binary);
 		if (!_ifs.is_open ()) {
 			if (ase == " msa") {
-				return CpuFlag::MSA;
+				return CpuFlag_MSA;
 			} else if (ase == " mmi") {
-				return CpuFlag::MMI;
+				return CpuFlag_MMI;
 			} else {
-				return CpuFlag::None;
+				return CpuFlag_None;
 			}
 		}
 		std::string _s;
 		while (getline (_ifs, _s)) {
 			if (_s.substr (0, 16) == "ASEs implemented") {
-				return ase == " msa" ? CpuFlag::MSA : CpuFlag::None;
+				return ase == " msa" ? CpuFlag_MSA : CpuFlag_None;
 			} else if (_s.substr (0, 9) == "cpu model") {
-				return ase == " mmi" ? CpuFlag::MMI : CpuFlag::None;
+				return ase == " mmi" ? CpuFlag_MMI : CpuFlag_None;
 			}
 		}
-		return CpuFlag::None;
-	};
-	static std::function<CpuFlag (std::string)> _arm__get_cpu_info = [] (std::string cpuinfo_name) {
+		return CpuFlag_None;
+	}
+
+	static CpuFlag _ncnn_arm__get_cpu_info (std::string cpuinfo_name) {
 		std::ifstream _ifs (cpuinfo_name, std::ios::binary);
 		if (!_ifs.is_open ()) {
 			// Assume Neon if /proc/cpuinfo is unavailable.
 			// This will occur for Chrome sandbox for Pepper or Render process.
-			return CpuFlag::NEON;
+			return CpuFlag_NEON;
 		}
 		std::string _s;
 		while (getline (_ifs, _s)) {
@@ -162,96 +168,95 @@ CpuFlagTest::CpuFlagTest () {
 				size_t _p = _s.find (" neon");
 				if (_p != std::string::npos) {
 					if (_s.size () == _p + 5) {
-						return CpuFlag::NEON;
+						return CpuFlag_NEON;
 					} else {
 						char _ch = _s [_p + 5];
 						if (_ch == ' ' || _ch == '\r' || _ch == '\n')
-							return CpuFlag::NEON;
+							return CpuFlag_NEON;
 					}
 				}
 				// aarch64 uses asimd for Neon.
 				if (_s.find (" asimd") != std::string::npos)
-					return CpuFlag::NEON;
+					return CpuFlag_NEON;
 			}
 		}
-		return CpuFlag::None;
-	};
+		return CpuFlag_None;
+	}
 
+	CpuFlagTest::CpuFlagTest () {
 #if !defined(__pnacl__) && !defined(__CLR_VER) &&                   \
 	(defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || \
 	defined(_M_IX86))
-	m_cpu_info = _x86_get_cpu_info ();
+		m_cpu_info = _ncnn_x86_get_cpu_info ();
 #endif
 #if defined(__mips__) && defined(__linux__)
 #if defined(__mips_msa)
-	m_cpu_info = MipsCpuCaps ("/proc/cpuinfo", " msa");
+		m_cpu_info = _ncnn_mips__get_cpu_info ("/proc/cpuinfo", " msa");
 #elif defined(_MIPS_ARCH_LOONGSON3A)
-	m_cpu_info = MipsCpuCaps ("/proc/cpuinfo", " mmi");
+		m_cpu_info = _ncnn_mips__get_cpu_info ("/proc/cpuinfo", " mmi");
 #endif
-	m_cpu_info = (CpuFlag) ((int) m_cpu_info | (int) CpuFlag::MIPS);
+		m_cpu_info = (CpuFlag) (m_cpu_info | CpuFlag_MIPS);
 #endif
 #if defined(__arm__) || defined(__aarch64__)
-	// gcc -mfpu=neon defines __ARM_NEON__
-	// __ARM_NEON__ generates code that requires Neon.  NaCL also requires Neon.
-	// For Linux, /proc/cpuinfo can be tested but without that assume Neon.
+		// gcc -mfpu=neon defines __ARM_NEON__
+		// __ARM_NEON__ generates code that requires Neon.  NaCL also requires Neon.
+		// For Linux, /proc/cpuinfo can be tested but without that assume Neon.
 #if defined(__ARM_NEON__) || defined(__native_client__) || !defined(__linux__)
-	m_cpu_info = CpuFlag::NEON;
-	// For aarch64(arm64), /proc/cpuinfo's feature is not complete, e.g. no neon
-	// flag in it.
-	// So for aarch64, neon enabling is hard coded here.
+		m_cpu_info = CpuFlag_NEON;
+		// For aarch64(arm64), /proc/cpuinfo's feature is not complete, e.g. no neon
+		// flag in it.
+		// So for aarch64, neon enabling is hard coded here.
 #endif
 #if defined(__aarch64__)
-	m_cpu_info = CpuFlag::NEON;
+		m_cpu_info = CpuFlag_NEON;
 #else
 	// Linux arm parse text file for neon detect.
-	m_cpu_info = _arm__get_cpu_info ("/proc/cpuinfo");
+		m_cpu_info = _ncnn_arm__get_cpu_info ("/proc/cpuinfo");
 #endif
-	m_cpu_info = (CpuFlag) ((int) m_cpu_info | (int) CpuFlag::ARM);
+		m_cpu_info = (CpuFlag) (m_cpu_info | CpuFlag_ARM);
 #endif  // __arm__
-	m_cpu_info = (CpuFlag) ((int) m_cpu_info | (int) CpuFlag::Initialized);
-}
-
-bool CpuFlagTest::TestSupport (CpuFlag _flag) {
-	return !!((int) m_cpu_info & (int) _flag);
-}
-
-std::string CpuFlagTest::GetSupportString () {
-	static std::map<CpuFlag, std::string> s_flags = {
-		{ CpuFlag::ARM, "ARM" },
-		{ CpuFlag::NEON, "NEON" },
-		{ CpuFlag::X86, "X86" },
-		{ CpuFlag::SSE2, "SSE2" },
-		{ CpuFlag::SSSE3, "SSSE3" },
-		{ CpuFlag::SSE41, "SSE41" },
-		{ CpuFlag::SSE42, "SSE42" },
-		{ CpuFlag::AVX, "AVX" },
-		{ CpuFlag::AVX2, "AVX2" },
-		{ CpuFlag::ERMS, "ERMS" },
-		{ CpuFlag::FMA3, "FMA3" },
-		{ CpuFlag::F16C, "F16C" },
-		{ CpuFlag::GFNI, "GFNI" },
-		{ CpuFlag::AVX512BW, "AVX512BW" },
-		{ CpuFlag::AVX512VL, "AVX512VL" },
-		{ CpuFlag::AVX512VBMI, "AVX512VBMI" },
-		{ CpuFlag::AVX512VBMI2, "AVX512VBMI2" },
-		{ CpuFlag::AVX512VBITALG, "AVX512VBITALG" },
-		{ CpuFlag::AVX512VPOPCNTDQ, "AVX512VPOPCNTDQ" },
-		{ CpuFlag::MIPS, "MIPS" },
-		{ CpuFlag::MSA, "MSA" },
-		{ CpuFlag::MMI, "MMI" },
-	};
-	static std::string s_ret = "";
-	if (s_ret != "")
-		return s_ret;
-	for (auto [_flag, _name] : s_flags) {
-		if (TestSupport (_flag)) {
-			if (s_ret != "")
-				s_ret += " ";
-			s_ret += _name;
-		}
+		m_cpu_info = (CpuFlag) (m_cpu_info | CpuFlag_Initialized);
 	}
-	return s_ret;
-}
-}
 
-#endif //__INTEL_INSTRUCTION_TEST_H__
+	bool CpuFlagTest::TestSupport (CpuFlag _flag) {
+		return !!(m_cpu_info & _flag);
+	}
+
+	std::string CpuFlagTest::GetSupportString () {
+		static std::map<CpuFlag, std::string> s_flags = {
+			{ CpuFlag_ARM, "ARM" },
+			{ CpuFlag_NEON, "NEON" },
+			{ CpuFlag_X86, "X86" },
+			{ CpuFlag_SSE2, "SSE2" },
+			{ CpuFlag_SSSE3, "SSSE3" },
+			{ CpuFlag_SSE41, "SSE4.1" },
+			{ CpuFlag_SSE42, "SSE4.2" },
+			{ CpuFlag_AVX, "AVX" },
+			{ CpuFlag_AVX2, "AVX2" },
+			{ CpuFlag_ERMS, "ERMS" },
+			{ CpuFlag_FMA3, "FMA3" },
+			{ CpuFlag_F16C, "F16C" },
+			{ CpuFlag_GFNI, "GFNI" },
+			{ CpuFlag_AVX512BW, "AVX512BW" },
+			{ CpuFlag_AVX512VL, "AVX512VL" },
+			{ CpuFlag_AVX512VBMI, "AVX512VBMI" },
+			{ CpuFlag_AVX512VBMI2, "AVX512VBMI2" },
+			{ CpuFlag_AVX512VBITALG, "AVX512VBITALG" },
+			{ CpuFlag_AVX512VPOPCNTDQ, "AVX512VPOPCNTDQ" },
+			{ CpuFlag_MIPS, "MIPS" },
+			{ CpuFlag_MSA, "MSA" },
+			{ CpuFlag_MMI, "MMI" },
+		};
+		static std::string s_ret = "";
+		if (s_ret != "")
+			return s_ret;
+		for (auto [_flag, _name] : s_flags) {
+			if (TestSupport (_flag)) {
+				if (s_ret != "")
+					s_ret += " ";
+				s_ret += _name;
+			}
+		}
+		return s_ret;
+	}
+}

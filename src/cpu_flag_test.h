@@ -17,57 +17,57 @@
 
 #include <cstdint>
 #include <fstream>
-#include <functional>
 #include <iostream>
 #include <map>
 #include <string>
-#include <tuple>
 
+#if defined(_MSC_VER)
 #include <intrin.h>
 #include <immintrin.h>
+#endif
 
 namespace ncnn {
-enum class CpuFlag {
-	None = 0x0,
-	Initialized = 0x1,
-	// arm
-	ARM = 0x2,
-	NEON = 0x4,
-	// x86
-	X86 = 0x10,
-	SSE2 = 0x20,
-	SSSE3 = 0x40,
-	SSE41 = 0x80,
-	SSE42 = 0x100,
-	AVX = 0x200,
-	AVX2 = 0x400,
-	ERMS = 0x800,
-	FMA3 = 0x1000,
-	F16C = 0x2000,
-	GFNI = 0x4000,
-	AVX512BW = 0x8000,
-	AVX512VL = 0x10000,
-	AVX512VBMI = 0x20000,
-	AVX512VBMI2 = 0x40000,
-	AVX512VBITALG = 0x80000,
-	AVX512VPOPCNTDQ = 0x100000,
-	// mips
-	MIPS = 0x200000,
-	MSA = 0x400000,
-	MMI = 0x800000,
-};
+	enum CpuFlag {
+		CpuFlag_None = 0x0,
+		CpuFlag_Initialized = 0x1,
+		// arm
+		CpuFlag_ARM = 0x2,
+		CpuFlag_NEON = 0x4,
+		// x86
+		CpuFlag_X86 = 0x10,
+		CpuFlag_SSE2 = 0x20,
+		CpuFlag_SSSE3 = 0x40,
+		CpuFlag_SSE41 = 0x80,
+		CpuFlag_SSE42 = 0x100,
+		CpuFlag_AVX = 0x200,
+		CpuFlag_AVX2 = 0x400,
+		CpuFlag_ERMS = 0x800,
+		CpuFlag_FMA3 = 0x1000,
+		CpuFlag_F16C = 0x2000,
+		CpuFlag_GFNI = 0x4000,
+		CpuFlag_AVX512BW = 0x8000,
+		CpuFlag_AVX512VL = 0x10000,
+		CpuFlag_AVX512VBMI = 0x20000,
+		CpuFlag_AVX512VBMI2 = 0x40000,
+		CpuFlag_AVX512VBITALG = 0x80000,
+		CpuFlag_AVX512VPOPCNTDQ = 0x100000,
+		// mips
+		CpuFlag_MIPS = 0x200000,
+		CpuFlag_MSA = 0x400000,
+		CpuFlag_MMI = 0x800000,
+	};
 
-class CpuFlagTest {
-public:
-	CpuFlagTest ();
+	class CpuFlagTest {
+	public:
+		CpuFlagTest ();
 
-	bool TestSupport (CpuFlag _flag);
+		bool TestSupport (CpuFlag _flag);
 
-	std::string GetSupportString ();
+		std::string GetSupportString ();
 
-private:
-	CpuFlag m_cpu_info = CpuFlag::None;
-};
+	private:
+		CpuFlag m_cpu_info = CpuFlag_None;
+	};
 }
 
 #endif //NCNN_INTEL_INSTRUCTION_TEST_H
