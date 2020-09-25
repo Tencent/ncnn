@@ -181,6 +181,7 @@ public:
         PIXEL_GRAY = 3,
         PIXEL_RGBA = 4,
         PIXEL_BGRA = 5,
+        PIXEL_YUV420P = 6,//yuv420p,又称yv12,yuv中常见的一种,格式为yyyyyyyyuuvv.
 
         PIXEL_RGB2BGR = PIXEL_RGB | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
         PIXEL_RGB2GRAY = PIXEL_RGB | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
@@ -206,6 +207,9 @@ public:
         PIXEL_BGRA2BGR = PIXEL_BGRA | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
         PIXEL_BGRA2GRAY = PIXEL_BGRA | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
         PIXEL_BGRA2RGBA = PIXEL_BGRA | (PIXEL_RGBA << PIXEL_CONVERT_SHIFT),
+
+		PIXEL_YUV420P2RGB=PIXEL_YUV420P|(PIXEL_RGB << PIXEL_CONVERT_SHIFT),
+		PIXEL_YUV420P2BGR=PIXEL_YUV420P|(PIXEL_BGR << PIXEL_CONVERT_SHIFT),
     };
     // convenient construct from pixel data
     static Mat from_pixels(const unsigned char* pixels, int type, int w, int h, Allocator* allocator = 0);
