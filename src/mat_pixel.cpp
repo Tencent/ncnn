@@ -2582,32 +2582,26 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
 		int tmp_width=w;
 		int tmp_height=h;
 		unsigned char *tmp_data=(unsigned char*)pixels;
-		printf("type %x,%x\n",type,type_from);
+		printf("type 0x%x,0x%x\n",type,type_from);
 		//如果目标面积大于原始面积，先转RGB再拉伸（拉伸时间是一致的，转换较快）
 		//如果目标面积小于原始面积，先拉伸再转RGB（拉伸时间是一致的，转换较快）
 		if(w*h>target_width*target_height){
-			printf("2\n");
 			tmp_data =  (unsigned char*)malloc((target_width * target_height * 3)>>1);
 			tmp_width=target_width;
 			tmp_height=target_height;
 			
 			resize_bilinear_c1(pixels, w, h, tmp_data, target_width, target_height);
-			printf("3\n");
 			resize_bilinear_c1(pixels+w*h, w>>1, h>>1,  
 				(unsigned char*)tmp_data+target_width*target_height, 
 				target_width>>1, target_height>>1);
-			printf("4\n");
 			resize_bilinear_c1(pixels+((w*h*5)>>2), w>>1, h>>1,
 				(unsigned char*)tmp_data+((target_width*target_height*5)>>2), 
 				target_width/2, target_height/2);
 		}
-		printf("5\n");
 		unsigned char *yuv420sp=(unsigned char *)malloc((tmp_width*tmp_height*3)>>1);
 		yuv420p2yuv420sp(tmp_data,  tmp_width,  tmp_height, yuv420sp);
-		printf("6\n");
 		Mat rgb(tmp_width,  tmp_height, (size_t)3u, 3);
 		yuv420sp2rgb(yuv420sp,tmp_width,  tmp_height,rgb);
-		printf("7\n");
 		if(tmp_data !=pixels)
 			free(tmp_data);
 		free(yuv420sp);
