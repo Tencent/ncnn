@@ -208,8 +208,8 @@ public:
         PIXEL_BGRA2GRAY = PIXEL_BGRA | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
         PIXEL_BGRA2RGBA = PIXEL_BGRA | (PIXEL_RGBA << PIXEL_CONVERT_SHIFT),
 
-		PIXEL_YUV420SP2RGB=PIXEL_YUV420SP|(PIXEL_RGB << PIXEL_CONVERT_SHIFT),
-		PIXEL_YUV420SP2BGR=PIXEL_YUV420SP|(PIXEL_BGR << PIXEL_CONVERT_SHIFT),
+        PIXEL_YUV420SP2RGB = PIXEL_YUV420SP | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
+        PIXEL_YUV420SP2BGR = PIXEL_YUV420SP | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
     };
     // convenient construct from pixel data
     static Mat from_pixels(const unsigned char* pixels, int type, int w, int h, Allocator* allocator = 0);
@@ -550,7 +550,6 @@ void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstr
 // image pixel bilinear resize, convenient wrapper for yuv420sp(nv21/nv12)
 void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 
-
 #endif // NCNN_PIXEL
 #if NCNN_PIXEL_ROTATE
 // type is the from type, 6 means rotating from 6 to 1
@@ -778,10 +777,10 @@ inline void Mat::fill(float _v)
             "st1        {%4.4s}, [%1], #16  \n"
             "bne        0b                  \n"
             : "=r"(nn), // %0
-            "=r"(ptr) // %1
+              "=r"(ptr) // %1
             : "0"(nn),
-            "1"(ptr),
-            "w"(_c) // %4
+              "1"(ptr),
+              "w"(_c) // %4
             : "cc", "memory");
     }
 #else
@@ -793,10 +792,10 @@ inline void Mat::fill(float _v)
             "vst1.f32   {%e4-%f4}, [%1 :128]!\n"
             "bne        0b                  \n"
             : "=r"(nn), // %0
-            "=r"(ptr) // %1
+              "=r"(ptr) // %1
             : "0"(nn),
-            "1"(ptr),
-            "w"(_c) // %4
+              "1"(ptr),
+              "w"(_c) // %4
             : "cc", "memory");
     }
 #endif // __aarch64__
@@ -830,10 +829,10 @@ inline void Mat::fill(int _v)
             "st1        {%4.4s}, [%1], #16  \n"
             "bne        0b                  \n"
             : "=r"(nn), // %0
-            "=r"(ptr) // %1
+              "=r"(ptr) // %1
             : "0"(nn),
-            "1"(ptr),
-            "w"(_c) // %4
+              "1"(ptr),
+              "w"(_c) // %4
             : "cc", "memory");
     }
 #else
@@ -845,10 +844,10 @@ inline void Mat::fill(int _v)
             "vst1.s32   {%e4-%f4}, [%1 :128]!\n"
             "bne        0b                  \n"
             : "=r"(nn), // %0
-            "=r"(ptr) // %1
+              "=r"(ptr) // %1
             : "0"(nn),
-            "1"(ptr),
-            "w"(_c) // %4
+              "1"(ptr),
+              "w"(_c) // %4
             : "cc", "memory");
     }
 #endif // __aarch64__
