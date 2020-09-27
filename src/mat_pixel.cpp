@@ -2445,13 +2445,6 @@ void yuv420sp2rgb_half(const unsigned char* yuv, int w, int h, unsigned char* rg
     }
 }
 
-void yuv420p2rgb(const unsigned char* yuv420p, int w, int h, unsigned char* rgb){
-	unsigned char *yuv420sp=(unsigned char *)malloc(w*h*3/2);
-	yuv420p2yuv420sp(yuv420p,	w,	h, yuv420sp);
-	yuv420sp2rgb(yuv420sp,w,h,rgb);
-	free(yuv420sp);
-
-}
 Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, Allocator* allocator)
 {
     int type_from = type & PIXEL_FORMAT_MASK;
