@@ -1958,29 +1958,6 @@ static int from_bgra2gray(const unsigned char* bgra, int w, int h, int stride, M
     return 0;
 }
 
-void yuv420p2yuv420sp(const unsigned char* yuv, int w, int h,unsigned char* yuv420sp){
-	
-	int ysize=w*h;
-	int uw=w>>1;
-	int uh=h>>1;
-	int usize=uw*uh;
-	unsigned char *yp=(unsigned char*)yuv;
-	unsigned char *up=yp+w*h;
-	unsigned char *vp=up+(w*h/4);
-	unsigned char *vsp=yuv420sp+ysize;
-	unsigned char *usp=vsp+1;
-	
-	memcpy(yuv420sp,yp,ysize);
-	for(int i=0;i<usize;i++){
-		*usp=*up;
-		*vsp=*vp;
-		up++;
-		vp++;
-		usp+=2;
-		vsp+=2;
-	}
-}
-
 void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb)
 {
     const unsigned char* yptr = yuv420sp;
@@ -2585,34 +2562,14 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
     else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
     {
         return Mat::from_pixels_resize(pixels, type, w, h, w * 4, target_width, target_height, allocator);
-    }else if(type_from==PIXEL_YUV420P){
-		int tmp_width=w;
-		int tmp_height=h;
-		unsigned char *tmp_data=(unsigned char*)pixels;
-		if(w*h>target_width*target_height){
-			tmp_data =  (unsigned char*)malloc(target_width * target_height * 3/2);
-			tmp_width=target_width;
-			tmp_height=target_height;
-			resize_bilinear_yuv420p(pixels, w, h, tmp_data, target_width, target_height);
-		}
-		Mat rgb(tmp_width,  tmp_height, (size_t)3u, 3);
-		yuv420p2rgb(tmp_data,tmp_width,  tmp_height,rgb);
-		if(tmp_data !=pixels)
-			free(tmp_data);
-		
-		int type_con = (type & PIXEL_CONVERT_MASK)>>PIXEL_CONVERT_SHIFT;
-		if(type_con==PIXEL_RGB){
-			return Mat::from_pixels_resize(rgb, PIXEL_RGB, tmp_width, tmp_height, tmp_width * 3, target_width, target_height, allocator);
-		}
-		else if(type_con==PIXEL_BGR){
-			return Mat::from_pixels_resize(rgb, PIXEL_RGB2BGR, tmp_width, tmp_height, tmp_width * 3, target_width, target_height, allocator);
-		}
-		else{
-			NCNN_LOGE("unknown convert type 0x%x", type);
-   			return Mat();
-		}
+    }else if(type_from==PIXEL_YUV420SP){
+		Mat rgb(w,  h, (size_t)3u, 3);
+		yuv420sp2rgb(pixels,w,  h,rgb);
+		if(((type & PIXEL_CONVERT_MASK)>>PIXEL_CONVERT_SHIFT)==PIXEL_RGB)
+			return Mat::from_pixels_resize(rgb, PIXEL_RGB, w, h, w * 3, target_width, target_height, allocator);
+		else
+			return Mat::from_pixels_resize(rgb, PIXEL_RGB|(type & PIXEL_CONVERT_MASK), w, h, w * 3, target_width, target_height, allocator);
     }
-
     // unknown convert type
     NCNN_LOGE("unknown convert type %d", type);
     return Mat();
@@ -2629,21 +2586,18 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
     {
         Mat dst(target_width, target_height, (size_t)3u, 3);
         resize_bilinear_c3(pixels, w, h, stride, dst, target_width, target_height, target_width * 3);
-
         return Mat::from_pixels(dst, type, target_width, target_height, allocator);
     }
     else if (type_from == PIXEL_GRAY)
     {
         Mat dst(target_width, target_height, (size_t)1u, 1);
         resize_bilinear_c1(pixels, w, h, stride, dst, target_width, target_height, target_width * 1);
-
         return Mat::from_pixels(dst, type, target_width, target_height, allocator);
     }
     else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
     {
         Mat dst(target_width, target_height, (size_t)4u, 4);
         resize_bilinear_c4(pixels, w, h, stride, dst, target_width, target_height, target_width * 4);
-
         return Mat::from_pixels(dst, type, target_width, target_height, allocator);
     }
 

@@ -1242,20 +1242,6 @@ void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsi
     unsigned char* dstUV = dst + w * h;
     resize_bilinear_c2(srcUV, srcw / 2, srch / 2, dstUV, w / 2, h / 2);
 }
-void resize_bilinear_yuv420p(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
-{
-		const unsigned char* srcY = src;
-		unsigned char* dstY = dst;
-		resize_bilinear_c1(srcY, srcw, srch, dstY, w, h);
-	
-		const unsigned char* srcU = src + srcw * srch;
-		unsigned char* dstU = dst + w * h;
-		resize_bilinear_c1(srcU, srcw / 2, srch / 2, dstU, w / 2, h / 2);
-
-		const unsigned char* srcV = src + srcw * srch + srcw * srch / 4;
-		unsigned char* dstV = dst + w * h +w * h / 4 ;
-		resize_bilinear_c1(srcV, srcw / 2, srch / 2, dstV, w / 2, h / 2);
-}
 
 #endif // NCNN_PIXEL
 
