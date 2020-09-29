@@ -24,11 +24,6 @@ Softplus::Softplus()
     support_inplace = true;
 }
 
-int Softplus::load_param(const ParamDict& pd)
-{    
-    return 0;
-}
-
 int Softplus::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
