@@ -3771,7 +3771,7 @@ int main(int argc, char** argv)
                 }
                 else if (attr.type() == 2)
                 {
-                    fprintf(stderr, "  # %s=%ld\n", attr.name().c_str(), attr.i());
+                    fprintf(stderr, "  # %s=%lld\n", attr.name().c_str(), attr.i());
                 }
                 else if (attr.type() == 3)
                 {
