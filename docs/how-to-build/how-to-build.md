@@ -6,7 +6,7 @@ $ cd ncnn
 $ git submodule update --init
 ```
 
-* [Build for Linux](#build-for-linux)
+* [Build for Linux / NVIDIA Jetson / Raspberry Pi](#build-for-linux)
 * [Build for Windows x64 using VS2017](#build-for-windows-x64-using-visual-studio-community-2017)
 * [Build for MacOSX](#build-for-macosx)
 * [Build for ARM Cortex-A family with cross-compiling](#build-for-arm-cortex-a-family-with-cross-compiling)
