@@ -112,8 +112,9 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
     group_ops.clear();
     if (channels == group && group == num_output)
     {
-        int elempack = (support_packing && opt.use_packing_layout && channels % 8 == 0) ? 8 : 1;
 #if __AVX__
+        int elempack = (support_packing && opt.use_packing_layout && channels % 8 == 0) ? 8 : 1;
+
         // pack8
         if (elempack == 8)
         {

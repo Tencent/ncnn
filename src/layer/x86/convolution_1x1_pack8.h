@@ -197,8 +197,6 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
     int h = bottom_blob.h;
     int inch = bottom_blob.c;
     int outch = top_blob.c;
-    int outw = top_blob.w;
-    int outh = top_blob.h;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
