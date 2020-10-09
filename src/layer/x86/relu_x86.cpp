@@ -33,9 +33,10 @@ int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int size = w * h;
-    int elempack = bottom_top_blob.elempack;
 
 #if __AVX__
+    int elempack = bottom_top_blob.elempack;
+
     if (elempack == 8)
     {
         if (slope == 0.f)
@@ -59,7 +60,6 @@ int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             for (int q = 0; q < channels; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
-                __m256 _zero = _mm256_set1_ps(0.f);
                 for (int i = 0; i < size; i++)
                 {
                     __m256 _p = _mm256_loadu_ps(ptr);
