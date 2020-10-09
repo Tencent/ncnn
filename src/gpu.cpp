@@ -635,7 +635,11 @@ int create_gpu_instance()
         {
             // NOTE but qcom855/qcom855plus/qcom865 are known exceptions
             // qcom adreno storage buffer without L1 cache
-            gpu_info.bug_storage_buffer_no_l1 = true;
+
+            // HACK buffer2image before image-read dependency does not work properly
+            // even promised with full image memory barrier on old adreno driver
+            // TODO figure out a proper workaround without hurt speed too much
+//             gpu_info.bug_storage_buffer_no_l1 = true;
         }
 
         if (physicalDeviceProperties.vendorID == 0x13b5
@@ -1963,11 +1967,11 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
     int cast_type_from_index;
-    if (src.elemsize == src.elempack * 4u)
+    if (src.elembits() == 32)
     {
         cast_type_from_index = 0;
     }
-    else // if (src.elemsize == src.elempack * 2u)
+    else // if (src.elembits() == 16)
     {
         if (cast_type_to_index != 0)
         {
@@ -1983,7 +1987,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
         }
     }
 
-    //     NCNN_LOGE("convert_packing b2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
+    // NCNN_LOGE("convert_packing b2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
     const ncnn::Packing_vulkan* uop = get_utility_operator(0, 0, cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt);
@@ -2001,11 +2005,11 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int d
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
     int cast_type_from_index;
-    if (src.elemsize == src.elempack * 4u)
+    if (src.elembits() == 32)
     {
         cast_type_from_index = 0;
     }
-    else // if (src.elemsize == src.elempack * 2u)
+    else // if (src.elembits() == 16)
     {
         if (cast_type_to_index != 0)
         {
@@ -2021,7 +2025,7 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int d
         }
     }
 
-    //     NCNN_LOGE("convert_packing i2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
+    // NCNN_LOGE("convert_packing i2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
     const ncnn::Packing_vulkan* uop = get_utility_operator(1, 1, cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt);
@@ -2039,11 +2043,11 @@ void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_el
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
     int cast_type_from_index;
-    if (src.elemsize == src.elempack * 4u)
+    if (src.elembits() == 32)
     {
         cast_type_from_index = 0;
     }
-    else // if (src.elemsize == src.elempack * 2u)
+    else // if (src.elembits() == 16)
     {
         if (cast_type_to_index != 0)
         {
@@ -2059,7 +2063,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_el
         }
     }
 
-    //     NCNN_LOGE("convert_packing b2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
+    // NCNN_LOGE("convert_packing b2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
     const ncnn::Packing_vulkan* uop = get_utility_operator(0, 1, cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt);
@@ -2077,11 +2081,11 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_el
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
     int cast_type_from_index;
-    if (src.elemsize == src.elempack * 4u)
+    if (src.elembits() == 32)
     {
         cast_type_from_index = 0;
     }
-    else // if (src.elemsize == src.elempack * 2u)
+    else // if (src.elembits() == 16)
     {
         if (cast_type_to_index != 0)
         {
@@ -2097,7 +2101,7 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_el
         }
     }
 
-    //     NCNN_LOGE("convert_packing i2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
+    // NCNN_LOGE("convert_packing i2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
     const ncnn::Packing_vulkan* uop = get_utility_operator(1, 0, cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt);
