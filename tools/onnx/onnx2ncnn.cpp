@@ -1728,7 +1728,7 @@ int main(int argc, char** argv)
         else
         {
             bool isBinaryOp = false;
-            if (op == "Add" || op == "Sub" || op == "Mul" || op == "Div")
+            if (op == "Add" || op == "Sub" || op == "Mul" || op == "Div" || op == "Max" || op == "Min" || op == "Pow")
             {
                 isBinaryOp = true;
             }
@@ -3771,7 +3771,7 @@ int main(int argc, char** argv)
                 }
                 else if (attr.type() == 2)
                 {
-                    fprintf(stderr, "  # %s=%ld\n", attr.name().c_str(), attr.i());
+                    fprintf(stderr, "  # %s=%lld\n", attr.name().c_str(), attr.i());
                 }
                 else if (attr.type() == 3)
                 {

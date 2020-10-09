@@ -12,33 +12,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef NCNN_DIALECT_H
-#define NCNN_DIALECT_H
+#ifndef LAYER_SOFTPLUS_H
+#define LAYER_SOFTPLUS_H
 
-#include <mlir/IR/Dialect.h>
-#include <mlir/IR/Function.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-
-namespace mlir {
+#include "layer.h"
 
 namespace ncnn {
 
-class NCNNDialect : public mlir::Dialect
+class Softplus : public Layer
 {
 public:
-    NCNNDialect(mlir::MLIRContext* context);
+    Softplus();
 
-    static StringRef getDialectNamespace()
-    {
-        return "ncnn";
-    }
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn
 
-#define GET_OP_CLASSES
-#include "ncnn_ops.h.inc"
-
-} // namespace mlir
-
-#endif // NCNN_DIALECT_H
+#endif // LAYER_SOFTPLUS_H
