@@ -42,13 +42,13 @@ int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob,
     // max value in NxN window
     // avg value in NxN window
 
+#if __AVX__
+    int elempack = bottom_blob.elempack;
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
 
-#if __AVX__
     //     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
     if (elempack == 8)
     {
@@ -290,14 +290,16 @@ int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob,
         return Pooling::forward(bottom_blob, top_blob, opt);
     }
 
-    const int kernel_size = kernel_w;
     const int stride = stride_w;
 
     if (pooling_type != PoolMethod_MAX || stride != 2 || global_pooling == 1)
     {
         return Pooling::forward(bottom_blob, top_blob, opt);
     }
+
 #if __AVX__
+    const int kernel_size = kernel_w;
+
     if (kernel_size != 2)
     {
         return Pooling::forward(bottom_blob, top_blob, opt);

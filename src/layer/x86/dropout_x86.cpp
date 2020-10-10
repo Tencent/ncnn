@@ -34,10 +34,10 @@ int Dropout_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return 0;
     }
 
+#if __AVX__
     int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
 
-#if __AVX__
     if (elempack == 8)
     {
         int w = bottom_top_blob.w;
