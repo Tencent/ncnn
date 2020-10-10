@@ -184,8 +184,8 @@ static int test_mat_pixel_affine_c4(int w, int h)
 {
     ncnn::Mat a0 = RandomMat(w, h, 4);
 
-    const float points_from[4] = {w / 2.f, h / 2.f, w / 2.f + 2.f, h / 2.f};
-    const float points_to[4] = {w / 8.f, h / 8.f, w / 8.f + 1.f, h / 8.f + 3.f};
+    const float points_from[4] = {w / 8.f, h / 8.f, w / 8.f + 1.f, h / 8.f + 3.f};
+    const float points_to[4] = {w / 2.f, h / 2.f, w / 2.f + 2.f, h / 2.f};
 
     float tm[6];
     float tm_inv[6];
