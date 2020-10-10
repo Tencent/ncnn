@@ -658,12 +658,12 @@ struct binary_op_rdiv_pack8
 
 int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if __AVX__
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& bottom_blob1 = bottom_blobs[1];
 
     Mat& top_blob = top_blobs[0];
 
-#if __AVX__
     int elempack = bottom_blob.elempack;
     int elempack1 = bottom_blob1.elempack;
 

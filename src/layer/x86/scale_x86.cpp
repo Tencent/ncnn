@@ -33,9 +33,10 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
     const Mat& scale_blob = bottom_top_blobs[1];
 
     int dims = bottom_top_blob.dims;
-    int elempack = bottom_top_blob.elempack;
 
 #if __AVX__
+    int elempack = bottom_top_blob.elempack;
+
     if (elempack == 8)
     {
         if (dims == 1)
