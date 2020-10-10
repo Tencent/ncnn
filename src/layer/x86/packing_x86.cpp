@@ -29,7 +29,6 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    bool elemtype_is_bf16 = (elemsize == 2u && elempack == 1) || (elemsize == 16u && elempack == 8);
     bool elemtype_is_fp32 = (elemsize == 4u && elempack == 1) || (elemsize == 32u && elempack == 8);
     if (use_padding)
     {
