@@ -243,7 +243,7 @@ int main()
     opts[3].use_packing_layout = true;
     opts[3].use_fp16_packed = true;
     opts[3].use_fp16_storage = true;
-    opts[3].use_fp16_arithmetic = false;// FIXME enable me
+    opts[3].use_fp16_arithmetic = false; // FIXME enable me
     opts[3].use_bf16_storage = false;
     opts[3].use_shader_pack8 = true;
     opts[3].use_image_storage = true;

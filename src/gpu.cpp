@@ -488,7 +488,7 @@ int create_gpu_instance()
 #endif // __ANDROID_API__ >= 26
 
     uint32_t instance_api_version = VK_MAKE_VERSION(1, 0, 0);
-    typedef VkResult (VKAPI_PTR *PFN_vkEnumerateInstanceVersion)(uint32_t* pApiVersion);
+    typedef VkResult(VKAPI_PTR * PFN_vkEnumerateInstanceVersion)(uint32_t * pApiVersion);
     PFN_vkEnumerateInstanceVersion vkEnumerateInstanceVersion = (PFN_vkEnumerateInstanceVersion)vkGetInstanceProcAddr(0, "vkEnumerateInstanceVersion");
     if (vkEnumerateInstanceVersion)
     {
@@ -639,7 +639,7 @@ int create_gpu_instance()
             // HACK buffer2image before image-read dependency does not work properly
             // even promised with full image memory barrier on old adreno driver
             // TODO figure out a proper workaround without hurt speed too much
-//             gpu_info.bug_storage_buffer_no_l1 = true;
+            //             gpu_info.bug_storage_buffer_no_l1 = true;
         }
 
         if (physicalDeviceProperties.vendorID == 0x13b5
