@@ -12,33 +12,36 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef NCNN_DIALECT_H
-#define NCNN_DIALECT_H
+#include "softplus.h"
 
-#include <mlir/IR/Dialect.h>
-#include <mlir/IR/Function.h>
-#include <mlir/Interfaces/SideEffectInterfaces.h>
-
-namespace mlir {
+#include <math.h>
 
 namespace ncnn {
 
-class NCNNDialect : public mlir::Dialect
+Softplus::Softplus()
 {
-public:
-    NCNNDialect(mlir::MLIRContext* context);
+    one_blob_only = true;
+    support_inplace = true;
+}
 
-    static StringRef getDialectNamespace()
+int Softplus::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    int size = w * h;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
     {
-        return "ncnn";
+        float* ptr = bottom_top_blob.channel(q);
+        for (int i = 0; i < size; i++)
+        {
+            ptr[i] = log(exp(ptr[i]) + 1.0f);
+        }
     }
-};
+
+    return 0;
+}
 
 } // namespace ncnn
-
-#define GET_OP_CLASSES
-#include "ncnn_ops.h.inc"
-
-} // namespace mlir
-
-#endif // NCNN_DIALECT_H

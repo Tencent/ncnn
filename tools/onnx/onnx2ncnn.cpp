@@ -39,7 +39,11 @@ static bool read_proto_from_binary(const char* filepath, onnx::ModelProto* messa
     google::protobuf::io::IstreamInputStream input(&fs);
     google::protobuf::io::CodedInputStream codedstr(&input);
 
+#if GOOGLE_PROTOBUF_VERSION >= 3011000
+    codedstr.SetTotalBytesLimit(INT_MAX);
+#else
     codedstr.SetTotalBytesLimit(INT_MAX, INT_MAX / 2);
+#endif
 
     bool success = message->ParseFromCodedStream(&codedstr);
 
@@ -1728,7 +1732,7 @@ int main(int argc, char** argv)
         else
         {
             bool isBinaryOp = false;
-            if (op == "Add" || op == "Sub" || op == "Mul" || op == "Div")
+            if (op == "Add" || op == "Sub" || op == "Mul" || op == "Div" || op == "Max" || op == "Min" || op == "Pow")
             {
                 isBinaryOp = true;
             }
@@ -3771,7 +3775,7 @@ int main(int argc, char** argv)
                 }
                 else if (attr.type() == 2)
                 {
-                    fprintf(stderr, "  # %s=%ld\n", attr.name().c_str(), attr.i());
+                    fprintf(stderr, "  # %s=%lld\n", attr.name().c_str(), (long long)attr.i());
                 }
                 else if (attr.type() == 3)
                 {

@@ -30,9 +30,10 @@ PReLU_x86::PReLU_x86()
 int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
-    int elempack = bottom_top_blob.elempack;
 
 #if __AVX__
+    int elempack = bottom_top_blob.elempack;
+
     if (elempack == 8)
     {
         if (dims == 1)

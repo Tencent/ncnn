@@ -168,12 +168,12 @@ int Convolution_x86::create_pipeline(const Option& opt)
         return 0;
     }
 
-    const int maxk = kernel_w * kernel_h;
-
     int elempack = (support_packing && opt.use_packing_layout && num_input % 8 == 0) ? 8 : 1;
     int out_elempack = (support_packing && opt.use_packing_layout && num_output % 8 == 0) ? 8 : 1;
 
 #if __AVX__
+    const int maxk = kernel_w * kernel_h;
+
     // pack8
     if (elempack == 8 && out_elempack == 8)
     {

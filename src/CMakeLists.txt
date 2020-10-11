@@ -31,6 +31,7 @@ set(ncnn_SRCS
     layer.cpp
     mat.cpp
     mat_pixel.cpp
+    mat_pixel_affine.cpp
     mat_pixel_resize.cpp
     mat_pixel_rotate.cpp
     modelbin.cpp
@@ -141,6 +142,7 @@ ncnn_add_layer(Swish)
 ncnn_add_layer(Gemm)
 ncnn_add_layer(GroupNorm)
 ncnn_add_layer(LayerNorm)
+ncnn_add_layer(Softplus)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)

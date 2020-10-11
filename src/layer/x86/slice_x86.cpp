@@ -69,13 +69,13 @@ int Slice_x86::destroy_pipeline(const Option& opt)
 
 int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if __AVX__
     const Mat& bottom_blob = bottom_blobs[0];
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     const int* slices_ptr = slices;
 
-#if __AVX__
     if (opt.use_packing_layout)
     {
         if (dims == 1) // axis == 0

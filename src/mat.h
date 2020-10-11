@@ -529,6 +529,8 @@ union vk_constant_type
 #if NCNN_PIXEL
 // convert yuv420sp(nv21) to rgb, the fast approximate version
 void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
+// convert yuv420sp(nv12) to rgb, the fast approximate version
+void yuv420sp2rgb_nv12(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
 // convert yuv420sp(nv21) to rgb with half resize, the faster approximate version
 void yuv420sp2rgb_half(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
 // image pixel bilinear resize
@@ -541,7 +543,7 @@ void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstr
 void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
 void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
 void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
-// image pixel bilinear resize, convenient wrapper for yuv420sp(nv21)
+// image pixel bilinear resize, convenient wrapper for yuv420sp(nv21/nv12)
 void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 #endif // NCNN_PIXEL
 #if NCNN_PIXEL_ROTATE
@@ -566,9 +568,29 @@ void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, int srcstride
 void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
 void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
 void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
-// image pixel kanna rotate, convenient wrapper for yuv420sp(nv21)
+// image pixel kanna rotate, convenient wrapper for yuv420sp(nv21/nv12)
 void kanna_rotate_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
 #endif // NCNN_PIXEL_ROTATE
+#if NCNN_PIXEL_AFFINE
+// resolve affine transform matrix from rotation angle, scale factor and x y offset
+void get_rotation_matrix(float angle, float scale, float dx, float dy, float* tm);
+// resolve affine transform matrix from two set of points, num_point must be >= 2
+void get_affine_transform(const float* points_from, const float* points_to, int num_point, float* tm);
+// resolve the inversion affine transform matrix
+void invert_affine_transform(const float* tm, float* tm_inv);
+// image pixel bilinear warpaffine, set -233 for transparent border color
+void warpaffine_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int v = 0);
+void warpaffine_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int v = 0);
+void warpaffine_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int v = 0);
+void warpaffine_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int v = 0);
+// image pixel bilinear warpaffine with stride(bytes-per-row) parameter, set -233 for transparent border color
+void warpaffine_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int v = 0);
+void warpaffine_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int v = 0);
+void warpaffine_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int v = 0);
+void warpaffine_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int v = 0);
+// image pixel bilinear warpaffine, convenient wrapper for yuv420sp(nv21/nv12), set -233 for transparent border color
+void warpaffine_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int v = 0);
+#endif // NCNN_PIXEL_AFFINE
 
 // type conversion
 // convert float to half precision floating point
