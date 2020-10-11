@@ -3,11 +3,6 @@
 
 configure_file(platform.h.in ${CMAKE_CURRENT_BINARY_DIR}/platform.h)
 
-if(NCNN_VULKAN AND NOT NCNN_VULKAN_ONLINE_SPIRV)
-    find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator PATHS $ENV{VULKAN_SDK}/bin NO_CMAKE_FIND_ROOT_PATH)
-    message(STATUS "Found glslangValidator: ${GLSLANGVALIDATOR_EXECUTABLE}")
-endif()
-
 # Add source file to list, and add to special visual folder
 function(ncnn_src_group ncnn_src_string folder)
     string(REPLACE " " ";" _ncnn_src_list ${ncnn_src_string})
@@ -214,10 +209,8 @@ if(NCNN_VULKAN)
 
     target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
 
-    if(NCNN_VULKAN_ONLINE_SPIRV)
-        target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
-        target_link_libraries(ncnn PRIVATE glslang SPIRV)
-    endif()
+    target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
+    target_link_libraries(ncnn PRIVATE glslang SPIRV)
 endif()
 
 if(ANDROID_NDK)
