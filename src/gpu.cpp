@@ -122,6 +122,32 @@ PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR = 0;
 #endif // __ANDROID_API__ >= 26
 
 // compile with old vulkan sdk
+#if VK_HEADER_VERSION < 70
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES (VkStructureType)1000094000
+typedef enum VkSubgroupFeatureFlagBits
+{
+    VK_SUBGROUP_FEATURE_BASIC_BIT = 0x00000001,
+    VK_SUBGROUP_FEATURE_VOTE_BIT = 0x00000002,
+    VK_SUBGROUP_FEATURE_ARITHMETIC_BIT = 0x00000004,
+    VK_SUBGROUP_FEATURE_BALLOT_BIT = 0x00000008,
+    VK_SUBGROUP_FEATURE_SHUFFLE_BIT = 0x00000010,
+    VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT = 0x00000020,
+    VK_SUBGROUP_FEATURE_CLUSTERED_BIT = 0x00000040,
+    VK_SUBGROUP_FEATURE_QUAD_BIT = 0x00000080,
+    VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV = 0x00000100,
+    VK_SUBGROUP_FEATURE_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF
+} VkSubgroupFeatureFlagBits;
+typedef VkFlags VkSubgroupFeatureFlags;
+typedef struct VkPhysicalDeviceSubgroupProperties
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t subgroupSize;
+    VkShaderStageFlags supportedStages;
+    VkSubgroupFeatureFlags supportedOperations;
+    VkBool32 quadOperationsInAllStages;
+} VkPhysicalDeviceSubgroupProperties;
+#endif // VK_HEADER_VERSION < 70
 #if VK_HEADER_VERSION < 80
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR (VkStructureType)1000177000
 typedef struct VkPhysicalDevice8BitStorageFeaturesKHR
@@ -761,13 +787,11 @@ int create_gpu_instance()
         {
             void* queryDeviceProperties = 0;
 
-#if VK_VERSION_1_1
             // query subgroup
             VkPhysicalDeviceSubgroupProperties physicalDeviceSubgroupProperties;
             physicalDeviceSubgroupProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
             physicalDeviceSubgroupProperties.pNext = queryDeviceProperties;
             queryDeviceProperties = &physicalDeviceSubgroupProperties;
-#endif
 
             VkPhysicalDeviceProperties2KHR queryProperties;
             queryProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
