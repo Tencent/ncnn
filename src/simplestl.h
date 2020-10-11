@@ -30,10 +30,10 @@ void* operator new(size_t sz) noexcept;
 void* operator new(size_t sz, void*) noexcept;
 void* operator new[](size_t sz) noexcept;
 void* operator new[](size_t sz, void*) noexcept;
-void operator delete(void *ptr) noexcept;
-void operator delete(void *ptr, size_t sz) noexcept;
-void operator delete[](void *ptr) noexcept;
-void operator delete[](void *ptr, size_t sz) noexcept;
+void operator delete(void* ptr)noexcept;
+void operator delete(void* ptr, size_t sz)noexcept;
+void operator delete[](void* ptr) noexcept;
+void operator delete[](void* ptr, size_t sz) noexcept;
 
 #endif
 

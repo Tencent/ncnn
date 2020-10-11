@@ -120,6 +120,13 @@ public:
     // property
     bool unified_compute_transfer_queue;
 
+    // subgroup
+    uint32_t subgroup_size;
+    bool support_subgroup_basic;
+    bool support_subgroup_vote;
+    bool support_subgroup_ballot;
+    bool support_subgroup_shuffle;
+
     // bug is not feature
     bool bug_storage_buffer_no_l1;
     bool bug_layout_binding_id_alias;
@@ -180,11 +187,6 @@ public:
     {
         return device;
     }
-
-#if !NCNN_VULKAN_ONLINE_SPIRV
-    // with fixed workgroup size
-    VkShaderModule create_shader_module(int shader_type_index, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const;
-#endif
 
     VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const;
 
@@ -323,11 +325,9 @@ private:
 
 VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());
 
-#if NCNN_VULKAN_ONLINE_SPIRV
 // online spirv compilation
 int compile_spirv_module(const char* comp_data, int comp_data_size, const Option& opt, std::vector<uint32_t>& spirv);
 int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<uint32_t>& spirv);
-#endif
 
 // info from spirv
 class ShaderInfo
@@ -344,9 +344,6 @@ public:
     int binding_types[16]; // 16 is large enough I think ...
 };
 
-#if !NCNN_VULKAN_ONLINE_SPIRV
-const ShaderInfo& get_shader_info(int shader_type_index);
-#endif
 int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderInfo& shader_info);
 
 } // namespace ncnn

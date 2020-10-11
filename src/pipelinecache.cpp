@@ -320,7 +320,6 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
 int PipelineCache::create_shader_module(int shader_type_index, const Option& opt, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
                                         VkShaderModule* _shader_module, ShaderInfo& si) const
 {
-#if NCNN_VULKAN_ONLINE_SPIRV
     std::vector<uint32_t> spirv;
     int retc = compile_spirv_module(shader_type_index, opt, spirv);
     if (retc != 0)
@@ -340,60 +339,6 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
     }
 
     VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
-#else  // NCNN_VULKAN_ONLINE_SPIRV
-    // ncnn_add_shader cmake macro
-    // 0 = fp32
-    // 1 = fp16p
-    // 2 = fp16pa
-    // 3 = fp16s
-    // 4 = fp16sa
-    // 5 = image
-    // 6 = image_fp16p
-    // 7 = image_fp16pa
-    // 8 = image_fp16s
-    // 9 = image_fp16sa
-
-    if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
-    {
-        shader_type_index += 9;
-    }
-    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
-    {
-        shader_type_index += 7;
-    }
-    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage)
-    {
-        shader_type_index += 8;
-    }
-    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed)
-    {
-        shader_type_index += 6;
-    }
-    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage)
-    {
-        shader_type_index += 5;
-    }
-    else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
-    {
-        shader_type_index += 4;
-    }
-    else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
-    {
-        shader_type_index += 2;
-    }
-    else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage)
-    {
-        shader_type_index += 3;
-    }
-    else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed)
-    {
-        shader_type_index += 1;
-    }
-
-    si = get_shader_info(shader_type_index);
-
-    VkShaderModule shader_module = vkdev->create_shader_module(shader_type_index, local_size_x, local_size_y, local_size_z);
-#endif // NCNN_VULKAN_ONLINE_SPIRV
 
     if (!shader_module)
     {

@@ -102,6 +102,12 @@ public:
 
     bool use_shader_pack8;
 
+    // subgroup option
+    bool use_subgroup_basic;
+    bool use_subgroup_vote;
+    bool use_subgroup_ballot;
+    bool use_subgroup_shuffle;
+
     // turn on for adreno
     bool use_image_storage;
 
