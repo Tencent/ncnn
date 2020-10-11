@@ -20,10 +20,8 @@
 #include <string.h>
 #include <vulkan/vulkan.h>
 
-#if NCNN_VULKAN_ONLINE_SPIRV
 #include "glslang/SPIRV/GlslangToSpv.h"
 #include "glslang/glslang/Public/ShaderLang.h"
-#endif
 
 #include "command.h"
 #include "layer.h"
@@ -72,30 +70,17 @@ static GpuInfo g_gpu_infos[NCNN_MAX_GPU_COUNT];
 static Mutex g_default_vkdev_lock;
 static VulkanDevice* g_default_vkdev[NCNN_MAX_GPU_COUNT] = {0};
 
-// precompiled spirv
-#if NCNN_VULKAN_ONLINE_SPIRV
 struct layer_shader_registry_entry
 {
     const char* comp_data;
     int comp_data_size;
 };
-#else
-struct layer_shader_registry_entry
-{
-    const uint32_t* spv_data;
-    size_t spv_data_size;
-};
-#endif
 
 #include "layer_shader_spv_data.h"
 
 static const layer_shader_registry_entry layer_shader_registry[] = {
 #include "layer_shader_registry.h"
 };
-
-#if !NCNN_VULKAN_ONLINE_SPIRV
-static ShaderInfo layer_shader_infos[sizeof(layer_shader_registry) / sizeof(layer_shader_registry_entry)];
-#endif
 
 static const int layer_shader_registry_entry_count = sizeof(layer_shader_registry) / sizeof(layer_shader_registry_entry);
 
@@ -523,7 +508,7 @@ int create_gpu_instance()
     applicationInfo.pApplicationName = "ncnn";
     applicationInfo.applicationVersion = 0;
     applicationInfo.pEngineName = "ncnn";
-    applicationInfo.engineVersion = 20200909;
+    applicationInfo.engineVersion = 20201010;
     applicationInfo.apiVersion = instance_api_version;
 
     VkInstanceCreateInfo instanceCreateInfo;
@@ -1007,15 +992,7 @@ int create_gpu_instance()
     // the default gpu device
     g_default_gpu_index = find_default_vulkan_device_index();
 
-#if NCNN_VULKAN_ONLINE_SPIRV
     glslang::InitializeProcess();
-#else
-    // resolve shader info
-    for (int i = 0; i < layer_shader_registry_entry_count; i++)
-    {
-        resolve_shader_info(layer_shader_registry[i].spv_data, layer_shader_registry[i].spv_data_size, layer_shader_infos[i]);
-    }
-#endif
 
     return 0;
 }
@@ -1029,9 +1006,7 @@ void destroy_gpu_instance()
 
     // NCNN_LOGE("destroy_gpu_instance");
 
-#if NCNN_VULKAN_ONLINE_SPIRV
     glslang::FinalizeProcess();
-#endif
 
     for (int i = 0; i < NCNN_MAX_GPU_COUNT; i++)
     {
@@ -1342,22 +1317,6 @@ VulkanDevice::~VulkanDevice()
 
     vkDestroyDevice(device, 0);
 }
-
-#if !NCNN_VULKAN_ONLINE_SPIRV
-VkShaderModule VulkanDevice::create_shader_module(int shader_type_index, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const
-{
-    if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
-    {
-        NCNN_LOGE("no such shader module %d", shader_type_index);
-        return 0;
-    }
-
-    const uint32_t* spv_data = layer_shader_registry[shader_type_index].spv_data;
-    size_t spv_data_size = layer_shader_registry[shader_type_index].spv_data_size;
-
-    return compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
-}
-#endif
 
 VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const
 {
@@ -2502,8 +2461,6 @@ VulkanDevice* get_gpu_device(int device_index)
     return g_default_vkdev[device_index];
 }
 
-#if NCNN_VULKAN_ONLINE_SPIRV
-
 static TBuiltInResource get_default_TBuiltInResource()
 {
     TBuiltInResource resource;
@@ -3071,20 +3028,6 @@ int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<u
 
     return compile_spirv_module(comp_data, comp_data_size, opt, spirv);
 }
-#endif
-
-#if !NCNN_VULKAN_ONLINE_SPIRV
-const ShaderInfo& get_shader_info(int shader_type_index)
-{
-    if (shader_type_index < 0 || shader_type_index >= layer_shader_registry_entry_count)
-    {
-        NCNN_LOGE("no such shader module %d", shader_type_index);
-        return layer_shader_infos[0];
-    }
-
-    return layer_shader_infos[shader_type_index];
-}
-#endif
 
 int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderInfo& shader_info)
 {

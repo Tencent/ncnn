@@ -25,7 +25,6 @@
 #cmakedefine01 NCNN_PIXEL_ROTATE
 #cmakedefine01 NCNN_PIXEL_AFFINE
 #cmakedefine01 NCNN_VULKAN
-#cmakedefine01 NCNN_VULKAN_ONLINE_SPIRV
 #cmakedefine01 NCNN_REQUANT
 #cmakedefine01 NCNN_RUNTIME_CPU
 #cmakedefine01 NCNN_AVX2
