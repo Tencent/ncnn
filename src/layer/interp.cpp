@@ -408,7 +408,6 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
 
     int outh = output_height;
     int outw = output_width;
@@ -416,7 +415,6 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
     {
         h = 1;
         w = 1;
-        channels = bottom_blob.w;
     }
     if (outh == 0 || outw == 0)
     {
