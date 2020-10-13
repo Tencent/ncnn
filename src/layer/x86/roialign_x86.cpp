@@ -264,7 +264,7 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         int roi_bin_grid_h = (int)(sampling_ratio > 0 ? sampling_ratio : ceil(roi_height / pooled_height));
         int roi_bin_grid_w = (int)(sampling_ratio > 0 ? sampling_ratio : ceil(roi_width / pooled_width));
         std::vector<PreCalc<float> > pre_calc(
-            roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
+            (size_t)roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
         original_pre_calc_for_bilinear_interpolate(
             height,
             width,
@@ -333,7 +333,7 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         const float count = (float)std::max(roi_bin_grid_h * roi_bin_grid_w, 1);
 
         std::vector<PreCalc<float> > pre_calc(
-            roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
+            (size_t)roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
         detectron2_pre_calc_for_bilinear_interpolate(
             height,
             width,
