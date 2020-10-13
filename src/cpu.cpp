@@ -412,8 +412,11 @@ static int get_max_freq_khz(int cpuid)
                 return -1;
 
             int max_freq_khz = -1;
-            fscanf(fp, "%d", &max_freq_khz);
-
+            int nscan = fscanf(fp, "%d", &max_freq_khz);
+            if (nscan != 1)
+            {
+                NCNN_LOGE("fscanf cpuinfo_max_freq error %d", nscan);
+            }
             fclose(fp);
 
             return max_freq_khz;
