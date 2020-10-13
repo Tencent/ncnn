@@ -1612,7 +1612,7 @@ void VkStagingAllocator::fastFree(VkBufferMemory* ptr)
     buffer_budgets.push_back(ptr);
 }
 
-VkImageMemory* VkStagingAllocator::fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack)
+VkImageMemory* VkStagingAllocator::fastMalloc(int dims, int w, int h, int c, size_t elemsize, int /* elempack */)
 {
     // staging image is mainly used for storing small piece of dynamic parameters
     // we allocate host memory as a fake image, it's simple and good
