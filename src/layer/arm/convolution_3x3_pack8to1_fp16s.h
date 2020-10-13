@@ -133,7 +133,7 @@ static void conv3x3s1_winograd64_pack8to1_fp16sa_neon(const Mat& bottom_blob, Ma
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int inch = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
+    //size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
     int outw = top_blob.w;
