@@ -263,7 +263,6 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
 
     int outh = output_height;
     int outw = output_width;
@@ -294,7 +293,6 @@ int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, 
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
 
     int outh = output_height;
     int outw = output_width;
