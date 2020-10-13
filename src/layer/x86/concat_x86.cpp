@@ -29,6 +29,7 @@ Concat_x86::Concat_x86()
 
 int Concat_x86::create_pipeline(const Option& opt)
 {
+    UNUSED(opt);
 #if __AVX__
     if (opt.use_packing_layout)
     {
@@ -48,6 +49,7 @@ int Concat_x86::create_pipeline(const Option& opt)
 
 int Concat_x86::destroy_pipeline(const Option& opt)
 {
+    UNUSED(opt);
 #if __AVX__
     if (opt.use_packing_layout)
     {
