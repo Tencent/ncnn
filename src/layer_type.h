@@ -15,8 +15,6 @@
 #ifndef NCNN_LAYER_TYPE_H
 #define NCNN_LAYER_TYPE_H
 
-#define UNUSED(x) (void)x 
-
 namespace ncnn {
 
 namespace LayerType {
