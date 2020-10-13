@@ -84,7 +84,7 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     size_t elemsize = bottom_blob.elemsize;
 
     int _woffset, _hoffset, _coffset;
-    int _outw= -1, _outh= -1, _outc;
+    int _outw = -1, _outh = -1, _outc;
     resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
 
     if (dims == 1)
@@ -154,7 +154,7 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < _outc; q++)
         {
             const Mat m = bottom_blob_sliced.channel(q);
@@ -265,7 +265,7 @@ int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < _outc; q++)
         {
             const Mat m = bottom_blob_sliced.channel(q);
