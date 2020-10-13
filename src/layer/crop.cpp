@@ -84,7 +84,7 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     size_t elemsize = bottom_blob.elemsize;
 
     int _woffset, _hoffset, _coffset;
-    int _outw, _outh, _outc;
+    int _outw = -1, _outh = -1, _outc;
     resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
 
     if (dims == 1)
