@@ -828,13 +828,14 @@ void load_weights(const char* filename, std::deque<Section*>& dnet)
             }
 
             if (s->layer_type == "Convolution")
-                read_to(s->weights, s->c * s->filters * s->size * s->size, fp);
+                read_to(s->weights, (size_t)(s->c) * s->filters * s->size * s->size, fp);
             else if (s->layer_type == "ConvolutionDepthWise")
                 read_to(s->weights, s->c * s->filters * s->size * s->size / s->groups, fp);
         }
     }
 
-    fclose(fp);
+    if (fp != NULL)
+        fclose(fp);
 }
 
 int count_output_blob(std::deque<Section*>& dnet)
