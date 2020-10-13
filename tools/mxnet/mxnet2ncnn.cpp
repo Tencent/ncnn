@@ -1,4 +1,4 @@
-// Tencent is pleased to support the open source community by making ncnn available.
+﻿// Tencent is pleased to support the open source community by making ncnn available.
 //
 // Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
 //
@@ -176,7 +176,7 @@ std::vector<int> MXNetNode::attr_ai(const char* key) const
     int i = 0;
     int c = 0;
     int nconsumed = 0;
-    int nscan = sscanf(it->second.c_str() + c, "%*[\[(,]%d%n", &i, &nconsumed);
+    int nscan = sscanf(it->second.c_str() + c, "%*[\\[(,]%d%n", &i, &nconsumed);
     if (nscan != 1)
     {
         // (None
@@ -261,9 +261,9 @@ bool MXNetNode::has_weight(int i) const
 
     const std::string& name = (*nodes)[weights[i]].name;
 
-    for (int i = 0; i < (int)(*params).size(); i++)
+    for (int j = 0; j < (int)(*params).size(); j++)
     {
-        const MXNetParam& p = (*params)[i];
+        const MXNetParam& p = (*params)[j];
         if (p.name == name)
             return true;
     }
@@ -278,9 +278,9 @@ std::vector<float> MXNetNode::weight(int i, int init_len) const
 
     const std::string& name = (*nodes)[weights[i]].name;
 
-    for (int i = 0; i < (int)(*params).size(); i++)
+    for (int j = 0; j < (int)(*params).size(); j++)
     {
-        const MXNetParam& p = (*params)[i];
+        const MXNetParam& p = (*params)[j];
         if (p.name != name)
             continue;
 
