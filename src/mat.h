@@ -711,13 +711,13 @@ inline Mat::Mat(int _w, void* _data, size_t _elemsize, Allocator* _allocator)
 inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(2), w(_w), h(_h), c(1)
 {
-    cstep = w * h;
+    cstep = (size_t)w * h;
 }
 
 inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(3), w(_w), h(_h), c(_c)
 {
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 inline Mat::Mat(int _w, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
@@ -729,13 +729,13 @@ inline Mat::Mat(int _w, void* _data, size_t _elemsize, int _elempack, Allocator*
 inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), c(1)
 {
-    cstep = w * h;
+    cstep = (size_t)w * h;
 }
 
 inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(3), w(_w), h(_h), c(_c)
 {
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 inline Mat::~Mat()
@@ -987,8 +987,8 @@ inline Mat Mat::reshape(int _w, Allocator* _allocator) const
         for (int i = 0; i < c; i++)
         {
             const void* ptr = (unsigned char*)data + i * cstep * elemsize;
-            void* mptr = (unsigned char*)m.data + i * w * h * elemsize;
-            memcpy(mptr, ptr, w * h * elemsize);
+            void* mptr = (unsigned char*)m.data + (size_t)i * w * h * elemsize;
+            memcpy(mptr, ptr, (size_t)w * h * elemsize);
         }
 
         return m;
@@ -1020,8 +1020,8 @@ inline Mat Mat::reshape(int _w, int _h, Allocator* _allocator) const
         for (int i = 0; i < c; i++)
         {
             const void* ptr = (unsigned char*)data + i * cstep * elemsize;
-            void* mptr = (unsigned char*)m.data + i * w * h * elemsize;
-            memcpy(mptr, ptr, w * h * elemsize);
+            void* mptr = (unsigned char*)m.data + (size_t)i * w * h * elemsize;
+            memcpy(mptr, ptr, (size_t)w * h * elemsize);
         }
 
         return m;
@@ -1034,7 +1034,7 @@ inline Mat Mat::reshape(int _w, int _h, Allocator* _allocator) const
     m.h = _h;
     m.c = 1;
 
-    m.cstep = _w * _h;
+    m.cstep = (size_t)_w * _h;
 
     return m;
 }
@@ -1046,7 +1046,7 @@ inline Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
 
     if (dims < 3)
     {
-        if ((size_t)_w * _h != alignSize(_w * _h * elemsize, 16) / elemsize)
+        if ((size_t)_w * _h != alignSize((size_t)_w * _h * elemsize, 16) / elemsize)
         {
             Mat m;
             m.create(_w, _h, _c, elemsize, elempack, _allocator);
@@ -1054,9 +1054,9 @@ inline Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
             // align channel
             for (int i = 0; i < _c; i++)
             {
-                const void* ptr = (unsigned char*)data + i * _w * _h * elemsize;
+                const void* ptr = (unsigned char*)data + (size_t)i * _w * _h * elemsize;
                 void* mptr = (unsigned char*)m.data + i * m.cstep * m.elemsize;
-                memcpy(mptr, ptr, _w * _h * elemsize);
+                memcpy(mptr, ptr, (size_t)_w * _h * elemsize);
             }
 
             return m;
@@ -1076,7 +1076,7 @@ inline Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
     m.h = _h;
     m.c = _c;
 
-    m.cstep = alignSize(_w * _h * elemsize, 16) / elemsize;
+    m.cstep = alignSize((size_t)_w * _h * elemsize, 16) / elemsize;
 
     return m;
 }
@@ -1127,7 +1127,7 @@ inline void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
     h = _h;
     c = 1;
 
-    cstep = w * h;
+    cstep = (size_t)w * h;
 
     if (total() > 0)
     {
@@ -1157,7 +1157,7 @@ inline void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _al
     h = _h;
     c = _c;
 
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -1217,7 +1217,7 @@ inline void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocat
     h = _h;
     c = 1;
 
-    cstep = w * h;
+    cstep = (size_t)w * h;
 
     if (total() > 0)
     {
@@ -1247,7 +1247,7 @@ inline void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack,
     h = _h;
     c = _c;
 
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -1366,24 +1366,24 @@ inline const Mat Mat::channel(int _c) const
 
 inline float* Mat::row(int y)
 {
-    return (float*)((unsigned char*)data + w * y * elemsize);
+    return (float*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
 inline const float* Mat::row(int y) const
 {
-    return (const float*)((unsigned char*)data + w * y * elemsize);
+    return (const float*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
 template<typename T>
 inline T* Mat::row(int y)
 {
-    return (T*)((unsigned char*)data + w * y * elemsize);
+    return (T*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
 template<typename T>
 inline const T* Mat::row(int y) const
 {
-    return (const T*)((unsigned char*)data + w * y * elemsize);
+    return (const T*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
 inline Mat Mat::channel_range(int _c, int channels)
@@ -1398,12 +1398,12 @@ inline const Mat Mat::channel_range(int _c, int channels) const
 
 inline Mat Mat::row_range(int y, int rows)
 {
-    return Mat(w, rows, (unsigned char*)data + w * y * elemsize, elemsize, elempack, allocator);
+    return Mat(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
 }
 
 inline const Mat Mat::row_range(int y, int rows) const
 {
-    return Mat(w, rows, (unsigned char*)data + w * y * elemsize, elemsize, elempack, allocator);
+    return Mat(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
 }
 
 inline Mat Mat::range(int x, int n)
