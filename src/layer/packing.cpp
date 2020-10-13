@@ -109,7 +109,7 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < outh; i++)
         {
-            unsigned char* outptr = (unsigned char*)top_blob + (int)i * w * out_elemsize;
+            unsigned char* outptr = (unsigned char*)top_blob + (size_t)i * w * out_elemsize;
 
             for (int j = 0; j < w; j++)
             {
