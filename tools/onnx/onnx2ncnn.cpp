@@ -337,7 +337,7 @@ static void fuse_matmul(onnx::GraphProto* mutable_graph, std::map<std::string, o
                 const int w = B.dims(1);
 
                 std::vector<float> permuted_data;
-                permuted_data.reserve(h * w);
+                permuted_data.reserve((size_t)h * w);
                 const float* bptr = B.has_raw_data() ? (const float*)B.raw_data().data() : B.float_data().data();
 
                 for (int j = 0; j < w; j++)
