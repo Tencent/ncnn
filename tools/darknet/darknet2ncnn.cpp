@@ -834,8 +834,7 @@ void load_weights(const char* filename, std::deque<Section*>& dnet)
         }
     }
 
-    if (fp != NULL)
-        fclose(fp);
+    fclose(fp);
 }
 
 int count_output_blob(std::deque<Section*>& dnet)
