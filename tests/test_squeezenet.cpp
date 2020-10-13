@@ -97,6 +97,16 @@ static int check_top3(const std::vector<float>& cls_scores, float epsilon = 0.00
     return 0;
 }
 
+static void fread_or_error(void* buffer, size_t size, size_t count, FILE* fp, const char* s)
+{
+    if (count != fread(buffer, size, count, fp))
+    {
+        fprintf(stderr, "Couldn't read from file: %s\n", s);
+        fclose(fp);
+        exit(EXIT_FAILURE);
+    }
+}
+
 static std::string read_file_string(const char* filepath)
 {
     FILE* fp = fopen(filepath, "rb");
@@ -113,7 +123,7 @@ static std::string read_file_string(const char* filepath)
     std::string s;
     s.resize(len + 1); // +1 for '\0'
 
-    fread((char*)s.c_str(), 1, len, fp);
+    fread_or_error((char*)s.c_str(), 1, len, fp, filepath);
     fclose(fp);
 
     s[len] = '\0';
@@ -136,7 +146,7 @@ static ncnn::Mat read_file_content(const char* filepath)
 
     ncnn::Mat m(len, (size_t)1u, 1);
 
-    fread(m, 1, len, fp);
+    fread_or_error(m, 1, len, fp, filepath);
     fclose(fp);
 
     return m;
