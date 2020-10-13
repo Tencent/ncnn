@@ -1,4 +1,4 @@
-// Tencent is pleased to support the open source community by making ncnn available.
+﻿// Tencent is pleased to support the open source community by making ncnn available.
 //
 // Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
 //
@@ -60,7 +60,7 @@ void get_affine_transform(const float* points_from, const float* points_to, int 
     ma[1][1] = ma[0][0];
     ma[2][1] = ma[1][2] = -ma[0][3];
     ma[3][1] = ma[1][3] = ma[2][0] = ma[0][2];
-    ma[2][2] = ma[3][3] = num_point;
+    ma[2][2] = ma[3][3] = (float)num_point;
     ma[3][0] = ma[0][3];
 
     // MM = inv(A) * B
@@ -208,7 +208,7 @@ void warpaffine_bilinear_c1(const unsigned char* src, int srcw, int srch, int sr
                 const unsigned char* b0 = src0 + srcstride * (sy + 1) + sx;
                 const unsigned char* b1 = src0 + srcstride * (sy + 1) + sx + 1;
 
-                *dst0 = (*a0 * (1.f - fx) + *a1 * fx) * (1.f - fy) + (*b0 * (1.f - fx) + *b1 * fx) * fy;
+                *dst0 = (unsigned char)((*a0 * (1.f - fx) + *a1 * fx) * (1.f - fy) + (*b0 * (1.f - fx) + *b1 * fx) * fy);
             }
 
             dst0 += 1;
@@ -257,8 +257,8 @@ void warpaffine_bilinear_c2(const unsigned char* src, int srcw, int srch, int sr
                 const unsigned char* b0 = src0 + srcstride * (sy + 1) + sx * 2;
                 const unsigned char* b1 = src0 + srcstride * (sy + 1) + sx * 2 + 2;
 
-                dst0[0] = (a0[0] * (1.f - fx) + a1[0] * fx) * (1.f - fy) + (b0[0] * (1.f - fx) + b1[0] * fx) * fy;
-                dst0[1] = (a0[1] * (1.f - fx) + a1[1] * fx) * (1.f - fy) + (b0[1] * (1.f - fx) + b1[1] * fx) * fy;
+                dst0[0] = (unsigned char)((a0[0] * (1.f - fx) + a1[0] * fx) * (1.f - fy) + (b0[0] * (1.f - fx) + b1[0] * fx) * fy);
+                dst0[1] = (unsigned char)((a0[1] * (1.f - fx) + a1[1] * fx) * (1.f - fy) + (b0[1] * (1.f - fx) + b1[1] * fx) * fy);
             }
 
             dst0 += 2;
@@ -308,9 +308,9 @@ void warpaffine_bilinear_c3(const unsigned char* src, int srcw, int srch, int sr
                 const unsigned char* b0 = src0 + srcstride * (sy + 1) + sx * 3;
                 const unsigned char* b1 = src0 + srcstride * (sy + 1) + sx * 3 + 3;
 
-                dst0[0] = (a0[0] * (1.f - fx) + a1[0] * fx) * (1.f - fy) + (b0[0] * (1.f - fx) + b1[0] * fx) * fy;
-                dst0[1] = (a0[1] * (1.f - fx) + a1[1] * fx) * (1.f - fy) + (b0[1] * (1.f - fx) + b1[1] * fx) * fy;
-                dst0[2] = (a0[2] * (1.f - fx) + a1[2] * fx) * (1.f - fy) + (b0[2] * (1.f - fx) + b1[2] * fx) * fy;
+                dst0[0] = (unsigned char)((a0[0] * (1.f - fx) + a1[0] * fx) * (1.f - fy) + (b0[0] * (1.f - fx) + b1[0] * fx) * fy);
+                dst0[1] = (unsigned char)((a0[1] * (1.f - fx) + a1[1] * fx) * (1.f - fy) + (b0[1] * (1.f - fx) + b1[1] * fx) * fy);
+                dst0[2] = (unsigned char)((a0[2] * (1.f - fx) + a1[2] * fx) * (1.f - fy) + (b0[2] * (1.f - fx) + b1[2] * fx) * fy);
             }
 
             dst0 += 3;
@@ -361,10 +361,10 @@ void warpaffine_bilinear_c4(const unsigned char* src, int srcw, int srch, int sr
                 const unsigned char* b0 = src0 + srcstride * (sy + 1) + sx * 4;
                 const unsigned char* b1 = src0 + srcstride * (sy + 1) + sx * 4 + 4;
 
-                dst0[0] = (a0[0] * (1.f - fx) + a1[0] * fx) * (1.f - fy) + (b0[0] * (1.f - fx) + b1[0] * fx) * fy;
-                dst0[1] = (a0[1] * (1.f - fx) + a1[1] * fx) * (1.f - fy) + (b0[1] * (1.f - fx) + b1[1] * fx) * fy;
-                dst0[2] = (a0[2] * (1.f - fx) + a1[2] * fx) * (1.f - fy) + (b0[2] * (1.f - fx) + b1[2] * fx) * fy;
-                dst0[3] = (a0[3] * (1.f - fx) + a1[3] * fx) * (1.f - fy) + (b0[3] * (1.f - fx) + b1[3] * fx) * fy;
+                dst0[0] = (unsigned char)((a0[0] * (1.f - fx) + a1[0] * fx) * (1.f - fy) + (b0[0] * (1.f - fx) + b1[0] * fx) * fy);
+                dst0[1] = (unsigned char)((a0[1] * (1.f - fx) + a1[1] * fx) * (1.f - fy) + (b0[1] * (1.f - fx) + b1[1] * fx) * fy);
+                dst0[2] = (unsigned char)((a0[2] * (1.f - fx) + a1[2] * fx) * (1.f - fy) + (b0[2] * (1.f - fx) + b1[2] * fx) * fy);
+                dst0[3] = (unsigned char)((a0[3] * (1.f - fx) + a1[3] * fx) * (1.f - fy) + (b0[3] * (1.f - fx) + b1[3] * fx) * fy);
             }
 
             dst0 += 4;

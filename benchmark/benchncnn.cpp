@@ -1,4 +1,4 @@
-// Tencent is pleased to support the open source community by making ncnn available.
+﻿// Tencent is pleased to support the open source community by making ncnn available.
 //
 // Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
 //
@@ -11,6 +11,10 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
+
+#ifdef _WIN32
+#define _CRT_SECURE_NO_WARNINGS
+#endif
 
 #include <float.h>
 #include <stdio.h>
