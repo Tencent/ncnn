@@ -43,6 +43,8 @@ int Reshape_x86::create_pipeline(const Option& opt)
 
         flatten->create_pipeline(opt);
     }
+#else
+    (void)(opt);
 #endif // __AVX__
 
     return 0;

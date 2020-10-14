@@ -41,6 +41,8 @@ int Concat_x86::create_pipeline(const Option& opt)
 
         packing_pack8->create_pipeline(opt);
     }
+#else
+    (void)(opt);
 #endif // __AVX__
 
     return 0;
@@ -58,6 +60,8 @@ int Concat_x86::destroy_pipeline(const Option& opt)
             packing_pack8 = 0;
         }
     }
+#else
+    (void)(opt);
 #endif // __AVX__
 
     return 0;
