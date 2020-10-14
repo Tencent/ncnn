@@ -78,7 +78,6 @@ int Interp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     int h = bottom_blob.h;
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
-    int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
@@ -271,7 +270,6 @@ int Interp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
     int h = bottom_blob.h;
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
-    int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
@@ -461,7 +459,6 @@ int Interp_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector
     int h = bottom_blob.h;
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
-    int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
@@ -737,7 +734,6 @@ int Interp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
     int h = bottom_blob.h;
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
-    int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
