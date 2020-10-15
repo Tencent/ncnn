@@ -102,7 +102,7 @@ cmake -DNCNN_SIMPLESTL=ON ..
 ### drop optimized kernel not used
 
 * Modify the source code under `ncnn/src/layer/arm/` to delete unnecessary optimized kernels or replace them with empty functions.
-* You can also drop layers and related optimized kernels by `-DWITH_LAYER_ABSVAL=OFF` as mentioned above.
+* You can also drop layers and related optimized kernels by `-DWITH_LAYER_absval=OFF` as mentioned above.
 
 ### drop operators from BinaryOp UnaryOp
 
