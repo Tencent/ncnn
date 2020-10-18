@@ -40,11 +40,7 @@ layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 #if NCNN_image_shader
-layout (binding = 2) uniform unfp sampler1D bottom_blob_1d;
-layout (binding = 2) uniform unfp sampler2D bottom_blob_2d;
 layout (binding = 2) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 3, imfmtc1) writeonly uniform unfp image1D top_blob_1d;
-layout (binding = 3, imfmtc1) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 3, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
 #endif
 
@@ -85,7 +81,7 @@ void main()
 #if NCNN_image_shader
         if (storage_type_from == 1)
         {
-            v = image1d_ld4(bottom_blob_1d, gx);
+            v = image3d_ld4(bottom_blob_3d, ivec3(gx, 0, 0));
         }
 #endif
 
@@ -105,10 +101,10 @@ void main()
         {
             int x4 = gx * 4;
 
-            image1d_st1(top_blob_1d, x4 + 0, v.r);
-            image1d_st1(top_blob_1d, x4 + 1, v.g);
-            image1d_st1(top_blob_1d, x4 + 2, v.b);
-            image1d_st1(top_blob_1d, x4 + 3, v.a);
+            image3d_st1(top_blob_3d, ivec3(x4 + 0, 0, 0), v.r);
+            image3d_st1(top_blob_3d, ivec3(x4 + 1, 0, 0), v.g);
+            image3d_st1(top_blob_3d, ivec3(x4 + 2, 0, 0), v.b);
+            image3d_st1(top_blob_3d, ivec3(x4 + 3, 0, 0), v.a);
         }
 #endif
     }
@@ -123,7 +119,7 @@ void main()
 #if NCNN_image_shader
         if (storage_type_from == 1)
         {
-            v = image2d_ld4(bottom_blob_2d, ivec2(gx, gy));
+            v = image3d_ld4(bottom_blob_3d, ivec3(gx, gy, 0));
         }
 #endif
 
@@ -143,10 +139,10 @@ void main()
         {
             int y4 = gy * 4;
 
-            image2d_st1(top_blob_2d, ivec2(gx, y4 + 0), v.r);
-            image2d_st1(top_blob_2d, ivec2(gx, y4 + 1), v.g);
-            image2d_st1(top_blob_2d, ivec2(gx, y4 + 2), v.b);
-            image2d_st1(top_blob_2d, ivec2(gx, y4 + 3), v.a);
+            image3d_st1(top_blob_3d, ivec3(gx, y4 + 0, 0), v.r);
+            image3d_st1(top_blob_3d, ivec3(gx, y4 + 1, 0), v.g);
+            image3d_st1(top_blob_3d, ivec3(gx, y4 + 2, 0), v.b);
+            image3d_st1(top_blob_3d, ivec3(gx, y4 + 3, 0), v.a);
         }
 #endif
     }

@@ -38,11 +38,7 @@ layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler1D bottom_blob_1d;
-layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image1D top_blob_1d;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
@@ -75,104 +71,88 @@ void main()
     if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
-#if NCNN_image_shader
-    if (psc(dims) == 1)
-    {
-        afpvec8 v = image1d_ld8(bottom_blob_1d, gx);
-
-        int gx8 = gx * 8 + p.offset;
-
-        image1d_st1(top_blob_1d, gx8 + 0, v[0].r);
-        image1d_st1(top_blob_1d, gx8 + 1, v[0].g);
-        image1d_st1(top_blob_1d, gx8 + 2, v[0].b);
-        image1d_st1(top_blob_1d, gx8 + 3, v[0].a);
-        image1d_st1(top_blob_1d, gx8 + 4, v[1].r);
-        image1d_st1(top_blob_1d, gx8 + 5, v[1].g);
-        image1d_st1(top_blob_1d, gx8 + 6, v[1].b);
-        image1d_st1(top_blob_1d, gx8 + 7, v[1].a);
-    }
-    else if (psc(dims) == 2)
-    {
-        afpvec8 v = image2d_ld8(bottom_blob_2d, ivec2(gx, gy));
-
-        if (axis == 0)
-        {
-            int gy8 = gy * 8 + p.offset;
-
-            image2d_st1(top_blob_2d, ivec2(gx, gy8 + 0), v[0].r);
-            image2d_st1(top_blob_2d, ivec2(gx, gy8 + 1), v[0].g);
-            image2d_st1(top_blob_2d, ivec2(gx, gy8 + 2), v[0].b);
-            image2d_st1(top_blob_2d, ivec2(gx, gy8 + 3), v[0].a);
-            image2d_st1(top_blob_2d, ivec2(gx, gy8 + 4), v[1].r);
-            image2d_st1(top_blob_2d, ivec2(gx, gy8 + 5), v[1].g);
-            image2d_st1(top_blob_2d, ivec2(gx, gy8 + 6), v[1].b);
-            image2d_st1(top_blob_2d, ivec2(gx, gy8 + 7), v[1].a);
-        }
-        if (axis == 1)
-        {
-            int gx8 = gx * 8 + p.offset;
-
-            image2d_st1(top_blob_2d, ivec2(gx8 + 0, gy), v[0].r);
-            image2d_st1(top_blob_2d, ivec2(gx8 + 1, gy), v[0].g);
-            image2d_st1(top_blob_2d, ivec2(gx8 + 2, gy), v[0].b);
-            image2d_st1(top_blob_2d, ivec2(gx8 + 3, gy), v[0].a);
-            image2d_st1(top_blob_2d, ivec2(gx8 + 4, gy), v[1].r);
-            image2d_st1(top_blob_2d, ivec2(gx8 + 5, gy), v[1].g);
-            image2d_st1(top_blob_2d, ivec2(gx8 + 6, gy), v[1].b);
-            image2d_st1(top_blob_2d, ivec2(gx8 + 7, gy), v[1].a);
-        }
-    }
-    else // if (psc(dims) == 3)
-    {
-        afpvec8 v = image3d_ld8(bottom_blob_3d, ivec3(gx, gy, gz));
-
-        if (axis == 0)
-        {
-            int gz8 = gz * 8 + p.offset;
-
-            image3d_st1(top_blob_3d, ivec3(gx, gy, gz8 + 0), v[0].r);
-            image3d_st1(top_blob_3d, ivec3(gx, gy, gz8 + 1), v[0].g);
-            image3d_st1(top_blob_3d, ivec3(gx, gy, gz8 + 2), v[0].b);
-            image3d_st1(top_blob_3d, ivec3(gx, gy, gz8 + 3), v[0].a);
-            image3d_st1(top_blob_3d, ivec3(gx, gy, gz8 + 4), v[1].r);
-            image3d_st1(top_blob_3d, ivec3(gx, gy, gz8 + 5), v[1].g);
-            image3d_st1(top_blob_3d, ivec3(gx, gy, gz8 + 6), v[1].b);
-            image3d_st1(top_blob_3d, ivec3(gx, gy, gz8 + 7), v[1].a);
-        }
-        if (axis == 1)
-        {
-            int gy8 = gy * 8 + p.offset;
-
-            image3d_st1(top_blob_3d, ivec3(gx, gy8 + 0, gz), v[0].r);
-            image3d_st1(top_blob_3d, ivec3(gx, gy8 + 1, gz), v[0].g);
-            image3d_st1(top_blob_3d, ivec3(gx, gy8 + 2, gz), v[0].b);
-            image3d_st1(top_blob_3d, ivec3(gx, gy8 + 3, gz), v[0].a);
-            image3d_st1(top_blob_3d, ivec3(gx, gy8 + 4, gz), v[1].r);
-            image3d_st1(top_blob_3d, ivec3(gx, gy8 + 5, gz), v[1].g);
-            image3d_st1(top_blob_3d, ivec3(gx, gy8 + 6, gz), v[1].b);
-            image3d_st1(top_blob_3d, ivec3(gx, gy8 + 7, gz), v[1].a);
-        }
-        if (axis == 2)
-        {
-            int gx8 = gx * 8 + p.offset;
-
-            image3d_st1(top_blob_3d, ivec3(gx8 + 0, gy, gz), v[0].r);
-            image3d_st1(top_blob_3d, ivec3(gx8 + 1, gy, gz), v[0].g);
-            image3d_st1(top_blob_3d, ivec3(gx8 + 2, gy, gz), v[0].b);
-            image3d_st1(top_blob_3d, ivec3(gx8 + 3, gy, gz), v[0].a);
-            image3d_st1(top_blob_3d, ivec3(gx8 + 4, gy, gz), v[1].r);
-            image3d_st1(top_blob_3d, ivec3(gx8 + 5, gy, gz), v[1].g);
-            image3d_st1(top_blob_3d, ivec3(gx8 + 6, gy, gz), v[1].b);
-            image3d_st1(top_blob_3d, ivec3(gx8 + 7, gy, gz), v[1].a);
-        }
-    }
-#else
-    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
-
     ivec3 gxyz = ivec3(gx, gy, gz);
 
     gxyz[psc(dims) - 1] *= 8;
     gxyz[psc(dims) - 1 - axis] += p.offset;
+
+#if NCNN_image_shader
+    afpvec8 v = image3d_ld8(bottom_blob_3d, ivec3(gx, gy, gz));
+
+    if (psc(dims) == 1)
+    {
+        image3d_st1(top_blob_3d, ivec3(gxyz.x + 0, 0, 0), v[0].r);
+        image3d_st1(top_blob_3d, ivec3(gxyz.x + 1, 0, 0), v[0].g);
+        image3d_st1(top_blob_3d, ivec3(gxyz.x + 2, 0, 0), v[0].b);
+        image3d_st1(top_blob_3d, ivec3(gxyz.x + 3, 0, 0), v[0].a);
+        image3d_st1(top_blob_3d, ivec3(gxyz.x + 4, 0, 0), v[1].r);
+        image3d_st1(top_blob_3d, ivec3(gxyz.x + 5, 0, 0), v[1].g);
+        image3d_st1(top_blob_3d, ivec3(gxyz.x + 6, 0, 0), v[1].b);
+        image3d_st1(top_blob_3d, ivec3(gxyz.x + 7, 0, 0), v[1].a);
+    }
+    else if (psc(dims) == 2)
+    {
+        if (axis == 0)
+        {
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 0, 0), v[0].r);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 1, 0), v[0].g);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 2, 0), v[0].b);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 3, 0), v[0].a);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 4, 0), v[1].r);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 5, 0), v[1].g);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 6, 0), v[1].b);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 7, 0), v[1].a);
+        }
+        if (axis == 1)
+        {
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 0, gxyz.y, 0), v[0].r);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 1, gxyz.y, 0), v[0].g);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 2, gxyz.y, 0), v[0].b);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 3, gxyz.y, 0), v[0].a);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 4, gxyz.y, 0), v[1].r);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 5, gxyz.y, 0), v[1].g);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 6, gxyz.y, 0), v[1].b);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 7, gxyz.y, 0), v[1].a);
+        }
+    }
+    else // if (psc(dims) == 3)
+    {
+        if (axis == 0)
+        {
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y, gxyz.z + 0), v[0].r);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y, gxyz.z + 1), v[0].g);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y, gxyz.z + 2), v[0].b);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y, gxyz.z + 3), v[0].a);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y, gxyz.z + 4), v[1].r);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y, gxyz.z + 5), v[1].g);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y, gxyz.z + 6), v[1].b);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y, gxyz.z + 7), v[1].a);
+        }
+        if (axis == 1)
+        {
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 0, gxyz.z), v[0].r);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 1, gxyz.z), v[0].g);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 2, gxyz.z), v[0].b);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 3, gxyz.z), v[0].a);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 4, gxyz.z), v[1].r);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 5, gxyz.z), v[1].g);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 6, gxyz.z), v[1].b);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 7, gxyz.z), v[1].a);
+        }
+        if (axis == 2)
+        {
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 0, gxyz.y, gxyz.z), v[0].r);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 1, gxyz.y, gxyz.z), v[0].g);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 2, gxyz.y, gxyz.z), v[0].b);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 3, gxyz.y, gxyz.z), v[0].a);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 4, gxyz.y, gxyz.z), v[1].r);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 5, gxyz.y, gxyz.z), v[1].g);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 6, gxyz.y, gxyz.z), v[1].b);
+            image3d_st1(top_blob_3d, ivec3(gxyz.x + 7, gxyz.y, gxyz.z), v[1].a);
+        }
+    }
+#else
+    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     int v_offset_0 = gxyz.z * psc(outcstep) + gxyz.y * psc(outw) + gxyz.x;
 
