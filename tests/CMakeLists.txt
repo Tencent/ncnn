@@ -32,6 +32,10 @@ ncnn_add_test(mat_pixel_rotate)
 ncnn_add_test(mat_pixel)
 ncnn_add_test(squeezenet)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    target_link_libraries(test_squeezenet PRIVATE nodefs.js)
+endif()
+
 ncnn_add_layer_test(AbsVal)
 ncnn_add_layer_test(BatchNorm)
 ncnn_add_layer_test(BinaryOp)

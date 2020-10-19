@@ -18,6 +18,10 @@
 
 #include <stdio.h>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 static ncnn::Mat generate_ncnn_logo(int pixel_type_to, int w, int h)
 {
     // clang-format off
@@ -158,34 +162,40 @@ static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float e
 
     squeezenet.opt = opt;
 
+#ifdef __EMSCRIPTEN__
+#define MODEL_DIR "/working"
+#else
+#define MODEL_DIR "../../examples"
+#endif
+
     std::string param_str;
     ncnn::Mat param_data;
     ncnn::Mat model_data;
     if (load_model_type == 0)
     {
         // load from plain model file
-        squeezenet.load_param("../../examples/squeezenet_v1.1.param");
-        squeezenet.load_model("../../examples/squeezenet_v1.1.bin");
+        squeezenet.load_param(MODEL_DIR "/squeezenet_v1.1.param");
+        squeezenet.load_model(MODEL_DIR "/squeezenet_v1.1.bin");
     }
     if (load_model_type == 1)
     {
         // load from plain model memory
-        param_str = read_file_string("../../examples/squeezenet_v1.1.param");
-        model_data = read_file_content("../../examples/squeezenet_v1.1.bin");
+        param_str = read_file_string(MODEL_DIR "/squeezenet_v1.1.param");
+        model_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.bin");
         squeezenet.load_param_mem((const char*)param_str.c_str());
         squeezenet.load_model((const unsigned char*)model_data);
     }
     if (load_model_type == 2)
     {
         // load from binary model file
-        squeezenet.load_param_bin("../../examples/squeezenet_v1.1.param.bin");
-        squeezenet.load_model("../../examples/squeezenet_v1.1.bin");
+        squeezenet.load_param_bin(MODEL_DIR "/squeezenet_v1.1.param.bin");
+        squeezenet.load_model(MODEL_DIR "/squeezenet_v1.1.bin");
     }
     if (load_model_type == 3)
     {
         // load from binary model memory
-        param_data = read_file_content("../../examples/squeezenet_v1.1.param.bin");
-        model_data = read_file_content("../../examples/squeezenet_v1.1.bin");
+        param_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.param.bin");
+        model_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.bin");
         squeezenet.load_param((const unsigned char*)param_data);
         squeezenet.load_model((const unsigned char*)model_data);
     }
@@ -221,6 +231,12 @@ static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float e
 
 int main()
 {
+#ifdef __EMSCRIPTEN__
+    EM_ASM(
+        FS.mkdir('/working');
+        FS.mount(NODEFS, {root: '../../examples'}, '/working'););
+#endif // __EMSCRIPTEN__
+
     ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
     ncnn::PoolAllocator g_workspace_pool_allocator;
 
