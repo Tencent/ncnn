@@ -3410,6 +3410,7 @@ int main(int argc, char** argv)
         else if (op == "Resize")
         {
             std::string mode = get_node_attr_s(node, "mode");
+            std::string align = get_node_attr_s(node, "coordinate_transformation_mode");
 
             std::vector<float> scales;
             std::vector<int> sizes;
@@ -3484,11 +3485,18 @@ int main(int argc, char** argv)
                 output_width = sizes[3];
             }
 
+            int align_corner = 0;
+            if (align == "align_corners")
+            {
+                align_corner = 1;
+            }
+
             fprintf(pp, " 0=%d", resize_type);
             fprintf(pp, " 1=%e", h_scale);
             fprintf(pp, " 2=%e", w_scale);
             fprintf(pp, " 3=%d", output_height);
             fprintf(pp, " 4=%d", output_width);
+            fprintf(pp, " 6=%d", align_corner);
         }
         else if (op == "ShuffleChannel")
         {
@@ -3697,6 +3705,7 @@ int main(int argc, char** argv)
         else if (op == "Upsample")
         {
             std::string mode = get_node_attr_s(node, "mode");
+            std::string align = get_node_attr_s(node, "coordinate_transformation_mode");
 
             std::vector<float> scales;
 
@@ -3747,9 +3756,16 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Unsupported Upsample scales !\n");
             }
 
+            int align_corner = 0;
+            if (align == "align_corners")
+            {
+                align_corner = 1;
+            }
+
             fprintf(pp, " 0=%d", resize_type);
             fprintf(pp, " 1=%e", h_scale);
             fprintf(pp, " 2=%e", w_scale);
+            fprintf(pp, " 6=%d", align_corner);
         }
         else if (op == "Unsqueeze")
         {

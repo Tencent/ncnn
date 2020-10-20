@@ -227,6 +227,11 @@ int Interp_vulkan::create_pipeline(const Option& _opt)
         }
     }
 
+    // todo support align_corner in vulkan implementation
+    if (align_corner)
+    {
+        support_vulkan = false;
+    }
     return 0;
 }
 
