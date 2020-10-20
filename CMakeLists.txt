@@ -37,6 +37,7 @@ option(NCNN_STDIO "load model from external file" ON)
 option(NCNN_STRING "plain and verbose string" ON)
 option(NCNN_INSTALL_SDK "install ncnn library and headers" ON)
 option(NCNN_OPENCV "minimal opencv structure emulation" OFF)
+option(NCNN_SIMPLEOMP "minimal openmp runtime emulation" OFF)
 option(NCNN_SIMPLESTL "minimal cpp stl structure emulation" OFF)
 option(NCNN_THREADS "build with threads" ON)
 option(NCNN_BENCHMARK "print benchmark information for every layer" OFF)
@@ -99,6 +100,20 @@ set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "cmake")
 if(NCNN_COVERAGE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -coverage -fprofile-arcs -ftest-coverage")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -coverage -lgcov")
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=1024MB -s EXIT_RUNTIME=1")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=1024MB -s EXIT_RUNTIME=1")
+    set(CMAKE_EXECUTBLE_LINKER_FLAGS "${CMAKE_EXECUTBLE_LINKER_FLAGS} -s FORCE_FILESYSTEM=1 -s INITIAL_MEMORY=1024MB -s EXIT_RUNTIME=1")
+
+    if(NCNN_OPENMP AND NCNN_SIMPLEOMP)
+        # TODO better flags for emscripten
+        # node --experimental-wasm-threads xxx.js
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=15")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=15")
+        set(CMAKE_EXECUTBLE_LINKER_FLAGS "${CMAKE_EXECUTBLE_LINKER_FLAGS} -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=15")
+    endif()
 endif()
 
 if(NCNN_VULKAN)
