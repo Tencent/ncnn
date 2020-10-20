@@ -493,11 +493,14 @@ void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
         va_end(ap);
     }
 
-    if (num_threads == 1)
+    if (g_kmp_global.kmp_max_threads == 1 || num_threads == 1)
     {
-        tls_thread_num.set(reinterpret_cast<void*>((size_t)0));
+        for (int i = 0; i < num_threads; i++)
+        {
+            tls_thread_num.set(reinterpret_cast<void*>((size_t)i));
 
-        kmp_invoke_microtask(fn, 0, 0, argc, argv);
+            kmp_invoke_microtask(fn, 0, 0, argc, argv);
+        }
 
         return;
     }
