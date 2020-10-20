@@ -861,6 +861,12 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     op->create_pipeline(opt);
 
+    if (!op->support_vulkan)
+    {
+        delete op;
+        return 233;
+    }
+
     {
         ncnn::VkTransfer cmd(vkdev);
 
