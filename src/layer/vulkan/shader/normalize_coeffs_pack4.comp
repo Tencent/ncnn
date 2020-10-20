@@ -28,7 +28,7 @@ layout (constant_id = 3) const int eps_mode = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform highp sampler3D sqsum_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image1D coeffs_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D coeffs_blob;
 #else
 layout (binding = 0) readonly buffer sqsum_blob { vec4 sqsum_blob_data[]; };
 layout (binding = 1) writeonly buffer coeffs_blob { sfpvec4 coeffs_blob_data[]; };
@@ -83,7 +83,7 @@ void main()
 #if NCNN_image_shader
         int gi = gz * p.w * p.h + gy * p.w + gx;
 
-        image1d_st4(coeffs_blob, gi, a);
+        image3d_st4(coeffs_blob, ivec3(gi, 0, 0), a);
 #else
         int gi = gz * p.w + gx;
 
@@ -115,7 +115,7 @@ void main()
 #if NCNN_image_shader
         int gi = gz * p.w * p.h + gy * p.w + gx;
 
-        image1d_st4(coeffs_blob, gi, afpvec4(a));
+        image3d_st4(coeffs_blob, ivec3(gi, 0, 0), afpvec4(a));
 #else
         int gi = gz * p.w + gx;
 

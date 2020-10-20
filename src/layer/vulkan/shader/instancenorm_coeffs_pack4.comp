@@ -26,11 +26,11 @@ layout (constant_id = 1) const int affine = 0;
 layout (constant_id = 2) const int w = 0;
 
 #if NCNN_image_shader
-layout (binding = 0, imfmtc4) writeonly uniform unfp image1D coeffs_blob;
-layout (binding = 1) uniform highp sampler1D mean_blob;
-layout (binding = 2) uniform highp sampler1D var_blob;
-layout (binding = 3) uniform unfp sampler1D gamma_blob;
-layout (binding = 4) uniform unfp sampler1D beta_blob;
+layout (binding = 0, imfmtc4) writeonly uniform unfp image3D coeffs_blob;
+layout (binding = 1) uniform highp sampler3D mean_blob;
+layout (binding = 2) uniform highp sampler3D var_blob;
+layout (binding = 3) uniform unfp sampler3D gamma_blob;
+layout (binding = 4) uniform unfp sampler3D beta_blob;
 #else
 layout (binding = 0) writeonly buffer coeffs_blob { sfpvec4 coeffs_blob_data[]; };
 layout (binding = 1) readonly buffer mean_blob { vec4 mean_data[]; };
@@ -54,8 +54,8 @@ void main()
         return;
 
 #if NCNN_image_shader
-    vec4 mean = texelFetch(mean_blob, gx, 0);
-    vec4 var = texelFetch(var_blob, gx, 0);
+    vec4 mean = texelFetch(mean_blob, ivec3(gx, 0, 0), 0);
+    vec4 var = texelFetch(var_blob, ivec3(gx, 0, 0), 0);
 #else
     vec4 mean = mean_data[gx];
     vec4 var = var_data[gx];
@@ -71,8 +71,8 @@ void main()
     else
     {
 #if NCNN_image_shader
-        vec4 gamma = vec4(image1d_ld4(gamma_blob, gx));
-        vec4 beta = vec4(image1d_ld4(beta_blob, gx));
+        vec4 gamma = vec4(image3d_ld4(gamma_blob, ivec3(gx, 0, 0)));
+        vec4 beta = vec4(image3d_ld4(beta_blob, ivec3(gx, 0, 0)));
 #else
         vec4 gamma = vec4(buffer_ld4(gamma_data, gx));
         vec4 beta = vec4(buffer_ld4(beta_data, gx));
@@ -83,8 +83,8 @@ void main()
     }
 
 #if NCNN_image_shader
-    imageStore(coeffs_blob, gx*2, a);
-    imageStore(coeffs_blob, gx*2 +1, b);
+    imageStore(coeffs_blob, ivec3(gx*2, 0, 0), a);
+    imageStore(coeffs_blob, ivec3(gx*2 +1, 0, 0), b);
 #else
     buffer_st4(coeffs_blob_data, gx*2, afpvec4(a));
     buffer_st4(coeffs_blob_data, gx*2 +1, afpvec4(b));

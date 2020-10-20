@@ -36,7 +36,7 @@ layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_top_blob;
-layout (binding = 1) uniform highp sampler1D mean_blob;
+layout (binding = 1) uniform highp sampler3D mean_blob;
 layout (binding = 2, r32f) writeonly uniform highp image3D square_blob;
 #else
 layout (binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
@@ -70,7 +70,7 @@ void main()
 
 #if NCNN_image_shader
     float v = float(image3d_ld1(bottom_top_blob, ivec3(gx, gy, gz)));
-    float mean = texelFetch(mean_blob, gz, 0).r;
+    float mean = texelFetch(mean_blob, ivec3(gz, 0, 0), 0).r;
 #else
     int v_offset = gz * psc(cstep) + gy * psc(w) + gx;
 
