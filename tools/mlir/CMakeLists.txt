@@ -59,6 +59,6 @@ target_link_libraries(mlir2ncnn
     MLIRInferTypeOpInterface
     MLIRParser
     MLIRPass
-    MLIRStandardOps
+    MLIRStandard
     MLIRTransforms
 )

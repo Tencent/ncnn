@@ -14,10 +14,12 @@
 
 static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
-    int w = bottom_blob.w;
+#if __aarch64__
+    const int w = bottom_blob.w;
+#endif
 
-    int outw = top_blob.w;
-    int outh = top_blob.h;
+    const int outw = top_blob.w;
+    const int outh = top_blob.h;
 
     const int group = bottom_blob.c;
 
@@ -28,12 +30,9 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
     {
         Mat out = top_blob.channel(g);
 
-        float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + g * 4) : vdupq_n_f32(0.f);
-
         const unsigned short* kptr = kernel.row<const unsigned short>(g);
 
         unsigned short* outptr0 = out.row<unsigned short>(0);
-        unsigned short* outptr1 = out.row<unsigned short>(1);
 
         const Mat img0 = bottom_blob.channel(g);
 
@@ -42,9 +41,13 @@ static void convdw5x5s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
         const unsigned short* r2 = img0.row<const unsigned short>(2);
         const unsigned short* r3 = img0.row<const unsigned short>(3);
         const unsigned short* r4 = img0.row<const unsigned short>(4);
-        const unsigned short* r5 = img0.row<const unsigned short>(5);
 
 #if __aarch64__
+        unsigned short* outptr1 = out.row<unsigned short>(1);
+        const unsigned short* r5 = img0.row<const unsigned short>(5);
+
+        float32x4_t _bias0 = bias ? vld1q_f32((const float*)bias + g * 4) : vdupq_n_f32(0.f);
+
         // 4 * 25
         uint16x8_t _k00_01 = vld1q_u16(kptr);
         uint16x8_t _k02_03 = vld1q_u16(kptr + 8);
