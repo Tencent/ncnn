@@ -1,4 +1,9 @@
 
+if(MSVC)
+    # warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+    add_definitions(/wd4996)
+endif()
+
 macro(ncnn_add_test name)
     add_executable(test_${name} test_${name}.cpp)
     target_link_libraries(test_${name} PRIVATE ncnn)
@@ -26,6 +31,10 @@ ncnn_add_test(mat_pixel_resize)
 ncnn_add_test(mat_pixel_rotate)
 ncnn_add_test(mat_pixel)
 ncnn_add_test(squeezenet)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    target_link_libraries(test_squeezenet PRIVATE nodefs.js)
+endif()
 
 ncnn_add_layer_test(AbsVal)
 ncnn_add_layer_test(BatchNorm)

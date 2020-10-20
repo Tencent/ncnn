@@ -45,6 +45,8 @@ int Slice_x86::create_pipeline(const Option& opt)
 
         packing_pack1->create_pipeline(opt);
     }
+#else
+    (void)(opt);
 #endif // __AVX__
 
     return 0;
@@ -62,6 +64,8 @@ int Slice_x86::destroy_pipeline(const Option& opt)
             packing_pack1 = 0;
         }
     }
+#else
+    (void)(opt);
 #endif // __AVX__
 
     return 0;

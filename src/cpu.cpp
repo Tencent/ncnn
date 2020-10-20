@@ -21,12 +21,20 @@
 #include <string.h>
 
 #ifdef _OPENMP
+#if NCNN_SIMPLEOMP
+#include "simpleomp.h"
+#else
 #include <omp.h>
+#endif
 #endif
 
 #ifdef _MSC_VER
 #include <intrin.h>    // __cpuid()
 #include <immintrin.h> // _xgetbv()
+#endif
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten/threading.h>
 #endif
 
 #if defined __ANDROID__ || defined __linux__
@@ -321,7 +329,12 @@ int cpu_support_x86_avx2()
 static int get_cpucount()
 {
     int count = 0;
-#if defined __ANDROID__ || defined __linux__
+#ifdef __EMSCRIPTEN__
+    if (emscripten_has_threading_support())
+        count = emscripten_num_logical_cores();
+    else
+        count = 1;
+#elif defined __ANDROID__ || defined __linux__
     // get cpu count from /proc/cpuinfo
     FILE* fp = fopen("/proc/cpuinfo", "rb");
     if (!fp)
@@ -412,8 +425,11 @@ static int get_max_freq_khz(int cpuid)
                 return -1;
 
             int max_freq_khz = -1;
-            fscanf(fp, "%d", &max_freq_khz);
-
+            int nscan = fscanf(fp, "%d", &max_freq_khz);
+            if (nscan != 1)
+            {
+                NCNN_LOGE("fscanf cpuinfo_max_freq error %d", nscan);
+            }
             fclose(fp);
 
             return max_freq_khz;

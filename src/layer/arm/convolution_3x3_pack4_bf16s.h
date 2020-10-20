@@ -504,10 +504,10 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
 
         top_blob_tm.create(tiles, 64, outch, 4u * elempack, elempack, opt.workspace_allocator);
 
-        int nn_outch = 0;
         int remain_outch_start = 0;
 
 #if __ARM_NEON && __aarch64__
+        int nn_outch = 0;
         nn_outch = outch >> 1;
         remain_outch_start = nn_outch << 1;
 

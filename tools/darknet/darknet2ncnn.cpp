@@ -34,6 +34,17 @@ void file_error(const char* s)
     exit(EXIT_FAILURE);
 }
 
+void fread_or_error(void* buffer, size_t size, size_t count, FILE* fp, const char* s)
+{
+    if (count != fread(buffer, size, count, fp))
+    {
+        fprintf(stderr, "Couldn't read from file: %s\n", s);
+        fclose(fp);
+        assert(0);
+        exit(EXIT_FAILURE);
+    }
+}
+
 void error(const char* s)
 {
     perror(s);
@@ -790,18 +801,18 @@ void load_weights(const char* filename, std::deque<Section*>& dnet)
 
     int major, minor, revision;
 
-    fread(&major, sizeof(int), 1, fp);
-    fread(&minor, sizeof(int), 1, fp);
-    fread(&revision, sizeof(int), 1, fp);
+    fread_or_error(&major, sizeof(int), 1, fp, filename);
+    fread_or_error(&minor, sizeof(int), 1, fp, filename);
+    fread_or_error(&revision, sizeof(int), 1, fp, filename);
     if ((major * 10 + minor) >= 2)
     {
         uint64_t iseen = 0;
-        fread(&iseen, sizeof(uint64_t), 1, fp);
+        fread_or_error(&iseen, sizeof(uint64_t), 1, fp, filename);
     }
     else
     {
         uint32_t iseen = 0;
-        fread(&iseen, sizeof(uint32_t), 1, fp);
+        fread_or_error(&iseen, sizeof(uint32_t), 1, fp, filename);
     }
 
     for (auto s : dnet)
@@ -817,7 +828,7 @@ void load_weights(const char* filename, std::deque<Section*>& dnet)
             }
 
             if (s->layer_type == "Convolution")
-                read_to(s->weights, s->c * s->filters * s->size * s->size, fp);
+                read_to(s->weights, (size_t)(s->c) * s->filters * s->size * s->size, fp);
             else if (s->layer_type == "ConvolutionDepthWise")
                 read_to(s->weights, s->c * s->filters * s->size * s->size / s->groups, fp);
         }

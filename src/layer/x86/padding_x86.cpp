@@ -31,7 +31,7 @@ Padding_x86::Padding_x86()
 #endif // __AVX__
 }
 
-int Padding_x86::create_pipeline(const Option& opt)
+int Padding_x86::create_pipeline(const Option& /*opt*/)
 {
     return 0;
 }

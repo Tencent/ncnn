@@ -37,7 +37,6 @@ Packing_vulkan::Packing_vulkan()
 int Packing_vulkan::create_pipeline(const Option& _opt)
 {
     Option opt = _opt;
-    const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     size_t out_elemsize;

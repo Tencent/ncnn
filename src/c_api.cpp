@@ -163,6 +163,7 @@ int ncnn_option_get_use_vulkan_compute(ncnn_option_t opt)
 #if NCNN_VULKAN
     return ((Option*)opt)->use_vulkan_compute;
 #else
+    (void)opt;
     return 0;
 #endif
 }

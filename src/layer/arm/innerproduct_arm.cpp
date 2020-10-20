@@ -718,7 +718,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                 "fadd   v2.8h, v2.8h, v3.8h         \n"
                 "fadd   %1.8h, %1.8h, v2.8h         \n"
 
-                : "=r"(nn), // %0
+                : "=r"(nn),   // %0
                 "=w"(_sum), // %1
                 "=r"(sptr), // %2
                 "=r"(kptr)  // %3

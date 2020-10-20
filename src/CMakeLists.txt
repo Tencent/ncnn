@@ -3,11 +3,6 @@
 
 configure_file(platform.h.in ${CMAKE_CURRENT_BINARY_DIR}/platform.h)
 
-if(NCNN_VULKAN AND NOT NCNN_VULKAN_ONLINE_SPIRV)
-    find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator PATHS $ENV{VULKAN_SDK}/bin NO_CMAKE_FIND_ROOT_PATH)
-    message(STATUS "Found glslangValidator: ${GLSLANGVALIDATOR_EXECUTABLE}")
-endif()
-
 # Add source file to list, and add to special visual folder
 function(ncnn_src_group ncnn_src_string folder)
     string(REPLACE " " ";" _ncnn_src_list ${ncnn_src_string})
@@ -41,6 +36,7 @@ set(ncnn_SRCS
     paramdict.cpp
     pipeline.cpp
     pipelinecache.cpp
+    simpleomp.cpp
     simplestl.cpp
 )
 
@@ -183,9 +179,29 @@ target_include_directories(ncnn
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layer>)
 
 if(NCNN_OPENMP)
-    find_package(OpenMP)
-    if(NOT TARGET OpenMP::OpenMP_CXX AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
-        target_compile_options(ncnn PRIVATE ${OpenMP_CXX_FLAGS})
+    if(NOT NCNN_SIMPLEOMP)
+        find_package(OpenMP)
+        if(NOT TARGET OpenMP::OpenMP_CXX AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
+            target_compile_options(ncnn PRIVATE ${OpenMP_CXX_FLAGS})
+        endif()
+    endif()
+
+    if(NCNN_SIMPLEOMP OR OpenMP_CXX_FOUND OR OPENMP_FOUND)
+        if(NCNN_CMAKE_VERBOSE)
+            message("Building with OpenMP")
+        endif()
+
+        if(NCNN_SIMPLEOMP)
+            target_compile_options(ncnn PRIVATE -fopenmp)
+            target_link_libraries(ncnn PUBLIC pthread)
+        elseif(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
+            target_compile_options(ncnn PRIVATE -fopenmp)
+            target_link_libraries(ncnn PUBLIC -fopenmp -static-openmp)
+        elseif(OpenMP_CXX_FOUND)
+            target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
+        else()
+            target_link_libraries(ncnn PRIVATE "${OpenMP_CXX_FLAGS}")
+        endif()
     endif()
 endif()
 
@@ -214,10 +230,8 @@ if(NCNN_VULKAN)
 
     target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
 
-    if(NCNN_VULKAN_ONLINE_SPIRV)
-        target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
-        target_link_libraries(ncnn PRIVATE glslang SPIRV)
-    endif()
+    target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
+    target_link_libraries(ncnn PRIVATE glslang SPIRV)
 endif()
 
 if(ANDROID_NDK)
@@ -289,21 +303,6 @@ endif()
 
 add_dependencies(ncnn ncnn-generate-spirv)
 
-if(NCNN_OPENMP AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
-    if(NCNN_CMAKE_VERBOSE)
-        message("Building with OpenMP")
-    endif()
-
-    if(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
-        target_compile_options(ncnn PRIVATE -fopenmp)
-        target_link_libraries(ncnn PUBLIC -fopenmp -static-openmp)
-    elseif(OpenMP_CXX_FOUND)
-        target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
-    else()
-        target_link_libraries(ncnn PRIVATE "${OpenMP_CXX_FLAGS}")
-    endif()
-endif()
-
 if(NCNN_INSTALL_SDK)
     install(TARGETS ncnn EXPORT ncnn ARCHIVE DESTINATION lib)
     install(FILES
@@ -326,6 +325,7 @@ if(NCNN_INSTALL_SDK)
         paramdict.h
         pipeline.h
         pipelinecache.h
+        simpleomp.h
         simplestl.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h

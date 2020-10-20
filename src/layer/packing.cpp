@@ -78,7 +78,7 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         {
             top_blob = bottom_blob;
             top_blob.w = w * elempack;
-            top_blob.cstep = w * elempack;
+            top_blob.cstep = (size_t)w * elempack;
             top_blob.elemsize = elemsize / elempack;
             top_blob.elempack = out_elempack;
             return 0;
@@ -109,7 +109,7 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < outh; i++)
         {
-            unsigned char* outptr = (unsigned char*)top_blob + i * w * out_elemsize;
+            unsigned char* outptr = (unsigned char*)top_blob + (size_t)i * w * out_elemsize;
 
             for (int j = 0; j < w; j++)
             {
@@ -123,7 +123,7 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
                     int srck = (i * out_elempack + k) % elempack;
 
-                    const unsigned char* ptr = (const unsigned char*)bottom_blob + srcy * w * elemsize;
+                    const unsigned char* ptr = (const unsigned char*)bottom_blob + (size_t)srcy * w * elemsize;
                     const unsigned char* elem_ptr = ptr + j * elemsize;
 
                     memcpy(out_elem_ptr + k * lane_size, elem_ptr + srck * lane_size, lane_size);
@@ -151,7 +151,7 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
             for (int i = 0; i < h; i++)
             {
-                unsigned char* outptr = (unsigned char*)out + i * w * out_elemsize;
+                unsigned char* outptr = (unsigned char*)out + (size_t)i * w * out_elemsize;
 
                 for (int j = 0; j < w; j++)
                 {
@@ -166,7 +166,7 @@ int Packing::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                         int srck = (q * out_elempack + k) % elempack;
 
                         const Mat m = bottom_blob.channel(srcq);
-                        const unsigned char* ptr = (const unsigned char*)m + i * w * elemsize;
+                        const unsigned char* ptr = (const unsigned char*)m + (size_t)i * w * elemsize;
                         const unsigned char* elem_ptr = ptr + j * elemsize;
 
                         memcpy(out_elem_ptr + k * lane_size, elem_ptr + srck * lane_size, lane_size);
