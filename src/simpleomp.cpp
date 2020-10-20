@@ -47,6 +47,9 @@ extern "C" typedef void (*kmpc_micro_14)(int32_t* gtid, int32_t* tid, void*, voi
 extern "C" typedef void (*kmpc_micro_15)(int32_t* gtid, int32_t* tid, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
 #endif // __EMSCRIPTEN__
 
+static void init_g_kmp_global();
+static void* kmp_threadfunc(void* args);
+
 namespace ncnn {
 
 class KMPTask
@@ -160,14 +163,108 @@ private:
     int back;
 };
 
+class KMPGlobal
+{
+public:
+    KMPGlobal()
+    {
+        is_initialized = PTHREAD_ONCE_INIT;
+
+        kmp_max_threads = 0;
+        kmp_threads = 0;
+        kmp_threads_tid = 0;
+        kmp_task_queue = 0;
+    }
+
+    ~KMPGlobal()
+    {
+        deinit();
+    }
+
+    void try_init()
+    {
+        pthread_once(&is_initialized, init_g_kmp_global);
+    }
+
+public:
+    pthread_once_t is_initialized;
+
+    void init()
+    {
+        // NCNN_LOGE("KMPGlobal init");
+        kmp_max_threads = ncnn::get_cpu_count();
+
+        kmp_task_queue = new ncnn::KMPTaskQueue(std::max(kmp_max_threads * 4, 16));
+
+        if (kmp_max_threads > 1)
+        {
+            kmp_threads = new ncnn::Thread*[kmp_max_threads - 1];
+            kmp_threads_tid = new int[kmp_max_threads - 1];
+            for (int i = 0; i < kmp_max_threads - 1; i++)
+            {
+                kmp_threads_tid[i] = i + 1;
+                kmp_threads[i] = new ncnn::Thread(kmp_threadfunc, (void*)&kmp_threads_tid[i]);
+            }
+        }
+    }
+
+    void deinit()
+    {
+        // NCNN_LOGE("KMPGlobal deinit");
+        if (kmp_max_threads > 1)
+        {
+            // TODO portable stack allocation
+            ncnn::KMPTask* tasks = (ncnn::KMPTask*)alloca((kmp_max_threads - 1) * sizeof(ncnn::KMPTask));
+            for (int i = 0; i < kmp_max_threads - 1; i++)
+            {
+                tasks[i].fn = 0;
+                tasks[i].argc = 0;
+                tasks[i].argv = (void**)0;
+                tasks[i].num_threads = kmp_max_threads;
+                tasks[i].thread_num = i + 1;
+                tasks[i].num_threads_to_wait = 0;
+                tasks[i].finish_lock = 0;
+                tasks[i].finish_condition = 0;
+            }
+
+            // dispatch 1 ~ kmp_max_threads
+            kmp_task_queue->dispatch(tasks, kmp_max_threads - 1);
+
+            for (int i = 0; i < kmp_max_threads - 1; i++)
+            {
+#ifndef __EMSCRIPTEN__
+                // FIXME emscripten complains
+                // pthread_join attempted on thread 12345678,
+                // which does not point to a valid thread, or does not exist anymore!
+                kmp_threads[i]->join();
+#endif
+                delete kmp_threads[i];
+            }
+            delete[] kmp_threads;
+            delete[] kmp_threads_tid;
+        }
+
+        delete kmp_task_queue;
+    }
+
+public:
+    int kmp_max_threads;
+    ncnn::Thread** kmp_threads;
+    int* kmp_threads_tid;
+    ncnn::KMPTaskQueue* kmp_task_queue;
+};
+
 } // namespace ncnn
 
-static int kmp_max_threads = 1;
+static ncnn::KMPGlobal g_kmp_global;
+
 static ncnn::ThreadLocalStorage tls_num_threads;
 static ncnn::ThreadLocalStorage tls_thread_num;
-static ncnn::KMPTaskQueue* kmp_task_queue = 0;
-static ncnn::Thread** kmp_threads = 0;
-static int* kmp_threads_tid = 0;
+
+static void init_g_kmp_global()
+{
+    g_kmp_global.init();
+}
 
 #ifdef __cplusplus
 extern "C" {
@@ -175,7 +272,7 @@ extern "C" {
 
 int omp_get_max_threads()
 {
-    return kmp_max_threads;
+    return ncnn::get_cpu_count();
 }
 
 int omp_get_dynamic()
@@ -339,7 +436,7 @@ static void* kmp_threadfunc(void* args)
     for (;;)
     {
         ncnn::KMPTask* task;
-        kmp_task_queue->get(task);
+        g_kmp_global.kmp_task_queue->get(task);
 
         // fprintf(stderr, "get %d\n", tid);
 
@@ -367,81 +464,24 @@ static void* kmp_threadfunc(void* args)
     return 0;
 }
 
-__attribute__((constructor)) static void __kmpc_init()
-{
-    kmp_max_threads = ncnn::get_cpu_count();
-
-    if (kmp_max_threads == 1)
-        return;
-
-    // fprintf(stderr, "__kmpc_init  %d\n", kmp_max_threads);
-
-    kmp_task_queue = new ncnn::KMPTaskQueue(kmp_max_threads * 4);
-
-    kmp_threads = new ncnn::Thread*[kmp_max_threads - 1];
-    kmp_threads_tid = new int[kmp_max_threads - 1];
-    for (int i = 0; i < kmp_max_threads - 1; i++)
-    {
-        kmp_threads_tid[i] = i + 1;
-        kmp_threads[i] = new ncnn::Thread(kmp_threadfunc, (void*)&kmp_threads_tid[i]);
-    }
-}
-
-__attribute__((destructor)) static void __kmpc_deinit()
-{
-    if (kmp_max_threads == 1)
-        return;
-
-    // fprintf(stderr, "__kmpc_deinit\n");
-
-    // TODO portable stack allocation
-    ncnn::KMPTask* tasks = (ncnn::KMPTask*)alloca((kmp_max_threads - 1) * sizeof(ncnn::KMPTask));
-    for (int i = 0; i < kmp_max_threads - 1; i++)
-    {
-        tasks[i].fn = 0;
-        tasks[i].argc = 0;
-        tasks[i].argv = (void**)0;
-        tasks[i].num_threads = kmp_max_threads;
-        tasks[i].thread_num = i + 1;
-        tasks[i].num_threads_to_wait = 0;
-        tasks[i].finish_lock = 0;
-        tasks[i].finish_condition = 0;
-    }
-
-    // dispatch 1 ~ kmp_max_threads
-    kmp_task_queue->dispatch(tasks, kmp_max_threads - 1);
-
-    for (int i = 0; i < kmp_max_threads - 1; i++)
-    {
-#ifndef __EMSCRIPTEN__
-        // FIXME emscripten complains
-        // pthread_join attempted on thread 12345678,
-        // which does not point to a valid thread, or does not exist anymore!
-        kmp_threads[i]->join();
-#endif
-        delete kmp_threads[i];
-    }
-    delete[] kmp_threads;
-    delete[] kmp_threads_tid;
-}
-
 int32_t __kmpc_global_thread_num(void* /*loc*/)
 {
+    // NCNN_LOGE("__kmpc_global_thread_num");
     return 0;
 }
 
 void __kmpc_push_num_threads(void* /*loc*/, int32_t /*gtid*/, int32_t num_threads)
 {
+    // NCNN_LOGE("__kmpc_push_num_threads %d", num_threads);
     omp_set_num_threads(num_threads);
 }
 
 void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
 {
-    int num_threads = omp_get_num_threads();
+    g_kmp_global.try_init();
 
-    int num_threads_to_wait = num_threads - 1;
-    ncnn::Mutex finish_lock;
-    ncnn::ConditionVariable finish_condition;
+    // NCNN_LOGE("__kmpc_fork_call %d", argc);
+    int num_threads = omp_get_num_threads();
 
     // build argv
     void* argv[16];
@@ -462,6 +502,10 @@ void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
         return;
     }
 
+    int num_threads_to_wait = num_threads - 1;
+    ncnn::Mutex finish_lock;
+    ncnn::ConditionVariable finish_condition;
+
     // TODO portable stack allocation
     ncnn::KMPTask* tasks = (ncnn::KMPTask*)alloca((num_threads - 1) * sizeof(ncnn::KMPTask));
     for (int i = 0; i < num_threads - 1; i++)
@@ -477,7 +521,7 @@ void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
     }
 
     // dispatch 1 ~ num_threads
-    kmp_task_queue->dispatch(tasks, num_threads - 1);
+    g_kmp_global.kmp_task_queue->dispatch(tasks, num_threads - 1);
 
     // dispatch 0
     {
@@ -499,6 +543,7 @@ void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
 
 void __kmpc_for_static_init_4(void* /*loc*/, int32_t gtid, int32_t /*sched*/, int32_t* last, int32_t* lower, int32_t* upper, int32_t* /*stride*/, int32_t /*incr*/, int32_t /*chunk*/)
 {
+    // NCNN_LOGE("__kmpc_for_static_init_4");
     int num_threads = omp_get_num_threads();
 
     // TODO only support i++
@@ -514,6 +559,7 @@ void __kmpc_for_static_init_4(void* /*loc*/, int32_t gtid, int32_t /*sched*/, in
 
 void __kmpc_for_static_init_4u(void* /*loc*/, int32_t gtid, int32_t /*sched*/, int32_t* last, uint32_t* lower, uint32_t* upper, int32_t* /*stride*/, int32_t /*incr*/, int32_t /*chunk*/)
 {
+    // NCNN_LOGE("__kmpc_for_static_init_4u");
     int num_threads = omp_get_num_threads();
 
     // TODO only support i++
@@ -529,6 +575,7 @@ void __kmpc_for_static_init_4u(void* /*loc*/, int32_t gtid, int32_t /*sched*/, i
 
 void __kmpc_for_static_init_8(void* /*loc*/, int32_t gtid, int32_t /*sched*/, int32_t* last, int64_t* lower, int64_t* upper, int64_t* /*stride*/, int64_t /*incr*/, int64_t /*chunk*/)
 {
+    // NCNN_LOGE("__kmpc_for_static_init_8");
     int num_threads = omp_get_num_threads();
 
     // TODO only support i++
@@ -544,6 +591,7 @@ void __kmpc_for_static_init_8(void* /*loc*/, int32_t gtid, int32_t /*sched*/, in
 
 void __kmpc_for_static_init_8u(void* /*loc*/, int32_t gtid, int32_t /*sched*/, int32_t* last, uint64_t* lower, uint64_t* upper, int64_t* /*stride*/, int64_t /*incr*/, int64_t /*chunk*/)
 {
+    // NCNN_LOGE("__kmpc_for_static_init_8u");
     int num_threads = omp_get_num_threads();
 
     // TODO only support i++
@@ -559,6 +607,7 @@ void __kmpc_for_static_init_8u(void* /*loc*/, int32_t gtid, int32_t /*sched*/, i
 
 void __kmpc_for_static_fini(void* /*loc*/, int32_t gtid)
 {
+    // NCNN_LOGE("__kmpc_for_static_fini");
     (void)gtid;
 }
 
