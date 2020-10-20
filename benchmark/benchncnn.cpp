@@ -23,6 +23,10 @@
 #include <unistd.h> // sleep()
 #endif
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #include "benchmark.h"
 #include "cpu.h"
 #include "datareader.h"
@@ -83,8 +87,14 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     }
 #endif // NCNN_VULKAN
 
+#ifdef __EMSCRIPTEN__
+#define MODEL_DIR "/working/"
+#else
+#define MODEL_DIR ""
+#endif
+
     char parampath[256];
-    sprintf(parampath, "%s.param", comment);
+    sprintf(parampath, MODEL_DIR "%s.param", comment);
     net.load_param(parampath);
 
     DataReaderFromEmpty dr;
@@ -173,6 +183,12 @@ int main(int argc, char** argv)
     {
         cooling_down = atoi(argv[5]);
     }
+
+#ifdef __EMSCRIPTEN__
+    EM_ASM(
+        FS.mkdir('/working');
+        FS.mount(NODEFS, {root: '.'}, '/working'););
+#endif // __EMSCRIPTEN__
 
     bool use_vulkan_compute = gpu_device != -1;
 
