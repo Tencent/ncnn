@@ -18,8 +18,6 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#else
-#include <pthread.h>
 #endif
 
 #include "platform.h"
@@ -100,6 +98,7 @@ static inline void fastFree(void* ptr)
     }
 }
 
+#if NCNN_THREADS
 // exchange-add operation for atomic operations on reference counters
 #if defined __riscv && !defined __riscv_atomic
 // riscv target without A extension
@@ -138,6 +137,14 @@ static inline int NCNN_XADD(int* addr, int delta)
     return tmp;
 }
 #endif
+#else // NCNN_THREADS
+static inline int NCNN_XADD(int* addr, int delta)
+{
+    int tmp = *addr;
+    *addr += delta;
+    return tmp;
+}
+#endif // NCNN_THREADS
 
 class Allocator
 {
