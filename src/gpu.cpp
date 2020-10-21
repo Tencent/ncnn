@@ -641,15 +641,8 @@ int create_gpu_instance()
         // 650 = 0x5143 0x6050002
 
         gpu_info.bug_storage_buffer_no_l1 = false;
-        gpu_info.bug_layout_binding_id_alias = false;
         gpu_info.bug_corrupted_online_pipeline_cache = false;
         gpu_info.bug_implicit_fp16_arithmetic = false;
-
-        if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 49))
-        {
-            // qcom adreno with old buggy driver cannot handle binding id alias
-            gpu_info.bug_layout_binding_id_alias = true;
-        }
 
         if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 66))
         {
@@ -667,22 +660,6 @@ int create_gpu_instance()
             // TODO figure out a proper workaround without hurt speed too much
             //             gpu_info.bug_storage_buffer_no_l1 = true;
         }
-
-        if (physicalDeviceProperties.vendorID == 0x13b5
-                && (physicalDeviceProperties.deviceID == 0x7500001
-                    || physicalDeviceProperties.deviceID == 0x8602000
-                    || physicalDeviceProperties.deviceID == 0x8800020))
-        {
-            // these arm mali midgard era driver cannot handle binding id alias
-            gpu_info.bug_layout_binding_id_alias = true;
-        }
-
-#if __APPLE__
-        {
-            // metal shader never accept binding id alias
-            gpu_info.bug_layout_binding_id_alias = true;
-        }
-#endif
 
         if (physicalDeviceProperties.vendorID == 0x13b5
                 && (physicalDeviceProperties.deviceID == 0x7500001
@@ -997,8 +974,8 @@ int create_gpu_instance()
                   gpu_info.graphics_queue_family_index, gpu_info.graphics_queue_count,
                   gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count);
 
-        NCNN_LOGE("[%u %s]  bugsbn1=%d  buglbia=%d  bugcopc=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
-                  gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_layout_binding_id_alias, gpu_info.bug_corrupted_online_pipeline_cache, gpu_info.bug_implicit_fp16_arithmetic);
+        NCNN_LOGE("[%u %s]  bugsbn1=%d  bugcopc=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
+                  gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_corrupted_online_pipeline_cache, gpu_info.bug_implicit_fp16_arithmetic);
 
         NCNN_LOGE("[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
@@ -2031,12 +2008,6 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
 
 void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    if (info.bug_layout_binding_id_alias)
-    {
-        NCNN_LOGE("cannot convert_packing i2i");
-        return;
-    }
-
     int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
@@ -2069,12 +2040,6 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int d
 
 void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    if (info.bug_layout_binding_id_alias)
-    {
-        NCNN_LOGE("cannot convert_packing b2i");
-        return;
-    }
-
     int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
@@ -2107,12 +2072,6 @@ void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_el
 
 void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_elempack, VkCompute& cmd, const Option& opt) const
 {
-    if (info.bug_layout_binding_id_alias)
-    {
-        NCNN_LOGE("cannot convert_packing i2b");
-        return;
-    }
-
     int cast_type_to_index = opt.use_fp16_storage ? 2 : opt.use_fp16_packed ? 1 : 0;
     int packing_type_to_index = dst_elempack == 1 ? 0 : dst_elempack == 4 ? 1 : 2;
 
@@ -2359,12 +2318,6 @@ const ncnn::Packing_vulkan* VulkanDevice::get_utility_operator(int storage_type_
     opt.use_fp16_packed = (cast_type_from_index == 1 || cast_type_to_index == 1);
     opt.use_fp16_storage = (cast_type_from_index == 2 || cast_type_to_index == 2);
 
-    if (info.bug_layout_binding_id_alias && opt.use_image_storage)
-    {
-        NCNN_LOGE("cannot create uop with use_image_storage if bug_layout_binding_id_alias");
-        return 0;
-    }
-
     if (!info.support_fp16_packed && opt.use_fp16_packed)
     {
         NCNN_LOGE("cannot create uop with use_fp16_packed if not support_fp16_packed");
@@ -2424,8 +2377,6 @@ void VulkanDevice::destroy_utility_operator()
         for (int i1 = 0; i1 < 2; i1++)
         {
             opt.use_image_storage = (i0 == 1 || i1 == 1);
-            if (info.bug_layout_binding_id_alias && opt.use_image_storage)
-                continue;
 
             // from fp32-b/i | fp16p-b/i | fp16s-b/i
             // to fp32-b/i | fp16p-b/i | fp16s-b/i

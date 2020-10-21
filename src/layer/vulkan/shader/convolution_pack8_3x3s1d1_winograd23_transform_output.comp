@@ -41,7 +41,7 @@ layout (constant_id = shape_constant_id_offset + 6) const int outcstep = 0;
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D top_tm_blob;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler1D bias_blob;
+layout (binding = 2) uniform unfp sampler3D bias_blob;
 #else
 layout (binding = 0) readonly buffer top_tm_blob { sfpvec8 top_tm_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
@@ -130,7 +130,7 @@ void main()
     if (bias_term == 1)
     {
 #if NCNN_image_shader
-        const afpvec8 bias_value = image1d_ld8(bias_blob, gz);
+        const afpvec8 bias_value = image3d_ld8(bias_blob, ivec3(gz, 0, 0));
 #else
         const afpvec8 bias_value = buffer_ld8(bias_data, gz);
 #endif

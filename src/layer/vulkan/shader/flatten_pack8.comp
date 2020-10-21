@@ -36,9 +36,8 @@ layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image1D top_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
 #else
 #if NCNN_fp16_packed
 layout (binding = 0) readonly buffer bottom_blob { sfpvec2 bottom_blob_data[]; };
@@ -85,14 +84,14 @@ void main()
         ivec4 yy4 = ii4 / psc(w);
         ivec4 xx4 = ii4 % psc(w);
 
-        afpvec8 v0 = image2d_ld8(bottom_blob_2d, ivec2(x4.r, y4.r / 8));
-        afpvec8 v1 = image2d_ld8(bottom_blob_2d, ivec2(x4.g, y4.g / 8));
-        afpvec8 v2 = image2d_ld8(bottom_blob_2d, ivec2(x4.b, y4.b / 8));
-        afpvec8 v3 = image2d_ld8(bottom_blob_2d, ivec2(x4.a, y4.a / 8));
-        afpvec8 v4 = image2d_ld8(bottom_blob_2d, ivec2(xx4.r, yy4.r / 8));
-        afpvec8 v5 = image2d_ld8(bottom_blob_2d, ivec2(xx4.g, yy4.g / 8));
-        afpvec8 v6 = image2d_ld8(bottom_blob_2d, ivec2(xx4.b, yy4.b / 8));
-        afpvec8 v7 = image2d_ld8(bottom_blob_2d, ivec2(xx4.a, yy4.a / 8));
+        afpvec8 v0 = image3d_ld8(bottom_blob_3d, ivec3(x4.r, y4.r / 8, 0));
+        afpvec8 v1 = image3d_ld8(bottom_blob_3d, ivec3(x4.g, y4.g / 8, 0));
+        afpvec8 v2 = image3d_ld8(bottom_blob_3d, ivec3(x4.b, y4.b / 8, 0));
+        afpvec8 v3 = image3d_ld8(bottom_blob_3d, ivec3(x4.a, y4.a / 8, 0));
+        afpvec8 v4 = image3d_ld8(bottom_blob_3d, ivec3(xx4.r, yy4.r / 8, 0));
+        afpvec8 v5 = image3d_ld8(bottom_blob_3d, ivec3(xx4.g, yy4.g / 8, 0));
+        afpvec8 v6 = image3d_ld8(bottom_blob_3d, ivec3(xx4.b, yy4.b / 8, 0));
+        afpvec8 v7 = image3d_ld8(bottom_blob_3d, ivec3(xx4.a, yy4.a / 8, 0));
 
         v[0].r = v0[(y4.r % 8) / 4][y4.r % 4];
         v[0].g = v1[(y4.g % 8) / 4][y4.g % 4];
@@ -133,7 +132,7 @@ void main()
         v[1].a = v7[(zz4.a % 8) / 4][zz4.a % 4];
     }
 
-    image1d_st8(top_blob, gx, v);
+    image3d_st8(top_blob, ivec3(gx, 0, 0), v);
 #else
 #if NCNN_fp16_packed
     ivec4 v_offset;

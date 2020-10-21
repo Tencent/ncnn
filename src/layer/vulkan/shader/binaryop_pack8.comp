@@ -46,14 +46,8 @@ layout (constant_id = shape_constant_id_offset + 13) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 14) const int outcstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler1D a_blob_1d;
-layout (binding = 0) uniform unfp sampler2D a_blob_2d;
 layout (binding = 0) uniform unfp sampler3D a_blob_3d;
-layout (binding = 1) uniform unfp sampler1D b_blob_1d;
-layout (binding = 1) uniform unfp sampler2D b_blob_2d;
 layout (binding = 1) uniform unfp sampler3D b_blob_3d;
-layout (binding = 2, imfmtc4) writeonly uniform unfp image1D top_blob_1d;
-layout (binding = 2, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 2, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
 #else
 layout (binding = 0) buffer a_blob { sfpvec8 a_blob_data[]; };
@@ -92,20 +86,7 @@ void main()
         return;
 
 #if NCNN_image_shader
-    afpvec8 v1;
-
-    if (psc(outdims) == 1)
-    {
-        v1 = image1d_ld8(a_blob_1d, gx);
-    }
-    else if (psc(outdims) == 2)
-    {
-        v1 = image2d_ld8(a_blob_2d, ivec2(gx, gy));
-    }
-    else // if (psc(outdims) == 3)
-    {
-        v1 = image3d_ld8(a_blob_3d, ivec3(gx, gy, gz));
-    }
+    afpvec8 v1 = image3d_ld8(a_blob_3d, ivec3(gx, gy, gz));
 #else
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
@@ -166,18 +147,7 @@ void main()
         }
 
 #if NCNN_image_shader
-        if (psc(outdims) == 1)
-        {
-            image1d_st8(top_blob_1d, gx, res);
-        }
-        else if (psc(outdims) == 2)
-        {
-            image2d_st8(top_blob_2d, ivec2(gx, gy), res);
-        }
-        else // if (psc(outdims) == 3)
-        {
-            image3d_st8(top_blob_3d, ivec3(gx, gy, gz), res);
-        }
+        image3d_st8(top_blob_3d, ivec3(gx, gy, gz), res);
 #else
         buffer_st8(a_blob_data, gi, res);
 #endif
@@ -186,20 +156,7 @@ void main()
     {
         // type 7 13 19
 #if NCNN_image_shader
-        afpvec8 v2;
-
-        if (psc(outdims) == 1)
-        {
-            v2 = image1d_ld8(b_blob_1d, gx);
-        }
-        else if (psc(outdims) == 2)
-        {
-            v2 = image2d_ld8(b_blob_2d, ivec2(gx, gy));
-        }
-        else // if (psc(outdims) == 3)
-        {
-            v2 = image3d_ld8(b_blob_3d, ivec3(gx, gy, gz));
-        }
+        afpvec8 v2 = image3d_ld8(b_blob_3d, ivec3(gx, gy, gz));
 #else
         afpvec8 v2 = buffer_ld8(b_blob_data, gi);
 #endif
@@ -251,18 +208,7 @@ void main()
         }
 
 #if NCNN_image_shader
-        if (psc(outdims) == 1)
-        {
-            image1d_st8(top_blob_1d, gx, res);
-        }
-        else if (psc(outdims) == 2)
-        {
-            image2d_st8(top_blob_2d, ivec2(gx, gy), res);
-        }
-        else // if (psc(outdims) == 3)
-        {
-            image3d_st8(top_blob_3d, ivec3(gx, gy, gz), res);
-        }
+        image3d_st8(top_blob_3d, ivec3(gx, gy, gz), res);
 #else
         buffer_st8(top_blob_data, gi, res);
 #endif
