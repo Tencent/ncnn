@@ -37,9 +37,7 @@ layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
@@ -83,22 +81,22 @@ void main()
         {
             ivec4 y4 = gy * 4 + ivec4(0, 1, 2, 3);
 
-            v.r = image2d_ld1(bottom_blob_2d, ivec2(gx, y4.r));
-            v.g = image2d_ld1(bottom_blob_2d, ivec2(gx, y4.g));
-            v.b = image2d_ld1(bottom_blob_2d, ivec2(gx, y4.b));
-            v.a = image2d_ld1(bottom_blob_2d, ivec2(gx, y4.a));
+            v.r = image3d_ld1(bottom_blob_3d, ivec3(gx, y4.r, 0));
+            v.g = image3d_ld1(bottom_blob_3d, ivec3(gx, y4.g, 0));
+            v.b = image3d_ld1(bottom_blob_3d, ivec3(gx, y4.b, 0));
+            v.a = image3d_ld1(bottom_blob_3d, ivec3(gx, y4.a, 0));
         }
         if (order_type == 1)
         {
             ivec4 x4 = gy * 4 + ivec4(0, 1, 2, 3);
 
-            v.r = image2d_ld1(bottom_blob_2d, ivec2(x4.r, gx));
-            v.g = image2d_ld1(bottom_blob_2d, ivec2(x4.g, gx));
-            v.b = image2d_ld1(bottom_blob_2d, ivec2(x4.b, gx));
-            v.a = image2d_ld1(bottom_blob_2d, ivec2(x4.a, gx));
+            v.r = image3d_ld1(bottom_blob_3d, ivec3(x4.r, gx, 0));
+            v.g = image3d_ld1(bottom_blob_3d, ivec3(x4.g, gx, 0));
+            v.b = image3d_ld1(bottom_blob_3d, ivec3(x4.b, gx, 0));
+            v.a = image3d_ld1(bottom_blob_3d, ivec3(x4.a, gx, 0));
         }
 
-        image2d_st4(top_blob_2d, ivec2(gx, gy), v);
+        image3d_st4(top_blob_3d, ivec3(gx, gy, 0), v);
     }
     else // if (psc(dims) == 3)
     {
