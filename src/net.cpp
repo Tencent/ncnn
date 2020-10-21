@@ -165,8 +165,6 @@ int Net::load_param(const DataReader& dr)
         // TODO give user a choice
         if (vkdev->info.bug_storage_buffer_no_l1) opt.use_image_storage = true;
 
-        if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
-
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
     }
@@ -381,8 +379,6 @@ int Net::load_param_bin(const DataReader& dr)
         // TODO give user a choice
         if (vkdev->info.bug_storage_buffer_no_l1) opt.use_image_storage = true;
 
-        if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
-
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
     }
@@ -579,8 +575,6 @@ int Net::load_model(const DataReader& dr)
                 pipeline_cache = new PipelineCache(vkdev);
             opt.pipeline_cache = pipeline_cache;
         }
-
-        if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
     }
 #endif // NCNN_VULKAN
 

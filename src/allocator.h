@@ -224,8 +224,6 @@ public:
     VkImageView imageview;
 
     // underlying info assigned by allocator
-    VkImageType image_type;
-    VkImageViewType imageview_type;
     int width;
     int height;
     int depth;
@@ -267,7 +265,7 @@ public:
     virtual int flush(VkBufferMemory* ptr);
     virtual int invalidate(VkBufferMemory* ptr);
 
-    virtual VkImageMemory* fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack) = 0;
+    virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack) = 0;
     virtual void fastFree(VkImageMemory* ptr) = 0;
 
 public:
@@ -282,8 +280,8 @@ protected:
     VkDeviceMemory allocate_memory(size_t size, uint32_t memory_type_index);
     VkDeviceMemory allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkImage image, VkBuffer buffer);
 
-    VkImage create_image(VkImageType type, int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage);
-    VkImageView create_imageview(VkImageViewType type, VkImage image, VkFormat format);
+    VkImage create_image(int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage);
+    VkImageView create_imageview(VkImage image, VkFormat format);
 };
 
 class VkBlobAllocator : public VkAllocator
@@ -298,7 +296,7 @@ public:
 
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
-    virtual VkImageMemory* fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack);
+    virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
 
 protected:
@@ -324,7 +322,7 @@ public:
 public:
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
-    virtual VkImageMemory* fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack);
+    virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
 
 protected:
@@ -355,7 +353,7 @@ public:
 
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
-    virtual VkImageMemory* fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack);
+    virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
 
 protected:
@@ -372,7 +370,7 @@ public:
 public:
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
-    virtual VkImageMemory* fastMalloc(int /*dims*/, int /*w*/, int /*h*/, int /*c*/, size_t /*elemsize*/, int /*elempack*/)
+    virtual VkImageMemory* fastMalloc(int /*w*/, int /*h*/, int /*c*/, size_t /*elemsize*/, int /*elempack*/)
     {
         return 0;
     }
@@ -392,7 +390,7 @@ public:
     virtual ~VkAndroidHardwareBufferImageAllocator();
 
 public:
-    virtual VkImageMemory* fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack);
+    virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
     virtual VkBufferMemory* fastMalloc(size_t /*size*/)
     {

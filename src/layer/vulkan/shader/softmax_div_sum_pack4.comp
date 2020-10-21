@@ -37,14 +37,9 @@ layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler1D bottom_blob_1d;
-layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image1D top_blob_1d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
-layout (binding = 2) uniform unfp sampler1D sum_workspace_1d;
-layout (binding = 2) uniform unfp sampler2D sum_workspace_2d;
+layout (binding = 2) uniform unfp sampler3D sum_workspace_3d;
 #else
 layout (binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 layout (binding = 1) readonly buffer sum_workspace { sfpvec4 sum_workspace_data[]; };
@@ -80,33 +75,33 @@ void main()
 
     if (psc(dims) == 1) // axis == 0
     {
-        v = image1d_ld4(bottom_blob_1d, gx);
-        sum = image1d_ld4(sum_workspace_1d, 0);
+        v = image3d_ld4(bottom_blob_3d, ivec3(gx, 0, 0));
+        sum = image3d_ld4(sum_workspace_3d, ivec3(0, 0, 0));
     }
     else if (psc(dims) == 2 && axis == 0)
     {
-        v = image2d_ld4(bottom_blob_2d, ivec2(gx, gy));
-        sum = image1d_ld4(sum_workspace_1d, gx);
+        v = image3d_ld4(bottom_blob_3d, ivec3(gx, gy, 0));
+        sum = image3d_ld4(sum_workspace_3d, ivec3(gx, 0, 0));
     }
     else if (psc(dims) == 2 && axis == 1)
     {
-        v = image2d_ld4(bottom_blob_2d, ivec2(gx, gy));
-        sum = image1d_ld4(sum_workspace_1d, gy);
+        v = image3d_ld4(bottom_blob_3d, ivec3(gx, gy, 0));
+        sum = image3d_ld4(sum_workspace_3d, ivec3(gy, 0, 0));
     }
     else if (psc(dims) == 3 && axis == 0)
     {
         v = image3d_ld4(bottom_blob_3d, ivec3(gx, gy, gz));
-        sum = image2d_ld4(sum_workspace_2d, ivec2(gx, gy));
+        sum = image3d_ld4(sum_workspace_3d, ivec3(gx, gy, 0));
     }
     else if (psc(dims) == 3 && axis == 1)
     {
         v = image3d_ld4(bottom_blob_3d, ivec3(gx, gy, gz));
-        sum = image2d_ld4(sum_workspace_2d, ivec2(gx, gz));
+        sum = image3d_ld4(sum_workspace_3d, ivec3(gx, gz, 0));
     }
     else if (psc(dims) == 3 && axis == 2)
     {
         v = image3d_ld4(bottom_blob_3d, ivec3(gx, gy, gz));
-        sum = image2d_ld4(sum_workspace_2d, ivec2(gy, gz));
+        sum = image3d_ld4(sum_workspace_3d, ivec3(gy, gz, 0));
     }
 #else
     const int gi = gz * psc(cstep) + gy * psc(w) + gx;
@@ -153,18 +148,7 @@ void main()
     v /= sum;
 
 #if NCNN_image_shader
-    if (psc(dims) == 1)
-    {
-        image1d_st4(top_blob_1d, gx, v);
-    }
-    else if (psc(dims) == 2)
-    {
-        image2d_st4(top_blob_2d, ivec2(gx, gy), v);
-    }
-    else // if (psc(dims) == 3)
-    {
-        image3d_st4(top_blob_3d, ivec3(gx, gy, gz), v);
-    }
+    image3d_st4(top_blob_3d, ivec3(gx, gy, gz), v);
 #else
     buffer_st4(bottom_top_blob_data, gi, v);
 #endif
