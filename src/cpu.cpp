@@ -456,7 +456,7 @@ static int get_max_freq_khz(int cpuid)
 static int set_sched_affinity(const CpuSet& thread_affinity_mask)
 {
     // set affinity for thread
-#ifdef __GLIBC__
+#if defined(__GLIBC__) || defined(__OHOS__)
     pid_t pid = syscall(SYS_gettid);
 #else
 #ifdef PI3
