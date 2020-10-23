@@ -1,6 +1,6 @@
-NCNN openmp 最佳实践
+ncnn openmp 最佳实践
 
-### NCNN占用过多cpu资源
+### ncnn占用过多cpu资源
 
    使用ncnn推理运算，cpu占用非常高甚至所有核心占用都接近100%。
 
@@ -23,10 +23,27 @@ NCNN openmp 最佳实践
 2. 显存上传前和下载后的 fp32 fp16转换是在cpu上执行的，这部分逻辑也使用了openmp。
 
 ### 解决方法
+
 ```
 1. 绑核
 ```
-   如果使用有大小核cpu的设备，建议通过ncnn::set_cpu_powersave(int)绑定大核或小核，注意windows系统不支持绑核。
+   如果使用有大小核cpu的设备，建议通过ncnn::set_cpu_powersave(int)绑定大核或小核，注意windows系统不支持绑核。顺便说一下，ncnn支持不同的模型运行在不同的核心。假设硬件平台有2个大核，4个小核，你想把netA运行在大核，netB运行在小核。
+   可以通过std::thread or pthread创建两个线程，运行如下代码：
+   
+   ```
+   void thread_1()
+   {
+      ncnn::set_cpu_powersave(2); // bind to big cores
+      netA.opt.num_threads = 2;
+   }
+
+   void thread_2()
+   {
+      ncnn::set_cpu_powersave(1); // bind to little cores
+      netB.opt.num_threads = 4;
+   }
+   ```
+
 ```
 2. 使用更少的线程数。
 ```
