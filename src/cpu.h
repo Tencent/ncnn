@@ -52,6 +52,8 @@ int cpu_support_x86_avx2();
 
 // cpu info
 int get_cpu_count();
+int get_little_cpu_count();
+int get_big_cpu_count();
 
 // bind all threads on little clusters if powersave enabled
 // affacts HMP arch cpu like ARM big.LITTLE
