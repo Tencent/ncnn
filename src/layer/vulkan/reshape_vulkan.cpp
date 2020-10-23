@@ -374,7 +374,7 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int out_elempack;
+    int out_elempack = 0;
 
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.c * elempack;
 
@@ -697,7 +697,7 @@ int Reshape_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int out_elempack;
+    int out_elempack = 0;
 
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.c * elempack;
 
