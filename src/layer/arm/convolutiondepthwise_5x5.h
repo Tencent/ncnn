@@ -811,13 +811,14 @@ static void convdw5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                 float32x4_t _r5 = vld1q_f32(r5);
                 _sum2 = vmlaq_f32(_sum2, _r5, _k20212223);
 
-                float32x4_t _k_t4;
+                float32x4_t _k_t4 = {};
+
                 _k_t4 = vsetq_lane_f32(k0[4], _k_t4, 0);
                 _k_t4 = vsetq_lane_f32(k1[4], _k_t4, 1);
                 _k_t4 = vsetq_lane_f32(k2[4], _k_t4, 2);
                 _k_t4 = vsetq_lane_f32(k3[4], _k_t4, 3);
 
-                float32x4_t _r_t4;
+                float32x4_t _r_t4 = {};
 
                 _r_t4 = vsetq_lane_f32(r0[4], _r_t4, 0);
                 _r_t4 = vsetq_lane_f32(r1[4], _r_t4, 1);
@@ -1493,13 +1494,14 @@ static void convdw5x5s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                 float32x4_t _r4 = vld1q_f32(r4);
                 _sum = vmlaq_f32(_sum, _r4, _k20212223);
 
-                float32x4_t _k_t4;
+                float32x4_t _k_t4 = {};
+
                 _k_t4 = vsetq_lane_f32(k0[4], _k_t4, 0);
                 _k_t4 = vsetq_lane_f32(k1[4], _k_t4, 1);
                 _k_t4 = vsetq_lane_f32(k2[4], _k_t4, 2);
                 _k_t4 = vsetq_lane_f32(k3[4], _k_t4, 3);
 
-                float32x4_t _r_t4;
+                float32x4_t _r_t4 = {};
 
                 _r_t4 = vsetq_lane_f32(r0[4], _r_t4, 0);
                 _r_t4 = vsetq_lane_f32(r1[4], _r_t4, 1);

@@ -4135,7 +4135,9 @@ static void conv3x3s2_packed_int8_neon(const Mat& bottom_blob, Mat& top_blob, co
                     int16x8_t _r1 = vmovl_s8(_r1_s8);
                     int16x8_t _r2 = vmovl_s8(_r2_s8);
 
-                    int32x4_t _sum03, _sum47;
+                    int32x4_t _sum03 = {};
+                    int32x4_t _sum47 = {};
+
                     _sum03 = vld1q_lane_s32(outptr0, _sum03, 0); // out0
                     _sum03 = vld1q_lane_s32(outptr1, _sum03, 1); // out1
                     _sum03 = vld1q_lane_s32(outptr2, _sum03, 2); // out2

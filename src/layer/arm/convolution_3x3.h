@@ -10952,14 +10952,14 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 
                     for (int m = 0; m + 3 < 8; m += 4)
                     {
-                        float32x4_t _output0_tm_00;
-                        float32x4_t _output0_tm_11;
-                        float32x4_t _output0_tm_22;
-                        float32x4_t _output0_tm_33;
-                        float32x4_t _output0_tm_44;
-                        float32x4_t _output0_tm_55;
-                        float32x4_t _output0_tm_66;
-                        float32x4_t _output0_tm_77;
+                        float32x4_t _output0_tm_00 = {};
+                        float32x4_t _output0_tm_11 = {};
+                        float32x4_t _output0_tm_22 = {};
+                        float32x4_t _output0_tm_33 = {};
+                        float32x4_t _output0_tm_44 = {};
+                        float32x4_t _output0_tm_55 = {};
+                        float32x4_t _output0_tm_66 = {};
+                        float32x4_t _output0_tm_77 = {};
 
                         _output0_tm_00 = vsetq_lane_f32(output0_tm0[0], _output0_tm_00, 0);
                         output0_tm0 += out0_tm.w * tiles;
