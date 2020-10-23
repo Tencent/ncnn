@@ -53,7 +53,7 @@ Raspberry Pi Vulkan drivers do exists, but are not mature. You are free to exper
 $ cd ncnn
 $ mkdir -p build
 $ cd build
-build$ cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_VULKAN=ON -DNCNN_SYSTEM_GLSLANG=ON -NCNN_OPENCV=ON -NCNN_BUILD_EXAMPLES=ON ..
+build$ cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_VULKAN=ON -DNCNN_SYSTEM_GLSLANG=ON -DNCNN_BUILD_EXAMPLES=ON ..
 build$ make -j$(nproc)
 ```
 
