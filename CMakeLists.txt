@@ -70,6 +70,10 @@ else()
     option(NCNN_DISABLE_EXCEPTION "disable exception" OFF)
 endif()
 
+if(NCNN_SIMPLESTL)
+    set(CMAKE_CXX_STANDARD 11)
+endif()
+
 ##############################################
 
 if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
