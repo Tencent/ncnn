@@ -18,46 +18,42 @@
 
 #include <stdlib.h>
 
-void* operator new(size_t sz) noexcept
+void* operator new(size_t size)
 {
-    void* ptr = malloc(sz);
-    return ptr;
+    return malloc(size);
 }
 
-void* operator new(size_t sz, void* ptr) noexcept
-{
-    return ptr;
-}
-
-void* operator new[](size_t sz) noexcept
-{
-    void* ptr = malloc(sz);
-    return ptr;
-}
-
-void* operator new[](size_t sz, void* ptr) noexcept
+void* operator new(size_t /*size*/, void* ptr)
 {
     return ptr;
 }
 
-void operator delete(void* ptr)noexcept
+void* operator new[](size_t size)
+{
+    return malloc(size);
+}
+
+void* operator new[](size_t /*size*/, void* ptr)
+{
+    return ptr;
+}
+
+void operator delete(void* ptr)
 {
     free(ptr);
 }
 
-void operator delete(void* ptr, size_t sz)noexcept
+void operator delete(void* /*ptr*/, void* /*voidptr2*/)
+{
+}
+
+void operator delete[](void* ptr)
 {
     free(ptr);
 }
 
-void operator delete[](void* ptr) noexcept
+void operator delete[](void* /*ptr*/, void* /*voidptr2*/)
 {
-    free(ptr);
-}
-
-void operator delete[](void* ptr, size_t sz) noexcept
-{
-    free(ptr);
 }
 
 extern "C" void __cxa_pure_virtual()
