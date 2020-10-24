@@ -137,7 +137,7 @@ static inline int NCNN_XADD(int* addr, int delta)
     return tmp;
 }
 #endif
-#else // NCNN_THREADS
+#else  // NCNN_THREADS
 static inline int NCNN_XADD(int* addr, int delta)
 {
     int tmp = *addr;
