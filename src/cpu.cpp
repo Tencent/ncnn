@@ -378,6 +378,16 @@ int get_cpu_count()
     return g_cpucount;
 }
 
+int get_little_cpu_count()
+{
+    return get_cpu_thread_affinity_mask(1).num_enabled();
+}
+
+int get_big_cpu_count()
+{
+    return get_cpu_thread_affinity_mask(2).num_enabled();
+}
+
 #if defined __ANDROID__ || defined __linux__
 static int get_max_freq_khz(int cpuid)
 {
@@ -456,7 +466,7 @@ static int get_max_freq_khz(int cpuid)
 static int set_sched_affinity(const CpuSet& thread_affinity_mask)
 {
     // set affinity for thread
-#ifdef __GLIBC__
+#if defined(__GLIBC__) || defined(__OHOS__)
     pid_t pid = syscall(SYS_gettid);
 #else
 #ifdef PI3

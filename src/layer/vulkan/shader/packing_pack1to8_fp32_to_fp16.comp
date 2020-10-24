@@ -41,11 +41,7 @@ layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 layout (binding = 0) readonly buffer bottom_blob_fp32 { float bottom_blob_fp32_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
 #if NCNN_image_shader
-layout (binding = 2) uniform highp sampler1D bottom_blob_1d_fp32;
-layout (binding = 2) uniform highp sampler2D bottom_blob_2d_fp32;
 layout (binding = 2) uniform highp sampler3D bottom_blob_3d_fp32;
-layout (binding = 3, imfmtc4) writeonly uniform unfp image1D top_blob_1d;
-layout (binding = 3, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 3, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
 #endif
 
@@ -98,14 +94,14 @@ void main()
         {
             int x4 = gx * 8;
 
-            v[0].r = afp(texelFetch(bottom_blob_1d_fp32, x4 + 0, 0).r);
-            v[0].g = afp(texelFetch(bottom_blob_1d_fp32, x4 + 1, 0).r);
-            v[0].b = afp(texelFetch(bottom_blob_1d_fp32, x4 + 2, 0).r);
-            v[0].a = afp(texelFetch(bottom_blob_1d_fp32, x4 + 3, 0).r);
-            v[1].r = afp(texelFetch(bottom_blob_1d_fp32, x4 + 4, 0).r);
-            v[1].g = afp(texelFetch(bottom_blob_1d_fp32, x4 + 5, 0).r);
-            v[1].b = afp(texelFetch(bottom_blob_1d_fp32, x4 + 6, 0).r);
-            v[1].a = afp(texelFetch(bottom_blob_1d_fp32, x4 + 7, 0).r);
+            v[0].r = afp(texelFetch(bottom_blob_3d_fp32, ivec3(x4 + 0, 0, 0), 0).r);
+            v[0].g = afp(texelFetch(bottom_blob_3d_fp32, ivec3(x4 + 1, 0, 0), 0).r);
+            v[0].b = afp(texelFetch(bottom_blob_3d_fp32, ivec3(x4 + 2, 0, 0), 0).r);
+            v[0].a = afp(texelFetch(bottom_blob_3d_fp32, ivec3(x4 + 3, 0, 0), 0).r);
+            v[1].r = afp(texelFetch(bottom_blob_3d_fp32, ivec3(x4 + 4, 0, 0), 0).r);
+            v[1].g = afp(texelFetch(bottom_blob_3d_fp32, ivec3(x4 + 5, 0, 0), 0).r);
+            v[1].b = afp(texelFetch(bottom_blob_3d_fp32, ivec3(x4 + 6, 0, 0), 0).r);
+            v[1].a = afp(texelFetch(bottom_blob_3d_fp32, ivec3(x4 + 7, 0, 0), 0).r);
         }
 #endif
 
@@ -118,7 +114,7 @@ void main()
 #if NCNN_image_shader
         if (storage_type_to == 1)
         {
-            image1d_st8(top_blob_1d, gx, v);
+            image3d_st8(top_blob_3d, ivec3(gx, 0, 0), v);
         }
 #endif
     }
@@ -145,14 +141,14 @@ void main()
         {
             int y4 = gy * 8;
 
-            v[0].r = afp(texelFetch(bottom_blob_2d_fp32, ivec2(gx, y4 + 0), 0).r);
-            v[0].g = afp(texelFetch(bottom_blob_2d_fp32, ivec2(gx, y4 + 1), 0).r);
-            v[0].b = afp(texelFetch(bottom_blob_2d_fp32, ivec2(gx, y4 + 2), 0).r);
-            v[0].a = afp(texelFetch(bottom_blob_2d_fp32, ivec2(gx, y4 + 3), 0).r);
-            v[1].r = afp(texelFetch(bottom_blob_2d_fp32, ivec2(gx, y4 + 4), 0).r);
-            v[1].g = afp(texelFetch(bottom_blob_2d_fp32, ivec2(gx, y4 + 5), 0).r);
-            v[1].b = afp(texelFetch(bottom_blob_2d_fp32, ivec2(gx, y4 + 6), 0).r);
-            v[1].a = afp(texelFetch(bottom_blob_2d_fp32, ivec2(gx, y4 + 7), 0).r);
+            v[0].r = afp(texelFetch(bottom_blob_3d_fp32, ivec3(gx, y4 + 0, 0), 0).r);
+            v[0].g = afp(texelFetch(bottom_blob_3d_fp32, ivec3(gx, y4 + 1, 0), 0).r);
+            v[0].b = afp(texelFetch(bottom_blob_3d_fp32, ivec3(gx, y4 + 2, 0), 0).r);
+            v[0].a = afp(texelFetch(bottom_blob_3d_fp32, ivec3(gx, y4 + 3, 0), 0).r);
+            v[1].r = afp(texelFetch(bottom_blob_3d_fp32, ivec3(gx, y4 + 4, 0), 0).r);
+            v[1].g = afp(texelFetch(bottom_blob_3d_fp32, ivec3(gx, y4 + 5, 0), 0).r);
+            v[1].b = afp(texelFetch(bottom_blob_3d_fp32, ivec3(gx, y4 + 6, 0), 0).r);
+            v[1].a = afp(texelFetch(bottom_blob_3d_fp32, ivec3(gx, y4 + 7, 0), 0).r);
         }
 #endif
 
@@ -165,7 +161,7 @@ void main()
 #if NCNN_image_shader
         if (storage_type_to == 1)
         {
-            image2d_st8(top_blob_2d, ivec2(gx, gy), v);
+            image3d_st8(top_blob_3d, ivec3(gx, gy, 0), v);
         }
 #endif
     }

@@ -31,7 +31,7 @@ layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler1D coeffs_blob;
+layout (binding = 2) uniform unfp sampler3D coeffs_blob;
 #else
 layout (binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 layout (binding = 1) readonly buffer coeffs_blob { sfpvec4 coeffs_blob_data[]; };
@@ -58,8 +58,8 @@ void main()
 #if NCNN_image_shader
     afpvec4 v = image3d_ld4(bottom_blob, ivec3(gx, gy, gz));
 
-    afpvec4 a = image1d_ld4(coeffs_blob, gz*2);
-    afpvec4 b = image1d_ld4(coeffs_blob, gz*2 +1);
+    afpvec4 a = image3d_ld4(coeffs_blob, ivec3(gz*2, 0, 0));
+    afpvec4 b = image3d_ld4(coeffs_blob, ivec3(gz*2 +1, 0, 0));
 #else
     const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 

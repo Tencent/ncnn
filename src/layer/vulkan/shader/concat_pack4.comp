@@ -37,11 +37,7 @@ layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler1D bottom_blob_1d;
-layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image1D top_blob_1d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
@@ -74,28 +70,14 @@ void main()
     if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
-#if NCNN_image_shader
-    if (psc(dims) == 1)
-    {
-        image1d_cp4(top_blob_1d, gx + p.offset, bottom_blob_1d, gx);
-    }
-    else if (psc(dims) == 2)
-    {
-        if (axis == 0) image2d_cp4(top_blob_2d, ivec2(gx, gy + p.offset), bottom_blob_2d, ivec2(gx, gy));
-        if (axis == 1) image2d_cp4(top_blob_2d, ivec2(gx + p.offset, gy), bottom_blob_2d, ivec2(gx, gy));
-    }
-    else // if (psc(dims) == 3)
-    {
-        if (axis == 0) image3d_cp4(top_blob_3d, ivec3(gx, gy, gz + p.offset), bottom_blob_3d, ivec3(gx, gy, gz));
-        if (axis == 1) image3d_cp4(top_blob_3d, ivec3(gx, gy + p.offset, gz), bottom_blob_3d, ivec3(gx, gy, gz));
-        if (axis == 2) image3d_cp4(top_blob_3d, ivec3(gx + p.offset, gy, gz), bottom_blob_3d, ivec3(gx, gy, gz));
-    }
-#else
-    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
-
     ivec3 gxyz = ivec3(gx, gy, gz);
 
     gxyz[psc(dims) - 1 - axis] += p.offset;
+
+#if NCNN_image_shader
+    image3d_cp4(top_blob_3d, gxyz, bottom_blob_3d, ivec3(gx, gy, gz));
+#else
+    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     int v_offset = gxyz.z * psc(outcstep) + gxyz.y * psc(outw) + gxyz.x;
 

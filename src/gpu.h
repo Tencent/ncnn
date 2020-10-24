@@ -129,7 +129,6 @@ public:
 
     // bug is not feature
     bool bug_storage_buffer_no_l1;
-    bool bug_layout_binding_id_alias;
     bool bug_corrupted_online_pipeline_cache;
 
     // but sometimes bug is a feature

@@ -61,19 +61,7 @@ void main()
         return;
 
 #if NCNN_image_shader
-    afp v;
-    if (psc(dims) == 1)
-    {
-        v = image1d_ld1(bottom_blob_1d, gx);
-    }
-    else if (psc(dims) == 2)
-    {
-        v = image2d_ld1(bottom_blob_2d, ivec2(gx, gy));
-    }
-    else // if (psc(dims) == 3)
-    {
-        v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, gz));
-    }
+    afp v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, gz));
 #else
     const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
@@ -83,18 +71,7 @@ void main()
     v = clamp(v * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
 
 #if NCNN_image_shader
-    if (psc(dims) == 1)
-    {
-        image1d_st1(top_blob_1d, gx, v);
-    }
-    else if (psc(dims) == 2)
-    {
-        image2d_st1(top_blob_2d, ivec2(gx, gy), v);
-    }
-    else // if (psc(dims) == 3)
-    {
-        image3d_st1(top_blob_3d, ivec3(gx, gy, gz), v);
-    }
+    image3d_st1(top_blob_3d, ivec3(gx, gy, gz), v);
 #else
     buffer_st1(bottom_top_blob_data, gi, v);
 #endif
