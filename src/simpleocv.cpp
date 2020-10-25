@@ -12,9 +12,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "opencv.h"
+#include "simpleocv.h"
 
-#if NCNN_OPENCV
+#if NCNN_SIMPLEOCV
 
 #include <stdio.h>
 
@@ -120,4 +120,4 @@ void resize(const Mat& src, Mat& dst, const Size& size, float sw, float sh, int 
 
 } // namespace cv
 
-#endif // NCNN_OPENCV
+#endif // NCNN_SIMPLEOCV
