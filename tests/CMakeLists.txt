@@ -26,10 +26,19 @@ endmacro()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src/layer)
 
-ncnn_add_test(mat_pixel_affine)
-ncnn_add_test(mat_pixel_resize)
-ncnn_add_test(mat_pixel_rotate)
-ncnn_add_test(mat_pixel)
+if(NCNN_PIXEL_AFFINE)
+    ncnn_add_test(mat_pixel_affine)
+endif()
+
+if(NCNN_PIXEL_ROTATE)
+    ncnn_add_test(mat_pixel_rotate)
+endif()
+
+if(NCNN_PIXEL)
+    ncnn_add_test(mat_pixel_resize)
+    ncnn_add_test(mat_pixel)
+endif()
+
 ncnn_add_test(squeezenet)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
