@@ -82,6 +82,8 @@ void imwrite(const std::string& path, const Mat& m)
 #if NCNN_PIXEL
 void resize(const Mat& src, Mat& dst, const Size& size, float sw, float sh, int flags)
 {
+    (void)flags;
+
     int srcw = src.cols;
     int srch = src.rows;
 
