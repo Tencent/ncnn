@@ -31,11 +31,11 @@ set(ncnn_SRCS
     mat_pixel_rotate.cpp
     modelbin.cpp
     net.cpp
-    opencv.cpp
     option.cpp
     paramdict.cpp
     pipeline.cpp
     pipelinecache.cpp
+    simpleocv.cpp
     simpleomp.cpp
     simplestl.cpp
 )
@@ -320,11 +320,11 @@ if(NCNN_INSTALL_SDK)
         mat.h
         modelbin.h
         net.h
-        opencv.h
         option.h
         paramdict.h
         pipeline.h
         pipelinecache.h
+        simpleocv.h
         simpleomp.h
         simplestl.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
