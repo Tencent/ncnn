@@ -70,6 +70,21 @@ def NCNN_KerasDenseOp : NCNN_Op<"KerasDense", [NoSideEffect]> {
   let hasCanonicalizer = 1;
 }
 
+def NCNN_KerasBatchNormOp : NCNN_Op<"KerasBatchNorm", [NoSideEffect]> {
+
+  let arguments = (ins
+    F32Tensor:$x,
+    F32Tensor:$gamma,
+    F32Tensor:$bias
+  );
+
+  let results = (outs
+    F32Tensor:$y
+  );
+
+  let hasCanonicalizer = 1;
+}
+
 def NCNN_BinaryOpOp : NCNN_Op<"BinaryOp", [NoSideEffect]> {
 
   let arguments = (ins

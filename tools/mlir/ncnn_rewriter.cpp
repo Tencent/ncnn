@@ -44,6 +44,11 @@ void KerasDenseOp::getCanonicalizationPatterns(OwningRewritePatternList& results
     results.insert<FuseKerasDenseOpPattern>(context);
 }
 
+void KerasBatchNormOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
+{
+    results.insert<FuseKerasBatchNormOpPattern>(context);
+}
+
 void InstanceNormOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
 {
     results.insert<FuseInstanceNormPattern0>(context);

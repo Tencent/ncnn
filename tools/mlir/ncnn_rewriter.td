@@ -64,6 +64,18 @@ def FuseKerasDenseOpPattern : Pat<
     (NCNN_KerasDenseOp $x, $weight, $bias)
 >;
 
+def FuseKerasBatchNormOpPattern : Pat<
+    (TF_AddV2Op
+        (TF_MulOp
+            $x,
+            (TF_ConstOp:$gamma ElementsAttr)
+        ),
+        (TF_ConstOp:$bias ElementsAttr)
+    ),
+
+    (NCNN_KerasBatchNormOp $x, $gamma, $bias)
+>;
+
 def FuseInstanceNormPattern0 : Pat<
     (TF_MulOp
         (TF_RsqrtOp

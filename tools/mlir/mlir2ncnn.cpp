@@ -429,6 +429,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "InnerProduct");
         }
+        else if (op == "ncnn.KerasBatchNorm")
+        {
+            fprintf(pp, "%-16s", "BatchNorm");
+        }
         else if (op == "ncnn.InstanceNorm")
         {
             fprintf(pp, "%-16s", "InstanceNorm");
@@ -767,6 +771,28 @@ int main(int argc, char** argv)
             }
 
             fwrite(bv.data(), sizeof(float), bv.size(), bp);
+        }
+        else if (op == "ncnn.KerasBatchNorm")
+        {
+            std::string gamma_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            std::string bias_name = get_mlir_value_uniq_id(operation.getOperand(2));
+            const mlir::Attribute& W = weights[gamma_name];
+            const mlir::Attribute& B = weights[bias_name];
+
+            std::vector<float> v = get_attr_af(W);
+            std::vector<float> bv = get_attr_af(B);
+
+            int channels = v.size();
+
+            fprintf(pp, " 0=%d", channels);
+
+            std::vector<float> mean(channels, 0.f);
+            std::vector<float> var(channels, 1.f);
+
+            fwrite(v.data(), sizeof(float), channels, bp);
+            fwrite(mean.data(), sizeof(float), channels, bp);
+            fwrite(var.data(), sizeof(float), channels, bp);
+            fwrite(bv.data(), sizeof(float), channels, bp);
         }
         else if (op == "ncnn.InstanceNorm")
         {

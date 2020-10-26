@@ -3328,6 +3328,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", channels)
             fprintf_param_value(" 1=%e", eps)
+            fprintf_param_value(" 2=%d", affine)
 
             fwrite_weight_data(op->gamma_data, bp);
             fwrite_weight_data(op->beta_data, bp);
