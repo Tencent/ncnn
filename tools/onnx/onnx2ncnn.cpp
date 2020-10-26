@@ -1211,7 +1211,7 @@ static void fuse_groupnorm(onnx::GraphProto* mutable_graph, std::map<std::string
             int channels = shape2[1];
 
             // affine
-            int affine = 1;
+            int affine = 0;
             std::vector<float> affine_S = get_node_attr_from_input_af(binaryop_weights[node4->input(1)]);
             std::vector<float> affine_B = get_node_attr_from_input_af(binaryop_weights[node5->input(1)]);
             if (affine_S.size() == 1 && affine_S[0] == 1.f && affine_B.size() == 1 && affine_B[0] == 0.f)
@@ -1222,6 +1222,15 @@ static void fuse_groupnorm(onnx::GraphProto* mutable_graph, std::map<std::string
             {
                 // we only allow per-channel affine
                 continue;
+            }
+
+            for (int j = 0; j < channels; j++)
+            {
+                if (affine_S[j] != 1.f || affine_B[j] != 0.f)
+                {
+                    affine = 1;
+                    break;
+                }
             }
 
             // reduce
@@ -1246,10 +1255,20 @@ static void fuse_groupnorm(onnx::GraphProto* mutable_graph, std::map<std::string
             {
                 weights[affine_scale] = binaryop_weights[affine_scale];
                 weights[affine_bias] = binaryop_weights[affine_bias];
-            }
 
-            reduced_binaryop_weights.push_back(affine_scale);
-            reduced_binaryop_weights.push_back(affine_bias);
+                binaryop_weights.erase(binaryop_weights.find(affine_scale));
+                binaryop_weights.erase(binaryop_weights.find(affine_bias));
+
+                node_reference.erase(node_reference.find(affine_scale));
+                node_reference.erase(node_reference.find(affine_bias));
+                blob_names.erase(affine_scale);
+                blob_names.erase(affine_bias);
+            }
+            else
+            {
+                reduced_binaryop_weights.push_back(affine_scale);
+                reduced_binaryop_weights.push_back(affine_bias);
+            }
 
             node5->set_op_type("GroupNorm");
             node5->clear_input();
@@ -1858,7 +1877,7 @@ int main(int argc, char** argv)
         }
     }
 
-    fprintf(pp, "%lu %lu\n", node_count - reduced_node_count + input_node_count + node_reference.size() + graph.initializer_size() - weights.size() - reduced_binaryop_weights.size(), blob_names.size() - reduced_binaryop_weights.size() + splitncnn_blob_count);
+    fprintf(pp, "%lu %lu\n", node_count - reduced_node_count + input_node_count + node_reference.size() + binaryop_weights.size() - reduced_binaryop_weights.size(), blob_names.size() - reduced_binaryop_weights.size() + splitncnn_blob_count);
 
     int internal_split = 0;
 

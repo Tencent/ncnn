@@ -43,6 +43,7 @@
 #include "layer/exp.h"
 #include "layer/expanddims.h"
 #include "layer/flatten.h"
+#include "layer/groupnorm.h"
 #include "layer/hardsigmoid.h"
 #include "layer/hardswish.h"
 #include "layer/innerproduct.h"
@@ -3278,6 +3279,19 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             {
                 if (!op->axes.empty()) fprintf_param_int_array(0, op->axes, pp);
             }
+        }
+        else if (layer->type == "GroupNorm")
+        {
+            ncnn::GroupNorm* op = (ncnn::GroupNorm*)layer;
+            ncnn::GroupNorm* op_default = (ncnn::GroupNorm*)layer_default;
+
+            fprintf_param_value(" 0=%d", group)
+            fprintf_param_value(" 1=%d", channels)
+            fprintf_param_value(" 2=%e", eps)
+            fprintf_param_value(" 3=%d", affine)
+
+            fwrite_weight_data(op->gamma_data, bp);
+            fwrite_weight_data(op->beta_data, bp);
         }
         else if (layer->type == "HardSigmoid")
         {
