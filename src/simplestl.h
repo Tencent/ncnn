@@ -25,14 +25,22 @@
 
 #else
 
-// operator new and delete
+// allocation functions
 void* operator new(size_t size);
-void* operator new(size_t size, void* ptr);
 void* operator new[](size_t size);
+// placement allocation functions
+void* operator new(size_t size, void* ptr);
 void* operator new[](size_t size, void* ptr);
+// deallocation functions
 void operator delete(void* ptr);
-void operator delete(void* ptr, void* voidptr2);
 void operator delete[](void* ptr);
+// deallocation functions since c++14
+#if __cplusplus >= 201402L
+void operator delete(void* ptr, size_t sz);
+void operator delete[](void* ptr, size_t sz);
+#endif
+// placement deallocation functions
+void operator delete(void* ptr, void* voidptr2);
 void operator delete[](void* ptr, void* voidptr2);
 
 #endif

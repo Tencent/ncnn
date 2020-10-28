@@ -18,14 +18,10 @@
 
 #include <stdlib.h>
 
+// allocation functions
 void* operator new(size_t size)
 {
     return malloc(size);
-}
-
-void* operator new(size_t /*size*/, void* ptr)
-{
-    return ptr;
 }
 
 void* operator new[](size_t size)
@@ -33,23 +29,46 @@ void* operator new[](size_t size)
     return malloc(size);
 }
 
+// placement allocation functions
+void* operator new(size_t /*size*/, void* ptr)
+{
+    return ptr;
+}
+
 void* operator new[](size_t /*size*/, void* ptr)
 {
     return ptr;
 }
 
+// deallocation functions
 void operator delete(void* ptr)
 {
     free(ptr);
 }
 
-void operator delete(void* /*ptr*/, void* /*voidptr2*/)
-{
-}
-
 void operator delete[](void* ptr)
 {
     free(ptr);
+}
+
+// deallocation functions since c++14
+#if __cplusplus >= 201402L
+
+void operator delete(void* ptr, size_t sz)
+{
+    free(ptr);
+}
+
+void operator delete[](void* ptr, size_t sz)
+{
+    free(ptr);
+}
+
+#endif
+
+// placement deallocation functions
+void operator delete(void* /*ptr*/, void* /*voidptr2*/)
+{
 }
 
 void operator delete[](void* /*ptr*/, void* /*voidptr2*/)
