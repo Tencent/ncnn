@@ -17,6 +17,7 @@
 #define NCNN_C_API_H
 
 #include <stddef.h>
+#include "defs.h"
 
 #ifdef __cplusplus
 extern "C" {
