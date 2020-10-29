@@ -33,7 +33,19 @@ jobs:
       run: |
         Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.148.1/windows/VulkanSDK-1.2.148.1-Installer.exe?Human=true -OutFile VulkanSDK-1.2.148.1-Installer.exe
         7z x -aoa ./VulkanSDK-1.2.148.1-Installer.exe -oVulkanSDK
-        Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\glslang, .\VulkanSDK\Samples, .\VulkanSDK\shaderc, .\VulkanSDK\spirv-tools, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
+        Remove-Item .\VulkanSDK\Bin, .\VulkanSDK\Bin32, .\VulkanSDK\Demos, .\VulkanSDK\Samples, .\VulkanSDK\Templates, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
+
+        Move-Item .\VulkanSDK\Include\vulkan .\VulkanSDK\vulkan
+        Remove-Item .\VulkanSDK\Include\* -Recurse
+        Move-Item .\VulkanSDK\vulkan .\VulkanSDK\Include\vulkan
+
+        Move-Item .\VulkanSDK\Lib\vulkan-1.lib .\VulkanSDK\vulkan-1.lib
+        Remove-Item .\VulkanSDK\Lib\* -Recurse
+        Move-Item .\VulkanSDK\vulkan-1.lib .\VulkanSDK\Lib\vulkan-1.lib
+
+        Move-Item .\VulkanSDK\Lib32\vulkan-1.lib .\VulkanSDK\vulkan-1.lib
+        Remove-Item .\VulkanSDK\Lib32\* -Recurse
+        Move-Item .\VulkanSDK\vulkan-1.lib .\VulkanSDK\Lib32\vulkan-1.lib
     - name: cache-swiftshader
       id: cache-swiftshader
       uses: actions/cache@v1
