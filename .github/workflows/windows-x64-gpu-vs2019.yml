@@ -32,7 +32,11 @@ jobs:
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
         Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.148.1/windows/VulkanSDK-1.2.148.1-Installer.exe?Human=true -OutFile VulkanSDK-1.2.148.1-Installer.exe
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.148.1/windows/vulkan-runtime-components.zip?Human=true -OutFile vulkan-runtime-components.zip
+
         7z x -aoa ./VulkanSDK-1.2.148.1-Installer.exe -oVulkanSDK
+        7z x -aoa ./vulkan-runtime-components.zip -ovulkan-runtime-components
+
         Remove-Item .\VulkanSDK\Bin, .\VulkanSDK\Bin32, .\VulkanSDK\Demos, .\VulkanSDK\Samples, .\VulkanSDK\Templates, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
 
         Move-Item .\VulkanSDK\Include\vulkan .\VulkanSDK\vulkan
@@ -43,9 +47,9 @@ jobs:
         Remove-Item .\VulkanSDK\Lib\* -Recurse
         Move-Item .\VulkanSDK\vulkan-1.lib .\VulkanSDK\Lib\vulkan-1.lib
 
-        Move-Item .\VulkanSDK\Lib32\vulkan-1.lib .\VulkanSDK\vulkan-1.lib
         Remove-Item .\VulkanSDK\Lib32\* -Recurse
-        Move-Item .\VulkanSDK\vulkan-1.lib .\VulkanSDK\Lib32\vulkan-1.lib
+
+        Move-Item .\vulkan-runtime-components\VulkanRT-1.2.148.1-Components\x64\vulkan-1.dll .\VulkanSDK\vulkan-1.dll
     - name: cache-swiftshader
       id: cache-swiftshader
       uses: actions/cache@v1
@@ -82,6 +86,6 @@ jobs:
       run: cmake --build build --config Release -j 2
     - name: test
       run: |
-        Copy-Item -Path '.\VulkanSDK\RunTimeInstaller\x64\vulkan-1.dll' -Destination 'build\tests'
+        Copy-Item -Path '.\VulkanSDK\vulkan-1.dll' -Destination 'build\tests'
         $env:VK_ICD_FILENAMES="$env:GITHUB_WORKSPACE\swiftshader-install\vk_swiftshader_icd.json"
         cd build; ctest -C Release --output-on-failure -j 2
