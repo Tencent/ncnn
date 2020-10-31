@@ -1339,7 +1339,7 @@ inline size_t Mat::total() const
 
 inline int Mat::elembits() const
 {
-    return elempack ? elemsize * 8 / elempack : 0;
+    return elempack ? static_cast<int>(elemsize * 8) / elempack : 0;
 }
 
 inline Mat Mat::shape() const
