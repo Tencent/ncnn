@@ -103,7 +103,7 @@ static inline void fastFree(void* ptr)
 #define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd(const_cast<void*>(reinterpret_cast<volatile void*>(addr)), delta)
 #endif
 
-#if defined NCNN_THREADS && !(defined NCNN_XADD) &&  defined __GNUC__
+#if defined NCNN_THREADS && !(defined NCNN_XADD) && defined __GNUC__
 #if defined __clang__ && __clang_major__ >= 3 && !defined __ANDROID__ && !defined __EMSCRIPTEN__ && !defined(__CUDACC__)
 #ifdef __ATOMIC_ACQ_REL
 #define NCNN_XADD(addr, delta) __c11_atomic_fetch_add((_Atomic(int)*)(addr), delta, __ATOMIC_ACQ_REL)
@@ -113,7 +113,7 @@ static inline void fastFree(void* ptr)
 #endif
 #endif
 
-#if defined NCNN_THREADS && !(defined NCNN_XADD) &&  defined __GNUC__
+#if defined NCNN_THREADS && !(defined NCNN_XADD) && defined __GNUC__
 #if defined __ATOMIC_ACQ_REL && !defined __clang__
 // version for gcc >= 4.7
 #define NCNN_XADD(addr, delta) (int)__atomic_fetch_add((unsigned*)(addr), (unsigned)(delta), __ATOMIC_ACQ_REL)
@@ -123,7 +123,7 @@ static inline void fastFree(void* ptr)
 #endif
 
 #if defined NCNN_THREADS && !(defined NCNN_XADD)
-#if defined  _MSC_VER && !defined RC_INVOKED
+#if defined _MSC_VER && !defined RC_INVOKED
 #define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd((long volatile*)addr, delta)
 #endif
 #endif
