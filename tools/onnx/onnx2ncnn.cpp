@@ -165,7 +165,7 @@ static std::vector<int> get_node_attr_from_input_ai(const onnx::TensorProto& tp)
         if (tp.has_raw_data())
         {
             shape_data = (const int64_t*)tp.raw_data().data();
-            size = tp.raw_data().size() / 8;
+            size = (int)(tp.raw_data().size() / 8);
         }
         else
         {
@@ -184,7 +184,7 @@ static std::vector<int> get_node_attr_from_input_ai(const onnx::TensorProto& tp)
         if (tp.has_raw_data())
         {
             shape_data = (const int32_t*)tp.raw_data().data();
-            size = tp.raw_data().size() / 4;
+            size = (int)(tp.raw_data().size() / 4);
         }
         else
         {
@@ -217,7 +217,7 @@ static std::vector<float> get_node_attr_from_input_af(const onnx::TensorProto& t
         if (tp.has_raw_data())
         {
             shape_data = (const float*)tp.raw_data().data();
-            size = tp.raw_data().size() / 4;
+            size = (int)(tp.raw_data().size() / 4);
         }
         else
         {
@@ -236,7 +236,7 @@ static std::vector<float> get_node_attr_from_input_af(const onnx::TensorProto& t
         if (tp.has_raw_data())
         {
             shape_data = (const double*)tp.raw_data().data();
-            size = tp.raw_data().size() / 8;
+            size = (int)(tp.raw_data().size() / 8);
         }
         else
         {
@@ -2951,7 +2951,7 @@ int main(int argc, char** argv)
             std::vector<float> bias = get_node_attr_af(node, "bias");
             float scale = get_node_attr_f(node, "scale", 1.f);
 
-            int channels = bias.size();
+            int channels = (int)bias.size();
 
             fprintf(pp, " 0=%d", channels);
             fprintf(pp, " 1=1");
@@ -2969,7 +2969,7 @@ int main(int argc, char** argv)
             // discard affine-less S=1 B=0
             std::vector<float> affine_S = get_node_attr_from_input_af(weights[node.input(1)]);
             std::vector<float> affine_B = get_node_attr_from_input_af(weights[node.input(2)]);
-            int channels = affine_S.size();
+            int channels = (int)affine_S.size();
             int affine = 0;
             {
                 for (int j = 0; j < channels; j++)
@@ -3276,7 +3276,7 @@ int main(int argc, char** argv)
                 type = 2;
             }
 
-            int pad_size = pads.size();
+            int pad_size = (int)pads.size();
             int top, bottom, left, right;
             if (pad_size == 8)
             {
