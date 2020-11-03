@@ -103,7 +103,7 @@ static inline void fastFree(void* ptr)
 #define NCNN_XADD
 #endif
 
-#if defined NCNN_THREADS && defined __INTEL_COMPILER && !(defined WIN32 || defined _WIN32)
+#if defined NCNN_THREADS  && !(defined NCNN_XADD) && defined __INTEL_COMPILER && !(defined WIN32 || defined _WIN32)
 // atomic increment on the linux version of the Intel(tm) compiler
 #define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd(const_cast<void*>(reinterpret_cast<volatile void*>(addr)), delta)
 #endif
