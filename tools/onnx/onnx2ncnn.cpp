@@ -2207,7 +2207,14 @@ int main(int argc, char** argv)
         }
         else if (op == "MatMul")
         {
-            fprintf(pp, "%-16s", "InnerProduct");
+            if (weights.find(node.input(1)) == weights.end())
+            {
+                fprintf(pp, "%-16s", "Gemm");
+            }
+            else
+            {
+                fprintf(pp, "%-16s", "InnerProduct");
+            }
         }
         else if (op == "Max")
         {
@@ -3184,35 +3191,43 @@ int main(int argc, char** argv)
         }
         else if (op == "MatMul")
         {
-            const onnx::TensorProto& B = weights[node.input(1)];
-
-            int weight_data_size = get_tensor_proto_data_size(B);
-
-            int num_output = B.dims(B.dims_size() - 1);
-            int num_input = weight_data_size / num_output;
-
-            fprintf(pp, " 0=%d", num_output);
-            fprintf(pp, " 1=0");
-            fprintf(pp, " 2=%d", weight_data_size);
-
-            int quantize_tag = 0;
-            fwrite(&quantize_tag, sizeof(int), 1, bp);
-
-            // reorder num_input-num_output to num_output-num_input
+            if (weights.find(node.input(1)) == weights.end())
             {
-                const float* bptr = B.has_raw_data() ? (const float*)B.raw_data().data() : B.float_data().data();
+                // default matrix multiplication
+            }
+            else
+            {
+                // InnerProduct
+                const onnx::TensorProto& B = weights[node.input(1)];
 
-                for (int j = 0; j < num_output; j++)
+                int weight_data_size = get_tensor_proto_data_size(B);
+
+                int num_output = B.dims(B.dims_size() - 1);
+                int num_input = weight_data_size / num_output;
+
+                fprintf(pp, " 0=%d", num_output);
+                fprintf(pp, " 1=0");
+                fprintf(pp, " 2=%d", weight_data_size);
+
+                int quantize_tag = 0;
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                // reorder num_input-num_output to num_output-num_input
                 {
-                    for (int k = 0; k < num_input; k++)
+                    const float* bptr = B.has_raw_data() ? (const float*)B.raw_data().data() : B.float_data().data();
+
+                    for (int j = 0; j < num_output; j++)
                     {
-                        float vb = bptr[k * num_output + j];
-                        fwrite(&vb, sizeof(float), 1, bp);
+                        for (int k = 0; k < num_input; k++)
+                        {
+                            float vb = bptr[k * num_output + j];
+                            fwrite(&vb, sizeof(float), 1, bp);
+                        }
                     }
                 }
-            }
 
-            //                 fwrite_tensor_proto_data(B, bp)
+                // fwrite_tensor_proto_data(B, bp)
+            }
         }
         else if (op == "Max")
         {
@@ -3680,7 +3695,14 @@ int main(int argc, char** argv)
         {
             std::vector<int> perm = get_node_attr_ai(node, "perm");
 
-            if (perm.size() == 4)
+            if (perm.size() == 3)
+            {
+                if (perm[1] == 1 && perm[2] == 2)
+                    fprintf(pp, " 0=0"); // w h
+                else if (perm[1] == 2 && perm[2] == 1)
+                    fprintf(pp, " 0=1"); // h w
+            }
+            else if (perm.size() == 4)
             {
                 if (perm[1] == 1 && perm[2] == 2 && perm[3] == 3)
                     fprintf(pp, " 0=0"); // w h c

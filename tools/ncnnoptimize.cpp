@@ -43,6 +43,7 @@
 #include "layer/exp.h"
 #include "layer/expanddims.h"
 #include "layer/flatten.h"
+#include "layer/gemm.h"
 #include "layer/groupnorm.h"
 #include "layer/hardsigmoid.h"
 #include "layer/hardswish.h"
@@ -3133,6 +3134,16 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             {
                 if (!op->axes.empty()) fprintf_param_int_array(0, op->axes, pp);
             }
+        }
+        else if (layer->type == "Gemm")
+        {
+            ncnn::Gemm* op = (ncnn::Gemm*)layer;
+            ncnn::Gemm* op_default = (ncnn::Gemm*)layer_default;
+
+            fprintf_param_value(" 0=%e", alpha)
+            fprintf_param_value(" 1=%e", beta)
+            fprintf_param_value(" 2=%d", transA)
+            fprintf_param_value(" 3=%d", transB)
         }
         else if (layer->type == "GroupNorm")
         {
