@@ -98,6 +98,11 @@ static inline void fastFree(void* ptr)
     }
 }
 
+
+#if defined NCNN_THREADS && defined __riscv && !defined __riscv_atomic
+#define NCNN_XADD
+#endif
+
 #if defined NCNN_THREADS && defined __INTEL_COMPILER && !(defined WIN32 || defined _WIN32)
 // atomic increment on the linux version of the Intel(tm) compiler
 #define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd(const_cast<void*>(reinterpret_cast<volatile void*>(addr)), delta)
@@ -128,6 +133,9 @@ static inline void fastFree(void* ptr)
 #endif
 #endif
 
+#if defined NCNN_THREADS && defined __riscv && !defined __riscv_atomic
+#undef NCNN_XADD
+#endif
 #ifndef NCNN_XADD
 static inline int NCNN_XADD(int* addr, int delta)
 {
@@ -136,6 +144,7 @@ static inline int NCNN_XADD(int* addr, int delta)
     return tmp;
 }
 #endif
+
 /*
 #if NCNN_THREADS
 // exchange-add operation for atomic operations on reference counters
