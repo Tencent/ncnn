@@ -11,16 +11,16 @@ jobs:
       id: cache-vulkansdk
       uses: actions/cache@v1
       with:
-        path: "1.1.114.0"
-        key: vulkansdk-linux-x86_64-1.1.114.0
+        path: "1.2.148.1"
+        key: vulkansdk-linux-x86_64-1.2.148.1
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/linux/vulkansdk-linux-x86_64-1.1.114.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.1.114.0.tar.gz
-        tar -xf vulkansdk-linux-x86_64-1.1.114.0.tar.gz
-        rm -rf 1.1.114.0/source 1.1.114.0/samples
-        find 1.1.114.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
+        wget https://sdk.lunarg.com/sdk/download/1.2.148.1/linux/vulkansdk-linux-x86_64-1.2.148.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.148.1.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.2.148.1.tar.gz
+        rm -rf 1.2.148.1/source 1.2.148.1/samples
+        find 1.2.148.1 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: configure
-      run: export PATH=`pwd`/1.1.114.0/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+      run: export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
     - name: build
       run: cmake --build build -j 2

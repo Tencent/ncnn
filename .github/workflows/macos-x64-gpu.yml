@@ -13,15 +13,15 @@ jobs:
       id: cache-vulkansdk
       uses: actions/cache@v1
       with:
-        path: "vulkansdk-macos-1.1.114.0"
-        key: vulkansdk-macos-1.1.114.0
+        path: "vulkansdk-macos-1.2.135.0"
+        key: vulkansdk-macos-1.2.135.0
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.1.114.0/mac/vulkansdk-macos-1.1.114.0.tar.gz?Human=true -O vulkansdk-macos-1.1.114.0.tar.gz
-        tar -xf vulkansdk-macos-1.1.114.0.tar.gz
-        rm -rf vulkansdk-macos-1.1.114.0/Applications
-        find vulkansdk-macos-1.1.114.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
+        wget https://sdk.lunarg.com/sdk/download/1.2.135.0/mac/vulkansdk-macos-1.2.135.0.tar.gz?Human=true -O vulkansdk-macos-1.2.135.0.tar.gz
+        tar -xf vulkansdk-macos-1.2.135.0.tar.gz
+        rm -rf vulkansdk-macos-1.2.135.0/Applications
+        find vulkansdk-macos-1.2.135.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
     - name: cache-swiftshader
       id: cache-swiftshader
       uses: actions/cache@v1
@@ -50,11 +50,11 @@ jobs:
         mkdir $GITHUB_WORKSPACE/swiftshader-install
         cp Darwin/* $GITHUB_WORKSPACE/swiftshader-install
     - name: configure
-      run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.1.114.0/macOS && mkdir build && cd build && cmake -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
+      run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.135.0/macOS && mkdir build && cd build && cmake -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j 2
     - name: test
       run: |
-        export DYLD_LIBRARY_PATH="vulkansdk-macos-1.1.114.0/macOS/lib":$DYLD_LIBRARY_PATH
+        export DYLD_LIBRARY_PATH="vulkansdk-macos-1.2.135.0/macOS/lib":$DYLD_LIBRARY_PATH
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
         cd build && ctest --output-on-failure -j 2
