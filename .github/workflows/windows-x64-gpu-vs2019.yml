@@ -39,14 +39,14 @@ jobs:
       uses: actions/cache@v1
       with:
         path: swiftshader-install
-        key: swiftshader-windows-install-20201103
+        key: swiftshader-windows-install-20200508
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: 959f41988a18e8511dcde1d646d798de4ea6b59d
+        ref: 2dd864470e310d173d35fa95ca3a14d216734aab
     - name: checkout-swiftshader-submodules
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
