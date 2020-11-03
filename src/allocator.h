@@ -98,8 +98,6 @@ static inline void fastFree(void* ptr)
     }
 }
 
-
-
 #if defined NCNN_THREADS && defined __riscv && !defined __riscv_atomic
 #define NCNN_XADD
 #endif
