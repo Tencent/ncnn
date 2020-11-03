@@ -32,10 +32,10 @@ jobs:
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
         Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.148.1/windows/VulkanSDK-1.2.148.1-Installer.exe?Human=true -OutFile VulkanSDK-1.2.148.1-Installer.exe
-        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.148.1/windows/vulkan-runtime-components.zip?Human=true -OutFile vulkan-runtime-components.zip
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.148.1/windows/vulkan-runtime.exe?Human=true -OutFile vulkan-runtime.exe
 
         7z x -aoa ./VulkanSDK-1.2.148.1-Installer.exe -oVulkanSDK
-        7z x -aoa ./vulkan-runtime-components.zip -ovulkan-runtime-components
+        7z x -aoa ./vulkan-runtime.exe -ovulkan-runtime
 
         Remove-Item .\VulkanSDK\Bin, .\VulkanSDK\Bin32, .\VulkanSDK\Demos, .\VulkanSDK\Samples, .\VulkanSDK\Templates, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
 
@@ -49,7 +49,7 @@ jobs:
 
         Remove-Item .\VulkanSDK\Lib32\* -Recurse
 
-        Move-Item .\vulkan-runtime-components\VulkanRT-1.2.148.1-Components\x64\vulkan-1.dll .\VulkanSDK\vulkan-1.dll
+        Move-Item ".\vulkan-runtime\$WINDIR\System32\vulkan-1.dll" .\VulkanSDK\vulkan-1.dll
     - name: cache-swiftshader
       id: cache-swiftshader
       uses: actions/cache@v1
