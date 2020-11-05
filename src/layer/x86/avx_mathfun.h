@@ -317,6 +317,7 @@ static inline __m256 exp256_ps(__m256 x)
     return y;
 }
 
+
 _PS256_CONST(minus_cephes_DP1, -0.78515625);
 _PS256_CONST(minus_cephes_DP2, -2.4187564849853515625e-4);
 _PS256_CONST(minus_cephes_DP3, -3.77489497744594108e-8);

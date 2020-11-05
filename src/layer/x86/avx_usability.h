@@ -22,6 +22,7 @@ static inline __m256 loadfp16(const unsigned short* ptr)
 {
     return _mm256_cvtph_ps(_mm_lddqu_si128((__m128i*)(ptr)));
 }
+
 static inline __m256 _mm256_fmadd_1_ps(__m256 a, __m256 b, float c)
 {
     return _mm256_fmadd_ps(b, _mm256_set1_ps(c), a);
