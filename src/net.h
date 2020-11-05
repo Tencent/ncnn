@@ -209,7 +209,7 @@ public:
 
     // get result by blob name
     // return 0 if success
-    int extract(const char* blob_name, Mat& feat, bool _unchange = false);
+    int extract(const char* blob_name, Mat& feat, int _unchange = 0);
 #endif // NCNN_STRING
 
     // set input by blob index
@@ -218,7 +218,7 @@ public:
 
     // get result by blob index
     // return 0 if success
-    int extract(int blob_index, Mat& feat, bool _unchange = false);
+    int extract(int blob_index, Mat& feat, int _unchange = 0);
 
 #if NCNN_VULKAN
 #if NCNN_STRING
