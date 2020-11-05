@@ -1300,7 +1300,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
 
                     for (; nn > 0; nn--)
                     {
-                        _/__m256 _k01 = _mm256_loadu_ps(k01);
+                        //__m256 _k01 = _mm256_loadu_ps(k01);
 						__m256 _k01 = loadfp16(k01);
                         __m256 _r0 = _mm256_broadcast_ss(r0);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
