@@ -41,10 +41,21 @@ public:
     // clear and destroy
     ~Net();
 
+private:
+    bool interrupt;
+
+    Mutex lock;
+
 public:
     // option can be changed before loading
     Option opt;
 
+    void setInterrupt(bool _int)
+    {
+        lock.lock();
+        interrupt = _int;
+        lock.unlock();
+    }
 #if NCNN_VULKAN
     // set gpu device by index
     void set_vulkan_device(int device_index);
