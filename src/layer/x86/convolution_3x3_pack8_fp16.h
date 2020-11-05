@@ -26,10 +26,9 @@ static void conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(const Mat& kern
         {1.0f / 90, -1.0f / 45, 2.0f / 45},
         {1.0f / 45, 1.0f / 90, 1.0f / 180},
         {1.0f / 45, -1.0f / 90, 1.0f / 180},
-        {0.0f, 0.0f, 1.0f}
-    };
+        {0.0f, 0.0f, 1.0f}};
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -67,7 +66,7 @@ static void conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(const Mat& kern
     // src = 64-inch-outch
     // dst = 8b-8a-inch/8a-64-outch/8b;
     //fp16
-	kernel_tm_pack8.create(inch / 8, 64, outch / 8, (size_t)2u * 64, 64);
+    kernel_tm_pack8.create(inch / 8, 64, outch / 8, (size_t)2u * 64, 64);
     int q = 0;
     for (; q + 7 < outch; q += 8)
     {
@@ -85,7 +84,7 @@ static void conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(const Mat& kern
         for (int k = 0; k < 64; k++)
         {
             //fp16
-			unsigned short* g00 = (unsigned short*)g0.row(k);
+            unsigned short* g00 = (unsigned short*)g0.row(k);
 
             for (int p = 0; p + 7 < inch; p += 8)
             {
@@ -170,8 +169,7 @@ static void conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(const Mat& kern
                 g00[6] = float32_to_float16(k60[k]);
                 g00[7] = float32_to_float16(k70[k]);
 
-				
-				g00[8] = float32_to_float16(k01[k]);
+                g00[8] = float32_to_float16(k01[k]);
                 g00[9] = float32_to_float16(k11[k]);
                 g00[10] = float32_to_float16(k21[k]);
                 g00[11] = float32_to_float16(k31[k]);
@@ -180,7 +178,7 @@ static void conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(const Mat& kern
                 g00[14] = float32_to_float16(k61[k]);
                 g00[15] = float32_to_float16(k71[k]);
 
-				g00[16] = float32_to_float16(k02[k]);
+                g00[16] = float32_to_float16(k02[k]);
                 g00[17] = float32_to_float16(k12[k]);
                 g00[18] = float32_to_float16(k22[k]);
                 g00[19] = float32_to_float16(k32[k]);
@@ -189,7 +187,7 @@ static void conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(const Mat& kern
                 g00[22] = float32_to_float16(k62[k]);
                 g00[23] = float32_to_float16(k72[k]);
 
-				g00[24] = float32_to_float16(k03[k]);
+                g00[24] = float32_to_float16(k03[k]);
                 g00[25] = float32_to_float16(k13[k]);
                 g00[26] = float32_to_float16(k23[k]);
                 g00[27] = float32_to_float16(k33[k]);
@@ -198,7 +196,7 @@ static void conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(const Mat& kern
                 g00[30] = float32_to_float16(k63[k]);
                 g00[31] = float32_to_float16(k73[k]);
 
-				g00[32] = float32_to_float16(k04[k]);
+                g00[32] = float32_to_float16(k04[k]);
                 g00[33] = float32_to_float16(k14[k]);
                 g00[34] = float32_to_float16(k24[k]);
                 g00[35] = float32_to_float16(k34[k]);
@@ -207,7 +205,7 @@ static void conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(const Mat& kern
                 g00[38] = float32_to_float16(k64[k]);
                 g00[39] = float32_to_float16(k74[k]);
 
-				g00[40] = float32_to_float16(k05[k]);
+                g00[40] = float32_to_float16(k05[k]);
                 g00[41] = float32_to_float16(k15[k]);
                 g00[42] = float32_to_float16(k25[k]);
                 g00[43] = float32_to_float16(k35[k]);
@@ -216,7 +214,7 @@ static void conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(const Mat& kern
                 g00[46] = float32_to_float16(k65[k]);
                 g00[47] = float32_to_float16(k75[k]);
 
-				g00[48] = float32_to_float16(k06[k]);
+                g00[48] = float32_to_float16(k06[k]);
                 g00[49] = float32_to_float16(k16[k]);
                 g00[50] = float32_to_float16(k26[k]);
                 g00[51] = float32_to_float16(k36[k]);
@@ -225,7 +223,7 @@ static void conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(const Mat& kern
                 g00[54] = float32_to_float16(k66[k]);
                 g00[55] = float32_to_float16(k76[k]);
 
-				g00[56] = float32_to_float16(k07[k]);
+                g00[56] = float32_to_float16(k07[k]);
                 g00[57] = float32_to_float16(k17[k]);
                 g00[58] = float32_to_float16(k27[k]);
                 g00[59] = float32_to_float16(k37[k]);
@@ -301,7 +299,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
         // 5 = (r06 + (r02 - r04 * 1.25) * 4) + (r01 * 2 - r03 * 2.5 + r05 * 0.5)
         // 6 = (r06 + (r02 - r04 * 1.25) * 4) - (r01 * 2 - r03 * 2.5 + r05 * 0.5)
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < inch; q++)
         {
             const Mat img0 = bottom_blob_bordered.channel(q);
@@ -487,7 +485,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
         else // if (tiles >= 1)
             bottom_blob_tm2.create(1 * inch, tiles, 64, elemsize, elempack, opt.workspace_allocator);
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int r = 0; r < 64; r++)
         {
             Mat tm2 = bottom_blob_tm2.channel(r);
@@ -626,7 +624,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
 
         top_blob_tm.create(tiles, 64, outch, elemsize, elempack, opt.workspace_allocator);
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outch; p++)
         {
             float* output0_tm = top_blob_tm.channel(p);
@@ -642,7 +640,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                 {
                     const float* r0 = bb2.row(i / 12);
                     //fp16
-					const unsigned short* k01 = (const unsigned short*)kernel0_tm.row(r);
+                    const unsigned short* k01 = (const unsigned short*)kernel0_tm.row(r);
 
                     int nn = inch; // inch always > 0
                     __m256 _sum0 = _mm256_set1_ps(0.f);
@@ -746,7 +744,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum11 = _mm256_fmadd_ps(_k01, _r011, _sum11);
 
                         //_k01 = _mm256_loadu_ps(k01 + 24);
-						_k01 = loadfp16(k01 + 24);
+                        _k01 = loadfp16(k01 + 24);
                         _r00 = _mm256_broadcast_ss(r0 + 3);
                         _r01 = _mm256_broadcast_ss(r0 + 11);
                         _r02 = _mm256_broadcast_ss(r0 + 19);
@@ -776,7 +774,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum11 = _mm256_fmadd_ps(_k01, _r011, _sum11);
 
                         //_k01 = _mm256_loadu_ps(k01 + 32);
-						_k01 = loadfp16(k01 + 32);
+                        _k01 = loadfp16(k01 + 32);
                         _r00 = _mm256_broadcast_ss(r0 + 4);
                         _r01 = _mm256_broadcast_ss(r0 + 12);
                         _r02 = _mm256_broadcast_ss(r0 + 20);
@@ -806,7 +804,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum11 = _mm256_fmadd_ps(_k01, _r011, _sum11);
 
                         //_k01 = _mm256_loadu_ps(k01 + 40);
-						_k01 = loadfp16(k01 + 40);
+                        _k01 = loadfp16(k01 + 40);
                         _r00 = _mm256_broadcast_ss(r0 + 5);
                         _r01 = _mm256_broadcast_ss(r0 + 13);
                         _r02 = _mm256_broadcast_ss(r0 + 21);
@@ -836,7 +834,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum11 = _mm256_fmadd_ps(_k01, _r011, _sum11);
 
                         //_k01 = _mm256_loadu_ps(k01 + 48);
-						_k01 = loadfp16(k01 + 48);
+                        _k01 = loadfp16(k01 + 48);
                         _r00 = _mm256_broadcast_ss(r0 + 6);
                         _r01 = _mm256_broadcast_ss(r0 + 14);
                         _r02 = _mm256_broadcast_ss(r0 + 22);
@@ -865,7 +863,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum11 = _mm256_fmadd_ps(_k01, _r011, _sum11);
 
                         //_k01 = _mm256_loadu_ps(k01 + 56);
-						_k01 = loadfp16(k01 + 56);
+                        _k01 = loadfp16(k01 + 56);
                         _r00 = _mm256_broadcast_ss(r0 + 7);
                         _r01 = _mm256_broadcast_ss(r0 + 15);
                         _r02 = _mm256_broadcast_ss(r0 + 23);
@@ -914,7 +912,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                 {
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8);
                     //fp16
-					const unsigned short* k01 = (const unsigned short*)kernel0_tm.row(r);
+                    const unsigned short* k01 = (const unsigned short*)kernel0_tm.row(r);
 
                     int nn = inch; // inch always > 0
                     __m256 _sum0 = _mm256_set1_ps(0.f);
@@ -929,7 +927,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                     for (; nn > 0; nn--)
                     {
                         //__m256 _k01 = _mm256_loadu_ps(k01);
-						__m256 _k01 = loadfp16(k01);
+                        __m256 _k01 = loadfp16(k01);
                         __m256 _r00 = _mm256_broadcast_ss(r0 + 0);
                         __m256 _r01 = _mm256_broadcast_ss(r0 + 8);
                         __m256 _r02 = _mm256_broadcast_ss(r0 + 16);
@@ -948,7 +946,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum7 = _mm256_fmadd_ps(_k01, _r07, _sum7);
 
                         //_k01 = _mm256_loadu_ps(k01 + 8);
-						_k01 = loadfp16(k01 + 8);
+                        _k01 = loadfp16(k01 + 8);
                         _r00 = _mm256_broadcast_ss(r0 + 1);
                         _r01 = _mm256_broadcast_ss(r0 + 9);
                         _r02 = _mm256_broadcast_ss(r0 + 17);
@@ -968,7 +966,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum7 = _mm256_fmadd_ps(_k01, _r07, _sum7);
 
                         //_k01 = _mm256_loadu_ps(k01 + 16);
-						_k01 = loadfp16(k01 + 16);
+                        _k01 = loadfp16(k01 + 16);
                         _r00 = _mm256_broadcast_ss(r0 + 2);
                         _r01 = _mm256_broadcast_ss(r0 + 10);
                         _r02 = _mm256_broadcast_ss(r0 + 18);
@@ -988,7 +986,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum7 = _mm256_fmadd_ps(_k01, _r07, _sum7);
 
                         //_k01 = _mm256_loadu_ps(k01 + 24);
-						_k01 = loadfp16(k01 + 24);
+                        _k01 = loadfp16(k01 + 24);
                         _r00 = _mm256_broadcast_ss(r0 + 3);
                         _r01 = _mm256_broadcast_ss(r0 + 11);
                         _r02 = _mm256_broadcast_ss(r0 + 19);
@@ -1008,7 +1006,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum7 = _mm256_fmadd_ps(_k01, _r07, _sum7);
 
                         //_k01 = _mm256_loadu_ps(k01 + 32);
-						_k01 = loadfp16(k01 + 32);
+                        _k01 = loadfp16(k01 + 32);
                         _r00 = _mm256_broadcast_ss(r0 + 4);
                         _r01 = _mm256_broadcast_ss(r0 + 12);
                         _r02 = _mm256_broadcast_ss(r0 + 20);
@@ -1028,7 +1026,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum7 = _mm256_fmadd_ps(_k01, _r07, _sum7);
 
                         //_k01 = _mm256_loadu_ps(k01 + 40);
-						_k01 = loadfp16(k01 + 40);
+                        _k01 = loadfp16(k01 + 40);
                         _r00 = _mm256_broadcast_ss(r0 + 5);
                         _r01 = _mm256_broadcast_ss(r0 + 13);
                         _r02 = _mm256_broadcast_ss(r0 + 21);
@@ -1048,7 +1046,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum7 = _mm256_fmadd_ps(_k01, _r07, _sum7);
 
                         //_k01 = _mm256_loadu_ps(k01 + 48);
-						_k01 = loadfp16(k01 + 48);
+                        _k01 = loadfp16(k01 + 48);
                         _r00 = _mm256_broadcast_ss(r0 + 6);
                         _r01 = _mm256_broadcast_ss(r0 + 14);
                         _r02 = _mm256_broadcast_ss(r0 + 22);
@@ -1068,7 +1066,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum7 = _mm256_fmadd_ps(_k01, _r07, _sum7);
 
                         //_k01 = _mm256_loadu_ps(k01 + 56);
-						_k01 = loadfp16(k01 + 56);
+                        _k01 = loadfp16(k01 + 56);
                         _r00 = _mm256_broadcast_ss(r0 + 7);
                         _r01 = _mm256_broadcast_ss(r0 + 15);
                         _r02 = _mm256_broadcast_ss(r0 + 23);
@@ -1105,7 +1103,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
 
                     //fp16
-					const unsigned short* k01 = (const unsigned short*)kernel0_tm.row(r);
+                    const unsigned short* k01 = (const unsigned short*)kernel0_tm.row(r);
 
                     int nn = inch; // inch always > 0
                     __m256 _sum0 = _mm256_set1_ps(0.f);
@@ -1116,7 +1114,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                     for (; nn > 0; nn--)
                     {
                         //__m256 _k01 = _mm256_loadu_ps(k01);
-						__m256 _k01 = loadfp16(k01);
+                        __m256 _k01 = loadfp16(k01);
                         __m256 _r00 = _mm256_broadcast_ss(r0 + 0);
                         __m256 _r01 = _mm256_broadcast_ss(r0 + 8);
                         __m256 _r02 = _mm256_broadcast_ss(r0 + 16);
@@ -1127,7 +1125,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum3 = _mm256_fmadd_ps(_k01, _r03, _sum3);
 
                         //_k01 = _mm256_loadu_ps(k01 + 8);
-						_k01 = loadfp16(k01 + 8);
+                        _k01 = loadfp16(k01 + 8);
                         _r00 = _mm256_broadcast_ss(r0 + 1);
                         _r01 = _mm256_broadcast_ss(r0 + 9);
                         _r02 = _mm256_broadcast_ss(r0 + 17);
@@ -1149,7 +1147,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum3 = _mm256_fmadd_ps(_k01, _r03, _sum3);
 
                         //_k01 = _mm256_loadu_ps(k01 + 24);
-						_k01 = loadfp16(k01 + 24);
+                        _k01 = loadfp16(k01 + 24);
                         _r00 = _mm256_broadcast_ss(r0 + 3);
                         _r01 = _mm256_broadcast_ss(r0 + 11);
                         _r02 = _mm256_broadcast_ss(r0 + 19);
@@ -1171,7 +1169,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum3 = _mm256_fmadd_ps(_k01, _r03, _sum3);
 
                         //_k01 = _mm256_loadu_ps(k01 + 40);
-						_k01 = loadfp16(k01 + 40);
+                        _k01 = loadfp16(k01 + 40);
                         _r00 = _mm256_broadcast_ss(r0 + 5);
                         _r01 = _mm256_broadcast_ss(r0 + 13);
                         _r02 = _mm256_broadcast_ss(r0 + 21);
@@ -1182,7 +1180,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum3 = _mm256_fmadd_ps(_k01, _r03, _sum3);
 
                         //_k01 = _mm256_loadu_ps(k01 + 48);
-						_k01 = loadfp16(k01 + 48);
+                        _k01 = loadfp16(k01 + 48);
                         _r00 = _mm256_broadcast_ss(r0 + 6);
                         _r01 = _mm256_broadcast_ss(r0 + 14);
                         _r02 = _mm256_broadcast_ss(r0 + 22);
@@ -1193,7 +1191,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum3 = _mm256_fmadd_ps(_k01, _r03, _sum3);
 
                         //_k01 = _mm256_loadu_ps(k01 + 56);
-						_k01 = loadfp16(k01 + 56);
+                        _k01 = loadfp16(k01 + 56);
                         _r00 = _mm256_broadcast_ss(r0 + 7);
                         _r01 = _mm256_broadcast_ss(r0 + 15);
                         _r02 = _mm256_broadcast_ss(r0 + 23);
@@ -1216,7 +1214,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
 
                     //fp16
-					const unsigned short* k01 = (const unsigned short*)kernel0_tm.row(r);
+                    const unsigned short* k01 = (const unsigned short*)kernel0_tm.row(r);
 
                     int nn = inch; // inch always > 0
                     __m256 _sum0 = _mm256_set1_ps(0.f);
@@ -1225,14 +1223,14 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                     for (; nn > 0; nn--)
                     {
                         //__m256 _k01 = _mm256_loadu_ps(k01);
-						__m256 _k01 = loadfp16(k01);
+                        __m256 _k01 = loadfp16(k01);
                         __m256 _r0 = _mm256_broadcast_ss(r0);
                         __m256 _r01 = _mm256_broadcast_ss(r0 + 8);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
                         _sum1 = _mm256_fmadd_ps(_k01, _r01, _sum1);
 
                         //_k01 = _mm256_loadu_ps(k01 + 8);
-						_k01 = loadfp16(k01 + 8);
+                        _k01 = loadfp16(k01 + 8);
                         _r0 = _mm256_broadcast_ss(r0 + 1);
                         _r01 = _mm256_broadcast_ss(r0 + 9);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
@@ -1246,35 +1244,35 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum1 = _mm256_fmadd_ps(_k01, _r01, _sum1);
 
                         //_k01 = _mm256_loadu_ps(k01 + 24);
-						_k01 = loadfp16(k01 + 24);
+                        _k01 = loadfp16(k01 + 24);
                         _r0 = _mm256_broadcast_ss(r0 + 3);
                         _r01 = _mm256_broadcast_ss(r0 + 11);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
                         _sum1 = _mm256_fmadd_ps(_k01, _r01, _sum1);
 
                         //_k01 = _mm256_loadu_ps(k01 + 32);
-						_k01 = loadfp16(k01 + 32);
+                        _k01 = loadfp16(k01 + 32);
                         _r0 = _mm256_broadcast_ss(r0 + 4);
                         _r01 = _mm256_broadcast_ss(r0 + 12);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
                         _sum1 = _mm256_fmadd_ps(_k01, _r01, _sum1);
 
                         //_k01 = _mm256_loadu_ps(k01 + 40);
-						_k01 = loadfp16(k01 + 40);
+                        _k01 = loadfp16(k01 + 40);
                         _r0 = _mm256_broadcast_ss(r0 + 5);
                         _r01 = _mm256_broadcast_ss(r0 + 13);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
                         _sum1 = _mm256_fmadd_ps(_k01, _r01, _sum1);
 
                         //_k01 = _mm256_loadu_ps(k01 + 48);
-						_k01 = loadfp16(k01 + 48);
+                        _k01 = loadfp16(k01 + 48);
                         _r0 = _mm256_broadcast_ss(r0 + 6);
                         _r01 = _mm256_broadcast_ss(r0 + 14);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
                         _sum1 = _mm256_fmadd_ps(_k01, _r01, _sum1);
 
                         //_k01 = _mm256_loadu_ps(k01 + 56);
-						_k01 = loadfp16(k01 + 56);
+                        _k01 = loadfp16(k01 + 56);
                         _r0 = _mm256_broadcast_ss(r0 + 7);
                         _r01 = _mm256_broadcast_ss(r0 + 15);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
@@ -1293,7 +1291,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
 
                     //fp16
-					const unsigned short* k01 = (const unsigned short*)kernel0_tm.row(r);
+                    const unsigned short* k01 = (const unsigned short*)kernel0_tm.row(r);
 
                     int nn = inch; // inch always > 0
                     __m256 _sum0 = _mm256_set1_ps(0.f);
@@ -1301,7 +1299,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                     for (; nn > 0; nn--)
                     {
                         //__m256 _k01 = _mm256_loadu_ps(k01);
-						__m256 _k01 = loadfp16(k01);
+                        __m256 _k01 = loadfp16(k01);
                         __m256 _r0 = _mm256_broadcast_ss(r0);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
@@ -1311,17 +1309,17 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         //_k01 = _mm256_loadu_ps(k01 + 16);
-						_k01 = loadfp16(k01 + 16);
+                        _k01 = loadfp16(k01 + 16);
                         _r0 = _mm256_broadcast_ss(r0 + 2);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         //_k01 = _mm256_loadu_ps(k01 + 24);
-						_k01 = loadfp16(k01 + 24);
+                        _k01 = loadfp16(k01 + 24);
                         _r0 = _mm256_broadcast_ss(r0 + 3);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
-						//
+                        //
                         //_k01 = _mm256_loadu_ps(k01 + 32);
-						_k01 = loadfp16(k01 + 32);
+                        _k01 = loadfp16(k01 + 32);
                         _r0 = _mm256_broadcast_ss(r0 + 4);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
@@ -1331,12 +1329,12 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         //_k01 = _mm256_loadu_ps(k01 + 48);
-						_k01 = loadfp16(k01 + 48);
+                        _k01 = loadfp16(k01 + 48);
                         _r0 = _mm256_broadcast_ss(r0 + 6);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
                         //_k01 = _mm256_loadu_ps(k01 + 56);
-						_k01 = loadfp16(k01 + 56);
+                        _k01 = loadfp16(k01 + 56);
                         _r0 = _mm256_broadcast_ss(r0 + 7);
                         _sum0 = _mm256_fmadd_ps(_k01, _r0, _sum0);
 
@@ -1382,7 +1380,7 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
         int w_tm = outw / 6 * 8;
         int h_tm = outh / 6 * 8;
         const int tiles = w_tm / 8 * h_tm / 8;
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outch; p++)
         {
             const Mat out0_tm = top_blob_tm.channel(p);
@@ -1535,4 +1533,3 @@ static void conv3x3s1_winograd64_fp16_pack8_avx(const Mat& bottom_blob, Mat& top
     // cut result pad
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
-

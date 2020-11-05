@@ -196,10 +196,10 @@ int Convolution_x86::create_pipeline(const Option& opt)
         {
             conv3x3s1_winograd64_transform_kernel_pack8_avx(weight_data, weight_data_pack8, num_input, num_output);
         }
-		else if(opt.use_weight_fp16_storage && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-		{
-		    conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(weight_data, weight_data_pack8, num_input, num_output);
-		}
+        else if (opt.use_weight_fp16_storage && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_winograd64_transform_kernel_fp16_pack8_avx(weight_data, weight_data_pack8, num_input, num_output);
+        }
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv1x1s1_sgemm_transform_kernel_pack8_avx(weight_data, weight_data_pack8, num_input, num_output);
@@ -211,7 +211,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
             //fp16
-			weight_data_pack8.create(maxk, num_input / 8, num_output / 8, (size_t)2 * 64, 64);
+            weight_data_pack8.create(maxk, num_input / 8, num_output / 8, (size_t)2 * 64, 64);
 
             for (int q = 0; q + 7 < num_output; q += 8)
             {
@@ -301,7 +301,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
                     const float* k77 = k7.row(p + 7);
 
                     //fp16
-					unsigned short* g00 = (unsigned short*)g0.row(p / 8);
+                    unsigned short* g00 = (unsigned short*)g0.row(p / 8);
 
                     for (int k = 0; k < maxk; k++)
                     {
@@ -315,7 +315,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
                         g00[7] = float32_to_float16(k70[k]);
                         g00 += 8;
 
-						g00[0] = float32_to_float16(k01[k]);
+                        g00[0] = float32_to_float16(k01[k]);
                         g00[1] = float32_to_float16(k11[k]);
                         g00[2] = float32_to_float16(k21[k]);
                         g00[3] = float32_to_float16(k31[k]);
@@ -324,7 +324,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
                         g00[6] = float32_to_float16(k61[k]);
                         g00[7] = float32_to_float16(k71[k]);
 
-						g00 += 8;
+                        g00 += 8;
                         g00[0] = float32_to_float16(k02[k]);
                         g00[1] = float32_to_float16(k12[k]);
                         g00[2] = float32_to_float16(k22[k]);
@@ -334,7 +334,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
                         g00[6] = float32_to_float16(k62[k]);
                         g00[7] = float32_to_float16(k72[k]);
 
-						g00 += 8;
+                        g00 += 8;
                         g00[0] = float32_to_float16(k03[k]);
                         g00[1] = float32_to_float16(k13[k]);
                         g00[2] = float32_to_float16(k23[k]);
@@ -344,7 +344,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
                         g00[6] = float32_to_float16(k63[k]);
                         g00[7] = float32_to_float16(k73[k]);
 
-						g00 += 8;
+                        g00 += 8;
                         g00[0] = float32_to_float16(k04[k]);
                         g00[1] = float32_to_float16(k14[k]);
                         g00[2] = float32_to_float16(k24[k]);
@@ -354,7 +354,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
                         g00[6] = float32_to_float16(k64[k]);
                         g00[7] = float32_to_float16(k74[k]);
 
-						g00 += 8;
+                        g00 += 8;
                         g00[0] = float32_to_float16(k05[k]);
                         g00[1] = float32_to_float16(k15[k]);
                         g00[2] = float32_to_float16(k25[k]);
@@ -364,7 +364,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
                         g00[6] = float32_to_float16(k65[k]);
                         g00[7] = float32_to_float16(k75[k]);
 
-						g00 += 8;
+                        g00 += 8;
                         g00[0] = float32_to_float16(k06[k]);
                         g00[1] = float32_to_float16(k16[k]);
                         g00[2] = float32_to_float16(k26[k]);
@@ -374,7 +374,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
                         g00[6] = float32_to_float16(k66[k]);
                         g00[7] = float32_to_float16(k76[k]);
 
-						g00 += 8;
+                        g00 += 8;
                         g00[0] = float32_to_float16(k07[k]);
                         g00[1] = float32_to_float16(k17[k]);
                         g00[2] = float32_to_float16(k27[k]);
@@ -399,7 +399,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
             Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
             //fp16
-			weight_data_pack1to8.create(maxk, num_input, num_output / 8, (size_t)2 * 8, 8);
+            weight_data_pack1to8.create(maxk, num_input, num_output / 8, (size_t)2 * 8, 8);
 
             for (int q = 0; q + 7 < num_output; q += 8)
             {
@@ -426,7 +426,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
                     const float* k70 = k7.row(p);
 
                     //fp16
-					unsigned short* g00 = (unsigned short*)g0.row(p);
+                    unsigned short* g00 = (unsigned short*)g0.row(p);
 
                     for (int k = 0; k < maxk; k++)
                     {
@@ -453,7 +453,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
         //fp16
-		weight_data_pack8to1.create(maxk, num_input / 8, num_output, (size_t)2 * 8, 8);
+        weight_data_pack8to1.create(maxk, num_input / 8, num_output, (size_t)2 * 8, 8);
 
         for (int q = 0; q < num_output; q++)
         {
@@ -472,7 +472,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
                 const float* k07 = k0.row(p + 7);
 
                 //fp16
-				unsigned short* g00 = (unsigned short*)g0.row(p / 8);
+                unsigned short* g00 = (unsigned short*)g0.row(p / 8);
 
                 for (int k = 0; k < maxk; k++)
                 {
@@ -650,16 +650,15 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-
-		    if (opt.use_weight_fp16_storage)
-		    {
+            if (opt.use_weight_fp16_storage)
+            {
                 conv3x3s1_winograd64_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
-			}
-			else
-			{
+            }
+            else
+            {
                 conv3x3s1_winograd64_pack8_avx(bottom_blob_bordered, top_blob, weight_data_pack8, bias_data, opt);
-			}
-            
+            }
+
             if (activation)
             {
                 activation->forward_inplace(top_blob, opt);
@@ -683,8 +682,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -701,7 +700,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                         }
 
                         //fp16
-						const unsigned short* kptr = (const unsigned short*)weight_data_pack8 + maxk * channels * p * 64;
+                        const unsigned short* kptr = (const unsigned short*)weight_data_pack8 + maxk * channels * p * 64;
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -723,26 +722,26 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                                 //__m256 _w0 = _mm256_loadu_ps(kptr);
                                 __m256 _w0 = loadfp16(kptr);
                                 _sum = _mm256_fmadd_ps(_val0, _w0, _sum);
-								//__m256 _w1 = _mm256_loadu_ps(kptr + 8);
+                                //__m256 _w1 = _mm256_loadu_ps(kptr + 8);
                                 __m256 _w1 = loadfp16(kptr + 8);
                                 _sum = _mm256_fmadd_ps(_val1, _w1, _sum);
                                 //__m256 _w2 = _mm256_loadu_ps(kptr + 16);
-								__m256 _w2 = loadfp16(kptr + 16);
+                                __m256 _w2 = loadfp16(kptr + 16);
                                 _sum = _mm256_fmadd_ps(_val2, _w2, _sum);
                                 //__m256 _w3 = _mm256_loadu_ps(kptr + 24);
-								__m256 _w3 = loadfp16(kptr + 24);
+                                __m256 _w3 = loadfp16(kptr + 24);
                                 _sum = _mm256_fmadd_ps(_val3, _w3, _sum);
                                 //__m256 _w4 = _mm256_loadu_ps(kptr + 32);
-								__m256 _w4 = loadfp16(kptr + 32);
+                                __m256 _w4 = loadfp16(kptr + 32);
                                 _sum = _mm256_fmadd_ps(_val4, _w4, _sum);
                                 //__m256 _w5 = _mm256_loadu_ps(kptr + 40);
-								__m256 _w5 = loadfp16(kptr + 40);
+                                __m256 _w5 = loadfp16(kptr + 40);
                                 _sum = _mm256_fmadd_ps(_val5, _w5, _sum);
                                 //__m256 _w6 = _mm256_loadu_ps(kptr + 48);
-								__m256 _w6 = loadfp16(kptr + 48);
+                                __m256 _w6 = loadfp16(kptr + 48);
                                 _sum = _mm256_fmadd_ps(_val6, _w6, _sum);
                                 //__m256 _w7 = _mm256_loadu_ps(kptr + 56);
-								__m256 _w7 = loadfp16(kptr + 56);
+                                __m256 _w7 = loadfp16(kptr + 56);
                                 _sum = _mm256_fmadd_ps(_val7, _w7, _sum);
                                 kptr += 64;
                             }
@@ -763,15 +762,15 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     {
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            if(opt.use_weight_fp16_storage)
+            if (opt.use_weight_fp16_storage)
             {
                 conv3x3s1_pack1to8_fp16_avx(bottom_blob_bordered, top_blob, weight_data_pack1to8, bias_data, opt);
-			}
-			else
-			{
+            }
+            else
+            {
                 conv3x3s1_pack1to8_avx(bottom_blob_bordered, top_blob, weight_data_pack1to8, bias_data, opt);
-			}
-            
+            }
+
             if (activation)
             {
                 activation->forward_inplace(top_blob, opt);
@@ -779,14 +778,14 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-            if(opt.use_weight_fp16_storage)
-			{
-			    conv3x3s2_pack1to8_fp16_avx(bottom_blob_bordered, top_blob, weight_data_pack1to8, bias_data, opt);
-			}
-			else
-			{
+            if (opt.use_weight_fp16_storage)
+            {
+                conv3x3s2_pack1to8_fp16_avx(bottom_blob_bordered, top_blob, weight_data_pack1to8, bias_data, opt);
+            }
+            else
+            {
                 conv3x3s2_pack1to8_avx(bottom_blob_bordered, top_blob, weight_data_pack1to8, bias_data, opt);
-			}
+            }
 
             if (activation)
             {
@@ -795,8 +794,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -813,7 +812,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                         }
 
                         //fp16
-						const unsigned short* kptr = (const unsigned short*)weight_data_pack1to8 + maxk * channels * p * 8;
+                        const unsigned short* kptr = (const unsigned short*)weight_data_pack1to8 + maxk * channels * p * 8;
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -845,14 +844,14 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     {
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            if(opt.use_weight_fp16_storage)
+            if (opt.use_weight_fp16_storage)
             {
-                conv3x3s1_pack8to1_fp16_avx(bottom_blob_bordered, top_blob, weight_data_pack8to1, bias_data, opt); 		
-			}
-			else
-			{
+                conv3x3s1_pack8to1_fp16_avx(bottom_blob_bordered, top_blob, weight_data_pack8to1, bias_data, opt);
+            }
+            else
+            {
                 conv3x3s1_pack8to1_avx(bottom_blob_bordered, top_blob, weight_data_pack8to1, bias_data, opt);
-			}
+            }
             if (activation)
             {
                 activation->forward_inplace(top_blob, opt);
@@ -860,8 +859,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -878,7 +877,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                         }
 
                         //fp16
-						const unsigned short* kptr = (const unsigned short*)weight_data_pack8to1 + maxk * channels * p * 8;
+                        const unsigned short* kptr = (const unsigned short*)weight_data_pack8to1 + maxk * channels * p * 8;
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -937,8 +936,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -1019,7 +1018,7 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
     use_winograd3x3_int8 = false;
 
     if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1
-            && num_input >= 16 && num_output >= 16)
+        && num_input >= 16 && num_output >= 16)
     {
         // winograd is slow on small channel count
         use_winograd3x3_int8 = true;
@@ -1087,10 +1086,10 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         if (use_winograd3x3_int8)
         {
             conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data_int8, opt);
-            //             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data_int8, opt);
+//             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data_int8, opt);
 
-            // requantize, reverse scale inplace
-            #pragma omp parallel for num_threads(opt.num_threads)
+// requantize, reverse scale inplace
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 Option opt_g = opt;
@@ -1137,10 +1136,10 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         if (use_winograd3x3_int8)
         {
             conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data_int8, opt);
-            //             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data_int8, opt);
+//             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data_int8, opt);
 
-            // dequantize, reverse scale inplace
-            #pragma omp parallel for num_threads(opt.num_threads)
+// dequantize, reverse scale inplace
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 Option opt_g = opt;
@@ -1224,7 +1223,7 @@ int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, 
             if (inner_top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < bottom_blob.c; c++)
             {
                 float* outptr = inner_bottom_blob.channel(c);
@@ -1244,7 +1243,7 @@ int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, 
             opt_g.blob_allocator = inner_top_blob.allocator;
             convolution_dilation1->forward(inner_bottom_blob, inner_top_blob, opt_g);
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < num_output; c++)
             {
                 float* outptr = (float*)top_blob.channel(c) + x * outw + y;

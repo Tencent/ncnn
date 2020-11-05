@@ -24,7 +24,7 @@ static void conv3x3s1_pack8to1_fp16_avx(const Mat& bottom_blob, Mat& top_blob, c
     int nn_outch = 0;
     int remain_outch_start = 0;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
     {
         Mat out0 = top_blob.channel(p);
@@ -33,7 +33,7 @@ static void conv3x3s1_pack8to1_fp16_avx(const Mat& bottom_blob, Mat& top_blob, c
         out0.fill(bias0);
 
         //fp16
-		const unsigned short* k0 = (const unsigned short*)kernel.channel(p);
+        const unsigned short* k0 = (const unsigned short*)kernel.channel(p);
 
         for (int q = 0; q < inch; q++)
         {
@@ -98,4 +98,3 @@ static void conv3x3s1_pack8to1_fp16_avx(const Mat& bottom_blob, Mat& top_blob, c
         }
     }
 }
-

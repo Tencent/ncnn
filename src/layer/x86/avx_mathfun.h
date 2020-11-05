@@ -36,15 +36,15 @@
 
 /* yes I know, the top of this file is quite ugly */
 #if defined(__GNUC__)
-# define ALIGN32_BEG
-# define ALIGN32_END __attribute__((aligned(32)))
+#define ALIGN32_BEG
+#define ALIGN32_END __attribute__((aligned(32)))
 #elif defined(_WIN32)
-# define ALIGN32_BEG __declspec(align(32))
-# define ALIGN32_END
+#define ALIGN32_BEG __declspec(align(32))
+#define ALIGN32_END
 #endif
 
 #define _PI32AVX_CONST(Name, Val) \
-    ALIGN32_BEG static const  int _pi32avx_##Name[4] ALIGN32_END = {Val, Val, Val, Val}
+    ALIGN32_BEG static const int _pi32avx_##Name[4] ALIGN32_END = {Val, Val, Val, Val}
 
 _PI32AVX_CONST(1, 1);
 _PI32AVX_CONST(inv1, ~1);
@@ -97,24 +97,24 @@ typedef union imm_xmm_union
     __m128i xmm[2];
 } imm_xmm_union;
 
-#define COPY_IMM_TO_XMM(imm_, xmm0_, xmm1_)           \
-    {                                                 \
+#define COPY_IMM_TO_XMM(imm_, xmm0_, xmm1_)      \
+    {                                            \
         ALIGN32_BEG imm_xmm_union u ALIGN32_END; \
-        u.imm = imm_;                                 \
-        xmm0_ = u.xmm[0];                             \
-        xmm1_ = u.xmm[1];                             \
+        u.imm = imm_;                            \
+        xmm0_ = u.xmm[0];                        \
+        xmm1_ = u.xmm[1];                        \
     }
 
-#define COPY_XMM_TO_IMM(xmm0_, xmm1_, imm_)           \
-    {                                                 \
+#define COPY_XMM_TO_IMM(xmm0_, xmm1_, imm_)      \
+    {                                            \
         ALIGN32_BEG imm_xmm_union u ALIGN32_END; \
-        u.xmm[0] = xmm0_;                             \
-        u.xmm[1] = xmm1_;                             \
-        imm_ = u.imm;                                 \
+        u.xmm[0] = xmm0_;                        \
+        u.xmm[1] = xmm1_;                        \
+        imm_ = u.imm;                            \
     }
 
 #define AVX2_BITOP_USING_SSE2(fn)                            \
-    static inline __m256i avx2_mm256_##fn(__m256i x, int a)      \
+    static inline __m256i avx2_mm256_##fn(__m256i x, int a)  \
     {                                                        \
         /* use SSE2 instruction to perform the bitop AVX2 */ \
         __m128i x1, x2;                                      \
@@ -135,7 +135,7 @@ AVX2_BITOP_USING_SSE2(slli_epi32)
 AVX2_BITOP_USING_SSE2(srli_epi32)
 
 #define AVX2_INTOP_USING_SSE2(fn)                                         \
-    static inline __m256i avx2_mm256_##fn(__m256i x, __m256i y)               \
+    static inline __m256i avx2_mm256_##fn(__m256i x, __m256i y)           \
     {                                                                     \
         /* use SSE2 instructions to perform the AVX2 integer operation */ \
         __m128i x1, x2;                                                   \
@@ -159,16 +159,16 @@ AVX2_INTOP_USING_SSE2(andnot_si128)
 AVX2_INTOP_USING_SSE2(cmpeq_epi32)
 AVX2_INTOP_USING_SSE2(sub_epi32)
 AVX2_INTOP_USING_SSE2(add_epi32)
-#define avx2_mm256_and_si256 avx2_mm256_and_si128
+#define avx2_mm256_and_si256    avx2_mm256_and_si128
 #define avx2_mm256_andnot_si256 avx2_mm256_andnot_si128
 #else
-#define avx2_mm256_slli_epi32 _mm256_slli_epi32
-#define avx2_mm256_srli_epi32 _mm256_srli_epi32
-#define avx2_mm256_and_si256 _mm256_and_si256
+#define avx2_mm256_slli_epi32   _mm256_slli_epi32
+#define avx2_mm256_srli_epi32   _mm256_srli_epi32
+#define avx2_mm256_and_si256    _mm256_and_si256
 #define avx2_mm256_andnot_si256 _mm256_andnot_si256
-#define avx2_mm256_cmpeq_epi32 _mm256_cmpeq_epi32
-#define avx2_mm256_sub_epi32 _mm256_sub_epi32
-#define avx2_mm256_add_epi32 _mm256_add_epi32	
+#define avx2_mm256_cmpeq_epi32  _mm256_cmpeq_epi32
+#define avx2_mm256_sub_epi32    _mm256_sub_epi32
+#define avx2_mm256_add_epi32    _mm256_add_epi32
 #endif /* __AVX2__ */
 
 /* natural logarithm computed for 8 simultaneous float
@@ -317,7 +317,6 @@ static inline __m256 exp256_ps(__m256 x)
     return y;
 }
 
-
 _PS256_CONST(minus_cephes_DP1, -0.78515625);
 _PS256_CONST(minus_cephes_DP2, -2.4187564849853515625e-4);
 _PS256_CONST(minus_cephes_DP3, -3.77489497744594108e-8);
@@ -342,7 +341,7 @@ _PS256_CONST(cephes_FOPI, 1.27323954473516); // 4 / M_PI
 
 */
 static inline __m256 sin256_ps(__m256 x)
-{   // any x
+{ // any x
     __m256 xmm1, xmm2 = _mm256_setzero_ps(), xmm3, sign_bit, y;
     __m256i imm0, imm2;
 
@@ -470,7 +469,7 @@ static inline __m256 sin256_ps(__m256 x)
 
 /* almost the same as sin_ps */
 static inline __m256 cos256_ps(__m256 x)
-{   // any x
+{ // any x
     __m256 xmm1, xmm2 = _mm256_setzero_ps(), xmm3, y;
     __m256i imm0, imm2;
 
