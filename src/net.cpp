@@ -2761,7 +2761,7 @@ int Extractor::extract(int blob_index, Mat& feat, bool _unchange)
 
     feat = blob_mats[blob_index];
 
-    if (opt.use_packing_layout && (! _unchange))
+    if (opt.use_packing_layout && (!_unchange))
     {
         Mat bottom_blob_unpacked;
         convert_packing(feat, bottom_blob_unpacked, 1, opt);
