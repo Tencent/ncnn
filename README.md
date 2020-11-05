@@ -107,7 +107,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 * Supports multi-core parallel computing acceleration, ARM big.LITTLE cpu scheduling optimization
 * Supports GPU acceleration via the next-generation low-overhead vulkan api
 * The overall library size is less than 700K, and can be easily reduced to less than 300K
-* Extensible model design, supports 8bit quantization and half-precision floating point storage, can import caffe/pytorch/mxnet/onnx/darknet/keras/tensorflow(mlir)/tensorflow models
+* Extensible model design, supports 8bit quantization and half-precision floating point storage, can import caffe/pytorch/mxnet/onnx/darknet/keras/tensorflow(mlir) models
 * Support direct memory zero copy reference load network model
 * Can be registered with custom layer implementation and extended
 * Well, it is strong, not afraid of being stuffed with 卷   QvQ
