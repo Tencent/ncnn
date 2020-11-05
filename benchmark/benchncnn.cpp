@@ -128,7 +128,7 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     }
 
     double time_min = DBL_MAX;
-    double time_max = -DBL_MAX;
+    double time_max = DBL_MIN;
     double time_avg = 0;
 
     for (int i = 0; i < g_loop_count; i++)
