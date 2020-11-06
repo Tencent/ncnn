@@ -33,7 +33,7 @@ Generally if you have Intel, AMD or Nvidia GPU from last 10 years, Vulkan can be
 
 On some systems there are no Vulkan drivers easily available at the moment (October 2020), so you might need to disable use of Vulkan on them. This applies to Raspberry Pi 3 (but there is experimental open source Vulkan driver in the works, which is not ready yet). Nvidia Tegra series devices (like Nvidia Jetson) should support Vulkan. Ensure you have most recent software installed for best expirience.
 
-On Debian, Ubuntu or Raspberry Pi OS, you can install all required dependencies using: `sudo install build-essentials git cmake libprotobuf-dev protobuf-compiler libvulkan-dev glslang-tools vulkan-tools libopencv-dev`
+On Debian, Ubuntu or Raspberry Pi OS, you can install all required dependencies using: `sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libvulkan-dev vulkan-utils libopencv-dev`
 
 To use Vulkan backend install Vulkan header files, a vulkan driver loader, GLSL to SPIR-V compiler and vulkaninfo tool. Preferably from your distribution repositories. Alternatively download and install full Vulkan SDK (about 200MB in size; it contains all header files, documentation and prebuilt loader, as well some extra tools and source code of everything) from https://vulkan.lunarg.com/sdk/home
 
