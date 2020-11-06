@@ -17,7 +17,7 @@ static void linear_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha, int 
     double scale = (double)w / outw;
     if (align_corner)
     {
-        scale = (double)(w-1) / (outw-1);
+        scale = (double)(w - 1) / (outw - 1);
     }
 
     for (int dx = 0; dx < outw; dx++)
