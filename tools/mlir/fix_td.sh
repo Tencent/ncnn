@@ -10,3 +10,4 @@ sed -i '/let hasFolder = 1;/d' *.td
 sed -i '/StringRef GetOptimalLayout(const RuntimeDevices& devices);/d' *.td
 sed -i '/LogicalResult UpdateDataFormat(StringRef data_format);/d' *.td
 sed -i '/LogicalResult FoldOperandsPermutation(ArrayRef<int64_t> permutation);/d' *.td
+sed -i '/Optional<ContractionFusion> GetContractionFusion();/d' *.td

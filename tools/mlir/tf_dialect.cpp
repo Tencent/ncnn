@@ -21,6 +21,7 @@
 #include <mlir/IR/DialectImplementation.h>
 #include <mlir/IR/Function.h>
 #include <mlir/IR/Location.h>
+#include <mlir/IR/Matchers.h>
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/OpImplementation.h>
@@ -294,6 +295,97 @@ LogicalResult ConstOp::inferReturnTypes(
                              "constant vector/tensor");
 }
 
+int64_t SpaceToBatchNDBlockRank(const TensorType block_shape_type,
+                                const TensorType paddings_type)
+{
+    if (block_shape_type.hasStaticShape())
+    {
+        return block_shape_type.getShape()[0];
+    }
+    else if (paddings_type.hasStaticShape())
+    {
+        return paddings_type.getShape()[0];
+    }
+    else
+    {
+        return -1;
+    }
+}
+
+// Infers returned rank if possible. Further, infers returned dimension sizes
+// when possible. For all dimensions sizes to be inferred, the arguments
+// block_shape and paddings must be constant.
+LogicalResult SpaceToBatchNDOp::inferReturnTypes(
+    MLIRContext* context, Optional<Location> location, ValueRange operands,
+    DictionaryAttr attributes, RegionRange regions,
+    SmallVectorImpl<Type>& inferredReturnTypes)
+{
+    const Value input = operands[0];
+    const Value block_shape_val = operands[1];
+    const Value paddings_val = operands[2];
+    const auto input_type = input.getType().cast<TensorType>();
+    const auto block_shape_type = block_shape_val.getType().cast<TensorType>();
+    const auto paddings_type = paddings_val.getType().cast<TensorType>();
+
+    // The return is unranked when the input is unranked.
+    if (!input_type.hasRank())
+    {
+        inferredReturnTypes.assign(
+        {UnrankedTensorType::get(input_type.getElementType())});
+        return success();
+    }
+
+    const int64_t input_rank = input_type.getRank();
+    const ArrayRef<int64_t> input_shape = input_type.getShape();
+    const int64_t block_rank = SpaceToBatchNDBlockRank(block_shape_type, paddings_type);
+    SmallVector<int64_t, 4> return_shape(input_rank, ShapedType::kDynamicSize);
+
+    // The return has all dimension sizes unknown when block_rank is unknown.
+    if (block_rank == ShapedType::kDynamicSize)
+    {
+        inferredReturnTypes.assign(
+        {RankedTensorType::get(return_shape, input_type.getElementType())});
+        return success();
+    }
+
+    // The return preserves the remaining dimensions after blocked dimensions.
+    for (uint64_t i = 1 + block_rank; i < input_rank; ++i)
+    {
+        return_shape[i] = input_shape[i];
+    }
+
+    // The rest of the dimension sizes can be calculated when block_shape and
+    // paddings arguments are constant.
+    ElementsAttr block_shape_attr;
+    ElementsAttr paddings_attr;
+    if (matchPattern(block_shape_val, m_Constant(&block_shape_attr)) && matchPattern(paddings_val, m_Constant(&paddings_attr)))
+    {
+        int64_t return_batch = input_shape[0];
+        for (uint64_t i = 0; i < block_rank; ++i)
+        {
+            // Propagate dynamic dimension.
+            if (input_shape[i + 1] == ShapedType::kDynamicSize)
+            {
+                return_batch = ShapedType::kDynamicSize;
+            }
+            if (return_batch == ShapedType::kDynamicSize)
+            {
+                return_shape[1 + i] = ShapedType::kDynamicSize;
+                continue;
+            }
+            int64_t paddings_sum = paddings_attr.getValue({i, 0}).cast<IntegerAttr>().getInt() + paddings_attr.getValue({i, 1}).cast<IntegerAttr>().getInt();
+            int64_t block_shape_i = block_shape_attr.getValue({i}).cast<IntegerAttr>().getInt();
+            return_batch *= block_shape_i;
+            return_shape[1 + i] = (paddings_sum + input_shape[i + 1]) / block_shape_i;
+        }
+        return_shape[0] = return_batch;
+    }
+
+    inferredReturnTypes.assign(
+    {RankedTensorType::get(return_shape, input_type.getElementType())});
+    return success();
+}
+
 Region& WhileRegionOp::getLoopBody()
 {
     return body();
@@ -320,7 +412,7 @@ LogicalResult WhileRegionOp::moveOutOfLoop(
 
 } // namespace TF
 
+} // namespace mlir
+
 #define GET_OP_CLASSES
 #include "tf_all_ops.cc.inc"
-
-} // namespace mlir
