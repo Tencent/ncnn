@@ -137,8 +137,8 @@ int Interp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             float* alpha = (float*)(buf + outw + outh);           //new float[outw * 2];
             float* beta = (float*)(buf + outw + outh + outw * 2); //new float[outh * 2];
 
-            linear_coeffs(w, outw, xofs, alpha);
-            linear_coeffs(h, outh, yofs, beta);
+            linear_coeffs(w, outw, xofs, alpha, align_corner);
+            linear_coeffs(h, outh, yofs, beta, align_corner);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -217,8 +217,8 @@ int Interp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         float* alpha = (float*)(buf + outw + outh);           //new float[outw * 2];
         float* beta = (float*)(buf + outw + outh + outw * 2); //new float[outh * 2];
 
-        linear_coeffs(w, outw, xofs, alpha);
-        linear_coeffs(h, outh, yofs, beta);
+        linear_coeffs(w, outw, xofs, alpha, align_corner);
+        linear_coeffs(h, outh, yofs, beta, align_corner);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -328,8 +328,8 @@ int Interp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
             float* alpha = (float*)(buf + outw + outh);           //new float[outw * 2];
             float* beta = (float*)(buf + outw + outh + outw * 2); //new float[outh * 2];
 
-            linear_coeffs(w, outw, xofs, alpha);
-            linear_coeffs(h, outh, yofs, beta);
+            linear_coeffs(w, outw, xofs, alpha, align_corner);
+            linear_coeffs(h, outh, yofs, beta, align_corner);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -407,8 +407,8 @@ int Interp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
         float* alpha = (float*)(buf + outw + outh);           //new float[outw * 2];
         float* beta = (float*)(buf + outw + outh + outw * 2); //new float[outh * 2];
 
-        linear_coeffs(w, outw, xofs, alpha);
-        linear_coeffs(h, outh, yofs, beta);
+        linear_coeffs(w, outw, xofs, alpha, align_corner);
+        linear_coeffs(h, outh, yofs, beta, align_corner);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -517,8 +517,8 @@ int Interp_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector
             __fp16* alpha = (__fp16*)(buf + outw + outh);           //new __fp16[outw * 2];
             __fp16* beta = (__fp16*)(buf + outw + outh + outw * 2); //new __fp16[outh * 2];
 
-            linear_coeffs_fp16sa(w, outw, xofs, alpha);
-            linear_coeffs_fp16sa(h, outh, yofs, beta);
+            linear_coeffs_fp16sa(w, outw, xofs, alpha, align_corner);
+            linear_coeffs_fp16sa(h, outh, yofs, beta, align_corner);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -602,8 +602,8 @@ int Interp_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector
             __fp16* alpha = (__fp16*)(buf + outw + outh);           //new __fp16[outw * 2];
             __fp16* beta = (__fp16*)(buf + outw + outh + outw * 2); //new __fp16[outh * 2];
 
-            linear_coeffs_fp16sa(w, outw, xofs, alpha);
-            linear_coeffs_fp16sa(h, outh, yofs, beta);
+            linear_coeffs_fp16sa(w, outw, xofs, alpha, align_corner);
+            linear_coeffs_fp16sa(h, outh, yofs, beta, align_corner);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -681,8 +681,8 @@ int Interp_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector
         __fp16* alpha = (__fp16*)(buf + outw + outh);           //new __fp16[outw * 2];
         __fp16* beta = (__fp16*)(buf + outw + outh + outw * 2); //new __fp16[outh * 2];
 
-        linear_coeffs_fp16sa(w, outw, xofs, alpha);
-        linear_coeffs_fp16sa(h, outh, yofs, beta);
+        linear_coeffs_fp16sa(w, outw, xofs, alpha, align_corner);
+        linear_coeffs_fp16sa(h, outh, yofs, beta, align_corner);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -793,8 +793,8 @@ int Interp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
             float* alpha = (float*)(buf + outw + outh);           //new float[outw * 2];
             float* beta = (float*)(buf + outw + outh + outw * 2); //new float[outh * 2];
 
-            linear_coeffs(w, outw, xofs, alpha);
-            linear_coeffs(h, outh, yofs, beta);
+            linear_coeffs(w, outw, xofs, alpha, align_corner);
+            linear_coeffs(h, outh, yofs, beta, align_corner);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -873,8 +873,8 @@ int Interp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
         float* alpha = (float*)(buf + outw + outh);           //new float[outw * 2];
         float* beta = (float*)(buf + outw + outh + outw * 2); //new float[outh * 2];
 
-        linear_coeffs(w, outw, xofs, alpha);
-        linear_coeffs(h, outh, yofs, beta);
+        linear_coeffs(w, outw, xofs, alpha, align_corner);
+        linear_coeffs(h, outh, yofs, beta, align_corner);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)

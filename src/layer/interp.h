@@ -38,6 +38,7 @@ public:
     int output_width;
     int output_height;
     int dynamic_target_size;
+    int align_corner;
 };
 
 } // namespace ncnn
