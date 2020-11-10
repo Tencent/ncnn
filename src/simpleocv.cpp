@@ -17,19 +17,27 @@
 #if NCNN_SIMPLEOCV
 
 #include <stdio.h>
-
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 namespace cv {
+
 
 Mat imread(const std::string& path, int flags)
 {
     (void)flags;
-
+    Mat m;
+    int w, h, c;
+    unsigned char* data = stbi_load(path.c_str(), &w, &h, &c, 0 );
+    m.create(h, w, CV_8UC3);
+    memcpy(m.data,data, m.total());
+    stbi_image_free(data);
+#if 0
     // read pgm/ppm
     FILE* fp = fopen(path.c_str(), "rb");
     if (!fp)
         return Mat();
 
-    Mat m;
+    
 
     char magic[3];
     int w, h;
@@ -54,7 +62,7 @@ Mat imread(const std::string& path, int flags)
     }
 
     fclose(fp);
-
+#endif
     return m;
 }
 
