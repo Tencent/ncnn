@@ -27,7 +27,7 @@
 #undef min
 #undef max
 #endif
-
+using namespace ncnn;
 // minimal opencv style data structure implementation
 namespace cv {
 
