@@ -57,7 +57,7 @@ linear_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
     double scale = (double)w / outw;
     if (align_corner)
     {
-        scale = (double)(w-1) / (outw-1);
+        scale = (double)(w - 1) / (outw - 1);
     }
 
     for (int dx = 0; dx < outw; dx++)
