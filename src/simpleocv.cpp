@@ -17,76 +17,135 @@
 #if NCNN_SIMPLEOCV
 
 #include <stdio.h>
+#include "simpleocv.dat"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 namespace cv {
 
+template<typename... Args>
+std::string string_sprintf(const char* format, Args... args)
+{
+    int length = std::snprintf(nullptr, 0, format, args...);
+    if (length <= 0)
+    {
+        return "";
+    }
 
+    char* buf = new char[length + 1];
+    std::snprintf(buf, length + 1, format, args...);
+
+    std::string str(buf);
+    delete[] buf;
+    return std::move(str);
+}
+
+std::string html = "";
+
+void circle(const Mat& src, Point2f p, int redius, Scalar scalar, int thickness)
+{
+    (void)src;
+    (void)redius;
+    (void)scalar;
+    (void)thickness;
+    html += string_sprintf(drawPoint.c_str(), (int)p.x, (int)p.y);
+}
 Mat imread(const std::string& path, int flags)
 {
     (void)flags;
     Mat m;
-    int w, h, c;
-    unsigned char* data = stbi_load(path.c_str(), &w, &h, &c, 0 );
-    m.create(h, w, CV_8UC3);
-    memcpy(m.data,data, m.total());
-    stbi_image_free(data);
-#if 0
-    // read pgm/ppm
-    FILE* fp = fopen(path.c_str(), "rb");
-    if (!fp)
-        return Mat();
-
-    
-
-    char magic[3];
-    int w, h;
-    int nscan = fscanf(fp, "%2s\n%d %d\n255\n", magic, &w, &h);
-    if (nscan == 3 && magic[0] == 'P' && (magic[1] == '5' || magic[1] == '6'))
+    html += string_sprintf(head.c_str(), path.c_str()) + bodyA;
+    if (path.find(".pgm") != std::string::npos || path.find(".ppm") != std::string::npos)
     {
-        if (magic[1] == '5')
-        {
-            m.create(h, w, CV_8UC1);
-        }
-        else if (magic[1] == '6')
-        {
-            m.create(h, w, CV_8UC3);
-        }
-        if (m.empty())
-        {
-            fclose(fp);
+        // read pgm/ppm
+        FILE* fp = fopen(path.c_str(), "rb");
+        if (!fp)
             return Mat();
+
+        char magic[3];
+        int w, h;
+        int nscan = fscanf(fp, "%2s\n%d %d\n255\n", magic, &w, &h);
+        if (nscan == 3 && magic[0] == 'P' && (magic[1] == '5' || magic[1] == '6'))
+        {
+            if (magic[1] == '5')
+            {
+                m.create(h, w, CV_8UC1);
+            }
+            else if (magic[1] == '6')
+            {
+                m.create(h, w, CV_8UC3);
+            }
+            if (m.empty())
+            {
+                fclose(fp);
+                return Mat();
+            }
+
+            fread(m.data, 1, m.total(), fp);
         }
 
-        fread(m.data, 1, m.total(), fp);
+        fclose(fp);
+    }
+    else
+    {
+        int w, h, c;
+        unsigned char* data = stbi_load(path.c_str(), &w, &h, &c, 0);
+        m.create(h, w, CV_8UC3);
+        memcpy(m.data, data, m.total());
+        html += string_sprintf(drawscreen.c_str(), path.c_str(), w, h) + imgs;
+        stbi_image_free(data);
     }
 
-    fclose(fp);
-#endif
     return m;
 }
 
 void imwrite(const std::string& path, const Mat& m)
 {
     // write pgm/ppm
-    FILE* fp = fopen(path.c_str(), "wb");
+    if (path.find(".pgm") != std::string::npos || path.find(".ppm") != std::string::npos)
+    {
+        FILE* fp = fopen(path.c_str(), "wb");
+        if (!fp)
+            return;
+
+        if (m.channels() == 1)
+        {
+            fprintf(fp, "P5\n%d %d\n255\n", m.cols, m.rows);
+        }
+        else if (m.channels() == 3)
+        {
+            fprintf(fp, "P6\n%d %d\n255\n", m.cols, m.rows);
+        }
+
+        fwrite(m.data, 1, m.total(), fp);
+        fclose(fp);
+        return;
+    }
+    html += end;
+    FILE* fp = fopen("./tmp.html", "wb");
     if (!fp)
         return;
-
-    if (m.channels() == 1)
-    {
-        fprintf(fp, "P5\n%d %d\n255\n", m.cols, m.rows);
-    }
-    else if (m.channels() == 3)
-    {
-        fprintf(fp, "P6\n%d %d\n255\n", m.cols, m.rows);
-    }
-
-    fwrite(m.data, 1, m.total(), fp);
-
+    fprintf(fp, "%s\n", html.c_str());
     fclose(fp);
 }
 
+void imshow(const std::string img, const Mat& m)
+{
+    (void)img;
+    (void)m;
+
+#ifdef linux
+    system("xdg-open ./tmp.html");
+#endif
+#ifdef _WIN32
+    system("start ./tmp.html");
+#endif
+}
+
+void waitKey(int i)
+{
+    (void)i;
+    getchar();
+}
 #if NCNN_PIXEL
 void resize(const Mat& src, Mat& dst, const Size& size, float sw, float sh, int flags)
 {
