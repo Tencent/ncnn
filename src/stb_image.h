@@ -2132,7 +2132,8 @@ static const stbi_uc stbi__jpeg_dezigzag[64 + 15] = {
     53, 60, 61, 54, 47, 55, 62, 63,
     // let corrupt input sample past end
     63, 63, 63, 63, 63, 63, 63, 63,
-    63, 63, 63, 63, 63, 63, 63};
+    63, 63, 63, 63, 63, 63, 63
+};
 
 // decode one 64-entry block--
 static int stbi__jpeg_decode_block(stbi__jpeg* j, short data[64], stbi__huffman* hdc, stbi__huffman* hac, stbi__int16* fac, int b, stbi__uint16* dequant)
@@ -2162,7 +2163,7 @@ static int stbi__jpeg_decode_block(stbi__jpeg* j, short data[64], stbi__huffman*
         c = (j->code_buffer >> (32 - FAST_BITS)) & ((1 << FAST_BITS) - 1);
         r = fac[c];
         if (r)
-        {                       // fast-AC path
+        {   // fast-AC path
             k += (r >> 4) & 15; // run
             s = r & 15;         // combined length
             j->code_buffer <<= s;
@@ -2248,7 +2249,7 @@ static int stbi__jpeg_decode_block_prog_ac(stbi__jpeg* j, short data[64], stbi__
             c = (j->code_buffer >> (32 - FAST_BITS)) & ((1 << FAST_BITS) - 1);
             r = fac[c];
             if (r)
-            {                       // fast-AC path
+            {   // fast-AC path
                 k += (r >> 4) & 15; // run
                 s = r & 15;         // combined length
                 j->code_buffer <<= s;
@@ -2437,7 +2438,7 @@ static void stbi__idct_block(stbi_uc* out, int out_stride, short data[64])
     {
         // if all zeroes, shortcut -- this avoids dequantizing 0s and IDCTing
         if (d[8] == 0 && d[16] == 0 && d[24] == 0 && d[32] == 0
-            && d[40] == 0 && d[48] == 0 && d[56] == 0)
+                && d[40] == 0 && d[48] == 0 && d[56] == 0)
         {
             //    no shortcut                 0     seconds
             //    (1|2|3|4|5|6|7)==0          0     seconds
@@ -3003,7 +3004,7 @@ static int stbi__parse_entropy_coded_data(stbi__jpeg* z)
             return 1;
         }
         else
-        { // interleaved
+        {   // interleaved
             int i, j, k, x, y;
             STBI_SIMD_ALIGN(short, data[64]);
             for (j = 0; j < z->img_mcu_y; ++j)
@@ -3081,7 +3082,7 @@ static int stbi__parse_entropy_coded_data(stbi__jpeg* z)
             return 1;
         }
         else
-        { // interleaved
+        {   // interleaved
             int i, j, k, x, y;
             for (j = 0; j < z->img_mcu_y; ++j)
             {
@@ -3228,7 +3229,7 @@ static int stbi__process_marker(stbi__jpeg* z, int m)
         L -= 2;
 
         if (m == 0xE0 && L >= 5)
-        { // JFIF APP0 segment
+        {   // JFIF APP0 segment
             static const unsigned char tag[5] = {'J', 'F', 'I', 'F', '\0'};
             int ok = 1;
             int i;
@@ -3240,7 +3241,7 @@ static int stbi__process_marker(stbi__jpeg* z, int m)
                 z->jfif = 1;
         }
         else if (m == 0xEE && L >= 12)
-        { // Adobe APP14 segment
+        {   // Adobe APP14 segment
             static const unsigned char tag[6] = {'A', 'd', 'o', 'b', 'e', '\0'};
             int ok = 1;
             int i;
@@ -4102,7 +4103,7 @@ static stbi_uc* load_jpeg_image(stbi__jpeg* z, int* out_x, int* out_y, int* comp
                 else if (z->s->img_n == 4)
                 {
                     if (z->app14_color_transform == 0)
-                    { // CMYK
+                    {   // CMYK
                         for (i = 0; i < z->s->img_x; ++i)
                         {
                             stbi_uc m = coutput[3][i];
@@ -4114,7 +4115,7 @@ static stbi_uc* load_jpeg_image(stbi__jpeg* z, int* out_x, int* out_y, int* comp
                         }
                     }
                     else if (z->app14_color_transform == 2)
-                    { // YCCK
+                    {   // YCCK
                         z->YCbCr_to_RGB_kernel(out, y, coutput[1], coutput[2], z->s->img_x, n);
                         for (i = 0; i < z->s->img_x; ++i)
                         {
@@ -4126,7 +4127,7 @@ static stbi_uc* load_jpeg_image(stbi__jpeg* z, int* out_x, int* out_y, int* comp
                         }
                     }
                     else
-                    { // YCbCr + alpha?  Ignore the fourth channel for now
+                    {   // YCbCr + alpha?  Ignore the fourth channel for now
                         z->YCbCr_to_RGB_kernel(out, y, coutput[1], coutput[2], z->s->img_x, n);
                     }
                 }
@@ -4437,12 +4438,14 @@ static int stbi__zexpand(stbi__zbuf* z, char* zout, int n) // need to make room 
 static const int stbi__zlength_base[31] = {
     3, 4, 5, 6, 7, 8, 9, 10, 11, 13,
     15, 17, 19, 23, 27, 31, 35, 43, 51, 59,
-    67, 83, 99, 115, 131, 163, 195, 227, 258, 0, 0};
+    67, 83, 99, 115, 131, 163, 195, 227, 258, 0, 0
+};
 
 static const int stbi__zlength_extra[31] = {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 0, 0};
 
 static const int stbi__zdist_base[32] = {1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193,
-                                         257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577, 0, 0};
+                                         257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577, 0, 0
+                                        };
 
 static const int stbi__zdist_extra[32] = {0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13};
 
@@ -4486,7 +4489,7 @@ static int stbi__parse_huffman_block(stbi__zbuf* a)
             }
             p = (stbi_uc*)(zout - dist);
             if (dist == 1)
-            { // run of one byte; common in images.
+            {   // run of one byte; common in images.
                 stbi_uc v = *p;
                 if (len)
                 {
@@ -4615,9 +4618,11 @@ static const stbi_uc stbi__zdefault_length[288] = {
     9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
     9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
     9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9,
-    7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8};
+    7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8
+};
 static const stbi_uc stbi__zdefault_distance[32] = {
-    5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5};
+    5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5
+};
 /*
 Init algorithm:
 {
@@ -4821,7 +4826,8 @@ static stbi_uc first_row_filter[5] = {
     STBI__F_sub,
     STBI__F_none,
     STBI__F_avg_first,
-    STBI__F_paeth_first};
+    STBI__F_paeth_first
+};
 
 static int stbi__paeth(int a, int b, int c)
 {
@@ -5324,7 +5330,7 @@ static void stbi__de_iphone(stbi__png* z)
     stbi_uc* p = z->out;
 
     if (s->img_out_n == 3)
-    { // convert bgr to rgb
+    {   // convert bgr to rgb
         for (i = 0; i < pixel_count; ++i)
         {
             stbi_uc t = p[0];
@@ -6137,7 +6143,7 @@ static int stbi__tga_info(stbi__context* s, int* x, int* y, int* comp)
     }
     tga_image_type = stbi__get8(s); // image type
     if (tga_colormap_type == 1)
-    { // colormapped (paletted) image
+    {   // colormapped (paletted) image
         if (tga_image_type != 1 && tga_image_type != 9)
         {
             stbi__rewind(s);
@@ -6154,7 +6160,7 @@ static int stbi__tga_info(stbi__context* s, int* x, int* y, int* comp)
         tga_colormap_bpp = sz;
     }
     else
-    { // "normal" image w/o colormap - only RGB or grey allowed, +/- RLE
+    {   // "normal" image w/o colormap - only RGB or grey allowed, +/- RLE
         if ((tga_image_type != 2) && (tga_image_type != 3) && (tga_image_type != 10) && (tga_image_type != 11))
         {
             stbi__rewind(s);
@@ -6212,7 +6218,7 @@ static int stbi__tga_test(stbi__context* s)
     if (tga_color_type > 1) goto errorEnd; //   only RGB or indexed allowed
     sz = stbi__get8(s);                    //   image type
     if (tga_color_type == 1)
-    {                                          // colormapped (paletted) image
+    {   // colormapped (paletted) image
         if (sz != 1 && sz != 9) goto errorEnd; // colortype 1 demands image type 1 or 9
         stbi__skip(s, 4);                      // skip index of first colormap entry and number of entries
         sz = stbi__get8(s);                    //   check bits per palette color entry
@@ -6220,7 +6226,7 @@ static int stbi__tga_test(stbi__context* s)
         stbi__skip(s, 4); // skip image x and y origin
     }
     else
-    {                                                                          // "normal" image w/o colormap
+    {   // "normal" image w/o colormap
         if ((sz != 2) && (sz != 3) && (sz != 10) && (sz != 11)) goto errorEnd; // only RGB or grey allowed, +/- RLE
         stbi__skip(s, 9);                                                      // skip colormap specification and image x/y origin
     }
@@ -6680,7 +6686,7 @@ static void* stbi__psd_load(stbi__context* s, int* x, int* y, int* comp, int req
             else
             {
                 if (ri->bits_per_channel == 16)
-                { // output bpc
+                {   // output bpc
                     stbi__uint16* q = ((stbi__uint16*)out) + channel;
                     for (i = 0; i < pixelCount; i++, q += 4)
                         *q = (stbi__uint16)stbi__get16be(s);
@@ -6689,7 +6695,7 @@ static void* stbi__psd_load(stbi__context* s, int* x, int* y, int* comp, int req
                 {
                     stbi_uc* p = out + channel;
                     if (bitdepth == 16)
-                    { // input bpc
+                    {   // input bpc
                         for (i = 0; i < pixelCount; i++, p += 4)
                             *p = (stbi_uc)(stbi__get16be(s) >> 8);
                     }
@@ -6866,7 +6872,7 @@ static stbi_uc* stbi__pic_load_core(stbi__context* s, int width, int height, int
                 return stbi__errpuc("bad format", "packet has bad compression type");
 
             case 0:
-            { //uncompressed
+            {   //uncompressed
                 int x;
 
                 for (x = 0; x < width; ++x, dest += 4)
@@ -6899,7 +6905,7 @@ static stbi_uc* stbi__pic_load_core(stbi__context* s, int width, int height, int
             break;
 
             case 2:
-            { //Mixed RLE
+            {   //Mixed RLE
                 int left = width;
                 while (left > 0)
                 {
@@ -6907,7 +6913,7 @@ static stbi_uc* stbi__pic_load_core(stbi__context* s, int width, int height, int
                     if (stbi__at_eof(s)) return stbi__errpuc("bad file", "file too short (mixed read count)");
 
                     if (count >= 128)
-                    { // Repeated
+                    {   // Repeated
                         stbi_uc value[4];
 
                         if (count == 128)
@@ -6924,7 +6930,7 @@ static stbi_uc* stbi__pic_load_core(stbi__context* s, int width, int height, int
                             stbi__copyval(packet->channel, dest, value);
                     }
                     else
-                    { // Raw
+                    {   // Raw
                         ++count;
                         if (count > left) return stbi__errpuc("bad file", "scanline overrun");
 
@@ -7109,7 +7115,7 @@ static void stbi__out_gif_code(stbi__gif* g, stbi__uint16 code)
 
     c = &g->color_table[g->codes[code].suffix * 4];
     if (c[3] > 128)
-    { // don't render transparent pixels;
+    {   // don't render transparent pixels;
         p[0] = c[2];
         p[1] = c[1];
         p[2] = c[0];
@@ -7180,7 +7186,7 @@ static stbi_uc* stbi__process_gif_raster(stbi__context* s, stbi__gif* g)
             valid_bits -= codesize;
             // @OPTIMIZE: is there some way we can accelerate the non-clear path?
             if (code == clear)
-            { // clear code
+            {   // clear code
                 codesize = lzw_cs + 1;
                 codemask = (1 << codesize) - 1;
                 avail = clear + 2;
@@ -7188,7 +7194,7 @@ static stbi_uc* stbi__process_gif_raster(stbi__context* s, stbi__gif* g)
                 first = 0;
             }
             else if (code == clear + 1)
-            { // end of stream code
+            {   // end of stream code
                 stbi__skip(s, len);
                 while ((len = stbi__get8(s)) > 0)
                     stbi__skip(s, len);
@@ -7273,7 +7279,7 @@ static stbi_uc* stbi__gif_load_next(stbi__context* s, stbi__gif* g, int* comp, i
         }
 
         if (dispose == 3)
-        { // use previous graphic
+        {   // use previous graphic
             for (pi = 0; pi < pcount; ++pi)
             {
                 if (g->history[pi])
@@ -7384,7 +7390,7 @@ static stbi_uc* stbi__gif_load_next(stbi__context* s, stbi__gif* g, int* comp, i
             int len;
             int ext = stbi__get8(s);
             if (ext == 0xF9)
-            { // Graphic Control Extension.
+            {   // Graphic Control Extension.
                 len = stbi__get8(s);
                 if (len == 4)
                 {
