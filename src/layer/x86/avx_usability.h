@@ -22,6 +22,7 @@ static inline __m256 loadfp16(const unsigned short* ptr)
 {
     return _mm256_cvtph_ps(_mm_lddqu_si128((__m128i*)(ptr)));
 }
+
 static inline __m256 _mm256_fmadd_1_ps(__m256 a, __m256 b, float c)
 {
     return _mm256_fmadd_ps(b, _mm256_set1_ps(c), a);
@@ -62,8 +63,8 @@ static inline void transpose8_ps(__m256& row0, __m256& row1, __m256& row2, __m25
     row7 = _mm256_permute2f128_ps(__tt3, __tt7, 0x31);
 }
 
-static inline __m256 HorizontalSums(__m256 v0, __m256 v1, __m256 v2, __m256 v3, __m256 v4,
-                                    __m256 v5, __m256 v6, __m256 v7)
+static inline __m256 HorizontalSums(__m256 &v0, __m256 &v1, __m256 &v2, __m256 &v3, __m256 &v4,
+                                    __m256 &v5, __m256 &v6, __m256 &v7)
 {
     const __m256 s01 = _mm256_hadd_ps(v0, v1);
     const __m256 s23 = _mm256_hadd_ps(v2, v3);
@@ -73,13 +74,13 @@ static inline __m256 HorizontalSums(__m256 v0, __m256 v1, __m256 v2, __m256 v3, 
     const __m256 s4556 = _mm256_hadd_ps(s45, s67);
 
     // inter-lane shuffle
-    v0 = _mm256_blend_ps(s0123, s4556, 0xF0);
-    v1 = _mm256_permute2f128_ps(s0123, s4556, 0x21);
+    const __m256 vb0 = _mm256_blend_ps(s0123, s4556, 0xF0);
+    const __m256 vb1 = _mm256_permute2f128_ps(s0123, s4556, 0x21);
 
-    return _mm256_add_ps(v0, v1);
+    return _mm256_add_ps(vb0, vb1);
 }
 
-static inline __m128 HorizontalSums(__m256 v0, __m256 v1, __m256 v2, __m256 v3)
+static inline __m128 HorizontalSums(__m256 &v0, __m256 &v1, __m256 &v2, __m256 &v3)
 {
     const __m256 s01 = _mm256_hadd_ps(v0, v1);
     const __m256 s23 = _mm256_hadd_ps(v2, v3);
