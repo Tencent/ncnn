@@ -1,3 +1,6 @@
 [submodule "glslang"]
 	path = glslang
 	url = https://github.com/KhronosGroup/glslang
+[submodule "stb"]
+	path = stb
+	url = https://github.com/nothings/stb

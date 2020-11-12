@@ -18,6 +18,7 @@
 #cmakedefine01 NCNN_STDIO
 #cmakedefine01 NCNN_STRING
 #cmakedefine01 NCNN_SIMPLEOCV
+#cmakedefine01 NCNN_SIMPLEOCV_STB
 #cmakedefine01 NCNN_SIMPLEOMP
 #cmakedefine01 NCNN_SIMPLESTL
 #cmakedefine01 NCNN_THREADS

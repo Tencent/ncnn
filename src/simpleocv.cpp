@@ -17,43 +17,62 @@
 #if NCNN_SIMPLEOCV
 
 #include <stdio.h>
-
+#if NCNN_SIMPLEOCV_STB
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+#endif
 namespace cv {
 
 Mat imread(const std::string& path, int flags)
 {
     (void)flags;
-
-    // read pgm/ppm
-    FILE* fp = fopen(path.c_str(), "rb");
-    if (!fp)
-        return Mat();
-
     Mat m;
-
-    char magic[3];
-    int w, h;
-    int nscan = fscanf(fp, "%2s\n%d %d\n255\n", magic, &w, &h);
-    if (nscan == 3 && magic[0] == 'P' && (magic[1] == '5' || magic[1] == '6'))
+    // read pgm/ppm
+    if (path.find(".pgm") != std::string::npos || path.find(".ppm") != std::string::npos)
     {
-        if (magic[1] == '5')
-        {
-            m.create(h, w, CV_8UC1);
-        }
-        else if (magic[1] == '6')
-        {
-            m.create(h, w, CV_8UC3);
-        }
-        if (m.empty())
-        {
-            fclose(fp);
+        FILE* fp = fopen(path.c_str(), "rb");
+        if (!fp)
             return Mat();
+
+        Mat m;
+
+        char magic[3];
+        int w, h;
+        int nscan = fscanf(fp, "%2s\n%d %d\n255\n", magic, &w, &h);
+        if (nscan == 3 && magic[0] == 'P' && (magic[1] == '5' || magic[1] == '6'))
+        {
+            if (magic[1] == '5')
+            {
+                m.create(h, w, CV_8UC1);
+            }
+            else if (magic[1] == '6')
+            {
+                m.create(h, w, CV_8UC3);
+            }
+            if (m.empty())
+            {
+                fclose(fp);
+                return Mat();
+            }
+
+            fread(m.data, 1, m.total(), fp);
         }
 
-        fread(m.data, 1, m.total(), fp);
+        fclose(fp);
     }
-
-    fclose(fp);
+    else
+    {
+#if NCNN_SIMPLEOCV_STB
+        int w, h, c;
+        unsigned char* data = stbi_load(path.c_str(), &w, &h, &c, 0);
+        ncnn::Mat in = ncnn::Mat::from_pixels(data, ncnn::Mat::PIXEL_RGB, w, h);
+        m.create(h, w, CV_8UC3);
+        in.to_pixels(m.data, ncnn::Mat::PIXEL_RGB2BGR);
+        stbi_image_free(data);
+#endif
+    }
 
     return m;
 }
@@ -61,22 +80,36 @@ Mat imread(const std::string& path, int flags)
 void imwrite(const std::string& path, const Mat& m)
 {
     // write pgm/ppm
-    FILE* fp = fopen(path.c_str(), "wb");
-    if (!fp)
-        return;
-
-    if (m.channels() == 1)
+    if (path.find(".pgm") != std::string::npos || path.find(".ppm") != std::string::npos)
     {
-        fprintf(fp, "P5\n%d %d\n255\n", m.cols, m.rows);
+        FILE* fp = fopen(path.c_str(), "wb");
+        if (!fp)
+            return;
+
+        if (m.channels() == 1)
+        {
+            fprintf(fp, "P5\n%d %d\n255\n", m.cols, m.rows);
+        }
+        else if (m.channels() == 3)
+        {
+            fprintf(fp, "P6\n%d %d\n255\n", m.cols, m.rows);
+        }
+
+        fwrite(m.data, 1, m.total(), fp);
+
+        fclose(fp);
     }
-    else if (m.channels() == 3)
+    else
     {
-        fprintf(fp, "P6\n%d %d\n255\n", m.cols, m.rows);
+#if NCNN_SIMPLEOCV_STB
+        if (path.find(".jpg") != std::string::npos)
+        {
+            ncnn::Mat out = ncnn::Mat::from_pixels(m.data, ncnn::Mat::PIXEL_BGR2RGB, m.cols, m.rows);
+            out.to_pixels(m.data, ncnn::Mat::PIXEL_RGB);
+            stbi_write_jpg(path.c_str(), m.cols, m.rows, m.channels(), m.data, 100);
+        }
+#endif
     }
-
-    fwrite(m.data, 1, m.total(), fp);
-
-    fclose(fp);
 }
 
 #if NCNN_PIXEL
