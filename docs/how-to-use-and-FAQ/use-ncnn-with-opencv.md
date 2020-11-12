@@ -4,31 +4,31 @@
 
 ```cpp
 // cv::Mat a(h, w, CV_8UC3);
-ncnn::Mat in = ncnn::Mat::from_pixels(a.data, ncnn::PIXEL_BGR2RGB, a.cols, a.rows);
+ncnn::Mat in = ncnn::Mat::from_pixels(a.data, ncnn::Mat::PIXEL_BGR2RGB, a.cols, a.rows);
 ```
 
 * cv::Mat CV_8UC3 -> ncnn::Mat 3 channel + keep RGB/BGR order
 
 ```cpp
 // cv::Mat a(h, w, CV_8UC3);
-ncnn::Mat in = ncnn::Mat::from_pixels(a.data, ncnn::PIXEL_RGB, a.cols, a.rows);
+ncnn::Mat in = ncnn::Mat::from_pixels(a.data, ncnn::Mat::PIXEL_RGB, a.cols, a.rows);
 ```
 
 * cv::Mat CV_8UC3 -> ncnn::Mat 1 channel + do RGB2GRAY/BGR2GRAY
 
 ```cpp
 // cv::Mat rgb(h, w, CV_8UC3);
-ncnn::Mat inrgb = ncnn::Mat::from_pixels(rgb.data, ncnn::PIXEL_RGB2GRAY, rgb.cols, rgb.rows);
+ncnn::Mat inrgb = ncnn::Mat::from_pixels(rgb.data, ncnn::Mat::PIXEL_RGB2GRAY, rgb.cols, rgb.rows);
 
 // cv::Mat bgr(h, w, CV_8UC3);
-ncnn::Mat inbgr = ncnn::Mat::from_pixels(bgr.data, ncnn::PIXEL_BGR2GRAY, bgr.cols, bgr.rows);
+ncnn::Mat inbgr = ncnn::Mat::from_pixels(bgr.data, ncnn::Mat::PIXEL_BGR2GRAY, bgr.cols, bgr.rows);
 ```
 
 * cv::Mat CV_8UC1 -> ncnn::Mat 1 channel
 
 ```cpp
 // cv::Mat a(h, w, CV_8UC1);
-ncnn::Mat in = ncnn::Mat::from_pixels(a.data, ncnn::PIXEL_GRAY, a.cols, a.rows);
+ncnn::Mat in = ncnn::Mat::from_pixels(a.data, ncnn::Mat::PIXEL_GRAY, a.cols, a.rows);
 ```
 
 * cv::Mat CV_32FC1 -> ncnn::Mat 1 channel
@@ -75,7 +75,7 @@ for (int p=0; p<in.c; p++)
 ```cpp
 // ncnn::Mat in(w, h, 3);
 cv::Mat a(in.h, in.w, CV_8UC3);
-in.to_pixels(a.data, ncnn::PIXEL_BGR2RGB);
+in.to_pixels(a.data, ncnn::Mat::PIXEL_BGR2RGB);
 ```
 
 * ncnn::Mat 3 channel -> cv::Mat CV_8UC3 + keep RGB/BGR order
@@ -85,7 +85,7 @@ in.to_pixels(a.data, ncnn::PIXEL_BGR2RGB);
 ```cpp
 // ncnn::Mat in(w, h, 3);
 cv::Mat a(in.h, in.w, CV_8UC3);
-in.to_pixels(a.data, ncnn::PIXEL_RGB);
+in.to_pixels(a.data, ncnn::Mat::PIXEL_RGB);
 ```
 
 * ncnn::Mat 1 channel -> cv::Mat CV_8UC1
@@ -95,7 +95,7 @@ in.to_pixels(a.data, ncnn::PIXEL_RGB);
 ```cpp
 // ncnn::Mat in(w, h, 1);
 cv::Mat a(in.h, in.w, CV_8UC1);
-in.to_pixels(a.data, ncnn::PIXEL_GRAY);
+in.to_pixels(a.data, ncnn::Mat::PIXEL_GRAY);
 ```
 
 * ncnn::Mat 1 channel -> cv::Mat CV_32FC1
