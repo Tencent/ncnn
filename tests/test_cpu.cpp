@@ -6,7 +6,7 @@
 
 static int test_cpu_info()
 {
-    if(ncnn::get_cpu_count() >= 0 && ncnn::get_little_cpu_count() >= 0 && ncnn::get_big_cpu_count() >= 0)
+    if (ncnn::get_cpu_count() >= 0 && ncnn::get_little_cpu_count() >= 0 && ncnn::get_big_cpu_count() >= 0)
     {
         fprintf(stderr, "The system cannot have a negative number of processors\n");
         return 0;
@@ -115,8 +115,8 @@ static int test_cpu_thread_affinity()
 int main()
 {
     return 0
-       || test_cpu_set()
-       || test_cpu_info()
-       || test_powersave()
-       || test_cpu_thread_affinity();
+           || test_cpu_set()
+           || test_cpu_info()
+           || test_powersave()
+           || test_cpu_thread_affinity();
 }
