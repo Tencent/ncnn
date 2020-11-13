@@ -17,6 +17,7 @@
 #endif
 
 #include <algorithm>
+#include <map>
 #include <set>
 #include <vector>
 
@@ -43,6 +44,7 @@
 #include "layer/exp.h"
 #include "layer/expanddims.h"
 #include "layer/flatten.h"
+#include "layer/gemm.h"
 #include "layer/groupnorm.h"
 #include "layer/hardsigmoid.h"
 #include "layer/hardswish.h"
@@ -84,20 +86,6 @@
 #include "layer/yolodetectionoutput.h"
 #include "layer/yolov3detectionoutput.h"
 
-#if defined(__aarch64__) && defined(LINUX)
-#include <cassert>
-#include <chrono>
-#include <limits>
-#include <locale>
-#include <random>
-
-#define TEXT_GREEN  "\033[32m"
-#define TEXT_YELLOW "\033[33m"
-#define TEXT_RED    "\033[31m"
-#define CLR         "\033[0m"
-
-#endif // defined(__aarch64__) && defined(LINUX)
-
 class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
@@ -109,6 +97,41 @@ public:
     {
         return size;
     }
+};
+
+class MemoryFootprintAllocator : public ncnn::Allocator
+{
+public:
+    MemoryFootprintAllocator()
+    {
+        current_memory_usage = 0;
+        memory_footprint = 0;
+    }
+
+    virtual void* fastMalloc(size_t size)
+    {
+        ncnn::MutexLockGuard g(lock);
+        void* ptr = ncnn::fastMalloc(size);
+        bookkeeper[ptr] = size;
+        current_memory_usage += size;
+        memory_footprint = std::max(memory_footprint, current_memory_usage);
+        return ptr;
+    }
+
+    virtual void fastFree(void* ptr)
+    {
+        ncnn::MutexLockGuard g(lock);
+        size_t size = bookkeeper[ptr];
+        current_memory_usage -= size;
+        bookkeeper.erase(bookkeeper.find(ptr));
+        ncnn::fastFree(ptr);
+    }
+
+public:
+    int current_memory_usage;
+    int memory_footprint;
+    ncnn::Mutex lock;
+    std::map<void*, size_t> bookkeeper;
 };
 
 class NetOptimize : public ncnn::Net
@@ -153,6 +176,7 @@ public:
     int replace_convolution_with_innerproduct_after_innerproduct();
 
     int shape_inference();
+    int estimate_memory_footprint();
 
 public:
     int fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp);
@@ -162,181 +186,7 @@ public:
     int fwrite_weight_data(const ncnn::Mat& data, FILE* bp);
 
     int save(const char* parampath, const char* binpath);
-
-#if defined(__aarch64__) && defined(LINUX)
-    void gauss_random(ncnn::Mat& m);
-    void find_fastest_fp32_conv(const char* name, int w, int h, int c);
-    int support_fp32_conv_type(const ncnn::Convolution* op, const ncnn::Mat& mat, const int type);
-#endif
 };
-
-#if defined(__aarch64__) && defined(LINUX)
-void NetOptimize::gauss_random(ncnn::Mat& m)
-{
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::normal_distribution<float> d(1.0f, 1.0f);
-    int size = m.total();
-    for (int i = 0; i < size; ++i)
-    {
-        m[i] = d(gen);
-    }
-}
-
-void NetOptimize::find_fastest_fp32_conv(const char* dataname, int w, int h, int c)
-{
-    ncnn::PoolAllocator allocator;
-    allocator.clear();
-
-    ncnn::Option opt;
-    // embeded system generally use single thread
-    opt.num_threads = 1;
-
-    const size_t layer_count = layers.size();
-    ncnn::Extractor ex = create_extractor();
-
-    ncnn::Mat input(w, h, c);
-    if (ex.input(dataname, input) < 0)
-    {
-        fprintf(stderr, "set input failed, check dataname.\n");
-        return;
-    }
-
-    const char* IMPL_NAME[6] = {"baseline", "winograd", "pointwise", "im2col", "direct", "conv3x3s2"};
-    for (int i = 0; i < layer_count; ++i)
-    {
-        ncnn::Layer* layer = layers[i];
-        if (layer->type == "Convolution")
-        {
-            ncnn::Convolution* op = (ncnn::Convolution*)layer;
-
-            ncnn::Mat bottom_blob;
-            ncnn::Mat top_blob;
-
-            ex.extract(layer->bottoms[0], bottom_blob);
-            ex.extract(layer->tops[0], top_blob);
-
-            if (bottom_blob.empty() || top_blob.empty())
-            {
-                continue;
-            }
-
-            ncnn::Mat weight_blob(op->kernel_w, op->kernel_h, bottom_blob.c * top_blob.c);
-
-            fprintf(stdout, TEXT_GREEN "Input  [w h nc]: %d %d %d\n" CLR, bottom_blob.w, bottom_blob.h, bottom_blob.c);
-            fprintf(stdout, TEXT_GREEN "Kernel [w h nc]: %d %d %d\n" CLR, op->kernel_w, op->kernel_h, bottom_blob.c * top_blob.c);
-            fprintf(stdout, TEXT_GREEN "Output [w h nc]: %d %d %d\n" CLR, top_blob.w, top_blob.h, top_blob.c);
-
-            // randomize input and kernel
-            gauss_random(bottom_blob);
-
-            // try every implementation
-            double min_cost = std::numeric_limits<double>::max();
-            int best_type = 0;
-
-            // how much conv implementation type ncnn has ?
-            for (int type = 1; type <= 5; ++type)
-            {
-                int support = support_fp32_conv_type(op, bottom_blob, type);
-                if (support < 1)
-                {
-                    // implementation type mismatch convolution configuration, skip
-                    continue;
-                }
-
-                op->impl_type = type;
-
-                auto start = std::chrono::high_resolution_clock::now();
-                const int NREPEATS = 20;
-                op->create_pipeline(opt);
-                for (int repeat = 0; repeat < NREPEATS; ++repeat)
-                {
-                    op->forward(top_blob, bottom_blob, opt);
-                }
-                op->destroy_pipeline(opt);
-
-                auto stop = std::chrono::high_resolution_clock::now();
-                double cur_cost = std::chrono::duration<double, std::micro>(stop - start).count() / NREPEATS;
-                fprintf(stdout, TEXT_GREEN "%s cost %0.3lfms \n" CLR, IMPL_NAME[type], cur_cost / 1000);
-                if (cur_cost < min_cost)
-                {
-                    min_cost = cur_cost;
-                    best_type = type;
-                }
-            }
-            op->impl_type = best_type;
-
-            fprintf(stdout, TEXT_YELLOW "%d: %s use %s \n\n" CLR, i, layer->name.c_str(), IMPL_NAME[op->impl_type]);
-        }
-    }
-}
-
-int NetOptimize::support_fp32_conv_type(const ncnn::Convolution* op, const ncnn::Mat& bottom, const int type)
-{
-    // not baseline, then k_h == k_w and s_h == s_w
-    // no dilation conv shall be allowed
-    if (op->kernel_w != op->kernel_h || op->stride_w != op->stride_h || op->dilation_w != op->dilation_h || op->dilation_h != 1)
-    {
-        return -1;
-    }
-
-    // (kernel, stride) in {(1, 1), (1, 2), (2, 1), (3, 1), (3, 2), (4, 4), (5, 1), (5, 2), (7, 1), (7, 2)}
-    const int support_table[7][4] = {
-        {1, 1, 0, 0},
-        {1, 0, 0, 0},
-        {1, 1, 0, 0},
-        {0, 0, 0, 1},
-        {1, 1, 0, 0},
-        {0, 0, 0, 0},
-        {1, 1, 0, 0}
-    };
-    // kernel_size x stride
-    const int kernel = op->kernel_h,
-              stride = op->stride_h;
-    // if match prequisation
-    switch (type)
-    {
-    case 1:
-        // winograd
-        if (kernel != 3 || stride != 1)
-        {
-            return -1;
-        }
-        break;
-    case 2:
-        // pointwise
-        // input_h == 1, input_w == 1, dilation == 1, stride == 1
-        if (bottom.h != 1 || bottom.w != 1 || stride != 1)
-        {
-            return -1;
-        }
-        break;
-    case 3:
-        // im2col
-        break;
-    case 4:
-        // direct conv
-        if (support_table[kernel - 1][stride - 1] == 0)
-        {
-            return -1;
-        }
-        break;
-    case 5:
-        // conv3x3s2
-        // kernel == 3 and stride == 2
-        if (kernel != 3 || stride != 2)
-        {
-            return -1;
-        }
-        break;
-    default:
-        fprintf(stderr, TEXT_RED "unrecognize convolution impl type: %d" CLR, type);
-        break;
-    }
-
-    return 1;
-}
-#endif // defined(__aarch64__) && defined(LINUX)
 
 int NetOptimize::fuse_batchnorm_scale()
 {
@@ -2732,7 +2582,7 @@ int NetOptimize::shape_inference()
     // prepare blobs with predefined shape
     for (size_t i = 0; i < blob_count; i++)
     {
-        const ncnn::Blob blob = blobs[i];
+        const ncnn::Blob& blob = blobs[i];
 
         int dims = blob.shape.dims;
         int w = blob.shape.w;
@@ -2795,6 +2645,78 @@ int NetOptimize::shape_inference()
             //             fprintf(stderr, "%d %4d %4d %4d | %2d %s\n", blobs[top_blob_index].shape.dims, blobs[top_blob_index].shape.w, blobs[top_blob_index].shape.h, blobs[top_blob_index].shape.c, top_blob_index, blobs[top_blob_index].name.c_str());
         }
     }
+
+    return 0;
+}
+
+int NetOptimize::estimate_memory_footprint()
+{
+    const size_t layer_count = layers.size();
+    const size_t blob_count = blobs.size();
+
+    MemoryFootprintAllocator allocator;
+
+    ncnn::Extractor ex = create_extractor();
+
+    ex.set_blob_allocator(&allocator);
+    ex.set_workspace_allocator(&allocator);
+
+    // prepare Input blobs
+    for (size_t i = 0; i < layer_count; i++)
+    {
+        const ncnn::Layer* layer = layers[i];
+        if (layer->type == "ncnnfused")
+            continue;
+
+        if (layer->type != "Input")
+            continue;
+
+        ncnn::Input* input = (ncnn::Input*)layer;
+
+        int w = input->w;
+        int h = input->h;
+        int c = input->c;
+
+        int dims = 0;
+        if (w == 0 && h == 0 && c == 0) dims = 0;
+        if (w != 0 && h == 0 && c == 0) dims = 1;
+        if (w != 0 && h != 0 && c == 0) dims = 2;
+        if (w != 0 && h != 0 && c != 0) dims = 3;
+
+        if (dims == 0)
+        {
+            fprintf(stderr, "Input layer %s without shape info, estimate_memory_footprint aborted\n", layer->name.c_str());
+            return -1;
+        }
+
+        ncnn::Mat m;
+        if (dims == 1) m.create(w, 4u, &allocator);
+        if (dims == 2) m.create(w, h, 4u, &allocator);
+        if (dims == 3) m.create(w, h, c, 4u, &allocator);
+
+        ex.input(layer->tops[0], m);
+
+        fprintf(stderr, "input = %s\n", blobs[layer->tops[0]].name.c_str());
+    }
+
+    // find output blobs and do inference
+    std::vector<ncnn::Mat> outputs;
+    for (size_t i = 0; i < blob_count; i++)
+    {
+        const ncnn::Blob& blob = blobs[i];
+
+        if (!blob.consumers.empty())
+            continue;
+
+        // treat blob without any consumers as output
+        ncnn::Mat m;
+        ex.extract(int(i), m);
+        outputs.push_back(m);
+
+        fprintf(stderr, "extract = %s\n", blob.name.c_str());
+    }
+
+    fprintf(stderr, "estimated memory footprint = %.2f KB = %.2f MB\n", allocator.memory_footprint / 1024.f, allocator.memory_footprint / 1024.f / 1024.f);
 
     return 0;
 }
@@ -2878,6 +2800,8 @@ int NetOptimize::fwrite_weight_data(const ncnn::Mat& data, FILE* bp)
 
 int NetOptimize::save(const char* parampath, const char* binpath)
 {
+    unsigned int mac = 0;
+
     FILE* pp = fopen(parampath, "wb");
     FILE* bp = fopen(binpath, "wb");
 
@@ -3061,6 +2985,16 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
+
+            if (shape_ready)
+            {
+                int inc = blobs[layer->bottoms[0]].shape.c;
+                int outw = blobs[layer->tops[0]].shape.w;
+                int outh = blobs[layer->tops[0]].shape.h;
+                int outc = blobs[layer->tops[0]].shape.c;
+
+                mac += op->kernel_h * op->kernel_w * outw * outh * outc * inc;
+            }
         }
         else if (layer->type == "ConvolutionDepthWise")
         {
@@ -3102,6 +3036,16 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
+
+            if (shape_ready)
+            {
+                int inc = blobs[layer->bottoms[0]].shape.c;
+                int outw = blobs[layer->tops[0]].shape.w;
+                int outh = blobs[layer->tops[0]].shape.h;
+                int outc = blobs[layer->tops[0]].shape.c;
+
+                mac += op->kernel_h * op->kernel_w * outw * outh * (outc / op->group) * (inc / op->group) * op->group;
+            }
         }
         else if (layer->type == "Crop")
         {
@@ -3172,6 +3116,16 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
+
+            if (shape_ready)
+            {
+                int inw = blobs[layer->bottoms[0]].shape.w;
+                int inh = blobs[layer->bottoms[0]].shape.h;
+                int inc = blobs[layer->bottoms[0]].shape.c;
+                int outc = blobs[layer->tops[0]].shape.c;
+
+                mac += op->kernel_h * op->kernel_w * inw * inh * outc * inc;
+            }
         }
         else if (layer->type == "DeconvolutionDepthWise")
         {
@@ -3219,6 +3173,16 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
+
+            if (shape_ready)
+            {
+                int inw = blobs[layer->bottoms[0]].shape.w;
+                int inh = blobs[layer->bottoms[0]].shape.h;
+                int inc = blobs[layer->bottoms[0]].shape.c;
+                int outc = blobs[layer->tops[0]].shape.c;
+
+                mac += op->kernel_h * op->kernel_w * inw * inh * (outc / op->group) * (inc / op->group) * op->group;
+            }
         }
         else if (layer->type == "DetectionOutput")
         {
@@ -3280,6 +3244,16 @@ int NetOptimize::save(const char* parampath, const char* binpath)
                 if (!op->axes.empty()) fprintf_param_int_array(0, op->axes, pp);
             }
         }
+        else if (layer->type == "Gemm")
+        {
+            ncnn::Gemm* op = (ncnn::Gemm*)layer;
+            ncnn::Gemm* op_default = (ncnn::Gemm*)layer_default;
+
+            fprintf_param_value(" 0=%e", alpha)
+            fprintf_param_value(" 1=%e", beta)
+            fprintf_param_value(" 2=%d", transA)
+            fprintf_param_value(" 3=%d", transB)
+        }
         else if (layer->type == "GroupNorm")
         {
             ncnn::GroupNorm* op = (ncnn::GroupNorm*)layer;
@@ -3325,6 +3299,16 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
             fwrite_weight_tag_data(0, op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
+
+            if (shape_ready)
+            {
+                int inw = blobs[layer->bottoms[0]].shape.w;
+                int inh = blobs[layer->bottoms[0]].shape.h;
+                int inc = blobs[layer->bottoms[0]].shape.c;
+                int outw = blobs[layer->tops[0]].shape.w;
+
+                mac += inw * inh * inc * outw;
+            }
         }
         else if (layer->type == "Input")
         {
@@ -3733,28 +3717,21 @@ int NetOptimize::save(const char* parampath, const char* binpath)
     fclose(pp);
     fclose(bp);
 
+    if (mac)
+    {
+        fprintf(stderr, "mac = %d = %.2f M\n", mac, mac / 1000000.f);
+    }
+
     return 0;
 }
 
 int main(int argc, char** argv)
 {
-#if defined(__aarch64__) && defined(LINUX)
-    if (argc != 10)
-    {
-        fprintf(stderr, "usage: %s [inparam] [inbin] [outparam] [outbin] [flag] [dataname] [w] [h] [c]\n", argv[0]);
-        return -1;
-    }
-    const char* dataname = argv[6];
-    int inw = atoi(argv[7]);
-    int inh = atoi(argv[8]);
-    int inc = atoi(argv[9]);
-#else
     if (argc != 6)
     {
         fprintf(stderr, "usage: %s [inparam] [inbin] [outparam] [outbin] [flag]\n", argv[0]);
         return -1;
     }
-#endif // defined(__aarch64__) && defined(LINUX)
 
     const char* inparam = argv[1];
     const char* inbin = argv[2];
@@ -3782,9 +3759,6 @@ int main(int argc, char** argv)
     else
         optimizer.load_model(inbin);
 
-#if defined(__aarch64__) && defined(LINUX)
-    optimizer.find_fastest_fp32_conv(dataname, inw, inh, inc);
-#endif // defined(__aarch64__) && defined(LINUX)
     optimizer.fuse_batchnorm_scale();
     optimizer.fuse_convolution_batchnorm();
     optimizer.fuse_convolution_mul();
@@ -3821,6 +3795,8 @@ int main(int argc, char** argv)
     optimizer.eliminate_orphaned_memorydata();
 
     optimizer.shape_inference();
+
+    optimizer.estimate_memory_footprint();
 
     optimizer.save(outparam, outbin);
 

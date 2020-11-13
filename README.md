@@ -50,7 +50,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 * Face Detection: MTCNN RetinaFace ...
 * Detection: VGG-SSD MobileNet-SSD SqueezeNet-SSD MobileNetV2-SSDLite MobileNetV3-SSDLite ...
 * Detection: Faster-RCNN R-FCN ...
-* Detection: YOLOV2 YOLOV3 MobileNet-YOLOV3 YOLOV4 ...
+* Detection: YOLOV2 YOLOV3 MobileNet-YOLOV3 YOLOV4 YOLOV5 ...
 * Segmentation: FCN PSPNet UNet YOLACT ...
 * Pose Estimation: SimplePose ...
 
@@ -75,7 +75,9 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 **[ncnn 组件使用指北 alexnet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet.zh) 附带详细步骤，新人强烈推荐 :)**
 
-**[use netron for ncnn model visualization](https://lutzroeder.github.io/netron/)**
+**[use netron for ncnn model visualization](https://netron.app)**
+
+**[out-of-the-box online model conversion](https://convertmodel.com/)**
 
 [ncnn low-level operation api](https://github.com/Tencent/ncnn/wiki/low-level-operation-api)
 
@@ -107,7 +109,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 * Supports multi-core parallel computing acceleration, ARM big.LITTLE cpu scheduling optimization
 * Supports GPU acceleration via the next-generation low-overhead vulkan api
 * The overall library size is less than 700K, and can be easily reduced to less than 300K
-* Extensible model design, supports 8bit quantization and half-precision floating point storage, can import caffe/pytorch/mxnet/onnx/darknet models
+* Extensible model design, supports 8bit quantization and half-precision floating point storage, can import caffe/pytorch/mxnet/onnx/darknet/keras/tensorflow(mlir) models
 * Support direct memory zero copy reference load network model
 * Can be registered with custom layer implementation and extended
 * Well, it is strong, not afraid of being stuffed with 卷   QvQ
@@ -122,7 +124,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 * 支持多核并行计算加速，ARM big.LITTLE cpu 调度优化
 * 支持基于全新低消耗的 vulkan api GPU 加速
 * 整体库体积小于 700K，并可轻松精简到小于 300K
-* 可扩展的模型设计，支持 8bit 量化和半精度浮点存储，可导入 caffe/pytorch/mxnet/onnx/darknet 模型
+* 可扩展的模型设计，支持 8bit 量化和半精度浮点存储，可导入 caffe/pytorch/mxnet/onnx/darknet/keras/tensorflow(mlir) 模型
 * 支持直接内存零拷贝引用加载网络模型
 * 可注册自定义层实现并扩展
 * 恩，很强就是了，不怕被塞卷 QvQ
@@ -159,11 +161,13 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 * https://github.com/nihui/ncnn-android-styletransfer
 * https://github.com/nihui/ncnn-android-mobilenetssd
 * https://github.com/moli232777144/mtcnn_ncnn
+* https://github.com/nihui/ncnn-android-yolov5
 
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-2.jpg)
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/4.jpg)
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-33.jpg)
 ![](https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-m.png)
+![](https://github.com/nihui/ncnn-android-yolov5/raw/master/screenshot.jpg)
 
 
 ---

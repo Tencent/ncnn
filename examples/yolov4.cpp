@@ -206,7 +206,7 @@ int main(int argc, char** argv)
 
     if (argc < 2)
     {
-        fprintf(stderr, "Usage: %s [v4l inpude device or image]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [v4l input device or image]\n", argv[0]);
         return -1;
     }
 

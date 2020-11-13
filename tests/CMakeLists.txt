@@ -40,6 +40,7 @@ if(NCNN_PIXEL)
     ncnn_add_test(squeezenet)
 endif()
 
+ncnn_add_test(cpu)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     target_link_libraries(test_squeezenet PRIVATE nodefs.js)

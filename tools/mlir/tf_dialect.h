@@ -61,9 +61,9 @@ public:
 
 } // namespace TF
 
+} // namespace mlir
+
 #define GET_OP_CLASSES
 #include "tf_all_ops.h.inc"
-
-} // namespace mlir
 
 #endif // TF_DIALECT_H
