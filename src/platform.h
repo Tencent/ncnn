@@ -38,10 +38,22 @@ namespace ncnn {
 class Mutex
 {
 public:
-    Mutex() { InitializeSRWLock(&srwlock); }
-    ~Mutex() {}
-    void lock() { AcquireSRWLockExclusive(&srwlock); }
-    void unlock() { ReleaseSRWLockExclusive(&srwlock); }
+    Mutex()
+    {
+        InitializeSRWLock(&srwlock);
+    }
+    ~Mutex()
+    {
+    }
+    void lock()
+    {
+        AcquireSRWLockExclusive(&srwlock);
+    }
+    void unlock()
+    {
+        ReleaseSRWLockExclusive(&srwlock);
+    }
+
 private:
     friend class ConditionVariable;
     // NOTE SRWLock is available from windows vista
@@ -51,11 +63,26 @@ private:
 class ConditionVariable
 {
 public:
-    ConditionVariable() { InitializeConditionVariable(&condvar); }
-    ~ConditionVariable() {}
-    void wait(Mutex& mutex) { SleepConditionVariableSRW(&condvar, &mutex.srwlock, INFINITE, 0); }
-    void broadcast() { WakeAllConditionVariable(&condvar); }
-    void signal() { WakeConditionVariable(&condvar); }
+    ConditionVariable()
+    {
+        InitializeConditionVariable(&condvar);
+    }
+    ~ConditionVariable()
+    {
+    }
+    void wait(Mutex& mutex)
+    {
+        SleepConditionVariableSRW(&condvar, &mutex.srwlock, INFINITE, 0);
+    }
+    void broadcast()
+    {
+        WakeAllConditionVariable(&condvar);
+    }
+    void signal()
+    {
+        WakeConditionVariable(&condvar);
+    }
+
 private:
     CONDITION_VARIABLE condvar;
 };
@@ -64,9 +91,21 @@ static unsigned __stdcall start_wrapper(void* args);
 class Thread
 {
 public:
-    Thread(void* (*start)(void*), void* args = 0) { _start = start; _args = args; handle = (HANDLE)_beginthreadex(0, 0, start_wrapper, this, 0, 0); }
-    ~Thread() {}
-    void join() { WaitForSingleObject(handle, INFINITE); CloseHandle(handle); }
+    Thread(void* (*start)(void*), void* args = 0)
+    {
+        _start = start;
+        _args = args;
+        handle = (HANDLE)_beginthreadex(0, 0, start_wrapper, this, 0, 0);
+    }
+    ~Thread()
+    {
+    }
+    void join()
+    {
+        WaitForSingleObject(handle, INFINITE);
+        CloseHandle(handle);
+    }
+
 private:
     friend unsigned __stdcall start_wrapper(void* args)
     {
@@ -82,21 +121,47 @@ private:
 class ThreadLocalStorage
 {
 public:
-    ThreadLocalStorage() { key = TlsAlloc(); }
-    ~ThreadLocalStorage() { TlsFree(key); }
-    void set(void* value) { TlsSetValue(key, (LPVOID)value); }
-    void* get() { return (void*)TlsGetValue(key); }
+    ThreadLocalStorage()
+    {
+        key = TlsAlloc();
+    }
+    ~ThreadLocalStorage()
+    {
+        TlsFree(key);
+    }
+    void set(void* value)
+    {
+        TlsSetValue(key, (LPVOID)value);
+    }
+    void* get()
+    {
+        return (void*)TlsGetValue(key);
+    }
+
 private:
     DWORD key;
 };
-#else // (defined _WIN32 && !(defined __MINGW32__))
+#else  // (defined _WIN32 && !(defined __MINGW32__))
 class Mutex
 {
 public:
-    Mutex() { pthread_mutex_init(&mutex, 0); }
-    ~Mutex() { pthread_mutex_destroy(&mutex); }
-    void lock() { pthread_mutex_lock(&mutex); }
-    void unlock() { pthread_mutex_unlock(&mutex); }
+    Mutex()
+    {
+        pthread_mutex_init(&mutex, 0);
+    }
+    ~Mutex()
+    {
+        pthread_mutex_destroy(&mutex);
+    }
+    void lock()
+    {
+        pthread_mutex_lock(&mutex);
+    }
+    void unlock()
+    {
+        pthread_mutex_unlock(&mutex);
+    }
+
 private:
     friend class ConditionVariable;
     pthread_mutex_t mutex;
@@ -105,11 +170,27 @@ private:
 class ConditionVariable
 {
 public:
-    ConditionVariable() { pthread_cond_init(&cond, 0); }
-    ~ConditionVariable() { pthread_cond_destroy(&cond); }
-    void wait(Mutex& mutex) { pthread_cond_wait(&cond, &mutex.mutex); }
-    void broadcast() { pthread_cond_broadcast(&cond); }
-    void signal() { pthread_cond_signal(&cond); }
+    ConditionVariable()
+    {
+        pthread_cond_init(&cond, 0);
+    }
+    ~ConditionVariable()
+    {
+        pthread_cond_destroy(&cond);
+    }
+    void wait(Mutex& mutex)
+    {
+        pthread_cond_wait(&cond, &mutex.mutex);
+    }
+    void broadcast()
+    {
+        pthread_cond_broadcast(&cond);
+    }
+    void signal()
+    {
+        pthread_cond_signal(&cond);
+    }
+
 private:
     pthread_cond_t cond;
 };
@@ -117,9 +198,18 @@ private:
 class Thread
 {
 public:
-    Thread(void* (*start)(void*), void* args = 0) { pthread_create(&t, 0, start, args); }
-    ~Thread() {}
-    void join() { pthread_join(t, 0); }
+    Thread(void* (*start)(void*), void* args = 0)
+    {
+        pthread_create(&t, 0, start, args);
+    }
+    ~Thread()
+    {
+    }
+    void join()
+    {
+        pthread_join(t, 0);
+    }
+
 private:
     pthread_t t;
 };
@@ -127,57 +217,111 @@ private:
 class ThreadLocalStorage
 {
 public:
-    ThreadLocalStorage() { pthread_key_create(&key, 0); }
-    ~ThreadLocalStorage() { pthread_key_delete(key); }
-    void set(void* value) { pthread_setspecific(key, value); }
-    void* get() { return pthread_getspecific(key); }
+    ThreadLocalStorage()
+    {
+        pthread_key_create(&key, 0);
+    }
+    ~ThreadLocalStorage()
+    {
+        pthread_key_delete(key);
+    }
+    void set(void* value)
+    {
+        pthread_setspecific(key, value);
+    }
+    void* get()
+    {
+        return pthread_getspecific(key);
+    }
+
 private:
     pthread_key_t key;
 };
 #endif // (defined _WIN32 && !(defined __MINGW32__))
-#else // NCNN_THREADS
+#else  // NCNN_THREADS
 class Mutex
 {
 public:
-    Mutex() {}
-    ~Mutex() {}
-    void lock() {}
-    void unlock() {}
+    Mutex()
+    {
+    }
+    ~Mutex()
+    {
+    }
+    void lock()
+    {
+    }
+    void unlock()
+    {
+    }
 };
 
 class ConditionVariable
 {
 public:
-    ConditionVariable() {}
-    ~ConditionVariable() {}
-    void wait(Mutex& /*mutex*/) {}
-    void broadcast() {}
-    void signal() {}
+    ConditionVariable()
+    {
+    }
+    ~ConditionVariable()
+    {
+    }
+    void wait(Mutex& /*mutex*/)
+    {
+    }
+    void broadcast()
+    {
+    }
+    void signal()
+    {
+    }
 };
 
 class Thread
 {
 public:
-    Thread(void* (*/*start*/)(void*), void* /*args*/ = 0) {}
-    ~Thread() {}
-    void join() {}
+    Thread(void* (*/*start*/)(void*), void* /*args*/ = 0)
+    {
+    }
+    ~Thread()
+    {
+    }
+    void join()
+    {
+    }
 };
 
 class ThreadLocalStorage
 {
 public:
-    ThreadLocalStorage() {}
-    ~ThreadLocalStorage() {}
-    void set(void* /*value*/) {}
-    void* get() { return 0; }
+    ThreadLocalStorage()
+    {
+    }
+    ~ThreadLocalStorage()
+    {
+    }
+    void set(void* /*value*/)
+    {
+    }
+    void* get()
+    {
+        return 0;
+    }
 };
 #endif // NCNN_THREADS
 
 class MutexLockGuard
 {
 public:
-    MutexLockGuard(Mutex& _mutex) : mutex(_mutex) { mutex.lock(); }
-    ~MutexLockGuard() { mutex.unlock(); }
+    MutexLockGuard(Mutex& _mutex)
+        : mutex(_mutex)
+    {
+        mutex.lock();
+    }
+    ~MutexLockGuard()
+    {
+        mutex.unlock();
+    }
+
 private:
     Mutex& mutex;
 };
@@ -196,13 +340,21 @@ private:
 #if NCNN_STDIO
 #if __ANDROID_API__ >= 8
 #include <android/log.h>
-#define NCNN_LOGE(...) do { \
-    fprintf(stderr, ##__VA_ARGS__); fprintf(stderr, "\n"); \
-    __android_log_print(ANDROID_LOG_WARN, "ncnn", ##__VA_ARGS__); } while(0)
+#define NCNN_LOGE(...)                                                \
+    do                                                                \
+    {                                                                 \
+        fprintf(stderr, ##__VA_ARGS__);                               \
+        fprintf(stderr, "\n");                                        \
+        __android_log_print(ANDROID_LOG_WARN, "ncnn", ##__VA_ARGS__); \
+    } while (0)
 #else // __ANDROID_API__ >= 8
 #include <stdio.h>
-#define NCNN_LOGE(...) do { \
-    fprintf(stderr, ##__VA_ARGS__); fprintf(stderr, "\n"); } while(0)
+#define NCNN_LOGE(...)                  \
+    do                                  \
+    {                                   \
+        fprintf(stderr, ##__VA_ARGS__); \
+        fprintf(stderr, "\n");          \
+    } while (0)
 #endif // __ANDROID_API__ >= 8
 #else
 #define NCNN_LOGE(...)
