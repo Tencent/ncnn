@@ -75,7 +75,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 **[ncnn 组件使用指北 alexnet](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-alexnet.zh) 附带详细步骤，新人强烈推荐 :)**
 
-**[use netron for ncnn model visualization](https://lutzroeder.github.io/netron/)**
+**[use netron for ncnn model visualization](https://netron.app)**
 
 **[out-of-the-box online model conversion](https://convertmodel.com/)**
 
