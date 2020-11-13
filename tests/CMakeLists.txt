@@ -39,6 +39,7 @@ if(NCNN_PIXEL)
     ncnn_add_test(mat_pixel)
 endif()
 
+ncnn_add_test(cpu)
 ncnn_add_test(squeezenet)
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
