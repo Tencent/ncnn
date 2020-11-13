@@ -17,7 +17,7 @@
 #define NCNN_C_API_H
 
 #include <stddef.h>
-#include "defs.h"
+#include "platform.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,7 +58,7 @@ ncnn_mat_t ncnn_mat_from_pixels_resize(const unsigned char* pixels, int type, in
 void ncnn_mat_to_pixels(ncnn_mat_t mat, unsigned char* pixels, int type, int stride);
 void ncnn_mat_to_pixels_resize(ncnn_mat_t mat, unsigned char* pixels, int type, int target_width, int target_height, int target_stride);
 
-#endif
+#endif // NCNN_PIXEL
 
 void ncnn_mat_substract_mean_normalize(ncnn_mat_t mat, const float* mean_vals, const float* norm_vals);
 

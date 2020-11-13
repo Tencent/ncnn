@@ -1,7 +1,7 @@
 
 ##############################################
 
-configure_file(defs.h.in ${CMAKE_CURRENT_BINARY_DIR}/defs.h)
+configure_file(platform.h.in ${CMAKE_CURRENT_BINARY_DIR}/platform.h)
 
 # Add source file to list, and add to special visual folder
 function(ncnn_src_group ncnn_src_string folder)
@@ -324,13 +324,12 @@ if(NCNN_INSTALL_SDK)
         paramdict.h
         pipeline.h
         pipelinecache.h
-        platform.h
         simpleocv.h
         simpleomp.h
         simplestl.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
-        ${CMAKE_CURRENT_BINARY_DIR}/defs.h
+        ${CMAKE_CURRENT_BINARY_DIR}/platform.h
         DESTINATION include/ncnn
     )
     install(EXPORT ncnn

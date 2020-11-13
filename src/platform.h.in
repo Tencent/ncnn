@@ -15,7 +15,23 @@
 #ifndef NCNN_PLATFORM_H
 #define NCNN_PLATFORM_H
 
-#include "defs.h"
+#cmakedefine01 NCNN_STDIO
+#cmakedefine01 NCNN_STRING
+#cmakedefine01 NCNN_SIMPLEOCV
+#cmakedefine01 NCNN_SIMPLEOMP
+#cmakedefine01 NCNN_SIMPLESTL
+#cmakedefine01 NCNN_THREADS
+#cmakedefine01 NCNN_BENCHMARK
+#cmakedefine01 NCNN_PIXEL
+#cmakedefine01 NCNN_PIXEL_ROTATE
+#cmakedefine01 NCNN_PIXEL_AFFINE
+#cmakedefine01 NCNN_VULKAN
+#cmakedefine01 NCNN_REQUANT
+#cmakedefine01 NCNN_RUNTIME_CPU
+#cmakedefine01 NCNN_AVX2
+#cmakedefine01 NCNN_ARM82
+
+#ifdef __cplusplus
 
 #if NCNN_THREADS
 #if (defined _WIN32 && !(defined __MINGW32__))
@@ -192,6 +208,8 @@ private:
 #include <vector>
 #include <string>
 #endif
+
+#endif // __cplusplus
 
 #if NCNN_STDIO
 #if __ANDROID_API__ >= 8
