@@ -34,10 +34,10 @@ public:
     }
 };
 
+} // namespace ncnn
+
 #define GET_OP_CLASSES
 #include "ncnn_ops.h.inc"
-
-} // namespace ncnn
 
 } // namespace mlir
 

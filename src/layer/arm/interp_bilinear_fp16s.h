@@ -12,13 +12,22 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void linear_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha)
+static void linear_coeffs_fp16sa(int w, int outw, int* xofs, __fp16* alpha, int align_corner)
 {
     double scale = (double)w / outw;
+    if (align_corner)
+    {
+        scale = (double)(w - 1) / (outw - 1);
+    }
 
     for (int dx = 0; dx < outw; dx++)
     {
         float fx = (float)((dx + 0.5) * scale - 0.5);
+        if (align_corner)
+        {
+            fx = static_cast<float>(dx * scale);
+        }
+
         int sx = floor(fx);
         fx -= sx;
 

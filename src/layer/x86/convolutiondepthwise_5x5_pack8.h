@@ -14,8 +14,6 @@
 
 static void convdw5x5s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
-    int w = bottom_blob.w;
-
     int outw = top_blob.w;
     int outh = top_blob.h;
 
@@ -32,7 +30,6 @@ static void convdw5x5s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
         const float* k0 = kernel.row(g);
 
         float* outptr0 = out.row(0);
-        float* outptr1 = out.row(1);
 
         const Mat img0 = bottom_blob.channel(g);
 
@@ -187,7 +184,6 @@ static void convdw5x5s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
         const float* k0 = kernel.row(g);
 
         float* outptr0 = out.row(0);
-        float* outptr1 = out.row(1);
 
         const Mat img0 = bottom_blob.channel(g);
 

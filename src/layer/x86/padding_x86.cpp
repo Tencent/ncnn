@@ -31,7 +31,7 @@ Padding_x86::Padding_x86()
 #endif // __AVX__
 }
 
-int Padding_x86::create_pipeline(const Option& opt)
+int Padding_x86::create_pipeline(const Option& /*opt*/)
 {
     return 0;
 }
@@ -49,17 +49,18 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return 0;
     }
 
+    Mat bottom_blob_unpacked = bottom_blob;
+
+#if __AVX__
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    Mat bottom_blob_unpacked = bottom_blob;
-
-#if __AVX__
     int out_elempack = elempack;
     int outc = channels;
+
     //Check if channel padding is being applied.
     if (front != 0 || behind != 0)
     {
@@ -157,6 +158,7 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return 0;
     }
 #endif // __AVX__
+
     return Padding::forward(bottom_blob_unpacked, top_blob, opt);
 }
 

@@ -44,14 +44,8 @@ layout (constant_id = shape_constant_id_offset + 13) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 14) const int outcstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler1D a_blob_1d;
-layout (binding = 0) uniform unfp sampler2D a_blob_2d;
 layout (binding = 0) uniform unfp sampler3D a_blob_3d;
-layout (binding = 1) uniform unfp sampler1D b_blob_1d;
-layout (binding = 1) uniform unfp sampler2D b_blob_2d;
 layout (binding = 1) uniform unfp sampler3D b_blob_3d;
-layout (binding = 2, imfmtc4) writeonly uniform unfp image1D top_blob_1d;
-layout (binding = 2, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 2, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
 #else
 layout (binding = 0) readonly buffer a_blob { sfpvec8 a_blob_data[]; };
@@ -90,8 +84,12 @@ void main()
         return;
 
 #if NCNN_image_shader
-    afpvec8 v1;
-    afpvec8 v2;
+    int ax = gx;
+    int ay = gy;
+    int az = gz;
+    int bx = gx;
+    int by = gy;
+    int bz = gz;
 
     if (psc(adims) == 3)
     {
@@ -100,37 +98,36 @@ void main()
             if (psc(bw) == 1 && psc(bh) == 1)
             {
                 // special type 1
-                v1 = image3d_ld8(a_blob_3d, ivec3(gx, gy, gz));
-                v2 = image3d_ld8(b_blob_3d, ivec3(0, 0, gz));
+                bx = 0;
+                by = 0;
             }
 
             if (psc(bw) == psc(aw) && psc(bh) == psc(ah) && psc(bc) == 1)
             {
                 // special type 2
-                v1 = image3d_ld8(a_blob_3d, ivec3(gx, gy, gz));
-                v2 = image3d_ld8(b_blob_3d, ivec3(gx, gy, 0));
+                bz = 0;
             }
 
             if (psc(aw) == 1 && psc(ah) == 1)
             {
                 // special type 3
-                v1 = image3d_ld8(a_blob_3d, ivec3(0, 0, gz));
-                v2 = image3d_ld8(b_blob_3d, ivec3(gx, gy, gz));
+                ax = 0;
+                ay = 0;
             }
 
             if (psc(bw) == psc(aw) && psc(bh) == psc(ah) && psc(ac) == 1)
             {
                 // special type 4
-                v1 = image3d_ld8(a_blob_3d, ivec3(gx, gy, 0));
-                v2 = image3d_ld8(b_blob_3d, ivec3(gx, gy, gz));
+                az = 0;
             }
         }
 
         if (psc(bdims) == 2)
         {
             // type 18
-            v1 = image3d_ld8(a_blob_3d, ivec3(gx, gy, gz));
-            v2 = image2d_ld8(b_blob_2d, ivec2(gy, gz));
+            bx = gy;
+            by = gz;
+            bz = 0;
         }
 
         if (psc(bdims) == 1)
@@ -138,14 +135,16 @@ void main()
             if (psc(bw) == 1)
             {
                 // type 16
-                v1 = image3d_ld8(a_blob_3d, ivec3(gx, gy, gz));
-                v2 = image1d_ld8(b_blob_1d, 0);
+                bx = 0;
+                by = 0;
+                bz = 0;
             }
             else
             {
                 // type 17
-                v1 = image3d_ld8(a_blob_3d, ivec3(gx, gy, gz));
-                v2 = image1d_ld8(b_blob_1d, gz);
+                bx = gz;
+                by = 0;
+                bz = 0;
             }
         }
     }
@@ -154,8 +153,9 @@ void main()
         if (psc(bdims) == 3)
         {
             // type 14
-            v1 = image2d_ld8(a_blob_2d, ivec2(gy, gz));
-            v2 = image3d_ld8(b_blob_3d, ivec3(gx, gy, gz));
+            ax = gy;
+            ay = gz;
+            az = 0;
         }
 
         if (psc(bdims) == 1)
@@ -163,67 +163,61 @@ void main()
             if (psc(bw) == 1)
             {
                 // type 11
-                v1 = image2d_ld8(a_blob_2d, ivec2(gx, gy));
-                v2 = image1d_ld8(b_blob_1d, 0);
+                bx = 0;
+                by = 0;
+                bz = 0;
             }
             else
             {
                 // type 12
-                v1 = image2d_ld8(a_blob_2d, ivec2(gx, gy));
-                v2 = image1d_ld8(b_blob_1d, gy);
+                bx = gy;
+                by = 0;
+                bz = 0;
             }
         }
     }
     else if (psc(adims) == 1)
     {
-        if (psc(bdims) == 3)
+        if (psc(aw) == 1)
         {
-            if (psc(aw) == 1)
-            {
-                // type 4
-                v1 = image1d_ld8(a_blob_1d, 0);
-                v2 = image3d_ld8(b_blob_3d, ivec3(gx, gy, gz));
-            }
-            else
+            // type 2 3 4
+            ax = 0;
+            ay = 0;
+            az = 0;
+        }
+        else
+        {
+            if (psc(bdims) == 3)
             {
                 // type 9
-                v1 = image1d_ld8(a_blob_1d, gz);
-                v2 = image3d_ld8(b_blob_3d, ivec3(gx, gy, gz));
+                ax = gz;
+                ay = 0;
+                az = 0;
             }
-        }
 
-        if (psc(bdims) == 2)
-        {
-            if (psc(aw) == 1)
-            {
-                // type 3
-                v1 = image1d_ld8(a_blob_1d, 0);
-                v2 = image2d_ld8(b_blob_2d, ivec2(gx, gy));
-            }
-            else
+            if (psc(bdims) == 2)
             {
                 // type 8
-                v1 = image1d_ld8(a_blob_1d, gy);
-                v2 = image2d_ld8(b_blob_2d, ivec2(gx, gy));
+                ax = gy;
+                ay = 0;
+                az = 0;
             }
-        }
 
-        if (psc(bdims) == 1)
-        {
-            if (psc(aw) == 1)
+            if (psc(bdims) == 1)
             {
-                // type 2
-                v1 = image1d_ld8(a_blob_1d, 0);
-                v2 = image1d_ld8(b_blob_1d, gx);
-            }
-            else // if (psc(bw) == 1)
-            {
-                // type 6
-                v1 = image1d_ld8(a_blob_1d, gx);
-                v2 = image1d_ld8(b_blob_1d, 0);
+                if (psc(bw) == 1)
+                {
+                    // type 6
+                    bx = 0;
+                    by = 0;
+                    bz = 0;
+                }
             }
         }
     }
+
+    afpvec8 v1 = image3d_ld8(a_blob_3d, ivec3(ax, ay, az));
+    afpvec8 v2 = image3d_ld8(b_blob_3d, ivec3(bx, by, bz));
 #else
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
@@ -349,18 +343,7 @@ void main()
     }
 
 #if NCNN_image_shader
-    if (psc(outdims) == 1)
-    {
-        image1d_st8(top_blob_1d, gx, res);
-    }
-    else if (psc(outdims) == 2)
-    {
-        image2d_st8(top_blob_2d, ivec2(gx, gy), res);
-    }
-    else // if (psc(outdims) == 3)
-    {
-        image3d_st8(top_blob_3d, ivec3(gx, gy, gz), res);
-    }
+    image3d_st8(top_blob_3d, ivec3(gx, gy, gz), res);
 #else
     buffer_st8(top_blob_data, gi, res);
 #endif

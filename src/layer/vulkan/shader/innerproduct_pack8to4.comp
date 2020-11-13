@@ -41,10 +41,10 @@ layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler1D bottom_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image1D top_blob;
-layout (binding = 2) uniform unfp sampler2D weight_blob;
-layout (binding = 3) uniform unfp sampler1D bias_blob;
+layout (binding = 0) uniform unfp sampler3D bottom_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
+layout (binding = 2) uniform unfp sampler3D weight_blob;
+layout (binding = 3) uniform unfp sampler3D bias_blob;
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
@@ -81,7 +81,7 @@ void main()
     if (bias_term == 1)
     {
 #if NCNN_image_shader
-        sum = image1d_ld4(bias_blob, gx);
+        sum = image3d_ld4(bias_blob, ivec3(gx, 0, 0));
 #else
         sum = buffer_ld4(bias_data, gx);
 #endif
@@ -96,12 +96,12 @@ void main()
 
     for (int i = 0; i < psc(w); i++)
     {
-        afpvec8 v = image1d_ld8(bottom_blob, i);
+        afpvec8 v = image3d_ld8(bottom_blob, ivec3(i, 0, 0));
 
-        afpvec8 k0 = image2d_ld8(weight_blob, ivec2(wx + 0, gx));
-        afpvec8 k1 = image2d_ld8(weight_blob, ivec2(wx + 1, gx));
-        afpvec8 k2 = image2d_ld8(weight_blob, ivec2(wx + 2, gx));
-        afpvec8 k3 = image2d_ld8(weight_blob, ivec2(wx + 3, gx));
+        afpvec8 k0 = image3d_ld8(weight_blob, ivec3(wx + 0, gx, 0));
+        afpvec8 k1 = image3d_ld8(weight_blob, ivec3(wx + 1, gx, 0));
+        afpvec8 k2 = image3d_ld8(weight_blob, ivec3(wx + 2, gx, 0));
+        afpvec8 k3 = image3d_ld8(weight_blob, ivec3(wx + 3, gx, 0));
 
         // sum += v * k
         sum.r += dot(v[0], k0[0]) + dot(v[1], k0[1]);
@@ -156,7 +156,7 @@ void main()
     }
 
 #if NCNN_image_shader
-    image1d_st4(top_blob, gx, sum);
+    image3d_st4(top_blob, ivec3(gx, 0, 0), sum);
 #else
     buffer_st4(top_blob_data, gx, sum);
 #endif

@@ -40,6 +40,8 @@ int LSTM_x86::create_pipeline(const Option& opt)
         ncnn::cast_float32_to_float16(weight_xc_data, weight_xc_data_fp16, opt);
         ncnn::cast_float32_to_float16(weight_hc_data, weight_hc_data_fp16, opt);
     }
+#else
+    (void)(opt);
 #endif // __AVX__
 
     return 0;

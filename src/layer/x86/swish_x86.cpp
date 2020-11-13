@@ -34,9 +34,10 @@ int Swish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int size = w * h;
-    int elempack = bottom_top_blob.elempack;
 
 #if __AVX__
+    int elempack = bottom_top_blob.elempack;
+
     if (elempack == 8)
     {
         #pragma omp parallel for num_threads(opt.num_threads)

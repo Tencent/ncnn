@@ -165,8 +165,6 @@ int Net::load_param(const DataReader& dr)
         // TODO give user a choice
         if (vkdev->info.bug_storage_buffer_no_l1) opt.use_image_storage = true;
 
-        if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
-
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
     }
@@ -381,8 +379,6 @@ int Net::load_param_bin(const DataReader& dr)
         // TODO give user a choice
         if (vkdev->info.bug_storage_buffer_no_l1) opt.use_image_storage = true;
 
-        if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
-
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
     }
@@ -579,8 +575,6 @@ int Net::load_model(const DataReader& dr)
                 pipeline_cache = new PipelineCache(vkdev);
             opt.pipeline_cache = pipeline_cache;
         }
-
-        if (vkdev->info.bug_layout_binding_id_alias) opt.use_image_storage = false;
     }
 #endif // NCNN_VULKAN
 
@@ -1150,13 +1144,13 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
 #if NCNN_ARM82
         if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
         {
-            if (bottom_blob.elemsize / bottom_blob.elempack == 4u && layer->support_fp16_storage)
+            if (bottom_blob.elembits() == 32 && layer->support_fp16_storage)
             {
                 Mat bottom_blob_fp16;
                 cast_float32_to_float16(bottom_blob, bottom_blob_fp16, opt);
                 bottom_blob = bottom_blob_fp16;
             }
-            if (bottom_blob.elemsize / bottom_blob.elempack == 2u && !layer->support_fp16_storage)
+            if (bottom_blob.elembits() == 16 && !layer->support_fp16_storage)
             {
                 Mat bottom_blob_fp32;
                 cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
@@ -1167,13 +1161,13 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
 #endif // NCNN_ARM82
         if (opt.use_bf16_storage)
         {
-            if (bottom_blob.elemsize / bottom_blob.elempack == 4u && layer->support_bf16_storage)
+            if (bottom_blob.elembits() == 32 && layer->support_bf16_storage)
             {
                 Mat bottom_blob_bf16;
                 cast_float32_to_bfloat16(bottom_blob, bottom_blob_bf16, opt);
                 bottom_blob = bottom_blob_bf16;
             }
-            if (bottom_blob.elemsize / bottom_blob.elempack == 2u && !layer->support_bf16_storage)
+            if (bottom_blob.elembits() == 16 && !layer->support_bf16_storage)
             {
                 Mat bottom_blob_fp32;
                 cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
@@ -1283,13 +1277,13 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
 #if NCNN_ARM82
             if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
             {
-                if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 4u && layer->support_fp16_storage)
+                if (bottom_blobs[i].elembits() == 32 && layer->support_fp16_storage)
                 {
                     Mat bottom_blob_fp16;
                     cast_float32_to_float16(bottom_blobs[i], bottom_blob_fp16, opt);
                     bottom_blobs[i] = bottom_blob_fp16;
                 }
-                if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 2u && !layer->support_fp16_storage)
+                if (bottom_blobs[i].elembits() == 16 && !layer->support_fp16_storage)
                 {
                     Mat bottom_blob_fp32;
                     cast_float16_to_float32(bottom_blobs[i], bottom_blob_fp32, opt);
@@ -1300,13 +1294,13 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
 #endif // NCNN_ARM82
             if (opt.use_bf16_storage)
             {
-                if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 4u && layer->support_bf16_storage)
+                if (bottom_blobs[i].elembits() == 32 && layer->support_bf16_storage)
                 {
                     Mat bottom_blob_bf16;
                     cast_float32_to_bfloat16(bottom_blobs[i], bottom_blob_bf16, opt);
                     bottom_blobs[i] = bottom_blob_bf16;
                 }
-                if (bottom_blobs[i].elemsize / bottom_blobs[i].elempack == 2u && !layer->support_bf16_storage)
+                if (bottom_blobs[i].elembits() == 16 && !layer->support_bf16_storage)
                 {
                     Mat bottom_blob_fp32;
                     cast_bfloat16_to_float32(bottom_blobs[i], bottom_blob_fp32, opt);
@@ -2779,7 +2773,7 @@ int Extractor::extract(int blob_index, Mat& feat)
 #if NCNN_ARM82
     if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
     {
-        if (feat.elemsize / feat.elempack == 2u)
+        if (feat.elembits() == 16)
         {
             Mat feat_fp32;
             cast_float16_to_float32(feat, feat_fp32, opt);
@@ -2790,7 +2784,7 @@ int Extractor::extract(int blob_index, Mat& feat)
 #endif // NCNN_ARM82
     if (opt.use_bf16_storage)
     {
-        if (feat.elemsize / feat.elempack == 2u)
+        if (feat.elembits() == 16)
         {
             Mat feat_fp32;
             cast_bfloat16_to_float32(feat, feat_fp32, opt);

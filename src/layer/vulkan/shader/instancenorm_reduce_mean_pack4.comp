@@ -29,7 +29,7 @@ layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform highp sampler3D bottom_top_blob;
-layout (binding = 1, rgba32f) writeonly uniform highp image1D mean_blob;
+layout (binding = 1, rgba32f) writeonly uniform highp image3D mean_blob;
 #else
 layout (binding = 0) readonly buffer bottom_top_blob { vec4 bottom_top_blob_data[]; };
 layout (binding = 1) writeonly buffer mean_blob { vec4 mean_data[]; };
@@ -76,7 +76,7 @@ void main()
     vec4 mean = sum / p.area;
 
 #if NCNN_image_shader
-    imageStore(mean_blob, gx, mean);
+    imageStore(mean_blob, ivec3(gx, 0, 0), mean);
 #else
     mean_data[gx] = mean;
 #endif

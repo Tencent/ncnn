@@ -1,4 +1,9 @@
 
+if(MSVC)
+    # warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+    add_definitions(/wd4996)
+endif()
+
 macro(ncnn_add_test name)
     add_executable(test_${name} test_${name}.cpp)
     target_link_libraries(test_${name} PRIVATE ncnn)
@@ -21,10 +26,25 @@ endmacro()
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../src/layer)
 
-ncnn_add_test(mat_pixel_resize)
-ncnn_add_test(mat_pixel_rotate)
-ncnn_add_test(mat_pixel)
+if(NCNN_PIXEL_AFFINE)
+    ncnn_add_test(mat_pixel_affine)
+endif()
+
+if(NCNN_PIXEL_ROTATE)
+    ncnn_add_test(mat_pixel_rotate)
+endif()
+
+if(NCNN_PIXEL)
+    ncnn_add_test(mat_pixel_resize)
+    ncnn_add_test(mat_pixel)
+endif()
+
+ncnn_add_test(cpu)
 ncnn_add_test(squeezenet)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    target_link_libraries(test_squeezenet PRIVATE nodefs.js)
+endif()
 
 ncnn_add_layer_test(AbsVal)
 ncnn_add_layer_test(BatchNorm)
@@ -77,3 +97,4 @@ ncnn_add_layer_test(Mish)
 ncnn_add_layer_test(Swish)
 ncnn_add_layer_test(LSTM)
 ncnn_add_layer_test(Yolov3DetectionOutput)
+ncnn_add_layer_test(Softplus)

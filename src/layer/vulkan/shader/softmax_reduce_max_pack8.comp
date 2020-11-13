@@ -38,11 +38,8 @@ layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler1D bottom_top_blob_1d;
-layout (binding = 0) uniform unfp sampler2D bottom_top_blob_2d;
 layout (binding = 0) uniform unfp sampler3D bottom_top_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image1D max_workspace_1d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image2D max_workspace_2d;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D max_workspace_3d;
 #else
 layout (binding = 0) readonly buffer bottom_top_blob { sfpvec8 bottom_top_blob_data[]; };
 layout (binding = 1) writeonly buffer max_workspace { sfpvec8 max_workspace_data[]; };
@@ -79,7 +76,7 @@ void main()
         for (int i = 0; i < psc(w); i++)
         {
 #if NCNN_image_shader
-            afpvec8 v = image1d_ld8(bottom_top_blob_1d, i);
+            afpvec8 v = image3d_ld8(bottom_top_blob_3d, ivec3(i, 0, 0));
 #else
             afpvec8 v = buffer_ld8(bottom_top_blob_data, i);
 #endif
@@ -91,7 +88,7 @@ void main()
         afp max1 = max(max2.r, max2.g);
         max_value = afpvec8(afpvec4(max1), afpvec4(max1));
 #if NCNN_image_shader
-        image1d_st8(max_workspace_1d, 0, max_value);
+        image3d_st8(max_workspace_3d, ivec3(0, 0, 0), max_value);
 #else
         buffer_st8(max_workspace_data, 0, max_value);
 #endif
@@ -103,7 +100,7 @@ void main()
         for (int i = 0; i < psc(h); i++)
         {
 #if NCNN_image_shader
-            afpvec8 v = image2d_ld8(bottom_top_blob_2d, ivec2(gx, i));
+            afpvec8 v = image3d_ld8(bottom_top_blob_3d, ivec3(gx, i, 0));
 #else
             int v_offset = i * psc(w) + gx;
             afpvec8 v = buffer_ld8(bottom_top_blob_data, v_offset);
@@ -116,7 +113,7 @@ void main()
         afp max1 = max(max2.r, max2.g);
         max_value = afpvec8(afpvec4(max1), afpvec4(max1));
 #if NCNN_image_shader
-        image1d_st8(max_workspace_1d, gx, max_value);
+        image3d_st8(max_workspace_3d, ivec3(gx, 0, 0), max_value);
 #else
         buffer_st8(max_workspace_data, gx, max_value);
 #endif
@@ -128,7 +125,7 @@ void main()
         for (int i = 0; i < psc(w); i++)
         {
 #if NCNN_image_shader
-            afpvec8 v = image2d_ld8(bottom_top_blob_2d, ivec2(i, gx));
+            afpvec8 v = image3d_ld8(bottom_top_blob_3d, ivec3(i, gx, 0));
 #else
             int v_offset = gx * psc(w) + i;
             afpvec8 v = buffer_ld8(bottom_top_blob_data, v_offset);
@@ -137,7 +134,7 @@ void main()
             max_value[1] = max(max_value[1], v[1]);
         }
 #if NCNN_image_shader
-        image1d_st8(max_workspace_1d, gx, max_value);
+        image3d_st8(max_workspace_3d, ivec3(gx, 0, 0), max_value);
 #else
         buffer_st8(max_workspace_data, gx, max_value);
 #endif
@@ -162,7 +159,7 @@ void main()
         afp max1 = max(max2.r, max2.g);
         max_value = afpvec8(afpvec4(max1), afpvec4(max1));
 #if NCNN_image_shader
-        image2d_st8(max_workspace_2d, ivec2(gx, gy), max_value);
+        image3d_st8(max_workspace_3d, ivec3(gx, gy, 0), max_value);
 #else
         buffer_st8(max_workspace_data, gy * psc(w) + gx, max_value);
 #endif
@@ -183,7 +180,7 @@ void main()
             max_value[1] = max(max_value[1], v[1]);
         }
 #if NCNN_image_shader
-        image2d_st8(max_workspace_2d, ivec2(gx, gy), max_value);
+        image3d_st8(max_workspace_3d, ivec3(gx, gy, 0), max_value);
 #else
         buffer_st8(max_workspace_data, gy * psc(w) + gx, max_value);
 #endif
@@ -204,7 +201,7 @@ void main()
             max_value[1] = max(max_value[1], v[1]);
         }
 #if NCNN_image_shader
-        image2d_st8(max_workspace_2d, ivec2(gx, gy), max_value);
+        image3d_st8(max_workspace_3d, ivec3(gx, gy, 0), max_value);
 #else
         buffer_st8(max_workspace_data, gy * psc(h) + gx, max_value);
 #endif

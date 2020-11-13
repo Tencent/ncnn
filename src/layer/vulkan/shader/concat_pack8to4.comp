@@ -38,11 +38,7 @@ layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler1D bottom_blob_1d;
-layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image1D top_blob_1d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec8 bottom_blob_data[]; };
@@ -75,69 +71,53 @@ void main()
     if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
-#if NCNN_image_shader
-    if (psc(dims) == 1)
-    {
-        afpvec8 v = image1d_ld8(bottom_blob_1d, gx);
-
-        int gx2 = gx * 2 + p.offset;
-
-        image1d_st4(top_blob_1d, gx2 + 0, v[0]);
-        image1d_st4(top_blob_1d, gx2 + 1, v[1]);
-
-    }
-    else if (psc(dims) == 2)
-    {
-        afpvec8 v = image2d_ld8(bottom_blob_2d, ivec2(gx, gy));
-
-        if (axis == 0)
-        {
-            int gy2 = gy * 2 + p.offset;
-
-            image2d_st4(top_blob_2d, ivec2(gx, gy2 + 0), v[0]);
-            image2d_st4(top_blob_2d, ivec2(gx, gy2 + 1), v[1]);
-        }
-        if (axis == 1)
-        {
-            int gx2 = gx * 2 + p.offset;
-
-            image2d_st4(top_blob_2d, ivec2(gx2 + 0, gy), v[0]);
-            image2d_st4(top_blob_2d, ivec2(gx2 + 1, gy), v[1]);
-        }
-    }
-    else // if (psc(dims) == 3)
-    {
-        afpvec8 v = image3d_ld8(bottom_blob_3d, ivec3(gx, gy, gz));
-
-        if (axis == 0)
-        {
-            int gz2 = gz * 2 + p.offset;
-
-            image3d_st4(top_blob_3d, ivec3(gx, gy, gz2 + 0), v[0]);
-            image3d_st4(top_blob_3d, ivec3(gx, gy, gz2 + 1), v[1]);
-        }
-        if (axis == 1)
-        {
-            int gy2 = gy * 2 + p.offset;
-
-            image3d_st4(top_blob_3d, ivec3(gx, gy2 + 0, gz), v[0]);
-            image3d_st4(top_blob_3d, ivec3(gx, gy2 + 1, gz), v[1]);
-        }
-        if (axis == 2)
-        {
-            int gx2 = gx * 2 + p.offset;
-
-            image3d_st4(top_blob_3d, ivec3(gx2 + 0, gy, gz), v[0]);
-            image3d_st4(top_blob_3d, ivec3(gx2 + 1, gy, gz), v[1]);
-        }
-    }
-#else
-    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
-
     ivec3 gxyz = ivec3(gx, gy, gz);
 
     gxyz[psc(dims) - 1] *= 2;
     gxyz[psc(dims) - 1 - axis] += p.offset;
+
+#if NCNN_image_shader
+    afpvec8 v = image3d_ld8(bottom_blob_3d, ivec3(gx, gy, gz));
+
+    if (psc(dims) == 1)
+    {
+        image3d_st4(top_blob_3d, ivec3(gxyz.x + 0, 0, 0), v[0]);
+        image3d_st4(top_blob_3d, ivec3(gxyz.x + 1, 0, 0), v[1]);
+
+    }
+    else if (psc(dims) == 2)
+    {
+        if (axis == 0)
+        {
+            image3d_st4(top_blob_3d, ivec3(gxyz.x, gxyz.y + 0, 0), v[0]);
+            image3d_st4(top_blob_3d, ivec3(gxyz.x, gxyz.y + 1, 0), v[1]);
+        }
+        if (axis == 1)
+        {
+            image3d_st4(top_blob_3d, ivec3(gxyz.x + 0, gxyz.y, 0), v[0]);
+            image3d_st4(top_blob_3d, ivec3(gxyz.x + 1, gxyz.y, 0), v[1]);
+        }
+    }
+    else // if (psc(dims) == 3)
+    {
+        if (axis == 0)
+        {
+            image3d_st4(top_blob_3d, ivec3(gxyz.x, gxyz.y, gxyz.z + 0), v[0]);
+            image3d_st4(top_blob_3d, ivec3(gxyz.x, gxyz.y, gxyz.z + 1), v[1]);
+        }
+        if (axis == 1)
+        {
+            image3d_st4(top_blob_3d, ivec3(gxyz.x, gxyz.y + 0, gxyz.z), v[0]);
+            image3d_st4(top_blob_3d, ivec3(gxyz.x, gxyz.y + 1, gxyz.z), v[1]);
+        }
+        if (axis == 2)
+        {
+            image3d_st4(top_blob_3d, ivec3(gxyz.x + 0, gxyz.y, gxyz.z), v[0]);
+            image3d_st4(top_blob_3d, ivec3(gxyz.x + 1, gxyz.y, gxyz.z), v[1]);
+        }
+    }
+#else
+    const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
     int v_offset_0 = gxyz.z * psc(outcstep) + gxyz.y * psc(outw) + gxyz.x;
 

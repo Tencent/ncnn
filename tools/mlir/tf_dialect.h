@@ -59,11 +59,11 @@ public:
     Operation* materializeConstant(OpBuilder& builder, Attribute value, Type type, Location loc) override;
 };
 
-#define GET_OP_CLASSES
-#include "tf_all_ops.h.inc"
-
 } // namespace TF
 
 } // namespace mlir
+
+#define GET_OP_CLASSES
+#include "tf_all_ops.h.inc"
 
 #endif // TF_DIALECT_H

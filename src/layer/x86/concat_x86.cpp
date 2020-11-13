@@ -41,6 +41,8 @@ int Concat_x86::create_pipeline(const Option& opt)
 
         packing_pack8->create_pipeline(opt);
     }
+#else
+    (void)(opt);
 #endif // __AVX__
 
     return 0;
@@ -58,6 +60,8 @@ int Concat_x86::destroy_pipeline(const Option& opt)
             packing_pack8 = 0;
         }
     }
+#else
+    (void)(opt);
 #endif // __AVX__
 
     return 0;
@@ -65,9 +69,9 @@ int Concat_x86::destroy_pipeline(const Option& opt)
 
 int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if __AVX__
     int dims = bottom_blobs[0].dims;
 
-#if __AVX__
     if (opt.use_packing_layout)
     {
         if (dims == 1) // axis == 0

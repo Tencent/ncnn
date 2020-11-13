@@ -53,6 +53,8 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
     {
         ncnn::cast_float32_to_float16(weight_data, weight_data_fp16, opt);
     }
+#else
+    (void)(opt);
 #endif // __AVX__
 
     return 0;
@@ -78,13 +80,14 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         return InnerProduct::forward(bottom_blob, top_blob, opt);
     }
 
+#if __AVX__
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     int size = w * h;
-#if __AVX__
+
     if (elempack == 8)
     {
         // flatten
@@ -363,7 +366,6 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
     int size = w * h;
     top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())

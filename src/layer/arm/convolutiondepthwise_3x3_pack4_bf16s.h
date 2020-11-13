@@ -14,10 +14,12 @@
 
 static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
-    int w = bottom_blob.w;
+#if __aarch64__
+    const int w = bottom_blob.w;
+#endif
 
-    int outw = top_blob.w;
-    int outh = top_blob.h;
+    const int outw = top_blob.w;
+    const int outh = top_blob.h;
 
     const int group = bottom_blob.c;
 
@@ -33,14 +35,12 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
         const unsigned short* k0 = kernel.row<const unsigned short>(g);
 
         unsigned short* outptr0 = out.row<unsigned short>(0);
-        unsigned short* outptr1 = out.row<unsigned short>(1);
 
         const Mat img0 = bottom_blob.channel(g);
 
         const unsigned short* r0 = img0.row<const unsigned short>(0);
         const unsigned short* r1 = img0.row<const unsigned short>(1);
         const unsigned short* r2 = img0.row<const unsigned short>(2);
-        const unsigned short* r3 = img0.row<const unsigned short>(3);
 
         float32x4_t _k00 = vcvt_f32_bf16(vld1_u16(k0));
         float32x4_t _k01 = vcvt_f32_bf16(vld1_u16(k0 + 4));
@@ -55,6 +55,9 @@ static void convdw3x3s1_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, 
         int i = 0;
 
 #if __aarch64__
+        unsigned short* outptr1 = out.row<unsigned short>(1);
+        const unsigned short* r3 = img0.row<const unsigned short>(3);
+
         for (; i + 1 < outh; i += 2)
         {
             int j = 0;

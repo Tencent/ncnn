@@ -314,7 +314,11 @@ static bool read_proto_from_binary(const char* filepath, google::protobuf::Messa
     google::protobuf::io::IstreamInputStream input(&fs);
     google::protobuf::io::CodedInputStream codedstr(&input);
 
+#if GOOGLE_PROTOBUF_VERSION >= 3011000
+    codedstr.SetTotalBytesLimit(INT_MAX);
+#else
     codedstr.SetTotalBytesLimit(INT_MAX, INT_MAX / 2);
+#endif
 
     bool success = message->ParseFromCodedStream(&codedstr);
 
@@ -1527,7 +1531,7 @@ int main(int argc, char** argv)
             }
             else if (bs.dim_size() == 3)
             {
-                fprintf(pp, " 0=%zd 1=%zd 2=-233", size_t(bs.dim(2)), bs.dim(1));
+                fprintf(pp, " 0=%zd 1=%zd 2=-233", size_t(bs.dim(2)), size_t(bs.dim(1)));
             }
             else // bs.dim_size() == 4
             {

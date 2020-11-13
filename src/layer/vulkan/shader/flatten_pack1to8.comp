@@ -36,9 +36,8 @@ layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image1D top_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec8 top_blob_data[]; };
@@ -82,14 +81,14 @@ void main()
         ivec4 yy4 = ii4 / psc(w);
         ivec4 xx4 = ii4 % psc(w);
 
-        v[0].r = image2d_ld1(bottom_blob_2d, ivec2(x4.r, y4.r));
-        v[0].g = image2d_ld1(bottom_blob_2d, ivec2(x4.g, y4.g));
-        v[0].b = image2d_ld1(bottom_blob_2d, ivec2(x4.b, y4.b));
-        v[0].a = image2d_ld1(bottom_blob_2d, ivec2(x4.a, y4.a));
-        v[1].r = image2d_ld1(bottom_blob_2d, ivec2(xx4.r, yy4.r));
-        v[1].g = image2d_ld1(bottom_blob_2d, ivec2(xx4.g, yy4.g));
-        v[1].b = image2d_ld1(bottom_blob_2d, ivec2(xx4.b, yy4.b));
-        v[1].a = image2d_ld1(bottom_blob_2d, ivec2(xx4.a, yy4.a));
+        v[0].r = image3d_ld1(bottom_blob_3d, ivec3(x4.r, y4.r, 0));
+        v[0].g = image3d_ld1(bottom_blob_3d, ivec3(x4.g, y4.g, 0));
+        v[0].b = image3d_ld1(bottom_blob_3d, ivec3(x4.b, y4.b, 0));
+        v[0].a = image3d_ld1(bottom_blob_3d, ivec3(x4.a, y4.a, 0));
+        v[1].r = image3d_ld1(bottom_blob_3d, ivec3(xx4.r, yy4.r, 0));
+        v[1].g = image3d_ld1(bottom_blob_3d, ivec3(xx4.g, yy4.g, 0));
+        v[1].b = image3d_ld1(bottom_blob_3d, ivec3(xx4.b, yy4.b, 0));
+        v[1].a = image3d_ld1(bottom_blob_3d, ivec3(xx4.a, yy4.a, 0));
     }
     else // if (psc(dims) == 3)
     {
@@ -113,7 +112,7 @@ void main()
         v[1].a = image3d_ld1(bottom_blob_3d, ivec3(xx4.a, yy4.a, zz4.a));
     }
 
-    image1d_st8(top_blob, gx, v);
+    image3d_st8(top_blob, ivec3(gx, 0, 0), v);
 #else
     ivec4 v_offset;
     ivec4 vv_offset;

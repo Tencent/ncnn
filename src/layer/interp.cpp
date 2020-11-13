@@ -30,6 +30,7 @@ int Interp::load_param(const ParamDict& pd)
     output_height = pd.get(3, 0);
     output_width = pd.get(4, 0);
     dynamic_target_size = pd.get(5, 0);
+    align_corner = pd.get(6, 0);
 
     if (resize_type < 0 || resize_type > 3)
     {
@@ -50,13 +51,23 @@ int Interp::load_param(const ParamDict& pd)
 // so I have to disable vectorize here  --- nihui
 __attribute__((optimize("no-tree-vectorize")))
 #endif
-static void linear_coeffs(int w, int outw, int* xofs, float* alpha)
+static void
+linear_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
 {
     double scale = (double)w / outw;
+    if (align_corner)
+    {
+        scale = (double)(w - 1) / (outw - 1);
+    }
 
     for (int dx = 0; dx < outw; dx++)
     {
         float fx = (float)((dx + 0.5) * scale - 0.5);
+        if (align_corner)
+        {
+            fx = static_cast<float>(dx * scale);
+        }
+
         int sx = static_cast<int>(floor(fx));
         fx -= sx;
 
@@ -407,7 +418,6 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
 
     int outh = output_height;
     int outw = output_width;
@@ -415,7 +425,6 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
     {
         h = 1;
         w = 1;
-        channels = bottom_blob.w;
     }
     if (outh == 0 || outw == 0)
     {
@@ -508,8 +517,8 @@ int Interp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         float* alpha = (float*)(buf + outw + outh);           //new float[outw * 2];
         float* beta = (float*)(buf + outw + outh + outw * 2); //new float[outh * 2];
 
-        linear_coeffs(w, outw, xofs, alpha);
-        linear_coeffs(h, outh, yofs, beta);
+        linear_coeffs(w, outw, xofs, alpha, align_corner);
+        linear_coeffs(h, outh, yofs, beta, align_corner);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; ++q)
