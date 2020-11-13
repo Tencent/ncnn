@@ -15,9 +15,14 @@
 #include "net.h"
 
 #include <algorithm>
+// #undef NCNN_SIMPLEOCV
+#ifdef NCNN_SIMPLEOCV
+#include "simpleocv.h"
+#else
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#endif
 #include <stdio.h>
 #include <vector>
 
@@ -104,8 +109,7 @@ static void draw_pose(const cv::Mat& bgr, const std::vector<KeyPoint>& keypoints
 
     // draw bone
     static const int joint_pairs[16][2] = {
-        {0, 1}, {1, 3}, {0, 2}, {2, 4}, {5, 6}, {5, 7}, {7, 9}, {6, 8}, {8, 10}, {5, 11}, {6, 12}, {11, 12}, {11, 13}, {12, 14}, {13, 15}, {14, 16}
-    };
+        {0, 1}, {1, 3}, {0, 2}, {2, 4}, {5, 6}, {5, 7}, {7, 9}, {6, 8}, {8, 10}, {5, 11}, {6, 12}, {11, 12}, {11, 13}, {12, 14}, {13, 15}, {14, 16}};
 
     for (int i = 0; i < 16; i++)
     {
@@ -115,6 +119,7 @@ static void draw_pose(const cv::Mat& bgr, const std::vector<KeyPoint>& keypoints
         if (p1.prob < 0.2f || p2.prob < 0.2f)
             continue;
 
+        fprintf(stderr, "line p1 %.2f %.2f  p2 %.2f %.2f \n", p1.p.x, p1.p.y, p2.p.x, p2.p.y);
         cv::line(image, p1.p, p2.p, cv::Scalar(255, 0, 0), 2);
     }
 
@@ -123,11 +128,9 @@ static void draw_pose(const cv::Mat& bgr, const std::vector<KeyPoint>& keypoints
     {
         const KeyPoint& keypoint = keypoints[i];
 
-        fprintf(stderr, "%.2f %.2f = %.5f\n", keypoint.p.x, keypoint.p.y, keypoint.prob);
-
         if (keypoint.prob < 0.2f)
             continue;
-
+        fprintf(stderr, "%.2f %.2f = %.5f\n", keypoint.p.x, keypoint.p.y, keypoint.prob);
         cv::circle(image, keypoint.p, 3, cv::Scalar(0, 255, 0), -1);
     }
 
@@ -137,6 +140,12 @@ static void draw_pose(const cv::Mat& bgr, const std::vector<KeyPoint>& keypoints
 
 int main(int argc, char** argv)
 {
+    if (argc != 2)
+    {
+        fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
+        return -1;
+    }
+
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, 1);

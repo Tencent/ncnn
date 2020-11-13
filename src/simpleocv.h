@@ -27,6 +27,7 @@
 #undef min
 #undef max
 #endif
+using namespace ncnn;
 
 // minimal opencv style data structure implementation
 namespace cv {
@@ -129,6 +130,19 @@ struct Point_
 
 typedef Point_<int> Point;
 typedef Point_<float> Point2f;
+
+template<typename _Tp>
+struct Scalar_
+{
+    Scalar_(_Tp _b, _Tp _g, _Tp _r)
+    {
+        b = _b;
+        g = _g;
+        r = _r;
+    }
+    _Tp b, g, r;
+};
+typedef Scalar_<int> Scalar;
 
 #define CV_8UC1  1
 #define CV_8UC3  3
@@ -302,6 +316,10 @@ struct Mat
 #define CV_LOAD_IMAGE_COLOR     3
 Mat imread(const std::string& path, int flags);
 void imwrite(const std::string& path, const Mat& m);
+void waitKey(int delay = 0);
+void imshow(const std::string img, const Mat& m);
+void circle(const Mat& src, Point2f p, int redius, Scalar scalar, int thickness);
+void line(const Mat& src, Point2f p1, Point2f p2, Scalar scalar, int thickness);
 
 #if NCNN_PIXEL
 void resize(const Mat& src, Mat& dst, const Size& size, float sw = 0.f, float sh = 0.f, int flags = 0);
