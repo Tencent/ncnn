@@ -31,6 +31,8 @@
 #cmakedefine01 NCNN_AVX2
 #cmakedefine01 NCNN_ARM82
 
+#ifdef __cplusplus
+
 #if NCNN_THREADS
 #if (defined _WIN32 && !(defined __MINGW32__))
 #define WIN32_LEAN_AND_MEAN
@@ -206,6 +208,8 @@ private:
 #include <vector>
 #include <string>
 #endif
+
+#endif // __cplusplus
 
 #if NCNN_STDIO
 #if __ANDROID_API__ >= 8

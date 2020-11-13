@@ -111,6 +111,8 @@ void* ncnn_mat_get_data(ncnn_mat_t mat)
     return ((Mat*)mat)->data;
 }
 
+#if NCNN_PIXEL
+
 /* mat pixel api */
 ncnn_mat_t ncnn_mat_from_pixels(const unsigned char* pixels, int type, int w, int h, int stride)
 {
@@ -131,6 +133,8 @@ void ncnn_mat_to_pixels_resize(ncnn_mat_t mat, unsigned char* pixels, int type, 
 {
     ((Mat*)mat)->to_pixels_resize(pixels, type, target_width, target_height, target_stride);
 }
+
+#endif
 
 void ncnn_mat_substract_mean_normalize(ncnn_mat_t mat, const float* mean_vals, const float* norm_vals)
 {
