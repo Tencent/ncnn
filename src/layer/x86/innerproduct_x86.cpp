@@ -28,10 +28,8 @@ namespace ncnn {
 
 InnerProduct_x86::InnerProduct_x86()
 {
-#if __AVX__
     support_packing = true;
     support_weight_fp16_storage = true;
-#endif // __AVX__
 
     flatten = 0;
 }
