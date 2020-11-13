@@ -52,10 +52,9 @@ namespace ncnn {
 
 Convolution_x86::Convolution_x86()
 {
-#ifdef __AVX__
     support_packing = true;
     support_weight_fp16_storage = true;
-#endif
+
     activation = 0;
     convolution_dilation1 = 0;
 }
@@ -795,6 +794,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
         }
     }
+
     if (elempack == 8 && out_elempack == 1)
     {
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)

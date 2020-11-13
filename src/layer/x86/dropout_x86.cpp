@@ -12,19 +12,18 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include "dropout_x86.h"
+
+#include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
-
-#include "dropout_x86.h"
 
 namespace ncnn {
 
 Dropout_x86::Dropout_x86()
 {
-#if __AVX__
     support_packing = true;
-#endif // __AVX__
 }
 
 int Dropout_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -34,10 +33,10 @@ int Dropout_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return 0;
     }
 
-#if __AVX__
     int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
 
+#if __AVX__
     if (elempack == 8)
     {
         int w = bottom_top_blob.w;
@@ -96,6 +95,64 @@ int Dropout_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return 0;
     }
 #endif // __AVX__
+
+    if (elempack == 4)
+    {
+        int w = bottom_top_blob.w;
+        int h = bottom_top_blob.h;
+        int channels = bottom_top_blob.c;
+        int size = w * h;
+
+        __m128 _scale = _mm_set1_ps(scale);
+
+        if (dims == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < w; i++)
+            {
+                float* ptr = (float*)bottom_top_blob + i * 4;
+                __m128 _p = _mm_loadu_ps(ptr);
+                _p = _mm_mul_ps(_p, _scale);
+                _mm_storeu_ps(ptr, _p);
+            }
+        }
+
+        if (dims == 2)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                float* ptr = bottom_top_blob.row(i);
+
+                for (int j = 0; j < w; j++)
+                {
+                    __m128 _p = _mm_loadu_ps(ptr);
+                    _p = _mm_mul_ps(_p, _scale);
+                    _mm_storeu_ps(ptr, _p);
+                    ptr += 4;
+                }
+            }
+        }
+
+        if (dims == 3)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    __m128 _p = _mm_loadu_ps(ptr);
+                    _p = _mm_mul_ps(_p, _scale);
+                    _mm_storeu_ps(ptr, _p);
+                    ptr += 4;
+                }
+            }
+        }
+
+        return 0;
+    }
 
     return Dropout::forward_inplace(bottom_top_blob, opt);
 }

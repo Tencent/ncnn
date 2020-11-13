@@ -24,9 +24,7 @@ namespace ncnn {
 
 BinaryOp_x86::BinaryOp_x86()
 {
-#if __AVX__
     support_packing = true;
-#endif // __AVX__
 }
 
 #if __AVX__
@@ -658,14 +656,14 @@ struct binary_op_rdiv_pack8
 
 int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-#if __AVX__
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& bottom_blob1 = bottom_blobs[1];
 
-    Mat& top_blob = top_blobs[0];
-
     int elempack = bottom_blob.elempack;
     int elempack1 = bottom_blob1.elempack;
+
+#if __AVX__
+    Mat& top_blob = top_blobs[0];
 
     if (elempack == 8 || elempack1 == 8)
     {
@@ -698,14 +696,29 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     }
 #endif // __AVX__
 
+    if (elempack == 4 || elempack1 == 4)
+    {
+        // TODO implement pack4
+        std::vector<Mat> bottom_blobs_unpacked(bottom_blobs.size());
+
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            Option opt_pack = opt;
+            opt_pack.blob_allocator = opt.workspace_allocator;
+            convert_packing(bottom_blobs[i], bottom_blobs_unpacked[i], 1, opt_pack);
+        }
+
+        return forward(bottom_blobs_unpacked, top_blobs, opt);
+    }
+
     return BinaryOp::forward(bottom_blobs, top_blobs, opt);
 }
 
 int BinaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if __AVX__
     int elempack = bottom_top_blob.elempack;
 
+#if __AVX__
     if (elempack == 8)
     {
         if (op_type == Operation_ADD)
@@ -736,6 +749,20 @@ int BinaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return binary_op_scalar_inplace_pack8<binary_op_rdiv_pack8>(bottom_top_blob, b, opt);
     }
 #endif // __AVX__
+
+    if (elempack == 4)
+    {
+        // TODO implement pack4
+        Mat bottom_top_blob_unpacked;
+
+        Option opt_pack = opt;
+        opt_pack.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_top_blob, bottom_top_blob_unpacked, 1, opt_pack);
+
+        bottom_top_blob = bottom_top_blob_unpacked;
+
+        return forward_inplace(bottom_top_blob, opt);
+    }
 
     return BinaryOp::forward_inplace(bottom_top_blob, opt);
 }

@@ -20,11 +20,9 @@ namespace ncnn {
 
 Concat_x86::Concat_x86()
 {
-#if __AVX__
     support_packing = true;
 
     packing_pack8 = 0;
-#endif // __AVX__
 }
 
 int Concat_x86::create_pipeline(const Option& opt)

@@ -21,9 +21,7 @@ namespace ncnn {
 
 Flatten_x86::Flatten_x86()
 {
-#if __AVX__
     support_packing = true;
-#endif // __AVX__
 }
 
 int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
