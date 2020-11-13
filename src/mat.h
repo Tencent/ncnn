@@ -181,6 +181,7 @@ public:
         PIXEL_GRAY = 3,
         PIXEL_RGBA = 4,
         PIXEL_BGRA = 5,
+        PIXEL_YUV420SP = 6,
 
         PIXEL_RGB2BGR = PIXEL_RGB | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
         PIXEL_RGB2GRAY = PIXEL_RGB | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
@@ -206,6 +207,9 @@ public:
         PIXEL_BGRA2BGR = PIXEL_BGRA | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
         PIXEL_BGRA2GRAY = PIXEL_BGRA | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
         PIXEL_BGRA2RGBA = PIXEL_BGRA | (PIXEL_RGBA << PIXEL_CONVERT_SHIFT),
+
+		PIXEL_YUV420SP2RGB=PIXEL_YUV420SP|(PIXEL_RGB << PIXEL_CONVERT_SHIFT),
+		PIXEL_YUV420SP2BGR=PIXEL_YUV420SP|(PIXEL_BGR << PIXEL_CONVERT_SHIFT),
     };
     // convenient construct from pixel data
     static Mat from_pixels(const unsigned char* pixels, int type, int w, int h, Allocator* allocator = 0);
@@ -545,6 +549,8 @@ void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstr
 void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
 // image pixel bilinear resize, convenient wrapper for yuv420sp(nv21/nv12)
 void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+
+
 #endif // NCNN_PIXEL
 #if NCNN_PIXEL_ROTATE
 // type is the from type, 6 means rotating from 6 to 1

@@ -1242,6 +1242,7 @@ void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsi
     unsigned char* dstUV = dst + w * h;
     resize_bilinear_c2(srcUV, srcw / 2, srch / 2, dstUV, w / 2, h / 2);
 }
+
 #endif // NCNN_PIXEL
 
 } // namespace ncnn

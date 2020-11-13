@@ -2555,8 +2555,14 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
     else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
     {
         return Mat::from_pixels_resize(pixels, type, w, h, w * 4, target_width, target_height, allocator);
+    }else if(type_from==PIXEL_YUV420SP){
+		Mat rgb(w,  h, (size_t)3u, 3);
+		yuv420sp2rgb(pixels,w,  h,rgb);
+		if(((type & PIXEL_CONVERT_MASK)>>PIXEL_CONVERT_SHIFT)==PIXEL_RGB)
+			return Mat::from_pixels_resize(rgb, PIXEL_RGB, w, h, w * 3, target_width, target_height, allocator);
+		else
+			return Mat::from_pixels_resize(rgb, PIXEL_RGB|(type & PIXEL_CONVERT_MASK), w, h, w * 3, target_width, target_height, allocator);
     }
-
     // unknown convert type
     NCNN_LOGE("unknown convert type %d", type);
     return Mat();
@@ -2573,21 +2579,18 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
     {
         Mat dst(target_width, target_height, (size_t)3u, 3);
         resize_bilinear_c3(pixels, w, h, stride, dst, target_width, target_height, target_width * 3);
-
         return Mat::from_pixels(dst, type, target_width, target_height, allocator);
     }
     else if (type_from == PIXEL_GRAY)
     {
         Mat dst(target_width, target_height, (size_t)1u, 1);
         resize_bilinear_c1(pixels, w, h, stride, dst, target_width, target_height, target_width * 1);
-
         return Mat::from_pixels(dst, type, target_width, target_height, allocator);
     }
     else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
     {
         Mat dst(target_width, target_height, (size_t)4u, 4);
         resize_bilinear_c4(pixels, w, h, stride, dst, target_width, target_height, target_width * 4);
-
         return Mat::from_pixels(dst, type, target_width, target_height, allocator);
     }
 

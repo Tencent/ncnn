@@ -18,7 +18,6 @@ endif()
 if(NOT OpenCV_FOUND)
     find_package(OpenCV QUIET COMPONENTS core highgui imgproc)
 endif()
-
 if(OpenCV_FOUND)
     message(STATUS "OpenCV library: ${OpenCV_INSTALL_PATH}")
     message(STATUS "    version: ${OpenCV_VERSION}")
