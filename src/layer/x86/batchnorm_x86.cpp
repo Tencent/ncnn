@@ -11,6 +11,7 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
+
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
@@ -29,9 +30,9 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 {
     int dims = bottom_top_blob.dims;
 
-#if __AVX__
     int elempack = bottom_top_blob.elempack;
 
+#if __AVX__
     if (elempack == 8)
     {
         if (dims == 1)
@@ -105,6 +106,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         return 0;
     }
 #endif // __AVX__
+
     if (elempack == 4)
     {
         if (dims == 1)
