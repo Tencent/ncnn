@@ -228,7 +228,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             float* outptr = top_blob.row(i);
@@ -419,7 +419,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* outptr = top_blob.channel(q);
@@ -459,7 +459,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* outptr = top_blob.channel(q);

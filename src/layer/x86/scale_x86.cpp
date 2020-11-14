@@ -45,7 +45,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             if (bias_term)
             {
                 const float* bias = bias_data;
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     float* ptr = (float*)bottom_top_blob + i * 8;
@@ -59,7 +59,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             }
             else
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     float* ptr = (float*)bottom_top_blob + i * 8;
@@ -79,7 +79,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 
             if (bias_term)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     float* ptr = bottom_top_blob.row(i);
@@ -98,7 +98,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             }
             else
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     float* ptr = bottom_top_blob.row(i);
@@ -125,7 +125,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 
             if (bias_term)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     float* ptr = bottom_top_blob.channel(q);
@@ -144,7 +144,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             }
             else
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     float* ptr = bottom_top_blob.channel(q);
@@ -176,7 +176,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             if (bias_term)
             {
                 const float* bias = bias_data;
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     float* ptr = (float*)bottom_top_blob + i * 4;
@@ -190,7 +190,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             }
             else
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     float* ptr = (float*)bottom_top_blob + i * 4;
@@ -210,7 +210,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 
             if (bias_term)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     float* ptr = bottom_top_blob.row(i);
@@ -229,7 +229,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             }
             else
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     float* ptr = bottom_top_blob.row(i);
@@ -256,7 +256,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 
             if (bias_term)
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     float* ptr = bottom_top_blob.channel(q);
@@ -275,7 +275,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             }
             else
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     float* ptr = bottom_top_blob.channel(q);
@@ -308,7 +308,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
     {
         const float* scale_ptr = scale_blob;
         const float* bias_ptr = bias_data;
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -347,7 +347,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
     else
     {
         const float* scale_ptr = scale_blob;
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
