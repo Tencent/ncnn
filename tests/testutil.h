@@ -15,6 +15,7 @@
 #ifndef TESTUTIL_H
 #define TESTUTIL_H
 
+#include "cpu.h"
 #include "layer.h"
 #include "mat.h"
 #include "prng.h"
@@ -309,7 +310,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             int dst_elempack = 1;
 
 #if NCNN_AVX2
-            if (elemcount % 8 == 0)
+            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
@@ -727,7 +728,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         int dst_elempack = 1;
 
 #if NCNN_AVX2
-        if (elemcount % 8 == 0)
+        if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
             dst_elempack = 8;
         else if (elemcount % 4 == 0)
             dst_elempack = 4;

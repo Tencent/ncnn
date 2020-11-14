@@ -38,6 +38,8 @@ protected:
 public:
     ncnn::Layer* flatten;
 
+    Mat weight_data_packed;
+
     // fp16 weight data
     Mat weight_data_fp16;
 };
