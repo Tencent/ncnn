@@ -32,6 +32,8 @@
 #ifndef SSE_MATHFUN_H
 #define SSE_MATHFUN_H
 
+#define USE_SSE2 1
+
 #include <xmmintrin.h>
 
 /* yes I know, the top of this file is quite ugly */
