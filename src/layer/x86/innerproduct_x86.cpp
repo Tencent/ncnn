@@ -40,7 +40,7 @@ InnerProduct_x86::InnerProduct_x86()
 
 int InnerProduct_x86::create_pipeline(const Option& opt)
 {
-//     if (opt.use_packing_layout)
+    //     if (opt.use_packing_layout)
     {
         flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
 
