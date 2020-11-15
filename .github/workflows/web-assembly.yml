@@ -18,7 +18,7 @@ jobs:
     - name: test
       run: |
         cd build
-        TESTS_EXECUTABLE_LOADER=node ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=node TESTS_EXECUTABLE_LOADER_ARGUMENTS="--experimental-wasm-simd" ctest --output-on-failure -j 2
 
   webassembly-simpleomp:
     runs-on: ubuntu-latest
@@ -37,4 +37,4 @@ jobs:
     - name: test
       run: |
         cd build
-        TESTS_EXECUTABLE_LOADER=node TESTS_EXECUTABLE_LOADER_ARGUMENTS="--experimental-wasm-threads;--experimental-wasm-bulk-memory" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=node TESTS_EXECUTABLE_LOADER_ARGUMENTS="--experimental-wasm-simd;--experimental-wasm-threads;--experimental-wasm-bulk-memory" ctest --output-on-failure -j 2
