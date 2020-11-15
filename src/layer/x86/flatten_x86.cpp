@@ -48,7 +48,11 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     int out_elempack = 1;
     if (opt.use_packing_layout)
     {
+#if __AVX__
         out_elempack = total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = total % 4 == 0 ? 4 : 1;
+#endif
     }
     size_t out_elemsize = elemsize / elempack * out_elempack;
 

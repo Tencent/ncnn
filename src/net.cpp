@@ -1190,7 +1190,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             if (layer->support_packing)
             {
 #if NCNN_AVX2
-                if (elemcount % 8 == 0)
+                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
@@ -1325,7 +1325,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                 if (layer->support_packing)
                 {
 #if NCNN_AVX2
-                    if (elemcount % 8 == 0)
+                    if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
                         dst_elempack = 8;
                     else if (elemcount % 4 == 0)
                         dst_elempack = 4;
