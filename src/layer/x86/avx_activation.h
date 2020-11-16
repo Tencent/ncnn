@@ -1,35 +1,28 @@
-// Tencent is pleased to support the open source community by making ncnn
-// available.
+// Tencent is pleased to support the open source community by making ncnn available.
 //
 // Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
 //
-// Licensed under the BSD 3-Clause License (the "License"); you may not use this
-// file except in compliance with the License. You may obtain a copy of the
-// License at
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
 //
 // https://opensource.org/licenses/BSD-3-Clause
 //
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-// License for the specific language governing permissions and limitations under
-// the License.
-#ifndef AVX_ACTIVATION
-#define AVX_ACTIVATION
-#ifdef __AVX__
-#include "avx_mathfun.h"
-#endif
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
 
-#include <math.h>
+#ifndef AVX_ACTIVATION_H
+#define AVX_ACTIVATION_H
+
+#include "avx_mathfun.h"
 #include "mat.h"
 
 #ifdef __AVX__
-
 static inline __m256 sigmoid_avx(__m256 inputs)
 {
     const __m256 one = _mm256_set1_ps(1.0f);
-    return _mm256_div_ps(
-               one, _mm256_add_ps(one, exp256_ps(_mm256_sub_ps(_mm256_setzero_ps(), inputs))));
+    return _mm256_div_ps(one, _mm256_add_ps(one, exp256_ps(_mm256_sub_ps(_mm256_setzero_ps(), inputs))));
 }
 
 static inline __m256 tanh_avx(__m256 inputs)
@@ -63,8 +56,7 @@ static inline __m256 prelu_avx(__m256 inputs, __m256 alphas)
     return _mm256_add_ps(pos, _mm256_mul_ps(alphas, neg));
 }
 
-static inline __m256 activation_ps(__m256 _v, int activation_type,
-                                   const ncnn::Mat& activation_params)
+static inline __m256 activation_ps(__m256 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     // Process fused activations
     if (activation_type == 1)
@@ -96,38 +88,6 @@ static inline __m256 activation_ps(__m256 _v, int activation_type,
 
     return _v;
 }
-#endif
-static inline float activation_ss(float v, int activation_type,
-                                  const ncnn::Mat& activation_params)
-{
-    if (activation_type == 1)
-    {
-        v = fmax(v, 0.f);
-    }
-    else if (activation_type == 2)
-    {
-        float slope = activation_params[0];
-        v = v > 0.f ? v : v * slope;
-    }
-    else if (activation_type == 3)
-    {
-        float min = activation_params[0];
-        float max = activation_params[1];
-        if (v < min)
-            v = min;
-        if (v > max)
-            v = max;
-    }
-    else if (activation_type == 4)
-    {
-        v = 1.f / (1.f + exp(-v));
-    }
-    else if (activation_type == 5)
-    {
-        v = v * tanh(log(exp(v) + 1.f));
-    }
+#endif // __AVX__
 
-    return v;
-}
-
-#endif
+#endif // AVX_ACTIVATION_H

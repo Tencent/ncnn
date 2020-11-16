@@ -14,21 +14,21 @@
 
 #include "padding_x86.h"
 
+#include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
 
 namespace ncnn {
 
+#include "padding_pack4.h"
 #if __AVX__
 #include "padding_pack8.h"
 #endif // __AVX__
 
 Padding_x86::Padding_x86()
 {
-#if __AVX__
     support_packing = true;
-#endif // __AVX__
 }
 
 int Padding_x86::create_pipeline(const Option& /*opt*/)
@@ -49,26 +49,29 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return 0;
     }
 
-    Mat bottom_blob_unpacked = bottom_blob;
-
-#if __AVX__
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
+    Mat bottom_blob_unpacked = bottom_blob;
+
     int out_elempack = elempack;
     int outc = channels;
-
     //Check if channel padding is being applied.
     if (front != 0 || behind != 0)
     {
         int padded_channels = (channels * elempack) + front + behind;
         if (type == 0)
         {
-            int offset_elempack = front % 8 == 0 ? 8 : 1;
-            int channel_elempack = padded_channels % 8 == 0 ? 8 : 1;
+#if __AVX__
+            int offset_elempack = front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
+            int channel_elempack = padded_channels % 8 == 0 ? 8 : padded_channels % 4 == 0 ? 4 : 1;
+#else
+            int offset_elempack = front % 4 == 0 ? 4 : 1;
+            int channel_elempack = padded_channels % 4 == 0 ? 4 : 1;
+#endif
             out_elempack = offset_elempack <= channel_elempack ? offset_elempack : channel_elempack;
         }
         else
@@ -85,6 +88,7 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
     }
 
+#if __AVX__
     if (elempack == 8 && out_elempack == 8)
     {
         int outw = w + left + right;
@@ -158,6 +162,79 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return 0;
     }
 #endif // __AVX__
+
+    if (elempack == 4 && out_elempack == 4)
+    {
+        int outw = w + left + right;
+
+        if (dims == 1)
+        {
+            top_blob.create(outw, elemsize, elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (type == 0)
+                padding_constant_pack4_sse(bottom_blob, top_blob, 0, 0, left, right, _mm_set1_ps(value));
+            if (type == 1)
+                padding_replicate_pack4_sse(bottom_blob, top_blob, 0, 0, left, right);
+            if (type == 2)
+                padding_reflect_pack4_sse(bottom_blob, top_blob, 0, 0, left, right);
+
+            return 0;
+        }
+
+        int outh = h + top + bottom;
+
+        if (dims == 2)
+        {
+            top_blob.create(outw, outh, elemsize, elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (type == 0)
+                padding_constant_pack4_sse(bottom_blob, top_blob, top, bottom, left, right, _mm_set1_ps(value));
+            if (type == 1)
+                padding_replicate_pack4_sse(bottom_blob, top_blob, top, bottom, left, right);
+            if (type == 2)
+                padding_reflect_pack4_sse(bottom_blob, top_blob, top, bottom, left, right);
+
+            return 0;
+        }
+
+        if (dims == 3)
+        {
+            top_blob.create(outw, outh, outc, elemsize, elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+            int front_ = front / elempack;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < outc; q++)
+            {
+                Mat borderm = top_blob.channel(q);
+
+                __m128 pad_value = per_channel_pad_data_size ? _mm_loadu_ps((const float*)per_channel_pad_data + q * 4) : _mm_set1_ps(value);
+                //Channel padding
+                if ((q - front_) < 0 || (q - front_) >= channels)
+                {
+                    borderm.fill(pad_value);
+                }
+                else
+                {
+                    const Mat m = bottom_blob.channel(q - front_);
+                    if (type == 0)
+                        padding_constant_pack4_sse(m, borderm, top, bottom, left, right, pad_value);
+                    if (type == 1)
+                        padding_replicate_pack4_sse(m, borderm, top, bottom, left, right);
+                    if (type == 2)
+                        padding_reflect_pack4_sse(m, borderm, top, bottom, left, right);
+                }
+            }
+
+            return 0;
+        }
+
+        return 0;
+    }
 
     return Padding::forward(bottom_blob_unpacked, top_blob, opt);
 }
