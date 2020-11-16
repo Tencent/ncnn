@@ -209,7 +209,9 @@ public:
 
     // get result by blob name
     // return 0 if success
-    int extract(const char* blob_name, Mat& feat, int _unchange = 0);
+    // type = 0, default
+    // type = 1, donot convert fp16 or/and packing
+    int extract(const char* blob_name, Mat& feat, int type = 0);
 #endif // NCNN_STRING
 
     // set input by blob index
@@ -218,7 +220,9 @@ public:
 
     // get result by blob index
     // return 0 if success
-    int extract(int blob_index, Mat& feat, int _unchange = 0);
+    // type = 0, default
+    // type = 1, donot convert fp16 or/and packing
+    int extract(int blob_index, Mat& feat, int type = 0);
 
 #if NCNN_VULKAN
 #if NCNN_STRING
