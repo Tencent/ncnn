@@ -23,9 +23,7 @@ namespace ncnn {
 
 Mish_x86::Mish_x86()
 {
-#if __AVX__
     support_packing = true;
-#endif // __AVX__
 }
 
 int Mish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -34,10 +32,9 @@ int Mish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int size = w * h;
-
-#if __AVX__
     int elempack = bottom_top_blob.elempack;
 
+#if __AVX__
     if (elempack == 8)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -57,6 +54,20 @@ int Mish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return 0;
     }
 #endif // __AVX__
+
+    if (elempack == 4)
+    {
+        // TODO implement pack4
+        Mat bottom_top_blob_unpacked;
+
+        Option opt_pack = opt;
+        opt_pack.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_top_blob, bottom_top_blob_unpacked, 1, opt_pack);
+
+        bottom_top_blob = bottom_top_blob_unpacked;
+
+        return forward_inplace(bottom_top_blob, opt);
+    }
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)

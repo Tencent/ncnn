@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,21 +12,16 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_CONCAT_X86_H
-#define LAYER_CONCAT_X86_H
+#ifndef SSE_USABILITY_H
+#define SSE_USABILITY_H
 
-#include "concat.h"
+#include <emmintrin.h>
 
-namespace ncnn {
-
-class Concat_x86 : virtual public Concat
+static inline float _mm_reduce_add_ps(__m128 x128)
 {
-public:
-    Concat_x86();
+    const __m128 x64 = _mm_add_ps(x128, _mm_movehl_ps(x128, x128));
+    const __m128 x32 = _mm_add_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
+    return _mm_cvtss_f32(x32);
+}
 
-    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
-};
-
-} // namespace ncnn
-
-#endif // LAYER_CONCAT_X86_H
+#endif // SSE_USABILITY_H

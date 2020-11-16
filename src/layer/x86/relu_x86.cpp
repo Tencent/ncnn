@@ -12,19 +12,17 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include "relu_x86.h"
+
 #if __AVX__
 #include "avx_activation.h"
 #endif // __AVX__
-
-#include "relu_x86.h"
 
 namespace ncnn {
 
 ReLU_x86::ReLU_x86()
 {
-#if __AVX__
     support_packing = true;
-#endif // __AVX__
 }
 
 int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -33,10 +31,9 @@ int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int size = w * h;
-
-#if __AVX__
     int elempack = bottom_top_blob.elempack;
 
+#if __AVX__
     if (elempack == 8)
     {
         if (slope == 0.f)
@@ -72,6 +69,20 @@ int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return 0;
     }
 #endif // __AVX__
+
+    if (elempack == 4)
+    {
+        // TODO implement pack4
+        Mat bottom_top_blob_unpacked;
+
+        Option opt_pack = opt;
+        opt_pack.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_top_blob, bottom_top_blob_unpacked, 1, opt_pack);
+
+        bottom_top_blob = bottom_top_blob_unpacked;
+
+        return forward_inplace(bottom_top_blob, opt);
+    }
 
     if (slope == 0.f)
     {

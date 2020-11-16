@@ -31,19 +31,17 @@ namespace ncnn {
 
 Pooling_x86::Pooling_x86()
 {
-#if __AVX__
     support_packing = true;
-#endif // __AVX__
 }
 
-int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob,
-                         const Option& opt) const
+int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // max value in NxN window
     // avg value in NxN window
 
-#if __AVX__
     int elempack = bottom_blob.elempack;
+
+#if __AVX__
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
@@ -284,6 +282,18 @@ int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob,
         return 0;
     }
 #endif // __AVX__
+
+    if (elempack == 4)
+    {
+        // TODO implement pack4
+        Mat bottom_blob_unpacked;
+
+        Option opt_pack = opt;
+        opt_pack.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
+
+        return forward(bottom_blob_unpacked, top_blob, opt);
+    }
 
     if (kernel_w != kernel_h || stride_w != stride_h)
     {
