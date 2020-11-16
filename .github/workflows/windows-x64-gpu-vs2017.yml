@@ -1,8 +1,8 @@
-name: windows-x64-gpu-vs2019
+name: windows-x64-gpu-vs2017
 on: [push, pull_request]
 jobs:
-  windows-vs2019-gpu:
-    runs-on: windows-latest
+  windows-vs2017-gpu:
+    runs-on: windows-2016
     steps:
     - uses: actions/checkout@v2
       with:
@@ -12,14 +12,14 @@ jobs:
       uses: actions/cache@v1
       with:
         path: "protobuf-install"
-        key: protobuf-windows-install
+        key: protobuf-vs2017-x64-install
     - name: protobuf
       if: steps.cache-protobuf.outputs.cache-hit != 'true'
       run: |
         Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/archive/v3.11.2.zip -OutFile protobuf-3.11.2.zip
         7z x ./protobuf-3.11.2.zip
         cd protobuf-3.11.2
-        mkdir build-vs2019; cd build-vs2019; cmake -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF -DNCNN_BUILD_TESTS=ON ../cmake
+        mkdir build-vs2017; cd build-vs2017; cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF -DNCNN_BUILD_TESTS=ON ../cmake
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: cache-vulkansdk
@@ -39,7 +39,7 @@ jobs:
       uses: actions/cache@v1
       with:
         path: swiftshader-install
-        key: swiftshader-windows-install-20200508
+        key: swiftshader-vs2017-x64-install-20200508
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
@@ -56,8 +56,8 @@ jobs:
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
         cd swiftshader
-        mkdir build-vs2019; cd build-vs2019
-        cmake -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
+        mkdir build-vs2017; cd build-vs2017
+        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . --config Release -j 2
         mkdir "$env:GITHUB_WORKSPACE/swiftshader-install"
         Copy-Item -Path "Windows\*" -Destination "$env:GITHUB_WORKSPACE\swiftshader-install"
@@ -65,7 +65,7 @@ jobs:
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"
         mkdir build; cd build
-        cmake -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake -T v141,host=x64 -A x64 -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build --config Release -j 2
     - name: test

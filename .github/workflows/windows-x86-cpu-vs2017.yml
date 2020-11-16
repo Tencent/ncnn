@@ -1,0 +1,15 @@
+name: windows-x86-cpu-vs2017
+on: [push, pull_request]
+jobs:
+  windows-vs2017:
+    runs-on: windows-2016
+    steps:
+    - uses: actions/checkout@v2
+    - name: configure
+      run: |
+        mkdir build; cd build
+        cmake -T v141,host=x64 -A Win32 -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+    - name: build
+      run: cmake --build build --config Release -j 2
+    - name: test
+      run: cd build; ctest -C Release --output-on-failure -j 2
