@@ -2640,13 +2640,13 @@ int Extractor::input(const char* blob_name, const Mat& in)
     return input(blob_index, in);
 }
 
-int Extractor::extract(const char* blob_name, Mat& feat)
+int Extractor::extract(const char* blob_name, Mat& feat, int type)
 {
     int blob_index = net->find_blob_index_by_name(blob_name);
     if (blob_index == -1)
         return -1;
 
-    return extract(blob_index, feat);
+    return extract(blob_index, feat, type);
 }
 #endif // NCNN_STRING
 
@@ -2660,7 +2660,7 @@ int Extractor::input(int blob_index, const Mat& in)
     return 0;
 }
 
-int Extractor::extract(int blob_index, Mat& feat)
+int Extractor::extract(int blob_index, Mat& feat, int type)
 {
     if (blob_index < 0 || blob_index >= (int)blob_mats.size())
         return -1;
@@ -2765,7 +2765,7 @@ int Extractor::extract(int blob_index, Mat& feat)
 
     feat = blob_mats[blob_index];
 
-    if (opt.use_packing_layout)
+    if (opt.use_packing_layout && (type == 0))
     {
         Mat bottom_blob_unpacked;
         convert_packing(feat, bottom_blob_unpacked, 1, opt);
@@ -2775,7 +2775,7 @@ int Extractor::extract(int blob_index, Mat& feat)
     // clang-format off
     // *INDENT-OFF*
 #if NCNN_ARM82
-    if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
+    if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && (type == 0))
     {
         if (feat.elembits() == 16)
         {
@@ -2786,7 +2786,7 @@ int Extractor::extract(int blob_index, Mat& feat)
     }
     else
 #endif // NCNN_ARM82
-    if (opt.use_bf16_storage)
+    if (opt.use_bf16_storage && (type == 0))
     {
         if (feat.elembits() == 16)
         {
