@@ -14,6 +14,7 @@
 
 #include "relu_x86.h"
 
+#include "sse_activation.h"
 #if __AVX__
 #include "avx_activation.h"
 #endif // __AVX__
@@ -72,16 +73,37 @@ int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (elempack == 4)
     {
-        // TODO implement pack4
-        Mat bottom_top_blob_unpacked;
+        if (slope == 0.f)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+                __m128 _zero = _mm_set1_ps(0.f);
+                for (int i = 0; i < size; i++)
+                {
+                    __m128 _p = _mm_loadu_ps(ptr);
+                    _mm_storeu_ps(ptr, _mm_max_ps(_zero, _p));
+                    ptr += 4;
+                }
+            }
+        }
+        else
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+                for (int i = 0; i < size; i++)
+                {
+                    __m128 _p = _mm_loadu_ps(ptr);
+                    _mm_storeu_ps(ptr, lrelu_sse(_p, slope));
+                    ptr += 4;
+                }
+            }
+        }
 
-        Option opt_pack = opt;
-        opt_pack.blob_allocator = opt.workspace_allocator;
-        convert_packing(bottom_top_blob, bottom_top_blob_unpacked, 1, opt_pack);
-
-        bottom_top_blob = bottom_top_blob_unpacked;
-
-        return forward_inplace(bottom_top_blob, opt);
+        return 0;
     }
 
     if (slope == 0.f)

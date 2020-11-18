@@ -14,6 +14,7 @@
 
 #include "sigmoid_x86.h"
 
+#include "sse_activation.h"
 #if __AVX__
 #include "avx_activation.h"
 #endif // __AVX__
@@ -56,16 +57,19 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (elempack == 4)
     {
-        // TODO implement pack4
-        Mat bottom_top_blob_unpacked;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
+            for (int i = 0; i < size; i++)
+            {
+                __m128 _p = _mm_loadu_ps(ptr);
+                _mm_storeu_ps(ptr, sigmoid_sse(_p));
+                ptr += 4;
+            }
+        }
 
-        Option opt_pack = opt;
-        opt_pack.blob_allocator = opt.workspace_allocator;
-        convert_packing(bottom_top_blob, bottom_top_blob_unpacked, 1, opt_pack);
-
-        bottom_top_blob = bottom_top_blob_unpacked;
-
-        return forward_inplace(bottom_top_blob, opt);
+        return 0;
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -73,22 +77,22 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     {
         float* ptr = bottom_top_blob.channel(q);
 
+        int i = 0;
 #if __AVX__
-        int nn = size >> 3;
-        int remain = size & 7;
-#else
-        int remain = size;
-#endif // __AVX__
-
-#if __AVX__
-        for (; nn > 0; nn--)
+        for (; i + 7 < size; i += 8)
         {
             __m256 _p = _mm256_loadu_ps(ptr);
             _mm256_storeu_ps(ptr, sigmoid_avx(_p));
             ptr += 8;
         }
 #endif // __AVX__
-        for (; remain > 0; remain--)
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _p = _mm_loadu_ps(ptr);
+            _mm_storeu_ps(ptr, sigmoid_sse(_p));
+            ptr += 4;
+        }
+        for (; i < size; i++)
         {
             *ptr = 1.f / (1.f + exp(-*ptr));
 
