@@ -1,0 +1,13 @@
+name: macos-arm64-cpu
+on: [push, pull_request]
+env:
+  DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
+jobs:
+  macos-clang:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_CROSSCOMPILING=ON -DCMAKE_SYSTEM_PROCESSOR=arm64 -DCMAKE_OSX_ARCHITECTURES=arm64 -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+    - name: build
+      run: cmake --build build -j 2

@@ -73,6 +73,7 @@ endif()
 ##############################################
 
 if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
+    OR (APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
     OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|aarch64)"))
     set(NCNN_TARGET_ARCH arm)
     option(NCNN_ARM82 "optimize aarch64 platform with armv8.2" ON)
