@@ -3292,7 +3292,12 @@ int main(int argc, char** argv)
             }
 
             int pad_size = (int)pads.size();
-            int top, bottom, left, right;
+            int top = 0;
+            int bottom = 0;
+            int left = 0;
+            int right = 0;
+            int front = 0;
+            int behind = 0;
             if (pad_size == 8)
             {
                 //NCHW
@@ -3300,10 +3305,12 @@ int main(int argc, char** argv)
                 bottom = pads[6];
                 left = pads[3];
                 right = pads[7];
+                front = pads[1];
+                behind = pads[5];
             }
             else if (pad_size == 6)
             {
-                //CHW
+                //NHW
                 top = pads[1];
                 bottom = pads[4];
                 left = pads[2];
@@ -3311,9 +3318,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                //HW
-                top = pads[0];
-                bottom = pads[2];
+                //NW
                 left = pads[1];
                 right = pads[3];
             }
@@ -3324,6 +3329,8 @@ int main(int argc, char** argv)
             fprintf(pp, " 3=%d", right);
             fprintf(pp, " 4=%d", type);
             fprintf(pp, " 5=%e", value);
+            fprintf(pp, " 7=%d", front);
+            fprintf(pp, " 8=%d", behind);
         }
         else if (op == "Pow")
         {
