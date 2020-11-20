@@ -45,12 +45,12 @@
 
 #if __APPLE__
 #include <mach/mach.h>
-#include <mach/thread_act.h>
-#include "TargetConditionals.h"
-#if TARGET_OS_IPHONE
 #include <mach/machine.h>
+#include <mach/thread_act.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
+#include "TargetConditionals.h"
+#if TARGET_OS_IPHONE
 #define __IOS__ 1
 #endif
 #endif
@@ -532,7 +532,7 @@ static int set_sched_affinity(const CpuSet& thread_affinity_mask)
 
     mach_port_t tid = pthread_mach_thread_np(pthread_self());
 
-    thread_affinity_policy_data_t policy_data = { thread_affinity_mask.policy };
+    thread_affinity_policy_data_t policy_data = {thread_affinity_mask.policy};
     int ret = thread_policy_set(tid, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy_data, THREAD_AFFINITY_POLICY_COUNT);
     if (ret)
     {
