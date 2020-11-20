@@ -533,25 +533,27 @@ static int set_sched_affinity(const CpuSet& thread_affinity_mask)
 #if __APPLE__
 static int set_sched_affinity(const CpuSet& thread_affinity_mask)
 {
+    // https://developer.apple.com/library/archive/releasenotes/Performance/RN-AffinityAPI/index.html
     // http://www.hybridkernel.com/2015/01/18/binding_threads_to_cores_osx.html
     // https://gist.github.com/Coneko/4234842
 
     // one thread could be binded on one core only :|   --- nihui
 
-    int core = -1;
+    int affinity_tag = THREAD_AFFINITY_TAG_NULL;
     for (int i = 0; i < (int)sizeof(thread_affinity_mask.policy) * 8; i++)
     {
         if (thread_affinity_mask.is_enabled(i))
         {
-            core = i;
+            affinity_tag = i + 1;
             break;
         }
     }
 
     mach_port_t tid = pthread_mach_thread_np(pthread_self());
 
-    thread_affinity_policy_data_t policy_data = {core};
-    int ret = thread_policy_set(tid, THREAD_AFFINITY_POLICY, core == -1 ? THREAD_AFFINITY_NULL : (thread_policy_t)&policy_data, 1);
+    thread_affinity_policy_data_t policy_data;
+    policy_data.affinity_tag = affinity_tag;
+    int ret = thread_policy_set(tid, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy_data, THREAD_AFFINITY_POLICY_COUNT);
     if (ret)
     {
         NCNN_LOGE("thread_policy_set error %d", ret);
