@@ -44,6 +44,8 @@
 #endif
 
 #if __APPLE__
+#include <mach/mach.h>
+#include <mach/thread_act.h>
 #include "TargetConditionals.h"
 #if TARGET_OS_IPHONE
 #include <mach/machine.h>
@@ -187,7 +189,37 @@ int CpuSet::num_enabled() const
 
     return num_enabled;
 }
-#else  // defined __ANDROID__ || defined __linux__
+#elif __APPLE__
+CpuSet::CpuSet()
+{
+    disable_all();
+}
+
+void CpuSet::enable(int cpu)
+{
+    policy |= (1 << cpu);
+}
+
+void CpuSet::disable(int cpu)
+{
+    policy &= ~(1 << cpu);
+}
+
+void CpuSet::disable_all()
+{
+    policy = 0;
+}
+
+bool CpuSet::is_enabled(int cpu) const
+{
+    return policy & (1 << cpu);
+}
+
+int CpuSet::num_enabled() const
+{
+    return get_cpu_count();
+}
+#else
 CpuSet::CpuSet()
 {
 }
@@ -213,7 +245,7 @@ int CpuSet::num_enabled() const
 {
     return get_cpu_count();
 }
-#endif // defined __ANDROID__ || defined __linux__
+#endif
 
 int cpu_support_arm_neon()
 {
@@ -490,6 +522,28 @@ static int set_sched_affinity(const CpuSet& thread_affinity_mask)
 }
 #endif // defined __ANDROID__ || defined __linux__
 
+#if __APPLE__
+static int set_sched_affinity(const CpuSet& thread_affinity_mask)
+{
+    // http://www.hybridkernel.com/2015/01/18/binding_threads_to_cores_osx.html
+    // https://gist.github.com/Coneko/4234842
+
+    // but binding one thread on multiple cores may not work as expected :|   --- nihui
+
+    mach_port_t tid = pthread_mach_thread_np(pthread_self());
+
+    thread_affinity_policy_data_t policy_data = { thread_affinity_mask.policy };
+    int ret = thread_policy_set(tid, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy_data, THREAD_AFFINITY_POLICY_COUNT);
+    if (ret)
+    {
+        NCNN_LOGE("thread_policy_set error %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+#endif // __APPLE__
+
 static int g_powersave = 0;
 
 int get_cpu_powersave()
@@ -587,7 +641,7 @@ const CpuSet& get_cpu_thread_affinity_mask(int powersave)
 
 int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 {
-#if defined __ANDROID__ || defined __linux__
+#if defined __ANDROID__ || defined __linux__ || defined __APPLE__
     int num_threads = thread_affinity_mask.num_enabled();
 
 #ifdef _OPENMP
@@ -611,10 +665,6 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 #endif
 
     return 0;
-#elif __APPLE__
-    // thread affinity not supported on ios
-    (void)thread_affinity_mask;
-    return -1;
 #else
     // TODO
     (void)thread_affinity_mask;
