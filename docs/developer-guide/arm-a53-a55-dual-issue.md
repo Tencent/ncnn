@@ -19,7 +19,7 @@ fmla    v13.4s, v16.4s, v24.s[3]
 ### practical guide
 * use 64bit vector load only
 * issue vector load every three fmla
-* 1 cycle to load 64bit, dual issue with the prvious interleaved 64bit insert
+* 1 cycle to load 64bit, dual issue with the previous interleaved 64bit insert
 * load the remaining 64bit into integer register, dual issue with fmla
 * update pointer, dual issue with fmla
 * insert 64bit into vector from integer register, dual issue with the next interleaved 64bit load
