@@ -1,6 +1,8 @@
 
 * [absval](#absval)
+* [argmax](#argmax)
 * [batchnorm](#batchnorm)
+* [bias](#bias)
 * [clip](#clip)
 * [concat](#concat)
 * [convolution](#convolution)
@@ -12,6 +14,18 @@ y = abs(x)
 
 * one_blob_only
 * support_inplace
+
+# argmax
+```
+y = argmax(x, out_max_val, topk)
+```
+
+* one_blob_only
+
+|param id|name|type|default|
+|--|--|--|--|
+|0|out_max_val|int|0|
+|1|topk|int|1|
 
 # batchnorm
 ```
@@ -31,6 +45,22 @@ y = (x - mean) / sqrt(var + eps) * slope + bias
 |slope_data|float|
 |mean_data|float|
 |var_data|float|
+|bias_data|float|
+
+# bias
+```
+y = x + bias
+```
+
+* one_blob_only
+* support_inplace
+
+|param id|name|type|default|
+|--|--|--|--|
+|0|bias_data_size|int|0|
+
+|weight|type|
+|--|--|
 |bias_data|float|
 
 # clip
