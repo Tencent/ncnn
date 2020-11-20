@@ -120,7 +120,7 @@ static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
 
 #endif // defined __ANDROID__ || defined __linux__
 
-#if __IOS__
+#if __APPLE__
 static unsigned int get_hw_cpufamily()
 {
     unsigned int value = 0;
@@ -148,7 +148,7 @@ static cpu_subtype_t get_hw_cpusubtype()
 static unsigned int g_hw_cpufamily = get_hw_cpufamily();
 static cpu_type_t g_hw_cputype = get_hw_cputype();
 static cpu_subtype_t g_hw_cpusubtype = get_hw_cpusubtype();
-#endif // __IOS__
+#endif // __APPLE__
 
 #if defined __ANDROID__ || defined __linux__
 CpuSet::CpuSet()
@@ -223,7 +223,7 @@ int cpu_support_arm_neon()
 #else
     return g_hwcaps & HWCAP_NEON;
 #endif
-#elif __IOS__
+#elif __APPLE__
 #if __aarch64__
     return g_hw_cputype == CPU_TYPE_ARM64;
 #else
@@ -243,7 +243,7 @@ int cpu_support_arm_vfpv4()
 #else
     return g_hwcaps & HWCAP_VFPv4;
 #endif
-#elif __IOS__
+#elif __APPLE__
 #if __aarch64__
     return g_hw_cputype == CPU_TYPE_ARM64;
 #else
@@ -262,7 +262,7 @@ int cpu_support_arm_asimdhp()
 #else
     return 0;
 #endif
-#elif __IOS__
+#elif __APPLE__
 #if __aarch64__
 #ifndef CPUFAMILY_ARM_HURRICANE
 #define CPUFAMILY_ARM_HURRICANE 0x67ceee93
@@ -276,7 +276,10 @@ int cpu_support_arm_asimdhp()
 #ifndef CPUFAMILY_ARM_LIGHTNING_THUNDER
 #define CPUFAMILY_ARM_LIGHTNING_THUNDER 0x462504d2
 #endif
-    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER;
+#ifndef CPUFAMILY_ARM_FIRESTORM_ICESTORM
+#define CPUFAMILY_ARM_FIRESTORM_ICESTORM 0x1b588bb3
+#endif
+    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM;
 #else
     return 0;
 #endif
@@ -354,7 +357,7 @@ static int get_cpucount()
     }
 
     fclose(fp);
-#elif __IOS__
+#elif __APPLE__
     size_t len = sizeof(count);
     sysctlbyname("hw.ncpu", &count, &len, NULL, 0);
 #else
@@ -608,7 +611,7 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 #endif
 
     return 0;
-#elif __IOS__
+#elif __APPLE__
     // thread affinity not supported on ios
     (void)thread_affinity_mask;
     return -1;
