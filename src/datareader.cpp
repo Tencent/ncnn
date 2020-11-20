@@ -18,22 +18,6 @@
 
 namespace ncnn {
 
-DataReader::~DataReader()
-{
-}
-
-#if NCNN_STRING
-int DataReader::scan(const char* /*format*/, void* /*p*/) const
-{
-    return 0;
-}
-#endif // NCNN_STRING
-
-size_t DataReader::read(void* /*buf*/, size_t /*size*/) const
-{
-    return 0;
-}
-
 #if NCNN_STDIO
 DataReaderFromStdio::DataReaderFromStdio(FILE* _fp)
     : fp(_fp)
