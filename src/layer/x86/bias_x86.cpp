@@ -11,12 +11,13 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
+
+#include "bias_x86.h"
+
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
-
-#include "bias_x86.h"
 
 namespace ncnn {
 
@@ -36,7 +37,6 @@ int Bias_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float bias = bias_ptr[q];
 
         int i = 0;
-        __m128 _bias128;
 #if __AVX__
         {
             __m256 _bias256 = _mm256_set1_ps(bias);
@@ -48,16 +48,14 @@ int Bias_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                 ptr += 8;
             }
-            _bias128 = _mm256_castps256_ps128(_bias256);
         }
-#else
-        _bias128 = _mm_set1_ps(bias);
 #endif // __AVX__
         {
+            __m128 _bias = _mm_set1_ps(bias);
             for (; i + 3 < size; i += 4)
             {
                 __m128 _p = _mm_loadu_ps(ptr);
-                __m128 _outp = _mm_add_ps(_p, _bias128);
+                __m128 _outp = _mm_add_ps(_p, _bias);
                 _mm_storeu_ps(ptr, _outp);
 
                 ptr += 4;
