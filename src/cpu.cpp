@@ -53,6 +53,22 @@
 #if TARGET_OS_IPHONE
 #define __IOS__ 1
 #endif
+// define missing cpu model for old sdk
+#ifndef CPUFAMILY_ARM_HURRICANE
+#define CPUFAMILY_ARM_HURRICANE 0x67ceee93
+#endif
+#ifndef CPUFAMILY_ARM_MONSOON_MISTRAL
+#define CPUFAMILY_ARM_MONSOON_MISTRAL 0xe81e7ef6
+#endif
+#ifndef CPUFAMILY_ARM_VORTEX_TEMPEST
+#define CPUFAMILY_ARM_VORTEX_TEMPEST 0x07d34b9f
+#endif
+#ifndef CPUFAMILY_ARM_LIGHTNING_THUNDER
+#define CPUFAMILY_ARM_LIGHTNING_THUNDER 0x462504d2
+#endif
+#ifndef CPUFAMILY_ARM_FIRESTORM_ICESTORM
+#define CPUFAMILY_ARM_FIRESTORM_ICESTORM 0x1b588bb3
+#endif
 #endif
 
 namespace ncnn {
@@ -217,7 +233,14 @@ bool CpuSet::is_enabled(int cpu) const
 
 int CpuSet::num_enabled() const
 {
-    return get_cpu_count();
+    int num_enabled = 0;
+    for (int i = 0; i < (int)sizeof(policy) * 8; i++)
+    {
+        if (is_enabled(i))
+            num_enabled++;
+    }
+
+    return num_enabled;
 }
 #else
 CpuSet::CpuSet()
@@ -296,21 +319,6 @@ int cpu_support_arm_asimdhp()
 #endif
 #elif __APPLE__
 #if __aarch64__
-#ifndef CPUFAMILY_ARM_HURRICANE
-#define CPUFAMILY_ARM_HURRICANE 0x67ceee93
-#endif
-#ifndef CPUFAMILY_ARM_MONSOON_MISTRAL
-#define CPUFAMILY_ARM_MONSOON_MISTRAL 0xe81e7ef6
-#endif
-#ifndef CPUFAMILY_ARM_VORTEX_TEMPEST
-#define CPUFAMILY_ARM_VORTEX_TEMPEST 0x07d34b9f
-#endif
-#ifndef CPUFAMILY_ARM_LIGHTNING_THUNDER
-#define CPUFAMILY_ARM_LIGHTNING_THUNDER 0x462504d2
-#endif
-#ifndef CPUFAMILY_ARM_FIRESTORM_ICESTORM
-#define CPUFAMILY_ARM_FIRESTORM_ICESTORM 0x1b588bb3
-#endif
     return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM;
 #else
     return 0;
@@ -528,12 +536,22 @@ static int set_sched_affinity(const CpuSet& thread_affinity_mask)
     // http://www.hybridkernel.com/2015/01/18/binding_threads_to_cores_osx.html
     // https://gist.github.com/Coneko/4234842
 
-    // but binding one thread on multiple cores may not work as expected :|   --- nihui
+    // one thread could be binded on one core only :|   --- nihui
+
+    int core = -1;
+    for (int i = 0; i < (int)sizeof(thread_affinity_mask.policy) * 8; i++)
+    {
+        if (thread_affinity_mask.is_enabled(i))
+        {
+            core = i;
+            break;
+        }
+    }
 
     mach_port_t tid = pthread_mach_thread_np(pthread_self());
 
-    thread_affinity_policy_data_t policy_data = {thread_affinity_mask.policy};
-    int ret = thread_policy_set(tid, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy_data, THREAD_AFFINITY_POLICY_COUNT);
+    thread_affinity_policy_data_t policy_data = {core};
+    int ret = thread_policy_set(tid, THREAD_AFFINITY_POLICY, core == -1 ? THREAD_AFFINITY_NULL : (thread_policy_t)&policy_data, 1);
     if (ret)
     {
         NCNN_LOGE("thread_policy_set error %d", ret);
@@ -611,6 +629,48 @@ static int setup_thread_affinity_masks()
         else
             g_thread_affinity_mask_big.enable(i);
     }
+#elif __APPLE__
+    // affinity info from cpu model
+    if (g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL)
+    {
+        // 2 + 4
+        g_thread_affinity_mask_big.enable(0);
+        g_thread_affinity_mask_big.enable(1);
+        g_thread_affinity_mask_little.enable(2);
+        g_thread_affinity_mask_little.enable(3);
+        g_thread_affinity_mask_little.enable(4);
+        g_thread_affinity_mask_little.enable(5);
+    }
+    else if (g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM)
+    {
+        // 2 + 4 or 4 + 4
+        if (get_cpu_count() == 6)
+        {
+            g_thread_affinity_mask_big.enable(0);
+            g_thread_affinity_mask_big.enable(1);
+            g_thread_affinity_mask_little.enable(2);
+            g_thread_affinity_mask_little.enable(3);
+            g_thread_affinity_mask_little.enable(4);
+            g_thread_affinity_mask_little.enable(5);
+        }
+        else
+        {
+            g_thread_affinity_mask_big.enable(0);
+            g_thread_affinity_mask_big.enable(1);
+            g_thread_affinity_mask_big.enable(2);
+            g_thread_affinity_mask_big.enable(3);
+            g_thread_affinity_mask_little.enable(4);
+            g_thread_affinity_mask_little.enable(5);
+            g_thread_affinity_mask_little.enable(6);
+            g_thread_affinity_mask_little.enable(7);
+        }
+    }
+    else
+    {
+        // smp models
+        g_thread_affinity_mask_little.disable_all();
+        g_thread_affinity_mask_big = g_thread_affinity_mask_all;
+    }
 #else
     // TODO implement me for other platforms
     g_thread_affinity_mask_little.disable_all();
@@ -641,7 +701,7 @@ const CpuSet& get_cpu_thread_affinity_mask(int powersave)
 
 int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 {
-#if defined __ANDROID__ || defined __linux__ || defined __APPLE__
+#if defined __ANDROID__ || defined __linux__
     int num_threads = thread_affinity_mask.num_enabled();
 
 #ifdef _OPENMP
@@ -652,6 +712,53 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
     for (int i = 0; i < num_threads; i++)
     {
         ssarets[i] = set_sched_affinity(thread_affinity_mask);
+    }
+    for (int i = 0; i < num_threads; i++)
+    {
+        if (ssarets[i] != 0)
+            return -1;
+    }
+#else
+    int ssaret = set_sched_affinity(thread_affinity_mask);
+    if (ssaret != 0)
+        return -1;
+#endif
+
+    return 0;
+#elif __APPLE__
+    int num_threads = thread_affinity_mask.num_enabled();
+
+#ifdef _OPENMP
+    // set affinity for each thread
+    set_omp_num_threads(num_threads);
+    std::vector<int> ssarets(num_threads, 0);
+    #pragma omp parallel for num_threads(num_threads)
+    for (int i = 0; i < num_threads; i++)
+    {
+        // assign one core for each thread
+        int core = -1 - i;
+        for (int j = 0; j < (int)sizeof(thread_affinity_mask.policy) * 8; j++)
+        {
+            if (thread_affinity_mask.is_enabled(j))
+            {
+                if (core == -1)
+                {
+                    core = j;
+                    break;
+                }
+                else
+                {
+                    core++;
+                }
+            }
+        }
+        CpuSet this_thread_affinity_mask;
+        if (core != -1 - i)
+        {
+            this_thread_affinity_mask.enable(core);
+        }
+
+        ssarets[i] = set_sched_affinity(this_thread_affinity_mask);
     }
     for (int i = 0; i < num_threads; i++)
     {
