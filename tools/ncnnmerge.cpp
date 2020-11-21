@@ -131,12 +131,12 @@ static int copy_bin(const char* binpath, FILE* outbinfp)
     {
         size_t nread = fread(buffer, 1, 4096, fp);
         size_t nwrite = fwrite(buffer, 1, nread, outbinfp);
-        i += nwrite;
+        i += (int)nwrite;
     }
     {
         size_t nread = fread(buffer, 1, len - i, fp);
         size_t nwrite = fwrite(buffer, 1, nread, outbinfp);
-        i += nwrite;
+        i += (int)nwrite;
     }
 
     if (i != len)

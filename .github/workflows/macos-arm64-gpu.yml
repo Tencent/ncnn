@@ -1,0 +1,28 @@
+name: macos-arm64-gpu
+on: [push, pull_request]
+env:
+  DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
+jobs:
+  macos-clang-gpu:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "vulkansdk-macos-1.2.135.0"
+        key: vulkansdk-macos-1.2.135.0
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.2.135.0/mac/vulkansdk-macos-1.2.135.0.tar.gz?Human=true -O vulkansdk-macos-1.2.135.0.tar.gz
+        tar -xf vulkansdk-macos-1.2.135.0.tar.gz
+        rm -rf vulkansdk-macos-1.2.135.0/Applications
+        find vulkansdk-macos-1.2.135.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
+    - name: configure
+      run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.135.0/macOS && mkdir build && cd build && cmake -DCMAKE_CROSSCOMPILING=ON -DCMAKE_SYSTEM_PROCESSOR=arm64 -DCMAKE_OSX_ARCHITECTURES=arm64 -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.135.0/MoltenVK/include -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.135.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib -DNCNN_VULKAN=ON ..
+    - name: build
+      run: cmake --build build -j 2

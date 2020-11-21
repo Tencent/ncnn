@@ -11,7 +11,7 @@
 +-----im_w-----+
 ```
 ```cpp
-ncnn::Mat in = ncnn::Mat::from_pixels_roi(im.data, ncnn::PIXEL_RGB, im_w, im_h, x, y, roiw, roih);
+ncnn::Mat in = ncnn::Mat::from_pixels_roi(im.data, ncnn::Mat::PIXEL_RGB, im_w, im_h, x, y, roiw, roih);
 ```
 
 ### image roi crop + resize + convert to ncnn::Mat
@@ -26,7 +26,7 @@ ncnn::Mat in = ncnn::Mat::from_pixels_roi(im.data, ncnn::PIXEL_RGB, im_w, im_h, 
 +-----im_w-----+         target_w
 ```
 ```cpp
-ncnn::Mat in = ncnn::Mat::from_pixels_roi_resize(im.data, ncnn::PIXEL_RGB, im_w, im_h, x, y, roiw, roih, target_w, target_h);
+ncnn::Mat in = ncnn::Mat::from_pixels_roi_resize(im.data, ncnn::Mat::PIXEL_RGB, im_w, im_h, x, y, roiw, roih, target_w, target_h);
 ```
 
 ### ncnn::Mat export image + offset paste
@@ -42,7 +42,7 @@ ncnn::Mat in = ncnn::Mat::from_pixels_roi_resize(im.data, ncnn::PIXEL_RGB, im_w,
 ```
 ```cpp
 const unsigned char* data = im.data + (y * im_w + x) * 3;
-out.to_pixels(data, ncnn::PIXEL_RGB, im_w * 3);
+out.to_pixels(data, ncnn::Mat::PIXEL_RGB, im_w * 3);
 ```
 
 ### ncnn::Mat export image + resize + roi paste
@@ -58,7 +58,7 @@ out.to_pixels(data, ncnn::PIXEL_RGB, im_w * 3);
 ```
 ```cpp
 const unsigned char* data = im.data + (y * im_w + x) * 3;
-out.to_pixels_resize(data, ncnn::PIXEL_RGB, roiw, roih, im_w * 3);
+out.to_pixels_resize(data, ncnn::Mat::PIXEL_RGB, roiw, roih, im_w * 3);
 ```
 
 ### image roi crop + resize

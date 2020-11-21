@@ -876,7 +876,7 @@ inline void Mat::fill(int _v)
 #if __ARM_NEON
 inline void Mat::fill(float32x4_t _v)
 {
-    int size = total();
+    int size = (int)total();
     float* ptr = (float*)data;
     for (int i = 0; i < size; i++)
     {
@@ -886,7 +886,7 @@ inline void Mat::fill(float32x4_t _v)
 }
 inline void Mat::fill(uint16x4_t _v)
 {
-    int size = total();
+    int size = (int)total();
     unsigned short* ptr = (unsigned short*)data;
     for (int i = 0; i < size; i++)
     {
@@ -897,7 +897,7 @@ inline void Mat::fill(uint16x4_t _v)
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 inline void Mat::fill(float16x4_t _v)
 {
-    int size = total();
+    int size = (int)total();
     __fp16* ptr = (__fp16*)data;
     for (int i = 0; i < size; i++)
     {
@@ -908,7 +908,7 @@ inline void Mat::fill(float16x4_t _v)
 
 inline void Mat::fill(float16x8_t _v)
 {
-    int size = total();
+    int size = (int)total();
     __fp16* ptr = (__fp16*)data;
     for (int i = 0; i < size; i++)
     {
@@ -921,7 +921,7 @@ inline void Mat::fill(float16x8_t _v)
 #if __AVX__
 inline void Mat::fill(__m256 _v)
 {
-    int size = total();
+    int size = (int)total();
     float* ptr = (float*)data;
     for (int i = 0; i < size; i++)
     {
@@ -931,7 +931,7 @@ inline void Mat::fill(__m256 _v)
 }
 inline void Mat::fill(__m128i _v)
 {
-    int size = total();
+    int size = (int)total();
     unsigned short* ptr = (unsigned short*)data;
     for (int i = 0; i < size; i++)
     {
@@ -944,7 +944,7 @@ inline void Mat::fill(__m128i _v)
 template<typename T>
 inline void Mat::fill(T _v)
 {
-    int size = total();
+    int size = (int)total();
     T* ptr = (T*)data;
     for (int i = 0; i < size; i++)
     {
@@ -1339,7 +1339,7 @@ inline size_t Mat::total() const
 
 inline int Mat::elembits() const
 {
-    return elempack ? elemsize * 8 / elempack : 0;
+    return elempack ? static_cast<int>(elemsize * 8) / elempack : 0;
 }
 
 inline Mat Mat::shape() const

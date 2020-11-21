@@ -28,8 +28,9 @@
 
   (this is the zlib license)
 */
-#ifndef AVX_MATHFUN
-#define AVX_MATHFUN
+
+#ifndef AVX_MATHFUN_H
+#define AVX_MATHFUN_H
 
 #include <immintrin.h>
 #include <emmintrin.h>
@@ -721,4 +722,4 @@ static inline __m256 pow_ps(__m256 a, __m256 b)
     return exp256_ps(_mm256_mul_ps(b, log256_ps(a)));
 }
 
-#endif
+#endif // AVX_MATHFUN_H

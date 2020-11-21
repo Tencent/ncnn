@@ -64,6 +64,22 @@ def FuseKerasDenseOpPattern : Pat<
     (NCNN_KerasDenseOp $x, $weight, $bias)
 >;
 
+def NonOneElementAttrPred : CPred<"$_self.cast<ElementsAttr>().getType().getNumElements() != 1">;
+
+def NonOneElementAttr : ElementsAttrBase<And<[ElementsAttr.predicate, NonOneElementAttrPred]>, "Non Scalar ElementsAttr">;
+
+def FuseKerasBatchNormOpPattern : Pat<
+    (TF_AddV2Op
+        (TF_MulOp
+            $x,
+            (TF_ConstOp:$gamma NonOneElementAttr)
+        ),
+        (TF_ConstOp:$bias NonOneElementAttr)
+    ),
+
+    (NCNN_KerasBatchNormOp $x, $gamma, $bias)
+>;
+
 def FuseInstanceNormPattern0 : Pat<
     (TF_MulOp
         (TF_RsqrtOp

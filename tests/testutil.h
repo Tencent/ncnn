@@ -15,6 +15,7 @@
 #ifndef TESTUTIL_H
 #define TESTUTIL_H
 
+#include "cpu.h"
 #include "layer.h"
 #include "mat.h"
 #include "prng.h"
@@ -309,8 +310,10 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             int dst_elempack = 1;
 
 #if NCNN_AVX2
-            if (elemcount % 8 == 0)
+            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
                 dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
 #elif NCNN_ARM82
             if (elemcount % 8 == 0 && opt.use_fp16_arithmetic)
                 dst_elempack = 8;
@@ -725,8 +728,10 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         int dst_elempack = 1;
 
 #if NCNN_AVX2
-        if (elemcount % 8 == 0)
+        if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
             dst_elempack = 8;
+        else if (elemcount % 4 == 0)
+            dst_elempack = 4;
 #elif NCNN_ARM82
         if (elemcount % 8 == 0 && opt.use_fp16_arithmetic)
             dst_elempack = 8;
@@ -860,6 +865,12 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     opt.use_fp16_arithmetic = false;
 
     op->create_pipeline(opt);
+
+    if (!op->support_vulkan)
+    {
+        delete op;
+        return 233;
+    }
 
     {
         ncnn::VkTransfer cmd(vkdev);

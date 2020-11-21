@@ -30,14 +30,15 @@ public:
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob,
-                        const Option& opt) const;
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
     int forward_fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     ncnn::Layer* flatten;
+
+    Mat weight_data_packed;
 
     // fp16 weight data
     Mat weight_data_fp16;
