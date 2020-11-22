@@ -537,7 +537,9 @@ static int set_sched_affinity(const CpuSet& thread_affinity_mask)
     // http://www.hybridkernel.com/2015/01/18/binding_threads_to_cores_osx.html
     // https://gist.github.com/Coneko/4234842
 
-    // one thread could be binded on one core only :|   --- nihui
+    // This is a quite outdated document. Apple will not allow developers to set CPU affinity.
+    // In OS X 10.5 it worked, later it became a suggestion to OS X, then in 10.10 or so (as well in later ones), macOS will ignore any affinity settings.
+    // see https://github.com/Tencent/ncnn/pull/2335#discussion_r528233919   --- AmeAkio
 
     int affinity_tag = THREAD_AFFINITY_TAG_NULL;
     for (int i = 0; i < (int)sizeof(thread_affinity_mask.policy) * 8; i++)
@@ -554,7 +556,7 @@ static int set_sched_affinity(const CpuSet& thread_affinity_mask)
     thread_affinity_policy_data_t policy_data;
     policy_data.affinity_tag = affinity_tag;
     int ret = thread_policy_set(tid, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy_data, THREAD_AFFINITY_POLICY_COUNT);
-    if (ret)
+    if (ret && ret != KERN_NOT_SUPPORTED)
     {
         NCNN_LOGE("thread_policy_set error %d", ret);
         return -1;
