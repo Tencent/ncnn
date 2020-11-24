@@ -7,7 +7,7 @@
 * [concat](#concat)
 * [convolution](#convolution)
 * [dequantize](#dequantize)
-* [LSTM](#LSTM)
+* [lstm](#lstm)
 * [softmax](#softmax)
 
 # absval
@@ -135,7 +135,7 @@ y = activation(x3, act_type, act_params)
 |1|bias_term|int|0|
 |2|bias_data_size|int|0|
 
-# LSTM
+# lstm
 Apply a single-layer LSTM to a feature sequence of `T` timesteps. The input blob shape is `[w=input_size, h=T]` and the output blob shape is `[w=num_output, h=T]`.
 
 * one_blob_only
@@ -158,7 +158,7 @@ softmax(x, axis)
 ```
 
 * one_blob_only
-* inplace_only
+* support_inplace
 
 |param id|name|type|default|description|
 |--|--|--|--|--|
