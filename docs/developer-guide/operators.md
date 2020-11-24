@@ -147,7 +147,7 @@ Apply a single-layer LSTM to a feature sequence of `T` timesteps. The input blob
 |2|direction|int|0|0=forward, 1=reverse, 2=bidirectional|
 
 |weight|type|shape|description|
-|--|--|--|--|--|--|
+|--|--|--|--|
 |weight_xc_data|float|`[w=input_size, h=num_output * 4, c=num_directions]`||
 |bias_c_data|float|`[w=num_output, h=4, c=num_directions]`||
 |weight_hc_data|float|`[w=num_output, h=num_output * 4, c=num_directions]`||
