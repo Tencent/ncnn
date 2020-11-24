@@ -174,7 +174,8 @@ static std::vector<int> get_node_attr_from_input_ai(const onnx::TensorProto& tp)
         }
         for (int j = 0; j < size; j++)
         {
-            v.push_back(shape_data[j]);
+            int vi = std::max(std::min(shape_data[j], (::google::protobuf::int64)INT_MAX), (::google::protobuf::int64)INT_MIN);
+            v.push_back(vi);
         }
     }
     // int32
