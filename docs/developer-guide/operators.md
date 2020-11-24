@@ -6,6 +6,7 @@
 * [clip](#clip)
 * [concat](#concat)
 * [convolution](#convolution)
+* [dequantize](#dequantize)
 
 # absval
 ```
@@ -118,3 +119,17 @@ y = activation(x3, act_type, act_params)
 |--|--|
 |weight_data|float/fp16/int8|
 |bias_data|float|
+
+# dequantize
+```
+ y = x * scale + bias
+```
+* one_blob_only
+* support_inplace
+
+|param id|name|type|default|
+|--|--|--|--|
+|0|scale|float|1.f|
+|1|bias_term|int|0|
+|2|bias_data_size|int|0|
+
