@@ -2416,7 +2416,7 @@ int NetOptimize::replace_reduction_with_global_pooling()
         if (reduction1->axes.w != 1)
             continue;
 
-        const int* axes_ptr= reduction1->axes;
+        const int* axes_ptr = reduction1->axes;
         if (axes_ptr[0] != 2 && axes_ptr[0] != 3)
             continue;
 
@@ -2446,7 +2446,7 @@ int NetOptimize::replace_reduction_with_global_pooling()
         if (reduction2->axes.w != 1)
             continue;
 
-        const int* axes2_ptr= reduction2->axes;
+        const int* axes2_ptr = reduction2->axes;
         if (axes2_ptr[0] != 2)
             continue;
 
