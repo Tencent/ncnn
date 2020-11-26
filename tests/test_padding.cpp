@@ -50,6 +50,23 @@ static int test_padding(int w, int h, int c, int top, int bottom, int left, int 
 static int test_padding_0()
 {
     return 0
+           || test_padding(5, 7, 24, 1, 1, 1, 1, 0, 1.f, 0, 0, 0)
+           || test_padding(5, 7, 24, 2, 3, 4, 5, 0, 0.f, 24, 0, 0)
+           || test_padding(5, 7, 24, 4, 0, 0, 4, 1, 0.f, 0, 0, 0)
+           || test_padding(5, 7, 24, 0, 3, 0, 3, 2, 0.f, 0, 0, 0)
+           || test_padding(7, 9, 12, 2, 2, 2, 2, 0, 2.f, 0, 0, 0)
+           || test_padding(7, 9, 12, 3, 4, 5, 6, 0, 0.f, 12, 0, 0)
+           || test_padding(7, 9, 12, 1, 5, 5, 1, 1, 0.f, 0, 0, 0)
+           || test_padding(7, 9, 12, 4, 2, 4, 1, 2, 0.f, 0, 0, 0)
+           || test_padding(7, 5, 13, 3, 3, 3, 3, 0, 3.f, 0, 0, 0)
+           || test_padding(7, 5, 13, 0, 1, 2, 0, 0, 0.f, 13, 0, 0)
+           || test_padding(7, 5, 13, 4, 3, 4, 3, 1, 0.f, 0, 0, 0)
+           || test_padding(7, 5, 13, 4, 4, 4, 3, 2, 0.f, 0, 0, 0);
+}
+
+static int test_padding_1()
+{
+    return 0
            || test_padding(5, 7, 16, 1, 1, 1, 1, 0, 0.f, 0, 4, 0)
            || test_padding(5, 7, 16, 4, 3, 4, 3, 1, 0.f, 0, 4, 0)
            || test_padding(5, 7, 16, 4, 3, 4, 3, 2, 0.f, 0, 4, 0)
@@ -72,5 +89,5 @@ int main()
 {
     SRAND(7767517);
 
-    return test_padding_0();
+    return test_padding_0() || test_padding_1();
 }
