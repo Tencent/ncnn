@@ -37,6 +37,9 @@ public:
 #if defined __ANDROID__ || defined __linux__
     cpu_set_t cpu_set;
 #endif
+#if __APPLE__
+    unsigned int policy;
+#endif
 };
 
 // test optional cpu features
