@@ -71,11 +71,7 @@ void main()
     if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
-    int positive_axis = 0;
-    if (psc(dims) != 0)
-    {
-        positive_axis = axis < 0 ? psc(dims) + axis : axis;
-    }
+    int positive_axis = axis < 0 ? psc(dims) + axis : axis;
 #if NCNN_image_shader
     afpvec4 v;
     afpvec4 max_value;

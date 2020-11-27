@@ -72,11 +72,7 @@ void main()
 
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
-    int positive_axis = 0;
-    if (psc(dims) != 0)
-    {
-        positive_axis = axis < 0 ? psc(dims) + axis : axis;
-    }
+    int positive_axis = axis < 0 ? psc(dims) + axis : axis;
 
     ivec3 gxyz = ivec3(gx, gy, gz);
 

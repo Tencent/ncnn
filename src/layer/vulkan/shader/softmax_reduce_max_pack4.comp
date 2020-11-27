@@ -70,11 +70,7 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    int positive_axis = 0;
-    if (psc(dims) != 0)
-    {
-        positive_axis = axis < 0 ? psc(dims) + axis : axis;
-    }
+    int positive_axis = axis < 0 ? psc(dims) + axis : axis;
     afpvec4 max_value = afpvec4(-99999999.f);
 
     if (psc(dims) == 1) // positive_axis == 0
