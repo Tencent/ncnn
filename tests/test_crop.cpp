@@ -103,6 +103,34 @@ static int test_crop(const ncnn::Mat& a, const ncnn::Mat& starts, const ncnn::Ma
     return ret;
 }
 
+static int test_crop(const ncnn::Mat& a, int woffset, int hoffset, int coffset, const ncnn::Mat& ref)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, woffset);
+    pd.set(1, hoffset);
+    pd.set(2, coffset);
+    pd.set(3, 0); // outw
+    pd.set(4, 0); // outh
+    pd.set(5, 0); // outc
+    pd.set(6, 0); // woffset2
+    pd.set(7, 0); // hoffset2
+    pd.set(8, 0); // coffset2
+
+    std::vector<ncnn::Mat> weights(0);
+
+    std::vector<ncnn::Mat> ab(2);
+    ab[0] = a;
+    ab[1] = ref;
+
+    int ret = test_layer<ncnn::Crop>("Crop", pd, weights, ab);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_crop failed a.dims=%d a=(%d %d %d) woffset=%d hoffset=%d coffset=%d ref.dims=%d ref=(%d %d %d)\n", a.dims, a.w, a.h, a.c, woffset, hoffset, coffset, ref.dims, ref.w, ref.h, ref.c);
+    }
+
+    return ret;
+}
+
 static int test_crop_0(const ncnn::Mat& a)
 {
     return 0
@@ -130,6 +158,16 @@ static int test_crop_1(const ncnn::Mat& a)
 }
 
 static int test_crop_2(const ncnn::Mat& a)
+{
+    return 0
+           || test_crop(a, 0, 0, 0, ncnn::Mat(27))
+
+           || test_crop(a, 11, 0, 0, ncnn::Mat(17))
+           || test_crop(a, 12, 0, 0, ncnn::Mat(28))
+           || test_crop(a, 24, 0, 0, ncnn::Mat(24));
+}
+
+static int test_crop_3(const ncnn::Mat& a)
 {
     return 0
            || test_crop(a, 0, 0, 0, -233, -233, 0, 0, 0, 0)
@@ -164,7 +202,7 @@ static int test_crop_2(const ncnn::Mat& a)
            || test_crop(a, 16, 16, 0, -233, -233, 0, 28, 28, 0);
 }
 
-static int test_crop_3(const ncnn::Mat& a)
+static int test_crop_4(const ncnn::Mat& a)
 {
     return 0
            || test_crop(a, IntArrayMat(12), IntArrayMat(-233), IntArrayMat(0))
@@ -197,7 +235,18 @@ static int test_crop_3(const ncnn::Mat& a)
            || test_crop(a, IntArrayMat(16, 16), IntArrayMat(-17 + 1, -17 + 1), IntArrayMat(0, 1));
 }
 
-static int test_crop_4(const ncnn::Mat& a)
+static int test_crop_5(const ncnn::Mat& a)
+{
+    return 0
+           || test_crop(a, 0, 12, 0, ncnn::Mat(24, 17))
+           || test_crop(a, 11, 0, 0, ncnn::Mat(17, 27))
+
+           || test_crop(a, 11, 11, 0, ncnn::Mat(28, 28))
+           || test_crop(a, 12, 12, 0, ncnn::Mat(24, 24))
+           || test_crop(a, 16, 16, 0, ncnn::Mat(17, 17));
+}
+
+static int test_crop_6(const ncnn::Mat& a)
 {
     return 0
            || test_crop(a, 0, 0, 0, -233, -233, -233, 0, 0, 0)
@@ -269,7 +318,7 @@ static int test_crop_4(const ncnn::Mat& a)
            || test_crop(a, 16, 16, 16, -233, -233, -233, 28, 28, 28);
 }
 
-static int test_crop_5(const ncnn::Mat& a)
+static int test_crop_7(const ncnn::Mat& a)
 {
     return 0
            || test_crop(a, IntArrayMat(11), IntArrayMat(-233), IntArrayMat(0))
@@ -341,6 +390,20 @@ static int test_crop_5(const ncnn::Mat& a)
            || test_crop(a, IntArrayMat(16, 16, 16), IntArrayMat(-24 + 1, -24 + 1, -24 + 1), IntArrayMat(0, 1, 2));
 }
 
+static int test_crop_8(const ncnn::Mat& a)
+{
+    return 0
+           || test_crop(a, 0, 11, 0, ncnn::Mat(28, 28))
+           || test_crop(a, 12, 0, 0, ncnn::Mat(24, 24))
+           || test_crop(a, 11, 11, 0, ncnn::Mat(28, 28))
+           || test_crop(a, 12, 12, 0, ncnn::Mat(24, 24))
+           || test_crop(a, 16, 16, 0, ncnn::Mat(17, 17))
+
+           || test_crop(a, 11, 11, 11, ncnn::Mat(17, 17, 17))
+           || test_crop(a, 12, 12, 12, ncnn::Mat(28, 28, 28))
+           || test_crop(a, 16, 16, 16, ncnn::Mat(24, 24, 24));
+}
+
 int main()
 {
     SRAND(7767517);
@@ -352,16 +415,25 @@ int main()
            || test_crop_1(RandomMat(128))
            || test_crop_1(RandomMat(124))
            || test_crop_1(RandomMat(127))
-           || test_crop_2(RandomMat(64, 64))
-           || test_crop_2(RandomMat(60, 60))
-           || test_crop_2(RandomMat(63, 63))
+           || test_crop_2(RandomMat(128))
+           || test_crop_2(RandomMat(124))
+           || test_crop_2(RandomMat(127))
            || test_crop_3(RandomMat(64, 64))
            || test_crop_3(RandomMat(60, 60))
            || test_crop_3(RandomMat(63, 63))
-           || test_crop_4(RandomMat(64, 64, 64))
-           || test_crop_4(RandomMat(60, 60, 60))
-           || test_crop_4(RandomMat(63, 63, 63))
-           || test_crop_5(RandomMat(64, 64, 64))
-           || test_crop_5(RandomMat(60, 60, 60))
-           || test_crop_5(RandomMat(63, 63, 63));
+           || test_crop_4(RandomMat(64, 64))
+           || test_crop_4(RandomMat(60, 60))
+           || test_crop_4(RandomMat(63, 63))
+           || test_crop_5(RandomMat(64, 64))
+           || test_crop_5(RandomMat(60, 60))
+           || test_crop_5(RandomMat(63, 63))
+           || test_crop_6(RandomMat(64, 64, 64))
+           || test_crop_6(RandomMat(60, 60, 60))
+           || test_crop_6(RandomMat(63, 63, 63))
+           || test_crop_7(RandomMat(64, 64, 64))
+           || test_crop_7(RandomMat(60, 60, 60))
+           || test_crop_7(RandomMat(63, 63, 63))
+           || test_crop_8(RandomMat(64, 64, 64))
+           || test_crop_8(RandomMat(60, 60, 60))
+           || test_crop_8(RandomMat(63, 63, 63));
 }
