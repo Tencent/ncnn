@@ -2347,6 +2347,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "ExpandDims");
         }
+        else if (op == "Softplus")
+        {
+            fprintf(pp, "%-16s", "Softplus");
+        }
         else
         {
             // TODO
