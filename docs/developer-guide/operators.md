@@ -3,6 +3,7 @@
 * [argmax](#argmax)
 * [batchnorm](#batchnorm)
 * [bias](#bias)
+* [binaryop](#binaryop)
 * [bnll](#bnll)
 * [clip](#clip)
 * [concat](#concat)
@@ -66,6 +67,32 @@ y = x + bias
 |weight|type|
 |--|--|
 |bias_data|float|
+
+# binaryop
+ This operation is used for binary computation, and the calculation rule depends on the broadcasting rule. [broadcasting rule](https://github.com/Tencent/ncnn/wiki/binaryop-broadcasting)
+```
+C = binaryop(A, B)
+```
+if with_scalar = 1:
+- one_blob_only
+- support_inplace
+
+|param id|name|type|default|description|
+|--|--|--|--|--|
+|0|op_type|int|0|Operation type as follows|
+|1|with_scalar|int|0|0=B is a scalar, 1=B is a matrix|
+|2|b|float|0.f|When B is a scalar, B = b|
+
+Operation type:
+- Operation_ADD = 0
+- Operation_SUB = 1
+- Operation_MUL = 2
+- Operation_DIV = 3
+- Operation_MAX = 4
+- Operation_MIN = 5
+- Operation_POW = 6
+- Operation_RSUB = 7
+- Operation_RDIV = 8
 
 # bnll
 ```
