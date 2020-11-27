@@ -2302,6 +2302,10 @@ int main(int argc, char** argv)
         else if (op == "Softmax")
         {
             fprintf(pp, "%-16s", "Softmax");
+        }        
+        else if (op == "Softplus")
+        {
+            fprintf(pp, "%-16s", "Softplus");
         }
         else if (op == "Split")
         {
@@ -2346,10 +2350,6 @@ int main(int argc, char** argv)
         else if (op == "Unsqueeze")
         {
             fprintf(pp, "%-16s", "ExpandDims");
-        }
-        else if (op == "Softplus")
-        {
-            fprintf(pp, "%-16s", "Softplus");
         }
         else
         {
