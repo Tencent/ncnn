@@ -84,14 +84,19 @@ static int test_slice_0()
     return 0
            || test_slice(a, IntArrayMat(-233, -233, -233), 0)
            || test_slice(a, IntArrayMat(-233, -233, -233), 1)
-           || test_slice(a, IntArrayMat(-233, -233, -233), 2);
+           || test_slice(a, IntArrayMat(-233, -233, -233), 2)
+           || test_slice(a, IntArrayMat(-233, -233, -233), -1)
+           || test_slice(a, IntArrayMat(-233, -233, -233), -2)
+           || test_slice(a, IntArrayMat(-233, -233, -233), -3);
 }
 
 static int test_slice_1()
 {
     ncnn::Mat a = RandomMat(7, 3, 16);
 
-    return test_slice(a, IntArrayMat(3, 8, -233), 0);
+    return 0
+           || test_slice(a, IntArrayMat(3, 8, -233), 0)
+           || test_slice(a, IntArrayMat(3, 8, -233), -3);
 }
 
 static int test_slice_2()
@@ -101,7 +106,10 @@ static int test_slice_2()
 
     return 0
            || test_slice(a, IntArrayMat(3, 8, -233), 1)
-           || test_slice(b, IntArrayMat(3, 8, 5), 1);
+           || test_slice(a, IntArrayMat(3, 8, -233), -2)
+
+           || test_slice(b, IntArrayMat(3, 8, 5), 1)
+           || test_slice(b, IntArrayMat(3, 8, 5), -2);
 }
 
 static int test_slice_3()
@@ -111,7 +119,10 @@ static int test_slice_3()
 
     return 0
            || test_slice(a, IntArrayMat(5, 4, 7), 2)
-           || test_slice(b, IntArrayMat(5, 4, 7), 2);
+           || test_slice(a, IntArrayMat(5, 4, 7), -1)
+
+           || test_slice(b, IntArrayMat(5, 4, 7), 2)
+           || test_slice(b, IntArrayMat(5, 4, 7), -1);
 }
 
 static int test_slice_4()
@@ -122,8 +133,13 @@ static int test_slice_4()
 
     return 0
            || test_slice(a, IntArrayMat(3, 8, 5), 0)
+           || test_slice(a, IntArrayMat(3, 8, 5), -2)
+
            || test_slice(b, IntArrayMat(3, -233, -233), 1)
-           || test_slice(c, IntArrayMat(3, 8, 5), 1);
+           || test_slice(b, IntArrayMat(3, -233, -233), -1)
+
+           || test_slice(c, IntArrayMat(3, 8, 5), 1)
+           || test_slice(c, IntArrayMat(3, 8, 5), -1);
 }
 
 static int test_slice_5()
@@ -133,7 +149,10 @@ static int test_slice_5()
 
     return 0
            || test_slice(a, IntArrayMat(3, 8, 5), 0)
-           || test_slice(b, IntArrayMat(4, 8, -233), 0);
+           || test_slice(a, IntArrayMat(3, 8, 5), -1)
+
+           || test_slice(b, IntArrayMat(4, 8, -233), 0)
+           || test_slice(b, IntArrayMat(4, 8, -233), -1);
 }
 
 int main()
