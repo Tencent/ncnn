@@ -3,6 +3,7 @@
 * [argmax](#argmax)
 * [batchnorm](#batchnorm)
 * [bias](#bias)
+* [bnll](#bnll)
 * [clip](#clip)
 * [concat](#concat)
 * [convolution](#convolution)
@@ -65,6 +66,15 @@ y = x + bias
 |weight|type|
 |--|--|
 |bias_data|float|
+
+# bnll
+```
+y = log(1 + e^(-x)) , x > 0
+y = log(1 + e^x),     x < 0
+```
+
+* one_blob_only
+* support_inplace
 
 # clip
 ```
