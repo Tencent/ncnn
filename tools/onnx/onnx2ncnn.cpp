@@ -2303,6 +2303,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Softmax");
         }
+        else if (op == "Softplus")
+        {
+            fprintf(pp, "%-16s", "Softplus");
+        }
         else if (op == "Split")
         {
             fprintf(pp, "%-16s", "Slice");
