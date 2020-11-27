@@ -34,8 +34,21 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     const int* slices_ptr = slices;
+    int positive_axis = 0;
+    if (dims != 0)
+    {
+        if (-dims <= axis && axis < dims)
+            positive_axis = axis < 0 ? dims + axis : axis;
+        else
+            return -1;
+    }
+    else
+    {
+        if (!(axis == 0 || axis == -1))
+            return -1;
+    }
 
-    if (dims == 1) // axis == 0
+    if (dims == 1) // positive_axis == 0
     {
         int w = bottom_blob.w;
 
@@ -63,7 +76,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
         return 0;
     }
 
-    if (dims == 2 && axis == 0)
+    if (dims == 2 && positive_axis == 0)
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
@@ -94,7 +107,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
         return 0;
     }
 
-    if (dims == 2 && axis == 1)
+    if (dims == 2 && positive_axis == 1)
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
@@ -127,7 +140,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
         return 0;
     }
 
-    if (dims == 3 && axis == 0)
+    if (dims == 3 && positive_axis == 0)
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
@@ -159,7 +172,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
         return 0;
     }
 
-    if (dims == 3 && axis == 1)
+    if (dims == 3 && positive_axis == 1)
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
@@ -195,7 +208,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
         return 0;
     }
 
-    if (dims == 3 && axis == 2)
+    if (dims == 3 && positive_axis == 2)
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;

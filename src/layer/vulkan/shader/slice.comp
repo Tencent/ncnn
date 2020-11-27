@@ -61,6 +61,8 @@ layout (push_constant) uniform parameter
     int offset;
 } p;
 
+// Please check the validity of the axis under the current dims
+// before executing the shader.
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x);
@@ -69,10 +71,15 @@ void main()
 
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
+    int positive_axis = 0;
+    if (psc(dims) != 0)
+    {
+        positive_axis = axis < 0 ? psc(dims) + axis : axis;
+    }
 
     ivec3 gxyz = ivec3(gx, gy, gz);
 
-    gxyz[psc(dims) - 1 - axis] += p.offset;
+    gxyz[psc(dims) - 1 - positive_axis] += p.offset;
 
 #if NCNN_image_shader
     image3d_cp1(top_blob_3d, ivec3(gx, gy, gz), bottom_blob_3d, gxyz);
