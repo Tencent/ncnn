@@ -29,6 +29,7 @@ int Softmax_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
     size_t elemsize = bottom_top_blob.elemsize;
+    int positive_axis = 0;
     if (dims != 0)
     {
         if (-dims <= axis && axis < dims)
