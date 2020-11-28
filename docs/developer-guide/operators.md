@@ -80,19 +80,19 @@ if with_scalar = 1:
 |param id|name|type|default|description|
 |--|--|--|--|--|
 |0|op_type|int|0|Operation type as follows|
-|1|with_scalar|int|0|0=B is a matrix, 1=B is a scalar|
+|1|with_scalar|int|0|with_scalar=0 B is a matrix, with_scalar=1 B is a scalar|
 |2|b|float|0.f|When B is a scalar, B = b|
 
 Operation type:
-- Operation_ADD = 0
-- Operation_SUB = 1
-- Operation_MUL = 2
-- Operation_DIV = 3
-- Operation_MAX = 4
-- Operation_MIN = 5
-- Operation_POW = 6
-- Operation_RSUB = 7
-- Operation_RDIV = 8
+- ADD = 0
+- SUB = 1
+- MUL = 2
+- DIV = 3
+- MAX = 4
+- MIN = 5
+- POW = 6
+- RSUB = 7
+- RDIV = 8
 
 # bnll
 ```
