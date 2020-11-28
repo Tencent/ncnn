@@ -80,7 +80,7 @@ if with_scalar = 1:
 |param id|name|type|default|description|
 |--|--|--|--|--|
 |0|op_type|int|0|Operation type as follows|
-|1|with_scalar|int|0|0=B is a scalar, 1=B is a matrix|
+|1|with_scalar|int|0|0=B is a matrix, 1=B is a scalar|
 |2|b|float|0.f|When B is a scalar, B = b|
 
 Operation type:
