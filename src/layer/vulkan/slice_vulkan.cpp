@@ -239,19 +239,7 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     const int* slices_ptr = slices;
-    int positive_axis = 0;
-    if (dims != 0)
-    {
-        if (-dims <= axis && axis < dims)
-            positive_axis = axis < 0 ? dims + axis : axis;
-        else
-            return -1;
-    }
-    else
-    {
-        if (!(axis == 0 || axis == -1))
-            return -1;
-    }
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
     if (dims == 1) // positive_axis == 0
     {
@@ -738,19 +726,7 @@ int Slice_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vect
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     const int* slices_ptr = slices;
-    int positive_axis = 0;
-    if (dims != 0)
-    {
-        if (-dims <= axis && axis < dims)
-            positive_axis = axis < 0 ? dims + axis : axis;
-        else
-            return -1;
-    }
-    else
-    {
-        if (!(axis == 0 || axis == -1))
-            return -1;
-    }
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
     if (dims == 1) // positive_axis == 0
     {

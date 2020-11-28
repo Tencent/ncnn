@@ -281,19 +281,7 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     int channels = bottom_top_blob.c;
     size_t elemsize = bottom_top_blob.elemsize;
     int elempack = bottom_top_blob.elempack;
-    int positive_axis = 0;
-    if (dims != 0)
-    {
-        if (-dims <= axis && axis < dims)
-            positive_axis = axis < 0 ? dims + axis : axis;
-        else
-            return -1;
-    }
-    else
-    {
-        if (!(axis == 0 || axis == -1))
-            return -1;
-    }
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
     VkMat max_workspace;
     VkMat sum_workspace;
@@ -440,19 +428,7 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
     int channels = bottom_top_blob.c;
     size_t elemsize = bottom_top_blob.elemsize;
     int elempack = bottom_top_blob.elempack;
-    int positive_axis = 0;
-    if (dims != 0)
-    {
-        if (-dims <= axis && axis < dims)
-            positive_axis = axis < 0 ? dims + axis : axis;
-        else
-            return -1;
-    }
-    else
-    {
-        if (!(axis == 0 || axis == -1))
-            return -1;
-    }
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
     VkImageMat max_workspace;
     VkImageMat sum_workspace;

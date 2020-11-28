@@ -41,19 +41,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
 
     int dims = bottom_blobs[0].dims;
-    int positive_axis = 0;
-    if (dims != 0)
-    {
-        if (-dims <= axis && axis < dims)
-            positive_axis = axis < 0 ? dims + axis : axis;
-        else
-            return -1;
-    }
-    else
-    {
-        if (!(axis == 0 || axis == -1))
-            return -1;
-    }
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
     if (dims == 1) // positive_axis == 0
     {
@@ -375,19 +363,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
-    int positive_axis = 0;
-    if (dims != 0)
-    {
-        if (-dims <= axis && axis < dims)
-            positive_axis = axis < 0 ? dims + axis : axis;
-        else
-            return -1;
-    }
-    else
-    {
-        if (!(axis == 0 || axis == -1))
-            return -1;
-    }
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
     if (dims == 1) // positive_axis == 0
     {

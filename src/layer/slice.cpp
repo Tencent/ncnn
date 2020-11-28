@@ -34,19 +34,7 @@ int Slice::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_b
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     const int* slices_ptr = slices;
-    int positive_axis = 0;
-    if (dims != 0)
-    {
-        if (-dims <= axis && axis < dims)
-            positive_axis = axis < 0 ? dims + axis : axis;
-        else
-            return -1;
-    }
-    else
-    {
-        if (!(axis == 0 || axis == -1))
-            return -1;
-    }
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
     if (dims == 1) // positive_axis == 0
     {
