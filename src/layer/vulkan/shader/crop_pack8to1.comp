@@ -77,28 +77,80 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    int x = gx + p.woffset;
-    int y = gy + p.hoffset;
-    int z = gz + p.coffset;
+    if (psc(dims) == 1)
+    {
+        int x = gx + p.woffset;
 
 #if NCNN_image_shader
-    afpvec8 v = image3d_ld8(bottom_blob, ivec3(x, y, z / 8));
+        afpvec8 v = image3d_ld8(bottom_blob, ivec3(x / 8, 0, 0));
 
-    image3d_st1(top_blob, ivec3(gx, gy, gz), v[(z % 8) / 4][z % 4]);
+        image3d_st1(top_blob, ivec3(gx, gy, gz), v[(x % 8) / 4][x % 4]);
 #else
-    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+#if NCNN_fp16_packed
+        int v_offset = (x / 8) * 4 + (x % 8) / 2;
+        int lane2 = x % 2;
+
+        afpvec2 v = buffer_ld2(bottom_blob_data, v_offset);
+
+        buffer_st1(top_blob_data, gx, v[lane2]);
+#else
+        int v_offset = (x / 8) * 8 + x % 8;
+
+        buffer_cp1(top_blob_data, gx, bottom_blob_data, v_offset);
+#endif
+#endif
+    }
+    else if (psc(dims) == 2)
+    {
+        int x = gx + p.woffset;
+        int y = gy + p.hoffset;
+
+#if NCNN_image_shader
+        afpvec8 v = image3d_ld8(bottom_blob, ivec3(x, y / 8, 0));
+
+        image3d_st1(top_blob, ivec3(gx, gy, 0), v[(y % 8) / 4][y % 4]);
+#else
+        int gi = gy * psc(outw) + gx;
 
 #if NCNN_fp16_packed
-    int v_offset = ((z / 8) * psc(cstep) + y * psc(w) + x) * 4 + (z % 8) / 2;
-    int lane2 = z % 2;
+        int v_offset = ((y / 8) * psc(w) + x) * 4 + (y % 8) / 2;
+        int lane2 = y % 2;
 
-    afpvec2 v = buffer_ld2(bottom_blob_data, v_offset);
+        afpvec2 v = buffer_ld2(bottom_blob_data, v_offset);
 
-    buffer_st1(top_blob_data, gi, v[lane2]);
+        buffer_st1(top_blob_data, gi, v[lane2]);
 #else
-    int v_offset = ((z / 8) * psc(cstep) + y * psc(w) + x) * 8 + z % 8;
+        int v_offset = ((y / 8) * psc(w) + x) * 8 + y % 8;
 
-    buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+        buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
 #endif
 #endif
+    }
+    else // if (psc(dims) == 3)
+    {
+        int x = gx + p.woffset;
+        int y = gy + p.hoffset;
+        int z = gz + p.coffset;
+
+#if NCNN_image_shader
+        afpvec8 v = image3d_ld8(bottom_blob, ivec3(x, y, z / 8));
+
+        image3d_st1(top_blob, ivec3(gx, gy, gz), v[(z % 8) / 4][z % 4]);
+#else
+        int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+#if NCNN_fp16_packed
+        int v_offset = ((z / 8) * psc(cstep) + y * psc(w) + x) * 4 + (z % 8) / 2;
+        int lane2 = z % 2;
+
+        afpvec2 v = buffer_ld2(bottom_blob_data, v_offset);
+
+        buffer_st1(top_blob_data, gi, v[lane2]);
+#else
+        int v_offset = ((z / 8) * psc(cstep) + y * psc(w) + x) * 8 + z % 8;
+
+        buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
+#endif
+    }
 }

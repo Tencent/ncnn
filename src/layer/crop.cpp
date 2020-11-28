@@ -40,7 +40,7 @@ int Crop::load_param(const ParamDict& pd)
 
     bool numpy_style_slice = !starts.empty() && !ends.empty();
 
-    if (outw == 0 && outh == 0 && outc == 0 && !numpy_style_slice)
+    if (outw == 0 && outh == 0 && outc == 0 && woffset2 == 0 && hoffset2 == 0 && coffset2 == 0 && !numpy_style_slice)
     {
         one_blob_only = false;
     }
@@ -453,7 +453,7 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
                 if (outh != -233)
                     _outh = std::min(outh, _outh);
 
-                _outc = channels - coffset2 - coffset2;
+                _outc = channels - coffset - coffset2;
                 if (outc != -233)
                     _outc = std::min(outc, _outc);
             }

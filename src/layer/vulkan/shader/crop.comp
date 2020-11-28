@@ -72,17 +72,45 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    int x = gx + p.woffset;
-    int y = gy + p.hoffset;
-    int z = gz + p.coffset;
+    if (psc(dims) == 1)
+    {
+        int x = gx + p.woffset;
 
 #if NCNN_image_shader
-    image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
+        image3d_cp1(top_blob, ivec3(gx, 0, 0), bottom_blob, ivec3(x, 0, 0));
 #else
-    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
-
-    int v_offset = z * psc(cstep) + y * psc(w) + x;
-
-    buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+        buffer_cp1(top_blob_data, gx, bottom_blob_data, x);
 #endif
+    }
+    else if (psc(dims) == 2)
+    {
+        int x = gx + p.woffset;
+        int y = gy + p.hoffset;
+
+#if NCNN_image_shader
+        image3d_cp1(top_blob, ivec3(gx, gy, 0), bottom_blob, ivec3(x, y, 0));
+#else
+        const int gi = gy * psc(outw) + gx;
+
+        int v_offset = y * psc(w) + x;
+
+        buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
+    }
+    else // if (psc(dims) == 3)
+    {
+        int x = gx + p.woffset;
+        int y = gy + p.hoffset;
+        int z = gz + p.coffset;
+
+#if NCNN_image_shader
+        image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
+#else
+        const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+        int v_offset = z * psc(cstep) + y * psc(w) + x;
+
+        buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
+    }
 }

@@ -54,7 +54,6 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     bool numpy_style_slice = !starts.empty() && !ends.empty();
     if (numpy_style_slice)
     {
-        // TODO vec and image crop
         offset_elempack = elempack;
 
         const int* starts_ptr = starts;
@@ -79,11 +78,21 @@ int Crop_vulkan::create_pipeline(const Option& opt)
 
         for (int i = 0; i < num_axis; i++)
         {
+            int start = starts_ptr[i];
             int axis = _axes[i];
 
-            if (axis == 0)
+            if (shape.dims == 1 && axis == 0)
             {
-                int start = starts_ptr[i];
+                int _woffset = start >= 0 ? start : shape.w + start;
+                offset_elempack = opt.use_shader_pack8 && _woffset % 8 == 0 ? 8 : _woffset % 4 == 0 ? 4 : 1;
+            }
+            if (shape.dims == 2 && axis == 0)
+            {
+                int _hoffset = start >= 0 ? start : shape.h + start;
+                offset_elempack = opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
+            }
+            if (shape.dims == 3 && axis == 0)
+            {
                 int _coffset = start >= 0 ? start : shape.c + start;
                 offset_elempack = opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
             }
@@ -91,12 +100,30 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     }
     else
     {
-        // TODO vec and image crop
-        if (coffset == 0)
-            offset_elempack = elempack;
-        else
-            offset_elempack = opt.use_shader_pack8 && coffset % 8 == 0 ? 8 : coffset % 4 == 0 ? 4 : 1;
+        if (shape.dims == 1)
+        {
+            if (woffset == 0)
+                offset_elempack = elempack;
+            else
+                offset_elempack = opt.use_shader_pack8 && woffset % 8 == 0 ? 8 : woffset % 4 == 0 ? 4 : 1;
+        }
+        else if (shape.dims == 2)
+        {
+            if (hoffset == 0)
+                offset_elempack = elempack;
+            else
+                offset_elempack = opt.use_shader_pack8 && hoffset % 8 == 0 ? 8 : hoffset % 4 == 0 ? 4 : 1;
+        }
+        else // if (shape.dims == 3)
+        {
+            if (coffset == 0)
+                offset_elempack = elempack;
+            else
+                offset_elempack = opt.use_shader_pack8 && coffset % 8 == 0 ? 8 : coffset % 4 == 0 ? 4 : 1;
+        }
     }
+
+    offset_elempack = std::min(offset_elempack, elempack);
 
     size_t elemsize;
     size_t out_elemsize;
@@ -298,9 +325,32 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     int _outw, _outh, _outc;
     resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
 
-    // TODO vec and image crop
+    int offset_elempack;
+    int out_elempack;
 
-    if (dims == 3)
+    if (dims == 1)
+    {
+        if (_woffset == 0 && _outw == bottom_blob.w * elempack)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        offset_elempack = _woffset == 0 ? elempack : opt.use_shader_pack8 && _woffset % 8 == 0 ? 8 : _woffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+    }
+    else if (dims == 2)
+    {
+        if (_woffset == 0 && _hoffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h * elempack)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+    }
+    else // if (dims == 3)
     {
         if (_woffset == 0 && _hoffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outc == bottom_blob.c * elempack)
         {
@@ -308,107 +358,116 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
             return 0;
         }
 
-        int offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
-
-        int out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (out_elempack == 8) out_elemsize = 8 * 2u;
-            if (out_elempack == 4) out_elemsize = 4 * 2u;
-            if (out_elempack == 1) out_elemsize = 4u;
-        }
-
-        // unpacking
-        VkMat bottom_blob_unpacked = bottom_blob;
-        if (elempack == out_elempack && elempack > offset_elempack)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
-
-            vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, offset_elempack, cmd, opt_pack1);
-        }
-
-        top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-
-        std::vector<VkMat> bindings(2);
-        bindings[0] = bottom_blob_unpacked;
-        bindings[1] = top_blob;
-
-        std::vector<vk_constant_type> constants(13);
-        constants[0].i = bottom_blob_unpacked.dims;
-        constants[1].i = bottom_blob_unpacked.w;
-        constants[2].i = bottom_blob_unpacked.h;
-        constants[3].i = bottom_blob_unpacked.c;
-        constants[4].i = bottom_blob_unpacked.cstep;
-        constants[5].i = top_blob.dims;
-        constants[6].i = top_blob.w;
-        constants[7].i = top_blob.h;
-        constants[8].i = top_blob.c;
-        constants[9].i = top_blob.cstep;
-        constants[10].i = _woffset;
-        constants[11].i = _hoffset;
-        constants[12].i = _coffset;
-
-        const Pipeline* pipeline = 0;
-        if (elempack == 1 && out_elempack == 1)
-        {
-            pipeline = pipeline_crop;
-        }
-        else if (elempack == 4 && offset_elempack == 4 && out_elempack == 4)
-        {
-            constants[12].i = _coffset / 4;
-
-            pipeline = pipeline_crop_pack4;
-        }
-        else if (elempack == 4 && offset_elempack == 1 && out_elempack == 4)
-        {
-            pipeline = pipeline_crop_pack1to4;
-        }
-        else if (elempack == 1 && out_elempack == 4)
-        {
-            pipeline = pipeline_crop_pack1to4;
-        }
-        else if (elempack == 4 && out_elempack == 1)
-        {
-            pipeline = pipeline_crop_pack4to1;
-        }
-        else if (elempack == 8 && offset_elempack == 8 && out_elempack == 8)
-        {
-            constants[12].i = _coffset / 8;
-
-            pipeline = pipeline_crop_pack8;
-        }
-        else if (elempack == 8 && offset_elempack == 4 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack4to8;
-        }
-        else if (elempack == 8 && offset_elempack == 1 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack1to8;
-        }
-        else if (elempack == 1 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack1to8;
-        }
-        else if (elempack == 4 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack4to8;
-        }
-        else if (elempack == 8 && out_elempack == 4)
-        {
-            pipeline = pipeline_crop_pack8to4;
-        }
-        else if (elempack == 8 && out_elempack == 1)
-        {
-            pipeline = pipeline_crop_pack8to1;
-        }
-
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
     }
+
+    offset_elempack = std::min(offset_elempack, elempack);
+
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    {
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
+        if (out_elempack == 1) out_elemsize = 4u;
+    }
+
+    // unpacking
+    VkMat bottom_blob_unpacked = bottom_blob;
+    if (elempack == out_elempack && elempack > offset_elempack)
+    {
+        Option opt_pack1 = opt;
+        opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
+
+        vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, offset_elempack, cmd, opt_pack1);
+    }
+
+    if (dims == 1)
+    {
+        top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    else if (dims == 2)
+    {
+        top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    else // if (dims == 3)
+    {
+        top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    std::vector<VkMat> bindings(2);
+    bindings[0] = bottom_blob_unpacked;
+    bindings[1] = top_blob;
+
+    std::vector<vk_constant_type> constants(13);
+    constants[0].i = bottom_blob_unpacked.dims;
+    constants[1].i = bottom_blob_unpacked.w;
+    constants[2].i = bottom_blob_unpacked.h;
+    constants[3].i = bottom_blob_unpacked.c;
+    constants[4].i = bottom_blob_unpacked.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = top_blob.cstep;
+    constants[10].i = _woffset;
+    constants[11].i = _hoffset;
+    constants[12].i = _coffset;
+
+    const Pipeline* pipeline = 0;
+    if (elempack == 1 && out_elempack == 1)
+    {
+        pipeline = pipeline_crop;
+    }
+    else if (elempack == 4 && offset_elempack == 4 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack4;
+    }
+    else if (elempack == 4 && offset_elempack == 1 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack1to4;
+    }
+    else if (elempack == 1 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack1to4;
+    }
+    else if (elempack == 4 && out_elempack == 1)
+    {
+        pipeline = pipeline_crop_pack4to1;
+    }
+    else if (elempack == 8 && offset_elempack == 8 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack8;
+    }
+    else if (elempack == 8 && offset_elempack == 4 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack4to8;
+    }
+    else if (elempack == 8 && offset_elempack == 1 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack1to8;
+    }
+    else if (elempack == 1 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack1to8;
+    }
+    else if (elempack == 4 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack4to8;
+    }
+    else if (elempack == 8 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack8to4;
+    }
+    else if (elempack == 8 && out_elempack == 1)
+    {
+        pipeline = pipeline_crop_pack8to1;
+    }
+
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
 }
@@ -417,6 +476,7 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 {
     const VkMat& bottom_blob = bottom_blobs[0];
     const VkMat& reference_blob = bottom_blobs[1];
+    VkMat& top_blob = top_blobs[0];
 
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -433,119 +493,149 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
         resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
     }
 
-    // TODO vec and image crop
+    int offset_elempack;
+    int out_elempack;
 
-    if (dims == 3)
+    if (dims == 1)
     {
-        if (_woffset == 0 && _hoffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outc == bottom_blob.c * elempack)
+        if (_woffset == 0 && _outw == bottom_blob.w * elempack)
         {
-            top_blobs[0] = bottom_blob;
+            top_blob = bottom_blob;
             return 0;
         }
 
-        int offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
-
-        int out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (out_elempack == 8) out_elemsize = 8 * 2u;
-            if (out_elempack == 4) out_elemsize = 4 * 2u;
-            if (out_elempack == 1) out_elemsize = 4u;
-        }
-
-        // unpacking
-        VkMat bottom_blob_unpacked = bottom_blob;
-        if (elempack == out_elempack && elempack > offset_elempack)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
-
-            vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, offset_elempack, cmd, opt_pack1);
-        }
-
-        VkMat& top_blob = top_blobs[0];
-
-        top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-
-        std::vector<VkMat> bindings(2);
-        bindings[0] = bottom_blob_unpacked;
-        bindings[1] = top_blob;
-
-        std::vector<vk_constant_type> constants(13);
-        constants[0].i = bottom_blob_unpacked.dims;
-        constants[1].i = bottom_blob_unpacked.w;
-        constants[2].i = bottom_blob_unpacked.h;
-        constants[3].i = bottom_blob_unpacked.c;
-        constants[4].i = bottom_blob_unpacked.cstep;
-        constants[5].i = top_blob.dims;
-        constants[6].i = top_blob.w;
-        constants[7].i = top_blob.h;
-        constants[8].i = top_blob.c;
-        constants[9].i = top_blob.cstep;
-        constants[10].i = _woffset;
-        constants[11].i = _hoffset;
-        constants[12].i = _coffset;
-
-        const Pipeline* pipeline = 0;
-        if (elempack == 1 && out_elempack == 1)
-        {
-            pipeline = pipeline_crop;
-        }
-        else if (elempack == 4 && offset_elempack == 4 && out_elempack == 4)
-        {
-            constants[12].i = _coffset / 4;
-
-            pipeline = pipeline_crop_pack4;
-        }
-        else if (elempack == 4 && offset_elempack == 1 && out_elempack == 4)
-        {
-            pipeline = pipeline_crop_pack1to4;
-        }
-        else if (elempack == 1 && out_elempack == 4)
-        {
-            pipeline = pipeline_crop_pack1to4;
-        }
-        else if (elempack == 4 && out_elempack == 1)
-        {
-            pipeline = pipeline_crop_pack4to1;
-        }
-        else if (elempack == 8 && offset_elempack == 8 && out_elempack == 8)
-        {
-            constants[12].i = _coffset / 8;
-
-            pipeline = pipeline_crop_pack8;
-        }
-        else if (elempack == 8 && offset_elempack == 4 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack4to8;
-        }
-        else if (elempack == 8 && offset_elempack == 1 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack1to8;
-        }
-        else if (elempack == 1 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack1to8;
-        }
-        else if (elempack == 4 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack4to8;
-        }
-        else if (elempack == 8 && out_elempack == 4)
-        {
-            pipeline = pipeline_crop_pack8to4;
-        }
-        else if (elempack == 8 && out_elempack == 1)
-        {
-            pipeline = pipeline_crop_pack8to1;
-        }
-
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        offset_elempack = _woffset == 0 ? elempack : opt.use_shader_pack8 && _woffset % 8 == 0 ? 8 : _woffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
     }
+    else if (dims == 2)
+    {
+        if (_woffset == 0 && _hoffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h * elempack)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+    }
+    else // if (dims == 3)
+    {
+        if (_woffset == 0 && _hoffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outc == bottom_blob.c * elempack)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+    }
+
+    offset_elempack = std::min(offset_elempack, elempack);
+
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    {
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
+        if (out_elempack == 1) out_elemsize = 4u;
+    }
+
+    // unpacking
+    VkMat bottom_blob_unpacked = bottom_blob;
+    if (elempack == out_elempack && elempack > offset_elempack)
+    {
+        Option opt_pack1 = opt;
+        opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
+
+        vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, offset_elempack, cmd, opt_pack1);
+    }
+
+    if (dims == 1)
+    {
+        top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    else if (dims == 2)
+    {
+        top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    else // if (dims == 3)
+    {
+        top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    std::vector<VkMat> bindings(2);
+    bindings[0] = bottom_blob_unpacked;
+    bindings[1] = top_blob;
+
+    std::vector<vk_constant_type> constants(13);
+    constants[0].i = bottom_blob_unpacked.dims;
+    constants[1].i = bottom_blob_unpacked.w;
+    constants[2].i = bottom_blob_unpacked.h;
+    constants[3].i = bottom_blob_unpacked.c;
+    constants[4].i = bottom_blob_unpacked.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = top_blob.cstep;
+    constants[10].i = _woffset;
+    constants[11].i = _hoffset;
+    constants[12].i = _coffset;
+
+    const Pipeline* pipeline = 0;
+    if (elempack == 1 && out_elempack == 1)
+    {
+        pipeline = pipeline_crop;
+    }
+    else if (elempack == 4 && offset_elempack == 4 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack4;
+    }
+    else if (elempack == 4 && offset_elempack == 1 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack1to4;
+    }
+    else if (elempack == 1 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack1to4;
+    }
+    else if (elempack == 4 && out_elempack == 1)
+    {
+        pipeline = pipeline_crop_pack4to1;
+    }
+    else if (elempack == 8 && offset_elempack == 8 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack8;
+    }
+    else if (elempack == 8 && offset_elempack == 4 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack4to8;
+    }
+    else if (elempack == 8 && offset_elempack == 1 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack1to8;
+    }
+    else if (elempack == 1 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack1to8;
+    }
+    else if (elempack == 4 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack4to8;
+    }
+    else if (elempack == 8 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack8to4;
+    }
+    else if (elempack == 8 && out_elempack == 1)
+    {
+        pipeline = pipeline_crop_pack8to1;
+    }
+
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
 }
@@ -560,9 +650,32 @@ int Crop_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
     int _outw, _outh, _outc;
     resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
 
-    // TODO vec and image crop
+    int offset_elempack;
+    int out_elempack;
 
-    if (dims == 3)
+    if (dims == 1)
+    {
+        if (_woffset == 0 && _outw == bottom_blob.w * elempack)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        offset_elempack = _woffset == 0 ? elempack : opt.use_shader_pack8 && _woffset % 8 == 0 ? 8 : _woffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+    }
+    else if (dims == 2)
+    {
+        if (_woffset == 0 && _hoffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h * elempack)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+    }
+    else // if (dims == 3)
     {
         if (_woffset == 0 && _hoffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outc == bottom_blob.c * elempack)
         {
@@ -570,107 +683,116 @@ int Crop_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
             return 0;
         }
 
-        int offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
-
-        int out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (out_elempack == 8) out_elemsize = 8 * 2u;
-            if (out_elempack == 4) out_elemsize = 4 * 2u;
-            if (out_elempack == 1) out_elemsize = 4u;
-        }
-
-        // unpacking
-        VkImageMat bottom_blob_unpacked = bottom_blob;
-        if (elempack == out_elempack && elempack > offset_elempack)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
-
-            vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, offset_elempack, cmd, opt_pack1);
-        }
-
-        top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-
-        std::vector<VkImageMat> bindings(2);
-        bindings[0] = bottom_blob_unpacked;
-        bindings[1] = top_blob;
-
-        std::vector<vk_constant_type> constants(13);
-        constants[0].i = bottom_blob_unpacked.dims;
-        constants[1].i = bottom_blob_unpacked.w;
-        constants[2].i = bottom_blob_unpacked.h;
-        constants[3].i = bottom_blob_unpacked.c;
-        constants[4].i = 0; //bottom_blob_unpacked.cstep;
-        constants[5].i = top_blob.dims;
-        constants[6].i = top_blob.w;
-        constants[7].i = top_blob.h;
-        constants[8].i = top_blob.c;
-        constants[9].i = 0; //top_blob.cstep;
-        constants[10].i = _woffset;
-        constants[11].i = _hoffset;
-        constants[12].i = _coffset;
-
-        const Pipeline* pipeline = 0;
-        if (elempack == 1 && out_elempack == 1)
-        {
-            pipeline = pipeline_crop;
-        }
-        else if (elempack == 4 && offset_elempack == 4 && out_elempack == 4)
-        {
-            constants[12].i = _coffset / 4;
-
-            pipeline = pipeline_crop_pack4;
-        }
-        else if (elempack == 4 && offset_elempack == 1 && out_elempack == 4)
-        {
-            pipeline = pipeline_crop_pack1to4;
-        }
-        else if (elempack == 1 && out_elempack == 4)
-        {
-            pipeline = pipeline_crop_pack1to4;
-        }
-        else if (elempack == 4 && out_elempack == 1)
-        {
-            pipeline = pipeline_crop_pack4to1;
-        }
-        else if (elempack == 8 && offset_elempack == 8 && out_elempack == 8)
-        {
-            constants[12].i = _coffset / 8;
-
-            pipeline = pipeline_crop_pack8;
-        }
-        else if (elempack == 8 && offset_elempack == 4 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack4to8;
-        }
-        else if (elempack == 8 && offset_elempack == 1 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack1to8;
-        }
-        else if (elempack == 1 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack1to8;
-        }
-        else if (elempack == 4 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack4to8;
-        }
-        else if (elempack == 8 && out_elempack == 4)
-        {
-            pipeline = pipeline_crop_pack8to4;
-        }
-        else if (elempack == 8 && out_elempack == 1)
-        {
-            pipeline = pipeline_crop_pack8to1;
-        }
-
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
     }
+
+    offset_elempack = std::min(offset_elempack, elempack);
+
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    {
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
+        if (out_elempack == 1) out_elemsize = 4u;
+    }
+
+    // unpacking
+    VkImageMat bottom_blob_unpacked = bottom_blob;
+    if (elempack == out_elempack && elempack > offset_elempack)
+    {
+        Option opt_pack1 = opt;
+        opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
+
+        vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, offset_elempack, cmd, opt_pack1);
+    }
+
+    if (dims == 1)
+    {
+        top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    else if (dims == 2)
+    {
+        top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    else // if (dims == 3)
+    {
+        top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    std::vector<VkImageMat> bindings(2);
+    bindings[0] = bottom_blob_unpacked;
+    bindings[1] = top_blob;
+
+    std::vector<vk_constant_type> constants(13);
+    constants[0].i = bottom_blob_unpacked.dims;
+    constants[1].i = bottom_blob_unpacked.w;
+    constants[2].i = bottom_blob_unpacked.h;
+    constants[3].i = bottom_blob_unpacked.c;
+    constants[4].i = 0; //bottom_blob_unpacked.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = 0; //top_blob.cstep;
+    constants[10].i = _woffset;
+    constants[11].i = _hoffset;
+    constants[12].i = _coffset;
+
+    const Pipeline* pipeline = 0;
+    if (elempack == 1 && out_elempack == 1)
+    {
+        pipeline = pipeline_crop;
+    }
+    else if (elempack == 4 && offset_elempack == 4 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack4;
+    }
+    else if (elempack == 4 && offset_elempack == 1 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack1to4;
+    }
+    else if (elempack == 1 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack1to4;
+    }
+    else if (elempack == 4 && out_elempack == 1)
+    {
+        pipeline = pipeline_crop_pack4to1;
+    }
+    else if (elempack == 8 && offset_elempack == 8 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack8;
+    }
+    else if (elempack == 8 && offset_elempack == 4 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack4to8;
+    }
+    else if (elempack == 8 && offset_elempack == 1 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack1to8;
+    }
+    else if (elempack == 1 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack1to8;
+    }
+    else if (elempack == 4 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack4to8;
+    }
+    else if (elempack == 8 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack8to4;
+    }
+    else if (elempack == 8 && out_elempack == 1)
+    {
+        pipeline = pipeline_crop_pack8to1;
+    }
+
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
 }
@@ -679,6 +801,7 @@ int Crop_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
 {
     const VkImageMat& bottom_blob = bottom_blobs[0];
     const VkImageMat& reference_blob = bottom_blobs[1];
+    VkImageMat& top_blob = top_blobs[0];
 
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -695,119 +818,149 @@ int Crop_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
         resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
     }
 
-    // TODO vec and image crop
+    int offset_elempack;
+    int out_elempack;
 
-    if (dims == 3)
+    if (dims == 1)
     {
-        if (_woffset == 0 && _hoffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outc == bottom_blob.c * elempack)
+        if (_woffset == 0 && _outw == bottom_blob.w * elempack)
         {
-            top_blobs[0] = bottom_blob;
+            top_blob = bottom_blob;
             return 0;
         }
 
-        int offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
-
-        int out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
-        size_t out_elemsize = elemsize / elempack * out_elempack;
-
-        if (opt.use_fp16_packed && !opt.use_fp16_storage)
-        {
-            if (out_elempack == 8) out_elemsize = 8 * 2u;
-            if (out_elempack == 4) out_elemsize = 4 * 2u;
-            if (out_elempack == 1) out_elemsize = 4u;
-        }
-
-        // unpacking
-        VkImageMat bottom_blob_unpacked = bottom_blob;
-        if (elempack == out_elempack && elempack > offset_elempack)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
-
-            vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, offset_elempack, cmd, opt_pack1);
-        }
-
-        VkImageMat& top_blob = top_blobs[0];
-
-        top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-        if (top_blob.empty())
-            return -100;
-
-        std::vector<VkImageMat> bindings(2);
-        bindings[0] = bottom_blob_unpacked;
-        bindings[1] = top_blob;
-
-        std::vector<vk_constant_type> constants(13);
-        constants[0].i = bottom_blob_unpacked.dims;
-        constants[1].i = bottom_blob_unpacked.w;
-        constants[2].i = bottom_blob_unpacked.h;
-        constants[3].i = bottom_blob_unpacked.c;
-        constants[4].i = 0; //bottom_blob_unpacked.cstep;
-        constants[5].i = top_blob.dims;
-        constants[6].i = top_blob.w;
-        constants[7].i = top_blob.h;
-        constants[8].i = top_blob.c;
-        constants[9].i = 0; //top_blob.cstep;
-        constants[10].i = _woffset;
-        constants[11].i = _hoffset;
-        constants[12].i = _coffset;
-
-        const Pipeline* pipeline = 0;
-        if (elempack == 1 && out_elempack == 1)
-        {
-            pipeline = pipeline_crop;
-        }
-        else if (elempack == 4 && offset_elempack == 4 && out_elempack == 4)
-        {
-            constants[12].i = _coffset / 4;
-
-            pipeline = pipeline_crop_pack4;
-        }
-        else if (elempack == 4 && offset_elempack == 1 && out_elempack == 4)
-        {
-            pipeline = pipeline_crop_pack1to4;
-        }
-        else if (elempack == 1 && out_elempack == 4)
-        {
-            pipeline = pipeline_crop_pack1to4;
-        }
-        else if (elempack == 4 && out_elempack == 1)
-        {
-            pipeline = pipeline_crop_pack4to1;
-        }
-        else if (elempack == 8 && offset_elempack == 8 && out_elempack == 8)
-        {
-            constants[12].i = _coffset / 8;
-
-            pipeline = pipeline_crop_pack8;
-        }
-        else if (elempack == 8 && offset_elempack == 4 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack4to8;
-        }
-        else if (elempack == 8 && offset_elempack == 1 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack1to8;
-        }
-        else if (elempack == 1 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack1to8;
-        }
-        else if (elempack == 4 && out_elempack == 8)
-        {
-            pipeline = pipeline_crop_pack4to8;
-        }
-        else if (elempack == 8 && out_elempack == 4)
-        {
-            pipeline = pipeline_crop_pack8to4;
-        }
-        else if (elempack == 8 && out_elempack == 1)
-        {
-            pipeline = pipeline_crop_pack8to1;
-        }
-
-        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+        offset_elempack = _woffset == 0 ? elempack : opt.use_shader_pack8 && _woffset % 8 == 0 ? 8 : _woffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
     }
+    else if (dims == 2)
+    {
+        if (_woffset == 0 && _hoffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h * elempack)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+    }
+    else // if (dims == 3)
+    {
+        if (_woffset == 0 && _hoffset == 0 && _coffset == 0 && _outw == bottom_blob.w && _outh == bottom_blob.h && _outc == bottom_blob.c * elempack)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+    }
+
+    offset_elempack = std::min(offset_elempack, elempack);
+
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    if (opt.use_fp16_packed && !opt.use_fp16_storage)
+    {
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
+        if (out_elempack == 1) out_elemsize = 4u;
+    }
+
+    // unpacking
+    VkImageMat bottom_blob_unpacked = bottom_blob;
+    if (elempack == out_elempack && elempack > offset_elempack)
+    {
+        Option opt_pack1 = opt;
+        opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
+
+        vkdev->convert_packing(bottom_blob, bottom_blob_unpacked, offset_elempack, cmd, opt_pack1);
+    }
+
+    if (dims == 1)
+    {
+        top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    else if (dims == 2)
+    {
+        top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    else // if (dims == 3)
+    {
+        top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    std::vector<VkImageMat> bindings(2);
+    bindings[0] = bottom_blob_unpacked;
+    bindings[1] = top_blob;
+
+    std::vector<vk_constant_type> constants(13);
+    constants[0].i = bottom_blob_unpacked.dims;
+    constants[1].i = bottom_blob_unpacked.w;
+    constants[2].i = bottom_blob_unpacked.h;
+    constants[3].i = bottom_blob_unpacked.c;
+    constants[4].i = 0; //bottom_blob_unpacked.cstep;
+    constants[5].i = top_blob.dims;
+    constants[6].i = top_blob.w;
+    constants[7].i = top_blob.h;
+    constants[8].i = top_blob.c;
+    constants[9].i = 0; //top_blob.cstep;
+    constants[10].i = _woffset;
+    constants[11].i = _hoffset;
+    constants[12].i = _coffset;
+
+    const Pipeline* pipeline = 0;
+    if (elempack == 1 && out_elempack == 1)
+    {
+        pipeline = pipeline_crop;
+    }
+    else if (elempack == 4 && offset_elempack == 4 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack4;
+    }
+    else if (elempack == 4 && offset_elempack == 1 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack1to4;
+    }
+    else if (elempack == 1 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack1to4;
+    }
+    else if (elempack == 4 && out_elempack == 1)
+    {
+        pipeline = pipeline_crop_pack4to1;
+    }
+    else if (elempack == 8 && offset_elempack == 8 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack8;
+    }
+    else if (elempack == 8 && offset_elempack == 4 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack4to8;
+    }
+    else if (elempack == 8 && offset_elempack == 1 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack1to8;
+    }
+    else if (elempack == 1 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack1to8;
+    }
+    else if (elempack == 4 && out_elempack == 8)
+    {
+        pipeline = pipeline_crop_pack4to8;
+    }
+    else if (elempack == 8 && out_elempack == 4)
+    {
+        pipeline = pipeline_crop_pack8to4;
+    }
+    else if (elempack == 8 && out_elempack == 1)
+    {
+        pipeline = pipeline_crop_pack8to1;
+    }
+
+    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
     return 0;
 }
