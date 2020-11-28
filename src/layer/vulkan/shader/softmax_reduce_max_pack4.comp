@@ -68,9 +68,10 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
+    int positive_axis = axis < 0 ? psc(dims) + axis : axis;
     afpvec4 max_value = afpvec4(-99999999.f);
 
-    if (psc(dims) == 1) // axis == 0
+    if (psc(dims) == 1) // positive_axis == 0
     {
         for (int i = 0; i < psc(w); i++)
         {
@@ -91,7 +92,7 @@ void main()
         return;
     }
 
-    if (psc(dims) == 2 && axis == 0)
+    if (psc(dims) == 2 && positive_axis == 0)
     {
         for (int i = 0; i < psc(h); i++)
         {
@@ -113,7 +114,7 @@ void main()
         return;
     }
 
-    if (psc(dims) == 2 && axis == 1)
+    if (psc(dims) == 2 && positive_axis == 1)
     {
         for (int i = 0; i < psc(w); i++)
         {
@@ -133,7 +134,7 @@ void main()
         return;
     }
 
-    if (psc(dims) == 3 && axis == 0)
+    if (psc(dims) == 3 && positive_axis == 0)
     {
         for (int i = 0; i < psc(c); i++)
         {
@@ -155,7 +156,7 @@ void main()
         return;
     }
 
-    if (psc(dims) == 3 && axis == 1)
+    if (psc(dims) == 3 && positive_axis == 1)
     {
         for (int i = 0; i < psc(h); i++)
         {
@@ -175,7 +176,7 @@ void main()
         return;
     }
 
-    if (psc(dims) == 3 && axis == 2)
+    if (psc(dims) == 3 && positive_axis == 2)
     {
         for (int i = 0; i < psc(w); i++)
         {
