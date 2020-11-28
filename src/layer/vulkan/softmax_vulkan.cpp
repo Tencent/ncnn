@@ -42,11 +42,7 @@ Softmax_vulkan::Softmax_vulkan()
 int Softmax_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
-    int positive_axis = 0;
-    if (shape.dims != 0 && -shape.dims <= axis && axis < shape.dims)
-    {
-        positive_axis = axis < 0 ? shape.dims + axis : axis;
-    }
+    int positive_axis = axis < 0 ? shape.dims + axis : axis;
 
     int elempack = 1;
     if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
