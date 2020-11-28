@@ -61,8 +61,6 @@ layout (push_constant) uniform parameter
     int outcstep;
 } p;
 
-// Please check the validity of the axis under the current dims
-// before executing the shader.
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x);
