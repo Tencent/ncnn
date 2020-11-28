@@ -71,10 +71,11 @@ void main()
     if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
+    int positive_axis = axis < 0 ? psc(dims) + axis : axis;
     ivec3 gxyz = ivec3(gx, gy, gz);
 
     gxyz[psc(dims) - 1] *= 8;
-    gxyz[psc(dims) - 1 - axis] += p.offset;
+    gxyz[psc(dims) - 1 - positive_axis] += p.offset;
 
 #if NCNN_image_shader
     afpvec8 v = image3d_ld8(bottom_blob_3d, ivec3(gx, gy, gz));
@@ -92,7 +93,7 @@ void main()
     }
     else if (psc(dims) == 2)
     {
-        if (axis == 0)
+        if (positive_axis == 0)
         {
             image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 0, 0), v[0].r);
             image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 1, 0), v[0].g);
@@ -103,7 +104,7 @@ void main()
             image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 6, 0), v[1].b);
             image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 7, 0), v[1].a);
         }
-        if (axis == 1)
+        if (positive_axis == 1)
         {
             image3d_st1(top_blob_3d, ivec3(gxyz.x + 0, gxyz.y, 0), v[0].r);
             image3d_st1(top_blob_3d, ivec3(gxyz.x + 1, gxyz.y, 0), v[0].g);
@@ -117,7 +118,7 @@ void main()
     }
     else // if (psc(dims) == 3)
     {
-        if (axis == 0)
+        if (positive_axis == 0)
         {
             image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y, gxyz.z + 0), v[0].r);
             image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y, gxyz.z + 1), v[0].g);
@@ -128,7 +129,7 @@ void main()
             image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y, gxyz.z + 6), v[1].b);
             image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y, gxyz.z + 7), v[1].a);
         }
-        if (axis == 1)
+        if (positive_axis == 1)
         {
             image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 0, gxyz.z), v[0].r);
             image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 1, gxyz.z), v[0].g);
@@ -139,7 +140,7 @@ void main()
             image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 6, gxyz.z), v[1].b);
             image3d_st1(top_blob_3d, ivec3(gxyz.x, gxyz.y + 7, gxyz.z), v[1].a);
         }
-        if (axis == 2)
+        if (positive_axis == 2)
         {
             image3d_st1(top_blob_3d, ivec3(gxyz.x + 0, gxyz.y, gxyz.z), v[0].r);
             image3d_st1(top_blob_3d, ivec3(gxyz.x + 1, gxyz.y, gxyz.z), v[0].g);
@@ -158,8 +159,8 @@ void main()
 
     ivec3 gxyz4 = ivec3(1, psc(outw), psc(outcstep));
 
-    ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * gxyz4[psc(dims) - 1 - axis];
-    ivec4 vv_offset = v_offset + 4 * gxyz4[psc(dims) - 1 - axis];
+    ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * gxyz4[psc(dims) - 1 - positive_axis];
+    ivec4 vv_offset = v_offset + 4 * gxyz4[psc(dims) - 1 - positive_axis];
 
     buffer_cp8to1(top_blob_data, v_offset, vv_offset, bottom_blob_data, gi);
 #endif

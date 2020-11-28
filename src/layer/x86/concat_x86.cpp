@@ -24,8 +24,9 @@ Concat_x86::Concat_x86()
 int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
-    if (dims == 1) // axis == 0
+    if (dims == 1) // positive_axis == 0
     {
         // concat vector
         // total length
@@ -66,7 +67,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
     }
 
-    if (dims == 2 && axis == 0)
+    if (dims == 2 && positive_axis == 0)
     {
         // concat image
         int w = bottom_blobs[0].w;
@@ -216,7 +217,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
     }
 
-    if (dims == 2 && axis == 1)
+    if (dims == 2 && positive_axis == 1)
     {
         // interleave image row
         int h = bottom_blobs[0].h;
@@ -252,7 +253,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
     }
 
-    if (dims == 3 && axis == 0)
+    if (dims == 3 && positive_axis == 0)
     {
         // concat dim
         int w = bottom_blobs[0].w;
@@ -410,7 +411,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
     }
 
-    if (dims == 3 && axis == 1)
+    if (dims == 3 && positive_axis == 1)
     {
         // interleave dim height
         int w = bottom_blobs[0].w;
@@ -450,7 +451,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
     }
 
-    if (dims == 3 && axis == 2)
+    if (dims == 3 && positive_axis == 2)
     {
         // interleave dim width
         int h = bottom_blobs[0].h;

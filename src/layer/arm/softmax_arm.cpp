@@ -37,11 +37,12 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int dims = bottom_top_blob.dims;
     size_t elemsize = bottom_top_blob.elemsize;
     int elempack = bottom_top_blob.elempack;
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
 #if __ARM_NEON
     if (elempack == 4)
     {
-        if (dims == 1) // axis == 0
+        if (dims == 1) // positive_axis == 0
         {
             int w = bottom_top_blob.w;
 
@@ -91,7 +92,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return 0;
         }
 
-        if (dims == 2 && axis == 0)
+        if (dims == 2 && positive_axis == 0)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
@@ -167,7 +168,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return 0;
         }
 
-        if (dims == 2 && axis == 1)
+        if (dims == 2 && positive_axis == 1)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
@@ -208,7 +209,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return 0;
         }
 
-        if (dims == 3 && axis == 0)
+        if (dims == 3 && positive_axis == 0)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
@@ -288,7 +289,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return 0;
         }
 
-        if (dims == 3 && axis == 1)
+        if (dims == 3 && positive_axis == 1)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
@@ -379,7 +380,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             return 0;
         }
 
-        if (dims == 3 && axis == 2)
+        if (dims == 3 && positive_axis == 2)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
@@ -430,7 +431,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
 #endif // __ARM_NEON
 
-    if (dims != 3 || axis != 0)
+    if (dims != 3 || positive_axis != 0)
         return Softmax::forward_inplace(bottom_top_blob, opt);
 
     // value = exp( value - global max value )

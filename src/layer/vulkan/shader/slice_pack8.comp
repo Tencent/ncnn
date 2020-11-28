@@ -70,10 +70,11 @@ void main()
 
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
+    int positive_axis = axis < 0 ? psc(dims) + axis : axis;
 
     ivec3 gxyz = ivec3(gx, gy, gz);
 
-    gxyz[psc(dims) - 1 - axis] += p.offset;
+    gxyz[psc(dims) - 1 - positive_axis] += p.offset;
 
 #if NCNN_image_shader
     image3d_cp8(top_blob_3d, ivec3(gx, gy, gz), bottom_blob_3d, gxyz);
