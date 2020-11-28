@@ -69,7 +69,7 @@ y = x + bias
 |bias_data|float|
 
 # binaryop
- This operation is used for binary computation, and the calculation rule depends on the broadcasting rule. [broadcasting rule](https://github.com/Tencent/ncnn/wiki/binaryop-broadcasting)
+ This operation is used for binary computation, and the calculation rule depends on the [broadcasting rule](https://github.com/Tencent/ncnn/wiki/binaryop-broadcasting).
 ```
 C = binaryop(A, B)
 ```
@@ -84,15 +84,15 @@ if with_scalar = 1:
 |2|b|float|0.f|When B is a scalar, B = b|
 
 Operation type:
-- ADD = 0
-- SUB = 1
-- MUL = 2
-- DIV = 3
-- MAX = 4
-- MIN = 5
-- POW = 6
-- RSUB = 7
-- RDIV = 8
+- 0 = ADD
+- 1 = SUB
+- 2 = MUL
+- 3 = DIV
+- 4 = MAX
+- 5 = MIN
+- 6 = POW
+- 7 = RSUB
+- 8 = RDIV
 
 # bnll
 ```
