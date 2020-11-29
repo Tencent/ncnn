@@ -96,9 +96,14 @@ static int test_padding_1(const ncnn::Mat& a)
 static int test_padding_2(const ncnn::Mat& a)
 {
     return 0
+           || test_padding(a, 3, 4, 5, 6, 0, 0, 0, 1.f, 0)
+           || test_padding(a, 3, 4, 5, 6, 0, 0, 0, 0.f, a.c)
+           || test_padding(a, 3, 4, 5, 6, 0, 0, 1, 0.f, 0)
+           || test_padding(a, 3, 4, 5, 6, 0, 0, 2, 0.f, 0)
+
            || test_padding(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
            || test_padding(a, 1, 1, 1, 1, 1, 1, 0, 3.f, 0)
-           || test_padding(a, 2, 2, 2, 2, 2, 2, 0, 0.f, 0)
+           || test_padding(a, 2, 2, 2, 2, 2, 2, 0, 0.f, a.c + 4)
            || test_padding(a, 12, 2, 12, 2, 12, 2, 0, 0.f, 0)
            || test_padding(a, 8, 12, 16, 12, 24, 12, 0, 2.f, 0)
            || test_padding(a, 6, 7, 13, 4, 20, 4, 0, 6.1f, 0)
