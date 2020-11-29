@@ -41,7 +41,10 @@ static int test_concat_0()
     return 0
            || test_concat(a, 0)
            || test_concat(a, 1)
-           || test_concat(a, 2);
+           || test_concat(a, 2)
+           || test_concat(a, -1)
+           || test_concat(a, -2)
+           || test_concat(a, -3);
 }
 
 static int test_concat_1()
@@ -56,7 +59,12 @@ static int test_concat_1()
     b[1] = RandomMat(9, 5, 4);
     b[2] = RandomMat(9, 5, 12);
 
-    return test_concat(a, 0) || test_concat(b, 0);
+    return 0
+           || test_concat(a, 0)
+           || test_concat(a, -3)
+
+           || test_concat(b, 0)
+           || test_concat(b, -3);
 }
 
 static int test_concat_2()
@@ -71,7 +79,12 @@ static int test_concat_2()
     b[1] = RandomMat(9, 3, 12);
     b[2] = RandomMat(9, 5, 12);
 
-    return test_concat(a, 1) || test_concat(b, 1);
+    return 0
+           || test_concat(a, 1)
+           || test_concat(a, -2)
+
+           || test_concat(b, 1)
+           || test_concat(b, -2);
 }
 
 static int test_concat_3()
@@ -86,7 +99,12 @@ static int test_concat_3()
     b[1] = RandomMat(8, 7, 16);
     b[2] = RandomMat(7, 7, 16);
 
-    return test_concat(a, 2) || test_concat(b, 2);
+    return 0
+           || test_concat(a, 2)
+           || test_concat(a, -1)
+
+           || test_concat(b, 2)
+           || test_concat(b, -1);
 }
 
 static int test_concat_4()
@@ -101,7 +119,12 @@ static int test_concat_4()
     b[1] = RandomMat(15, 8);
     b[2] = RandomMat(15, 4);
 
-    return test_concat(a, 0) || test_concat(b, 0);
+    return 0
+           || test_concat(a, 0)
+           || test_concat(a, -2)
+
+           || test_concat(b, 0)
+           || test_concat(b, -2);
 }
 
 static int test_concat_5()
@@ -116,7 +139,12 @@ static int test_concat_5()
     b[1] = RandomMat(18, 24);
     b[2] = RandomMat(15, 24);
 
-    return test_concat(a, 1) || test_concat(b, 1);
+    return 0
+           || test_concat(a, 1)
+           || test_concat(a, -1)
+
+           || test_concat(b, 1)
+           || test_concat(b, -1);
 }
 
 static int test_concat_6()
@@ -131,7 +159,12 @@ static int test_concat_6()
     b[1] = RandomMat(8);
     b[2] = RandomMat(12);
 
-    return test_concat(a, 0) || test_concat(b, 0);
+    return 0
+           || test_concat(a, 0)
+           || test_concat(a, -1)
+
+           || test_concat(b, 0)
+           || test_concat(b, -1);
 }
 
 int main()

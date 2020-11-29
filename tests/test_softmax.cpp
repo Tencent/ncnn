@@ -42,14 +42,23 @@ static int test_softmax_0()
            || test_softmax(a, 0)
            || test_softmax(a, 1)
            || test_softmax(a, 2)
+           || test_softmax(a, -1)
+           || test_softmax(a, -2)
+           || test_softmax(a, -3)
 
            || test_softmax(b, 0)
            || test_softmax(b, 1)
            || test_softmax(b, 2)
+           || test_softmax(b, -1)
+           || test_softmax(b, -2)
+           || test_softmax(b, -3)
 
            || test_softmax(c, 0)
            || test_softmax(c, 1)
-           || test_softmax(c, 2);
+           || test_softmax(c, 2)
+           || test_softmax(c, -1)
+           || test_softmax(c, -2)
+           || test_softmax(c, -3);
 }
 
 static int test_softmax_1()
@@ -61,12 +70,18 @@ static int test_softmax_1()
     return 0
            || test_softmax(a, 0)
            || test_softmax(a, 1)
+           || test_softmax(a, -1)
+           || test_softmax(a, -2)
 
            || test_softmax(b, 0)
            || test_softmax(b, 1)
+           || test_softmax(b, -1)
+           || test_softmax(b, -2)
 
            || test_softmax(c, 0)
-           || test_softmax(c, 1);
+           || test_softmax(c, 1)
+           || test_softmax(c, -1)
+           || test_softmax(c, -2);
 }
 
 static int test_softmax_2()
@@ -75,7 +90,15 @@ static int test_softmax_2()
     ncnn::Mat b = RandomMat(124);
     ncnn::Mat c = RandomMat(127);
 
-    return test_softmax(a, 0) || test_softmax(b, 0) || test_softmax(c, 0);
+    return 0
+           || test_softmax(a, 0)
+           || test_softmax(a, -1)
+
+           || test_softmax(b, 0)
+           || test_softmax(b, -1)
+
+           || test_softmax(c, 0)
+           || test_softmax(c, -1);
 }
 
 int main()

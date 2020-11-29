@@ -42,6 +42,7 @@ Softmax_vulkan::Softmax_vulkan()
 int Softmax_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
+    int positive_axis = axis < 0 ? shape.dims + axis : axis;
 
     int elempack = 1;
     if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
@@ -68,27 +69,27 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
 
     Mat workspace_shape_packed;
-    if (shape.dims == 1) // axis == 0
+    if (shape.dims == 1) // positive_axis == 0
     {
         workspace_shape_packed = Mat(1, (void*)0, elemsize, elempack);
     }
-    else if (shape.dims == 2 && axis == 0)
+    else if (shape.dims == 2 && positive_axis == 0)
     {
         workspace_shape_packed = Mat(shape.w, (void*)0, elemsize, elempack);
     }
-    else if (shape.dims == 2 && axis == 1)
+    else if (shape.dims == 2 && positive_axis == 1)
     {
         workspace_shape_packed = Mat(shape.h / elempack, (void*)0, elemsize, elempack);
     }
-    else if (shape.dims == 3 && axis == 0)
+    else if (shape.dims == 3 && positive_axis == 0)
     {
         workspace_shape_packed = Mat(shape.w, shape.h, (void*)0, elemsize, elempack);
     }
-    else if (shape.dims == 3 && axis == 1)
+    else if (shape.dims == 3 && positive_axis == 1)
     {
         workspace_shape_packed = Mat(shape.w, shape.c / elempack, (void*)0, elemsize, elempack);
     }
-    else if (shape.dims == 3 && axis == 2)
+    else if (shape.dims == 3 && positive_axis == 2)
     {
         workspace_shape_packed = Mat(shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
     }
@@ -276,36 +277,37 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
     int channels = bottom_top_blob.c;
     size_t elemsize = bottom_top_blob.elemsize;
     int elempack = bottom_top_blob.elempack;
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
     VkMat max_workspace;
     VkMat sum_workspace;
 
-    if (dims == 1) // axis == 0
+    if (dims == 1) // positive_axis == 0
     {
         max_workspace.create(1, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(1, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 2 && axis == 0)
+    else if (dims == 2 && positive_axis == 0)
     {
         max_workspace.create(w, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(w, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 2 && axis == 1)
+    else if (dims == 2 && positive_axis == 1)
     {
         max_workspace.create(h, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(h, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 3 && axis == 0)
+    else if (dims == 3 && positive_axis == 0)
     {
         max_workspace.create(w, h, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(w, h, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 3 && axis == 1)
+    else if (dims == 3 && positive_axis == 1)
     {
         max_workspace.create(w, channels, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(w, channels, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 3 && axis == 2)
+    else if (dims == 3 && positive_axis == 2)
     {
         max_workspace.create(h, channels, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(h, channels, elemsize, elempack, opt.workspace_vkallocator);
@@ -422,36 +424,37 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
     int channels = bottom_top_blob.c;
     size_t elemsize = bottom_top_blob.elemsize;
     int elempack = bottom_top_blob.elempack;
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
     VkImageMat max_workspace;
     VkImageMat sum_workspace;
 
-    if (dims == 1) // axis == 0
+    if (dims == 1) // positive_axis == 0
     {
         max_workspace.create(1, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(1, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 2 && axis == 0)
+    else if (dims == 2 && positive_axis == 0)
     {
         max_workspace.create(w, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(w, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 2 && axis == 1)
+    else if (dims == 2 && positive_axis == 1)
     {
         max_workspace.create(h, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(h, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 3 && axis == 0)
+    else if (dims == 3 && positive_axis == 0)
     {
         max_workspace.create(w, h, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(w, h, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 3 && axis == 1)
+    else if (dims == 3 && positive_axis == 1)
     {
         max_workspace.create(w, channels, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(w, channels, elemsize, elempack, opt.workspace_vkallocator);
     }
-    else if (dims == 3 && axis == 2)
+    else if (dims == 3 && positive_axis == 2)
     {
         max_workspace.create(h, channels, elemsize, elempack, opt.workspace_vkallocator);
         sum_workspace.create(h, channels, elemsize, elempack, opt.workspace_vkallocator);

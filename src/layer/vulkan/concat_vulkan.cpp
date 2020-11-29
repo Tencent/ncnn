@@ -43,6 +43,7 @@ int Concat_vulkan::create_pipeline(const Option& _opt)
 
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+    int positive_axis = axis < 0 ? shape.dims + axis : axis;
 
     int out_elempack = 1;
     if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
@@ -50,7 +51,7 @@ int Concat_vulkan::create_pipeline(const Option& _opt)
     if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
 
     int elempack = 1;
-    if (axis == 0)
+    if (positive_axis == 0)
     {
         if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
         if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
@@ -154,7 +155,7 @@ int Concat_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack4to1
-    if ((axis == 0 && shape.dims == 0) || elempack == 1)
+    if ((positive_axis <= 0 && shape.dims == 0) || elempack == 1)
     {
         pipeline_concat_pack4to1[0] = new Pipeline(vkdev);
         pipeline_concat_pack4to1[0]->set_optimal_local_size_xyz(local_size_xyz);
@@ -176,7 +177,7 @@ int Concat_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack8to4
-    if (opt.use_shader_pack8 && ((axis == 0 && shape.dims == 0) || elempack == 4))
+    if (opt.use_shader_pack8 && ((positive_axis <= 0 && shape.dims == 0) || elempack == 4))
     {
         pipeline_concat_pack8to4[0] = new Pipeline(vkdev);
         pipeline_concat_pack8to4[0]->set_optimal_local_size_xyz(local_size_xyz);
@@ -187,7 +188,7 @@ int Concat_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack8to1
-    if (opt.use_shader_pack8 && ((axis == 0 && shape.dims == 0) || elempack == 1))
+    if (opt.use_shader_pack8 && ((positive_axis <= 0 && shape.dims == 0) || elempack == 1))
     {
         pipeline_concat_pack8to1[0] = new Pipeline(vkdev);
         pipeline_concat_pack8to1[0]->set_optimal_local_size_xyz(local_size_xyz);
@@ -238,8 +239,9 @@ int Concat_vulkan::destroy_pipeline(const Option& /*opt*/)
 int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
-    if (dims == 1) // axis == 0
+    if (dims == 1) // positive_axis == 0
     {
         // concat vector
         // total length
@@ -339,7 +341,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         return 0;
     }
 
-    if (dims == 2 && axis == 0)
+    if (dims == 2 && positive_axis == 0)
     {
         // concat image
         int w = bottom_blobs[0].w;
@@ -441,7 +443,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         return 0;
     }
 
-    if (dims == 2 && axis == 1)
+    if (dims == 2 && positive_axis == 1)
     {
         // interleave image row
         int h = bottom_blobs[0].h;
@@ -495,7 +497,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         return 0;
     }
 
-    if (dims == 3 && axis == 0)
+    if (dims == 3 && positive_axis == 0)
     {
         // concat dim
         int w = bottom_blobs[0].w;
@@ -598,7 +600,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         return 0;
     }
 
-    if (dims == 3 && axis == 1)
+    if (dims == 3 && positive_axis == 1)
     {
         // interleave dim height
         int w = bottom_blobs[0].w;
@@ -653,7 +655,7 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         return 0;
     }
 
-    if (dims == 3 && axis == 2)
+    if (dims == 3 && positive_axis == 2)
     {
         // interleave dim width
         int h = bottom_blobs[0].h;
@@ -714,8 +716,9 @@ int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
 int Concat_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vector<VkImageMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
-    if (dims == 1) // axis == 0
+    if (dims == 1) // positive_axis == 0
     {
         // concat vector
         // total length
@@ -815,7 +818,7 @@ int Concat_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
         return 0;
     }
 
-    if (dims == 2 && axis == 0)
+    if (dims == 2 && positive_axis == 0)
     {
         // concat image
         int w = bottom_blobs[0].w;
@@ -917,7 +920,7 @@ int Concat_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
         return 0;
     }
 
-    if (dims == 2 && axis == 1)
+    if (dims == 2 && positive_axis == 1)
     {
         // interleave image row
         int h = bottom_blobs[0].h;
@@ -971,7 +974,7 @@ int Concat_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
         return 0;
     }
 
-    if (dims == 3 && axis == 0)
+    if (dims == 3 && positive_axis == 0)
     {
         // concat dim
         int w = bottom_blobs[0].w;
@@ -1074,7 +1077,7 @@ int Concat_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
         return 0;
     }
 
-    if (dims == 3 && axis == 1)
+    if (dims == 3 && positive_axis == 1)
     {
         // interleave dim height
         int w = bottom_blobs[0].w;
@@ -1129,7 +1132,7 @@ int Concat_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
         return 0;
     }
 
-    if (dims == 3 && axis == 2)
+    if (dims == 3 && positive_axis == 2)
     {
         // interleave dim width
         int h = bottom_blobs[0].h;

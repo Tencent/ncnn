@@ -45,8 +45,9 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     const int* slices_ptr = slices;
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
-    if (dims == 1) // axis == 0
+    if (dims == 1) // positive_axis == 0
     {
         // slice vector
         int w = bottom_blob.w * elempack;
@@ -75,7 +76,7 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         }
     }
 
-    if (dims == 2 && axis == 0)
+    if (dims == 2 && positive_axis == 0)
     {
         // slice image height
         int w = bottom_blob.w;
@@ -156,7 +157,7 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         }
     }
 
-    if (dims == 2 && axis == 1)
+    if (dims == 2 && positive_axis == 1)
     {
         // slice image width
         int w = bottom_blob.w;
@@ -195,7 +196,7 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         }
     }
 
-    if (dims == 3 && axis == 0)
+    if (dims == 3 && positive_axis == 0)
     {
         // slice dim channel
         int w = bottom_blob.w;
@@ -280,7 +281,7 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         }
     }
 
-    if (dims == 3 && axis == 1)
+    if (dims == 3 && positive_axis == 1)
     {
         // slice dim height
         int w = bottom_blob.w;
@@ -323,7 +324,7 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         }
     }
 
-    if (dims == 3 && axis == 2)
+    if (dims == 3 && positive_axis == 2)
     {
         // slice dim width
         int w = bottom_blob.w;
@@ -377,8 +378,9 @@ int Slice_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     const int* slices_ptr = slices;
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
-    if (dims == 1) // axis == 0
+    if (dims == 1) // positive_axis == 0
     {
         // slice vector
         int w = bottom_blob.w * elempack;
@@ -411,7 +413,7 @@ int Slice_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
         }
     }
 
-    if (dims == 2 && axis == 0)
+    if (dims == 2 && positive_axis == 0)
     {
         // slice image height
         int w = bottom_blob.w;
@@ -558,7 +560,7 @@ int Slice_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
         }
     }
 
-    if (dims == 2 && axis == 1)
+    if (dims == 2 && positive_axis == 1)
     {
         // slice image width
         int w = bottom_blob.w;
@@ -597,7 +599,7 @@ int Slice_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
         }
     }
 
-    if (dims == 3 && axis == 0)
+    if (dims == 3 && positive_axis == 0)
     {
         // slice dim channel
         int w = bottom_blob.w;
@@ -752,7 +754,7 @@ int Slice_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
         }
     }
 
-    if (dims == 3 && axis == 1)
+    if (dims == 3 && positive_axis == 1)
     {
         // slice dim height
         int w = bottom_blob.w;
@@ -795,7 +797,7 @@ int Slice_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
         }
     }
 
-    if (dims == 3 && axis == 2)
+    if (dims == 3 && positive_axis == 2)
     {
         // slice dim width
         int w = bottom_blob.w;
