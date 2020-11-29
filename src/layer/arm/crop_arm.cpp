@@ -252,7 +252,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (dims == 1)
         {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+            int out_elempack = opt.use_fp16_arithmetic && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
 #else
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
 #endif
@@ -282,7 +282,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (dims == 2)
         {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+            int out_elempack = opt.use_fp16_arithmetic && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
 #else
             int out_elempack = _outh % 4 == 0 ? 4 : 1;
 #endif
@@ -312,7 +312,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (dims == 3)
         {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            int out_elempack = opt.use_fp16_arithmetic && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
 #else
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
 #endif
@@ -512,7 +512,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         if (dims == 1)
         {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+            int out_elempack = opt.use_fp16_arithmetic && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
 #else
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
 #endif
@@ -542,7 +542,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         if (dims == 2)
         {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+            int out_elempack = opt.use_fp16_arithmetic && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
 #else
             int out_elempack = _outh % 4 == 0 ? 4 : 1;
 #endif
@@ -572,7 +572,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         if (dims == 3)
         {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            int out_elempack = opt.use_fp16_arithmetic && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
 #else
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
 #endif
