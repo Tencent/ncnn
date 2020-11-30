@@ -14,6 +14,7 @@
 
 #include "convolution_x86.h"
 
+#if __SSE2__
 #include <emmintrin.h>
 #include "sse_activation.h"
 #include "sse_usability.h"
@@ -23,6 +24,7 @@
 #include "avx_activation.h"
 #include "avx_usability.h"
 #endif
+#endif // __SSE2__
 
 #include "benchmark.h"
 #include "layer_type.h"
@@ -31,6 +33,7 @@ namespace ncnn {
 
 #include "convolution_sgemm.h"
 #include "convolution_sgemm_int8.h"
+#if __SSE2__
 #if __AVX__
 #include "convolution_3x3_pack1to8.h"
 #include "convolution_3x3_pack8to1.h"
@@ -40,6 +43,7 @@ namespace ncnn {
 #include "convolution_1x1_pack8.h"
 #include "convolution_1x1_pack8_fp16.h"
 #endif
+#endif // __SSE2__
 
 #include "convolution_1x1.h"
 #include "convolution_1x1_int8.h"
@@ -50,8 +54,12 @@ namespace ncnn {
 
 Convolution_x86::Convolution_x86()
 {
+#if __SSE2__
     support_packing = true;
+#if __AVX__
     support_weight_fp16_storage = true;
+#endif
+#endif // __SSE2__
 
     activation = 0;
     convolution_dilation1 = 0;
@@ -168,6 +176,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
     int elempack = 1;
     int out_elempack = 1;
 
+#if __SSE2__
     if (opt.use_packing_layout)
     {
 #if __AVX__
@@ -178,6 +187,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         out_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif
     }
+#endif // __SSE2__
 
     // pack1
     if (elempack == 1 && out_elempack == 1)
@@ -330,6 +340,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
     int out_elempack = 1;
+#if __SSE2__
     if (opt.use_packing_layout)
     {
 #if __AVX__
@@ -338,6 +349,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         out_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif
     }
+#endif // __SSE2__
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -373,6 +385,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
     }
 
+#if __SSE2__
 #if __AVX__
     if (elempack == 8 && out_elempack == 8)
     {
@@ -917,6 +930,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             }
         }
     }
+#endif // __SSE2__
 
     if (elempack == 1 && out_elempack == 1)
     {
