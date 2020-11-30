@@ -221,8 +221,9 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                 }
             }
 #endif // __SSE2__
-            if (out_elempack == top_blob.elempack) // 1-1 4-4 8-8
+            if (out_elempack == top_blob.elempack)
             {
+                // 1-1 4-4 8-8
                 int size = w * top_blob.h;
 
                 float* outptr = top_blob;
@@ -422,8 +423,9 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                 }
             }
 #endif // __SSE2__
-            if (out_elempack == top_blob.elempack) // 1-1 4-4 8-8
+            if (out_elempack == top_blob.elempack)
             {
+                // 1-1 4-4 8-8
                 int size = top_blob.total();
 
                 const float* ptr = bottom_blob_unpacked.channel(p);
