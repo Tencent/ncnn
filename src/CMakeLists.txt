@@ -307,6 +307,11 @@ if(((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (APPLE AND CMAKE_OSX_AR
     endif()
 endif()
 
+if(NCNN_COVERAGE)
+    target_compile_options(ncnn PUBLIC -coverage -fprofile-arcs -ftest-coverage)
+    target_link_libraries(ncnn PUBLIC -coverage -lgcov)
+endif()
+
 if(ANDROID OR IOS)
     # disable shared library on android and xcode ios
     set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS FALSE)
