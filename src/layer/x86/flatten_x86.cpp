@@ -14,16 +14,20 @@
 
 #include "flatten_x86.h"
 
+#if __SSE2__
 #include <emmintrin.h>
 #if __AVX__
 #include "avx_usability.h"
 #endif // __AVX__
+#endif // __SSE2__
 
 namespace ncnn {
 
 Flatten_x86::Flatten_x86()
 {
+#if __SSE2__
     support_packing = true;
+#endif // __SSE2__
 }
 
 int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -46,6 +50,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     int total = size * channels * elempack;
 
     int out_elempack = 1;
+#if __SSE2__
     if (opt.use_packing_layout)
     {
 #if __AVX__
@@ -54,6 +59,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         out_elempack = total % 4 == 0 ? 4 : 1;
 #endif
     }
+#endif // __SSE2__
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (out_elempack == 1)
@@ -79,6 +85,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     if (dims == 2)
     {
+#if __SSE2__
 #if __AVX__
         if (elempack == 8) // out_elempack == 8
         {
@@ -188,10 +195,12 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 }
             }
         }
+#endif // __SSE2__
     }
 
     if (dims == 3)
     {
+#if __SSE2__
 #if __AVX__
         if (elempack == 8) // out_elempack == 8
         {
@@ -301,6 +310,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 }
             }
         }
+#endif // __SSE2__
 
         if (elempack == 1) // out_elempack == 4 || out_elempack == 8
         {

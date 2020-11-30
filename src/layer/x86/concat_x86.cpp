@@ -18,7 +18,9 @@ namespace ncnn {
 
 Concat_x86::Concat_x86()
 {
+#if __SSE2__
     support_packing = true;
+#endif // __SSE2__
 }
 
 int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -40,6 +42,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
 
         int out_elempack = 1;
+#if __SSE2__
         if (opt.use_packing_layout)
         {
 #if __AVX__
@@ -48,6 +51,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             out_elempack = top_w % 4 == 0 ? 4 : 1;
 #endif
         }
+#endif // __SSE2__
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         Mat& top_blob = top_blobs[0];
@@ -85,6 +89,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
 
         int out_elempack = 1;
+#if __SSE2__
         if (opt.use_packing_layout)
         {
 #if __AVX__
@@ -93,6 +98,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             out_elempack = top_h % 4 == 0 ? 4 : 1;
 #endif
         }
+#endif // __SSE2__
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         Mat& top_blob = top_blobs[0];
@@ -272,6 +278,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
 
         int out_elempack = 1;
+#if __SSE2__
         if (opt.use_packing_layout)
         {
 #if __AVX__
@@ -280,6 +287,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             out_elempack = top_channels % 4 == 0 ? 4 : 1;
 #endif
         }
+#endif // __SSE2__
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         Mat& top_blob = top_blobs[0];

@@ -14,10 +14,12 @@
 
 #include "cast_x86.h"
 
+#if __SSE2__
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
+#endif // __SSE2__
 
 #if __AVX__
 #include <stdint.h>
