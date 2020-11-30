@@ -1787,6 +1787,26 @@ int main(int argc, char** argv)
                 }
             }
         }
+        else if (op == "MatMul")
+        {
+            // gemm A
+            const std::string& A = node.input(0);
+            std::map<std::string, onnx::TensorProto>::iterator itA = weights.find(A);
+            if (itA != weights.end())
+            {
+                binaryop_weights[A] = itA->second;
+                weights.erase(itA);
+            }
+
+            // gemm B can be weight when rank2
+            const std::string& B = node.input(1);
+            std::map<std::string, onnx::TensorProto>::iterator itB = weights.find(B);
+            if (itB != weights.end() && itB->second.dims_size() != 2)
+            {
+                binaryop_weights[B] = itB->second;
+                weights.erase(itB);
+            }
+        }
         else
         {
             bool isBinaryOp = false;
@@ -2247,13 +2267,13 @@ int main(int argc, char** argv)
         }
         else if (op == "MatMul")
         {
-            if (weights.find(node.input(1)) == weights.end())
+            if (weights.find(node.input(1)) != weights.end() && weights[node.input(1)].dims_size() == 2)
             {
-                fprintf(pp, "%-16s", "Gemm");
+                fprintf(pp, "%-16s", "InnerProduct");
             }
             else
             {
-                fprintf(pp, "%-16s", "InnerProduct");
+                fprintf(pp, "%-16s", "Gemm");
             }
         }
         else if (op == "Max")
@@ -3235,11 +3255,7 @@ int main(int argc, char** argv)
         }
         else if (op == "MatMul")
         {
-            if (weights.find(node.input(1)) == weights.end())
-            {
-                // default matrix multiplication
-            }
-            else
+            if (weights.find(node.input(1)) != weights.end() && weights[node.input(1)].dims_size() == 2)
             {
                 // InnerProduct
                 const onnx::TensorProto& B = weights[node.input(1)];
@@ -3271,6 +3287,10 @@ int main(int argc, char** argv)
                 }
 
                 // fwrite_tensor_proto_data(B, bp)
+            }
+            else
+            {
+                // default matrix multiplication
             }
         }
         else if (op == "Max")
