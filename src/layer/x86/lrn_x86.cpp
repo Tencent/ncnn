@@ -11,11 +11,12 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
+
+#include "lrn_x86.h"
+
 #if __AVX__
 #include "avx_mathfun.h"
 #endif // __AVX__
-
-#include "lrn_x86.h"
 
 #include <math.h>
 
@@ -41,15 +42,9 @@ int LRN_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         const float* ptr = bottom_top_blob.channel(q);
         float* outptr = square_blob.channel(q);
 
+        int i = 0;
 #if __AVX__
-        int nn = size >> 3;
-        int remain = size & 7;
-#else
-        int remain = size;
-#endif // __AVX__
-
-#if __AVX__
-        for (; nn > 0; nn--)
+        for (; i + 7 < size; i += 8)
         {
             __m256 _p = _mm256_loadu_ps(ptr);
             __m256 _outp = _mm256_mul_ps(_p, _p);
@@ -59,7 +54,7 @@ int LRN_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             outptr += 8;
         }
 #endif // __AVX__
-        for (; remain > 0; remain--)
+        for (; i < size; i++)
         {
             *outptr = *ptr * *ptr;
 
@@ -90,15 +85,9 @@ int LRN_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 const float* sptr = square_blob.channel(p);
                 float* ssptr = square_sum.channel(q);
 
+                int i = 0;
 #if __AVX__
-                int nn = size >> 3;
-                int remain = size & 7;
-#else
-                int remain = size;
-#endif // __AVX__
-
-#if __AVX__
-                for (; nn > 0; nn--)
+                for (; i + 7 < size; i += 8)
                 {
                     __m256 _sp = _mm256_loadu_ps(sptr);
                     __m256 _ssp = _mm256_loadu_ps(ssptr);
@@ -109,7 +98,7 @@ int LRN_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     ssptr += 8;
                 }
 #endif // __AVX__
-                for (; remain > 0; remain--)
+                for (; i < size; i++)
                 {
                     *ssptr += *sptr;
                     sptr++;
@@ -120,18 +109,12 @@ int LRN_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             float* ptr = bottom_top_blob.channel(q);
             float* ssptr = square_sum.channel(q);
 
-#if __AVX__
-            int nn = size >> 3;
-            int remain = size & 7;
-#else
-            int remain = size;
-#endif // __AVX__
-
+            int i = 0;
 #if __AVX__
             __m256 _bias = _mm256_set1_ps(bias);
             __m256 _ads = _mm256_set1_ps(alpha_div_size);
             __m256 _mb = _mm256_set1_ps(-beta);
-            for (; nn > 0; nn--)
+            for (; i + 7 < size; i += 8)
             {
                 __m256 _p = _mm256_loadu_ps(ptr);
                 __m256 _ssp = _mm256_loadu_ps(ssptr);
@@ -145,7 +128,7 @@ int LRN_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 ptr += 8;
             }
 #endif // __AVX__
-            for (; remain > 0; remain--)
+            for (; i < size; i++)
             {
                 *ptr = *ptr * pow(bias + alpha_div_size * *ssptr, -beta);
 

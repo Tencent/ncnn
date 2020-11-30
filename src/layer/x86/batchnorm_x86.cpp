@@ -14,16 +14,20 @@
 
 #include "batchnorm_x86.h"
 
+#if __SSE2__
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
+#endif // __SSE2__
 
 namespace ncnn {
 
 BatchNorm_x86::BatchNorm_x86()
 {
+#if __SSE2__
     support_packing = true;
+#endif // __SSE2__
 }
 
 int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -32,6 +36,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     int elempack = bottom_top_blob.elempack;
 
+#if __SSE2__
 #if __AVX__
     if (elempack == 8)
     {
@@ -182,6 +187,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
         return 0;
     }
+#endif // __SSE2__
 
     if (dims != 3)
         return BatchNorm::forward_inplace(bottom_top_blob, opt);
@@ -200,6 +206,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         float b = b_data[q];
 
         int i = 0;
+#if __SSE2__
 #if __AVX__
         __m256 _a256 = _mm256_set1_ps(a);
         __m256 _b256 = _mm256_set1_ps(b);
@@ -224,7 +231,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             _mm_store_ps(ptr, _p);
             ptr += 4;
         }
-
+#endif // __SSE2__
         for (; i < size; i++)
         {
             *ptr = b * *ptr + a;

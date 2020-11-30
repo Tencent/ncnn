@@ -20,6 +20,25 @@ jobs:
         cd build
         TESTS_EXECUTABLE_LOADER=node TESTS_EXECUTABLE_LOADER_ARGUMENTS="--experimental-wasm-simd" ctest --output-on-failure -j 2
 
+  webassembly-nosimd:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: emsdk
+      run: |
+        git clone https://github.com/emscripten-core/emsdk.git
+        cd emsdk
+        ./emsdk install latest
+        ./emsdk activate latest
+    - name: configure
+      run: source emsdk/emsdk_env.sh && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j 2
+    - name: test
+      run: |
+        cd build
+        TESTS_EXECUTABLE_LOADER=node ctest --output-on-failure -j 2
+
   webassembly-simpleomp:
     runs-on: ubuntu-latest
     steps:

@@ -14,16 +14,20 @@
 
 #include "dropout_x86.h"
 
+#if __SSE2__
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
+#endif // __SSE2__
 
 namespace ncnn {
 
 Dropout_x86::Dropout_x86()
 {
+#if __SSE2__
     support_packing = true;
+#endif // __SSE2__
 }
 
 int Dropout_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -33,6 +37,7 @@ int Dropout_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return 0;
     }
 
+#if __SSE2__
     int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
 
@@ -153,6 +158,7 @@ int Dropout_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         return 0;
     }
+#endif // __SSE2__
 
     return Dropout::forward_inplace(bottom_top_blob, opt);
 }

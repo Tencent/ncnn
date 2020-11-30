@@ -14,21 +14,27 @@
 
 #include "padding_x86.h"
 
+#if __SSE2__
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
+#endif // __SSE2__
 
 namespace ncnn {
 
+#if __SSE2__
 #include "padding_pack4.h"
 #if __AVX__
 #include "padding_pack8.h"
 #endif // __AVX__
+#endif // __SSE2__
 
 Padding_x86::Padding_x86()
 {
+#if __SSE2__
     support_packing = true;
+#endif // __SSE2__
 }
 
 int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -46,6 +52,7 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
+#if __SSE2__
 #if __AVX__
     if (elempack == 8)
     {
@@ -221,6 +228,7 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             }
         }
     }
+#endif // __SSE2__
 
     Mat bottom_blob_unpacked = bottom_blob;
     if (elempack != 1)
