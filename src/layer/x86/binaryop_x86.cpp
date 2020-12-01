@@ -14,10 +14,12 @@
 
 #include "binaryop_x86.h"
 
+#if __SSE2__
 #include "sse_mathfun.h"
 #if __AVX__
 #include "avx_mathfun.h"
 #endif // __AVX__
+#endif // __SSE2__
 
 #include <math.h>
 
@@ -25,9 +27,12 @@ namespace ncnn {
 
 BinaryOp_x86::BinaryOp_x86()
 {
+#if __SSE2__
     support_packing = true;
+#endif // __SSE2__
 }
 
+#if __SSE2__
 #if __AVX__
 // broadcasting rule
 // https://github.com/Tencent/ncnn/wiki/binaryop-broadcasting
@@ -1276,9 +1281,11 @@ struct binary_op_rdiv_pack4
         return _mm_div_ps(y, x);
     }
 };
+#endif // __SSE2__
 
 int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if __SSE2__
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& bottom_blob1 = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
@@ -1347,12 +1354,14 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         if (op_type == Operation_RDIV)
             return binary_op_pack4<binary_op_rdiv_pack4>(bottom_blob, bottom_blob1, top_blob, opt);
     }
+#endif // __SSE2__
 
     return BinaryOp::forward(bottom_blobs, top_blobs, opt);
 }
 
 int BinaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if __SSE2__
     int elempack = bottom_top_blob.elempack;
 
 #if __AVX__
@@ -1416,6 +1425,7 @@ int BinaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         if (op_type == Operation_RDIV)
             return binary_op_scalar_inplace_pack4<binary_op_rdiv_pack4>(bottom_top_blob, b, opt);
     }
+#endif // __SSE2__
 
     return BinaryOp::forward_inplace(bottom_top_blob, opt);
 }

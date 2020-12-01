@@ -107,9 +107,9 @@ void main()
 #if NCNN_image_shader
         afpvec4 v = image3d_ld4(bottom_blob, ivec3(x, y / 4, 0));
 
-        image3d_st1(top_blob, ivec3(gx, gy, gz), v[y % 4]);
+        image3d_st1(top_blob, ivec3(gx, gy, 0), v[y % 4]);
 #else
-        int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+        int gi = gy * psc(outw) + gx;
 
 #if NCNN_fp16_packed
         int v_offset = ((y / 4) * psc(w) + x) * 2 + (y % 4) / 2;

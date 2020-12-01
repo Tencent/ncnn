@@ -14,18 +14,23 @@
 
 #include "crop_x86.h"
 
+#if __SSE2__
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif
+#endif // __SSE2__
 
 namespace ncnn {
 
 Crop_x86::Crop_x86()
 {
+#if __SSE2__
     support_packing = true;
+#endif // __SSE2__
 }
 
+#if __SSE2__
 #if __AVX__
 static void crop_pack8_avx(const Mat& src, Mat& dst, int top, int left)
 {
@@ -73,6 +78,7 @@ static void crop_pack4_sse(const Mat& src, Mat& dst, int top, int left)
         ptr += (left + right) * 4;
     }
 }
+#endif // __SSE2__
 
 int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
@@ -83,6 +89,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
+#if __SSE2__
 #if __AVX__
     if (elempack == 8)
     {
@@ -279,6 +286,7 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             }
         }
     }
+#endif // __SSE2__
 
     Mat bottom_blob_unpacked = bottom_blob;
     if (elempack != 1)
@@ -308,6 +316,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     Mat& top_blob = top_blobs[0];
 
+#if __SSE2__
 #if __AVX__
     if (elempack == 8)
     {
@@ -518,6 +527,7 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             }
         }
     }
+#endif // __SSE2__
 
     Mat bottom_blob_unpacked = bottom_blob;
     if (elempack != 1)

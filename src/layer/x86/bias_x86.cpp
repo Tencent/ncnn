@@ -14,10 +14,12 @@
 
 #include "bias_x86.h"
 
+#if __SSE2__
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
+#endif // __SSE2__
 
 namespace ncnn {
 
@@ -37,6 +39,7 @@ int Bias_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float bias = bias_ptr[q];
 
         int i = 0;
+#if __SSE2__
 #if __AVX__
         {
             __m256 _bias256 = _mm256_set1_ps(bias);
@@ -61,6 +64,7 @@ int Bias_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 ptr += 4;
             }
         }
+#endif // __SSE2__
 
         for (; i < size; i++)
         {

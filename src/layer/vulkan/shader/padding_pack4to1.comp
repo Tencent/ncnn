@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -44,7 +44,11 @@ layout (binding = 0) uniform unfp sampler3D bottom_blob;
 layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
 layout (binding = 2) uniform unfp sampler3D per_channel_pad_blob;
 #else
+#if NCNN_fp16_packed
+layout (binding = 0) readonly buffer bottom_blob { sfpvec2 bottom_blob_data[]; };
+#else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+#endif
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout (binding = 2) readonly buffer per_channel_pad_blob { sfp per_channel_pad_blob_data[]; };
 #endif
@@ -83,12 +87,25 @@ void main()
 
         if (type == 0)
         {
-            if (x >= 0 && x < psc(w))
+            if (x >= 0 && x < psc(w) * 4)
             {
 #if NCNN_image_shader
-                image3d_cp1(top_blob, ivec3(gx, 0, 0), bottom_blob, ivec3(x, 0, 0));
+                afpvec4 v = image3d_ld4(bottom_blob, ivec3(x / 4, 0, 0));
+
+                image3d_st1(top_blob, ivec3(gx, 0, 0), v[x % 4]);
 #else
-                buffer_cp1(top_blob_data, gx, bottom_blob_data, x);
+#if NCNN_fp16_packed
+                int v_offset = (x / 4) * 2 + (x % 4) / 2;
+                int lane2 = x % 2;
+
+                afpvec2 v = buffer_ld2(bottom_blob_data, v_offset);
+
+                buffer_st1(top_blob_data, gx, v[lane2]);
+#else
+                int v_offset = (x / 4) * 4 + x % 4;
+
+                buffer_cp1(top_blob_data, gx, bottom_blob_data, v_offset);
+#endif
 #endif
             }
             else
@@ -103,12 +120,25 @@ void main()
         }
         if (type == 1)
         {
-            x = clamp(x, 0, psc(w) - 1);
+            x = clamp(x, 0, psc(w) * 4 - 1);
 
 #if NCNN_image_shader
-            image3d_cp1(top_blob, ivec3(gx, 0, 0), bottom_blob, ivec3(x, 0, 0));
+            afpvec4 v = image3d_ld4(bottom_blob, ivec3(x / 4, 0, 0));
+
+            image3d_st1(top_blob, ivec3(gx, 0, 0), v[x % 4]);
 #else
-            buffer_cp1(top_blob_data, gx, bottom_blob_data, x);
+#if NCNN_fp16_packed
+            int v_offset = (x / 4) * 2 + (x % 4) / 2;
+            int lane2 = x % 2;
+
+            afpvec2 v = buffer_ld2(bottom_blob_data, v_offset);
+
+            buffer_st1(top_blob_data, gx, v[lane2]);
+#else
+            int v_offset = (x / 4) * 4 + x % 4;
+
+            buffer_cp1(top_blob_data, gx, bottom_blob_data, v_offset);
+#endif
 #endif
         }
         if (type == 2)
@@ -116,13 +146,26 @@ void main()
             x = abs(x);
             // NOTE psc(X) get zeros on nvidia
             // TODO only enable this workaround for some nvidia driver
-            x = (p.w - 1) - abs(x - (p.w - 1));
-//             x = (psc(w) - 1) - abs(x - (psc(w) - 1));
+            x = (p.w * 4 - 1) - abs(x - (p.w * 4 - 1));
+//             x = (psc(w) * 4 - 1) - abs(x - (psc(w) * 4 - 1));
 
 #if NCNN_image_shader
-            image3d_cp1(top_blob, ivec3(gx, 0, 0), bottom_blob, ivec3(x, 0, 0));
+            afpvec4 v = image3d_ld4(bottom_blob, ivec3(x / 4, 0, 0));
+
+            image3d_st1(top_blob, ivec3(gx, 0, 0), v[x % 4]);
 #else
-            buffer_cp1(top_blob_data, gx, bottom_blob_data, x);
+#if NCNN_fp16_packed
+            int v_offset = (x / 4) * 2 + (x % 4) / 2;
+            int lane2 = x % 2;
+
+            afpvec2 v = buffer_ld2(bottom_blob_data, v_offset);
+
+            buffer_st1(top_blob_data, gx, v[lane2]);
+#else
+            int v_offset = (x / 4) * 4 + x % 4;
+
+            buffer_cp1(top_blob_data, gx, bottom_blob_data, v_offset);
+#endif
 #endif
         }
     }
@@ -135,13 +178,25 @@ void main()
 
         if (type == 0)
         {
-            if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h))
+            if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h) * 4)
             {
 #if NCNN_image_shader
-                image3d_cp1(top_blob, ivec3(gx, gy, 0), bottom_blob, ivec3(x, y, 0));
+                afpvec4 v = image3d_ld4(bottom_blob, ivec3(x, y / 4, 0));
+
+                image3d_st1(top_blob, ivec3(gx, gy, 0), v[y % 4]);
 #else
-                int v_offset = y * psc(w) + x;
+#if NCNN_fp16_packed
+                int v_offset = ((y / 4) * psc(w) + x) * 2 + (y % 4) / 2;
+                int lane2 = y % 2;
+
+                afpvec2 v = buffer_ld2(bottom_blob_data, v_offset);
+
+                buffer_st1(top_blob_data, gi, v[lane2]);
+#else
+                int v_offset = ((y / 4) * psc(w) + x) * 4 + y % 4;
+
                 buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
 #endif
             }
             else
@@ -157,13 +212,25 @@ void main()
         if (type == 1)
         {
             x = clamp(x, 0, psc(w) - 1);
-            y = clamp(y, 0, psc(h) - 1);
+            y = clamp(y, 0, psc(h) * 4 - 1);
 
 #if NCNN_image_shader
-            image3d_cp1(top_blob, ivec3(gx, gy, 0), bottom_blob, ivec3(x, y, 0));
+            afpvec4 v = image3d_ld4(bottom_blob, ivec3(x, y / 4, 0));
+
+            image3d_st1(top_blob, ivec3(gx, gy, 0), v[y % 4]);
 #else
-            int v_offset = y * psc(w) + x;
+#if NCNN_fp16_packed
+            int v_offset = ((y / 4) * psc(w) + x) * 2 + (y % 4) / 2;
+            int lane2 = y % 2;
+
+            afpvec2 v = buffer_ld2(bottom_blob_data, v_offset);
+
+            buffer_st1(top_blob_data, gi, v[lane2]);
+#else
+            int v_offset = ((y / 4) * psc(w) + x) * 4 + y % 4;
+
             buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
 #endif
         }
         if (type == 2)
@@ -173,15 +240,27 @@ void main()
             // NOTE psc(X) get zeros on nvidia
             // TODO only enable this workaround for some nvidia driver
             x = (p.w - 1) - abs(x - (p.w - 1));
-            y = (p.h - 1) - abs(y - (p.h - 1));
+            y = (p.h * 4 - 1) - abs(y - (p.h * 4 - 1));
 //             x = (psc(w) - 1) - abs(x - (psc(w) - 1));
-//             y = (psc(h) - 1) - abs(y - (psc(h) - 1));
+//             y = (psc(h) * 4 - 1) - abs(y - (psc(h) * 4 - 1));
 
 #if NCNN_image_shader
-            image3d_cp1(top_blob, ivec3(gx, gy, 0), bottom_blob, ivec3(x, y, 0));
+            afpvec4 v = image3d_ld4(bottom_blob, ivec3(x, y / 4, 0));
+
+            image3d_st1(top_blob, ivec3(gx, gy, 0), v[y % 4]);
 #else
-            int v_offset = y * psc(w) + x;
+#if NCNN_fp16_packed
+            int v_offset = ((y / 4) * psc(w) + x) * 2 + (y % 4) / 2;
+            int lane2 = y % 2;
+
+            afpvec2 v = buffer_ld2(bottom_blob_data, v_offset);
+
+            buffer_st1(top_blob_data, gi, v[lane2]);
+#else
+            int v_offset = ((y / 4) * psc(w) + x) * 4 + y % 4;
+
             buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
 #endif
         }
     }
@@ -195,13 +274,25 @@ void main()
 
         if (type == 0)
         {
-            if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h) && z >= 0 && z < psc(c))
+            if (x >= 0 && x < psc(w) && y >= 0 && y < psc(h) && z >= 0 && z < psc(c) * 4)
             {
 #if NCNN_image_shader
-                image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
+                afpvec4 v = image3d_ld4(bottom_blob, ivec3(x, y, z / 4));
+
+                image3d_st1(top_blob, ivec3(gx, gy, gz), v[z % 4]);
 #else
-                int v_offset = z * psc(cstep) + y * psc(w) + x;
+#if NCNN_fp16_packed
+                int v_offset = ((z / 4) * psc(cstep) + y * psc(w) + x) * 2 + (z % 4) / 2;
+                int lane2 = z % 2;
+
+                afpvec2 v = buffer_ld2(bottom_blob_data, v_offset);
+
+                buffer_st1(top_blob_data, gi, v[lane2]);
+#else
+                int v_offset = ((z / 4) * psc(cstep) + y * psc(w) + x) * 4 + z % 4;
+
                 buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
 #endif
             }
             else if (per_channel_pad == 1)
@@ -226,13 +317,25 @@ void main()
         {
             x = clamp(x, 0, psc(w) - 1);
             y = clamp(y, 0, psc(h) - 1);
-            z = clamp(z, 0, psc(c) - 1);
+            z = clamp(z, 0, psc(c) * 4 - 1);
 
 #if NCNN_image_shader
-            image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
+            afpvec4 v = image3d_ld4(bottom_blob, ivec3(x, y, z / 4));
+
+            image3d_st1(top_blob, ivec3(gx, gy, gz), v[z % 4]);
 #else
-            int v_offset = z * psc(cstep) + y * psc(w) + x;
+#if NCNN_fp16_packed
+            int v_offset = ((z / 4) * psc(cstep) + y * psc(w) + x) * 2 + (z % 4) / 2;
+            int lane2 = z % 2;
+
+            afpvec2 v = buffer_ld2(bottom_blob_data, v_offset);
+
+            buffer_st1(top_blob_data, gi, v[lane2]);
+#else
+            int v_offset = ((z / 4) * psc(cstep) + y * psc(w) + x) * 4 + z % 4;
+
             buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
 #endif
         }
         if (type == 2)
@@ -244,16 +347,28 @@ void main()
             // TODO only enable this workaround for some nvidia driver
             x = (p.w - 1) - abs(x - (p.w - 1));
             y = (p.h - 1) - abs(y - (p.h - 1));
-            z = (p.c - 1) - abs(z - (p.c - 1));
+            z = (p.c * 4 - 1) - abs(z - (p.c * 4 - 1));
 //             x = (psc(w) - 1) - abs(x - (psc(w) - 1));
 //             y = (psc(h) - 1) - abs(y - (psc(h) - 1));
-//             z = (psc(c) - 1) - abs(z - (psc(c) - 1));
+//             z = (psc(c) * 4 - 1) - abs(z - (psc(c) * 4 - 1));
 
 #if NCNN_image_shader
-            image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
+            afpvec4 v = image3d_ld4(bottom_blob, ivec3(x, y, z / 4));
+
+            image3d_st1(top_blob, ivec3(gx, gy, gz), v[z % 4]);
 #else
-            int v_offset = z * psc(cstep) + y * psc(w) + x;
+#if NCNN_fp16_packed
+            int v_offset = ((z / 4) * psc(cstep) + y * psc(w) + x) * 2 + (z % 4) / 2;
+            int lane2 = z % 2;
+
+            afpvec2 v = buffer_ld2(bottom_blob_data, v_offset);
+
+            buffer_st1(top_blob_data, gi, v[lane2]);
+#else
+            int v_offset = ((z / 4) * psc(cstep) + y * psc(w) + x) * 4 + z % 4;
+
             buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
 #endif
         }
     }
