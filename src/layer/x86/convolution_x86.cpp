@@ -485,21 +485,30 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                                 __m256 _val7 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8) + 7);
 
                                 __m256 _w0 = _mm256_loadu_ps(kptr);
-                                _sum = _mm256_fmadd_ps(_val0, _w0, _sum);
+                                __m256 _mul0 = _mm256_mul_ps(_val0, _w0);
                                 __m256 _w1 = _mm256_loadu_ps(kptr + 8);
-                                _sum = _mm256_fmadd_ps(_val1, _w1, _sum);
+                                __m256 _mul1 = _mm256_mul_ps(_val1, _w1);
                                 __m256 _w2 = _mm256_loadu_ps(kptr + 16);
-                                _sum = _mm256_fmadd_ps(_val2, _w2, _sum);
+                                __m256 _mul2 = _mm256_mul_ps(_val2, _w2);
                                 __m256 _w3 = _mm256_loadu_ps(kptr + 24);
-                                _sum = _mm256_fmadd_ps(_val3, _w3, _sum);
+                                __m256 _mul3 = _mm256_mul_ps(_val3, _w3);
                                 __m256 _w4 = _mm256_loadu_ps(kptr + 32);
-                                _sum = _mm256_fmadd_ps(_val4, _w4, _sum);
+                                __m256 _mul4 = _mm256_mul_ps(_val4, _w4);
                                 __m256 _w5 = _mm256_loadu_ps(kptr + 40);
-                                _sum = _mm256_fmadd_ps(_val5, _w5, _sum);
+                                __m256 _mul5 = _mm256_mul_ps(_val5, _w5);
                                 __m256 _w6 = _mm256_loadu_ps(kptr + 48);
-                                _sum = _mm256_fmadd_ps(_val6, _w6, _sum);
+                                __m256 _mul6 = _mm256_mul_ps(_val6, _w6);
                                 __m256 _w7 = _mm256_loadu_ps(kptr + 56);
-                                _sum = _mm256_fmadd_ps(_val7, _w7, _sum);
+                                __m256 _mul7 = _mm256_mul_ps(_val7, _w7);
+                                __m256 _sum01 = _mm256_add_ps(_mul0, _mul1);
+                                __m256 _sum23 = _mm256_add_ps(_mul2, _mul3);
+                                __m256 _sum45 = _mm256_add_ps(_mul4, _mul5);
+                                __m256 _sum67 = _mm256_add_ps(_mul6, _mul7);
+                                __m256 _sum_lo = _mm256_add_ps(_sum01, _sum23);
+                                __m256 _sum_hi = _mm256_add_ps(_sum45, _sum67);
+                                __m256 _sum_all = _mm256_add_ps(_sum_lo, _sum_hi);
+                                _sum = _mm256_add_ps(_sum_all, _sum);
+
                                 kptr += 64;
                             }
                         }
