@@ -172,6 +172,8 @@ public:
     int eliminate_flatten_after_innerproduct();
     int eliminate_reshape_before_binaryop();
 
+    int replace_reduction_with_global_pooling();
+    int replace_prelu_with_leaky_relu();
     int replace_convolution_with_innerproduct_after_global_pooling();
     int replace_convolution_with_innerproduct_after_innerproduct();
 
@@ -2399,6 +2401,116 @@ int NetOptimize::eliminate_reshape_before_binaryop()
     return 0;
 }
 
+int NetOptimize::replace_reduction_with_global_pooling()
+{
+    const size_t layer_count = layers.size();
+    for (int i = 0; i < layer_count; i++)
+    {
+        if (layers[i]->type != "Reduction")
+            continue;
+
+        ncnn::Reduction* reduction1 = (ncnn::Reduction*)layers[i];
+        if (reduction1->operation != 3 || reduction1->reduce_all != 0 || reduction1->coeff != 1.f)
+            continue;
+
+        if (reduction1->axes.w != 1)
+            continue;
+
+        const int* axes_ptr = reduction1->axes;
+        if (axes_ptr[0] != 2 && axes_ptr[0] != 3)
+            continue;
+
+        // Reduction(2/3) - Reduction(2)
+        int top_blob_index = layers[i]->tops[0];
+
+        int j = i + 1;
+        for (; j < layer_count; j++)
+        {
+            if (layers[j]->type != "Reduction")
+                continue;
+
+            if (layers[j]->bottoms.size() != 1)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        ncnn::Reduction* reduction2 = (ncnn::Reduction*)layers[j];
+        if (reduction2->operation != 3 || reduction2->reduce_all != 0 || reduction2->coeff != 1.f)
+            continue;
+
+        if (reduction2->axes.w != 1)
+            continue;
+
+        const int* axes2_ptr = reduction2->axes;
+        if (axes2_ptr[0] != 2)
+            continue;
+
+        fprintf(stderr, "replace_reduction_with_global_pooling %s %s\n", reduction1->name.c_str(), reduction2->name.c_str());
+
+        ncnn::Pooling* pooling = (ncnn::Pooling*)ncnn::create_layer("Pooling");
+
+        pooling->type = "Pooling";
+        pooling->name = reduction2->name;
+        pooling->bottoms = reduction2->bottoms;
+        pooling->tops = reduction2->tops;
+
+        ncnn::ParamDict pd;
+        pooling->load_param(pd);
+
+        pooling->pooling_type = 1;
+        pooling->global_pooling = 1;
+
+        layers[j] = pooling;
+        delete reduction2;
+
+        int bottom_blob_index_final = reduction1->bottoms[0];
+        pooling->bottoms[0] = bottom_blob_index_final;
+        blobs[bottom_blob_index_final].consumers.clear();
+        blobs[bottom_blob_index_final].consumers.push_back(j);
+        reduction1->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
+int NetOptimize::replace_prelu_with_leaky_relu()
+{
+    const size_t layer_count = layers.size();
+    for (int i = 0; i < layer_count; i++)
+    {
+        if (layers[i]->type != "PReLU")
+            continue;
+
+        ncnn::PReLU* prelu = (ncnn::PReLU*)layers[i];
+        if (prelu->num_slope != 1)
+            continue;
+
+        fprintf(stderr, "replace_prelu_with_leaky_relu %s\n", prelu->name.c_str());
+
+        ncnn::ReLU* relu = (ncnn::ReLU*)ncnn::create_layer("ReLU");
+
+        relu->type = "ReLU";
+        relu->name = prelu->name;
+        relu->bottoms = prelu->bottoms;
+        relu->tops = prelu->tops;
+
+        ncnn::ParamDict pd;
+        relu->load_param(pd);
+
+        relu->slope = prelu->slope_data[0];
+
+        layers[i] = relu;
+        delete prelu;
+    }
+
+    return 0;
+}
+
 int NetOptimize::replace_convolution_with_innerproduct_after_global_pooling()
 {
     const size_t layer_count = layers.size();
@@ -3773,6 +3885,10 @@ int main(int argc, char** argv)
     optimizer.fuse_innerproduct_batchnorm();
     optimizer.fuse_innerproduct_add();
     optimizer.fuse_innerproduct_dropout();
+
+    optimizer.replace_reduction_with_global_pooling();
+    optimizer.replace_prelu_with_leaky_relu();
+
     optimizer.fuse_convolution_activation();
     optimizer.fuse_convolutiondepthwise_activation();
     optimizer.fuse_deconvolution_activation();

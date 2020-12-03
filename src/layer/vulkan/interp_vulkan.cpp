@@ -269,12 +269,17 @@ int Interp_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute&
     int w = bottom_blob.w;
     int h = bottom_blob.h;
 
-    int outh = output_height;
     int outw = output_width;
-    if (outh == 0 || outw == 0)
+    int outh = output_height;
+    if (bottom_blob.dims == 1)
     {
-        outh = static_cast<int>(h * height_scale);
+        w = 1;
+        h = 1;
+    }
+    if (outw == 0 || outh == 0)
+    {
         outw = static_cast<int>(w * width_scale);
+        outh = static_cast<int>(h * height_scale);
     }
 
     VkMat reference_blob;
@@ -299,12 +304,17 @@ int Interp_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
 
-    int outh = output_height;
     int outw = output_width;
-    if (outh == 0 || outw == 0)
+    int outh = output_height;
+    if (bottom_blob.dims == 1)
     {
-        outh = static_cast<int>(h * height_scale);
+        w = 1;
+        h = 1;
+    }
+    if (outw == 0 || outh == 0)
+    {
         outw = static_cast<int>(w * width_scale);
+        outh = static_cast<int>(h * height_scale);
     }
 
     VkImageMat reference_blob;
@@ -336,10 +346,43 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    int outh = reference_blob.h;
     int outw = reference_blob.w;
+    int outh = reference_blob.h;
 
-    if (outh == h && outw == w)
+    if (bottom_blob.dims == 1)
+    {
+        top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkMat> bindings(2);
+        bindings[0] = bottom_blob;
+        bindings[1] = top_blob;
+
+        std::vector<vk_constant_type> constants(12);
+        constants[0].i = bottom_blob.dims;
+        constants[1].i = bottom_blob.w;
+        constants[2].i = bottom_blob.h;
+        constants[3].i = bottom_blob.c;
+        constants[4].i = bottom_blob.cstep;
+        constants[5].i = top_blob.dims;
+        constants[6].i = top_blob.w;
+        constants[7].i = top_blob.h;
+        constants[8].i = top_blob.c;
+        constants[9].i = top_blob.cstep;
+        constants[10].f = w / (float)outw;
+        constants[11].f = h / (float)outh;
+
+        const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
+                                   : elempack == 4 ? pipeline_interp_pack4
+                                   : pipeline_interp;
+
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+        return 0;
+    }
+
+    if (outw == w && outh == h)
     {
         top_blob = bottom_blob;
         return 0;
@@ -463,10 +506,43 @@ int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    int outh = reference_blob.h;
     int outw = reference_blob.w;
+    int outh = reference_blob.h;
 
-    if (outh == h && outw == w)
+    if (bottom_blob.dims == 1)
+    {
+        top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkImageMat> bindings(2);
+        bindings[0] = bottom_blob;
+        bindings[1] = top_blob;
+
+        std::vector<vk_constant_type> constants(12);
+        constants[0].i = bottom_blob.dims;
+        constants[1].i = bottom_blob.w;
+        constants[2].i = bottom_blob.h;
+        constants[3].i = bottom_blob.c;
+        constants[4].i = 0; //bottom_blob.cstep;
+        constants[5].i = top_blob.dims;
+        constants[6].i = top_blob.w;
+        constants[7].i = top_blob.h;
+        constants[8].i = top_blob.c;
+        constants[9].i = 0; //top_blob.cstep;
+        constants[10].f = w / (float)outw;
+        constants[11].f = h / (float)outh;
+
+        const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
+                                   : elempack == 4 ? pipeline_interp_pack4
+                                   : pipeline_interp;
+
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+        return 0;
+    }
+
+    if (outw == w && outh == h)
     {
         top_blob = bottom_blob;
         return 0;

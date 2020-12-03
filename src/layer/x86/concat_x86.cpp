@@ -18,14 +18,17 @@ namespace ncnn {
 
 Concat_x86::Concat_x86()
 {
+#if __SSE2__
     support_packing = true;
+#endif // __SSE2__
 }
 
 int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
-    if (dims == 1) // axis == 0
+    if (dims == 1) // positive_axis == 0
     {
         // concat vector
         // total length
@@ -39,6 +42,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
 
         int out_elempack = 1;
+#if __SSE2__
         if (opt.use_packing_layout)
         {
 #if __AVX__
@@ -47,6 +51,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             out_elempack = top_w % 4 == 0 ? 4 : 1;
 #endif
         }
+#endif // __SSE2__
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         Mat& top_blob = top_blobs[0];
@@ -66,7 +71,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
     }
 
-    if (dims == 2 && axis == 0)
+    if (dims == 2 && positive_axis == 0)
     {
         // concat image
         int w = bottom_blobs[0].w;
@@ -84,6 +89,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
 
         int out_elempack = 1;
+#if __SSE2__
         if (opt.use_packing_layout)
         {
 #if __AVX__
@@ -92,6 +98,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             out_elempack = top_h % 4 == 0 ? 4 : 1;
 #endif
         }
+#endif // __SSE2__
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         Mat& top_blob = top_blobs[0];
@@ -216,7 +223,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
     }
 
-    if (dims == 2 && axis == 1)
+    if (dims == 2 && positive_axis == 1)
     {
         // interleave image row
         int h = bottom_blobs[0].h;
@@ -252,7 +259,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
     }
 
-    if (dims == 3 && axis == 0)
+    if (dims == 3 && positive_axis == 0)
     {
         // concat dim
         int w = bottom_blobs[0].w;
@@ -271,6 +278,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
 
         int out_elempack = 1;
+#if __SSE2__
         if (opt.use_packing_layout)
         {
 #if __AVX__
@@ -279,6 +287,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             out_elempack = top_channels % 4 == 0 ? 4 : 1;
 #endif
         }
+#endif // __SSE2__
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
         Mat& top_blob = top_blobs[0];
@@ -410,7 +419,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
     }
 
-    if (dims == 3 && axis == 1)
+    if (dims == 3 && positive_axis == 1)
     {
         // interleave dim height
         int w = bottom_blobs[0].w;
@@ -450,7 +459,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
     }
 
-    if (dims == 3 && axis == 2)
+    if (dims == 3 && positive_axis == 2)
     {
         // interleave dim width
         int h = bottom_blobs[0].h;

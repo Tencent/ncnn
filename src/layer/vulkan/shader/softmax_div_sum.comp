@@ -69,36 +69,37 @@ void main()
     if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
         return;
 
+    int positive_axis = axis < 0 ? psc(dims) + axis : axis;
 #if NCNN_image_shader
     afp v;
     afp sum;
 
-    if (psc(dims) == 1) // axis == 0
+    if (psc(dims) == 1) // positive_axis == 0
     {
         v = image3d_ld1(bottom_blob_3d, ivec3(gx, 0, 0));
         sum = image3d_ld1(sum_workspace_3d, ivec3(0, 0, 0));
     }
-    else if (psc(dims) == 2 && axis == 0)
+    else if (psc(dims) == 2 && positive_axis == 0)
     {
         v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, 0));
         sum = image3d_ld1(sum_workspace_3d, ivec3(gx, 0, 0));
     }
-    else if (psc(dims) == 2 && axis == 1)
+    else if (psc(dims) == 2 && positive_axis == 1)
     {
         v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, 0));
         sum = image3d_ld1(sum_workspace_3d, ivec3(gy, 0, 0));
     }
-    else if (psc(dims) == 3 && axis == 0)
+    else if (psc(dims) == 3 && positive_axis == 0)
     {
         v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, gz));
         sum = image3d_ld1(sum_workspace_3d, ivec3(gx, gy, 0));
     }
-    else if (psc(dims) == 3 && axis == 1)
+    else if (psc(dims) == 3 && positive_axis == 1)
     {
         v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, gz));
         sum = image3d_ld1(sum_workspace_3d, ivec3(gx, gz, 0));
     }
-    else if (psc(dims) == 3 && axis == 2)
+    else if (psc(dims) == 3 && positive_axis == 2)
     {
         v = image3d_ld1(bottom_blob_3d, ivec3(gx, gy, gz));
         sum = image3d_ld1(sum_workspace_3d, ivec3(gy, gz, 0));
@@ -110,27 +111,27 @@ void main()
 
     afp sum;
 
-    if (psc(dims) == 1) // axis == 0
+    if (psc(dims) == 1) // positive_axis == 0
     {
         sum = buffer_ld1(sum_workspace_data, 0);
     }
-    else if (psc(dims) == 2 && axis == 0)
+    else if (psc(dims) == 2 && positive_axis == 0)
     {
         sum = buffer_ld1(sum_workspace_data, gx);
     }
-    else if (psc(dims) == 2 && axis == 1)
+    else if (psc(dims) == 2 && positive_axis == 1)
     {
         sum = buffer_ld1(sum_workspace_data, gy);
     }
-    else if (psc(dims) == 3 && axis == 0)
+    else if (psc(dims) == 3 && positive_axis == 0)
     {
         sum = buffer_ld1(sum_workspace_data, gy * psc(w) + gx);
     }
-    else if (psc(dims) == 3 && axis == 1)
+    else if (psc(dims) == 3 && positive_axis == 1)
     {
         sum = buffer_ld1(sum_workspace_data, gz * psc(w) + gx);
     }
-    else if (psc(dims) == 3 && axis == 2)
+    else if (psc(dims) == 3 && positive_axis == 2)
     {
         sum = buffer_ld1(sum_workspace_data, gz * psc(h) + gy);
     }

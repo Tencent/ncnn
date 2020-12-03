@@ -14,16 +14,20 @@
 
 #include "hardsigmoid_x86.h"
 
+#if __SSE2__
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
+#endif // __SSE2__
 
 namespace ncnn {
 
 HardSigmoid_x86::HardSigmoid_x86()
 {
+#if __SSE2__
     support_packing = true;
+#endif // __SSE2__
 }
 
 int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -32,6 +36,7 @@ int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int size = w * h;
+#if __SSE2__
     int elempack = bottom_top_blob.elempack;
 
 #if __AVX__
@@ -85,6 +90,7 @@ int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
         return 0;
     }
+#endif // __SSE2__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
