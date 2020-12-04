@@ -14,7 +14,7 @@ $ git submodule update --init
 * [Build for Android](#build-for-android)
 * [Build for iOS on MacOSX with xcode](#build-for-ios-on-macosx-with-xcode)
 * [Build for iOS on Linux with cctools-port](#build-for-ios-on-linux-with-cctools-port)
-
+* [Build for Windows x32 using C++Builder](#build-for-windows-x32-using-CBuilder-Community-Edition)
 ***
 
 ### Build for Linux
@@ -409,3 +409,36 @@ $ cp Info.plist ncnn.framework/Versions/A/Resources/
 ```
 
 Pick `ncnn.framework` folder for app development.
+
+***
+
+### build for windows x32 using C++Builder Community Edition
+
+Download and install CMake 3.10 from https://cmake.org/download/
+
+```
+Locate your CMake installation folder and the Modules\Platform subfolder. E.g. C:\Program Files\CMake\share\cmake-3.10\Modules\Platform
+Locate the Windows-Embarcadero.cmake file and make a backup.
+Copy Windows-Embarcadero.cmake from the Studio\20.0\cmake folder and overwrite the version in the CMake folder.
+```
+
+Download and install Ninja 1.8.2 from https://ninja-build.org/
+
+Download and Install C++Builder Community Edition 10.3.3 from https://www.embarcadero.com/products/cbuilder/starter/free-download/
+
+Start the command prompt: `Start → Programs → Embarcadero RAD Studio 10.3 → RAD Studio Command Prompt`
+
+
+Build ncnn library :
+
+```
+> cd <ncnn-root-dir>
+> mkdir -p build
+> cd build
+> cmake -DCMAKE_C_COMPILER=bcc32x.exe -DCMAKE_CXX_COMPILER=bcc32x.exe  -DCMAKE_BUILD_TYPE_INIT=Release -G Ninja -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_THREADS=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+> ninja
+```
+
+Note: To speed up compilation process on multi core machines, configuring `cmake` to use `jom` or `ninja` using `-G` flag is recommended.
+
+***
