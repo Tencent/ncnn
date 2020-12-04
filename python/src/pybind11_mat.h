@@ -26,7 +26,7 @@ std::string get_mat_format(const ncnn::Mat& m)
 {
     std::string format;
     if (m.elemsize == 4)
-    {   //float or int32, so what?
+    { //float or int32, so what?
         format = pybind11::format_descriptor<float>::format();
     }
     if (m.elemsize == 2)
@@ -34,7 +34,7 @@ std::string get_mat_format(const ncnn::Mat& m)
         format = "e";
     }
     if (m.elemsize == 1)
-    {   //int8 or uint8, so what?
+    { //int8 or uint8, so what?
         format = pybind11::format_descriptor<int8_t>::format();
     }
     return format;
