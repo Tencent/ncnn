@@ -23,6 +23,6 @@ set_target_properties(pyncnn PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY "${CM
 set_property(TARGET pyncnn PROPERTY FOLDER "python")
 add_custom_command(TARGET pyncnn POST_BUILD 
     COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_CURRENT_BINARY_DIR}/ncnn/ncnn${PYTHON_MODULE_PREFIX}${PYTHON_MODULE_EXTENSION} 
-    ${PROJECT_SOURCE_DIR}/python/ncnn/ncnn${PYTHON_MODULE_PREFIX}${PYTHON_MODULE_EXTENSION})
+    ${PROJECT_SOURCE_DIR}/ncnn/ncnn${PYTHON_MODULE_PREFIX}${PYTHON_MODULE_EXTENSION})
 
-configure_file(python/setup.py.i ${PROJECT_SOURCE_DIR}/python/setup.py)
+configure_file(setup.py.i ${PROJECT_SOURCE_DIR}/setup.py)

@@ -2,6 +2,8 @@ import sys
 import time
 import ncnn
 
+param_root = "../../benchmark/"
+
 g_warmup_loop_count = 8
 g_loop_count = 4
 
@@ -14,7 +16,7 @@ def benchmark(comment, _in, opt):
     net = ncnn.Net()
     net.opt = opt
 
-    net.load_param("params/" + comment + ".param")
+    net.load_param(param_root + comment + ".param")
 
     dr = ncnn.DataReaderFromEmpty()
     net.load_model(dr)

@@ -15,7 +15,7 @@ requirements = [
 setup(
   name          = 'ncnn',
   version       = '${PACKAGE_VERSION}',
-  url           = 'https://github.com/caishanli/pyncnn',
+  url           = 'https://github.com/Tencent/ncnn',
   packages      = find_packages(),
   package_dir   = {'': '.'},
   package_data  = {'ncnn': ['ncnn${PYTHON_MODULE_PREFIX}${PYTHON_MODULE_EXTENSION}']},

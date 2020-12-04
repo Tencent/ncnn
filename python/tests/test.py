@@ -4,7 +4,7 @@ import ncnn
 dr = ncnn.DataReaderFromEmpty()
 
 net = ncnn.Net()
-net.load_param("params/test.param")
+net.load_param("test.param")
 net.load_model(dr)
 
 #must use named param w, h, c for python has no size_t(unsigned int) to call the correct ncnn.Mat
