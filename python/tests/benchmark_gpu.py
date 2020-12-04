@@ -1,15 +1,32 @@
+# Tencent is pleased to support the open source community by making ncnn available.
+#
+# Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
+#
+# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+# in compliance with the License. You may obtain a copy of the License at
+#
+# https://opensource.org/licenses/BSD-3-Clause
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
 import sys
 import time
 import ncnn
 
+
 class GlobalGpuInstance:
     def __init__(self):
         ncnn.create_gpu_instance()
+
     def __del__(self):
         ncnn.destroy_gpu_instance()
-        
+
+
 # initialize vulkan runtime before main()
-g_global_gpu_instance = GlobalGpuInstance();
+g_global_gpu_instance = GlobalGpuInstance()
 
 g_warmup_loop_count = 8
 g_loop_count = 4
@@ -20,6 +37,7 @@ g_workspace_pool_allocator = ncnn.PoolAllocator()
 g_vkdev = None
 g_blob_vkallocator = None
 g_staging_vkallocator = None
+
 
 def benchmark(comment, _in, opt):
     _in.fill(0.01)
@@ -42,13 +60,11 @@ def benchmark(comment, _in, opt):
         g_blob_vkallocator.clear()
         g_staging_vkallocator.clear()
 
-    out = ncnn.Mat()
-
-    #warm up
+    # warm up
     for i in range(g_warmup_loop_count):
         ex = net.create_extractor()
         ex.input("data", _in)
-        ex.extract("output", out)
+        ex.extract("output")
 
     time_min = sys.float_info.max
     time_max = -sys.float_info.max
@@ -59,7 +75,7 @@ def benchmark(comment, _in, opt):
 
         ex = net.create_extractor()
         ex.input("data", _in)
-        ex.extract("output", out)
+        ex.extract("output")
 
         end = time.time()
 
@@ -75,7 +91,11 @@ def benchmark(comment, _in, opt):
 
     time_avg /= g_loop_count
 
-    print("%20s  min = %7.2f  max = %7.2f  avg = %7.2f"%(comment, time_min * 1000, time_max * 1000, time_avg * 1000))
+    print(
+        "%20s  min = %7.2f  max = %7.2f  avg = %7.2f"
+        % (comment, time_min * 1000, time_max * 1000, time_avg * 1000)
+    )
+
 
 if __name__ == "__main__":
     loop_count = 4
@@ -94,9 +114,8 @@ if __name__ == "__main__":
         gpu_device = int(sys.argv[4])
 
     if ncnn.build_with_gpu() == False:
-        print('ncnn is not build with gpu(NCNN_VULKAN), please rebuild with gpu')
+        print("ncnn is not build with gpu(NCNN_VULKAN), please rebuild with gpu")
         sys.exit(0)
-    
 
     g_loop_count = loop_count
 
@@ -133,16 +152,16 @@ if __name__ == "__main__":
     ncnn.set_omp_dynamic(0)
     ncnn.set_omp_num_threads(num_threads)
 
-    print("loop_count = %d"%(loop_count))
-    print("num_threads = %d"%(num_threads))
-    print("powersave = %d"%(ncnn.get_cpu_powersave()))
-    print("gpu_device = %d"%(gpu_device))
+    print("loop_count = %d" % (loop_count))
+    print("num_threads = %d" % (num_threads))
+    print("powersave = %d" % (ncnn.get_cpu_powersave()))
+    print("gpu_device = %d" % (gpu_device))
 
-    #time.sleep(15)
+    # time.sleep(15)
 
-    #must use named param w, h, c due to python has no size_t(unsigned int) to call the correct overload ncnn.Mat
+    # must use named param w, h, c due to python has no size_t(unsigned int) to call the correct overload ncnn.Mat
     benchmark("squeezenet", ncnn.Mat(w=227, h=227, c=3), opt)
-    #benchmark("squeezenet_int8", ncnn.Mat(w=227, h=227, c=3), opt)
+    # benchmark("squeezenet_int8", ncnn.Mat(w=227, h=227, c=3), opt)
     benchmark("mobilenet", ncnn.Mat(w=224, h=224, c=3), opt)
     benchmark("mobilenet_int8", ncnn.Mat(w=224, h=224, c=3), opt)
     benchmark("mobilenet_v2", ncnn.Mat(w=224, h=224, c=3), opt)
@@ -152,20 +171,17 @@ if __name__ == "__main__":
     benchmark("mnasnet", ncnn.Mat(w=224, h=224, c=3), opt)
     benchmark("proxylessnasnet", ncnn.Mat(w=224, h=224, c=3), opt)
     benchmark("googlenet", ncnn.Mat(w=224, h=224, c=3), opt)
-    #benchmark("googlenet_int8", ncnn.Mat(w=224, h=224, c=3), opt)
+    # benchmark("googlenet_int8", ncnn.Mat(w=224, h=224, c=3), opt)
     benchmark("resnet18", ncnn.Mat(w=224, h=224, c=3), opt)
-    #benchmark("resnet18_int8", ncnn.Mat(w=224, h=224, c=3), opt)
+    # benchmark("resnet18_int8", ncnn.Mat(w=224, h=224, c=3), opt)
     benchmark("alexnet", ncnn.Mat(w=227, h=227, c=3), opt)
     benchmark("vgg16", ncnn.Mat(w=224, h=224, c=3), opt)
-    #benchmark("vgg16_int8", ncnn.Mat(w=224, h=224, c=3), opt)
+    # benchmark("vgg16_int8", ncnn.Mat(w=224, h=224, c=3), opt)
     benchmark("resnet50", ncnn.Mat(w=224, h=224, c=3), opt)
-    #benchmark("resnet50_int8", ncnn.Mat(w=224, h=224, c=3), opt)
+    # benchmark("resnet50_int8", ncnn.Mat(w=224, h=224, c=3), opt)
     benchmark("squeezenet_ssd", ncnn.Mat(w=300, h=300, c=3), opt)
-    #benchmark("squeezenet_ssd_int8", ncnn.Mat(w=300, h=300, c=3), opt)
+    # benchmark("squeezenet_ssd_int8", ncnn.Mat(w=300, h=300, c=3), opt)
     benchmark("mobilenet_ssd", ncnn.Mat(w=300, h=300, c=3), opt)
-    #benchmark("mobilenet_ssd_int8", ncnn.Mat(w=300, h=300, c=3), opt)
+    # benchmark("mobilenet_ssd_int8", ncnn.Mat(w=300, h=300, c=3), opt)
     benchmark("mobilenet_yolo", ncnn.Mat(w=416, h=416, c=3), opt)
     benchmark("mobilenetv2_yolov3", ncnn.Mat(w=352, h=352, c=3), opt)
-
-
-

@@ -1,10 +1,34 @@
+# Tencent is pleased to support the open source community by making ncnn available.
+#
+# Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
+#
+# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+# in compliance with the License. You may obtain a copy of the License at
+#
+# https://opensource.org/licenses/BSD-3-Clause
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
 import numpy as np
 import ncnn
 from .model_store import get_model_file
 from ..utils.objects import Detect_Object
 
+
 class Faster_RCNN:
-    def __init__(self, img_width=600, img_height=600, num_threads=1, use_gpu=False, max_per_image=100, confidence_thresh=0.05, nms_threshold=0.3):
+    def __init__(
+        self,
+        img_width=600,
+        img_height=600,
+        num_threads=1,
+        use_gpu=False,
+        max_per_image=100,
+        confidence_thresh=0.05,
+        nms_threshold=0.3,
+    ):
         self.img_width = img_width
         self.img_height = img_height
         self.num_threads = num_threads
@@ -28,13 +52,30 @@ class Faster_RCNN:
         self.confidence_thresh = confidence_thresh
         self.nms_threshold = nms_threshold
 
-        self.class_names = ["background",
-            "aeroplane", "bicycle", "bird", "boat",
-            "bottle", "bus", "car", "cat", "chair",
-            "cow", "diningtable", "dog", "horse",
-            "motorbike", "person", "pottedplant",
-            "sheep", "sofa", "train", "tvmonitor"]
-            
+        self.class_names = [
+            "background",
+            "aeroplane",
+            "bicycle",
+            "bird",
+            "boat",
+            "bottle",
+            "bus",
+            "car",
+            "cat",
+            "chair",
+            "cow",
+            "diningtable",
+            "dog",
+            "horse",
+            "motorbike",
+            "person",
+            "pottedplant",
+            "sheep",
+            "sofa",
+            "train",
+            "tvmonitor",
+        ]
+
     def __del__(self):
         self.net = None
 
@@ -42,7 +83,7 @@ class Faster_RCNN:
         # scale to target detect size
         h = img.shape[0]
         w = img.shape[1]
-        scale = 1.0;
+        scale = 1.0
         if w < h:
             scale = float(self.img_width) / w
             w = self.img_width
@@ -52,13 +93,15 @@ class Faster_RCNN:
             h = self.img_height
             w = int(w * scale)
 
-        mat_in = ncnn.Mat.from_pixels_resize(img, ncnn.Mat.PixelType.PIXEL_BGR, img.shape[1], img.shape[0], w, h)
+        mat_in = ncnn.Mat.from_pixels_resize(
+            img, ncnn.Mat.PixelType.PIXEL_BGR, img.shape[1], img.shape[0], w, h
+        )
         mat_in.substract_mean_normalize(self.mean_vals, self.norm_vals)
 
         # method 1 use numpy to Mat interface
         # im_info = ncnn.Mat(np.array([h, w, scale], dtype=np.float32))
 
-        #method 2 use ncnn.Mat interface
+        # method 2 use ncnn.Mat interface
         im_info = ncnn.Mat(3)
         im_info[0] = h
         im_info[1] = w
@@ -70,23 +113,19 @@ class Faster_RCNN:
         ex1.input("data", mat_in)
         ex1.input("im_info", im_info)
 
-        conv5_relu5 = ncnn.Mat()
-        rois = ncnn.Mat()
-        ex1.extract("conv5_relu5", conv5_relu5)
-        ex1.extract("rois", rois)
+        ret1, conv5_relu5 = ex1.extract("conv5_relu5")
+        ret2, rois = ex1.extract("rois")
 
         class_candidates = []
         for i in range(rois.c):
             ex2 = self.net.create_extractor()
 
-            roi = rois.channel(i) # get single roi
+            roi = rois.channel(i)  # get single roi
             ex2.input("conv5_relu5", conv5_relu5)
             ex2.input("rois", roi)
 
-            bbox_pred = ncnn.Mat()
-            cls_prob = ncnn.Mat()
-            ex2.extract("bbox_pred", bbox_pred)
-            ex2.extract("cls_prob", cls_prob)
+            ret1, bbox_pred = ex2.extract("bbox_pred")
+            ret2, cls_prob = ex2.extract("cls_prob")
 
             num_class = cls_prob.w
             while len(class_candidates) < num_class:
@@ -105,7 +144,7 @@ class Faster_RCNN:
             if label == 0 or score <= self.confidence_thresh:
                 continue
 
-            #fprintf(stderr, "%d = %f\n", label, score);
+            # fprintf(stderr, "%d = %f\n", label, score);
 
             # unscale to image size
             x1 = roi[0] / scale
@@ -159,7 +198,7 @@ class Faster_RCNN:
             if len(candidates) == 0:
                 continue
 
-            candidates.sort(key=lambda obj : obj.prob, reverse=True)
+            candidates.sort(key=lambda obj: obj.prob, reverse=True)
 
             picked = self.nms_sorted_bboxes(candidates, self.nms_threshold)
 
@@ -167,9 +206,9 @@ class Faster_RCNN:
                 z = picked[j]
                 objects.append(candidates[z])
 
-        objects.sort(key=lambda obj : obj.prob, reverse=True)
+        objects.sort(key=lambda obj: obj.prob, reverse=True)
 
-        objects = objects[:self.max_per_image]
+        objects = objects[: self.max_per_image]
 
         return objects
 
@@ -192,11 +231,11 @@ class Faster_RCNN:
                 # intersection over union
                 inter_area = a.rect.intersection_area(b.rect)
                 union_area = areas[i] + areas[picked[j]] - inter_area
-                #float IoU = inter_area / union_area
+                # float IoU = inter_area / union_area
                 if inter_area / union_area > nms_threshold:
                     keep = False
 
             if keep:
                 picked.append(i)
-                
+
         return picked

@@ -1,11 +1,33 @@
+# Tencent is pleased to support the open source community by making ncnn available.
+#
+# Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
+#
+# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+# in compliance with the License. You may obtain a copy of the License at
+#
+# https://opensource.org/licenses/BSD-3-Clause
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
 import numpy as np
 import ncnn
 from .model_store import get_model_file
 from ..utils.objects import Detect_Object
 
+
 class RFCN:
-    def __init__(self, target_size=224, max_per_image =100, confidence_thresh=0.6, 
-            nms_threshold = 0.3, num_threads=1, use_gpu=False):
+    def __init__(
+        self,
+        target_size=224,
+        max_per_image=100,
+        confidence_thresh=0.6,
+        nms_threshold=0.3,
+        num_threads=1,
+        use_gpu=False,
+    ):
         self.target_size = target_size
         self.max_per_image = max_per_image
         self.confidence_thresh = confidence_thresh
@@ -26,13 +48,30 @@ class RFCN:
         # the ncnn model https://github.com/caishanli/pyncnn-assets/tree/master/models
         self.net.load_param(get_model_file("rfcn_end2end.param"))
         self.net.load_model(get_model_file("rfcn_end2end.bin"))
-        
-        self.class_names = ["background",
-            "aeroplane", "bicycle", "bird", "boat",
-            "bottle", "bus", "car", "cat", "chair",
-            "cow", "diningtable", "dog", "horse",
-            "motorbike", "person", "pottedplant",
-            "sheep", "sofa", "train", "tvmonitor"]
+
+        self.class_names = [
+            "background",
+            "aeroplane",
+            "bicycle",
+            "bird",
+            "boat",
+            "bottle",
+            "bus",
+            "car",
+            "cat",
+            "chair",
+            "cow",
+            "diningtable",
+            "dog",
+            "horse",
+            "motorbike",
+            "person",
+            "pottedplant",
+            "sheep",
+            "sofa",
+            "train",
+            "tvmonitor",
+        ]
 
     def __del__(self):
         self.net = None
@@ -51,7 +90,14 @@ class RFCN:
             h = self.target_size
             w = w * scale
 
-        mat_in = ncnn.Mat.from_pixels_resize(img, ncnn.Mat.PixelType.PIXEL_BGR, img.shape[1], img.shape[0], int(w), int(h))
+        mat_in = ncnn.Mat.from_pixels_resize(
+            img,
+            ncnn.Mat.PixelType.PIXEL_BGR,
+            img.shape[1],
+            img.shape[0],
+            int(w),
+            int(h),
+        )
         mat_in.substract_mean_normalize(self.mean_vals, self.norm_vals)
 
         im_info = ncnn.Mat(3)
@@ -65,12 +111,9 @@ class RFCN:
         ex1.input("data", mat_in)
         ex1.input("im_info", im_info)
 
-        rfcn_cls = ncnn.Mat()
-        rfcn_bbox = ncnn.Mat()
-        rois = ncnn.Mat()   # all rois
-        ex1.extract("rfcn_cls", rfcn_cls)
-        ex1.extract("rfcn_bbox", rfcn_bbox)
-        ex1.extract("rois", rois)
+        ret1, rfcn_cls = ex1.extract("rfcn_cls")
+        ret2, rfcn_bbox = ex1.extract("rfcn_bbox")
+        ret3, rois = ex1.extract("rois")  # all rois
 
         # step2, extract bbox and score for each roi
         class_candidates = []
@@ -82,10 +125,8 @@ class RFCN:
             ex2.input("rfcn_bbox", rfcn_bbox)
             ex2.input("rois", roi)
 
-            bbox_pred = ncnn.Mat()
-            cls_prob = ncnn.Mat()
-            ex2.extract("bbox_pred", bbox_pred)
-            ex2.extract("cls_prob", cls_prob)
+            ret1, bbox_pred = ex2.extract("bbox_pred")
+            ret2, cls_prob = ex2.extract("cls_prob")
 
             num_class = cls_prob.w
             while len(class_candidates) < num_class:
@@ -158,7 +199,7 @@ class RFCN:
             if len(candidates) == 0:
                 continue
 
-            candidates.sort(key=lambda obj : obj.prob, reverse=True)
+            candidates.sort(key=lambda obj: obj.prob, reverse=True)
 
             picked = self.nms_sorted_bboxes(candidates, self.nms_threshold)
 
@@ -166,9 +207,9 @@ class RFCN:
                 z = picked[j]
                 objects.append(candidates[z])
 
-        objects.sort(key=lambda obj : obj.prob, reverse=True)
+        objects.sort(key=lambda obj: obj.prob, reverse=True)
 
-        objects = objects[:self.max_per_image]
+        objects = objects[: self.max_per_image]
 
         return objects
 
@@ -191,11 +232,11 @@ class RFCN:
                 # intersection over union
                 inter_area = a.rect.intersection_area(b.rect)
                 union_area = areas[i] + areas[picked[j]] - inter_area
-                #float IoU = inter_area / union_area
+                # float IoU = inter_area / union_area
                 if inter_area / union_area > nms_threshold:
                     keep = False
 
             if keep:
                 picked.append(i)
-                
+
         return picked

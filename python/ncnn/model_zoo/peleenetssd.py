@@ -1,6 +1,21 @@
+# Tencent is pleased to support the open source community by making ncnn available.
+#
+# Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
+#
+# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+# in compliance with the License. You may obtain a copy of the License at
+#
+# https://opensource.org/licenses/BSD-3-Clause
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
 import ncnn
 from .model_store import get_model_file
 from ..utils.objects import Detect_Object
+
 
 class PeleeNet_SSD:
     def __init__(self, target_size=304, num_threads=1, use_gpu=False):
@@ -9,7 +24,7 @@ class PeleeNet_SSD:
         self.use_gpu = use_gpu
 
         self.mean_vals = [103.9, 116.7, 123.6]
-        self.norm_vals = [0.017,0.017,0.017]
+        self.norm_vals = [0.017, 0.017, 0.017]
 
         self.net = ncnn.Net()
         self.net.opt.use_vulkan_compute = self.use_gpu
@@ -20,11 +35,20 @@ class PeleeNet_SSD:
         self.net.load_param(get_model_file("pelee.param"))
         self.net.load_model(get_model_file("pelee.bin"))
 
-        self.class_names = ["background",
-        "person","rider", "car","bus",
-        "truck","bike","motor",
-        "traffic light","traffic sign","train"]
-            
+        self.class_names = [
+            "background",
+            "person",
+            "rider",
+            "car",
+            "bus",
+            "truck",
+            "bike",
+            "motor",
+            "traffic light",
+            "traffic sign",
+            "train",
+        ]
+
     def __del__(self):
         self.net = None
 
@@ -32,7 +56,14 @@ class PeleeNet_SSD:
         img_h = img.shape[0]
         img_w = img.shape[1]
 
-        mat_in = ncnn.Mat.from_pixels_resize(img, ncnn.Mat.PixelType.PIXEL_BGR, img.shape[1], img.shape[0], self.target_size, self.target_size)
+        mat_in = ncnn.Mat.from_pixels_resize(
+            img,
+            ncnn.Mat.PixelType.PIXEL_BGR,
+            img.shape[1],
+            img.shape[0],
+            self.target_size,
+            self.target_size,
+        )
         mat_in.substract_mean_normalize(self.mean_vals, self.norm_vals)
 
         ex = self.net.create_extractor()
@@ -40,14 +71,13 @@ class PeleeNet_SSD:
 
         ex.input("data", mat_in)
 
-        mat_out = ncnn.Mat()
-        ex.extract("detection_out", mat_out)
+        ret, mat_out = ex.extract("detection_out")
 
         objects = []
 
-        #printf("%d %d %d\n", mat_out.w, mat_out.h, mat_out.c)
-        
-        #method 1, use ncnn.Mat.row to get the result, no memory copy
+        # printf("%d %d %d\n", mat_out.w, mat_out.h, mat_out.c)
+
+        # method 1, use ncnn.Mat.row to get the result, no memory copy
         for i in range(mat_out.h):
             values = mat_out.row(i)
 
@@ -61,7 +91,7 @@ class PeleeNet_SSD:
 
             objects.append(obj)
 
-        '''
+        """
         #method 2, use ncnn.Mat->numpy.array to get the result, no memory copy too
         out = np.array(mat_out)
         for i in range(len(out)):
@@ -74,10 +104,9 @@ class PeleeNet_SSD:
             obj.rect.w = values[4] * img_w - obj.rect.x
             obj.rect.h = values[5] * img_h - obj.rect.y
             objects.append(obj)
-        '''
+        """
 
-        seg_out = ncnn.Mat()
-        ex.extract("sigmoid", seg_out)
+        ret, seg_out = ex.extract("sigmoid")
 
         resized = ncnn.Mat()
         ncnn.resize_bilinear(seg_out, resized, img_w, img_h)

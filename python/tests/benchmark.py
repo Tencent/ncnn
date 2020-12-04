@@ -1,3 +1,17 @@
+# Tencent is pleased to support the open source community by making ncnn available.
+#
+# Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
+#
+# Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+# in compliance with the License. You may obtain a copy of the License at
+#
+# https://opensource.org/licenses/BSD-3-Clause
+#
+# Unless required by applicable law or agreed to in writing, software distributed
+# under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+# CONDITIONS OF ANY KIND, either express or implied. See the License for the
+# specific language governing permissions and limitations under the License.
+
 import sys
 import time
 import ncnn
@@ -10,6 +24,7 @@ g_loop_count = 4
 g_blob_pool_allocator = ncnn.UnlockedPoolAllocator()
 g_workspace_pool_allocator = ncnn.PoolAllocator()
 
+
 def benchmark(comment, _in, opt):
     _in.fill(0.01)
 
@@ -21,13 +36,11 @@ def benchmark(comment, _in, opt):
     dr = ncnn.DataReaderFromEmpty()
     net.load_model(dr)
 
-    out = ncnn.Mat()
-
-    #warm up
+    # warm up
     for i in range(g_warmup_loop_count):
         ex = net.create_extractor()
         ex.input("data", _in)
-        ex.extract("output", out)
+        ex.extract("output")
 
     time_min = sys.float_info.max
     time_max = -sys.float_info.max
@@ -38,7 +51,7 @@ def benchmark(comment, _in, opt):
 
         ex = net.create_extractor()
         ex.input("data", _in)
-        ex.extract("output", out)
+        ex.extract("output")
 
         end = time.time()
 
@@ -54,7 +67,11 @@ def benchmark(comment, _in, opt):
 
     time_avg /= g_loop_count
 
-    print("%20s  min = %7.2f  max = %7.2f  avg = %7.2f"%(comment, time_min * 1000, time_max * 1000, time_avg * 1000))
+    print(
+        "%20s  min = %7.2f  max = %7.2f  avg = %7.2f"
+        % (comment, time_min * 1000, time_max * 1000, time_avg * 1000)
+    )
+
 
 if __name__ == "__main__":
     loop_count = 4
@@ -71,8 +88,8 @@ if __name__ == "__main__":
         powersave = int(sys.argv[3])
     if argc >= 5:
         gpu_device = int(sys.argv[4])
-    
-    use_vulkan_compute = False#gpu_device != -1
+
+    use_vulkan_compute = False  # gpu_device != -1
 
     g_loop_count = loop_count
 
@@ -99,12 +116,12 @@ if __name__ == "__main__":
     ncnn.set_omp_dynamic(0)
     ncnn.set_omp_num_threads(num_threads)
 
-    print("loop_count = %d"%(loop_count))
-    print("num_threads = %d"%(num_threads))
-    print("powersave = %d"%(ncnn.get_cpu_powersave()))
-    print("gpu_device = %d"%(gpu_device))
+    print("loop_count = %d" % (loop_count))
+    print("num_threads = %d" % (num_threads))
+    print("powersave = %d" % (ncnn.get_cpu_powersave()))
+    print("gpu_device = %d" % (gpu_device))
 
-    #must use named param w, h, c due to python has no size_t(unsigned int) to call the correct overload ncnn.Mat
+    # must use named param w, h, c due to python has no size_t(unsigned int) to call the correct overload ncnn.Mat
     benchmark("squeezenet", ncnn.Mat(w=227, h=227, c=3), opt)
     benchmark("squeezenet_int8", ncnn.Mat(w=227, h=227, c=3), opt)
     benchmark("mobilenet", ncnn.Mat(w=224, h=224, c=3), opt)
@@ -130,6 +147,3 @@ if __name__ == "__main__":
     benchmark("mobilenet_ssd_int8", ncnn.Mat(w=300, h=300, c=3), opt)
     benchmark("mobilenet_yolo", ncnn.Mat(w=416, h=416, c=3), opt)
     benchmark("mobilenetv2_yolov3", ncnn.Mat(w=352, h=352, c=3), opt)
-
-
-
