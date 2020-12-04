@@ -47,8 +47,10 @@ extern "C" typedef void (*kmpc_micro_14)(int32_t* gtid, int32_t* tid, void*, voi
 extern "C" typedef void (*kmpc_micro_15)(int32_t* gtid, int32_t* tid, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
 #endif // __EMSCRIPTEN__
 
+extern "C" {
 static void init_g_kmp_global();
 static void* kmp_threadfunc(void* args);
+}
 
 namespace ncnn {
 
