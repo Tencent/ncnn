@@ -1172,7 +1172,7 @@ static void fuse_groupnorm(onnx::GraphProto* mutable_graph, std::map<std::string
             // InstanceNormalization S=1 B=0
             std::vector<float> S = get_node_attr_from_input_af(weights[node2->input(1)]);
             std::vector<float> B = get_node_attr_from_input_af(weights[node2->input(2)]);
-            if (S.size() != groups || B.size() != groups)
+            if ((int)S.size() != groups || (int)B.size() != groups)
                 continue;
 
             bool instancenorm_affine = false;
@@ -1219,7 +1219,7 @@ static void fuse_groupnorm(onnx::GraphProto* mutable_graph, std::map<std::string
             {
                 affine = 0;
             }
-            else if (affine_S.size() != channels && affine_B.size() != channels)
+            else if ((int)affine_S.size() != channels && (int)affine_B.size() != channels)
             {
                 // we only allow per-channel affine
                 continue;
@@ -3454,7 +3454,7 @@ int main(int argc, char** argv)
                 // if axes set, reduce according to axes
                 fprintf(pp, " 1=%d", 0);
                 fprintf(pp, " -23303=%zu", axes.size());
-                for (int i = 0; i < axes.size(); i++)
+                for (size_t i = 0; i < axes.size(); i++)
                 {
                     if (axes[i] == 0 || axes[i] > 3 || axes[i] < -3)
                         fprintf(stderr, "Unsupported reduction axes !\n");
@@ -3713,7 +3713,7 @@ int main(int argc, char** argv)
             }
             else
             {
-                for (int i = 0; i < split.size() - 1; i++)
+                for (size_t i = 0; i < split.size() - 1; i++)
                 {
                     fprintf(pp, ",%d", split[i]);
                 }
