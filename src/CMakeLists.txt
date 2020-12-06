@@ -192,7 +192,7 @@ if(NCNN_OPENMP)
         endif()
 
         if(NCNN_SIMPLEOMP)
-            if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm") OR (APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64"))
+            if(IOS OR APPLE)
                 target_compile_options(ncnn PRIVATE -Xpreprocessor -fopenmp)
             else()
                 target_compile_options(ncnn PRIVATE -fopenmp)
