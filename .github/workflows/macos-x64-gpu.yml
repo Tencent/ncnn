@@ -8,7 +8,7 @@ jobs:
       with:
         submodules: true
     - name: protobuf
-      run: brew install protobuf opencv3
+      run: brew install protobuf opencv3 libomp
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1

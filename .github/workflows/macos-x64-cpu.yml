@@ -6,7 +6,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: protobuf
-      run: brew install protobuf opencv3
+      run: brew install protobuf opencv3 libomp
     - name: configure
       run: mkdir build && cd build && cmake -DNCNN_BUILD_TESTS=ON ..
     - name: build
