@@ -192,7 +192,7 @@ void CpuSet::disable_all()
 void CpuSet::enable_all()
 {
     CPU_ZERO(&cpu_set);
-    for (int i = 0; i < g_cpucount; i++) 
+    for (int i = 0; i < g_cpucount; i++)
     {
         CPU_SET(i, &cpu_set);
     }
@@ -233,7 +233,7 @@ void CpuSet::disable(int cpu)
 void CpuSet::enable_all()
 {
     policy = 0;
-    for (int i = 0; i < g_cpucount; i++) 
+    for (int i = 0; i < g_cpucount; i++)
     {
         policy |= (1 << i);
     }
@@ -734,7 +734,7 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
     // set affinity for each thread
     set_omp_num_threads(num_threads);
     std::vector<int> ssarets(num_threads, 0);
-    #pragma omp parallel for num_threads(num_threads)
+#pragma omp parallel for num_threads(num_threads)
     for (int i = 0; i < num_threads; i++)
     {
         ssarets[i] = set_sched_affinity(thread_affinity_mask);
@@ -758,7 +758,7 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
     // set affinity for each thread
     set_omp_num_threads(num_threads);
     std::vector<int> ssarets(num_threads, 0);
-    #pragma omp parallel for num_threads(num_threads)
+#pragma omp parallel for num_threads(num_threads)
     for (int i = 0; i < num_threads; i++)
     {
         // assign one core for each thread
