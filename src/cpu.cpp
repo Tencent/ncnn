@@ -171,7 +171,7 @@ static cpu_subtype_t g_hw_cpusubtype = get_hw_cpusubtype();
 #if defined __ANDROID__ || defined __linux__
 CpuSet::CpuSet()
 {
-    disable_all();
+    enable_all();
 }
 
 void CpuSet::enable(int cpu)
@@ -187,6 +187,15 @@ void CpuSet::disable(int cpu)
 void CpuSet::disable_all()
 {
     CPU_ZERO(&cpu_set);
+}
+
+void CpuSet::enable_all()
+{
+    CPU_ZERO(&cpu_set);
+    for (int i = 0; i < g_cpucount; i++) 
+    {
+        CPU_SET(i, &cpu_set);
+    }
 }
 
 bool CpuSet::is_enabled(int cpu) const
@@ -208,7 +217,7 @@ int CpuSet::num_enabled() const
 #elif __APPLE__
 CpuSet::CpuSet()
 {
-    disable_all();
+    enable_all();
 }
 
 void CpuSet::enable(int cpu)
@@ -219,6 +228,15 @@ void CpuSet::enable(int cpu)
 void CpuSet::disable(int cpu)
 {
     policy &= ~(1 << cpu);
+}
+
+void CpuSet::enable_all()
+{
+    policy = 0;
+    for (int i = 0; i < g_cpucount; i++) 
+    {
+        policy |= (1 << i);
+    }
 }
 
 void CpuSet::disable_all()
@@ -252,6 +270,10 @@ void CpuSet::enable(int /* cpu */)
 }
 
 void CpuSet::disable(int /* cpu */)
+{
+}
+
+void CpuSet::enable_all()
 {
 }
 
@@ -598,7 +620,7 @@ static CpuSet g_thread_affinity_mask_big;
 
 static int setup_thread_affinity_masks()
 {
-    g_thread_affinity_mask_all.disable_all();
+    g_thread_affinity_mask_all.enable_all();
 
 #if defined __ANDROID__ || defined __linux__
     int max_freq_khz_min = INT_MAX;

@@ -29,6 +29,7 @@ public:
     CpuSet();
     void enable(int cpu);
     void disable(int cpu);
+    void enable_all();
     void disable_all();
     bool is_enabled(int cpu) const;
     int num_enabled() const;
