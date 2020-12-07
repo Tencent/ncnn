@@ -39,14 +39,14 @@ jobs:
       uses: actions/cache@v1.0.3
       with:
         path: swiftshader-install
-        key: swiftshader-vs2017-x64-install3-20200508
+        key: swiftshader-vs2017-x64-install3-20201207
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: 9dff6a3bb5950edd890e5141f2d3d2f3b4ef351e
+        ref: 7bcd79eccf28007fe7a60ed50251d91ea4e65674
     - name: checkout-swiftshader-submodules
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
