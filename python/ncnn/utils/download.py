@@ -1,4 +1,3 @@
-"""Download files with progress bar."""
 # Tencent is pleased to support the open source community by making ncnn available.
 #
 # Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
@@ -12,6 +11,8 @@
 # under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 # CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
+
+"""Download files with progress bar."""
 
 import os
 import hashlib

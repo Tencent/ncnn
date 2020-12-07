@@ -69,6 +69,6 @@ jobs:
     - name: submodule
       run: git submodule init && git submodule update
     - name: configure
-      run: mkdir build && cd build && cmake -DNCNN_BUILD_PYTHON=ON -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+      run: mkdir build && cd build && cmake -DNCNN_PYTHON=ON -DNCNN_BUILD_TESTS=OFF -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
     - name: build
       run: cmake --build build -j 2
