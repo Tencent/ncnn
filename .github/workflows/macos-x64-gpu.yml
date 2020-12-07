@@ -50,7 +50,7 @@ jobs:
         mkdir $GITHUB_WORKSPACE/swiftshader-install
         cp Darwin/* $GITHUB_WORKSPACE/swiftshader-install
     - name: configure
-      run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.135.0/macOS && mkdir build && cd build && cmake -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
+      run: export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.135.0/macOS && mkdir build && cd build && cmake -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON -DNCNN_SIMPLEOMP=ON ..
     - name: build
       run: cmake --build build -j 2
     - name: test

@@ -751,7 +751,7 @@ void parse_cfg(std::deque<Section*>& dnet, int merge_output)
             if (s->anchors.size() != p->anchors.size())
                 error("yolo layer anchor count not match, output cannot be merged.");
 
-            for (int i = 0; i < s->anchors.size(); i++)
+            for (size_t i = 0; i < s->anchors.size(); i++)
                 if (s->anchors[i] != p->anchors[i])
                     error("yolo anchor size not match, output cannot be merged.");
 

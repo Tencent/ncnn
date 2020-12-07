@@ -224,6 +224,33 @@ static int test_interp_2()
            || test_interp_ref(c, 3, 18, 19);
 }
 
+static int test_interp_3()
+{
+    ncnn::Mat a = RandomMat(17);
+    ncnn::Mat b = RandomMat(20);
+    ncnn::Mat c = RandomMat(48);
+
+    return 0
+           || test_interp(a, 1, 2.f, 3.f, 0, 0)
+           || test_interp(a, 1, 1.f, 1.f, 10, 12)
+           || test_interp(a, 1, 1.f, 1.f, 15, 16)
+           || test_interp_ref(a, 1, 10, 12)
+           || test_interp_ref(a, 1, 4, 4)
+           || test_interp_ref(a, 1, 15, 16)
+
+           || test_interp(b, 1, 4.f, 5.f, 0, 0)
+           || test_interp(b, 1, 1.f, 1.f, 10, 12)
+           || test_interp(b, 1, 1.f, 1.f, 14, 17)
+           || test_interp_ref(b, 1, 5, 5)
+           || test_interp_ref(b, 1, 14, 17)
+
+           || test_interp(c, 1, 6.f, 7.f, 0, 0)
+           || test_interp(c, 1, 1.f, 1.f, 10, 12)
+           || test_interp(c, 1, 1.f, 1.f, 14, 17)
+           || test_interp_ref(c, 1, 6, 6)
+           || test_interp_ref(c, 1, 14, 17);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -231,5 +258,6 @@ int main()
     return 0
            || test_interp_0()
            || test_interp_1()
-           || test_interp_2();
+           || test_interp_2()
+           || test_interp_3();
 }

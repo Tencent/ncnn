@@ -14,16 +14,20 @@
 
 #include "relu_x86.h"
 
+#if __SSE2__
 #include "sse_activation.h"
 #if __AVX__
 #include "avx_activation.h"
 #endif // __AVX__
+#endif // __SSE2__
 
 namespace ncnn {
 
 ReLU_x86::ReLU_x86()
 {
+#if __SSE2__
     support_packing = true;
+#endif // __SSE2__
 }
 
 int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -32,6 +36,7 @@ int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int size = w * h;
+#if __SSE2__
     int elempack = bottom_top_blob.elempack;
 
 #if __AVX__
@@ -105,6 +110,7 @@ int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         return 0;
     }
+#endif // __SSE2__
 
     if (slope == 0.f)
     {

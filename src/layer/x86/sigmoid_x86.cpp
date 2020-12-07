@@ -14,10 +14,12 @@
 
 #include "sigmoid_x86.h"
 
+#if __SSE2__
 #include "sse_activation.h"
 #if __AVX__
 #include "avx_activation.h"
 #endif // __AVX__
+#endif // __SSE2__
 
 #include <math.h>
 
@@ -25,7 +27,9 @@ namespace ncnn {
 
 Sigmoid_x86::Sigmoid_x86()
 {
+#if __SSE2__
     support_packing = true;
+#endif // __SSE2__
 }
 
 int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -34,6 +38,7 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int size = w * h;
+#if __SSE2__
     int elempack = bottom_top_blob.elempack;
 
 #if __AVX__
@@ -71,6 +76,7 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         return 0;
     }
+#endif // __SSE2__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -78,6 +84,7 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
 
         int i = 0;
+#if __SSE2__
 #if __AVX__
         for (; i + 7 < size; i += 8)
         {
@@ -92,6 +99,7 @@ int Sigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             _mm_storeu_ps(ptr, sigmoid_sse(_p));
             ptr += 4;
         }
+#endif // __SSE2__
         for (; i < size; i++)
         {
             *ptr = 1.f / (1.f + exp(-*ptr));

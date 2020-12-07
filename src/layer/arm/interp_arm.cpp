@@ -81,10 +81,42 @@ int Interp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    int outh = reference_blob.h;
     int outw = reference_blob.w;
+    int outh = reference_blob.h;
 
-    if (outh == h && outw == w)
+    if (bottom_blob.dims == 1)
+    {
+        top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+#if __ARM_NEON
+        if (elempack == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < w; q++)
+            {
+                Mat top_blob_c = top_blob.channel(q);
+                float32x4_t _v = vld1q_f32((const float*)bottom_blob + q * 4);
+                top_blob_c.fill(_v);
+            }
+
+            return 0;
+        }
+#endif // __ARM_NEON
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < w; q++)
+        {
+            Mat top_blob_c = top_blob.channel(q);
+            const float v = bottom_blob[q];
+            top_blob_c.fill(v);
+        }
+
+        return 0;
+    }
+
+    if (outw == w && outh == h)
     {
         top_blob = bottom_blob;
         return 0;
@@ -273,10 +305,40 @@ int Interp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    int outh = reference_blob.h;
     int outw = reference_blob.w;
+    int outh = reference_blob.h;
 
-    if (outh == h && outw == w)
+    if (bottom_blob.dims == 1)
+    {
+        top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        if (elempack == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < w; q++)
+            {
+                Mat top_blob_c = top_blob.channel(q);
+                float16x4_t _v = vld1_f16((const __fp16*)bottom_blob + q * 4);
+                top_blob_c.fill(_v);
+            }
+
+            return 0;
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < w; q++)
+        {
+            Mat top_blob_c = top_blob.channel(q);
+            const __fp16* ptr = bottom_blob;
+            top_blob_c.fill(ptr[q]);
+        }
+
+        return 0;
+    }
+
+    if (outw == w && outh == h)
     {
         top_blob = bottom_blob;
         return 0;
@@ -462,10 +524,53 @@ int Interp_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    int outh = reference_blob.h;
     int outw = reference_blob.w;
+    int outh = reference_blob.h;
 
-    if (outh == h && outw == w)
+    if (bottom_blob.dims == 1)
+    {
+        top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        if (elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < w; q++)
+            {
+                Mat top_blob_c = top_blob.channel(q);
+                float16x8_t _v = vld1q_f16((const __fp16*)bottom_blob + q * 8);
+                top_blob_c.fill(_v);
+            }
+
+            return 0;
+        }
+
+        if (elempack == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < w; q++)
+            {
+                Mat top_blob_c = top_blob.channel(q);
+                float16x4_t _v = vld1_f16((const __fp16*)bottom_blob + q * 4);
+                top_blob_c.fill(_v);
+            }
+
+            return 0;
+        }
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < w; q++)
+        {
+            Mat top_blob_c = top_blob.channel(q);
+            const __fp16* ptr = bottom_blob;
+            top_blob_c.fill(ptr[q]);
+        }
+
+        return 0;
+    }
+
+    if (outw == w && outh == h)
     {
         top_blob = bottom_blob;
         return 0;
@@ -737,10 +842,42 @@ int Interp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    int outh = reference_blob.h;
     int outw = reference_blob.w;
+    int outh = reference_blob.h;
 
-    if (outh == h && outw == w)
+    if (bottom_blob.dims == 1)
+    {
+        top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+#if __ARM_NEON
+        if (elempack == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < w; q++)
+            {
+                Mat top_blob_c = top_blob.channel(q);
+                uint16x4_t _v = vld1_u16((const unsigned short*)bottom_blob + q * 4);
+                top_blob_c.fill(_v);
+            }
+
+            return 0;
+        }
+#endif // __ARM_NEON
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < w; q++)
+        {
+            Mat top_blob_c = top_blob.channel(q);
+            const unsigned short* ptr = bottom_blob;
+            top_blob_c.fill(ptr[q]);
+        }
+
+        return 0;
+    }
+
+    if (outw == w && outh == h)
     {
         top_blob = bottom_blob;
         return 0;

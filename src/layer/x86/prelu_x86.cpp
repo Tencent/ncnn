@@ -14,21 +14,26 @@
 
 #include "prelu_x86.h"
 
+#if __SSE2__
 #include "sse_activation.h"
 #if __AVX__
 #include "avx_activation.h"
 #endif // __AVX__
+#endif // __SSE2__
 
 namespace ncnn {
 
 PReLU_x86::PReLU_x86()
 {
+#if __SSE2__
     support_packing = true;
+#endif // __SSE2__
 }
 
 int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
+#if __SSE2__
     int elempack = bottom_top_blob.elempack;
 
 #if __AVX__
@@ -188,6 +193,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         return 0;
     }
+#endif // __SSE2__
 
     if (dims != 3)
         return PReLU::forward_inplace(bottom_top_blob, opt);

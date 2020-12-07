@@ -14,6 +14,7 @@
 
 #include "convolutiondepthwise_x86.h"
 
+#if __SSE2__
 #include <emmintrin.h>
 #include "sse_activation.h"
 #include "sse_usability.h"
@@ -23,24 +24,30 @@
 #include "avx_activation.h"
 #include "avx_usability.h"
 #endif
+#endif // __SSE2__
 
 #include "layer_type.h"
 
 namespace ncnn {
+
+#if __SSE2__
 #if __AVX__
 #include "convolutiondepthwise_3x3_pack8_fp16.h"
 #include "convolutiondepthwise_3x3_pack8.h"
 #include "convolutiondepthwise_5x5_pack8.h"
 #endif
+#endif // __SSE2__
 #include "convolutiondepthwise_3x3.h"
 #include "convolutiondepthwise_3x3_int8.h"
 
 ConvolutionDepthWise_x86::ConvolutionDepthWise_x86()
 {
+#if __SSE2__
     support_packing = true;
 #if __AVX__
     support_weight_fp16_storage = true;
 #endif
+#endif // __SSE2__
     activation = 0;
 }
 
@@ -119,6 +126,7 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
     if (channels == group && group == num_output)
     {
         int elempack = 1;
+#if __SSE2__
         if (opt.use_packing_layout)
         {
 #if __AVX__
@@ -127,7 +135,9 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
             elempack = channels % 4 == 0 ? 4 : 1;
 #endif
         }
+#endif // __SSE2__
 
+#if __SSE2__
 #if __AVX__
         // pack8
         if (elempack == 8)
@@ -164,6 +174,7 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
 
             return 0;
         }
+#endif // __SSE2__
 
         if (elempack == 1)
         {
@@ -322,6 +333,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
     int out_elempack = 1;
+#if __SSE2__
     if (opt.use_packing_layout)
     {
 #if __AVX__
@@ -330,6 +342,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
         out_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif
     }
+#endif // __SSE2__
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -341,6 +354,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     // depth-wise
     if (channels * elempack == group && group == num_output)
     {
+#if __SSE2__
 #if __AVX__
         if (elempack == 8)
         {
@@ -529,6 +543,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                 return 0;
             }
         }
+#endif // __SSE2__
 
         if (elempack == 1)
         {
@@ -563,6 +578,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
     int g_elempack = 1;
     int out_g_elempack = 1;
+#if __SSE2__
     if (opt.use_packing_layout)
     {
 #if __AVX__
@@ -573,6 +589,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
         out_g_elempack = num_output_g % 4 == 0 ? 4 : 1;
 #endif
     }
+#endif // __SSE2__
 
     // unpacking
     Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
