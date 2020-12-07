@@ -414,7 +414,7 @@ Pick `ncnn.framework` folder for app development.
 
 ### build for windows x32 using C++Builder Community Edition
 
-Download and install CMake 3.10 from https://cmake.org/download/
+Download and install CMake >= 3.10 from https://cmake.org/download/
 
 ```
 Locate your CMake installation folder and the Modules\Platform subfolder. E.g. C:\Program Files\CMake\share\cmake-3.10\Modules\Platform
