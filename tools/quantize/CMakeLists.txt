@@ -27,5 +27,5 @@ if(OpenCV_FOUND)
     # add ncnn2int8 tool to a virtual project group
     set_property(TARGET ncnn2int8 PROPERTY FOLDER "tools/optimization")
 else()
-    message(WARNING "OpenCV not found, quantize tools won't be built")
+    message(WARNING "OpenCV not found, quantize tools won't be built. please 'sudo apt install libopencv-dev' or 'set OpenCV_DIR=PATH_of_VC1x_OpenCVConfig.cmake'")
 endif()

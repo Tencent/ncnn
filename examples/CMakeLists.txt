@@ -20,7 +20,7 @@ if(NOT OpenCV_FOUND)
 endif()
 
 if(NOT OpenCV_FOUND)
-    message(WARNING "OpenCV not found, examples won't be built")
+    message(WARNING "OpenCV not found, examples won't be built. please 'sudo apt install libopencv-dev' or 'set OpenCV_DIR=PATH_of_VC1x_OpenCVConfig.cmake'")
 elseif(NOT NCNN_PIXEL)
     message(WARNING "NCNN_PIXEL not enabled, examples won't be built")
 else()
