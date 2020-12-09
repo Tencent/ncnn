@@ -1167,7 +1167,7 @@ static void fuse_groupnorm(onnx::GraphProto* mutable_graph, std::map<std::string
                 continue;
 
             // +eps
-            float eps = get_node_attr_f(*node2, "epsilon", 1e-05);
+            float eps = get_node_attr_f(*node2, "epsilon", 1e-05f);
 
             // InstanceNormalization S=1 B=0
             std::vector<float> S = get_node_attr_from_input_af(weights[node2->input(1)]);
@@ -1937,7 +1937,7 @@ int main(int argc, char** argv)
         }
     }
 
-    fprintf(pp, "%lu %lu\n", node_count - reduced_node_count + input_node_count + node_reference.size() + binaryop_weights.size() - reduced_binaryop_weights.size(), blob_names.size() - reduced_binaryop_weights.size() + splitncnn_blob_count);
+    fprintf(pp, "%zu %zu\n", node_count - reduced_node_count + input_node_count + node_reference.size() + binaryop_weights.size() - reduced_binaryop_weights.size(), blob_names.size() - reduced_binaryop_weights.size() + splitncnn_blob_count);
 
     int internal_split = 0;
 
