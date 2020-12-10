@@ -17,6 +17,7 @@
 #define NCNN_C_API_H
 
 #include <stddef.h>
+#include "platform.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,6 +44,8 @@ int ncnn_mat_get_elempack(ncnn_mat_t mat);
 size_t ncnn_mat_get_cstep(ncnn_mat_t mat);
 void* ncnn_mat_get_data(ncnn_mat_t mat);
 
+#if NCNN_PIXEL
+
 /* mat pixel api */
 #define NCNN_MAT_PIXEL_RGB       1
 #define NCNN_MAT_PIXEL_BGR       2
@@ -54,6 +57,8 @@ ncnn_mat_t ncnn_mat_from_pixels(const unsigned char* pixels, int type, int w, in
 ncnn_mat_t ncnn_mat_from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int stride, int target_width, int target_height);
 void ncnn_mat_to_pixels(ncnn_mat_t mat, unsigned char* pixels, int type, int stride);
 void ncnn_mat_to_pixels_resize(ncnn_mat_t mat, unsigned char* pixels, int type, int target_width, int target_height, int target_stride);
+
+#endif // NCNN_PIXEL
 
 void ncnn_mat_substract_mean_normalize(ncnn_mat_t mat, const float* mean_vals, const float* norm_vals);
 

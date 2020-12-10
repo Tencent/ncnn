@@ -55,7 +55,6 @@ static int detect_yolov2(const cv::Mat& bgr, std::vector<Object>& objects)
     in.substract_mean_normalize(mean_vals, 0);
 
     ncnn::Extractor ex = yolov2.create_extractor();
-    ex.set_num_threads(4);
 
     ex.input("data", in);
 

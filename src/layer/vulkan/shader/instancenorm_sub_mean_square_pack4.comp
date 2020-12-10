@@ -36,11 +36,11 @@ layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_top_blob;
-layout (binding = 1) uniform unfp sampler1D mean_blob;
+layout (binding = 1) uniform highp sampler3D mean_blob;
 layout (binding = 2, rgba32f) writeonly uniform highp image3D square_blob;
 #else
 layout (binding = 0) readonly buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
-layout (binding = 1) readonly buffer mean_blob { sfpvec4 mean_data[]; };
+layout (binding = 1) readonly buffer mean_blob { vec4 mean_data[]; };
 layout (binding = 2) writeonly buffer square_blob { vec4 square_blob_data[]; };
 #endif
 
@@ -69,23 +69,23 @@ void main()
         return;
 
 #if NCNN_image_shader
-    afpvec4 v = image3d_ld4(bottom_top_blob, ivec3(gx, gy, gz));
-    afpvec4 mean = image1d_ld4(mean_blob, gz);
+    vec4 v = vec4(image3d_ld4(bottom_top_blob, ivec3(gx, gy, gz)));
+    vec4 mean = texelFetch(mean_blob, ivec3(gz, 0, 0), 0);
 #else
     int v_offset = gz * psc(cstep) + gy * psc(w) + gx;
 
-    afpvec4 v = buffer_ld4(bottom_top_blob_data, v_offset);
-    afpvec4 mean = buffer_ld4(mean_data, gz);
+    vec4 v = vec4(buffer_ld4(bottom_top_blob_data, v_offset));
+    vec4 mean = mean_data[gz];
 #endif
 
     v = v - mean;
     v = v * v;
 
 #if NCNN_image_shader
-    imageStore(square_blob, ivec3(gx, gy, gz), vec4(v));
+    imageStore(square_blob, ivec3(gx, gy, gz), v);
 #else
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
-    square_blob_data[gi] = vec4(v);
+    square_blob_data[gi] = v;
 #endif
 }

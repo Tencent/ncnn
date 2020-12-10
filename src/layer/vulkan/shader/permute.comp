@@ -37,9 +37,7 @@ layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
@@ -79,11 +77,11 @@ void main()
 
         if (order_type == 0)
         {
-            image2d_cp1(top_blob_2d, ivec2(gx, gy), bottom_blob_2d, ivec2(gx, gy));
+            image3d_cp1(top_blob_3d, ivec3(gx, gy, 0), bottom_blob_3d, ivec3(gx, gy, 0));
         }
         if (order_type == 1)
         {
-            image2d_cp1(top_blob_2d, ivec2(gx, gy), bottom_blob_2d, ivec2(gy, gx));
+            image3d_cp1(top_blob_3d, ivec3(gx, gy, 0), bottom_blob_3d, ivec3(gy, gx, 0));
         }
     }
     else // if (psc(dims) == 3)

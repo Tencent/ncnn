@@ -72,23 +72,65 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    int x = gx + p.woffset;
-    int y = gy + p.hoffset;
-    int z = gz * 4 + p.coffset;
+    if (psc(dims) == 1)
+    {
+        int x = gx * 4 + p.woffset;
 
 #if NCNN_image_shader
-    afpvec4 v;
-    v.r = image3d_ld1(bottom_blob, ivec3(x, y, z + 0));
-    v.g = image3d_ld1(bottom_blob, ivec3(x, y, z + 1));
-    v.b = image3d_ld1(bottom_blob, ivec3(x, y, z + 2));
-    v.a = image3d_ld1(bottom_blob, ivec3(x, y, z + 3));
+        afpvec4 v;
+        v.r = image3d_ld1(bottom_blob, ivec3(x + 0, 0, 0));
+        v.g = image3d_ld1(bottom_blob, ivec3(x + 1, 0, 0));
+        v.b = image3d_ld1(bottom_blob, ivec3(x + 2, 0, 0));
+        v.a = image3d_ld1(bottom_blob, ivec3(x + 3, 0, 0));
 
-    image3d_st4(top_blob, ivec3(gx, gy, gz), v);
+        image3d_st4(top_blob, ivec3(gx, 0, 0), v);
 #else
-    int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+        ivec4 v_offset = x + ivec4(0, 1, 2, 3);
 
-    ivec4 v_offset = z * psc(cstep) + y * psc(w) + x + ivec4(0, 1, 2, 3) * psc(cstep);
-
-    buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
+        buffer_cp1to4(top_blob_data, gx, bottom_blob_data, v_offset);
 #endif
+    }
+    else if (psc(dims) == 2)
+    {
+        int x = gx + p.woffset;
+        int y = gy * 4 + p.hoffset;
+
+#if NCNN_image_shader
+        afpvec4 v;
+        v.r = image3d_ld1(bottom_blob, ivec3(x, y + 0, 0));
+        v.g = image3d_ld1(bottom_blob, ivec3(x, y + 1, 0));
+        v.b = image3d_ld1(bottom_blob, ivec3(x, y + 2, 0));
+        v.a = image3d_ld1(bottom_blob, ivec3(x, y + 3, 0));
+
+        image3d_st4(top_blob, ivec3(gx, gy, 0), v);
+#else
+        int gi = gy * psc(outw) + gx;
+
+        ivec4 v_offset = y * psc(w) + x + ivec4(0, 1, 2, 3) * psc(w);
+
+        buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
+    }
+    else // if (psc(dims) == 3)
+    {
+        int x = gx + p.woffset;
+        int y = gy + p.hoffset;
+        int z = gz * 4 + p.coffset;
+
+#if NCNN_image_shader
+        afpvec4 v;
+        v.r = image3d_ld1(bottom_blob, ivec3(x, y, z + 0));
+        v.g = image3d_ld1(bottom_blob, ivec3(x, y, z + 1));
+        v.b = image3d_ld1(bottom_blob, ivec3(x, y, z + 2));
+        v.a = image3d_ld1(bottom_blob, ivec3(x, y, z + 3));
+
+        image3d_st4(top_blob, ivec3(gx, gy, gz), v);
+#else
+        int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+        ivec4 v_offset = z * psc(cstep) + y * psc(w) + x + ivec4(0, 1, 2, 3) * psc(cstep);
+
+        buffer_cp1to4(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
+    }
 }

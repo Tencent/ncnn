@@ -11,12 +11,13 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
-#ifdef __AVX__
-#include "avx_activation.h"
-#include "avx_usability.h"
-#endif // NCNN_AVX2
 
 #include "lstm_x86.h"
+
+#if __AVX__
+#include "avx_activation.h"
+#include "avx_usability.h"
+#endif // __AVX__
 
 #include <math.h>
 #include "layer_type.h"
@@ -40,6 +41,8 @@ int LSTM_x86::create_pipeline(const Option& opt)
         ncnn::cast_float32_to_float16(weight_xc_data, weight_xc_data_fp16, opt);
         ncnn::cast_float32_to_float16(weight_hc_data, weight_hc_data_fp16, opt);
     }
+#else
+    (void)(opt);
 #endif // __AVX__
 
     return 0;

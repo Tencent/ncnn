@@ -12,16 +12,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef NCNN_OPENCV_H
-#define NCNN_OPENCV_H
+#ifndef NCNN_SIMPLEOCV_H
+#define NCNN_SIMPLEOCV_H
 
 #include "platform.h"
 
-#if NCNN_OPENCV
+#if NCNN_SIMPLEOCV
 
 #include "mat.h"
-
-#include <algorithm>
 
 #if defined(_MSC_VER) || defined(__GNUC__)
 #pragma push_macro("min")
@@ -316,6 +314,6 @@ void resize(const Mat& src, Mat& dst, const Size& size, float sw = 0.f, float sh
 #pragma pop_macro("max")
 #endif
 
-#endif // NCNN_OPENCV
+#endif // NCNN_SIMPLEOCV
 
-#endif // NCNN_OPENCV_H
+#endif // NCNN_SIMPLEOCV_H

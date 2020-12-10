@@ -37,9 +37,7 @@ layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
 #else
 #if NCNN_fp16_packed
@@ -95,16 +93,16 @@ void main()
         ivec4 y4 = i4 / psc(w);
         ivec4 x4 = i4 % psc(w);
 
-        afpvec4 vr = image2d_ld4(bottom_blob_2d, ivec2(x4.r, y4.r / 4));
-        afpvec4 vg = image2d_ld4(bottom_blob_2d, ivec2(x4.g, y4.g / 4));
-        afpvec4 vb = image2d_ld4(bottom_blob_2d, ivec2(x4.b, y4.b / 4));
-        afpvec4 va = image2d_ld4(bottom_blob_2d, ivec2(x4.a, y4.a / 4));
+        afpvec4 vr = image3d_ld4(bottom_blob_3d, ivec3(x4.r, y4.r / 4, 0));
+        afpvec4 vg = image3d_ld4(bottom_blob_3d, ivec3(x4.g, y4.g / 4, 0));
+        afpvec4 vb = image3d_ld4(bottom_blob_3d, ivec3(x4.b, y4.b / 4, 0));
+        afpvec4 va = image3d_ld4(bottom_blob_3d, ivec3(x4.a, y4.a / 4, 0));
 
         ivec4 lane4 = y4 % 4;
 
         afpvec4 v = afpvec4(vr[lane4.r], vg[lane4.g], vb[lane4.b], va[lane4.a]);
 
-        image2d_st4(top_blob_2d, ivec2(gx, gy), v);
+        image3d_st4(top_blob_3d, ivec3(gx, gy, 0), v);
     }
     else // if (psc(dims) == 3)
     {

@@ -17,8 +17,6 @@
 #include "layer_shader_type.h"
 #include "layer_type.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 DeconvolutionDepthWise_vulkan::DeconvolutionDepthWise_vulkan()

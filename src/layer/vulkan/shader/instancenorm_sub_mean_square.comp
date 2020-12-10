@@ -36,11 +36,11 @@ layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_top_blob;
-layout (binding = 1) uniform unfp sampler1D mean_blob;
+layout (binding = 1) uniform highp sampler3D mean_blob;
 layout (binding = 2, r32f) writeonly uniform highp image3D square_blob;
 #else
 layout (binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
-layout (binding = 1) readonly buffer mean_blob { sfp mean_data[]; };
+layout (binding = 1) readonly buffer mean_blob { float mean_data[]; };
 layout (binding = 2) writeonly buffer square_blob { float square_blob_data[]; };
 #endif
 
@@ -69,23 +69,23 @@ void main()
         return;
 
 #if NCNN_image_shader
-    afp v = image3d_ld1(bottom_top_blob, ivec3(gx, gy, gz));
-    afp mean = image1d_ld1(mean_blob, gz);
+    float v = float(image3d_ld1(bottom_top_blob, ivec3(gx, gy, gz)));
+    float mean = texelFetch(mean_blob, ivec3(gz, 0, 0), 0).r;
 #else
     int v_offset = gz * psc(cstep) + gy * psc(w) + gx;
 
-    afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-    afp mean = buffer_ld1(mean_data, gz);
+    float v = float(buffer_ld1(bottom_top_blob_data, v_offset));
+    float mean = mean_data[gz];
 #endif
 
     v = v - mean;
     v = v * v;
 
 #if NCNN_image_shader
-    imageStore(square_blob, ivec3(gx, gy, gz), vec4(float(v)));
+    imageStore(square_blob, ivec3(gx, gy, gz), vec4(v));
 #else
     const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
-    square_blob_data[gi] = float(v);
+    square_blob_data[gi] = v;
 #endif
 }

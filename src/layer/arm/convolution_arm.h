@@ -30,6 +30,11 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    int create_pipeline_fp16s(const Option& opt);
+    int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
     int create_pipeline_bf16s(const Option& opt);
     int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int create_pipeline_int8_arm(const Option& opt);
@@ -52,6 +57,10 @@ public:
     Mat weight_data_pack4;
     Mat weight_data_pack1to4;
     Mat weight_data_pack4to1;
+
+    // fp16
+    Mat weight_data_fp16;
+    Mat bias_data_fp16;
 
     // bf16
     Mat weight_data_pack4_bf16;

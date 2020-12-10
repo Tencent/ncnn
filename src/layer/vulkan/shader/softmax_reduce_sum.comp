@@ -37,11 +37,8 @@ layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler1D bottom_top_blob_1d;
-layout (binding = 0) uniform unfp sampler2D bottom_top_blob_2d;
 layout (binding = 0) uniform unfp sampler3D bottom_top_blob_3d;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image1D sum_workspace_1d;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image2D sum_workspace_2d;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image3D sum_workspace_3d;
 #else
 layout (binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
 layout (binding = 1) writeonly buffer sum_workspace { sfp sum_workspace_data[]; };
@@ -71,33 +68,34 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
+    int positive_axis = axis < 0 ? psc(dims) + axis : axis;
     afp sum_value = afp(0.f);
 
-    if (psc(dims) == 1) // axis == 0
+    if (psc(dims) == 1) // positive_axis == 0
     {
         for (int i = 0; i < psc(w); i++)
         {
 #if NCNN_image_shader
-            afp v = image1d_ld1(bottom_top_blob_1d, i);
+            afp v = image3d_ld1(bottom_top_blob_3d, ivec3(i, 0, 0));
 #else
             afp v = buffer_ld1(bottom_top_blob_data, i);
 #endif
             sum_value += v;
         }
 #if NCNN_image_shader
-        image1d_st1(sum_workspace_1d, 0, sum_value);
+        image3d_st1(sum_workspace_3d, ivec3(0, 0, 0), sum_value);
 #else
         buffer_st1(sum_workspace_data, 0, sum_value);
 #endif
         return;
     }
 
-    if (psc(dims) == 2 && axis == 0)
+    if (psc(dims) == 2 && positive_axis == 0)
     {
         for (int i = 0; i < psc(h); i++)
         {
 #if NCNN_image_shader
-            afp v = image2d_ld1(bottom_top_blob_2d, ivec2(gx, i));
+            afp v = image3d_ld1(bottom_top_blob_3d, ivec3(gx, i, 0));
 #else
             int v_offset = i * psc(w) + gx;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
@@ -105,19 +103,19 @@ void main()
             sum_value += v;
         }
 #if NCNN_image_shader
-        image1d_st1(sum_workspace_1d, gx, sum_value);
+        image3d_st1(sum_workspace_3d, ivec3(gx, 0, 0), sum_value);
 #else
         buffer_st1(sum_workspace_data, gx, sum_value);
 #endif
         return;
     }
 
-    if (psc(dims) == 2 && axis == 1)
+    if (psc(dims) == 2 && positive_axis == 1)
     {
         for (int i = 0; i < psc(w); i++)
         {
 #if NCNN_image_shader
-            afp v = image2d_ld1(bottom_top_blob_2d, ivec2(i, gx));
+            afp v = image3d_ld1(bottom_top_blob_3d, ivec3(i, gx, 0));
 #else
             int v_offset = gx * psc(w) + i;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
@@ -125,14 +123,14 @@ void main()
             sum_value += v;
         }
 #if NCNN_image_shader
-        image1d_st1(sum_workspace_1d, gx, sum_value);
+        image3d_st1(sum_workspace_3d, ivec3(gx, 0, 0), sum_value);
 #else
         buffer_st1(sum_workspace_data, gx, sum_value);
 #endif
         return;
     }
 
-    if (psc(dims) == 3 && axis == 0)
+    if (psc(dims) == 3 && positive_axis == 0)
     {
         for (int i = 0; i < psc(c); i++)
         {
@@ -145,14 +143,14 @@ void main()
             sum_value += v;
         }
 #if NCNN_image_shader
-        image2d_st1(sum_workspace_2d, ivec2(gx, gy), sum_value);
+        image3d_st1(sum_workspace_3d, ivec3(gx, gy, 0), sum_value);
 #else
         buffer_st1(sum_workspace_data, gy * psc(w) + gx, sum_value);
 #endif
         return;
     }
 
-    if (psc(dims) == 3 && axis == 1)
+    if (psc(dims) == 3 && positive_axis == 1)
     {
         for (int i = 0; i < psc(h); i++)
         {
@@ -165,14 +163,14 @@ void main()
             sum_value += v;
         }
 #if NCNN_image_shader
-        image2d_st1(sum_workspace_2d, ivec2(gx, gy), sum_value);
+        image3d_st1(sum_workspace_3d, ivec3(gx, gy, 0), sum_value);
 #else
         buffer_st1(sum_workspace_data, gy * psc(w) + gx, sum_value);
 #endif
         return;
     }
 
-    if (psc(dims) == 3 && axis == 2)
+    if (psc(dims) == 3 && positive_axis == 2)
     {
         for (int i = 0; i < psc(w); i++)
         {
@@ -185,7 +183,7 @@ void main()
             sum_value += v;
         }
 #if NCNN_image_shader
-        image2d_st1(sum_workspace_2d, ivec2(gx, gy), sum_value);
+        image3d_st1(sum_workspace_3d, ivec3(gx, gy, 0), sum_value);
 #else
         buffer_st1(sum_workspace_data, gy * psc(h) + gx, sum_value);
 #endif

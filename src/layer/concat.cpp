@@ -14,8 +14,6 @@
 
 #include "concat.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 Concat::Concat()
@@ -35,8 +33,9 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 {
     int dims = bottom_blobs[0].dims;
     size_t elemsize = bottom_blobs[0].elemsize;
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
-    if (dims == 1) // axis == 0
+    if (dims == 1) // positive_axis == 0
     {
         // concat vector
         // total length
@@ -68,7 +67,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
-    if (dims == 2 && axis == 0)
+    if (dims == 2 && positive_axis == 0)
     {
         // concat image
         int w = bottom_blobs[0].w;
@@ -102,7 +101,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
-    if (dims == 2 && axis == 1)
+    if (dims == 2 && positive_axis == 1)
     {
         // interleave image row
         int h = bottom_blobs[0].h;
@@ -138,7 +137,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
-    if (dims == 3 && axis == 0)
+    if (dims == 3 && positive_axis == 0)
     {
         // concat dim
         int w = bottom_blobs[0].w;
@@ -175,7 +174,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
-    if (dims == 3 && axis == 1)
+    if (dims == 3 && positive_axis == 1)
     {
         // interleave dim height
         int w = bottom_blobs[0].w;
@@ -215,7 +214,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
-    if (dims == 3 && axis == 2)
+    if (dims == 3 && positive_axis == 2)
     {
         // interleave dim width
         int h = bottom_blobs[0].h;

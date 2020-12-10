@@ -17,7 +17,10 @@
 #include "testutil.h"
 
 #include <stdio.h>
-#include <algorithm>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 static ncnn::Mat generate_ncnn_logo(int pixel_type_to, int w, int h)
 {
@@ -98,6 +101,40 @@ static int check_top3(const std::vector<float>& cls_scores, float epsilon = 0.00
     return 0;
 }
 
+static void fread_or_error(void* buffer, size_t size, size_t count, FILE* fp, const char* s)
+{
+    if (count != fread(buffer, size, count, fp))
+    {
+        fprintf(stderr, "Couldn't read from file: %s\n", s);
+        fclose(fp);
+        exit(EXIT_FAILURE);
+    }
+}
+
+static std::string read_file_string(const char* filepath)
+{
+    FILE* fp = fopen(filepath, "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "fopen %s failed\n", filepath);
+        return std::string();
+    }
+
+    fseek(fp, 0, SEEK_END);
+    int len = ftell(fp);
+    rewind(fp);
+
+    std::string s;
+    s.resize(len + 1); // +1 for '\0'
+
+    fread_or_error((char*)s.c_str(), 1, len, fp, filepath);
+    fclose(fp);
+
+    s[len] = '\0';
+
+    return s;
+}
+
 static ncnn::Mat read_file_content(const char* filepath)
 {
     FILE* fp = fopen(filepath, "rb");
@@ -113,7 +150,7 @@ static ncnn::Mat read_file_content(const char* filepath)
 
     ncnn::Mat m(len, (size_t)1u, 1);
 
-    fread(m, 1, len, fp);
+    fread_or_error(m, 1, len, fp, filepath);
     fclose(fp);
 
     return m;
@@ -125,33 +162,40 @@ static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float e
 
     squeezenet.opt = opt;
 
+#ifdef __EMSCRIPTEN__
+#define MODEL_DIR "/working"
+#else
+#define MODEL_DIR "../../examples"
+#endif
+
+    std::string param_str;
     ncnn::Mat param_data;
     ncnn::Mat model_data;
     if (load_model_type == 0)
     {
         // load from plain model file
-        squeezenet.load_param("../../examples/squeezenet_v1.1.param");
-        squeezenet.load_model("../../examples/squeezenet_v1.1.bin");
+        squeezenet.load_param(MODEL_DIR "/squeezenet_v1.1.param");
+        squeezenet.load_model(MODEL_DIR "/squeezenet_v1.1.bin");
     }
     if (load_model_type == 1)
     {
         // load from plain model memory
-        param_data = read_file_content("../../examples/squeezenet_v1.1.param");
-        model_data = read_file_content("../../examples/squeezenet_v1.1.bin");
-        squeezenet.load_param_mem((const char*)param_data);
+        param_str = read_file_string(MODEL_DIR "/squeezenet_v1.1.param");
+        model_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.bin");
+        squeezenet.load_param_mem((const char*)param_str.c_str());
         squeezenet.load_model((const unsigned char*)model_data);
     }
     if (load_model_type == 2)
     {
         // load from binary model file
-        squeezenet.load_param_bin("../../examples/squeezenet_v1.1.param.bin");
-        squeezenet.load_model("../../examples/squeezenet_v1.1.bin");
+        squeezenet.load_param_bin(MODEL_DIR "/squeezenet_v1.1.param.bin");
+        squeezenet.load_model(MODEL_DIR "/squeezenet_v1.1.bin");
     }
     if (load_model_type == 3)
     {
         // load from binary model memory
-        param_data = read_file_content("../../examples/squeezenet_v1.1.param.bin");
-        model_data = read_file_content("../../examples/squeezenet_v1.1.bin");
+        param_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.param.bin");
+        model_data = read_file_content(MODEL_DIR "/squeezenet_v1.1.bin");
         squeezenet.load_param((const unsigned char*)param_data);
         squeezenet.load_model((const unsigned char*)model_data);
     }
@@ -187,6 +231,12 @@ static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float e
 
 int main()
 {
+#ifdef __EMSCRIPTEN__
+    EM_ASM(
+        FS.mkdir('/working');
+        FS.mount(NODEFS, {root: '../../examples'}, '/working'););
+#endif // __EMSCRIPTEN__
+
     ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
     ncnn::PoolAllocator g_workspace_pool_allocator;
 
@@ -195,18 +245,21 @@ int main()
     opts[0].use_packing_layout = false;
     opts[0].use_fp16_packed = false;
     opts[0].use_fp16_storage = false;
+    opts[0].use_fp16_arithmetic = false;
     opts[0].use_shader_pack8 = false;
     opts[0].use_image_storage = false;
 
     opts[1].use_packing_layout = true;
     opts[1].use_fp16_packed = true;
     opts[1].use_fp16_storage = false;
+    opts[1].use_fp16_arithmetic = false;
     opts[1].use_shader_pack8 = true;
     opts[1].use_image_storage = false;
 
     opts[2].use_packing_layout = true;
     opts[2].use_fp16_packed = true;
     opts[2].use_fp16_storage = true;
+    opts[2].use_fp16_arithmetic = false;
     opts[2].use_bf16_storage = true;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = true;
@@ -216,6 +269,7 @@ int main()
     opts[3].use_packing_layout = true;
     opts[3].use_fp16_packed = true;
     opts[3].use_fp16_storage = true;
+    opts[3].use_fp16_arithmetic = false; // FIXME enable me
     opts[3].use_bf16_storage = false;
     opts[3].use_shader_pack8 = true;
     opts[3].use_image_storage = true;

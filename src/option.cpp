@@ -32,6 +32,8 @@ Option::Option()
     pipeline_cache = 0;
 #endif // NCNN_VULKAN
 
+    openmp_blocktime = 20;
+
     use_winograd_convolution = true;
     use_sgemm_convolution = true;
     use_int8_inference = true;
@@ -39,13 +41,18 @@ Option::Option()
 
     use_fp16_packed = true;
     use_fp16_storage = true;
-    use_fp16_arithmetic = false;
+    use_fp16_arithmetic = true;
     use_int8_storage = true;
     use_int8_arithmetic = false;
 
     use_packing_layout = true;
 
     use_shader_pack8 = false;
+
+    use_subgroup_basic = false;
+    use_subgroup_vote = false;
+    use_subgroup_ballot = false;
+    use_subgroup_shuffle = false;
 
     use_image_storage = false;
 

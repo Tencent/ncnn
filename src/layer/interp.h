@@ -28,6 +28,8 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
 public:
     // param
     int resize_type; //1=nearest  2=bilinear  3=bicubic
@@ -35,6 +37,8 @@ public:
     float height_scale;
     int output_width;
     int output_height;
+    int dynamic_target_size;
+    int align_corner;
 };
 
 } // namespace ncnn

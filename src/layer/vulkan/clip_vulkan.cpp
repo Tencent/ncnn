@@ -16,8 +16,6 @@
 
 #include "layer_shader_type.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 Clip_vulkan::Clip_vulkan()

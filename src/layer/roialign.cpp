@@ -1,4 +1,4 @@
-// Tencent is pleased to support the open source community by making ncnn available.
+﻿// Tencent is pleased to support the open source community by making ncnn available.
 //
 // Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
 //
@@ -14,8 +14,7 @@
 
 #include "roialign.h"
 
-#include <algorithm>
-#include <cassert>
+#include <assert.h>
 #include <math.h>
 
 namespace ncnn {
@@ -45,9 +44,9 @@ int ROIAlign::load_param(const ParamDict& pd)
 
 static inline float bilinear_interpolate(const float* ptr, int w, int h, float x, float y)
 {
-    int x0 = x;
+    int x0 = (int)x;
     int x1 = x0 + 1;
-    int y0 = y;
+    int y0 = (int)y;
     int y1 = y0 + 1;
 
     float a0 = x1 - x;
@@ -144,8 +143,8 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     hend = std::min(std::max(hend, 0.f), (float)h);
                     wend = std::min(std::max(wend, 0.f), (float)w);
 
-                    int bin_grid_h = sampling_ratio > 0 ? sampling_ratio : ceil(hend - hstart);
-                    int bin_grid_w = sampling_ratio > 0 ? sampling_ratio : ceil(wend - wstart);
+                    int bin_grid_h = (int)(sampling_ratio > 0 ? sampling_ratio : ceil(hend - hstart));
+                    int bin_grid_w = (int)(sampling_ratio > 0 ? sampling_ratio : ceil(wend - wstart));
 
                     bool is_empty = (hend <= hstart) || (wend <= wstart);
                     int area = bin_grid_h * bin_grid_w;
@@ -176,10 +175,10 @@ int ROIAlign::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     else if (version == 1)
     {
         // the version in detectron 2
-        int roi_bin_grid_h = sampling_ratio > 0 ? sampling_ratio : ceil(roi_h / pooled_height);
-        int roi_bin_grid_w = sampling_ratio > 0 ? sampling_ratio : ceil(roi_w / pooled_width);
+        int roi_bin_grid_h = (int)(sampling_ratio > 0 ? sampling_ratio : ceil(roi_h / pooled_height));
+        int roi_bin_grid_w = (int)(sampling_ratio > 0 ? sampling_ratio : ceil(roi_w / pooled_width));
 
-        const float count = std::max(roi_bin_grid_h * roi_bin_grid_w, 1);
+        const float count = (float)std::max(roi_bin_grid_h * roi_bin_grid_w, 1);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)

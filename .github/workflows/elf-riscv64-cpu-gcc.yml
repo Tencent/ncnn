@@ -87,7 +87,7 @@ jobs:
       run: find $GITHUB_WORKSPACE/rv64gcv-install -type f | xargs -i strip -g {} || true
 
     - name: configure
-      run: export RISCV_ROOT_PATH=$GITHUB_WORKSPACE/rv64gcv-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-elf.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+      run: export RISCV_ROOT_PATH=$GITHUB_WORKSPACE/rv64gcv-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-elf.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j 2
     - name: test
@@ -184,7 +184,7 @@ jobs:
       run: find $GITHUB_WORKSPACE/rv64gc-install -type f | xargs -i strip -g {} || true
 
     - name: configure
-      run: export RISCV_ROOT_PATH=$GITHUB_WORKSPACE/rv64gc-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-elf.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+      run: export RISCV_ROOT_PATH=$GITHUB_WORKSPACE/rv64gc-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-elf.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j 2
     - name: test

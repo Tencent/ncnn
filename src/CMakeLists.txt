@@ -3,11 +3,6 @@
 
 configure_file(platform.h.in ${CMAKE_CURRENT_BINARY_DIR}/platform.h)
 
-if(NCNN_VULKAN AND NOT NCNN_VULKAN_ONLINE_SPIRV)
-    find_program(GLSLANGVALIDATOR_EXECUTABLE NAMES glslangValidator PATHS $ENV{VULKAN_SDK}/bin NO_CMAKE_FIND_ROOT_PATH)
-    message(STATUS "Found glslangValidator: ${GLSLANGVALIDATOR_EXECUTABLE}")
-endif()
-
 # Add source file to list, and add to special visual folder
 function(ncnn_src_group ncnn_src_string folder)
     string(REPLACE " " ";" _ncnn_src_list ${ncnn_src_string})
@@ -31,15 +26,18 @@ set(ncnn_SRCS
     layer.cpp
     mat.cpp
     mat_pixel.cpp
+    mat_pixel_affine.cpp
     mat_pixel_resize.cpp
     mat_pixel_rotate.cpp
     modelbin.cpp
     net.cpp
-    opencv.cpp
     option.cpp
     paramdict.cpp
     pipeline.cpp
     pipelinecache.cpp
+    simpleocv.cpp
+    simpleomp.cpp
+    simplestl.cpp
 )
 
 if(ANDROID)
@@ -137,6 +135,10 @@ ncnn_add_layer(DeepCopy)
 ncnn_add_layer(Mish)
 ncnn_add_layer(StatisticsPooling)
 ncnn_add_layer(Swish)
+ncnn_add_layer(Gemm)
+ncnn_add_layer(GroupNorm)
+ncnn_add_layer(LayerNorm)
+ncnn_add_layer(Softplus)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
@@ -155,6 +157,18 @@ configure_file(layer_shader_spv_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shad
 configure_file(layer_shader_type_enum.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h)
 
 add_library(ncnn STATIC ${ncnn_SRCS})
+set_target_properties(ncnn PROPERTIES DEBUG_POSTFIX "d")
+
+if(NCNN_SIMPLESTL)
+    # link math lib explicitly
+    target_link_libraries(ncnn PUBLIC m)
+
+    # do not link gcc lib on darwin and emscripten
+    if(CMAKE_CXX_COMPILER_ID MATCHES "(Clang|GNU)" AND NOT CMAKE_SYSTEM_NAME MATCHES "(Darwin|Emscripten)")
+        # for cpu_support_x86_avx2
+        target_link_libraries(ncnn PUBLIC gcc)
+    endif()
+endif()
 
 target_include_directories(ncnn
     PUBLIC
@@ -165,20 +179,63 @@ target_include_directories(ncnn
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/layer>)
 
 if(NCNN_OPENMP)
-    find_package(OpenMP)
-    if(NOT TARGET OpenMP::OpenMP_CXX AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
-        target_compile_options(ncnn PRIVATE ${OpenMP_CXX_FLAGS})
+    if(NOT NCNN_SIMPLEOMP)
+        find_package(OpenMP)
+        if(NOT TARGET OpenMP::OpenMP_CXX AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
+            target_compile_options(ncnn PRIVATE ${OpenMP_CXX_FLAGS})
+        endif()
+    endif()
+
+    if(NCNN_SIMPLEOMP OR OpenMP_CXX_FOUND OR OPENMP_FOUND)
+        if(NCNN_CMAKE_VERBOSE)
+            message("Building with OpenMP")
+        endif()
+
+        if(NCNN_SIMPLEOMP)
+            if(IOS OR APPLE)
+                target_compile_options(ncnn PRIVATE -Xpreprocessor -fopenmp)
+            else()
+                target_compile_options(ncnn PRIVATE -fopenmp)
+            endif()
+            target_link_libraries(ncnn PUBLIC pthread)
+        elseif(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
+            target_compile_options(ncnn PRIVATE -fopenmp)
+            target_link_libraries(ncnn PUBLIC -fopenmp -static-openmp)
+        elseif(OpenMP_CXX_FOUND)
+            target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
+        else()
+            target_link_libraries(ncnn PRIVATE "${OpenMP_CXX_FLAGS}")
+        endif()
     endif()
 endif()
 
 if(NCNN_VULKAN)
-    find_package(Vulkan REQUIRED)
+    find_package(Vulkan QUIET)
+    if(NOT Vulkan_FOUND)
+        message(STATUS "=== CMAKE_SYSTEM_NAME is: ${CMAKE_SYSTEM_NAME}")
+        if(DEFINED ENV{VULKAN_SDK})
+            if(CMAKE_SYSTEM_NAME MATCHES "Linux")
+                list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/../source/VulkanTools/cmake")
+            elseif(CMAKE_SYSTEM_NAME MATCHES "Windows")
+                list(APPEND CMAKE_MODULE_PATH "$ENV{VULKAN_SDK}/Samples/cmake")
+            elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+                message(WARNING "Failed to find vulkan since cmake too old\n"
+                    "cmake >= 3.7 required. Consider `brew upgrade cmake`")
+            endif()
+        else()
+            message(FATAL_ERROR "!! CMake didn't find Vulkan. Please set VULKAN_SDK env var, e.g.:\n"
+                "Linux: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/x86_64\n"
+                "Windows: set VULKAN_SDK=E:/lib/VulkanSDK/1.2.148.0\n"
+                "MacOS: export VULKAN_SDK=~/soft/vulkansdk/1.2.148.0/macOS\n"
+            )
+        endif()
+        find_package(Vulkan REQUIRED)
+    endif()
+
     target_link_libraries(ncnn PUBLIC Vulkan::Vulkan)
 
-    if(NCNN_VULKAN_ONLINE_SPIRV)
-        target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
-        target_link_libraries(ncnn PRIVATE glslang SPIRV)
-    endif()
+    target_include_directories(ncnn PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../>)
+    target_link_libraries(ncnn PRIVATE glslang SPIRV)
 endif()
 
 if(ANDROID_NDK)
@@ -186,22 +243,20 @@ if(ANDROID_NDK)
 endif()
 
 if(WIN32)
-    target_compile_definitions(ncnn
-        PUBLIC NOMINMAX)
+    target_compile_definitions(ncnn PUBLIC NOMINMAX)
 endif()
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC"
-    OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
-    target_compile_definitions(ncnn
-        PRIVATE _SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_DEPRECATE)
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
+    target_compile_definitions(ncnn PRIVATE _SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_DEPRECATE)
+
+    if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
+        target_compile_options(ncnn PRIVATE /fp:fast)
+    endif()
 else()
-    target_compile_options(ncnn
-        PRIVATE -Wall -Wextra -Wno-unused-function)
+    target_compile_options(ncnn PRIVATE -Wall -Wextra -Wno-unused-function)
+
     if(NOT NCNN_DISABLE_PIC)
-        set_target_properties(ncnn
-            PROPERTIES
-                POSITION_INDEPENDENT_CODE ON
-                INTERFACE_POSITION_INDEPENDENT_CODE ON)
+        set_target_properties(ncnn PROPERTIES POSITION_INDEPENDENT_CODE ON INTERFACE_POSITION_INDEPENDENT_CODE ON)
     endif()
 
     if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
@@ -213,10 +268,8 @@ else()
     endif()
 
     if(PI3)
-        target_compile_options(ncnn
-            PRIVATE -march=native -mfpu=neon -mfloat-abi=hard)
-        target_compile_definitions(ncnn
-            PRIVATE __ARM_NEON __ANDROID__)
+        target_compile_options(ncnn PRIVATE -march=native -mfpu=neon -mfloat-abi=hard)
+        target_compile_definitions(ncnn PRIVATE __ARM_NEON __ANDROID__)
     endif()
     # target_compile_options(ncnn PRIVATE -march=native)
     # set_target_properties(ncnn PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
@@ -231,39 +284,44 @@ if(NCNN_DISABLE_EXCEPTION)
     target_compile_options(ncnn PUBLIC -fno-exceptions)
 endif()
 
+if(NCNN_TARGET_ARCH STREQUAL "x86")
+    if(NCNN_SSE2)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
+            target_compile_options(ncnn PRIVATE /arch:SSE2 /D__SSE2__)
+        else()
+            target_compile_options(ncnn PRIVATE -msse2 -msse)
+            if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+                target_compile_options(ncnn PRIVATE -msimd128)
+            endif()
+        endif()
+    endif()
+
+    if(NOT NCNN_RUNTIME_CPU AND NCNN_AVX2)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
+            target_compile_options(ncnn PRIVATE /arch:AVX2)
+        else()
+            target_compile_options(ncnn PRIVATE -mfma -mf16c -mavx2)
+        endif()
+    endif()
+endif()
+
+if(((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64)")))
+    if (NOT NCNN_RUNTIME_CPU AND NCNN_ARM82)
+        target_compile_options(ncnn PRIVATE -march=armv8.2-a+fp16)
+    endif()
+endif()
+
+if(NCNN_COVERAGE)
+    target_compile_options(ncnn PUBLIC -coverage -fprofile-arcs -ftest-coverage)
+    target_link_libraries(ncnn PUBLIC -coverage -lgcov)
+endif()
+
 if(ANDROID OR IOS)
     # disable shared library on android and xcode ios
     set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS FALSE)
 endif()
 
-if(NOT NCNN_RUNTIME_CPU AND NCNN_AVX2 AND NCNN_TARGET_ARCH STREQUAL "x86")
-    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
-        target_compile_options(ncnn PRIVATE /arch:AVX2 /DAVX2 /fp:strict)
-    else()
-        target_compile_options(ncnn PRIVATE -mfma -mf16c -mavx2)
-    endif()
-endif()
-
-if(NOT NCNN_RUNTIME_CPU AND NCNN_ARM82 AND ((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64)")))
-    target_compile_options(ncnn PRIVATE -march=armv8.2-a+fp16)
-endif()
-
 add_dependencies(ncnn ncnn-generate-spirv)
-
-if(NCNN_OPENMP AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
-    if(NCNN_CMAKE_VERBOSE)
-        message("Building with OpenMP")
-    endif()
-
-    if(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
-        target_compile_options(ncnn PRIVATE -fopenmp)
-        target_link_libraries(ncnn PUBLIC -fopenmp -static-openmp)
-    elseif(OpenMP_CXX_FOUND)
-        target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
-    else()
-        target_link_libraries(ncnn PRIVATE "${OpenMP_CXX_FLAGS}")
-    endif()
-endif()
 
 if(NCNN_INSTALL_SDK)
     install(TARGETS ncnn EXPORT ncnn ARCHIVE DESTINATION lib)
@@ -282,24 +340,21 @@ if(NCNN_INSTALL_SDK)
         mat.h
         modelbin.h
         net.h
-        opencv.h
         option.h
         paramdict.h
         pipeline.h
         pipelinecache.h
+        simpleocv.h
+        simpleomp.h
+        simplestl.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/platform.h
         DESTINATION include/ncnn
     )
-    install(EXPORT ncnn
-        DESTINATION lib/cmake/ncnn)
-    configure_file(${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnnConfig.cmake.in
-        ncnnConfig.cmake
-        @ONLY)
-    install(FILES
-        ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake
-        DESTINATION lib/cmake/ncnn)
+    install(EXPORT ncnn DESTINATION lib/cmake/ncnn)
+    configure_file(${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnnConfig.cmake.in ncnnConfig.cmake @ONLY)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake DESTINATION lib/cmake/ncnn)
 endif()
 
 # add ncnn and generate-spirv to a virtual project group

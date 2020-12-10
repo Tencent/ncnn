@@ -16,8 +16,6 @@
 
 #include "layer_shader_type.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 LRN_vulkan::LRN_vulkan()
@@ -247,7 +245,6 @@ int LRN_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Op
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
-    size_t elemsize = bottom_top_blob.elemsize;
     int elempack = bottom_top_blob.elempack;
 
     VkMat square_workspace;
@@ -344,7 +341,6 @@ int LRN_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, con
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
-    size_t elemsize = bottom_top_blob.elemsize;
     int elempack = bottom_top_blob.elempack;
 
     VkImageMat square_workspace;

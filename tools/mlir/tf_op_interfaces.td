@@ -21,7 +21,7 @@ limitations under the License.
 include "mlir/IR/OpBase.td"
 
 //===----------------------------------------------------------------------===//
-// TensorFlow interfaces
+// TensorFlow Layout Optimization Interfaces.
 //===----------------------------------------------------------------------===//
 
 def TF_LayoutSensitiveInterface : OpInterface<"LayoutSensitiveInterface"> {
@@ -37,19 +37,19 @@ def TF_LayoutSensitiveInterface : OpInterface<"LayoutSensitiveInterface"> {
     depending on arguments shape/type and execution device (CPU or GPU).
   }];
 
-  let methods = [
-    InterfaceMethod<
-      [{Returns current operation data format (data layout).}],
-      "StringRef", "data_format", (ins)
-    >,
-    InterfaceMethod<
-      [{Returns indices of layout dependent arguments.}],
-      "SmallVector<unsigned, 4>", "GetLayoutDependentArgs", (ins)
-    >,
-    InterfaceMethod<
-      [{Returns indices of layout dependent results.}],
-      "SmallVector<unsigned, 4>", "GetLayoutDependentResults", (ins)
-    >,
+//   let methods = [
+//     InterfaceMethod<
+//       [{Returns current operation data format (data layout).}],
+//       "StringRef", "data_format", (ins)
+//     >,
+//     InterfaceMethod<
+//       [{Returns indices of layout dependent arguments.}],
+//       "SmallVector<unsigned, 4>", "GetLayoutDependentArgs", (ins)
+//     >,
+//     InterfaceMethod<
+//       [{Returns indices of layout dependent results.}],
+//       "SmallVector<unsigned, 4>", "GetLayoutDependentResults", (ins)
+//     >,
 //     InterfaceMethod<
 //       [{Returns the optimal data layout based on the available devices.}],
 //       "StringRef", "GetOptimalLayout", (ins "const RuntimeDevices&":$devices)
@@ -59,7 +59,7 @@ def TF_LayoutSensitiveInterface : OpInterface<"LayoutSensitiveInterface"> {
 //         data format. If data format is not supported, must return failure.}],
 //       "LogicalResult", "UpdateDataFormat", (ins "StringRef":$data_format)
 //     >,
-  ];
+//   ];
 
 //   let verify = [{
 //     return VerifyLayoutSensitiveInterface($_op);
@@ -81,15 +81,15 @@ def TF_FoldOperandsTransposeInterface : OpInterface<"FoldOperandsTransposeInterf
                  -> Mean($arg, Transpose($reduction_dims))
   }];
 
-  let methods = [
-    InterfaceMethod<
-      [{Returns indices of layout dependent arguments.}],
-      "SmallVector<unsigned, 4>", "GetLayoutDependentArgs", (ins)
-    >,
-    InterfaceMethod<
-      [{Returns indices of layout dependent results.}],
-      "SmallVector<unsigned, 4>", "GetLayoutDependentResults", (ins)
-    >,
+//   let methods = [
+//     InterfaceMethod<
+//       [{Returns indices of layout dependent arguments.}],
+//       "SmallVector<unsigned, 4>", "GetLayoutDependentArgs", (ins)
+//     >,
+//     InterfaceMethod<
+//       [{Returns indices of layout dependent results.}],
+//       "SmallVector<unsigned, 4>", "GetLayoutDependentResults", (ins)
+//     >,
 //     InterfaceMethod<
 //       [{Updates operation attributes and operands to account for the folded
 //         permutation. If folding of permutation is not possible, must return
@@ -97,11 +97,55 @@ def TF_FoldOperandsTransposeInterface : OpInterface<"FoldOperandsTransposeInterf
 //       "LogicalResult", "FoldOperandsPermutation",
 //       (ins "ArrayRef<int64_t>":$permutation)
 //     >,
-  ];
+//   ];
 
 //   let verify = [{
 //     return VerifyFoldOperandsTransposeInterface($_op);
 //   }];
+}
+
+//===----------------------------------------------------------------------===//
+// TensorFlow Contraction Fusion Interfaces.
+//===----------------------------------------------------------------------===//
+
+def TF_ContractionFusableInterface : OpInterface<"ContractionFusableInterface"> {
+  let description = [{
+    A contraction fusable operation is one that can be fused into the output of
+    a tensor contraction (MatMul, Conv2D, etc...) operation.
+
+    For example all element wise operations are trivially contraction fusable.
+  }];
+
+//   let methods = [
+//     InterfaceMethod<
+//       [{Returns contraction fusion if the operation satisfies all the fusion
+//         requirements. Otherwise returns empty optional.}],
+//       "Optional<ContractionFusion>", "GetContractionFusion", (ins)
+//     >,
+//   ];
+}
+
+//===----------------------------------------------------------------------===//
+// TensorFlow Resource Handle Interfaces.
+//===----------------------------------------------------------------------===//
+
+def TF_ResourceHandleAllocatorInterface : OpInterface<"ResourceHandleAllocatorInterface"> {
+  let description = [{
+    A resource handle allocator operation is one that creates a resource handle,
+    or looks up and reuses an existing resource handle.
+  }];
+
+//   let methods = [
+//     InterfaceMethod<
+//       /*desc=*/[{Returns the resource handle value and unique id associated with
+//                  the resource handle. If a resource handle is reused, then an
+//                  existing id will be returned.}],
+//       /*retTy=*/"ResourceHandleValueAndId",
+//       /*methodName=*/"GetResourceHandleValueAndId",
+//       /*args=*/(ins "llvm::SmallDenseMap<ResourceHandle, int64_t>&":$resource_handle_id_map,
+//                     "int64_t&":$next_id)
+//     >,
+//   ];
 }
 
 #endif // TF_OP_INTERFACES

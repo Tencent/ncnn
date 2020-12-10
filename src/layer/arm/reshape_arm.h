@@ -24,13 +24,10 @@ class Reshape_arm : virtual public Reshape
 public:
     Reshape_arm();
 
-    virtual int create_pipeline(const Option& opt);
-    virtual int destroy_pipeline(const Option& opt);
-
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
-public:
-    ncnn::Layer* flatten;
+protected:
+    int forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn

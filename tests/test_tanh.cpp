@@ -33,21 +33,24 @@ static int test_tanh(const ncnn::Mat& a)
 static int test_tanh_0()
 {
     return 0
-           || test_tanh(RandomMat(5, 7, 16))
+           || test_tanh(RandomMat(5, 7, 24))
+           || test_tanh(RandomMat(7, 9, 12))
            || test_tanh(RandomMat(3, 5, 13));
 }
 
 static int test_tanh_1()
 {
     return 0
-           || test_tanh(RandomMat(6, 16))
-           || test_tanh(RandomMat(7, 15));
+           || test_tanh(RandomMat(15, 24))
+           || test_tanh(RandomMat(17, 12))
+           || test_tanh(RandomMat(19, 15));
 }
 
 static int test_tanh_2()
 {
     return 0
            || test_tanh(RandomMat(128))
+           || test_tanh(RandomMat(124))
            || test_tanh(RandomMat(127));
 }
 

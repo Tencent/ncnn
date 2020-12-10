@@ -14,7 +14,6 @@
 
 #include "mat.h"
 
-#include <algorithm>
 #include <limits.h>
 #include <math.h>
 #if __ARM_NEON
@@ -101,10 +100,10 @@ static int from_rgb(const unsigned char* rgb, int w, int h, int stride, Mat& m, 
                 "vcvt.f32.u32   q3, q3          \n"
                 "vcvt.f32.u32   q8, q8          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
                 "vcvt.f32.u32   q9, q9          \n"
-                "vst1.f32   {d4-d7}, [%3 :128]! \n"
-                "vst1.f32   {d16-d19}, [%4 :128]!\n"
+                "vst1.f32   {d4-d7}, [%3]!      \n"
+                "vst1.f32   {d16-d19}, [%4]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(rgb),  // %1
@@ -272,8 +271,8 @@ static int from_gray(const unsigned char* gray, int w, int h, int stride, Mat& m
                 "vcvt.f32.u32   q2, q2          \n"
                 "vcvt.f32.u32   q3, q3          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
-                "vst1.f32   {d4-d7}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
+                "vst1.f32   {d4-d7}, [%2]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(gray), // %1
@@ -440,12 +439,12 @@ static int from_rgba(const unsigned char* rgba, int w, int h, int stride, Mat& m
                 "vcvt.f32.u32   q8, q8          \n"
                 "vcvt.f32.u32   q9, q9          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
                 "vcvt.f32.u32   q10, q10        \n"
                 "vcvt.f32.u32   q11, q11        \n"
-                "vst1.f32   {d4-d7}, [%3 :128]! \n"
-                "vst1.f32   {d16-d19}, [%4 :128]!\n"
-                "vst1.f32   {d20-d23}, [%5 :128]!\n"
+                "vst1.f32   {d4-d7}, [%3]!      \n"
+                "vst1.f32   {d16-d19}, [%4]!    \n"
+                "vst1.f32   {d20-d23}, [%5]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(rgba), // %1
@@ -638,10 +637,10 @@ static int from_rgb2bgr(const unsigned char* rgb, int w, int h, int stride, Mat&
                 "vcvt.f32.u32   q3, q3          \n"
                 "vcvt.f32.u32   q8, q8          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%4 :128]! \n"
+                "vst1.f32   {d0-d3}, [%4]!      \n"
                 "vcvt.f32.u32   q9, q9          \n"
-                "vst1.f32   {d4-d7}, [%3 :128]! \n"
-                "vst1.f32   {d16-d19}, [%2 :128]!\n"
+                "vst1.f32   {d4-d7}, [%3]!      \n"
+                "vst1.f32   {d16-d19}, [%2]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(rgb),  // %1
@@ -818,7 +817,7 @@ static int from_rgb2gray(const unsigned char* rgb, int w, int h, int stride, Mat
                 "vcvt.f32.u32   q0, q0          \n"
                 "vcvt.f32.u32   q1, q1          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),  // %0
                 "=r"(rgb), // %1
@@ -1008,7 +1007,7 @@ static int from_bgr2gray(const unsigned char* bgr, int w, int h, int stride, Mat
                 "vcvt.f32.u32   q0, q0          \n"
                 "vcvt.f32.u32   q1, q1          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),  // %0
                 "=r"(bgr), // %1
@@ -1203,12 +1202,12 @@ static int from_gray2rgb(const unsigned char* gray, int w, int h, int stride, Ma
                 "vcvt.f32.u32   q2, q2          \n"
                 "vcvt.f32.u32   q3, q3          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
-                "vst1.f32   {d4-d7}, [%2 :128]! \n"
-                "vst1.f32   {d0-d3}, [%3 :128]! \n"
-                "vst1.f32   {d4-d7}, [%3 :128]! \n"
-                "vst1.f32   {d0-d3}, [%4 :128]! \n"
-                "vst1.f32   {d4-d7}, [%4 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
+                "vst1.f32   {d4-d7}, [%2]!      \n"
+                "vst1.f32   {d0-d3}, [%3]!      \n"
+                "vst1.f32   {d4-d7}, [%3]!      \n"
+                "vst1.f32   {d0-d3}, [%4]!      \n"
+                "vst1.f32   {d4-d7}, [%4]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(gray), // %1
@@ -1398,10 +1397,10 @@ static int from_rgba2rgb(const unsigned char* rgba, int w, int h, int stride, Ma
                 "vcvt.f32.u32   q3, q3          \n"
                 "vcvt.f32.u32   q8, q8          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
                 "vcvt.f32.u32   q9, q9          \n"
-                "vst1.f32   {d4-d7}, [%3 :128]! \n"
-                "vst1.f32   {d16-d19}, [%4 :128]!\n"
+                "vst1.f32   {d4-d7}, [%3]!      \n"
+                "vst1.f32   {d16-d19}, [%4]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(rgba), // %1
@@ -1511,10 +1510,10 @@ static int from_rgba2bgr(const unsigned char* rgba, int w, int h, int stride, Ma
                 "vcvt.f32.u32   q3, q3          \n"
                 "vcvt.f32.u32   q8, q8          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%4 :128]! \n"
+                "vst1.f32   {d0-d3}, [%4]!      \n"
                 "vcvt.f32.u32   q9, q9          \n"
-                "vst1.f32   {d4-d7}, [%3 :128]! \n"
-                "vst1.f32   {d16-d19}, [%2 :128]!\n"
+                "vst1.f32   {d4-d7}, [%3]!      \n"
+                "vst1.f32   {d16-d19}, [%2]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(rgba), // %1
@@ -1620,7 +1619,7 @@ static int from_rgba2gray(const unsigned char* rgba, int w, int h, int stride, M
                 "vcvt.f32.u32   q0, q0          \n"
                 "vcvt.f32.u32   q1, q1          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(rgba), // %1
@@ -1735,13 +1734,13 @@ static int from_rgba2bgra(const unsigned char* rgba, int w, int h, int stride, M
                 "vcvt.f32.u32   q3, q3          \n"
                 "vcvt.f32.u32   q8, q8          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%4 :128]! \n"
+                "vst1.f32   {d0-d3}, [%4]!      \n"
                 "vcvt.f32.u32   q9, q9          \n"
                 "vcvt.f32.u32   q10, q10        \n"
-                "vst1.f32   {d4-d7}, [%3 :128]! \n"
+                "vst1.f32   {d4-d7}, [%3]!      \n"
                 "vcvt.f32.u32   q11, q11        \n"
-                "vst1.f32   {d16-d19}, [%2 :128]!\n"
-                "vst1.f32   {d20-d23}, [%5 :128]!\n"
+                "vst1.f32   {d16-d19}, [%2]!    \n"
+                "vst1.f32   {d20-d23}, [%5]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(rgba), // %1
@@ -1930,7 +1929,7 @@ static int from_bgra2gray(const unsigned char* bgra, int w, int h, int stride, M
                 "vcvt.f32.u32   q0, q0          \n"
                 "vcvt.f32.u32   q1, q1          \n"
                 "subs       %0, #1              \n"
-                "vst1.f32   {d0-d3}, [%2 :128]! \n"
+                "vst1.f32   {d0-d3}, [%2]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
                 "=r"(bgra), // %1
@@ -2144,6 +2143,201 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
             yptr0 += 2;
             yptr1 += 2;
             vuptr += 2;
+            rgb0 += 6;
+            rgb1 += 6;
+        }
+#undef SATURATE_CAST_UCHAR
+
+        yptr += 2 * w;
+        rgb += 2 * 3 * w;
+    }
+}
+
+void yuv420sp2rgb_nv12(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb)
+{
+    const unsigned char* yptr = yuv420sp;
+    const unsigned char* uvptr = yuv420sp + w * h;
+
+#if __ARM_NEON
+    uint8x8_t _v128 = vdup_n_u8(128);
+    int8x8_t _v90 = vdup_n_s8(90);
+    int8x8_t _v46 = vdup_n_s8(46);
+    int8x8_t _v22 = vdup_n_s8(22);
+    int8x8_t _v113 = vdup_n_s8(113);
+#endif // __ARM_NEON
+
+    for (int y = 0; y < h; y += 2)
+    {
+        const unsigned char* yptr0 = yptr;
+        const unsigned char* yptr1 = yptr + w;
+        unsigned char* rgb0 = rgb;
+        unsigned char* rgb1 = rgb + w * 3;
+
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+#if __aarch64__
+        for (; nn > 0; nn--)
+        {
+            int16x8_t _yy0 = vreinterpretq_s16_u16(vshll_n_u8(vld1_u8(yptr0), 6));
+            int16x8_t _yy1 = vreinterpretq_s16_u16(vshll_n_u8(vld1_u8(yptr1), 6));
+
+            int8x8_t _uuvv = vreinterpret_s8_u8(vsub_u8(vld1_u8(uvptr), _v128));
+            int8x8x2_t _uuuuvvvv = vtrn_s8(_uuvv, _uuvv);
+            int8x8_t _uu = _uuuuvvvv.val[0];
+            int8x8_t _vv = _uuuuvvvv.val[1];
+
+            int16x8_t _r0 = vmlal_s8(_yy0, _vv, _v90);
+            int16x8_t _g0 = vmlsl_s8(_yy0, _vv, _v46);
+            _g0 = vmlsl_s8(_g0, _uu, _v22);
+            int16x8_t _b0 = vmlal_s8(_yy0, _uu, _v113);
+
+            int16x8_t _r1 = vmlal_s8(_yy1, _vv, _v90);
+            int16x8_t _g1 = vmlsl_s8(_yy1, _vv, _v46);
+            _g1 = vmlsl_s8(_g1, _uu, _v22);
+            int16x8_t _b1 = vmlal_s8(_yy1, _uu, _v113);
+
+            uint8x8x3_t _rgb0;
+            _rgb0.val[0] = vqshrun_n_s16(_r0, 6);
+            _rgb0.val[1] = vqshrun_n_s16(_g0, 6);
+            _rgb0.val[2] = vqshrun_n_s16(_b0, 6);
+
+            uint8x8x3_t _rgb1;
+            _rgb1.val[0] = vqshrun_n_s16(_r1, 6);
+            _rgb1.val[1] = vqshrun_n_s16(_g1, 6);
+            _rgb1.val[2] = vqshrun_n_s16(_b1, 6);
+
+            vst3_u8(rgb0, _rgb0);
+            vst3_u8(rgb1, _rgb1);
+
+            yptr0 += 8;
+            yptr1 += 8;
+            uvptr += 8;
+            rgb0 += 24;
+            rgb1 += 24;
+        }
+#else
+        if (nn > 0)
+        {
+            asm volatile(
+                "pld        [%3, #128]          \n"
+                "vld1.u8    {d2}, [%3]!         \n"
+                "vsub.s8    d2, d2, %12         \n"
+                "0:                             \n"
+                "pld        [%1, #128]          \n"
+                "vld1.u8    {d0}, [%1]!         \n"
+                "pld        [%2, #128]          \n"
+                "vld1.u8    {d1}, [%2]!         \n"
+                "vshll.u8   q2, d0, #6          \n"
+                "vorr       d3, d2, d2          \n"
+                "vshll.u8   q3, d1, #6          \n"
+                "vorr       q9, q2, q2          \n"
+                "vtrn.s8    d2, d3              \n"
+                "vorr       q11, q3, q3         \n"
+                "vmlsl.s8   q9, d3, %14         \n"
+                "vorr       q8, q2, q2          \n"
+                "vmlsl.s8   q11, d3, %14        \n"
+                "vorr       q10, q3, q3         \n"
+                "vmlal.s8   q8, d3, %13         \n"
+                "vmlal.s8   q2, d2, %16         \n"
+                "vmlal.s8   q10, d3, %13        \n"
+                "vmlsl.s8   q9, d2, %15         \n"
+                "vmlal.s8   q3, d2, %16         \n"
+                "vmlsl.s8   q11, d2, %15        \n"
+                "vqshrun.s16 d24, q8, #6        \n"
+                "vqshrun.s16 d26, q2, #6        \n"
+                "vqshrun.s16 d4, q10, #6        \n"
+                "vqshrun.s16 d25, q9, #6        \n"
+                "vqshrun.s16 d6, q3, #6         \n"
+                "vqshrun.s16 d5, q11, #6        \n"
+                "pld        [%3, #128]          \n"
+                "vld1.u8    {d2}, [%3]!         \n"
+                "subs       %0, #1              \n"
+                "vst3.u8    {d24-d26}, [%4]!    \n"
+                "vsub.s8    d2, d2, %12         \n"
+                "vst3.u8    {d4-d6}, [%5]!      \n"
+                "bne        0b                  \n"
+                "sub        %3, #8              \n"
+                : "=r"(nn),    // %0
+                "=r"(yptr0), // %1
+                "=r"(yptr1), // %2
+                "=r"(uvptr), // %3
+                "=r"(rgb0),  // %4
+                "=r"(rgb1)   // %5
+                : "0"(nn),
+                "1"(yptr0),
+                "2"(yptr1),
+                "3"(uvptr),
+                "4"(rgb0),
+                "5"(rgb1),
+                "w"(_v128), // %12
+                "w"(_v90),  // %13
+                "w"(_v46),  // %14
+                "w"(_v22),  // %15
+                "w"(_v113)  // %16
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12", "d26");
+        }
+#endif // __aarch64__
+#endif // __ARM_NEON
+
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+        for (; remain > 0; remain -= 2)
+        {
+            // R = 1.164 * yy + 1.596 * vv
+            // G = 1.164 * yy - 0.813 * vv - 0.391 * uu
+            // B = 1.164 * yy              + 2.018 * uu
+
+            // R = Y + (1.370705 * (V-128))
+            // G = Y - (0.698001 * (V-128)) - (0.337633 * (U-128))
+            // B = Y + (1.732446 * (U-128))
+
+            // R = ((Y << 6) + 87.72512 * (V-128)) >> 6
+            // G = ((Y << 6) - 44.672064 * (V-128) - 21.608512 * (U-128)) >> 6
+            // B = ((Y << 6) + 110.876544 * (U-128)) >> 6
+
+            // R = ((Y << 6) + 90 * (V-128)) >> 6
+            // G = ((Y << 6) - 46 * (V-128) - 22 * (U-128)) >> 6
+            // B = ((Y << 6) + 113 * (U-128)) >> 6
+
+            // R = (yy + 90 * vv) >> 6
+            // G = (yy - 46 * vv - 22 * uu) >> 6
+            // B = (yy + 113 * uu) >> 6
+
+            int u = uvptr[0] - 128;
+            int v = uvptr[1] - 128;
+
+            int ruv = 90 * v;
+            int guv = -46 * v + -22 * u;
+            int buv = 113 * u;
+
+            int y00 = yptr0[0] << 6;
+            rgb0[0] = SATURATE_CAST_UCHAR((y00 + ruv) >> 6);
+            rgb0[1] = SATURATE_CAST_UCHAR((y00 + guv) >> 6);
+            rgb0[2] = SATURATE_CAST_UCHAR((y00 + buv) >> 6);
+
+            int y01 = yptr0[1] << 6;
+            rgb0[3] = SATURATE_CAST_UCHAR((y01 + ruv) >> 6);
+            rgb0[4] = SATURATE_CAST_UCHAR((y01 + guv) >> 6);
+            rgb0[5] = SATURATE_CAST_UCHAR((y01 + buv) >> 6);
+
+            int y10 = yptr1[0] << 6;
+            rgb1[0] = SATURATE_CAST_UCHAR((y10 + ruv) >> 6);
+            rgb1[1] = SATURATE_CAST_UCHAR((y10 + guv) >> 6);
+            rgb1[2] = SATURATE_CAST_UCHAR((y10 + buv) >> 6);
+
+            int y11 = yptr1[1] << 6;
+            rgb1[3] = SATURATE_CAST_UCHAR((y11 + ruv) >> 6);
+            rgb1[4] = SATURATE_CAST_UCHAR((y11 + guv) >> 6);
+            rgb1[5] = SATURATE_CAST_UCHAR((y11 + buv) >> 6);
+
+            yptr0 += 2;
+            yptr1 += 2;
+            uvptr += 2;
             rgb0 += 6;
             rgb1 += 6;
         }
@@ -2395,6 +2589,118 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
         resize_bilinear_c4(pixels, w, h, stride, dst, target_width, target_height, target_width * 4);
 
         return Mat::from_pixels(dst, type, target_width, target_height, allocator);
+    }
+
+    // unknown convert type
+    NCNN_LOGE("unknown convert type %d", type);
+    return Mat();
+}
+
+Mat Mat::from_pixels_roi(const unsigned char* pixels, int type, int w, int h, int roix, int roiy, int roiw, int roih, Allocator* allocator)
+{
+    if (roix < 0 || roiy < 0 || roiw <= 0 || roih <= 0 || roix + roiw > w || roiy + roih > h)
+    {
+        NCNN_LOGE("roi %d %d %d %d out of image %d %d", roix, roiy, roiw, roih, w, h);
+        return Mat();
+    }
+
+    int type_from = type & PIXEL_FORMAT_MASK;
+
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
+        return from_pixels(pixels + (roiy * w + roix) * 3, type, roiw, roih, w * 3, allocator);
+    }
+    else if (type_from == PIXEL_GRAY)
+    {
+        return from_pixels(pixels + (roiy * w + roix) * 1, type, roiw, roih, w * 1, allocator);
+    }
+    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
+    {
+        return from_pixels(pixels + (roiy * w + roix) * 4, type, roiw, roih, w * 4, allocator);
+    }
+
+    // unknown convert type
+    NCNN_LOGE("unknown convert type %d", type);
+    return Mat();
+}
+
+Mat Mat::from_pixels_roi(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, Allocator* allocator)
+{
+    if (roix < 0 || roiy < 0 || roiw <= 0 || roih <= 0 || roix + roiw > w || roiy + roih > h)
+    {
+        NCNN_LOGE("roi %d %d %d %d out of image %d %d", roix, roiy, roiw, roih, w, h);
+        return Mat();
+    }
+
+    int type_from = type & PIXEL_FORMAT_MASK;
+
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
+        return from_pixels(pixels + roiy * stride + roix * 3, type, roiw, roih, stride, allocator);
+    }
+    else if (type_from == PIXEL_GRAY)
+    {
+        return from_pixels(pixels + roiy * stride + roix * 1, type, roiw, roih, stride, allocator);
+    }
+    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
+    {
+        return from_pixels(pixels + roiy * stride + roix * 4, type, roiw, roih, stride, allocator);
+    }
+
+    // unknown convert type
+    NCNN_LOGE("unknown convert type %d", type);
+    return Mat();
+}
+
+Mat Mat::from_pixels_roi_resize(const unsigned char* pixels, int type, int w, int h, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator)
+{
+    if (roix < 0 || roiy < 0 || roiw <= 0 || roih <= 0 || roix + roiw > w || roiy + roih > h)
+    {
+        NCNN_LOGE("roi %d %d %d %d out of image %d %d", roix, roiy, roiw, roih, w, h);
+        return Mat();
+    }
+
+    int type_from = type & PIXEL_FORMAT_MASK;
+
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
+        return from_pixels_resize(pixels + (roiy * w + roix) * 3, type, roiw, roih, w * 3, target_width, target_height, allocator);
+    }
+    else if (type_from == PIXEL_GRAY)
+    {
+        return from_pixels_resize(pixels + (roiy * w + roix) * 1, type, roiw, roih, w * 1, target_width, target_height, allocator);
+    }
+    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
+    {
+        return from_pixels_resize(pixels + (roiy * w + roix) * 4, type, roiw, roih, w * 4, target_width, target_height, allocator);
+    }
+
+    // unknown convert type
+    NCNN_LOGE("unknown convert type %d", type);
+    return Mat();
+}
+
+Mat Mat::from_pixels_roi_resize(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator)
+{
+    if (roix < 0 || roiy < 0 || roiw <= 0 || roih <= 0 || roix + roiw > w || roiy + roih > h)
+    {
+        NCNN_LOGE("roi %d %d %d %d out of image %d %d", roix, roiy, roiw, roih, w, h);
+        return Mat();
+    }
+
+    int type_from = type & PIXEL_FORMAT_MASK;
+
+    if (type_from == PIXEL_RGB || type_from == PIXEL_BGR)
+    {
+        return from_pixels_resize(pixels + roiy * stride + roix * 3, type, roiw, roih, stride, target_width, target_height, allocator);
+    }
+    else if (type_from == PIXEL_GRAY)
+    {
+        return from_pixels_resize(pixels + roiy * stride + roix * 1, type, roiw, roih, stride, target_width, target_height, allocator);
+    }
+    else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
+    {
+        return from_pixels_resize(pixels + roiy * stride + roix * 4, type, roiw, roih, stride, target_width, target_height, allocator);
     }
 
     // unknown convert type

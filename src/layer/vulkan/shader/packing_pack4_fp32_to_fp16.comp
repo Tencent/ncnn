@@ -40,11 +40,7 @@ layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 layout (binding = 0) readonly buffer bottom_blob_fp32 { vec4 bottom_blob_fp32_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 #if NCNN_image_shader
-layout (binding = 2) uniform highp sampler1D bottom_blob_1d_fp32;
-layout (binding = 2) uniform highp sampler2D bottom_blob_2d_fp32;
 layout (binding = 2) uniform highp sampler3D bottom_blob_3d_fp32;
-layout (binding = 3, imfmtc4) writeonly uniform unfp image1D top_blob_1d;
-layout (binding = 3, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 3, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
 #endif
 
@@ -85,7 +81,7 @@ void main()
 #if NCNN_image_shader
         if (storage_type_from == 1)
         {
-            v = afpvec4(texelFetch(bottom_blob_1d_fp32, gx, 0));
+            v = afpvec4(texelFetch(bottom_blob_3d_fp32, ivec3(gx, 0, 0), 0));
         }
 #endif
 
@@ -98,7 +94,7 @@ void main()
 #if NCNN_image_shader
         if (storage_type_to == 1)
         {
-            image1d_st4(top_blob_1d, gx, v);
+            image3d_st4(top_blob_3d, ivec3(gx, 0, 0), v);
         }
 #endif
     }
@@ -113,7 +109,7 @@ void main()
 #if NCNN_image_shader
         if (storage_type_from == 1)
         {
-            v = afpvec4(texelFetch(bottom_blob_2d_fp32, ivec2(gx, gy), 0));
+            v = afpvec4(texelFetch(bottom_blob_3d_fp32, ivec3(gx, gy, 0), 0));
         }
 #endif
 
@@ -126,7 +122,7 @@ void main()
 #if NCNN_image_shader
         if (storage_type_to == 1)
         {
-            image2d_st4(top_blob_2d, ivec2(gx, gy), v);
+            image3d_st4(top_blob_3d, ivec3(gx, 0, 0), v);
         }
 #endif
     }

@@ -15,8 +15,13 @@
 #include "layer/batchnorm.h"
 #include "testutil.h"
 
-static int test_batchnorm(const ncnn::Mat& a, int channels, float eps)
+static int test_batchnorm(const ncnn::Mat& a, float eps)
 {
+    int channels;
+    if (a.dims == 1) channels = a.w;
+    if (a.dims == 2) channels = a.h;
+    if (a.dims == 3) channels = a.c;
+
     ncnn::ParamDict pd;
     pd.set(0, channels); // channels
     pd.set(1, eps);      // eps
@@ -33,7 +38,7 @@ static int test_batchnorm(const ncnn::Mat& a, int channels, float eps)
     int ret = test_layer<ncnn::BatchNorm>("BatchNorm", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_batchnorm failed a.dims=%d a=(%d %d %d) channels=%d eps=%f\n", a.dims, a.w, a.h, a.c, channels, eps);
+        fprintf(stderr, "test_batchnorm failed a.dims=%d a=(%d %d %d) eps=%f\n", a.dims, a.w, a.h, a.c, eps);
     }
 
     return ret;
@@ -42,28 +47,34 @@ static int test_batchnorm(const ncnn::Mat& a, int channels, float eps)
 static int test_batchnorm_0()
 {
     return 0
-           || test_batchnorm(RandomMat(5, 7, 16), 16, 0.f)
-           || test_batchnorm(RandomMat(5, 7, 16), 16, 0.01f)
-           || test_batchnorm(RandomMat(3, 5, 13), 13, 0.f)
-           || test_batchnorm(RandomMat(3, 5, 13), 13, 0.001f);
+           || test_batchnorm(RandomMat(5, 7, 24), 0.f)
+           || test_batchnorm(RandomMat(5, 7, 24), 0.01f)
+           || test_batchnorm(RandomMat(7, 9, 12), 0.f)
+           || test_batchnorm(RandomMat(7, 9, 12), 0.001f)
+           || test_batchnorm(RandomMat(3, 5, 13), 0.f)
+           || test_batchnorm(RandomMat(3, 5, 13), 0.001f);
 }
 
 static int test_batchnorm_1()
 {
     return 0
-           || test_batchnorm(RandomMat(6, 16), 16, 0.f)
-           || test_batchnorm(RandomMat(6, 16), 16, 0.01f)
-           || test_batchnorm(RandomMat(7, 15), 15, 0.f)
-           || test_batchnorm(RandomMat(7, 15), 15, 0.001f);
+           || test_batchnorm(RandomMat(15, 24), 0.f)
+           || test_batchnorm(RandomMat(15, 24), 0.01f)
+           || test_batchnorm(RandomMat(17, 12), 0.f)
+           || test_batchnorm(RandomMat(17, 12), 0.001f)
+           || test_batchnorm(RandomMat(19, 15), 0.f)
+           || test_batchnorm(RandomMat(19, 15), 0.001f);
 }
 
 static int test_batchnorm_2()
 {
     return 0
-           || test_batchnorm(RandomMat(128), 128, 0.f)
-           || test_batchnorm(RandomMat(128), 128, 0.001f)
-           || test_batchnorm(RandomMat(127), 127, 0.f)
-           || test_batchnorm(RandomMat(127), 127, 0.1f);
+           || test_batchnorm(RandomMat(128), 0.f)
+           || test_batchnorm(RandomMat(128), 0.001f)
+           || test_batchnorm(RandomMat(124), 0.f)
+           || test_batchnorm(RandomMat(124), 0.1f)
+           || test_batchnorm(RandomMat(127), 0.f)
+           || test_batchnorm(RandomMat(127), 0.1f);
 }
 
 int main()

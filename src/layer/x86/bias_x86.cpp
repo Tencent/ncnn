@@ -11,11 +11,15 @@
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
+
+#include "bias_x86.h"
+
+#if __SSE2__
+#include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
-
-#include "bias_x86.h"
+#endif // __SSE2__
 
 namespace ncnn {
 
@@ -34,26 +38,35 @@ int Bias_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         float bias = bias_ptr[q];
 
+        int i = 0;
+#if __SSE2__
 #if __AVX__
-        int nn = size >> 3;
-        int remain = size & 7;
-#else
-        int remain = size;
-#endif // __AVX__
-
-#if __AVX__
-        __m256 _bias = _mm256_set1_ps(bias);
-        for (; nn > 0; nn--)
         {
-            __m256 _p = _mm256_loadu_ps(ptr);
-            __m256 _outp = _mm256_add_ps(_p, _bias);
-            _mm256_storeu_ps(ptr, _outp);
+            __m256 _bias256 = _mm256_set1_ps(bias);
+            for (; i + 7 < size; i += 8)
+            {
+                __m256 _p = _mm256_loadu_ps(ptr);
+                __m256 _outp = _mm256_add_ps(_p, _bias256);
+                _mm256_storeu_ps(ptr, _outp);
 
-            ptr += 8;
+                ptr += 8;
+            }
         }
 #endif // __AVX__
+        {
+            __m128 _bias = _mm_set1_ps(bias);
+            for (; i + 3 < size; i += 4)
+            {
+                __m128 _p = _mm_loadu_ps(ptr);
+                __m128 _outp = _mm_add_ps(_p, _bias);
+                _mm_storeu_ps(ptr, _outp);
 
-        for (; remain > 0; remain--)
+                ptr += 4;
+            }
+        }
+#endif // __SSE2__
+
+        for (; i < size; i++)
         {
             *ptr = *ptr + bias;
 

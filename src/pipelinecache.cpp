@@ -108,7 +108,6 @@ PipelineCache::pipeline_cache_digest::pipeline_cache_digest(int _shader_type_ind
 PipelineCache::PipelineCache(const VulkanDevice* _vkdev)
     : vkdev(_vkdev)
 {
-    last_digest_index = -1;
 }
 
 PipelineCache::~PipelineCache()
@@ -155,9 +154,6 @@ void PipelineCache::clear()
 
     cache_digests.clear();
     cache_artifacts.clear();
-
-    last_digest = pipeline_cache_digest();
-    last_digest_index = -1;
 }
 
 int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
@@ -171,35 +167,30 @@ int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, 
 {
     MutexLockGuard lock(cache_lock);
 
-    // find cache
     pipeline_cache_digest key(spv_data, spv_data_size, specializations, local_size_x, local_size_y, local_size_z);
-    for (int i = 0; i < (int)cache_digests.size(); i++)
+
+    if (!vkdev->info.bug_corrupted_online_pipeline_cache)
     {
-        if (cache_digests[i] != key)
-            continue;
-
-        if (last_digest == key && last_digest_index == i)
+        // find cache
+        for (size_t i = 0; i < cache_digests.size(); i++)
         {
-            // do not return identical pipeline for adjacent ones
-            continue;
+            if (cache_digests[i] != key)
+                continue;
+
+            // hit cache
+            const pipeline_cache_artifact& cc = cache_artifacts[i];
+
+            *_shader_module = cc.shader_module;
+            *descriptorset_layout = cc.descriptorset_layout;
+            *pipeline_layout = cc.pipeline_layout;
+            *pipeline = cc.pipeline;
+            *descriptor_update_template = cc.descriptor_update_template;
+            shader_info = cc.shader_info;
+
+            // NCNN_LOGE("get_pipeline hit %d", last_digest_index);
+
+            return 0;
         }
-
-        // hit cache
-        const pipeline_cache_artifact& cc = cache_artifacts[i];
-
-        *_shader_module = cc.shader_module;
-        *descriptorset_layout = cc.descriptorset_layout;
-        *pipeline_layout = cc.pipeline_layout;
-        *pipeline = cc.pipeline;
-        *descriptor_update_template = cc.descriptor_update_template;
-        shader_info = cc.shader_info;
-
-        last_digest = key;
-        last_digest_index = i;
-
-        // NCNN_LOGE("get_pipeline hit %d", last_digest_index);
-
-        return 0;
     }
 
     int ret = 0;
@@ -243,9 +234,6 @@ int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, 
         cache_artifacts.push_back(cc);
     }
 
-    last_digest = key;
-    last_digest_index = (int)cache_digests.size() - 1;
-
     // NCNN_LOGE("new_pipeline %d", last_digest_index);
 
     return 0;
@@ -262,35 +250,30 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
 {
     MutexLockGuard lock(cache_lock);
 
-    // find cache
     pipeline_cache_digest key(shader_type_index, opt, specializations, local_size_x, local_size_y, local_size_z);
-    for (int i = 0; i < (int)cache_digests.size(); i++)
+
+    if (!vkdev->info.bug_corrupted_online_pipeline_cache)
     {
-        if (cache_digests[i] != key)
-            continue;
-
-        if (last_digest == key && last_digest_index == i)
+        // find cache
+        for (size_t i = 0; i < cache_digests.size(); i++)
         {
-            // do not return identical pipeline for adjacent ones
-            continue;
+            if (cache_digests[i] != key)
+                continue;
+
+            // hit cache
+            const pipeline_cache_artifact& cc = cache_artifacts[i];
+
+            *_shader_module = cc.shader_module;
+            *descriptorset_layout = cc.descriptorset_layout;
+            *pipeline_layout = cc.pipeline_layout;
+            *pipeline = cc.pipeline;
+            *descriptor_update_template = cc.descriptor_update_template;
+            shader_info = cc.shader_info;
+
+            // NCNN_LOGE("get_pipeline hit %d", last_digest_index);
+
+            return 0;
         }
-
-        // hit cache
-        const pipeline_cache_artifact& cc = cache_artifacts[i];
-
-        *_shader_module = cc.shader_module;
-        *descriptorset_layout = cc.descriptorset_layout;
-        *pipeline_layout = cc.pipeline_layout;
-        *pipeline = cc.pipeline;
-        *descriptor_update_template = cc.descriptor_update_template;
-        shader_info = cc.shader_info;
-
-        last_digest = key;
-        last_digest_index = i;
-
-        // NCNN_LOGE("get_pipeline hit %d", last_digest_index);
-
-        return 0;
     }
 
     int ret = 0;
@@ -329,9 +312,6 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
         cache_artifacts.push_back(cc);
     }
 
-    last_digest = key;
-    last_digest_index = (int)cache_digests.size() - 1;
-
     // NCNN_LOGE("new_pipeline %d", last_digest_index);
 
     return 0;
@@ -340,7 +320,6 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
 int PipelineCache::create_shader_module(int shader_type_index, const Option& opt, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
                                         VkShaderModule* _shader_module, ShaderInfo& si) const
 {
-#if NCNN_VULKAN_ONLINE_SPIRV
     std::vector<uint32_t> spirv;
     int retc = compile_spirv_module(shader_type_index, opt, spirv);
     if (retc != 0)
@@ -360,60 +339,6 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
     }
 
     VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
-#else  // NCNN_VULKAN_ONLINE_SPIRV
-    // ncnn_add_shader cmake macro
-    // 0 = fp32
-    // 1 = fp16p
-    // 2 = fp16pa
-    // 3 = fp16s
-    // 4 = fp16sa
-    // 5 = image
-    // 6 = image_fp16p
-    // 7 = image_fp16pa
-    // 8 = image_fp16s
-    // 9 = image_fp16sa
-
-    if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
-    {
-        shader_type_index += 9;
-    }
-    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
-    {
-        shader_type_index += 7;
-    }
-    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_storage && opt.use_fp16_storage)
-    {
-        shader_type_index += 8;
-    }
-    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage && vkdev->info.support_fp16_packed && opt.use_fp16_packed)
-    {
-        shader_type_index += 6;
-    }
-    else if (!vkdev->info.bug_layout_binding_id_alias && opt.use_image_storage)
-    {
-        shader_type_index += 5;
-    }
-    else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
-    {
-        shader_type_index += 4;
-    }
-    else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed && vkdev->info.support_fp16_arithmetic && opt.use_fp16_arithmetic)
-    {
-        shader_type_index += 2;
-    }
-    else if (vkdev->info.support_fp16_storage && opt.use_fp16_storage)
-    {
-        shader_type_index += 3;
-    }
-    else if (vkdev->info.support_fp16_packed && opt.use_fp16_packed)
-    {
-        shader_type_index += 1;
-    }
-
-    si = get_shader_info(shader_type_index);
-
-    VkShaderModule shader_module = vkdev->create_shader_module(shader_type_index, local_size_x, local_size_y, local_size_z);
-#endif // NCNN_VULKAN_ONLINE_SPIRV
 
     if (!shader_module)
     {

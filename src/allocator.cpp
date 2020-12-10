@@ -17,8 +17,6 @@
 #include "gpu.h"
 #include "pipeline.h"
 
-#include <algorithm>
-
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
 #endif // __ANDROID_API__ >= 26
@@ -42,7 +40,7 @@ PoolAllocator::~PoolAllocator()
     {
         NCNN_LOGE("FATAL ERROR! pool allocator destroyed too early");
         std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
-        for (; it != payouts.end(); it++)
+        for (; it != payouts.end(); ++it)
         {
             void* ptr = it->second;
             NCNN_LOGE("%p still in use", ptr);
@@ -55,7 +53,7 @@ void PoolAllocator::clear()
     budgets_lock.lock();
 
     std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
-    for (; it != budgets.end(); it++)
+    for (; it != budgets.end(); ++it)
     {
         void* ptr = it->second;
         ncnn::fastFree(ptr);
@@ -82,7 +80,7 @@ void* PoolAllocator::fastMalloc(size_t size)
 
     // find free budget
     std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
-    for (; it != budgets.end(); it++)
+    for (; it != budgets.end(); ++it)
     {
         size_t bs = it->first;
 
@@ -125,7 +123,7 @@ void PoolAllocator::fastFree(void* ptr)
 
     // return to budgets
     std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
-    for (; it != payouts.end(); it++)
+    for (; it != payouts.end(); ++it)
     {
         if (it->second == ptr)
         {
@@ -164,7 +162,7 @@ UnlockedPoolAllocator::~UnlockedPoolAllocator()
     {
         NCNN_LOGE("FATAL ERROR! unlocked pool allocator destroyed too early");
         std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
-        for (; it != payouts.end(); it++)
+        for (; it != payouts.end(); ++it)
         {
             void* ptr = it->second;
             NCNN_LOGE("%p still in use", ptr);
@@ -175,7 +173,7 @@ UnlockedPoolAllocator::~UnlockedPoolAllocator()
 void UnlockedPoolAllocator::clear()
 {
     std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
-    for (; it != budgets.end(); it++)
+    for (; it != budgets.end(); ++it)
     {
         void* ptr = it->second;
         ncnn::fastFree(ptr);
@@ -198,7 +196,7 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
 {
     // find free budget
     std::list<std::pair<size_t, void*> >::iterator it = budgets.begin();
-    for (; it != budgets.end(); it++)
+    for (; it != budgets.end(); ++it)
     {
         size_t bs = it->first;
 
@@ -227,7 +225,7 @@ void UnlockedPoolAllocator::fastFree(void* ptr)
 {
     // return to budgets
     std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
-    for (; it != payouts.end(); it++)
+    for (; it != payouts.end(); ++it)
     {
         if (it->second == ptr)
         {
@@ -377,13 +375,13 @@ VkDeviceMemory VkAllocator::allocate_dedicated_memory(size_t size, uint32_t memo
     return memory;
 }
 
-VkImage VkAllocator::create_image(VkImageType type, int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage)
+VkImage VkAllocator::create_image(int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage)
 {
     VkImageCreateInfo imageCreateInfo;
     imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
     imageCreateInfo.pNext = 0;
     imageCreateInfo.flags = 0;
-    imageCreateInfo.imageType = type;
+    imageCreateInfo.imageType = VK_IMAGE_TYPE_3D;
     imageCreateInfo.format = format;
     imageCreateInfo.extent.width = width;
     imageCreateInfo.extent.height = height;
@@ -402,21 +400,21 @@ VkImage VkAllocator::create_image(VkImageType type, int width, int height, int d
     VkResult ret = vkCreateImage(vkdev->vkdevice(), &imageCreateInfo, 0, &image);
     if (ret != VK_SUCCESS)
     {
-        NCNN_LOGE("vkCreateImage failed %d %d %d %d %d %d %d %d", ret, type, width, height, depth, format, tiling, usage);
+        NCNN_LOGE("vkCreateImage failed %d %d %d %d %d %d %d", ret, width, height, depth, format, tiling, usage);
         return 0;
     }
 
     return image;
 }
 
-VkImageView VkAllocator::create_imageview(VkImageViewType type, VkImage image, VkFormat format)
+VkImageView VkAllocator::create_imageview(VkImage image, VkFormat format)
 {
     VkImageViewCreateInfo imageViewCreateInfo;
     imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     imageViewCreateInfo.pNext = 0;
     imageViewCreateInfo.flags = 0;
     imageViewCreateInfo.image = image;
-    imageViewCreateInfo.viewType = type;
+    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
     imageViewCreateInfo.format = format;
     imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
     imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -711,7 +709,7 @@ void VkBlobAllocator::fastFree(VkBufferMemory* ptr)
     delete ptr;
 }
 
-VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack)
+VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize, int elempack)
 {
     if (elempack != 1 && elempack != 4 && elempack != 8)
     {
@@ -745,48 +743,16 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int w, int h, int c, size_t
     // large elempack spills on image w
     if (elempack == 8) width *= 2;
 
-    VkImageType image_type;
-    VkImageViewType imageview_type;
-    if (dims == 1)
+    if (width > (int)vkdev->info.max_image_dimension_3d || height > (int)vkdev->info.max_image_dimension_3d || depth > (int)vkdev->info.max_image_dimension_3d)
     {
-        image_type = VK_IMAGE_TYPE_1D;
-        imageview_type = VK_IMAGE_VIEW_TYPE_1D;
-
-        if (width > (int)vkdev->info.max_image_dimension_1d)
-        {
-            NCNN_LOGE("image dimension too large %d > %d", width, (int)vkdev->info.max_image_dimension_1d);
-            return 0;
-        }
-    }
-    else if (dims == 2)
-    {
-        image_type = VK_IMAGE_TYPE_2D;
-        imageview_type = VK_IMAGE_VIEW_TYPE_2D;
-
-        if (width > (int)vkdev->info.max_image_dimension_2d || height > (int)vkdev->info.max_image_dimension_2d)
-        {
-            NCNN_LOGE("image dimension too large %d %d > %d", width, height, (int)vkdev->info.max_image_dimension_2d);
-            return 0;
-        }
-    }
-    else // if (dims == 3)
-    {
-        image_type = VK_IMAGE_TYPE_3D;
-        imageview_type = VK_IMAGE_VIEW_TYPE_3D;
-
-        if (width > (int)vkdev->info.max_image_dimension_3d || height > (int)vkdev->info.max_image_dimension_3d || depth > (int)vkdev->info.max_image_dimension_3d)
-        {
-            NCNN_LOGE("image dimension too large %d %d %d > %d", width, height, depth, (int)vkdev->info.max_image_dimension_3d);
-            return 0;
-        }
+        NCNN_LOGE("image dimension too large %d %d %d > %d", width, height, depth, (int)vkdev->info.max_image_dimension_3d);
+        return 0;
     }
 
     VkImageMemory* ptr = new VkImageMemory;
 
-    ptr->image = create_image(image_type, width, height, depth, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    ptr->image = create_image(width, height, depth, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
-    ptr->image_type = image_type;
-    ptr->imageview_type = imageview_type;
     ptr->width = width;
     ptr->height = height;
     ptr->depth = depth;
@@ -829,7 +795,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int w, int h, int c, size_t
             // do not allow host access to optimal tiling image
             ptr->mapped_ptr = 0;
 
-            ptr->imageview = create_imageview(imageview_type, ptr->image, format);
+            ptr->imageview = create_imageview(ptr->image, format);
 
             ptr->access_flags = 0;
             ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -896,7 +862,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int dims, int w, int h, int c, size_t
     // do not allow host access to optimal tiling image
     ptr->mapped_ptr = 0;
 
-    ptr->imageview = create_imageview(imageview_type, ptr->image, format);
+    ptr->imageview = create_imageview(ptr->image, format);
 
     ptr->access_flags = 0;
     ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1246,7 +1212,7 @@ void VkWeightAllocator::fastFree(VkBufferMemory* ptr)
     delete ptr;
 }
 
-VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack)
+VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsize, int elempack)
 {
     if (elempack != 1 && elempack != 4 && elempack != 8 && elempack != 16 && elempack != 32 && elempack != 64)
     {
@@ -1289,48 +1255,16 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int w, int h, int c, size
     if (elempack == 32) width *= 8;
     if (elempack == 64) width *= 16;
 
-    VkImageType image_type;
-    VkImageViewType imageview_type;
-    if (dims == 1)
+    if (width > (int)vkdev->info.max_image_dimension_3d || height > (int)vkdev->info.max_image_dimension_3d || depth > (int)vkdev->info.max_image_dimension_3d)
     {
-        image_type = VK_IMAGE_TYPE_1D;
-        imageview_type = VK_IMAGE_VIEW_TYPE_1D;
-
-        if (width > (int)vkdev->info.max_image_dimension_1d)
-        {
-            NCNN_LOGE("image dimension too large %d > %d", width, (int)vkdev->info.max_image_dimension_1d);
-            return 0;
-        }
-    }
-    else if (dims == 2)
-    {
-        image_type = VK_IMAGE_TYPE_2D;
-        imageview_type = VK_IMAGE_VIEW_TYPE_2D;
-
-        if (width > (int)vkdev->info.max_image_dimension_2d || height > (int)vkdev->info.max_image_dimension_2d)
-        {
-            NCNN_LOGE("image dimension too large %d %d > %d", width, height, (int)vkdev->info.max_image_dimension_2d);
-            return 0;
-        }
-    }
-    else // if (dims == 3)
-    {
-        image_type = VK_IMAGE_TYPE_3D;
-        imageview_type = VK_IMAGE_VIEW_TYPE_3D;
-
-        if (width > (int)vkdev->info.max_image_dimension_3d || height > (int)vkdev->info.max_image_dimension_3d || depth > (int)vkdev->info.max_image_dimension_3d)
-        {
-            NCNN_LOGE("image dimension too large %d %d %d > %d", width, height, depth, (int)vkdev->info.max_image_dimension_3d);
-            return 0;
-        }
+        NCNN_LOGE("image dimension too large %d %d %d > %d", width, height, depth, (int)vkdev->info.max_image_dimension_3d);
+        return 0;
     }
 
     VkImageMemory* ptr = new VkImageMemory;
 
-    ptr->image = create_image(image_type, width, height, depth, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    ptr->image = create_image(width, height, depth, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
-    ptr->image_type = image_type;
-    ptr->imageview_type = imageview_type;
     ptr->width = width;
     ptr->height = height;
     ptr->depth = depth;
@@ -1387,7 +1321,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int w, int h, int c, size
             // do not allow host access to optimal tiling image
             ptr->mapped_ptr = 0;
 
-            ptr->imageview = create_imageview(imageview_type, ptr->image, format);
+            ptr->imageview = create_imageview(ptr->image, format);
 
             ptr->access_flags = 0;
             ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1428,7 +1362,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int w, int h, int c, size
             // do not allow host access to optimal tiling image
             ptr->mapped_ptr = 0;
 
-            ptr->imageview = create_imageview(imageview_type, ptr->image, format);
+            ptr->imageview = create_imageview(ptr->image, format);
 
             ptr->access_flags = 0;
             ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1484,7 +1418,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int dims, int w, int h, int c, size
     // do not allow host access to optimal tiling image
     ptr->mapped_ptr = 0;
 
-    ptr->imageview = create_imageview(imageview_type, ptr->image, format);
+    ptr->imageview = create_imageview(ptr->image, format);
 
     ptr->access_flags = 0;
     ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -1614,36 +1548,16 @@ void VkStagingAllocator::fastFree(VkBufferMemory* ptr)
     buffer_budgets.push_back(ptr);
 }
 
-VkImageMemory* VkStagingAllocator::fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack)
+VkImageMemory* VkStagingAllocator::fastMalloc(int w, int h, int c, size_t elemsize, int /* elempack */)
 {
     // staging image is mainly used for storing small piece of dynamic parameters
     // we allocate host memory as a fake image, it's simple and good
 
     const size_t size = w * h * c * elemsize;
 
-    VkImageType image_type;
-    VkImageViewType imageview_type;
-    if (dims == 1)
-    {
-        image_type = VK_IMAGE_TYPE_1D;
-        imageview_type = VK_IMAGE_VIEW_TYPE_1D;
-    }
-    else if (dims == 2)
-    {
-        image_type = VK_IMAGE_TYPE_2D;
-        imageview_type = VK_IMAGE_VIEW_TYPE_2D;
-    }
-    else // if (dims == 3)
-    {
-        image_type = VK_IMAGE_TYPE_3D;
-        imageview_type = VK_IMAGE_VIEW_TYPE_3D;
-    }
-
     VkImageMemory* ptr = new VkImageMemory;
 
     ptr->image = 0;
-    ptr->image_type = image_type;
-    ptr->imageview_type = imageview_type;
     ptr->width = w;
     ptr->height = h;
     ptr->depth = c;
@@ -1748,7 +1662,7 @@ VkAndroidHardwareBufferImageAllocator::~VkAndroidHardwareBufferImageAllocator()
     }
 }
 
-VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*dims*/, int /*w*/, int /*h*/, int /*c*/, size_t /*elemsize*/, int /*elempack*/)
+VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int /*h*/, int /*c*/, size_t /*elemsize*/, int /*elempack*/)
 {
     VkResult ret;
 

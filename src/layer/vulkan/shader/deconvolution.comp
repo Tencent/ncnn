@@ -49,7 +49,7 @@ layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 layout (binding = 0) uniform unfp sampler3D bottom_blob;
 layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
 layout (binding = 2) uniform unfp sampler3D weight_blob;
-layout (binding = 3) uniform unfp sampler1D bias_blob;
+layout (binding = 3) uniform unfp sampler3D bias_blob;
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
@@ -86,7 +86,7 @@ void main()
     if (bias_term == 1)
     {
 #if NCNN_image_shader
-        sum = image1d_ld1(bias_blob, gz);
+        sum = image3d_ld1(bias_blob, ivec3(gz, 0, 0));
 #else
         sum = buffer_ld1(bias_data, gz);
 #endif

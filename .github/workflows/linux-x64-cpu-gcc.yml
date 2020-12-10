@@ -2,7 +2,7 @@ name: linux-x64-cpu-gcc
 on: [push, pull_request]
 jobs:
   linux-gcc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v2
     - name: update
@@ -10,7 +10,7 @@ jobs:
     - name: protobuf
       run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: configure
-      run: mkdir build && cd build && cmake ..
+      run: mkdir build && cd build && cmake -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j 2
     - name: test
@@ -25,14 +25,25 @@ jobs:
     - name: protobuf
       run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: configure
-      run: mkdir build && cd build && cmake -DNCNN_AVX2=ON ..
+      run: mkdir build && cd build && cmake -DNCNN_AVX2=ON -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j 2
+    - name: test
+      run: cd build && ctest --output-on-failure -j 2
+
+  linux-gcc-cpp03:
+    runs-on: ubuntu-16.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-c++03.toolchain.cmake -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
     - name: build
       run: cmake --build build -j 2
     - name: test
       run: cd build && ctest --output-on-failure -j 2
 
   linux-gcc-nostdio-nostring:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v2
     - name: configure
@@ -45,7 +56,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: configure
-      run: mkdir build && cd build && cmake -DNCNN_STDIO=ON -DNCNN_STRING=ON -DNCNN_SIMPLESTL=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host-c.gcc.toolchain.cmake -DNCNN_STDIO=ON -DNCNN_STRING=ON -DNCNN_SIMPLESTL=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
     - name: build
       run: cmake --build build -j 2
     - name: test

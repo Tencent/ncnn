@@ -1,4 +1,4 @@
-// Tencent is pleased to support the open source community by making ncnn available.
+﻿// Tencent is pleased to support the open source community by making ncnn available.
 //
 // Copyright (C) 2020 THL A29 Limited, a Tencent company. All rights reserved.
 //
@@ -14,7 +14,6 @@
 
 #include "roialign_x86.h"
 
-#include <algorithm>
 #include <math.h>
 
 namespace ncnn {
@@ -117,7 +116,7 @@ void detectron2_pre_calc_for_bilinear_interpolate(
 
                     T ly = y - y_low;
                     T lx = x - x_low;
-                    T hy = 1. - ly, hx = 1. - lx;
+                    T hy = (T)(1. - ly), hx = (T)(1. - lx);
                     T w1 = hy * hx, w2 = hy * lx, w3 = ly * hx, w4 = ly * lx;
 
                     // save weights and indices
@@ -164,8 +163,8 @@ void original_pre_calc_for_bilinear_interpolate(
             hend = std::min(std::max(hend, 0.f), (float)height);
             wend = std::min(std::max(wend, 0.f), (float)width);
 
-            int bin_grid_h = sampling_ratio > 0 ? sampling_ratio : ceil(hend - hstart);
-            int bin_grid_w = sampling_ratio > 0 ? sampling_ratio : ceil(wend - wstart);
+            int bin_grid_h = (int)(sampling_ratio > 0 ? sampling_ratio : ceil(hend - hstart));
+            int bin_grid_w = (int)(sampling_ratio > 0 ? sampling_ratio : ceil(wend - wstart));
 
             for (int by = 0; by < bin_grid_h; by++)
             {
@@ -174,9 +173,9 @@ void original_pre_calc_for_bilinear_interpolate(
                 for (int bx = 0; bx < bin_grid_w; bx++)
                 {
                     float x = wstart + (bx + 0.5f) * bin_size_w / (float)bin_grid_w;
-                    int x0 = x;
+                    int x0 = (int)x;
                     int x1 = x0 + 1;
-                    int y0 = y;
+                    int y0 = (int)y;
                     int y1 = y0 + 1;
 
                     float a0 = x1 - x;
@@ -262,10 +261,10 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     if (version == 0)
     {
         // original version
-        int roi_bin_grid_h = sampling_ratio > 0 ? sampling_ratio : ceil(roi_height / pooled_height);
-        int roi_bin_grid_w = sampling_ratio > 0 ? sampling_ratio : ceil(roi_width / pooled_width);
+        int roi_bin_grid_h = (int)(sampling_ratio > 0 ? sampling_ratio : ceil(roi_height / pooled_height));
+        int roi_bin_grid_w = (int)(sampling_ratio > 0 ? sampling_ratio : ceil(roi_width / pooled_width));
         std::vector<PreCalc<float> > pre_calc(
-            roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
+            (size_t)roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
         original_pre_calc_for_bilinear_interpolate(
             height,
             width,
@@ -302,8 +301,8 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                     hend = std::min(std::max(hend, 0.f), (float)height);
                     wend = std::min(std::max(wend, 0.f), (float)width);
 
-                    int bin_grid_h = sampling_ratio > 0 ? sampling_ratio : ceil(hend - hstart);
-                    int bin_grid_w = sampling_ratio > 0 ? sampling_ratio : ceil(wend - wstart);
+                    int bin_grid_h = (int)(sampling_ratio > 0 ? sampling_ratio : ceil(hend - hstart));
+                    int bin_grid_w = (int)(sampling_ratio > 0 ? sampling_ratio : ceil(wend - wstart));
 
                     bool is_empty = (hend <= hstart) || (wend <= wstart);
                     int area = bin_grid_h * bin_grid_w;
@@ -328,13 +327,13 @@ int ROIAlign_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     else if (version == 1)
     {
         // the version in detectron 2
-        int roi_bin_grid_h = sampling_ratio > 0 ? sampling_ratio : ceil(roi_height / pooled_height);
-        int roi_bin_grid_w = sampling_ratio > 0 ? sampling_ratio : ceil(roi_width / pooled_width);
+        int roi_bin_grid_h = (int)(sampling_ratio > 0 ? sampling_ratio : ceil(roi_height / pooled_height));
+        int roi_bin_grid_w = (int)(sampling_ratio > 0 ? sampling_ratio : ceil(roi_width / pooled_width));
 
-        const float count = std::max(roi_bin_grid_h * roi_bin_grid_w, 1);
+        const float count = (float)std::max(roi_bin_grid_h * roi_bin_grid_w, 1);
 
         std::vector<PreCalc<float> > pre_calc(
-            roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
+            (size_t)roi_bin_grid_h * roi_bin_grid_w * pooled_width * pooled_height);
         detectron2_pre_calc_for_bilinear_interpolate(
             height,
             width,

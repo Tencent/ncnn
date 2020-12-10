@@ -22,21 +22,27 @@
 #endif
 
 layout (constant_id = 0) const float eps = 0;
-layout (constant_id = 1) const int w = 0;
+layout (constant_id = 1) const int affine = 0;
+layout (constant_id = 2) const int w = 0;
 
 #if NCNN_image_shader
-layout (binding = 0, imfmtc1) writeonly uniform unfp image1D coeffs_blob;
-layout (binding = 1) uniform unfp sampler1D mean_blob;
-layout (binding = 2) uniform unfp sampler1D var_blob;
-layout (binding = 3) uniform unfp sampler1D gamma_blob;
-layout (binding = 4) uniform unfp sampler1D beta_blob;
+layout (binding = 0, imfmtc1) writeonly uniform unfp image3D coeffs_blob;
+layout (binding = 1) uniform highp sampler3D mean_blob;
+layout (binding = 2) uniform highp sampler3D var_blob;
+layout (binding = 3) uniform unfp sampler3D gamma_blob;
+layout (binding = 4) uniform unfp sampler3D beta_blob;
 #else
 layout (binding = 0) writeonly buffer coeffs_blob { sfp coeffs_blob_data[]; };
-layout (binding = 1) readonly buffer mean_blob { sfp mean_data[]; };
-layout (binding = 2) readonly buffer var_blob { sfp var_data[]; };
+layout (binding = 1) readonly buffer mean_blob { float mean_data[]; };
+layout (binding = 2) readonly buffer var_blob { float var_data[]; };
 layout (binding = 3) readonly buffer gamma_blob { sfp gamma_data[]; };
 layout (binding = 4) readonly buffer beta_blob { sfp beta_data[]; };
 #endif
+
+layout (push_constant) uniform parameter
+{
+    int w;
+} p;
 
 void main()
 {
@@ -44,29 +50,43 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= w || gy >= 1 || gz >= 1)
+    if (gx >= psc(w) || gy >= 1 || gz >= 1)
         return;
 
 #if NCNN_image_shader
-    afp mean = image1d_ld1(mean_blob, gx);
-    afp var = image1d_ld1(var_blob, gx);
-    afp gamma = image1d_ld1(gamma_blob, gx);
-    afp beta = image1d_ld1(beta_blob, gx);
+    float mean = texelFetch(mean_blob, ivec3(gx, 0, 0), 0).r;
+    float var = texelFetch(var_blob, ivec3(gx, 0, 0), 0).r;
 #else
-    afp mean = buffer_ld1(mean_data, gx);
-    afp var = buffer_ld1(var_data, gx);
-    afp gamma = buffer_ld1(gamma_data, gx);
-    afp beta = buffer_ld1(beta_data, gx);
+    float mean = mean_data[gx];
+    float var = var_data[gx];
 #endif
 
-    afp a = gamma / (sqrt(var + afp(eps)));
-    afp b = - mean * a + beta;
+    float a;
+    float b;
+    if (affine == 0)
+    {
+        a = 1.f / (sqrt(var + eps));
+        b = - mean * a;
+    }
+    else
+    {
+#if NCNN_image_shader
+        float gamma = float(image3d_ld1(gamma_blob, ivec3(gx, 0, 0)));
+        float beta = float(image3d_ld1(beta_blob, ivec3(gx, 0, 0)));
+#else
+        float gamma = float(buffer_ld1(gamma_data, gx));
+        float beta = float(buffer_ld1(beta_data, gx));
+#endif
+
+        a = gamma / (sqrt(var + eps));
+        b = - mean * a + beta;
+    }
 
 #if NCNN_image_shader
-    image1d_st1(coeffs_blob, gx*2, a);
-    image1d_st1(coeffs_blob, gx*2 +1, b);
+    imageStore(coeffs_blob, ivec3(gx*2, 0, 0), vec4(a));
+    imageStore(coeffs_blob, ivec3(gx*2 +1, 0, 0), vec4(b));
 #else
-    buffer_st1(coeffs_blob_data, gx*2, a);
-    buffer_st1(coeffs_blob_data, gx*2 +1, b);
+    buffer_st1(coeffs_blob_data, gx*2, afp(a));
+    buffer_st1(coeffs_blob_data, gx*2 +1, afp(b));
 #endif
 }

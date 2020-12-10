@@ -62,8 +62,6 @@ static int detect_mobilenetv3(const cv::Mat& bgr, std::vector<Object>& objects)
     in.substract_mean_normalize(mean_vals, norm_vals);
 
     ncnn::Extractor ex = mobilenetv3.create_extractor();
-    ex.set_light_mode(true);
-    ex.set_num_threads(4);
 
     ex.input("input", in);
 

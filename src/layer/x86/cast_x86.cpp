@@ -16,12 +16,13 @@
 
 #if __SSE2__
 #include <emmintrin.h>
-#endif // __SSE2__
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
+#endif // __SSE2__
 
 #if __AVX__
+#include <stdint.h>
 typedef union m128i
 {
     __m128i vec;

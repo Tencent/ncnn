@@ -61,14 +61,19 @@ public:
     PipelineCache* pipeline_cache;
 #endif // NCNN_VULKAN
 
+    // the time openmp threads busy-wait for more work before going to sleep
+    // default value is 20ms to keep the cores enabled
+    // without too much extra power consumption afterwards
+    int openmp_blocktime;
+
     // enable winograd convolution optimization
-    // improve convolution 3x3 stride1 performace, may consume more memory
+    // improve convolution 3x3 stride1 performance, may consume more memory
     // changes should be applied before loading network structure and weight
     // enabled by default
     bool use_winograd_convolution;
 
     // enable sgemm convolution optimization
-    // improve convolution 1x1 stride1 performace, may consume more memory
+    // improve convolution 1x1 stride1 performance, may consume more memory
     // changes should be applied before loading network structure and weight
     // enabled by default
     bool use_sgemm_convolution;
@@ -90,18 +95,24 @@ public:
     bool use_int8_arithmetic;
 
     // enable simd-friendly packed memory layout
-    // improve all operator performace on all arm devices, will consume more memory
+    // improve all operator performance on all arm devices, will consume more memory
     // changes should be applied before loading network structure and weight
     // enabled by default
     bool use_packing_layout;
 
     bool use_shader_pack8;
 
+    // subgroup option
+    bool use_subgroup_basic;
+    bool use_subgroup_vote;
+    bool use_subgroup_ballot;
+    bool use_subgroup_shuffle;
+
     // turn on for adreno
     bool use_image_storage;
 
     // enable bf16 data type for storage
-    // improve most operator performace on all arm devices, may consume more memory
+    // improve most operator performance on all arm devices, may consume more memory
     bool use_bf16_storage;
 
     // used for fp16 weight storage in AVX

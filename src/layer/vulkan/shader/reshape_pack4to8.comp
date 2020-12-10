@@ -38,11 +38,7 @@ layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler1D bottom_blob_1d;
-layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image1D top_blob_1d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
 #else
 #if NCNN_fp16_packed
@@ -104,14 +100,14 @@ void main()
         ivec4 x4 = i4;
         ivec4 xx4 = ii4;
 
-        afpvec4 v0 = image1d_ld4(bottom_blob_1d, x4.r / 4);
-        afpvec4 v1 = image1d_ld4(bottom_blob_1d, x4.g / 4);
-        afpvec4 v2 = image1d_ld4(bottom_blob_1d, x4.b / 4);
-        afpvec4 v3 = image1d_ld4(bottom_blob_1d, x4.a / 4);
-        afpvec4 v4 = image1d_ld4(bottom_blob_1d, xx4.r / 4);
-        afpvec4 v5 = image1d_ld4(bottom_blob_1d, xx4.g / 4);
-        afpvec4 v6 = image1d_ld4(bottom_blob_1d, xx4.b / 4);
-        afpvec4 v7 = image1d_ld4(bottom_blob_1d, xx4.a / 4);
+        afpvec4 v0 = image3d_ld4(bottom_blob_3d, ivec3(x4.r / 4, 0, 0));
+        afpvec4 v1 = image3d_ld4(bottom_blob_3d, ivec3(x4.g / 4, 0, 0));
+        afpvec4 v2 = image3d_ld4(bottom_blob_3d, ivec3(x4.b / 4, 0, 0));
+        afpvec4 v3 = image3d_ld4(bottom_blob_3d, ivec3(x4.a / 4, 0, 0));
+        afpvec4 v4 = image3d_ld4(bottom_blob_3d, ivec3(xx4.r / 4, 0, 0));
+        afpvec4 v5 = image3d_ld4(bottom_blob_3d, ivec3(xx4.g / 4, 0, 0));
+        afpvec4 v6 = image3d_ld4(bottom_blob_3d, ivec3(xx4.b / 4, 0, 0));
+        afpvec4 v7 = image3d_ld4(bottom_blob_3d, ivec3(xx4.a / 4, 0, 0));
 
         v[0].r = v0[x4.r % 4];
         v[0].g = v1[x4.g % 4];
@@ -129,14 +125,14 @@ void main()
         ivec4 yy4 = ii4 / psc(w);
         ivec4 xx4 = ii4 % psc(w);
 
-        afpvec4 v0 = image2d_ld4(bottom_blob_2d, ivec2(x4.r, y4.r / 4));
-        afpvec4 v1 = image2d_ld4(bottom_blob_2d, ivec2(x4.g, y4.g / 4));
-        afpvec4 v2 = image2d_ld4(bottom_blob_2d, ivec2(x4.b, y4.b / 4));
-        afpvec4 v3 = image2d_ld4(bottom_blob_2d, ivec2(x4.a, y4.a / 4));
-        afpvec4 v4 = image2d_ld4(bottom_blob_2d, ivec2(xx4.r, yy4.r / 4));
-        afpvec4 v5 = image2d_ld4(bottom_blob_2d, ivec2(xx4.g, yy4.g / 4));
-        afpvec4 v6 = image2d_ld4(bottom_blob_2d, ivec2(xx4.b, yy4.b / 4));
-        afpvec4 v7 = image2d_ld4(bottom_blob_2d, ivec2(xx4.a, yy4.a / 4));
+        afpvec4 v0 = image3d_ld4(bottom_blob_3d, ivec3(x4.r, y4.r / 4, 0));
+        afpvec4 v1 = image3d_ld4(bottom_blob_3d, ivec3(x4.g, y4.g / 4, 0));
+        afpvec4 v2 = image3d_ld4(bottom_blob_3d, ivec3(x4.b, y4.b / 4, 0));
+        afpvec4 v3 = image3d_ld4(bottom_blob_3d, ivec3(x4.a, y4.a / 4, 0));
+        afpvec4 v4 = image3d_ld4(bottom_blob_3d, ivec3(xx4.r, yy4.r / 4, 0));
+        afpvec4 v5 = image3d_ld4(bottom_blob_3d, ivec3(xx4.g, yy4.g / 4, 0));
+        afpvec4 v6 = image3d_ld4(bottom_blob_3d, ivec3(xx4.b, yy4.b / 4, 0));
+        afpvec4 v7 = image3d_ld4(bottom_blob_3d, ivec3(xx4.a, yy4.a / 4, 0));
 
         v[0].r = v0[y4.r % 4];
         v[0].g = v1[y4.g % 4];
@@ -179,11 +175,11 @@ void main()
 
     if (ndim == 1)
     {
-        image1d_st8(top_blob_1d, gx, v);
+        image3d_st8(top_blob_3d, ivec3(gx, 0, 0), v);
     }
     if (ndim == 2)
     {
-        image2d_st8(top_blob_2d, ivec2(gx, gy), v);
+        image3d_st8(top_blob_3d, ivec3(gx, gy, 0), v);
     }
     if (ndim == 3)
     {
