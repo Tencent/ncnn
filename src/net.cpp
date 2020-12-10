@@ -769,7 +769,7 @@ int Net::load_model(AAssetManager* mgr, const char* assetpath)
     AAsset_close(asset);
     return ret;
 }
-#endif  // NOT_TERMUX
+#endif // NOT_TERMUX
 #endif // __ANDROID_API__ >= 9
 
 int Net::fuse_network()
