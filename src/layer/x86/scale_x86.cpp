@@ -14,16 +14,20 @@
 
 #include "scale_x86.h"
 
+#if __SSE2__
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
+#endif // __SSE2__
 
 namespace ncnn {
 
 Scale_x86::Scale_x86()
 {
+#if __SSE2__
     support_packing = true;
+#endif // __SSE2__
 }
 
 int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
@@ -32,6 +36,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
     const Mat& scale_blob = bottom_top_blobs[1];
 
     int dims = bottom_top_blob.dims;
+#if __SSE2__
     int elempack = bottom_top_blob.elempack;
 
 #if __AVX__
@@ -295,6 +300,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 
         return 0;
     }
+#endif // __SSE2__
 
     if (dims != 3)
         return Scale::forward_inplace(bottom_top_blobs, opt);

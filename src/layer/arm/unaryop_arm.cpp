@@ -768,7 +768,7 @@ struct unary_op_abs_fp16s
 {
     __fp16 operator()(const __fp16& x) const
     {
-        return (__fp16)abs(x);
+        return (__fp16)fabs(x);
     }
 };
 
@@ -1127,7 +1127,7 @@ struct unary_op_abs
 {
     float operator()(const float& x) const
     {
-        return abs(x);
+        return fabs(x);
     }
 };
 

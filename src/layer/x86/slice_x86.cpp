@@ -14,16 +14,20 @@
 
 #include "slice_x86.h"
 
+#if __SSE2__
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
+#endif // __SSE2__
 
 namespace ncnn {
 
 Slice_x86::Slice_x86()
 {
+#if __SSE2__
     support_packing = true;
+#endif // __SSE2__
 }
 
 int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -33,8 +37,9 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     const int* slices_ptr = slices;
+    int positive_axis = axis < 0 ? dims + axis : axis;
 
-    if (dims == 1) // axis == 0
+    if (dims == 1) // positive_axis == 0
     {
         // slice vector
         int w = bottom_blob.w * elempack;
@@ -48,6 +53,7 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             }
 
             int out_elempack = 1;
+#if __SSE2__
             if (opt.use_packing_layout)
             {
 #if __AVX__
@@ -56,6 +62,7 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                 out_elempack = slice % 4 == 0 ? 4 : 1;
 #endif
             }
+#endif // __SSE2__
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             Mat& top_blob = top_blobs[i];
@@ -71,7 +78,7 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         }
     }
 
-    if (dims == 2 && axis == 0)
+    if (dims == 2 && positive_axis == 0)
     {
         // slice image height
         int w = bottom_blob.w;
@@ -87,6 +94,7 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             }
 
             int out_elempack = 1;
+#if __SSE2__
             if (opt.use_packing_layout)
             {
 #if __AVX__
@@ -95,6 +103,7 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                 out_elempack = slice % 4 == 0 ? 4 : 1;
 #endif
             }
+#endif // __SSE2__
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             Mat& top_blob = top_blobs[i];
@@ -124,6 +133,7 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         {
             Mat& top_blob = top_blobs[i];
 
+#if __SSE2__
 #if __AVX__
             if (out_elempack == 4 && top_blob.elempack == 8)
             {
@@ -210,8 +220,10 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                     ptr += w * 4;
                 }
             }
-            if (out_elempack == top_blob.elempack) // 1-1 4-4 8-8
+#endif // __SSE2__
+            if (out_elempack == top_blob.elempack)
             {
+                // 1-1 4-4 8-8
                 int size = w * top_blob.h;
 
                 float* outptr = top_blob;
@@ -222,7 +234,7 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         }
     }
 
-    if (dims == 2 && axis == 1)
+    if (dims == 2 && positive_axis == 1)
     {
         // slice image width
         int w = bottom_blob.w;
@@ -261,7 +273,7 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         }
     }
 
-    if (dims == 3 && axis == 0)
+    if (dims == 3 && positive_axis == 0)
     {
         // slice dim channel
         int w = bottom_blob.w;
@@ -278,6 +290,7 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             }
 
             int out_elempack = 1;
+#if __SSE2__
             if (opt.use_packing_layout)
             {
 #if __AVX__
@@ -286,6 +299,7 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                 out_elempack = slice % 4 == 0 ? 4 : 1;
 #endif
             }
+#endif // __SSE2__
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             Mat& top_blob = top_blobs[i];
@@ -315,6 +329,7 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         {
             Mat& top_blob = top_blobs[i];
 
+#if __SSE2__
 #if __AVX__
             if (out_elempack == 4 && top_blob.elempack == 8)
             {
@@ -407,8 +422,10 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                     p += 4;
                 }
             }
-            if (out_elempack == top_blob.elempack) // 1-1 4-4 8-8
+#endif // __SSE2__
+            if (out_elempack == top_blob.elempack)
             {
+                // 1-1 4-4 8-8
                 int size = top_blob.total();
 
                 const float* ptr = bottom_blob_unpacked.channel(p);
@@ -420,7 +437,7 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         }
     }
 
-    if (dims == 3 && axis == 1)
+    if (dims == 3 && positive_axis == 1)
     {
         // slice dim height
         int w = bottom_blob.w;
@@ -463,7 +480,7 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
         }
     }
 
-    if (dims == 3 && axis == 2)
+    if (dims == 3 && positive_axis == 2)
     {
         // slice dim width
         int w = bottom_blob.w;

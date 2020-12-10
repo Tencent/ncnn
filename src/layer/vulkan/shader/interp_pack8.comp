@@ -72,6 +72,19 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
+    if (psc(dims) == 1)
+    {
+#if NCNN_image_shader
+        image3d_cp8(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(gz, 0, 0));
+#else
+        const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+        buffer_cp8(top_blob_data, gi, bottom_blob_data, gz);
+#endif
+
+        return;
+    }
+
     if (resize_type == 1) // nearest
     {
         afpvec2 gxy = afpvec2(gx, gy);

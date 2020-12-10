@@ -88,108 +88,99 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    Mat bottom_blob_unpacked = bottom_blob;
 
 #if __ARM_NEON
-    int out_elempack = elempack;
-    int outc = channels;
-    //Check if channel padding is being applied.
-    if (front != 0 || behind != 0)
+    if (elempack == 4)
     {
-        int padded_channels = (channels * elempack) + front + behind;
-        if (type == 0)
-        {
-            int offset_elempack = front % 4 == 0 ? 4 : 1;
-            int channel_elempack = padded_channels % 4 == 0 ? 4 : 1;
-            out_elempack = offset_elempack <= channel_elempack ? offset_elempack : channel_elempack;
-        }
-        else
-        {
-            //Reflective padding and edge padding only supports channel padding in elempack 1
-            out_elempack = 1;
-        }
-        outc = padded_channels / out_elempack;
-        if (out_elempack != elempack)
-        {
-            Option opt_pack = opt;
-            opt_pack.blob_allocator = opt.workspace_allocator;
-            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
-        }
-    }
-
-    if (elempack == 4 && out_elempack == 4)
-    {
-        int outw = w + left + right;
-
         if (dims == 1)
         {
-            top_blob.create(outw, elemsize, elempack, opt.blob_allocator);
+            int outw = w * elempack + left + right;
+
+            int out_elempack = outw % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
-            if (type == 0)
-                padding_constant_pack4_neon(bottom_blob, top_blob, 0, 0, left, right, vdupq_n_f32(value));
-            if (type == 1)
-                padding_replicate_pack4_neon(bottom_blob, top_blob, 0, 0, left, right);
-            if (type == 2)
-                padding_reflect_pack4_neon(bottom_blob, top_blob, 0, 0, left, right);
-
-            return 0;
+            if (left % 4 == 0 && out_elempack == 4)
+            {
+                // TODO
+            }
         }
-
-        int outh = h + top + bottom;
 
         if (dims == 2)
         {
-            top_blob.create(outw, outh, elemsize, elempack, opt.blob_allocator);
+            int outw = w + left + right;
+            int outh = h * elempack + top + bottom;
+
+            int out_elempack = outh % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
-            if (type == 0)
-                padding_constant_pack4_neon(bottom_blob, top_blob, top, bottom, left, right, vdupq_n_f32(value));
-            if (type == 1)
-                padding_replicate_pack4_neon(bottom_blob, top_blob, top, bottom, left, right);
-            if (type == 2)
-                padding_reflect_pack4_neon(bottom_blob, top_blob, top, bottom, left, right);
-
-            return 0;
+            if (top % 4 == 0 && out_elempack == 4)
+            {
+                // TODO
+            }
         }
 
         if (dims == 3)
         {
-            top_blob.create(outw, outh, outc, elemsize, elempack, opt.blob_allocator);
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outc = channels * elempack + front + behind;
+
+            int out_elempack = outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
-            int front_ = front / elempack;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+
+            if (front % 4 == 0 && out_elempack == 4 && !(outc != channels * elempack && type != 0))
             {
-                Mat borderm = top_blob.channel(q);
+                int front_ = front / elempack;
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < outc / out_elempack; q++)
+                {
+                    Mat borderm = top_blob.channel(q);
 
-                float32x4_t pad_value = per_channel_pad_data_size ? vld1q_f32((const float*)per_channel_pad_data + q * 4) : vdupq_n_f32(value);
-                //Channel padding
-                if ((q - front_) < 0 || (q - front_) >= channels)
-                {
-                    borderm.fill(pad_value);
+                    float32x4_t pad_value = per_channel_pad_data_size ? vld1q_f32((const float*)per_channel_pad_data + q * 4) : vdupq_n_f32(value);
+                    //Channel padding
+                    if ((q - front_) < 0 || (q - front_) >= channels)
+                    {
+                        borderm.fill(pad_value);
+                    }
+                    else
+                    {
+                        const Mat m = bottom_blob.channel(q - front_);
+                        if (type == 0)
+                            padding_constant_pack4_neon(m, borderm, top, bottom, left, right, pad_value);
+                        if (type == 1)
+                            padding_replicate_pack4_neon(m, borderm, top, bottom, left, right);
+                        if (type == 2)
+                            padding_reflect_pack4_neon(m, borderm, top, bottom, left, right);
+                    }
                 }
-                else
-                {
-                    const Mat m = bottom_blob.channel(q - front_);
-                    if (type == 0)
-                        padding_constant_pack4_neon(m, borderm, top, bottom, left, right, pad_value);
-                    if (type == 1)
-                        padding_replicate_pack4_neon(m, borderm, top, bottom, left, right);
-                    if (type == 2)
-                        padding_reflect_pack4_neon(m, borderm, top, bottom, left, right);
-                }
+
+                return 0;
             }
-
-            return 0;
         }
-
-        return 0;
     }
 #endif // __ARM_NEON
+
+    Mat bottom_blob_unpacked = bottom_blob;
+    if (elempack != 1)
+    {
+        Option opt_pack1 = opt;
+        opt_pack1.blob_allocator = opt.workspace_allocator;
+
+        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+    }
+
     return Padding::forward(bottom_blob_unpacked, top_blob, opt);
 }
 
@@ -201,227 +192,207 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    Mat bottom_blob_unpacked = bottom_blob;
 
 #if __ARM_NEON
-    int out_elempack = elempack;
-    int outc = channels;
-    //Check if channel padding is being applied.
-    if (front != 0 || behind != 0)
-    {
-        int padded_channels = (channels * elempack) + front + behind;
-        if (type == 0)
-        {
-            if (opt.use_fp16_arithmetic)
-            {
-                int offset_elempack = front % 8 == 0 ? 8 : 1;
-                int channel_elempack = padded_channels % 8 == 0 ? 8 : 1;
-                out_elempack = offset_elempack <= channel_elempack ? offset_elempack : channel_elempack;
-            }
-            else
-            {
-                int offset_elempack = front % 4 == 0 ? 4 : 1;
-                int channel_elempack = padded_channels % 4 == 0 ? 4 : 1;
-                out_elempack = offset_elempack <= channel_elempack ? offset_elempack : channel_elempack;
-            }
-        }
-        else
-        {
-            //Reflective padding and edge padding only supports channel padding in elempack 1
-            out_elempack = 1;
-        }
-        outc = padded_channels / out_elempack;
-        if (out_elempack != elempack)
-        {
-            Option opt_pack = opt;
-            opt_pack.blob_allocator = opt.workspace_allocator;
-            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack);
-        }
-    }
-
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (elempack == 8 && out_elempack == 8)
+    if (elempack == 8)
     {
-        int outw = w + left + right;
-
         if (dims == 1)
         {
-            top_blob.create(outw, elemsize, elempack, opt.blob_allocator);
+            int outw = w * elempack + left + right;
+
+            int out_elempack = outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
-            if (type == 0)
+            if (left % 8 == 0 && out_elempack == 8)
             {
-                float16x8_t pad_value = vdupq_n_f16((__fp16)value);
-
-                padding_constant_pack8_fp16s_neon(bottom_blob, top_blob, 0, 0, left, right, pad_value);
+                // TODO
             }
-            if (type == 1)
-                padding_replicate_pack8_fp16s_neon(bottom_blob, top_blob, 0, 0, left, right);
-            if (type == 2)
-                padding_reflect_pack8_fp16s_neon(bottom_blob, top_blob, 0, 0, left, right);
-
-            return 0;
         }
-
-        int outh = h + top + bottom;
 
         if (dims == 2)
         {
-            top_blob.create(outw, outh, elemsize, elempack, opt.blob_allocator);
+            int outw = w + left + right;
+            int outh = h * elempack + top + bottom;
+
+            int out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
-            if (type == 0)
+            if (top % 8 == 0 && out_elempack == 8)
             {
-                float16x8_t pad_value = vdupq_n_f16((__fp16)value);
-
-                padding_constant_pack8_fp16s_neon(bottom_blob, top_blob, top, bottom, left, right, pad_value);
+                // TODO
             }
-            if (type == 1)
-                padding_replicate_pack8_fp16s_neon(bottom_blob, top_blob, top, bottom, left, right);
-            if (type == 2)
-                padding_reflect_pack8_fp16s_neon(bottom_blob, top_blob, top, bottom, left, right);
-
-            return 0;
         }
 
         if (dims == 3)
         {
-            top_blob.create(outw, outh, outc, elemsize, elempack, opt.blob_allocator);
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outc = channels * elempack + front + behind;
+
+            int out_elempack = outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
-            int front_ = front / elempack;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+            if (front % 8 == 0 && out_elempack == 8 && !(outc != channels * elempack && type != 0))
             {
-                Mat borderm = top_blob.channel(q);
-
-                float16x8_t pad_value = per_channel_pad_data_size ? vld1q_f16((const __fp16*)per_channel_pad_data_fp16 + q * 8) : vdupq_n_f16((__fp16)value);
-
-                //Channel padding
-                if ((q - front_) < 0 || (q - front_) >= channels)
+                int front_ = front / elempack;
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < outc / out_elempack; q++)
                 {
-                    borderm.fill(pad_value);
+                    Mat borderm = top_blob.channel(q);
+
+                    float16x8_t pad_value = per_channel_pad_data_size ? vld1q_f16((const __fp16*)per_channel_pad_data_fp16 + q * 8) : vdupq_n_f16((__fp16)value);
+
+                    //Channel padding
+                    if ((q - front_) < 0 || (q - front_) >= channels)
+                    {
+                        borderm.fill(pad_value);
+                    }
+                    else
+                    {
+                        const Mat m = bottom_blob.channel(q - front_);
+                        if (type == 0)
+                            padding_constant_pack8_fp16s_neon(m, borderm, top, bottom, left, right, pad_value);
+                        if (type == 1)
+                            padding_replicate_pack8_fp16s_neon(m, borderm, top, bottom, left, right);
+                        if (type == 2)
+                            padding_reflect_pack8_fp16s_neon(m, borderm, top, bottom, left, right);
+                    }
                 }
-                else
-                {
-                    const Mat m = bottom_blob.channel(q - front_);
-                    if (type == 0)
-                        padding_constant_pack8_fp16s_neon(m, borderm, top, bottom, left, right, pad_value);
-                    if (type == 1)
-                        padding_replicate_pack8_fp16s_neon(m, borderm, top, bottom, left, right);
-                    if (type == 2)
-                        padding_reflect_pack8_fp16s_neon(m, borderm, top, bottom, left, right);
-                }
+
+                return 0;
             }
-            return 0;
         }
-
-        return 0;
     }
 #endif
 
-    if (elempack == 4 && out_elempack == 4)
+    if (elempack == 4)
     {
-        int outw = w + left + right;
-
         if (dims == 1)
         {
-            top_blob.create(outw, elemsize, elempack, opt.blob_allocator);
+            int outw = w * elempack + left + right;
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+            int out_elempack = opt.use_fp16_arithmetic && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
+#else
+            int out_elempack = outw % 4 == 0 ? 4 : 1;
+#endif
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
-            if (type == 0)
+            if (left % 4 == 0 && out_elempack == 4)
             {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-                uint16x8_t pad_value = opt.use_fp16_storage ? vreinterpretq_u16_f16(vdupq_n_f16((__fp16)value)) : vdupq_n_u16(value_bf16);
-#else
-                uint16x8_t pad_value = vdupq_n_u16(value_bf16);
-#endif
-                padding_constant_pack4_bf16_fp16s_neon(bottom_blob, top_blob, 0, 0, left, right, pad_value);
+                // TODO
             }
-            if (type == 1)
-                padding_replicate_pack4_bf16_fp16s_neon(bottom_blob, top_blob, 0, 0, left, right);
-            if (type == 2)
-                padding_reflect_pack4_bf16_fp16s_neon(bottom_blob, top_blob, 0, 0, left, right);
-
-            return 0;
         }
-
-        int outh = h + top + bottom;
 
         if (dims == 2)
         {
-            top_blob.create(outw, outh, elemsize, elempack, opt.blob_allocator);
+            int outw = w + left + right;
+            int outh = h * elempack + top + bottom;
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+            int out_elempack = opt.use_fp16_arithmetic && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+#else
+            int out_elempack = outh % 4 == 0 ? 4 : 1;
+#endif
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
-            if (type == 0)
+            if (top % 4 == 0 && out_elempack == 4)
             {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-                uint16x8_t pad_value = opt.use_fp16_storage ? vreinterpretq_u16_f16(vdupq_n_f16((__fp16)value)) : vdupq_n_u16(value_bf16);
-#else
-                uint16x8_t pad_value = vdupq_n_u16(value_bf16);
-#endif
-                padding_constant_pack4_bf16_fp16s_neon(bottom_blob, top_blob, top, bottom, left, right, pad_value);
+                // TODO
             }
-            if (type == 1)
-                padding_replicate_pack4_bf16_fp16s_neon(bottom_blob, top_blob, top, bottom, left, right);
-            if (type == 2)
-                padding_reflect_pack4_bf16_fp16s_neon(bottom_blob, top_blob, top, bottom, left, right);
-
-            return 0;
         }
 
         if (dims == 3)
         {
-            top_blob.create(outw, outh, outc, elemsize, elempack, opt.blob_allocator);
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outc = channels * elempack + front + behind;
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+            int out_elempack = opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+#else
+            int out_elempack = outc % 4 == 0 ? 4 : 1;
+#endif
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
-            int front_ = front / elempack;
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+            if (front % 4 == 0 && out_elempack == 4 && !(outc != channels * elempack && type != 0))
             {
-                Mat borderm = top_blob.channel(q);
+                int front_ = front / elempack;
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < outc / out_elempack; q++)
+                {
+                    Mat borderm = top_blob.channel(q);
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-                uint16x4_t pad_value;
-                if (opt.use_fp16_storage)
-                {
-                    pad_value = per_channel_pad_data_size ? vreinterpret_u16_f16(vld1_f16((const __fp16*)per_channel_pad_data_fp16 + q * 4)) : vreinterpret_u16_f16(vdup_n_f16((__fp16)value));
-                }
-                else
-                {
-                    pad_value = per_channel_pad_data_size ? vld1_u16((const unsigned short*)per_channel_pad_data_bf16 + q * 4) : vdup_n_u16(value_bf16);
-                }
+                    uint16x4_t pad_value;
+                    if (opt.use_fp16_storage)
+                    {
+                        pad_value = per_channel_pad_data_size ? vreinterpret_u16_f16(vld1_f16((const __fp16*)per_channel_pad_data_fp16 + q * 4)) : vreinterpret_u16_f16(vdup_n_f16((__fp16)value));
+                    }
+                    else
+                    {
+                        pad_value = per_channel_pad_data_size ? vld1_u16((const unsigned short*)per_channel_pad_data_bf16 + q * 4) : vdup_n_u16(value_bf16);
+                    }
 #else
-                uint16x4_t pad_value = per_channel_pad_data_size ? vld1_u16((const unsigned short*)per_channel_pad_data_bf16 + q * 4) : vdup_n_u16(value_bf16);
+                    uint16x4_t pad_value = per_channel_pad_data_size ? vld1_u16((const unsigned short*)per_channel_pad_data_bf16 + q * 4) : vdup_n_u16(value_bf16);
 #endif
-                //Channel padding
-                if ((q - front_) < 0 || (q - front_) >= channels)
-                {
-                    borderm.fill(pad_value);
+                    //Channel padding
+                    if ((q - front_) < 0 || (q - front_) >= channels)
+                    {
+                        borderm.fill(pad_value);
+                    }
+                    else
+                    {
+                        const Mat m = bottom_blob.channel(q - front_);
+                        if (type == 0)
+                            padding_constant_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right, vcombine_u16(pad_value, pad_value));
+                        if (type == 1)
+                            padding_replicate_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right);
+                        if (type == 2)
+                            padding_reflect_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right);
+                    }
                 }
-                else
-                {
-                    const Mat m = bottom_blob.channel(q - front_);
-                    if (type == 0)
-                        padding_constant_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right, vcombine_u16(pad_value, pad_value));
-                    if (type == 1)
-                        padding_replicate_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right);
-                    if (type == 2)
-                        padding_reflect_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right);
-                }
-            }
-            return 0;
-        }
 
-        return 0;
+                return 0;
+            }
+        }
     }
 #endif // __ARM_NEON
+
+    Mat bottom_blob_unpacked = bottom_blob;
+    if (elempack != 1)
+    {
+        Option opt_pack1 = opt;
+        opt_pack1.blob_allocator = opt.workspace_allocator;
+
+        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+    }
+
     return Padding::forward(bottom_blob_unpacked, top_blob, opt);
 }
 
