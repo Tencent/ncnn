@@ -5,6 +5,7 @@
 * [bias](#bias)
 * [binaryop](#binaryop)
 * [bnll](#bnll)
+* [cast](#cast)
 * [clip](#clip)
 * [concat](#concat)
 * [convolution](#convolution)
@@ -102,6 +103,27 @@ y = log(1 + e^x),     x < 0
 
 * one_blob_only
 * support_inplace
+
+# cast
+```
+y = cast(x)
+```
+
+* one_blob_only
+* support_packing
+
+|param id|name|type|default|
+|--|--|--|--|
+|0|type_from|int|0|
+|1|type_to|int|0|
+
+Element type:
+
+- 0 = auto
+- 1 = float32
+- 2 = float16
+- 3 = int8
+- 4 = bfloat16
 
 # clip
 ```
