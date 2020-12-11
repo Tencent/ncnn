@@ -116,11 +116,31 @@ PYBIND11_MODULE(ncnn, m)
         .def_readwrite("use_packing_layout", &Option::use_packing_layout)
         .def_readwrite("use_shader_pack8", &Option::use_shader_pack8)
         .def_readwrite("use_shader_pack8", &Option::use_image_storage)
+        .def_readwrite("use_subgroup_basic", &Option::use_subgroup_basic)
+        .def_readwrite("use_subgroup_vote", &Option::use_subgroup_vote)
+        .def_readwrite("use_subgroup_ballot", &Option::use_subgroup_ballot)
+        .def_readwrite("use_subgroup_shuffle", &Option::use_subgroup_shuffle)
+        .def_readwrite("use_image_storage", &Option::use_image_storage)
         .def_readwrite("use_bf16_storage", &Option::use_bf16_storage)
         .def_readwrite("use_bf16_storage", &Option::use_weight_fp16_storage);
 
     py::class_<Mat> mat(m, "Mat", py::buffer_protocol());
     mat.def(py::init<>())
+        //.def(py::init([](py::tuple shape, size_t elemsize = 4, int elempack = 1, Allocator* allocator = nullptr) {
+        //         switch (shape.size())
+        //         {
+        //         case 1:
+        //             return new Mat(shape[0].cast<int>(), elemsize, elempack, allocator);
+        //         case 2:
+        //             return new Mat(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, allocator);
+        //         case 3:
+        //             return new Mat(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), 
+        //                 elemsize, elempack, allocator);
+        //         }
+        //         return new Mat();
+        //     }),
+        //     py::arg("shape") = py::tuple(1), py::arg("elemsize") = 4, 
+        //     py::arg("elempack") = 4, py::arg("allocator") = nullptr)
         .def(py::init<int, size_t, Allocator*>(),
              py::arg("w") = 1,
              py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
@@ -272,6 +292,8 @@ PYBIND11_MODULE(ncnn, m)
 #if NCNN_VULKAN
         .def("create_like", (void (Mat::*)(const VkMat&, Allocator*)) & Mat::create_like,
              py::arg("m") = nullptr, py::arg("allocator") = nullptr)
+        .def("create_like", (void (Mat::*)(const VkImageMat&, Allocator*)) & Mat::create_like,
+             py::arg("im") = nullptr, py::arg("allocator") = nullptr)
 #endif // NCNN_VULKAN
         .def("addref", &Mat::addref)
         .def("release", &Mat::release)
@@ -387,119 +409,99 @@ PYBIND11_MODULE(ncnn, m)
 #if NCNN_VULKAN
     py::class_<VkMat>(m, "VkMat")
         .def(py::init<>())
-        .def(py::init<int, size_t, VkAllocator*, VkAllocator*>(),
+        .def(py::init<int, size_t, VkAllocator*>(),
              py::arg("w") = 1,
              py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
-        .def(py::init<int, int, size_t, VkAllocator*, VkAllocator*>(),
+             py::arg("allocator") = nullptr)
+        .def(py::init<int, int, size_t, VkAllocator*>(),
              py::arg("w") = 1, py::arg("h") = 1,
              py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
-        .def(py::init<int, int, int, size_t, VkAllocator*, VkAllocator*>(),
+             py::arg("allocator") = nullptr)
+        .def(py::init<int, int, int, size_t, VkAllocator*>(),
              py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
              py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
+             py::arg("allocator") = nullptr)
 
-        .def(py::init<int, size_t, int, VkAllocator*, VkAllocator*>(),
+        .def(py::init<int, size_t, int, VkAllocator*>(),
              py::arg("w") = 1,
              py::arg("elemsize") = 4, py::arg("elempack") = 1,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
-        .def(py::init<int, int, size_t, int, VkAllocator*, VkAllocator*>(),
+             py::arg("allocator") = nullptr)
+        .def(py::init<int, int, size_t, int, VkAllocator*>(),
              py::arg("w") = 1, py::arg("h") = 1,
              py::arg("elemsize") = 4, py::arg("elempack") = 1,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
-        .def(py::init<int, int, int, size_t, int, VkAllocator*, VkAllocator*>(),
+             py::arg("allocator") = nullptr)
+        .def(py::init<int, int, int, size_t, int, VkAllocator*>(),
              py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
              py::arg("elemsize") = 4, py::arg("elempack") = 1,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
+             py::arg("allocator") = nullptr)
 
         .def(py::init<const VkMat&>())
 
-        .def(py::init<int, VkBufferMemory*, size_t, size_t, VkAllocator*, VkAllocator*>(),
+        .def(py::init<int, VkBufferMemory*, size_t, VkAllocator*>(),
              py::arg("w") = 1, py::arg("data") = nullptr,
-             py::arg("offset") = 0, py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
-        .def(py::init<int, int, VkBufferMemory*, size_t, size_t, VkAllocator*, VkAllocator*>(),
+             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
+        .def(py::init<int, int, VkBufferMemory*, size_t, VkAllocator*>(),
              py::arg("w") = 1, py::arg("h") = 1, py::arg("data") = nullptr,
-             py::arg("offset") = 0, py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
-        .def(py::init<int, int, int, VkBufferMemory*, size_t, size_t, VkAllocator*, VkAllocator*>(),
+             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
+        .def(py::init<int, int, int, VkBufferMemory*, size_t, VkAllocator*>(),
              py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1, py::arg("data") = nullptr,
-             py::arg("offset") = 0, py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
+             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
 
-        .def(py::init<int, VkBufferMemory*, size_t, size_t, int, VkAllocator*, VkAllocator*>(),
+        .def(py::init<int, VkBufferMemory*, size_t, int, VkAllocator*>(),
              py::arg("w") = 1, py::arg("data") = nullptr,
-             py::arg("offset") = 0, py::arg("elemsize") = 4, py::arg("elempack") = 1,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
-        .def(py::init<int, int, VkBufferMemory*, size_t, size_t, int, VkAllocator*, VkAllocator*>(),
+             py::arg("elemsize") = 4, py::arg("elempack") = 1,
+             py::arg("allocator") = nullptr)
+        .def(py::init<int, int, VkBufferMemory*, size_t, int, VkAllocator*>(),
              py::arg("w") = 1, py::arg("h") = 1, py::arg("data") = nullptr,
-             py::arg("offset") = 0, py::arg("elemsize") = 4, py::arg("elempack") = 1,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
-        .def(py::init<int, int, int, VkBufferMemory*, size_t, size_t, int, VkAllocator*, VkAllocator*>(),
+             py::arg("elemsize") = 4, py::arg("elempack") = 1,
+             py::arg("allocator") = nullptr)
+        .def(py::init<int, int, int, VkBufferMemory*, size_t, int, VkAllocator*>(),
              py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1, py::arg("data") = nullptr,
-             py::arg("offset") = 0, py::arg("elemsize") = 4, py::arg("elempack") = 1,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
+             py::arg("elemsize") = 4, py::arg("elempack") = 1,
+             py::arg("allocator") = nullptr)
 
-        .def("create", (void (VkMat::*)(int, size_t, VkAllocator*, VkAllocator*)) & VkMat::create,
+        .def("create", (void (VkMat::*)(int, size_t, VkAllocator*)) & VkMat::create,
              py::arg("w") = 1,
              py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
-        .def("create", (void (VkMat::*)(int, int, size_t, VkAllocator*, VkAllocator*)) & VkMat::create,
+             py::arg("allocator") = nullptr)
+        .def("create", (void (VkMat::*)(int, int, size_t, VkAllocator*)) & VkMat::create,
              py::arg("w") = 1, py::arg("h") = 1,
-             py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
-        .def("create", (void (VkMat::*)(int, int, int, size_t, VkAllocator*, VkAllocator*)) & VkMat::create,
+             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
+        .def("create", (void (VkMat::*)(int, int, int, size_t, VkAllocator*)) & VkMat::create,
              py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
-             py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
+             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
 
-        .def("create", (void (VkMat::*)(int, size_t, int, VkAllocator*, VkAllocator*)) & VkMat::create,
+        .def("create", (void (VkMat::*)(int, size_t, int, VkAllocator*)) & VkMat::create,
              py::arg("w") = 1,
              py::arg("elemsize") = 4, py::arg("elempack") = 1,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
-        .def("create", (void (VkMat::*)(int, int, size_t, int, VkAllocator*, VkAllocator*)) & VkMat::create,
+             py::arg("allocator") = nullptr)
+        .def("create", (void (VkMat::*)(int, int, size_t, int, VkAllocator*)) & VkMat::create,
              py::arg("w") = 1, py::arg("h") = 1,
              py::arg("elemsize") = 4, py::arg("elempack") = 1,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
-        .def("create", (void (VkMat::*)(int, int, int, size_t, int, VkAllocator*, VkAllocator*)) & VkMat::create,
+             py::arg("allocator") = nullptr)
+        .def("create", (void (VkMat::*)(int, int, int, size_t, int, VkAllocator*)) & VkMat::create,
              py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
              py::arg("elemsize") = 4, py::arg("elempack") = 1,
-             py::arg("allocator") = nullptr, py::arg("staging_allocator") = nullptr)
+             py::arg("allocator") = nullptr)
 
-        .def("create_like", (void (VkMat::*)(const Mat&, VkAllocator*, VkAllocator*)) & VkMat::create_like)
-        .def("create_like", (void (VkMat::*)(const VkMat&, VkAllocator*, VkAllocator*)) & VkMat::create_like)
-        .def("prepare_staging_buffer", &VkMat::prepare_staging_buffer)
-        .def("discard_staging_buffer", &VkMat::discard_staging_buffer)
-        .def("upload", &VkMat::upload)
-        .def("download", &VkMat::download)
+        .def("create_like", (void (VkMat::*)(const Mat&, VkAllocator*)) & VkMat::create_like)
+        .def("create_like", (void (VkMat::*)(const VkMat&, VkAllocator*)) & VkMat::create_like)
         .def("mapped", &VkMat::mapped)
         .def("mapped_ptr", &VkMat::mapped_ptr)
         .def("addref", &VkMat::addref)
         .def("release", &VkMat::release)
         .def("empty", &VkMat::empty)
         .def("total", &VkMat::total)
-        .def("channel", (VkMat(VkMat::*)(int)) & VkMat::channel)
-        .def("channel", (const VkMat (VkMat::*)(int) const) & VkMat::channel)
-        .def("channel_range", (VkMat(VkMat::*)(int, int)) & VkMat::channel_range)
-        .def("channel_range", (const VkMat (VkMat::*)(int, int) const) & VkMat::channel_range)
-        .def("row_range", (VkMat(VkMat::*)(int, int)) & VkMat::row_range)
-        .def("row_range", (const VkMat (VkMat::*)(int, int) const) & VkMat::row_range)
-        .def("range", (VkMat(VkMat::*)(int, int)) & VkMat::range)
-        .def("range", (const VkMat (VkMat::*)(int, int) const) & VkMat::range)
+        .def("elembits", &VkMat::elembits)
+        .def("shape", &VkMat::shape)
         //.def("buffer", &VkMat::buffer)
         .def("buffer_offset", &VkMat::buffer_offset)
-        //.def("staging_buffer", &VkMat::staging_buffer)
-        .def("staging_buffer_offset", &VkMat::staging_buffer_offset)
+        .def("buffer_capacity", &VkMat::buffer_capacity)
         .def_readwrite("data", &VkMat::data)
-        .def_readwrite("offset", &VkMat::offset)
-        .def_readwrite("staging_data", &VkMat::staging_data)
         .def_readwrite("refcount", &VkMat::refcount)
-        .def_readwrite("staging_refcount", &VkMat::staging_refcount)
         .def_readwrite("elemsize", &VkMat::elemsize)
         .def_readwrite("elempack", &VkMat::elempack)
         .def_readwrite("allocator", &VkMat::allocator)
-        .def_readwrite("staging_allocator", &VkMat::staging_allocator)
         .def_readwrite("dims", &VkMat::dims)
         .def_readwrite("w", &VkMat::w)
         .def_readwrite("h", &VkMat::h)
@@ -508,22 +510,104 @@ PYBIND11_MODULE(ncnn, m)
 
     py::class_<VkImageMat>(m, "VkImageMat")
         .def(py::init<>())
-        .def(py::init<int, int, VkFormat, VkImageAllocator*>())
+        .def(py::init<int, size_t, VkAllocator*>(),
+             py::arg("w") = 1,
+             py::arg("elemsize") = 4,
+             py::arg("allocator") = nullptr)
+        .def(py::init<int, int, size_t, VkAllocator*>(),
+             py::arg("w") = 1, py::arg("h") = 1,
+             py::arg("elemsize") = 4,
+             py::arg("allocator") = nullptr)
+        .def(py::init<int, int, int, size_t, VkAllocator*>(),
+             py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
+             py::arg("elemsize") = 4,
+             py::arg("allocator") = nullptr)
+
+        .def(py::init<int, size_t, int, VkAllocator*>(),
+             py::arg("w") = 1,
+             py::arg("elemsize") = 4, py::arg("elempack") = 1,
+             py::arg("allocator") = nullptr)
+        .def(py::init<int, int, size_t, int, VkAllocator*>(),
+             py::arg("w") = 1, py::arg("h") = 1,
+             py::arg("elemsize") = 4, py::arg("elempack") = 1,
+             py::arg("allocator") = nullptr)
+        .def(py::init<int, int, int, size_t, int, VkAllocator*>(),
+             py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
+             py::arg("elemsize") = 4, py::arg("elempack") = 1,
+             py::arg("allocator") = nullptr)
+
         .def(py::init<const VkImageMat&>())
-        .def(py::init<int, int, VkImageMemory*, VkFormat, VkImageAllocator*>())
-        .def("create", &VkImageMat::create)
+
+        .def(py::init<int, VkImageMemory*, size_t, VkAllocator*>(),
+             py::arg("w") = 1, py::arg("data") = nullptr,
+             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
+        .def(py::init<int, int, VkImageMemory*, size_t, VkAllocator*>(),
+             py::arg("w") = 1, py::arg("h") = 1, py::arg("data") = nullptr,
+             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
+        .def(py::init<int, int, int, VkImageMemory*, size_t, VkAllocator*>(),
+             py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1, py::arg("data") = nullptr,
+             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
+
+        .def(py::init<int, VkImageMemory*, size_t, int, VkAllocator*>(),
+             py::arg("w") = 1, py::arg("data") = nullptr,
+             py::arg("elemsize") = 4, py::arg("elempack") = 1,
+             py::arg("allocator") = nullptr)
+        .def(py::init<int, int, VkImageMemory*, size_t, int, VkAllocator*>(),
+             py::arg("w") = 1, py::arg("h") = 1, py::arg("data") = nullptr,
+             py::arg("elemsize") = 4, py::arg("elempack") = 1,
+             py::arg("allocator") = nullptr)
+        .def(py::init<int, int, int, VkImageMemory*, size_t, int, VkAllocator*>(),
+             py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1, py::arg("data") = nullptr,
+             py::arg("elemsize") = 4, py::arg("elempack") = 1,
+             py::arg("allocator") = nullptr)
+
+        .def("create", (void (VkImageMat::*)(int, size_t, VkAllocator*)) & VkImageMat::create,
+             py::arg("w") = 1,
+             py::arg("elemsize") = 4,
+             py::arg("allocator") = nullptr)
+        .def("create", (void (VkImageMat::*)(int, int, size_t, VkAllocator*)) & VkImageMat::create,
+             py::arg("w") = 1, py::arg("h") = 1,
+             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
+        .def("create", (void (VkImageMat::*)(int, int, int, size_t, VkAllocator*)) & VkImageMat::create,
+             py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
+             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
+
+        .def("create", (void (VkImageMat::*)(int, size_t, int, VkAllocator*)) & VkImageMat::create,
+             py::arg("w") = 1,
+             py::arg("elemsize") = 4, py::arg("elempack") = 1,
+             py::arg("allocator") = nullptr)
+        .def("create", (void (VkImageMat::*)(int, int, size_t, int, VkAllocator*)) & VkImageMat::create,
+             py::arg("w") = 1, py::arg("h") = 1,
+             py::arg("elemsize") = 4, py::arg("elempack") = 1,
+             py::arg("allocator") = nullptr)
+        .def("create", (void (VkImageMat::*)(int, int, int, size_t, int, VkAllocator*)) & VkImageMat::create,
+             py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
+             py::arg("elemsize") = 4, py::arg("elempack") = 1,
+             py::arg("allocator") = nullptr)
+
+        .def("create_like", (void (VkImageMat::*)(const Mat&, VkAllocator*)) & VkImageMat::create_like)
+        .def("create_like", (void (VkImageMat::*)(const VkMat&, VkAllocator*)) & VkImageMat::create_like)
+        .def("create_like", (void (VkImageMat::*)(const VkImageMat&, VkAllocator*)) & VkImageMat::create_like)
+
+        .def("mapped", &VkImageMat::mapped)
+        //.def_readwrite("mapped_ptr", &VkImageMat::mapped_ptr)
         .def("addref", &VkImageMat::addref)
         .def("release", &VkImageMat::release)
         .def("empty", &VkImageMat::empty)
         .def("total", &VkImageMat::total)
+        .def("elembits", &VkImageMat::elembits)
+        .def("shape", &VkImageMat::shape)
         //.def("image", &VkImageMat::image)
         //.def("imageview", &VkImageMat::imageview)
         .def_readwrite("data", &VkImageMat::data)
         .def_readwrite("refcount", &VkImageMat::refcount)
+        .def_readwrite("elemsize", &VkImageMat::elemsize)
+        .def_readwrite("elempack", &VkImageMat::elempack)
         .def_readwrite("allocator", &VkImageMat::allocator)
-        .def_readwrite("width", &VkImageMat::width)
-        .def_readwrite("height", &VkImageMat::height)
-        .def_readwrite("format", &VkImageMat::format);
+        .def_readwrite("dims", &VkImageMat::dims)
+        .def_readwrite("w", &VkImageMat::w)
+        .def_readwrite("h", &VkImageMat::h)
+        .def_readwrite("c", &VkImageMat::c);
 #endif //NCNN_VULKAN
 
     py::class_<Extractor>(m, "Extractor")
@@ -802,8 +886,8 @@ PYBIND11_MODULE(ncnn, m)
     m.def("destroy_gpu_instance", &destroy_gpu_instance);
     m.def("get_gpu_count", &get_gpu_count);
     m.def("get_default_gpu_index", &get_default_gpu_index);
-    m.def("get_gpu_info", &get_gpu_info, py::arg("device_index") = get_default_gpu_index());
-    m.def("get_gpu_device", &get_gpu_device, py::arg("device_index") = get_default_gpu_index());
+    m.def("get_gpu_info", &get_gpu_info, py::arg("device_index") = 0);
+    m.def("get_gpu_device", &get_gpu_device, py::arg("device_index") = 0);
 
     py::class_<VkBufferMemory>(m, "VkBufferMemory")
         .def(py::init<>())
@@ -812,60 +896,77 @@ PYBIND11_MODULE(ncnn, m)
         .def_readwrite("capacity", &VkBufferMemory::capacity)
         //.def_readwrite("memory", &VkBufferMemory::memory)
         .def_readwrite("mapped_ptr", &VkBufferMemory::mapped_ptr)
-        .def_readwrite("state", &VkBufferMemory::state)
         .def_readwrite("refcount", &VkBufferMemory::refcount);
-
-    py::class_<VkAllocator, PyVkAllocator<> >(m, "VkAllocator")
-        .def_readwrite("vkdev", &VkAllocator::vkdev)
-        .def_readwrite("memory_type_index", &VkAllocator::memory_type_index)
-        .def_readwrite("mappable", &VkAllocator::mappable)
-        .def_readwrite("coherent", &VkAllocator::coherent);
-    py::class_<VkBlobBufferAllocator, VkAllocator, PyVkAllocatorOther<VkBlobBufferAllocator> >(m, "VkBlobBufferAllocator")
-        .def(py::init<const VulkanDevice*>())
-        .def("clear", &VkBlobBufferAllocator::clear)
-        .def("fastMalloc", &VkBlobBufferAllocator::fastMalloc)
-        .def("fastFree", &VkBlobBufferAllocator::fastFree);
-    py::class_<VkWeightBufferAllocator, VkAllocator, PyVkAllocatorOther<VkWeightBufferAllocator> >(m, "VkWeightBufferAllocator")
-        .def(py::init<const VulkanDevice*>())
-        .def("clear", &VkWeightBufferAllocator::clear)
-        .def("fastMalloc", &VkWeightBufferAllocator::fastMalloc)
-        .def("fastFree", &VkWeightBufferAllocator::fastFree);
-    py::class_<VkStagingBufferAllocator, VkAllocator, PyVkAllocatorOther<VkStagingBufferAllocator> >(m, "VkStagingBufferAllocator")
-        .def(py::init<const VulkanDevice*>())
-        .def("set_size_compare_ratio", &VkStagingBufferAllocator::set_size_compare_ratio)
-        .def("clear", &VkStagingBufferAllocator::clear)
-        .def("fastMalloc", &VkStagingBufferAllocator::fastMalloc)
-        .def("fastFree", &VkStagingBufferAllocator::fastFree);
-    py::class_<VkWeightStagingBufferAllocator, VkAllocator, PyVkAllocatorOther<VkWeightStagingBufferAllocator> >(m, "VkWeightStagingBufferAllocator")
-        .def(py::init<const VulkanDevice*>())
-        .def("fastMalloc", &VkWeightStagingBufferAllocator::fastMalloc)
-        .def("fastFree", &VkWeightStagingBufferAllocator::fastFree);
 
     py::class_<VkImageMemory>(m, "VkImageMemory")
         .def(py::init<>())
         //.def_readwrite("image", &VkImageMemory::image)
         //.def_readwrite("imageview", &VkImageMemory::imageview)
+        .def_readwrite("width", &VkImageMemory::width)
+        .def_readwrite("height", &VkImageMemory::height)
+        .def_readwrite("depth", &VkImageMemory::depth)
+        .def_readwrite("format", &VkImageMemory::format)
         //.def_readwrite("memory", &VkImageMemory::memory)
-        .def_readwrite("state", &VkImageMemory::state)
+        .def_readwrite("mapped_ptr", &VkImageMemory::mapped_ptr)
+        .def_readwrite("bind_offset", &VkImageMemory::bind_offset)
+        .def_readwrite("bind_capacity", &VkImageMemory::bind_capacity)
+
         .def_readwrite("refcount", &VkImageMemory::refcount);
 
-    py::class_<VkImageAllocator, VkAllocator, PyVkImageAllocator<> >(m, "VkImageAllocator")
-        .def("clear", &VkImageAllocator::clear);
-    py::class_<VkSimpleImageAllocator, VkImageAllocator, PyVkImageAllocatorOther<VkSimpleImageAllocator> >(m, "VkSimpleImageAllocator")
+    py::class_<VkAllocator, PyVkAllocator<> >(m, "VkAllocator")
+        .def_readwrite("vkdev", &VkAllocator::vkdev)
+        .def_readwrite("buffer_memory_type_index", &VkAllocator::buffer_memory_type_index)
+        .def_readwrite("image_memory_type_index", &VkAllocator::image_memory_type_index)
+        .def_readwrite("mappable", &VkAllocator::mappable)
+        .def_readwrite("coherent", &VkAllocator::coherent);
+        
+    py::class_<VkBlobAllocator, VkAllocator, PyVkAllocatorOther<VkBlobAllocator> >(m, "VkBlobAllocator")
         .def(py::init<const VulkanDevice*>())
-        .def("fastMalloc", &VkSimpleImageAllocator::fastMalloc)
-        .def("fastFree", &VkSimpleImageAllocator::fastFree);
+        .def("clear", &VkBlobAllocator::clear)
+        .def("fastMalloc", (VkBufferMemory* (VkBlobAllocator::*)(size_t size))&VkBlobAllocator::fastMalloc)
+        .def("fastFree", (void (VkBlobAllocator::*)(VkBufferMemory * ptr)) & VkBlobAllocator::fastFree)
+        .def("fastMalloc", (VkImageMemory * (VkBlobAllocator::*)(int, int, int, size_t, int)) & VkBlobAllocator::fastMalloc)
+        .def("fastFree", (void (VkBlobAllocator::*)(VkImageMemory * ptr)) & VkBlobAllocator::fastFree);
+
+    py::class_<VkWeightAllocator, VkAllocator, PyVkAllocatorOther<VkWeightAllocator> >(m, "VkWeightAllocator")
+        .def(py::init<const VulkanDevice*>())
+        .def("clear", &VkWeightAllocator::clear)
+        .def("fastMalloc", (VkBufferMemory * (VkWeightAllocator::*)(size_t size)) & VkWeightAllocator::fastMalloc)
+        .def("fastFree", (void (VkWeightAllocator::*)(VkBufferMemory * ptr)) & VkWeightAllocator::fastFree)
+        .def("fastMalloc", (VkImageMemory * (VkWeightAllocator::*)(int, int, int, size_t, int)) & VkWeightAllocator::fastMalloc)
+        .def("fastFree", (void (VkWeightAllocator::*)(VkImageMemory * ptr)) & VkWeightAllocator::fastFree);
+
+    py::class_<VkStagingAllocator, VkAllocator, PyVkAllocatorOther<VkStagingAllocator> >(m, "VkStagingAllocator")
+        .def(py::init<const VulkanDevice*>())
+        .def("set_size_compare_ratio", &VkStagingAllocator::set_size_compare_ratio)
+        .def("clear", &VkStagingAllocator::clear)
+        .def("fastMalloc", (VkBufferMemory * (VkStagingAllocator::*)(size_t size)) & VkStagingAllocator::fastMalloc)
+        .def("fastFree", (void (VkStagingAllocator::*)(VkBufferMemory * ptr)) & VkStagingAllocator::fastFree)
+        .def("fastMalloc", (VkImageMemory * (VkStagingAllocator::*)(int, int, int, size_t, int)) & VkStagingAllocator::fastMalloc)
+        .def("fastFree", (void (VkStagingAllocator::*)(VkImageMemory * ptr)) & VkStagingAllocator::fastFree);
+
+    py::class_<VkWeightStagingAllocator, VkAllocator, PyVkAllocatorOther<VkWeightStagingAllocator> >(m, "VkWeightStagingAllocator")
+        .def(py::init<const VulkanDevice*>())
+        .def("fastMalloc", (VkBufferMemory * (VkWeightStagingAllocator::*)(size_t size)) & VkWeightStagingAllocator::fastMalloc)
+        .def("fastFree", (void (VkWeightStagingAllocator::*)(VkBufferMemory * ptr)) & VkWeightStagingAllocator::fastFree)
+        .def("fastMalloc", (VkImageMemory * (VkWeightStagingAllocator::*)(int, int, int, size_t, int)) & VkWeightStagingAllocator::fastMalloc)
+        .def("fastFree", (void (VkWeightStagingAllocator::*)(VkImageMemory * ptr)) & VkWeightStagingAllocator::fastFree);
 
     py::class_<GpuInfo>(m, "GpuInfo")
         .def(py::init<>())
         //.def_readwrite("physical_device", &GpuInfo::physical_device)
+
         //.def_readwrite("physicalDeviceMemoryProperties", &GpuInfo::physicalDeviceMemoryProperties)
+
         .def_readwrite("api_version", &GpuInfo::api_version)
         .def_readwrite("driver_version", &GpuInfo::driver_version)
         .def_readwrite("vendor_id", &GpuInfo::vendor_id)
         .def_readwrite("device_id", &GpuInfo::device_id)
+        .def_readwrite("device_name", &GpuInfo::device_name)
         //.def_readwrite("pipeline_cache_uuid", &GpuInfo::pipeline_cache_uuid)
+
         .def_readwrite("type", &GpuInfo::type)
+
         .def_readwrite("max_shared_memory_size", &GpuInfo::max_shared_memory_size)
         //.def_readwrite("max_workgroup_count", &GpuInfo::max_workgroup_count)
         .def_readwrite("max_workgroup_invocations", &GpuInfo::max_workgroup_invocations)
@@ -873,20 +974,41 @@ PYBIND11_MODULE(ncnn, m)
         .def_readwrite("memory_map_alignment", &GpuInfo::memory_map_alignment)
         .def_readwrite("buffer_offset_alignment", &GpuInfo::buffer_offset_alignment)
         .def_readwrite("non_coherent_atom_size", &GpuInfo::non_coherent_atom_size)
+        .def_readwrite("buffer_image_granularity", &GpuInfo::buffer_image_granularity)
+        .def_readwrite("max_image_dimension_1d", &GpuInfo::max_image_dimension_1d)
+        .def_readwrite("max_image_dimension_2d", &GpuInfo::max_image_dimension_2d)
+        .def_readwrite("max_image_dimension_3d", &GpuInfo::max_image_dimension_3d)
         .def_readwrite("timestamp_period", &GpuInfo::timestamp_period)
+
         .def_readwrite("compute_queue_family_index", &GpuInfo::compute_queue_family_index)
         .def_readwrite("graphics_queue_family_index", &GpuInfo::graphics_queue_family_index)
         .def_readwrite("transfer_queue_family_index", &GpuInfo::transfer_queue_family_index)
+
         .def_readwrite("compute_queue_count", &GpuInfo::compute_queue_count)
         .def_readwrite("graphics_queue_count", &GpuInfo::graphics_queue_count)
         .def_readwrite("transfer_queue_count", &GpuInfo::transfer_queue_count)
-        .def_readwrite("bug_local_size_spec_const", &GpuInfo::bug_local_size_spec_const)
+
+        .def_readwrite("unified_compute_transfer_queue", &GpuInfo::unified_compute_transfer_queue)
+
+        .def_readwrite("subgroup_size", &GpuInfo::subgroup_size)
+        .def_readwrite("support_subgroup_basic", &GpuInfo::support_subgroup_basic)
+        .def_readwrite("support_subgroup_vote", &GpuInfo::support_subgroup_vote)
+        .def_readwrite("support_subgroup_ballot", &GpuInfo::support_subgroup_ballot)
+        .def_readwrite("support_subgroup_shuffle", &GpuInfo::support_subgroup_shuffle)
+
+        .def_readwrite("bug_storage_buffer_no_l1", &GpuInfo::bug_storage_buffer_no_l1)
+        .def_readwrite("bug_corrupted_online_pipeline_cache", &GpuInfo::bug_corrupted_online_pipeline_cache)
+
+        .def_readwrite("bug_implicit_fp16_arithmetic", &GpuInfo::bug_implicit_fp16_arithmetic)
+
         .def_readwrite("support_fp16_packed", &GpuInfo::support_fp16_packed)
         .def_readwrite("support_fp16_storage", &GpuInfo::support_fp16_storage)
         .def_readwrite("support_fp16_arithmetic", &GpuInfo::support_fp16_arithmetic)
         .def_readwrite("support_int8_storage", &GpuInfo::support_int8_storage)
         .def_readwrite("support_int8_arithmetic", &GpuInfo::support_int8_arithmetic)
+
         .def_readwrite("support_ycbcr_conversion", &GpuInfo::support_ycbcr_conversion)
+
         .def_readwrite("support_VK_KHR_8bit_storage", &GpuInfo::support_VK_KHR_8bit_storage)
         .def_readwrite("support_VK_KHR_16bit_storage", &GpuInfo::support_VK_KHR_16bit_storage)
         .def_readwrite("support_VK_KHR_bind_memory2", &GpuInfo::support_VK_KHR_bind_memory2)
@@ -901,10 +1023,11 @@ PYBIND11_MODULE(ncnn, m)
         .def_readwrite("support_VK_KHR_shader_float_controls", &GpuInfo::support_VK_KHR_shader_float_controls)
         .def_readwrite("support_VK_KHR_storage_buffer_storage_class", &GpuInfo::support_VK_KHR_storage_buffer_storage_class)
         .def_readwrite("support_VK_KHR_swapchain", &GpuInfo::support_VK_KHR_swapchain)
+        .def_readwrite("support_VK_EXT_memory_budget", &GpuInfo::support_VK_EXT_memory_budget)
         .def_readwrite("support_VK_EXT_queue_family_foreign", &GpuInfo::support_VK_EXT_queue_family_foreign);
 
     py::class_<VulkanDevice>(m, "VulkanDevice")
-        .def(py::init<int>(), py::arg("device_index") = get_default_gpu_index())
+        .def(py::init<int>(), py::arg("device_index") = 0)
         //.def_readonly("info", &VulkanDevice::info)
         //.def("get_shader_module", &VulkanDevice::get_shader_module)
         //.def("create_shader_module", &VulkanDevice::create_shader_module)
@@ -919,39 +1042,37 @@ PYBIND11_MODULE(ncnn, m)
         .def("reclaim_blob_allocator", &VulkanDevice::reclaim_blob_allocator)
         .def("acquire_staging_allocator", &VulkanDevice::acquire_staging_allocator)
         .def("reclaim_staging_allocator", &VulkanDevice::reclaim_staging_allocator)
-        //tode not compelete
+        //todo not compelete
         ;
 
-    py::class_<Command>(m, "Command")
-        .def(py::init<const VulkanDevice*, uint32_t>());
-    py::class_<VkCompute, Command>(m, "VkCompute")
-        .def(py::init<const VulkanDevice*>())
-        .def("record_upload", &VkCompute::record_upload)
-        .def("record_download", &VkCompute::record_download)
-        .def("record_clone", &VkCompute::record_clone)
-        .def("record_copy_region", &VkCompute::record_copy_region)
-        .def("record_copy_regions", &VkCompute::record_copy_regions)
-        .def("record_pipeline", &VkCompute::record_pipeline)
-        .def("record_download", &VkCompute::record_download)
+    //py::class_<VkCompute>(m, "VkCompute")
+    //    .def(py::init<const VulkanDevice*>())
+    //    .def("record_upload", &VkCompute::record_upload)
+    //    .def("record_download", &VkCompute::record_download)
+    //    .def("record_clone", &VkCompute::record_clone)
+    //    .def("record_copy_region", &VkCompute::record_copy_region)
+    //    .def("record_copy_regions", &VkCompute::record_copy_regions)
+    //    .def("record_pipeline", &VkCompute::record_pipeline)
+    //    .def("record_download", &VkCompute::record_download)
 
-#if NCNN_BENCHMARK
-        .def("record_write_timestamp", &VkCompute::record_write_timestamp)
-#endif // NCNN_BENCHMARK
+//#if NCNN_BENCHMARK
+//        .def("record_write_timestamp", &VkCompute::record_write_timestamp)
+//#endif // NCNN_BENCHMARK
+//
+//        .def("record_queue_transfer_acquire", &VkCompute::record_queue_transfer_acquire)
+//        .def("submit_and_wait", &VkCompute::submit_and_wait)
+//        .def("reset", &VkCompute::reset)
+//
+//#if NCNN_BENCHMARK
+//        .def("create_query_pool", &VkCompute::create_query_pool)
+//        .def("get_query_pool_results", &VkCompute::get_query_pool_results)
+//#endif // NCNN_BENCHMARK
+//        ;
 
-        .def("record_queue_transfer_acquire", &VkCompute::record_queue_transfer_acquire)
-        .def("submit_and_wait", &VkCompute::submit_and_wait)
-        .def("reset", &VkCompute::reset)
-
-#if NCNN_BENCHMARK
-        .def("create_query_pool", &VkCompute::create_query_pool)
-        .def("get_query_pool_results", &VkCompute::get_query_pool_results)
-#endif // NCNN_BENCHMARK
-        ;
-
-    py::class_<VkTransfer, Command>(m, "VkTransfer")
-        .def(py::init<const VulkanDevice*>())
-        .def("record_upload", &VkTransfer::record_upload)
-        .def("submit_and_wait", &VkTransfer::submit_and_wait);
+    //py::class_<VkTransfer>(m, "VkTransfer")
+    //    .def(py::init<const VulkanDevice*>())
+    //    .def("record_upload", &VkTransfer::record_upload)
+    //    .def("submit_and_wait", &VkTransfer::submit_and_wait);
 
 #endif // NCNN_VULKAN
 

@@ -95,8 +95,8 @@ public:
     }
 };
 
-template<class Base = ncnn::VkImageAllocator>
-class PyVkImageAllocator : public Base
+template<class Base = ncnn::VkBlobAllocator>
+class PyVkBlobAllocator : public Base
 {
 public:
     using Base::Base; // Inherit constructors
@@ -116,22 +116,22 @@ public:
     }
 };
 
-template<class Other>
-class PyVkImageAllocatorOther : public PyVkImageAllocator<Other>
-{
-public:
-    using PyVkImageAllocator<Other>::PyVkImageAllocator;
-    ncnn::VkImageMemory* fastMalloc(int width, int height,
-                                    VkFormat format) override
-    {
-        PYBIND11_OVERLOAD(ncnn::VkImageMemory*, Other, fastMalloc, width, height,
-                          format);
-    }
-    void fastFree(ncnn::VkImageMemory* ptr) override
-    {
-        PYBIND11_OVERLOAD(void, Other, fastFree, ptr);
-    }
-};
+//template<class Other>
+//class PyVkImageAllocatorOther : public PyVkImageAllocator<Other>
+//{
+//public:
+//    using PyVkImageAllocator<Other>::PyVkImageAllocator;
+//    ncnn::VkImageMemory* fastMalloc(int width, int height,
+//                                    VkFormat format) override
+//    {
+//        PYBIND11_OVERLOAD(ncnn::VkImageMemory*, Other, fastMalloc, width, height,
+//                          format);
+//    }
+//    void fastFree(ncnn::VkImageMemory* ptr) override
+//    {
+//        PYBIND11_OVERLOAD(void, Other, fastFree, ptr);
+//    }
+//};
 #endif // NCNN_VULKAN
 
 #endif
