@@ -26,9 +26,6 @@
 #include <stdarg.h>
 
 extern "C" typedef void (*kmpc_micro)(int32_t* gtid, int32_t* tid, ...);
-
-#ifdef __EMSCRIPTEN__
-// workaround for emscipten function signature mismatch
 extern "C" typedef void (*kmpc_micro_0)(int32_t* gtid, int32_t* tid);
 extern "C" typedef void (*kmpc_micro_1)(int32_t* gtid, int32_t* tid, void*);
 extern "C" typedef void (*kmpc_micro_2)(int32_t* gtid, int32_t* tid, void*, void*);
@@ -45,7 +42,6 @@ extern "C" typedef void (*kmpc_micro_12)(int32_t* gtid, int32_t* tid, void*, voi
 extern "C" typedef void (*kmpc_micro_13)(int32_t* gtid, int32_t* tid, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
 extern "C" typedef void (*kmpc_micro_14)(int32_t* gtid, int32_t* tid, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
 extern "C" typedef void (*kmpc_micro_15)(int32_t* gtid, int32_t* tid, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
-#endif // __EMSCRIPTEN__
 
 #ifdef __cplusplus
 extern "C" {
@@ -321,8 +317,7 @@ void kmp_set_blocktime(int /*blocktime*/)
 static int kmp_invoke_microtask(kmpc_micro fn, int gtid, int tid, int argc, void** argv)
 {
     // fprintf(stderr, "__kmp_invoke_microtask #%lu %d %d %d\n", gettid(), gtid, tid, argc);
-#ifdef __EMSCRIPTEN__
-    // workaround for emscipten function signature mismatch
+
     switch (argc)
     {
     case 0:
@@ -377,62 +372,6 @@ static int kmp_invoke_microtask(kmpc_micro fn, int gtid, int tid, int argc, void
         // assert never reach here
         break;
     }
-#else  // __EMSCRIPTEN__
-    switch (argc)
-    {
-    case 0:
-        (*fn)(&gtid, &tid);
-        break;
-    case 1:
-        (*fn)(&gtid, &tid, argv[0]);
-        break;
-    case 2:
-        (*fn)(&gtid, &tid, argv[0], argv[1]);
-        break;
-    case 3:
-        (*fn)(&gtid, &tid, argv[0], argv[1], argv[2]);
-        break;
-    case 4:
-        (*fn)(&gtid, &tid, argv[0], argv[1], argv[2], argv[3]);
-        break;
-    case 5:
-        (*fn)(&gtid, &tid, argv[0], argv[1], argv[2], argv[3], argv[4]);
-        break;
-    case 6:
-        (*fn)(&gtid, &tid, argv[0], argv[1], argv[2], argv[3], argv[4], argv[5]);
-        break;
-    case 7:
-        (*fn)(&gtid, &tid, argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6]);
-        break;
-    case 8:
-        (*fn)(&gtid, &tid, argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7]);
-        break;
-    case 9:
-        (*fn)(&gtid, &tid, argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8]);
-        break;
-    case 10:
-        (*fn)(&gtid, &tid, argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8], argv[9]);
-        break;
-    case 11:
-        (*fn)(&gtid, &tid, argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8], argv[9], argv[10]);
-        break;
-    case 12:
-        (*fn)(&gtid, &tid, argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8], argv[9], argv[10], argv[11]);
-        break;
-    case 13:
-        (*fn)(&gtid, &tid, argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8], argv[9], argv[10], argv[11], argv[12]);
-        break;
-    case 14:
-        (*fn)(&gtid, &tid, argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8], argv[9], argv[10], argv[11], argv[12], argv[13]);
-        break;
-    case 15:
-        (*fn)(&gtid, &tid, argv[0], argv[1], argv[2], argv[3], argv[4], argv[5], argv[6], argv[7], argv[8], argv[9], argv[10], argv[11], argv[12], argv[13], argv[14]);
-        break;
-    default:
-        // assert never reach here
-        break;
-    }
-#endif // __EMSCRIPTEN__
 
     return 0;
 }
