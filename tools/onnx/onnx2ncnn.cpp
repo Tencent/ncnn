@@ -1981,8 +1981,9 @@ int main(int argc, char** argv)
         }
     }
 
-    // do not count constant node of binaryop weights twice
-    int node_count_moved_to_binaryop_weight = 0;
+    // we always treat constant node as weight or binaryop_weights
+    // do not count it twice for layer_count
+    int constant_node_count_moved_to_weight = 0;
     for (int i = 0; i < node_count; i++)
     {
         const onnx::NodeProto& node = graph.node(i);
@@ -1991,14 +1992,11 @@ int main(int argc, char** argv)
 
         if (op == "Constant")
         {
-            if (binaryop_weights.find(node.output(0)) != binaryop_weights.end())
-            {
-                node_count_moved_to_binaryop_weight++;
-            }
+            constant_node_count_moved_to_weight++;
         }
     }
 
-    fprintf(pp, "%zu %zu\n", node_count - reduced_node_count + input_node_count + node_reference.size() + binaryop_weights.size() - reduced_binaryop_weights.size() - node_count_moved_to_binaryop_weight, blob_names.size() - reduced_binaryop_weights.size() + splitncnn_blob_count);
+    fprintf(pp, "%zu %zu\n", node_count - reduced_node_count + input_node_count + node_reference.size() + binaryop_weights.size() - reduced_binaryop_weights.size() - constant_node_count_moved_to_weight, blob_names.size() - reduced_binaryop_weights.size() + splitncnn_blob_count);
 
     int internal_split = 0;
 
