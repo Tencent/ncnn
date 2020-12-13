@@ -145,7 +145,6 @@ jobs:
   openmp-macos:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v1
@@ -186,30 +185,11 @@ jobs:
         cp -r openmp-11.0.0.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create openmp-11.0.0.src/build-x86_64/install/lib/libomp.a openmp-11.0.0.src/build-arm64/install/lib/libomp.a -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
-    - name: package
-      run: |
-        rm -rf openmp.framework
-        mkdir -p openmp.framework/Versions/A/Headers
-        mkdir -p openmp.framework/Versions/A/Resources
-        ln -s A openmp.framework/Versions/Current
-        ln -s Versions/Current/Headers openmp.framework/Headers
-        ln -s Versions/Current/Resources openmp.framework/Resources
-        ln -s Versions/Current/openmp openmp.framework/openmp
-        cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r $GITHUB_WORKSPACE/openmp-install/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-        rm -f openmp-macos.framework.zip
-        zip -9 -y -r openmp-macos.framework.zip openmp.framework
     - name: upload
       uses: actions/upload-artifact@v2
       with:
         name: openmp-macos
         path: openmp-install
-    - name: upload-framework
-      uses: actions/upload-artifact@v2
-      with:
-        name: openmp-macos-framework
-        path: openmp-macos.framework.zip
 
   macos:
     needs: [openmp-macos]
@@ -245,6 +225,18 @@ jobs:
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        cp openmp-macos/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -r openmp-macos/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -258,7 +250,7 @@ jobs:
         cp -r build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ncnn-macos.framework.zip
-        zip -9 -y -r ncnn-macos.framework.zip ncnn.framework
+        zip -9 -y -r ncnn-macos.framework.zip openmp.framework ncnn.framework
     - name: upload-framework
       uses: actions/upload-artifact@v2
       with:
@@ -319,6 +311,18 @@ jobs:
             -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        cp openmp-macos/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -r openmp-macos/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
       run: |
         rm -rf glslang.framework
@@ -333,8 +337,6 @@ jobs:
         lipo -create build-x86_64/install/lib/libglslang_combined.a build-arm64/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
         cp -r build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-        rm -f glslang-macos.framework.zip
-        zip -9 -y -r glslang-macos.framework.zip glslang.framework
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -348,12 +350,7 @@ jobs:
         cp -r build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ncnn-macos-vulkan.framework.zip
-        zip -9 -y -r ncnn-macos-vulkan.framework.zip ncnn.framework
-    - name: upload-glslang-framework
-      uses: actions/upload-artifact@v2
-      with:
-        name: glslang-macos-framework
-        path: glslang-macos.framework.zip
+        zip -9 -y -r ncnn-macos-vulkan.framework.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-framework
       uses: actions/upload-artifact@v2
       with:
@@ -363,7 +360,6 @@ jobs:
   openmp-ios:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v1
@@ -408,30 +404,11 @@ jobs:
         cp -r openmp-11.0.0.src/build/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create openmp-11.0.0.src/build/install/lib/libomp.a openmp-11.0.0.src/build-simulator/install/lib/libomp.a -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
-    - name: package
-      run: |
-        rm -rf openmp.framework
-        mkdir -p openmp.framework/Versions/A/Headers
-        mkdir -p openmp.framework/Versions/A/Resources
-        ln -s A openmp.framework/Versions/Current
-        ln -s Versions/Current/Headers openmp.framework/Headers
-        ln -s Versions/Current/Resources openmp.framework/Resources
-        ln -s Versions/Current/openmp openmp.framework/openmp
-        cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r $GITHUB_WORKSPACE/openmp-install/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-        rm -f openmp-ios.framework.zip
-        zip -9 -y -r openmp-ios.framework.zip openmp.framework
     - name: upload
       uses: actions/upload-artifact@v2
       with:
         name: openmp-ios
         path: openmp-install
-    - name: upload-framework
-      uses: actions/upload-artifact@v2
-      with:
-        name: openmp-ios-framework
-        path: openmp-ios.framework.zip
 
   ios:
     needs: [openmp-ios]
@@ -471,6 +448,18 @@ jobs:
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        cp openmp-ios/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -r openmp-ios/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -484,7 +473,7 @@ jobs:
         cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ncnn-ios.framework.zip
-        zip -9 -y -r ncnn-ios.framework.zip ncnn.framework
+        zip -9 -y -r ncnn-ios.framework.zip openmp.framework ncnn.framework
     - name: upload-framework
       uses: actions/upload-artifact@v2
       with:
@@ -549,6 +538,18 @@ jobs:
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        cp openmp-ios/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -r openmp-ios/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
       run: |
         rm -rf glslang.framework
@@ -563,8 +564,6 @@ jobs:
         lipo -create build/install/lib/libglslang_combined.a build-simulator/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
         cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-        rm -f glslang-ios.framework.zip
-        zip -9 -y -r glslang-ios.framework.zip glslang.framework
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -578,12 +577,7 @@ jobs:
         cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ncnn-ios-vulkan.framework.zip
-        zip -9 -y -r ncnn-ios-vulkan.framework.zip ncnn.framework
-    - name: upload-glslang-framework
-      uses: actions/upload-artifact@v2
-      with:
-        name: glslang-ios-framework
-        path: glslang-ios.framework.zip
+        zip -9 -y -r ncnn-ios-vulkan.framework.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-framework
       uses: actions/upload-artifact@v2
       with:
@@ -593,7 +587,6 @@ jobs:
   openmp-ios-bitcode:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v1
@@ -638,30 +631,11 @@ jobs:
         cp -r openmp-11.0.0.src/build/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create openmp-11.0.0.src/build/install/lib/libomp.a openmp-11.0.0.src/build-simulator/install/lib/libomp.a -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
-    - name: package
-      run: |
-        rm -rf openmp.framework
-        mkdir -p openmp.framework/Versions/A/Headers
-        mkdir -p openmp.framework/Versions/A/Resources
-        ln -s A openmp.framework/Versions/Current
-        ln -s Versions/Current/Headers openmp.framework/Headers
-        ln -s Versions/Current/Resources openmp.framework/Resources
-        ln -s Versions/Current/openmp openmp.framework/openmp
-        cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r $GITHUB_WORKSPACE/openmp-install/include/* openmp.framework/Versions/A/Headers/
-        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
-        rm -f openmp-ios-bitcode.framework.zip
-        zip -9 -y -r openmp-ios-bitcode.framework.zip openmp.framework
     - name: upload
       uses: actions/upload-artifact@v2
       with:
         name: openmp-ios-bitcode
         path: openmp-install
-    - name: upload-framework
-      uses: actions/upload-artifact@v2
-      with:
-        name: openmp-ios-bitcode-framework
-        path: openmp-ios-bitcode.framework.zip
 
   ios-bitcode:
     needs: [openmp-ios-bitcode]
@@ -701,6 +675,18 @@ jobs:
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        cp openmp-ios-bitcode/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -r openmp-ios-bitcode/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -714,7 +700,7 @@ jobs:
         cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ncnn-ios-bitcode.framework.zip
-        zip -9 -y -r ncnn-ios-bitcode.framework.zip ncnn.framework
+        zip -9 -y -r ncnn-ios-bitcode.framework.zip openmp.framework ncnn.framework
     - name: upload-framework
       uses: actions/upload-artifact@v2
       with:
@@ -779,6 +765,18 @@ jobs:
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        cp openmp-ios-bitcode/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -r openmp-ios-bitcode/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
       run: |
         rm -rf glslang.framework
@@ -793,8 +791,6 @@ jobs:
         lipo -create build/install/lib/libglslang_combined.a build-simulator/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
         cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
-        rm -f glslang-ios-bitcode.framework.zip
-        zip -9 -y -r glslang-ios-bitcode.framework.zip glslang.framework
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -808,12 +804,7 @@ jobs:
         cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ncnn-ios-vulkan-bitcode.framework.zip
-        zip -9 -y -r ncnn-ios-vulkan-bitcode.framework.zip ncnn.framework
-    - name: upload-glslang-framework
-      uses: actions/upload-artifact@v2
-      with:
-        name: glslang-ios-bitcode-framework
-        path: glslang-ios-bitcode.framework.zip
+        zip -9 -y -r ncnn-ios-vulkan-bitcode.framework.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-framework
       uses: actions/upload-artifact@v2
       with:
@@ -1138,7 +1129,7 @@ jobs:
         path: ncnn-windows-vs2019.zip
 
   release:
-    needs: [full-source, ubuntu-1604, ubuntu-1804, ubuntu-2004, openmp-macos, macos, macos-gpu, openmp-ios, ios, ios-gpu, openmp-ios-bitcode, ios-bitcode, ios-gpu-bitcode, android, android-gpu, webassembly, windows-vs2017, windows-vs2019]
+    needs: [full-source, ubuntu-1604, ubuntu-1804, ubuntu-2004, macos, macos-gpu, ios, ios-gpu, ios-bitcode, ios-gpu-bitcode, android, android-gpu, webassembly, windows-vs2017, windows-vs2019]
     runs-on: ubuntu-latest
     steps:
     - name: download
@@ -1197,16 +1188,6 @@ jobs:
         asset_name: ncnn-ubuntu-2004.zip
         asset_content_type: application/zip
 
-    - name: upload-openmp-macos-framework
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/openmp-macos-framework/openmp-macos.framework.zip
-        asset_name: openmp-macos.framework.zip
-        asset_content_type: application/zip
-
     - name: upload-ncnn-macos-framework
       uses: actions/upload-release-asset@v1
       env:
@@ -1215,16 +1196,6 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: artifacts/ncnn-macos-framework/ncnn-macos.framework.zip
         asset_name: ncnn-macos.framework.zip
-        asset_content_type: application/zip
-
-    - name: upload-glslang-macos-framework
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/glslang-macos-framework/glslang-macos.framework.zip
-        asset_name: glslang-macos.framework.zip
         asset_content_type: application/zip
 
     - name: upload-ncnn-macos-vulkan-framework
@@ -1237,16 +1208,6 @@ jobs:
         asset_name: ncnn-macos-vulkan.framework.zip
         asset_content_type: application/zip
 
-    - name: upload-openmp-ios-framework
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/openmp-ios-framework/openmp-ios.framework.zip
-        asset_name: openmp-ios.framework.zip
-        asset_content_type: application/zip
-
     - name: upload-ncnn-ios-framework
       uses: actions/upload-release-asset@v1
       env:
@@ -1255,16 +1216,6 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: artifacts/ncnn-ios-framework/ncnn-ios.framework.zip
         asset_name: ncnn-ios.framework.zip
-        asset_content_type: application/zip
-
-    - name: upload-glslang-ios-framework
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/glslang-ios-framework/glslang-ios.framework.zip
-        asset_name: glslang-ios.framework.zip
         asset_content_type: application/zip
 
     - name: upload-ncnn-ios-vulkan-framework
@@ -1277,16 +1228,6 @@ jobs:
         asset_name: ncnn-ios-vulkan.framework.zip
         asset_content_type: application/zip
 
-    - name: upload-openmp-ios-bitcode-framework
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/openmp-ios-bitcode-framework/openmp-ios-bitcode.framework.zip
-        asset_name: openmp-ios-bitcode.framework.zip
-        asset_content_type: application/zip
-
     - name: upload-ncnn-ios-bitcode-framework
       uses: actions/upload-release-asset@v1
       env:
@@ -1295,16 +1236,6 @@ jobs:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: artifacts/ncnn-ios-bitcode-framework/ncnn-ios-bitcode.framework.zip
         asset_name: ncnn-ios-bitcode.framework.zip
-        asset_content_type: application/zip
-
-    - name: upload-glslang-ios-bitcode-framework
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/glslang-ios-bitcode-framework/glslang-ios-bitcode.framework.zip
-        asset_name: glslang-ios-bitcode.framework.zip
         asset_content_type: application/zip
 
     - name: upload-ncnn-ios-vulkan-bitcode-framework
