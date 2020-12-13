@@ -7,6 +7,7 @@ on: [push, pull_request]
 
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
+  EMSCRIPTEN_VERSION: 2.0.8
 
 jobs:
 
@@ -26,6 +27,114 @@ jobs:
       with:
         name: ncnn-full-source
         path: /tmp/ncnn-full-source.zip
+
+  ubuntu-1604:
+    runs-on: ubuntu-16.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: apt
+      run: |
+        sudo apt-get install -y libvulkan-dev libprotobuf-dev protobuf-compiler
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+    - name: package
+      run: |
+        rm -rf ncnn-ubuntu-1604
+        mkdir -p ncnn-ubuntu-1604
+        cp build/install/* ncnn-ubuntu-1604
+        mkdir -p ncnn-ubuntu-1604/bin
+        cp build/tools/caffe/caffe2ncnn ncnn-ubuntu-1604/bin
+        cp build/tools/mxnet/mxnet2ncnn ncnn-ubuntu-1604/bin
+        cp build/tools/onnx/onnx2ncnn ncnn-ubuntu-1604/bin
+        cp build/tools/darknet/darknet2ncnn ncnn-ubuntu-1604/bin
+        cp build/tools/ncnnoptimize ncnn-ubuntu-1604/bin
+        cp build/tools/ncnn2mem ncnn-ubuntu-1604/bin
+        cp build/tools/ncnnmerge ncnn-ubuntu-1604/bin
+        strip -g ncnn-ubuntu-1604/bin/*
+        rm -f ncnn-ubuntu-1604.zip
+        zip -9 -r ncnn-ubuntu-1604.zip ncnn-ubuntu-1604
+    - name: upload-zip
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-ubuntu-1604
+        path: ncnn-ubuntu-1604.zip
+
+  ubuntu-1804:
+    runs-on: ubuntu-18.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: apt
+      run: |
+        sudo apt-get install -y libvulkan-dev libprotobuf-dev protobuf-compiler
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+    - name: package
+      run: |
+        rm -rf ncnn-ubuntu-1804
+        mkdir -p ncnn-ubuntu-1804
+        cp build/install/* ncnn-ubuntu-1804
+        mkdir -p ncnn-ubuntu-1804/bin
+        cp build/tools/caffe/caffe2ncnn ncnn-ubuntu-1804/bin
+        cp build/tools/mxnet/mxnet2ncnn ncnn-ubuntu-1804/bin
+        cp build/tools/onnx/onnx2ncnn ncnn-ubuntu-1804/bin
+        cp build/tools/darknet/darknet2ncnn ncnn-ubuntu-1804/bin
+        cp build/tools/ncnnoptimize ncnn-ubuntu-1804/bin
+        cp build/tools/ncnn2mem ncnn-ubuntu-1804/bin
+        cp build/tools/ncnnmerge ncnn-ubuntu-1804/bin
+        strip -g ncnn-ubuntu-1804/bin/*
+        rm -f ncnn-ubuntu-1804.zip
+        zip -9 -r ncnn-ubuntu-1804.zip ncnn-ubuntu-1804
+    - name: upload-zip
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-ubuntu-1804
+        path: ncnn-ubuntu-1804.zip
+
+  ubuntu-2004:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: apt
+      run: |
+        sudo apt-get install -y libvulkan-dev libprotobuf-dev protobuf-compiler
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+    - name: package
+      run: |
+        rm -rf ncnn-ubuntu-2004
+        mkdir -p ncnn-ubuntu-2004
+        cp build/install/* ncnn-ubuntu-2004
+        mkdir -p ncnn-ubuntu-2004/bin
+        cp build/tools/caffe/caffe2ncnn ncnn-ubuntu-2004/bin
+        cp build/tools/mxnet/mxnet2ncnn ncnn-ubuntu-2004/bin
+        cp build/tools/onnx/onnx2ncnn ncnn-ubuntu-2004/bin
+        cp build/tools/darknet/darknet2ncnn ncnn-ubuntu-2004/bin
+        cp build/tools/ncnnoptimize ncnn-ubuntu-2004/bin
+        cp build/tools/ncnn2mem ncnn-ubuntu-2004/bin
+        cp build/tools/ncnnmerge ncnn-ubuntu-2004/bin
+        strip -g ncnn-ubuntu-2004/bin/*
+        rm -f ncnn-ubuntu-2004.zip
+        zip -9 -r ncnn-ubuntu-2004.zip ncnn-ubuntu-2004
+    - name: upload-zip
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-ubuntu-2004
+        path: ncnn-ubuntu-2004.zip
 
   openmp-macos:
     runs-on: macos-latest
@@ -843,3 +952,65 @@ jobs:
       with:
         name: ncnn-android-vulkan-lib
         path: ncnn-android-vulkan-lib.zip
+
+  webassembly:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: emsdk
+      run: |
+        git clone https://github.com/emscripten-core/emsdk.git
+        cd emsdk
+        ./emsdk install $EMSCRIPTEN_VERSION
+        ./emsdk activate $EMSCRIPTEN_VERSION
+    - name: build
+      run: |
+        source emsdk/emsdk_env.sh
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF \
+            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+    - name: build-simd
+      run: |
+        source emsdk/emsdk_env.sh
+        mkdir build-simd && cd build-simd
+        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF \
+            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+    - name: build-threads
+      run: |
+        source emsdk/emsdk_env.sh
+        mkdir build-threads && cd build-threads
+        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF \
+            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+    - name: build-simd-threads
+      run: |
+        source emsdk/emsdk_env.sh
+        mkdir build-simd-threads && cd build-simd-threads
+        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF \
+            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+    - name: package
+      run: |
+        rm -rf ncnn-webassembly-lib
+        mkdir -p ncnn-webassembly-lib
+        cp -r build/install ncnn-webassembly-lib/basic
+        cp -r build-simd/install ncnn-webassembly-lib/simd
+        cp -r build-threads/install ncnn-webassembly-lib/threads
+        cp -r build-simd-threads/install ncnn-webassembly-lib/simd-threads
+        rm -f ncnn-webassembly-lib.zip
+        zip -9 -r ncnn-webassembly-lib.zip ncnn-webassembly-lib
+    - name: upload-zip
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-webassembly-lib
+        path: ncnn-webassembly-lib.zip
