@@ -28,7 +28,7 @@ jobs:
         sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
         sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="x86_64" \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
@@ -42,7 +42,7 @@ jobs:
     - name: build
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="x86_64" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
@@ -61,6 +61,60 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: ncnn-macos
+        path: ncnn-install
+
+  macos-arm64:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: cache-openmp
+      id: cache-openmp
+      uses: actions/cache@v1
+      with:
+        path: openmp-install
+        key: openmp-macos-arm64-install-20201213
+    - name: openmp
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
+        tar -xf openmp-11.0.0.src.tar.xz
+        cd openmp-11.0.0.src
+        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
+        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        cp -r install/* $GITHUB_WORKSPACE/openmp-install
+    - name: install-openmp
+      run: |
+        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
+            -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/ncnn-install
+        mkdir -p $GITHUB_WORKSPACE/ncnn-install
+        cp -r install/* $GITHUB_WORKSPACE/ncnn-install
+    - name: upload-openmp
+      uses: actions/upload-artifact@v2
+      with:
+        name: openmp-macos-arm64
+        path: openmp-install
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-macos-arm64
         path: ncnn-install
 
   ios:
@@ -298,6 +352,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: build
       run: |
+        sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 \
@@ -334,6 +389,7 @@ jobs:
         find 1.2.148.1 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: build
       run: |
+        sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
         export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
@@ -356,6 +412,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: build
       run: |
+        sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 \
@@ -392,6 +449,7 @@ jobs:
         find 1.2.148.1 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: build
       run: |
+        sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
         export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
@@ -414,6 +472,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: build
       run: |
+        sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 \
@@ -450,6 +509,7 @@ jobs:
         find 1.2.148.1 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: build
       run: |
+        sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
         export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
@@ -472,6 +532,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: build
       run: |
+        sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 \
@@ -508,6 +569,7 @@ jobs:
         find 1.2.148.1 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: build
       run: |
+        sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
         export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
@@ -524,3 +586,197 @@ jobs:
         name: ncnn-android-x86_64-gpu
         path: ncnn-install
 
+
+  package-macos:
+    needs: [macos, macos-arm64]
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: download-openmp-macos
+      uses: actions/download-artifact@v2
+      with:
+        name: openmp-macos
+        path: artifacts
+    - name: download-openmp-macos-arm64
+      uses: actions/download-artifact@v2
+      with:
+        name: openmp-macos-arm64
+        path: artifacts
+    - name: download-ncnn-macos
+      uses: actions/download-artifact@v2
+      with:
+        name: ncnn-macos
+        path: artifacts
+    - name: download-ncnn-macos-arm64
+      uses: actions/download-artifact@v2
+      with:
+        name: ncnn-macos-arm64
+        path: artifacts
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        lipo -create artifacts/openmp-macos/lib/libomp.a artifacts/openmp-macos-arm64/lib/libomp.a -o openmp.framework/Versions/A/openmp
+        cp -r artifacts/openmp-macos/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+        rm -f openmp-macos.framework.zip
+        zip -9 -y -r openmp-macos.framework.zip openmp.framework
+    - name: package-ncnn
+      run: |
+        rm -rf ncnn.framework
+        mkdir -p ncnn.framework/Versions/A/Headers
+        mkdir -p ncnn.framework/Versions/A/Resources
+        ln -s A ncnn.framework/Versions/Current
+        ln -s Versions/Current/Headers ncnn.framework/Headers
+        ln -s Versions/Current/Resources ncnn.framework/Resources
+        ln -s Versions/Current/ncnn ncnn.framework/ncnn
+        lipo -create artifacts/ncnn-macos/lib/libncnn.a artifacts/ncnn-macos-arm64/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
+        cp -r artifacts/ncnn-macos/include/ncnn ncnn.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+        rm -f ncnn-macos.framework.zip
+        zip -9 -y -r ncnn-macos.framework.zip ncnn.framework
+    - name: upload-openmp
+      uses: actions/upload-artifact@v2
+      with:
+        name: openmp-macos-framework
+        path: openmp-macos.framework.zip
+    - name: upload-ncnn
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-macos-framework
+        path: ncnn-macos.framework.zip
+
+  package-ios:
+    needs: [ios, ios-simulator]
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: download-openmp-ios
+      uses: actions/download-artifact@v2
+      with:
+        name: openmp-ios
+        path: artifacts
+    - name: download-openmp-ios-simulator
+      uses: actions/download-artifact@v2
+      with:
+        name: openmp-ios-simulator
+        path: artifacts
+    - name: download-ncnn-ios
+      uses: actions/download-artifact@v2
+      with:
+        name: ncnn-ios
+        path: artifacts
+    - name: download-ncnn-ios-simulator
+      uses: actions/download-artifact@v2
+      with:
+        name: ncnn-ios-simulator
+        path: artifacts
+
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        lipo -create artifacts/openmp-ios/lib/libomp.a artifacts/openmp-ios-simulator/lib/libomp.a -o openmp.framework/Versions/A/openmp
+        cp -r artifacts/openmp-ios/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+        rm -f openmp-ios.framework.zip
+        zip -9 -y -r openmp-ios.framework.zip openmp.framework
+    - name: package-ncnn
+      run: |
+        rm -rf ncnn.framework
+        mkdir -p ncnn.framework/Versions/A/Headers
+        mkdir -p ncnn.framework/Versions/A/Resources
+        ln -s A ncnn.framework/Versions/Current
+        ln -s Versions/Current/Headers ncnn.framework/Headers
+        ln -s Versions/Current/Resources ncnn.framework/Resources
+        ln -s Versions/Current/ncnn ncnn.framework/ncnn
+        lipo -create artifacts/ncnn-ios/lib/libncnn.a artifacts/ncnn-ios-simulator/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
+        cp -r artifacts/ncnn-ios/include/ncnn ncnn.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+        rm -f ncnn-ios.framework.zip
+        zip -9 -y -r ncnn-ios.framework.zip ncnn.framework
+    - name: upload-openmp
+      uses: actions/upload-artifact@v2
+      with:
+        name: openmp-ios-framework
+        path: openmp-ios.framework.zip
+    - name: upload-ncnn
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-ios-framework
+        path: ncnn-ios.framework.zip
+
+  package-ios-bitcode:
+    needs: [ios-bitcode, ios-simulator-bitcode]
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: download-openmp-ios-bitcode
+      uses: actions/download-artifact@v2
+      with:
+        name: openmp-ios-bitcode
+        path: artifacts
+    - name: download-openmp-ios-simulator-bitcode
+      uses: actions/download-artifact@v2
+      with:
+        name: openmp-ios-simulator-bitcode
+        path: artifacts
+    - name: download-ncnn-ios-bitcode
+      uses: actions/download-artifact@v2
+      with:
+        name: ncnn-ios-bitcode
+        path: artifacts
+    - name: download-ncnn-ios-simulator-bitcode
+      uses: actions/download-artifact@v2
+      with:
+        name: ncnn-ios-simulator-bitcode
+        path: artifacts
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        lipo -create artifacts/openmp-ios-bitcode/lib/libomp.a artifacts/openmp-ios-simulator-bitcode/lib/libomp.a -o openmp.framework/Versions/A/openmp
+        cp -r artifacts/openmp-ios-bitcode/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+        rm -f openmp-ios-bitcode.framework.zip
+        zip -9 -y -r openmp-ios-bitcode.framework.zip openmp.framework
+    - name: package-ncnn
+      run: |
+        rm -rf ncnn.framework
+        mkdir -p ncnn.framework/Versions/A/Headers
+        mkdir -p ncnn.framework/Versions/A/Resources
+        ln -s A ncnn.framework/Versions/Current
+        ln -s Versions/Current/Headers ncnn.framework/Headers
+        ln -s Versions/Current/Resources ncnn.framework/Resources
+        ln -s Versions/Current/ncnn ncnn.framework/ncnn
+        lipo -create artifacts/ncnn-ios-bitcode/lib/libncnn.a artifacts/ncnn-ios-simulator-bitcode/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
+        cp -r artifacts/ncnn-ios-bitcode/include/ncnn ncnn.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+        rm -f ncnn-ios-bitcode.framework.zip
+        zip -9 -y -r ncnn-ios-bitcode.framework.zip ncnn.framework
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: openmp-ios-bitcode-framework
+        path: openmp-ios-bitcode.framework.zip
+    - name: upload-ncnn
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-ios-bitcode-framework
+        path: ncnn-ios-bitcode.framework.zip
