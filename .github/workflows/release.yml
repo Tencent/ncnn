@@ -48,7 +48,7 @@ jobs:
       run: |
         rm -rf ncnn-ubuntu-1604
         mkdir -p ncnn-ubuntu-1604
-        cp build/install/* ncnn-ubuntu-1604
+        cp -r build/install/* ncnn-ubuntu-1604
         mkdir -p ncnn-ubuntu-1604/bin
         cp build/tools/caffe/caffe2ncnn ncnn-ubuntu-1604/bin
         cp build/tools/mxnet/mxnet2ncnn ncnn-ubuntu-1604/bin
@@ -86,7 +86,7 @@ jobs:
       run: |
         rm -rf ncnn-ubuntu-1804
         mkdir -p ncnn-ubuntu-1804
-        cp build/install/* ncnn-ubuntu-1804
+        cp -r build/install/* ncnn-ubuntu-1804
         mkdir -p ncnn-ubuntu-1804/bin
         cp build/tools/caffe/caffe2ncnn ncnn-ubuntu-1804/bin
         cp build/tools/mxnet/mxnet2ncnn ncnn-ubuntu-1804/bin
@@ -124,7 +124,7 @@ jobs:
       run: |
         rm -rf ncnn-ubuntu-2004
         mkdir -p ncnn-ubuntu-2004
-        cp build/install/* ncnn-ubuntu-2004
+        cp -r build/install/* ncnn-ubuntu-2004
         mkdir -p ncnn-ubuntu-2004/bin
         cp build/tools/caffe/caffe2ncnn ncnn-ubuntu-2004/bin
         cp build/tools/mxnet/mxnet2ncnn ncnn-ubuntu-2004/bin
@@ -1020,3 +1020,129 @@ jobs:
       with:
         name: ncnn-webassembly-lib
         path: ncnn-webassembly-lib.zip
+
+  windows-vs2017:
+    runs-on: windows-2016
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: cache-protobuf
+      id: cache-protobuf
+      uses: actions/cache@v1.0.3
+      with:
+        path: "protobuf-install"
+        key: protobuf-vs2017-x64-install3
+    - name: protobuf
+      if: steps.cache-protobuf.outputs.cache-hit != 'true'
+      run: |
+        Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/archive/v3.11.2.zip -OutFile protobuf-3.11.2.zip
+        7z x ./protobuf-3.11.2.zip
+        cd protobuf-3.11.2
+        mkdir build-vs2017; cd build-vs2017; cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF -DNCNN_BUILD_TESTS=ON ../cmake
+        cmake --build . --config Release -j 2
+        cmake --build . --config Release --target install
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1.0.3
+      with:
+        path: "VulkanSDK"
+        key: VulkanSDK-1.1.114.0-Installer
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.114.0/windows/VulkanSDK-1.1.114.0-Installer.exe?Human=true -OutFile VulkanSDK-1.1.114.0-Installer.exe
+        7z x -aoa ./VulkanSDK-1.1.114.0-Installer.exe -oVulkanSDK
+        Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\glslang, .\VulkanSDK\Samples, .\VulkanSDK\shaderc, .\VulkanSDK\spirv-tools, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
+    - name: build
+      run: |
+        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        mkdir build; cd build
+        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install \
+            -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" \
+            -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" \
+            -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . --config Release -j 2
+        cmake --build . --config Release --target install
+    - name: package
+      run: |
+        Get-ChildItem -Recurse build
+        mkdir ncnn-windows-vs2017
+        mkdir ncnn-windows-vs2017/bin
+        Copy-Item -Verbose -Recurse -Path "build\Release\install\*" -Destination "ncnn-windows-vs2017"
+        Copy-Item -Verbose -Path "build\tools\caffe\Release\caffe2ncnn.exe" -Destination "ncnn-windows-vs2017\bin"
+        Copy-Item -Verbose -Path "build\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "ncnn-windows-vs2017\bin"
+        Copy-Item -Verbose -Path "build\tools\onnx\Release\onnx2ncnn.exe" -Destination "ncnn-windows-vs2017\bin"
+        Copy-Item -Verbose -Path "build\tools\darknet\Release\darknet2ncnn.exe" -Destination "ncnn-windows-vs2017\bin"
+        Copy-Item -Verbose -Path "build\tools\Release\ncnnoptimize.exe" -Destination "ncnn-windows-vs2017\bin"
+        Copy-Item -Verbose -Path "build\tools\Release\ncnn2mem.exe" -Destination "ncnn-windows-vs2017\bin"
+        Copy-Item -Verbose -Path "build\tools\Release\ncnnmerge.exe" -Destination "ncnn-windows-vs2017\bin"
+        7z a -r ncnn-windows-vs2017.zip ncnn-windows-vs2017
+    - uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-windows-vs2017
+        path: ncnn-windows-vs2017.zip
+
+  windows-vs2019:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: cache-protobuf
+      id: cache-protobuf
+      uses: actions/cache@v1
+      with:
+        path: "protobuf-install"
+        key: protobuf-windows-install
+    - name: protobuf
+      if: steps.cache-protobuf.outputs.cache-hit != 'true'
+      run: |
+        Invoke-WebRequest -Uri https://github.com/protocolbuffers/protobuf/archive/v3.11.2.zip -OutFile protobuf-3.11.2.zip
+        7z x ./protobuf-3.11.2.zip
+        cd protobuf-3.11.2
+        mkdir build-vs2019; cd build-vs2019; cmake -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF -DNCNN_BUILD_TESTS=ON ../cmake
+        cmake --build . --config Release -j 2
+        cmake --build . --config Release --target install
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "VulkanSDK"
+        key: VulkanSDK-1.1.114.0-Installer
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.114.0/windows/VulkanSDK-1.1.114.0-Installer.exe?Human=true -OutFile VulkanSDK-1.1.114.0-Installer.exe
+        7z x -aoa ./VulkanSDK-1.1.114.0-Installer.exe -oVulkanSDK
+        Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\glslang, .\VulkanSDK\Samples, .\VulkanSDK\shaderc, .\VulkanSDK\spirv-tools, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
+    - name: build
+      run: |
+        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        mkdir build; cd build
+        cmake -DCMAKE_INSTALL_PREFIX=install \
+            -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" \
+            -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" \
+            -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . --config Release -j 2
+        cmake --build . --config Release --target install
+    - name: package
+      run: |
+        Get-ChildItem -Recurse build
+        mkdir ncnn-windows-vs2019
+        mkdir ncnn-windows-vs2019/bin
+        Copy-Item -Verbose -Recurse -Path "build\Release\install\*" -Destination "ncnn-windows-vs2019"
+        Copy-Item -Verbose -Path "build\tools\caffe\Release\caffe2ncnn.exe" -Destination "ncnn-windows-vs2019\bin"
+        Copy-Item -Verbose -Path "build\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "ncnn-windows-vs2019\bin"
+        Copy-Item -Verbose -Path "build\tools\onnx\Release\onnx2ncnn.exe" -Destination "ncnn-windows-vs2019\bin"
+        Copy-Item -Verbose -Path "build\tools\darknet\Release\darknet2ncnn.exe" -Destination "ncnn-windows-vs2019\bin"
+        Copy-Item -Verbose -Path "build\tools\Release\ncnnoptimize.exe" -Destination "ncnn-windows-vs2019\bin"
+        Copy-Item -Verbose -Path "build\tools\Release\ncnn2mem.exe" -Destination "ncnn-windows-vs2019\bin"
+        Copy-Item -Verbose -Path "build\tools\Release\ncnnmerge.exe" -Destination "ncnn-windows-vs2019\bin"
+        7z a -r ncnn-windows-vs2019.zip ncnn-windows-vs2019
+    - uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-windows-vs2019
+        path: ncnn-windows-vs2019.zip
