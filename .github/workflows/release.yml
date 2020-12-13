@@ -91,8 +91,8 @@ jobs:
         path: artifacts
     - name: install-openmp
       run: |
-        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
-        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
+        sudo cp artifacts/openmp-install/include/* $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+        sudo cp artifacts/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
@@ -218,10 +218,10 @@ jobs:
         path: artifacts
     - name: install-openmp
       run: |
-        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
-        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
-        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
-        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
+        sudo cp artifacts/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
+        sudo cp artifacts/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
+        sudo cp artifacts/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
+        sudo cp artifacts/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
     - name: build
       run: |
         mkdir build && cd build
@@ -278,10 +278,10 @@ jobs:
         path: artifacts
     - name: install-openmp
       run: |
-        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
-        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
-        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
-        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
+        sudo cp artifacts/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
+        sudo cp artifacts/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
+        sudo cp artifacts/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
+        sudo cp artifacts/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -322,6 +322,22 @@ jobs:
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
+    - name: package-glslang
+      run: |
+        rm -rf glslang.framework
+        mkdir -p glslang.framework/Versions/A/Headers
+        mkdir -p glslang.framework/Versions/A/Resources
+        ln -s A glslang.framework/Versions/Current
+        ln -s Versions/Current/Headers glslang.framework/Headers
+        ln -s Versions/Current/Resources glslang.framework/Resources
+        ln -s Versions/Current/glslang glslang.framework/glslang
+        libtool -static build/install/lib/libglslang.a build/install/lib/libSPIRV.a build/install/lib/libOGLCompiler.a build/install/lib/libOSDependent.a -o build/install/lib/libglslang_combined.a
+        libtool -static build-simulator/install/lib/libglslang.a build-simulator/install/lib/libSPIRV.a build-simulator/install/lib/libOGLCompiler.a build-simulator/install/lib/libOSDependent.a -o build-simulator/install/lib/libglslang_combined.a
+        lipo -create build/install/lib/libglslang_combined.a build-simulator/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
+        cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
+        rm -f glslang-ios.framework.zip
+        zip -9 -y -r glslang-ios.framework.zip glslang.framework
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -334,8 +350,13 @@ jobs:
         lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
         cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ncnn-ios.framework.zip
+        rm -f ncnn-ios-vulkan.framework.zip
         zip -9 -y -r ncnn-ios-vulkan.framework.zip ncnn.framework
+    - name: upload-glslang-framework
+      uses: actions/upload-artifact@v2
+      with:
+        name: glslang-ios-framework
+        path: glslang-ios.framework.zip
     - name: upload-framework
       uses: actions/upload-artifact@v2
       with:
@@ -427,10 +448,10 @@ jobs:
         path: artifacts
     - name: install-openmp
       run: |
-        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
-        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
-        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
-        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
+        sudo cp artifacts/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
+        sudo cp artifacts/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
+        sudo cp artifacts/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
+        sudo cp artifacts/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
     - name: build
       run: |
         mkdir build && cd build
@@ -487,10 +508,10 @@ jobs:
         path: artifacts
     - name: install-openmp
       run: |
-        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
-        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
-        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
-        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
+        sudo cp artifacts/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
+        sudo cp artifacts/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
+        sudo cp artifacts/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
+        sudo cp artifacts/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -531,6 +552,22 @@ jobs:
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
+    - name: package-glslang
+      run: |
+        rm -rf glslang.framework
+        mkdir -p glslang.framework/Versions/A/Headers
+        mkdir -p glslang.framework/Versions/A/Resources
+        ln -s A glslang.framework/Versions/Current
+        ln -s Versions/Current/Headers glslang.framework/Headers
+        ln -s Versions/Current/Resources glslang.framework/Resources
+        ln -s Versions/Current/glslang glslang.framework/glslang
+        libtool -static build/install/lib/libglslang.a build/install/lib/libSPIRV.a build/install/lib/libOGLCompiler.a build/install/lib/libOSDependent.a -o build/install/lib/libglslang_combined.a
+        libtool -static build-simulator/install/lib/libglslang.a build-simulator/install/lib/libSPIRV.a build-simulator/install/lib/libOGLCompiler.a build-simulator/install/lib/libOSDependent.a -o build-simulator/install/lib/libglslang_combined.a
+        lipo -create build/install/lib/libglslang_combined.a build-simulator/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
+        cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
+        rm -f glslang-ios-bitcode.framework.zip
+        zip -9 -y -r glslang-ios-bitcode.framework.zip glslang.framework
     - name: package
       run: |
         rm -rf ncnn.framework
@@ -543,8 +580,13 @@ jobs:
         lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
         cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ncnn-ios.framework.zip
+        rm -f ncnn-ios-vulkan-bitcode.framework.zip
         zip -9 -y -r ncnn-ios-vulkan-bitcode.framework.zip ncnn.framework
+    - name: upload-glslang-framework
+      uses: actions/upload-artifact@v2
+      with:
+        name: glslang-ios-bitcode-framework
+        path: glslang-ios-bitcode.framework.zip
     - name: upload-framework
       uses: actions/upload-artifact@v2
       with:
