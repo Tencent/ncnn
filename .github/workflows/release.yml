@@ -1058,11 +1058,7 @@ jobs:
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"
         mkdir build; cd build
-        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install \
-            -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" \
-            -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" \
-            -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: package
@@ -1121,11 +1117,7 @@ jobs:
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"
         mkdir build; cd build
-        cmake -DCMAKE_INSTALL_PREFIX=install \
-            -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" \
-            -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" \
-            -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -DCMAKE_INSTALL_PREFIX=install -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: package
