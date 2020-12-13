@@ -10,16 +10,35 @@ env:
 
 jobs:
 
+  full-source:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: package
+      run: |
+        rm -rf .git
+        rm -f /tmp/ncnn-full-source.zip
+        zip -9 -r /tmp/ncnn-full-source.zip .
+    - name: upload-zip
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-full-source
+        path: /tmp/ncnn-full-source.zip
+
   openmp-macos:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v1
       with:
         path: openmp-install
         key: openmp-macos-install-20201213-2
+    - name: checkout
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -100,7 +119,7 @@ jobs:
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
+            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
     - name: build-arm64
@@ -110,7 +129,7 @@ jobs:
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DNCNN_BUILD_BENCHMARK=OFF ..
+            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
     - name: package
@@ -133,16 +152,113 @@ jobs:
         name: ncnn-macos-framework
         path: ncnn-macos.framework.zip
 
-  openmp-ios:
+  macos-gpu:
+    needs: [openmp-macos]
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: download-openmp-macos
+      uses: actions/download-artifact@v2
+      with:
+        name: openmp-macos
+        path: openmp-macos
+    - name: install-openmp
+      run: |
+        sudo cp openmp-macos/include/* $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+        sudo cp openmp-macos/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "vulkansdk-macos-1.2.135.0"
+        key: vulkansdk-macos-1.2.135.0
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.2.135.0/mac/vulkansdk-macos-1.2.135.0.tar.gz?Human=true -O vulkansdk-macos-1.2.135.0.tar.gz
+        tar -xf vulkansdk-macos-1.2.135.0.tar.gz
+        rm -rf vulkansdk-macos-1.2.135.0/Applications
+        find vulkansdk-macos-1.2.135.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
+    - name: build-x86_64
+      run: |
+        export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.135.0/macOS
+        mkdir build-x86_64 && cd build-x86_64
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="x86_64" \
+            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+    - name: build-arm64
+      run: |
+        export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.135.0/macOS
+        mkdir build-arm64 && cd build-arm64
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="arm64" \
+            -DCMAKE_CROSSCOMPILING=ON -DCMAKE_SYSTEM_PROCESSOR=arm64 \
+            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
+            -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.135.0/MoltenVK/include \
+            -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.135.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+    - name: package-glslang
+      run: |
+        rm -rf glslang.framework
+        mkdir -p glslang.framework/Versions/A/Headers
+        mkdir -p glslang.framework/Versions/A/Resources
+        ln -s A glslang.framework/Versions/Current
+        ln -s Versions/Current/Headers glslang.framework/Headers
+        ln -s Versions/Current/Resources glslang.framework/Resources
+        ln -s Versions/Current/glslang glslang.framework/glslang
+        libtool -static build-x86_64/install/lib/libglslang.a build-x86_64/install/lib/libSPIRV.a build-x86_64/install/lib/libOGLCompiler.a build-x86_64/install/lib/libOSDependent.a -o build-x86_64/install/lib/libglslang_combined.a
+        libtool -static build-arm64/install/lib/libglslang.a build-arm64/install/lib/libSPIRV.a build-arm64/install/lib/libOGLCompiler.a build-arm64/install/lib/libOSDependent.a -o build-arm64/install/lib/libglslang_combined.a
+        lipo -create build-x86_64/install/lib/libglslang_combined.a build-arm64/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
+        cp -r build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
+        rm -f glslang-macos.framework.zip
+        zip -9 -y -r glslang-macos.framework.zip glslang.framework
+    - name: package
+      run: |
+        rm -rf ncnn.framework
+        mkdir -p ncnn.framework/Versions/A/Headers
+        mkdir -p ncnn.framework/Versions/A/Resources
+        ln -s A ncnn.framework/Versions/Current
+        ln -s Versions/Current/Headers ncnn.framework/Headers
+        ln -s Versions/Current/Resources ncnn.framework/Resources
+        ln -s Versions/Current/ncnn ncnn.framework/ncnn
+        lipo -create build-x86_64/install/lib/libncnn.a build-arm64/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
+        cp -r build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+        rm -f ncnn-macos-vulkan.framework.zip
+        zip -9 -y -r ncnn-macos-vulkan.framework.zip ncnn.framework
+    - name: upload-glslang-framework
+      uses: actions/upload-artifact@v2
+      with:
+        name: glslang-macos-framework
+        path: glslang-macos.framework.zip
+    - name: upload-framework
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-macos-vulkan-framework
+        path: ncnn-macos-vulkan.framework.zip
+
+  openmp-ios:
+    runs-on: macos-latest
+    steps:
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v1
       with:
         path: openmp-install
         key: openmp-ios-install-20201213-2
+    - name: checkout
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -366,13 +482,15 @@ jobs:
   openmp-ios-bitcode:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v1
       with:
         path: openmp-install
         key: openmp-ios-bitcode-install-20201213-2
+    - name: checkout
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
