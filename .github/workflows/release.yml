@@ -30,15 +30,13 @@ jobs:
   openmp-macos:
     runs-on: macos-latest
     steps:
+    - uses: actions/checkout@v2
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v1
       with:
         path: openmp-install
         key: openmp-macos-install-20201213-2
-    - name: checkout
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -250,15 +248,13 @@ jobs:
   openmp-ios:
     runs-on: macos-latest
     steps:
+    - uses: actions/checkout@v2
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v1
       with:
         path: openmp-install
         key: openmp-ios-install-20201213-2
-    - name: checkout
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -482,15 +478,13 @@ jobs:
   openmp-ios-bitcode:
     runs-on: macos-latest
     steps:
+    - uses: actions/checkout@v2
     - name: cache-openmp
       id: cache-openmp
       uses: actions/cache@v1
       with:
         path: openmp-install
         key: openmp-ios-bitcode-install-20201213-2
-    - name: checkout
-      if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
