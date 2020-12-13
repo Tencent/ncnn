@@ -72,6 +72,10 @@ static int test_cpu_omp()
         fprintf(stderr, "The OMP cannot have a negative number of processors\n");
         return 1;
     }
+
+    ncnn::set_omp_num_threads(1);
+
+    ncnn::set_omp_dynamic(1);
 }
 
 static int test_cpu_powersave()
