@@ -1066,7 +1066,7 @@ jobs:
         Get-ChildItem -Recurse build
         mkdir ncnn-windows-vs2017
         mkdir ncnn-windows-vs2017/bin
-        Copy-Item -Verbose -Recurse -Path "build\Release\install\*" -Destination "ncnn-windows-vs2017"
+        Copy-Item -Verbose -Recurse -Path "build\install\*" -Destination "ncnn-windows-vs2017"
         Copy-Item -Verbose -Path "build\tools\caffe\Release\caffe2ncnn.exe" -Destination "ncnn-windows-vs2017\bin"
         Copy-Item -Verbose -Path "build\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "ncnn-windows-vs2017\bin"
         Copy-Item -Verbose -Path "build\tools\onnx\Release\onnx2ncnn.exe" -Destination "ncnn-windows-vs2017\bin"
@@ -1125,7 +1125,7 @@ jobs:
         Get-ChildItem -Recurse build
         mkdir ncnn-windows-vs2019
         mkdir ncnn-windows-vs2019/bin
-        Copy-Item -Verbose -Recurse -Path "build\Release\install\*" -Destination "ncnn-windows-vs2019"
+        Copy-Item -Verbose -Recurse -Path "build\install\*" -Destination "ncnn-windows-vs2019"
         Copy-Item -Verbose -Path "build\tools\caffe\Release\caffe2ncnn.exe" -Destination "ncnn-windows-vs2019\bin"
         Copy-Item -Verbose -Path "build\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "ncnn-windows-vs2019\bin"
         Copy-Item -Verbose -Path "build\tools\onnx\Release\onnx2ncnn.exe" -Destination "ncnn-windows-vs2019\bin"
