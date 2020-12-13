@@ -2,7 +2,7 @@
 
 #include "cpu.h"
 
-#if defined __ANDROID__ || defined __linux__
+#if defined __ANDROID__ || defined __linux__ || defined __APPLE__
 
 static int test_cpu_set()
 {
@@ -37,6 +37,17 @@ static int test_cpu_set()
     return 0;
 }
 
+#else
+
+static int test_cpu_set()
+{
+    return 0;
+}
+
+#endif
+
+#if defined __ANDROID__ || defined __linux__
+
 static int test_cpu_info()
 {
     if (ncnn::get_cpu_count() >= 0 && ncnn::get_little_cpu_count() >= 0 && ncnn::get_big_cpu_count() >= 0)
@@ -64,11 +75,6 @@ static int test_cpu_omp()
 }
 
 #else
-
-static int test_cpu_set()
-{
-    return 0;
-}
 
 static int test_cpu_info()
 {
