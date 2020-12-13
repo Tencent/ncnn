@@ -1,9 +1,9 @@
 name: release
-on: [push, pull_request]
-#on:
-  #push:
-    #tags:
-      #- '*'
+#on: [push, pull_request]
+on:
+  push:
+    tags:
+      - '*'
 
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
@@ -1063,7 +1063,6 @@ jobs:
         cmake --build . --config Release --target install
     - name: package
       run: |
-        Get-ChildItem -Recurse build
         mkdir ncnn-windows-vs2017
         mkdir ncnn-windows-vs2017/bin
         Copy-Item -Verbose -Recurse -Path "build\install\*" -Destination "ncnn-windows-vs2017"
@@ -1122,7 +1121,6 @@ jobs:
         cmake --build . --config Release --target install
     - name: package
       run: |
-        Get-ChildItem -Recurse build
         mkdir ncnn-windows-vs2019
         mkdir ncnn-windows-vs2019/bin
         Copy-Item -Verbose -Recurse -Path "build\install\*" -Destination "ncnn-windows-vs2019"
@@ -1138,3 +1136,233 @@ jobs:
       with:
         name: ncnn-windows-vs2019
         path: ncnn-windows-vs2019.zip
+
+  release:
+    needs: [full-source, ubuntu-1604, ubuntu-1804, ubuntu-2004, openmp-macos, macos, macos-gpu, openmp-ios, ios, ios-gpu, openmp-ios-bitcode, ios-bitcode, ios-gpu-bitcode, android, android-gpu, webassembly, windows-vs2017, windows-vs2019]
+    runs-on: ubuntu-latest
+    steps:
+    - name: download
+      uses: actions/download-artifact@v2
+      with:
+        path: artifacts
+
+    - name: create-release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        draft: false
+        prerelease: false
+
+    - name: upload-full-source
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/ncnn-full-source/ncnn-full-source.zip
+        asset_name: ncnn-full-source.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-ubuntu-1604
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/ncnn-ubuntu-1604/ncnn-ubuntu-1604.zip
+        asset_name: ncnn-ubuntu-1604.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-ubuntu-1804
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/ncnn-ubuntu-1804/ncnn-ubuntu-1804.zip
+        asset_name: ncnn-ubuntu-1804.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-ubuntu-2004
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/ncnn-ubuntu-2004/ncnn-ubuntu-2004.zip
+        asset_name: ncnn-ubuntu-2004.zip
+        asset_content_type: application/zip
+
+    - name: upload-openmp-macos-framework
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/openmp-macos-framework/openmp-macos.framework.zip
+        asset_name: openmp-macos.framework.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-macos-framework
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/ncnn-macos-framework/ncnn-macos.framework.zip
+        asset_name: ncnn-macos.framework.zip
+        asset_content_type: application/zip
+
+    - name: upload-glslang-macos-framework
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/glslang-macos-framework/glslang-macos.framework.zip
+        asset_name: glslang-macos.framework.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-macos-vulkan-framework
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/ncnn-macos-vulkan-framework/ncnn-macos-vulkan.framework.zip
+        asset_name: ncnn-macos-vulkan.framework.zip
+        asset_content_type: application/zip
+
+    - name: upload-openmp-ios-framework
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/openmp-ios-framework/openmp-ios.framework.zip
+        asset_name: openmp-ios.framework.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-ios-framework
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/ncnn-ios-framework/ncnn-ios.framework.zip
+        asset_name: ncnn-ios.framework.zip
+        asset_content_type: application/zip
+
+    - name: upload-glslang-ios-framework
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/glslang-ios-framework/glslang-ios.framework.zip
+        asset_name: glslang-ios.framework.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-ios-vulkan-framework
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/ncnn-ios-vulkan-framework/ncnn-ios-vulkan.framework.zip
+        asset_name: ncnn-ios-vulkan.framework.zip
+        asset_content_type: application/zip
+
+    - name: upload-openmp-ios-bitcode-framework
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/openmp-ios-bitcode-framework/openmp-ios-bitcode.framework.zip
+        asset_name: openmp-ios-bitcode.framework.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-ios-bitcode-framework
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/ncnn-ios-bitcode-framework/ncnn-ios-bitcode.framework.zip
+        asset_name: ncnn-ios-bitcode.framework.zip
+        asset_content_type: application/zip
+
+    - name: upload-glslang-ios-bitcode-framework
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/glslang-ios-bitcode-framework/glslang-ios-bitcode.framework.zip
+        asset_name: glslang-ios-bitcode.framework.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-ios-vulkan-bitcode-framework
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/ncnn-ios-vulkan-bitcode-framework/ncnn-ios-vulkan-bitcode.framework.zip
+        asset_name: ncnn-ios-vulkan-bitcode.framework.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-android-lib
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/ncnn-android-lib/ncnn-android-lib.zip
+        asset_name: ncnn-android-lib.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-android-vulkan-lib
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/ncnn-android-vulkan-lib/ncnn-android-vulkan-lib.zip
+        asset_name: ncnn-android-vulkan-lib.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-webassembly-lib
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/ncnn-webassembly-lib/ncnn-webassembly-lib.zip
+        asset_name: ncnn-webassembly-lib.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-windows-vs2017
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/ncnn-windows-vs2017/ncnn-windows-vs2017.zip
+        asset_name: ncnn-windows-vs2017.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-windows-vs2019
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/ncnn-windows-vs2019/ncnn-windows-vs2019.zip
+        asset_name: ncnn-windows-vs2019.zip
+        asset_content_type: application/zip
