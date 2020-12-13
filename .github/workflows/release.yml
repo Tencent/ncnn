@@ -1,0 +1,526 @@
+name: release
+on: [push, pull_request]
+#on:
+  #push:
+    #tags:
+      #- '*'
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: cache-openmp
+      id: cache-openmp
+      uses: actions/cache@v1
+      with:
+        path: openmp-install
+        key: openmp-macos-install-20201213
+    - name: openmp
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
+        tar -xf openmp-11.0.0.src.tar.xz
+        cd openmp-11.0.0.src
+        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
+        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        cp -r install/* $GITHUB_WORKSPACE/openmp-install
+    - name: install-openmp
+      run: |
+        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
+        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
+            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
+            -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/ncnn-install
+        mkdir -p $GITHUB_WORKSPACE/ncnn-install
+        cp -r install/* $GITHUB_WORKSPACE/ncnn-install
+    - name: upload-openmp
+      uses: actions/upload-artifact@v2
+      with:
+        name: openmp-macos
+        path: openmp-install
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-macos
+        path: ncnn-install
+
+  ios:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: cache-openmp
+      id: cache-openmp
+      uses: actions/cache@v1
+      with:
+        path: openmp-install
+        key: openmp-ios-install-20201213
+    - name: openmp
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
+        tar -xf openmp-11.0.0.src.tar.xz
+        cd openmp-11.0.0.src
+        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
+        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64" \
+            -DPERL_EXECUTABLE=/usr/local/bin/perl \
+            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        cp -r install/* $GITHUB_WORKSPACE/openmp-install
+    - name: install-openmp
+      run: |
+        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
+        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64" \
+            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
+            -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/ncnn-install
+        mkdir -p $GITHUB_WORKSPACE/ncnn-install
+        cp -r install/* $GITHUB_WORKSPACE/ncnn-install
+    - name: upload-openmp
+      uses: actions/upload-artifact@v2
+      with:
+        name: openmp-ios
+        path: openmp-install
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-ios
+        path: ncnn-install
+
+  ios-simulator:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: cache-openmp
+      id: cache-openmp
+      uses: actions/cache@v1
+      with:
+        path: openmp-install
+        key: openmp-ios-simulator-install-20201213
+    - name: openmp
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
+        tar -xf openmp-11.0.0.src.tar.xz
+        cd openmp-11.0.0.src
+        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
+        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DIOS_PLATFORM=SIMULATOR -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="i386;x86_64" \
+            -DPERL_EXECUTABLE=/usr/local/bin/perl \
+            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        cp -r install/* $GITHUB_WORKSPACE/openmp-install
+    - name: install-openmp
+      run: |
+        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
+        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DIOS_PLATFORM=SIMULATOR -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="i386;x86_64" \
+            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
+            -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/ncnn-install
+        mkdir -p $GITHUB_WORKSPACE/ncnn-install
+        cp -r install/* $GITHUB_WORKSPACE/ncnn-install
+    - name: upload-openmp
+      uses: actions/upload-artifact@v2
+      with:
+        name: openmp-ios-simulator
+        path: openmp-install
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-ios-simulator
+        path: ncnn-install
+
+  ios-bitcode:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: cache-openmp
+      id: cache-openmp
+      uses: actions/cache@v1
+      with:
+        path: openmp-install
+        key: openmp-ios-bitcode-install-20201213
+    - name: openmp
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
+        tar -xf openmp-11.0.0.src.tar.xz
+        cd openmp-11.0.0.src
+        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
+        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64" \
+            -DPERL_EXECUTABLE=/usr/local/bin/perl \
+            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        cp -r install/* $GITHUB_WORKSPACE/openmp-install
+    - name: install-openmp
+      run: |
+        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
+        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64" \
+            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
+            -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/ncnn-install
+        mkdir -p $GITHUB_WORKSPACE/ncnn-install
+        cp -r install/* $GITHUB_WORKSPACE/ncnn-install
+    - name: upload-openmp
+      uses: actions/upload-artifact@v2
+      with:
+        name: openmp-ios-bitcode
+        path: openmp-install
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-ios-bitcode
+        path: ncnn-install
+
+  ios-simulator-bitcode:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: cache-openmp
+      id: cache-openmp
+      uses: actions/cache@v1
+      with:
+        path: openmp-install
+        key: openmp-ios-simulator-bitcode-install-20201213
+    - name: openmp
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
+        tar -xf openmp-11.0.0.src.tar.xz
+        cd openmp-11.0.0.src
+        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
+        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DIOS_PLATFORM=SIMULATOR -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="i386;x86_64" \
+            -DPERL_EXECUTABLE=/usr/local/bin/perl \
+            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        cp -r install/* $GITHUB_WORKSPACE/openmp-install
+    - name: install-openmp
+      run: |
+        sudo cp $GITHUB_WORKSPACE/openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
+        sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DIOS_PLATFORM=SIMULATOR -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="i386;x86_64" \
+            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
+            -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/ncnn-install
+        mkdir -p $GITHUB_WORKSPACE/ncnn-install
+        cp -r install/* $GITHUB_WORKSPACE/ncnn-install
+    - name: upload-openmp
+      uses: actions/upload-artifact@v2
+      with:
+        name: openmp-ios-simulator-bitcode
+        path: openmp-install
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-ios-simulator
+        path: ncnn-install
+
+  android-armv7:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 \
+            -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/ncnn-install
+        mkdir -p $GITHUB_WORKSPACE/ncnn-install
+        cp -r install/* $GITHUB_WORKSPACE/ncnn-install
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-android-armv7
+        path: ncnn-install
+
+  android-armv7-gpu:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "1.2.148.1"
+        key: vulkansdk-linux-x86_64-1.2.148.1
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.2.148.1/linux/vulkansdk-linux-x86_64-1.2.148.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.148.1.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.2.148.1.tar.gz
+        rm -rf 1.2.148.1/source 1.2.148.1/samples
+        find 1.2.148.1 -type f | grep -v -E 'vulkan|glslang' | xargs rm
+    - name: build
+      run: |
+        export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/ncnn-install
+        mkdir -p $GITHUB_WORKSPACE/ncnn-install
+        cp -r install/* $GITHUB_WORKSPACE/ncnn-install
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-android-armv7-gpu
+        path: ncnn-install
+
+  android-aarch64:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 \
+            -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/ncnn-install
+        mkdir -p $GITHUB_WORKSPACE/ncnn-install
+        cp -r install/* $GITHUB_WORKSPACE/ncnn-install
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-android-aarch64
+        path: ncnn-install
+
+  android-aarch64-gpu:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "1.2.148.1"
+        key: vulkansdk-linux-x86_64-1.2.148.1
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.2.148.1/linux/vulkansdk-linux-x86_64-1.2.148.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.148.1.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.2.148.1.tar.gz
+        rm -rf 1.2.148.1/source 1.2.148.1/samples
+        find 1.2.148.1 -type f | grep -v -E 'vulkan|glslang' | xargs rm
+    - name: build
+      run: |
+        export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/ncnn-install
+        mkdir -p $GITHUB_WORKSPACE/ncnn-install
+        cp -r install/* $GITHUB_WORKSPACE/ncnn-install
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-android-aarch64-gpu
+        path: ncnn-install
+
+  android-x86:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 \
+            -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/ncnn-install
+        mkdir -p $GITHUB_WORKSPACE/ncnn-install
+        cp -r install/* $GITHUB_WORKSPACE/ncnn-install
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-android-x86
+        path: ncnn-install
+
+  android-x86-gpu:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "1.2.148.1"
+        key: vulkansdk-linux-x86_64-1.2.148.1
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.2.148.1/linux/vulkansdk-linux-x86_64-1.2.148.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.148.1.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.2.148.1.tar.gz
+        rm -rf 1.2.148.1/source 1.2.148.1/samples
+        find 1.2.148.1 -type f | grep -v -E 'vulkan|glslang' | xargs rm
+    - name: build
+      run: |
+        export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/ncnn-install
+        mkdir -p $GITHUB_WORKSPACE/ncnn-install
+        cp -r install/* $GITHUB_WORKSPACE/ncnn-install
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-android-x86-gpu
+        path: ncnn-install
+
+  android-x86_64:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 \
+            -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/ncnn-install
+        mkdir -p $GITHUB_WORKSPACE/ncnn-install
+        cp -r install/* $GITHUB_WORKSPACE/ncnn-install
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-android-x86_64
+        path: ncnn-install
+
+  android-x86_64-gpu:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "1.2.148.1"
+        key: vulkansdk-linux-x86_64-1.2.148.1
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.2.148.1/linux/vulkansdk-linux-x86_64-1.2.148.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.148.1.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.2.148.1.tar.gz
+        rm -rf 1.2.148.1/source 1.2.148.1/samples
+        find 1.2.148.1 -type f | grep -v -E 'vulkan|glslang' | xargs rm
+    - name: build
+      run: |
+        export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-24 \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/ncnn-install
+        mkdir -p $GITHUB_WORKSPACE/ncnn-install
+        cp -r install/* $GITHUB_WORKSPACE/ncnn-install
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: ncnn-android-x86_64-gpu
+        path: ncnn-install
+
