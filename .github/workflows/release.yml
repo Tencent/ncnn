@@ -252,13 +252,13 @@ jobs:
         lipo -create build-x86_64/install/lib/libncnn.a build-arm64/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
         cp -r build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ncnn-macos.framework.zip
-        zip -9 -y -r ncnn-macos.framework.zip openmp.framework ncnn.framework
-    - name: upload-framework
+        rm -f ncnn-macos.zip
+        zip -9 -y -r ncnn-macos.zip openmp.framework ncnn.framework
+    - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-macos-framework
-        path: ncnn-macos.framework.zip
+        name: ncnn-macos
+        path: ncnn-macos.zip
 
   macos-gpu:
     needs: [openmp-macos]
@@ -352,13 +352,13 @@ jobs:
         lipo -create build-x86_64/install/lib/libncnn.a build-arm64/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
         cp -r build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ncnn-macos-vulkan.framework.zip
-        zip -9 -y -r ncnn-macos-vulkan.framework.zip openmp.framework glslang.framework ncnn.framework
-    - name: upload-framework
+        rm -f ncnn-macos-vulkan.zip
+        zip -9 -y -r ncnn-macos-vulkan.zip openmp.framework glslang.framework ncnn.framework
+    - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-macos-vulkan-framework
-        path: ncnn-macos-vulkan.framework.zip
+        name: ncnn-macos-vulkan
+        path: ncnn-macos-vulkan.zip
 
   openmp-ios:
     runs-on: macos-latest
@@ -478,13 +478,13 @@ jobs:
         lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
         cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ncnn-ios.framework.zip
-        zip -9 -y -r ncnn-ios.framework.zip openmp.framework ncnn.framework
-    - name: upload-framework
+        rm -f ncnn-ios.zip
+        zip -9 -y -r ncnn-ios.zip openmp.framework ncnn.framework
+    - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-ios-framework
-        path: ncnn-ios.framework.zip
+        name: ncnn-ios
+        path: ncnn-ios.zip
 
   ios-gpu:
     needs: [openmp-ios]
@@ -582,13 +582,13 @@ jobs:
         lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
         cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ncnn-ios-vulkan.framework.zip
-        zip -9 -y -r ncnn-ios-vulkan.framework.zip openmp.framework glslang.framework ncnn.framework
-    - name: upload-framework
+        rm -f ncnn-ios-vulkan.zip
+        zip -9 -y -r ncnn-ios-vulkan.zip openmp.framework glslang.framework ncnn.framework
+    - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-ios-vulkan-framework
-        path: ncnn-ios-vulkan.framework.zip
+        name: ncnn-ios-vulkan
+        path: ncnn-ios-vulkan.zip
 
   openmp-ios-bitcode:
     runs-on: macos-latest
@@ -708,13 +708,13 @@ jobs:
         lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
         cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ncnn-ios-bitcode.framework.zip
-        zip -9 -y -r ncnn-ios-bitcode.framework.zip openmp.framework ncnn.framework
-    - name: upload-framework
+        rm -f ncnn-ios-bitcode.zip
+        zip -9 -y -r ncnn-ios-bitcode.zip openmp.framework ncnn.framework
+    - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-ios-bitcode-framework
-        path: ncnn-ios-bitcode.framework.zip
+        name: ncnn-ios-bitcode
+        path: ncnn-ios-bitcode.zip
 
   ios-gpu-bitcode:
     needs: [openmp-ios-bitcode]
@@ -812,13 +812,13 @@ jobs:
         lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
         cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ncnn-ios-vulkan-bitcode.framework.zip
-        zip -9 -y -r ncnn-ios-vulkan-bitcode.framework.zip openmp.framework glslang.framework ncnn.framework
-    - name: upload-framework
+        rm -f ncnn-ios-vulkan-bitcode.zip
+        zip -9 -y -r ncnn-ios-vulkan-bitcode.zip openmp.framework glslang.framework ncnn.framework
+    - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-ios-vulkan-bitcode-framework
-        path: ncnn-ios-vulkan-bitcode.framework.zip
+        name: ncnn-ios-vulkan-bitcode
+        path: ncnn-ios-vulkan-bitcode.zip
 
   android:
     runs-on: ubuntu-latest
@@ -1197,64 +1197,64 @@ jobs:
         asset_name: ncnn-ubuntu-2004.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-macos-framework
+    - name: upload-ncnn-macos
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-macos-framework/ncnn-macos.framework.zip
-        asset_name: ncnn-macos.framework.zip
+        asset_path: artifacts/ncnn-macos/ncnn-macos.zip
+        asset_name: ncnn-macos.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-macos-vulkan-framework
+    - name: upload-ncnn-macos-vulkan
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-macos-vulkan-framework/ncnn-macos-vulkan.framework.zip
-        asset_name: ncnn-macos-vulkan.framework.zip
+        asset_path: artifacts/ncnn-macos-vulkan/ncnn-macos-vulkan.zip
+        asset_name: ncnn-macos-vulkan.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-ios-framework
+    - name: upload-ncnn-ios
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-ios-framework/ncnn-ios.framework.zip
-        asset_name: ncnn-ios.framework.zip
+        asset_path: artifacts/ncnn-ios/ncnn-ios.zip
+        asset_name: ncnn-ios.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-ios-vulkan-framework
+    - name: upload-ncnn-ios-vulkan
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-ios-vulkan-framework/ncnn-ios-vulkan.framework.zip
-        asset_name: ncnn-ios-vulkan.framework.zip
+        asset_path: artifacts/ncnn-ios-vulkan/ncnn-ios-vulkan.zip
+        asset_name: ncnn-ios-vulkan.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-ios-bitcode-framework
+    - name: upload-ncnn-ios-bitcode
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-ios-bitcode-framework/ncnn-ios-bitcode.framework.zip
-        asset_name: ncnn-ios-bitcode.framework.zip
+        asset_path: artifacts/ncnn-ios-bitcode/ncnn-ios-bitcode.zip
+        asset_name: ncnn-ios-bitcode.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-ios-vulkan-bitcode-framework
+    - name: upload-ncnn-ios-vulkan-bitcode
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-ios-vulkan-bitcode-framework/ncnn-ios-vulkan-bitcode.framework.zip
-        asset_name: ncnn-ios-vulkan-bitcode.framework.zip
+        asset_path: artifacts/ncnn-ios-vulkan-bitcode/ncnn-ios-vulkan-bitcode.zip
+        asset_name: ncnn-ios-vulkan-bitcode.zip
         asset_content_type: application/zip
 
     - name: upload-ncnn-android-lib

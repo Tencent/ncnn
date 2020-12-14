@@ -1,0 +1,88 @@
+name: linux-mips64-cpu-gcc
+on: [push, pull_request]
+jobs:
+  linux-gcc-mips64el:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: actions/cache@v1
+      with:
+        path: qemu-install
+        key: qemu-mips64el-install-1
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: qemu/qemu
+        path: qemu
+        ref: 8746309137ba470d1b2e8f5ce86ac228625db940
+    - name: qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        cd qemu
+        ./configure --prefix=install --target-list=mips64el-linux-user --disable-system
+        make -j2
+        make install
+        cp -r mips64el-linux-user/install $GITHUB_WORKSPACE/qemu-install
+
+    - name: mips64el-gnuabi64-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-mips64el-linux-gnuabi64
+
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mips64el-linux-gnuabi64.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j 2
+
+    - name: test
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mips64el-linux-gnuabi64" ctest --output-on-failure -j 2
+
+  linux-gcc-mipsisa64r6el:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: actions/cache@v1
+      with:
+        path: qemu-install
+        key: qemu-mips64el-install-1
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: qemu/qemu
+        path: qemu
+        ref: 8746309137ba470d1b2e8f5ce86ac228625db940
+    - name: qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        cd qemu
+        ./configure --prefix=install --target-list=mips64el-linux-user --disable-system
+        make -j2
+        make install
+        cp -r mips64el-linux-user/install $GITHUB_WORKSPACE/qemu-install
+
+    - name: mipsisa64r6el-gnuabi64-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-mipsisa64r6el-linux-gnuabi64
+
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j 2
+
+    - name: test
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnuabi64" ctest --output-on-failure -j 2
