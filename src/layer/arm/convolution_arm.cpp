@@ -1008,8 +1008,8 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             for (int k = 0; k < maxk; k++)
                             {
                                 float val = sptr[space_ofs[k]];
-                                float w = kptr[k];
-                                sum += val * w;
+                                float wt = kptr[k];
+                                sum += val * wt;
                             }
 
                             kptr += maxk;
@@ -2814,8 +2814,8 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
                             for (int k = 0; k < maxk; k++)
                             {
                                 float val = bfloat16_to_float32(sptr[space_ofs[k]]);
-                                float w = bfloat16_to_float32(kptr[k]);
-                                sum += val * w;
+                                float wt = bfloat16_to_float32(kptr[k]);
+                                sum += val * wt;
                             }
 
                             kptr += maxk;
