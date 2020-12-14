@@ -466,7 +466,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                                 _sum = _mm256_fmadd_ps(_val, _w, _sum);
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_avx(_sum, activation_type, activation_params);
 
                             _mm256_storeu_ps(outptr + j * 8, _sum);
                         }
@@ -531,7 +531,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                                 _sum = _mm_add_ps(_mm_mul_ps(_val, _w), _sum);
                             }
 
-                            _sum = activation_ps(_sum, activation_type, activation_params);
+                            _sum = activation_sse(_sum, activation_type, activation_params);
 
                             _mm_storeu_ps(outptr + j * 4, _sum);
                         }
