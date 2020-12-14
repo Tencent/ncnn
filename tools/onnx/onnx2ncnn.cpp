@@ -2040,9 +2040,9 @@ int main(int argc, char** argv)
     }
 
     // place MemoryData next
-    for (std::map<std::string, onnx::TensorProto>::iterator it = binaryop_weights.begin(); it != binaryop_weights.end(); it++)
+    for (std::map<std::string, onnx::TensorProto>::iterator weight_it = binaryop_weights.begin(); weight_it != binaryop_weights.end(); weight_it++)
     {
-        const std::string& input_name = it->first;
+        const std::string& input_name = weight_it->first;
 
         if (std::find(reduced_binaryop_weights.begin(), reduced_binaryop_weights.end(), input_name) != reduced_binaryop_weights.end())
             continue;
@@ -3472,11 +3472,11 @@ int main(int argc, char** argv)
                 // if axes set, reduce according to axes
                 fprintf(pp, " 1=%d", 0);
                 fprintf(pp, " -23303=%zu", axes.size());
-                for (size_t i = 0; i < axes.size(); i++)
+                for (size_t j = 0; j < axes.size(); j++)
                 {
-                    if (axes[i] == 0 || axes[i] > 3 || axes[i] < -3)
+                    if (axes[j] == 0 || axes[j] > 3 || axes[j] < -3)
                         fprintf(stderr, "Unsupported reduction axes !\n");
-                    fprintf(pp, ",%d", axes[i]);
+                    fprintf(pp, ",%d", axes[j]);
                 }
             }
             else
