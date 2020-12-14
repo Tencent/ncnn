@@ -730,9 +730,10 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 
     return 0;
 #elif __APPLE__
-    int num_threads = thread_affinity_mask.num_enabled();
 
 #ifdef _OPENMP
+    int num_threads = thread_affinity_mask.num_enabled();
+
     // set affinity for each thread
     set_omp_num_threads(num_threads);
     std::vector<int> ssarets(num_threads, 0);
