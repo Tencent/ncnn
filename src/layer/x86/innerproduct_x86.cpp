@@ -222,7 +222,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                 kptr += 64;
             }
 
-            _sum = activation_ps(_sum, activation_type, activation_params);
+            _sum = activation_avx(_sum, activation_type, activation_params);
 
             float* outptr = top_blob;
             _mm256_storeu_ps(outptr + p * 8, _sum);
@@ -256,7 +256,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                 kptr += 8;
             }
 
-            _sum = activation_ps(_sum, activation_type, activation_params);
+            _sum = activation_avx(_sum, activation_type, activation_params);
 
             float* outptr = top_blob;
             _mm256_storeu_ps(outptr + p * 8, _sum);
@@ -300,7 +300,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                 kptr += 32;
             }
 
-            _sum = activation_ps(_sum, activation_type, activation_params);
+            _sum = activation_avx(_sum, activation_type, activation_params);
 
             float* outptr = top_blob;
             _mm256_storeu_ps(outptr + p * 8, _sum);
@@ -394,7 +394,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                 kptr += 32;
             }
 
-            _sum = activation_ps(_sum, activation_type, activation_params);
+            _sum = activation_sse(_sum, activation_type, activation_params);
 
             float* outptr = top_blob;
             _mm_storeu_ps(outptr + p * 4, _sum);
@@ -439,7 +439,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                 kptr += 16;
             }
 
-            _sum = activation_ps(_sum, activation_type, activation_params);
+            _sum = activation_sse(_sum, activation_type, activation_params);
 
             float* outptr = top_blob;
             _mm_storeu_ps(outptr + p * 4, _sum);
@@ -473,7 +473,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                 kptr += 4;
             }
 
-            _sum = activation_ps(_sum, activation_type, activation_params);
+            _sum = activation_sse(_sum, activation_type, activation_params);
 
             float* outptr = top_blob;
             _mm_storeu_ps(outptr + p * 4, _sum);
@@ -630,7 +630,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
             __m256 _sums_f = _mm256_loadu_ps(sums);
             _sums = _mm256_add_ps(_sums_f, _sums);
-            _sums = activation_ps(_sums, activation_type, activation_params);
+            _sums = activation_avx(_sums, activation_type, activation_params);
 
             float* outptr = top_blob;
             _mm256_storeu_ps(outptr + p, _sums);
@@ -742,7 +742,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             _sums = _mm_add_ps(_sum1l, _sums);
             _sums = _mm_add_ps(_sum2l, _sums);
             _sums = _mm_add_ps(_sum3l, _sums);
-            _sums = activation_ps(_sums, activation_type, activation_params);
+            _sums = activation_sse(_sums, activation_type, activation_params);
 
             float* outptr = top_blob;
             _mm_storeu_ps(outptr + p, _sums);
@@ -1011,7 +1011,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
 
         __m256 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
         __m256 _sums_f = _mm256_loadu_ps(sums);
-        _sums = activation_ps(_mm256_add_ps(_sums_f, _sums), activation_type, activation_params);
+        _sums = activation_avx(_mm256_add_ps(_sums_f, _sums), activation_type, activation_params);
         _mm256_storeu_ps(output_ptr + p, _sums);
     }
 
@@ -1103,7 +1103,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
         }
 
         __m128 _sums = HorizontalSums(_sum0, _sum1, _sum2, _sum3);
-        __m256 _sums_a = activation_ps(_mm256_castps128_ps256(_mm_add_ps(_mm_loadu_ps(sums), _sums)), activation_type, activation_params);
+        __m256 _sums_a = activation_avx(_mm256_castps128_ps256(_mm_add_ps(_mm_loadu_ps(sums), _sums)), activation_type, activation_params);
         _mm_storeu_ps(output_ptr + p, _mm256_castps256_ps128(_sums_a));
     }
 

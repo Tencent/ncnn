@@ -356,7 +356,7 @@ int cpu_support_x86_avx2()
     __builtin_cpu_init();
 #endif
     return __builtin_cpu_supports("avx2");
-#elif defined(__GNUC__)
+#elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)
     __builtin_cpu_init();
     return __builtin_cpu_supports("avx2");
 #else
