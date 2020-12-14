@@ -998,8 +998,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             for (int k = 0; k < maxk; k++)
                             {
                                 float val = sptr[space_ofs[k]];
-                                float w = kptr[k];
-                                sum += val * w;
+                                float wt = kptr[k];
+                                sum += val * wt;
                             }
 
                             kptr += maxk;
