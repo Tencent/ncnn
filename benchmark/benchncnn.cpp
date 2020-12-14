@@ -90,7 +90,7 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
 #ifdef __EMSCRIPTEN__
 #define MODEL_DIR "/working/"
 #else
-#define MODEL_DIR ""
+#define MODEL_DIR "E:\\work\\3rdparty\\ncnn_csl\\benchmark\\"
 #endif
 
     char parampath[256];
@@ -247,7 +247,7 @@ int main(int argc, char** argv)
     fprintf(stderr, "cooling_down = %d\n", (int)g_enable_cooling_down);
 
     // run
-    benchmark("squeezenet", ncnn::Mat(227, 227, 3), opt);
+    benchmark("squeezenet", ncnn::Mat(227, 227, 3, (size_t)4, 1), opt);
 
     benchmark("squeezenet_int8", ncnn::Mat(227, 227, 3), opt);
 

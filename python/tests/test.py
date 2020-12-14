@@ -21,8 +21,7 @@ net = ncnn.Net()
 net.load_param("test.param")
 net.load_model(dr)
 
-# must use named param w, h, c for python has no size_t(unsigned int) to call the correct ncnn.Mat
-in_mat = ncnn.Mat(w=227, h=227, c=3)
+in_mat = ncnn.Mat((227, 227, 3))
 
 start = time.time()
 

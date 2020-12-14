@@ -126,31 +126,30 @@ PYBIND11_MODULE(ncnn, m)
 
     py::class_<Mat> mat(m, "Mat", py::buffer_protocol());
     mat.def(py::init<>())
-        //.def(py::init([](py::tuple shape, size_t elemsize = 4, int elempack = 1, Allocator* allocator = nullptr) {
-        //         switch (shape.size())
-        //         {
-        //         case 1:
-        //             return new Mat(shape[0].cast<int>(), elemsize, elempack, allocator);
-        //         case 2:
-        //             return new Mat(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, allocator);
-        //         case 3:
-        //             return new Mat(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), 
-        //                 elemsize, elempack, allocator);
-        //         }
-        //         return new Mat();
-        //     }),
-        //     py::arg("shape") = py::tuple(1), py::arg("elemsize") = 4, 
-        //     py::arg("elempack") = 4, py::arg("allocator") = nullptr)
-        .def(py::init<int, size_t, Allocator*>(),
-             py::arg("w") = 1,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-        .def(py::init<int, int, size_t, Allocator*>(),
-             py::arg("w") = 1, py::arg("h") = 1,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-        .def(py::init<int, int, int, size_t, Allocator*>(),
-             py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-
+        .def(py::init(
+                 [](py::tuple shape, size_t elemsize, int elempack, Allocator* allocator) {
+                     Mat* mat = nullptr;
+                     switch (shape.size())
+                     {
+                     case 1:
+                         mat = new Mat(shape[0].cast<int>(), elemsize, elempack, allocator);
+                         break;
+                     case 2:
+                         mat = new Mat(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, allocator);
+                         break;
+                     case 3:
+                         mat = new Mat(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(),
+                                       elemsize, elempack, allocator);
+                         break;
+                     default:
+                         std::stringstream ss;
+                         ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+                         throw pybind11::value_error(ss.str());
+                     }
+                     return mat;
+                 }),
+             py::arg("shape") = py::tuple(1), py::arg("elemsize") = 4,
+             py::arg("elempack") = 1, py::arg("allocator") = nullptr)
         .def(py::init<int, size_t, int, Allocator*>(),
              py::arg("w") = 1,
              py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
@@ -163,16 +162,31 @@ PYBIND11_MODULE(ncnn, m)
 
         .def(py::init<const Mat&>())
 
-        .def(py::init<int, void*, size_t, Allocator*>(),
-             py::arg("w") = 1, py::arg("data") = nullptr,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-        .def(py::init<int, int, void*, size_t, Allocator*>(),
-             py::arg("w") = 1, py::arg("h") = 1, py::arg("data") = nullptr,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-        .def(py::init<int, int, int, void*, size_t, Allocator*>(),
-             py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1, py::arg("data") = nullptr,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-
+        .def(py::init(
+                 [](py::tuple shape, void* data, size_t elemsize, int elempack, Allocator* allocator) {
+                     Mat* mat = nullptr;
+                     switch (shape.size())
+                     {
+                     case 1:
+                         mat = new Mat(shape[0].cast<int>(), data, elemsize, elempack, allocator);
+                         break;
+                     case 2:
+                         mat = new Mat(shape[0].cast<int>(), shape[1].cast<int>(), data, elemsize, elempack, allocator);
+                         break;
+                     case 3:
+                         mat = new Mat(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), data,
+                                       elemsize, elempack, allocator);
+                         break;
+                     default:
+                         std::stringstream ss;
+                         ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+                         throw pybind11::value_error(ss.str());
+                     }
+                     return mat;
+                 }),
+             py::arg("shape") = py::tuple(1), py::arg("data") = nullptr,
+             py::arg("elemsize") = 4, py::arg("elempack") = 1,
+             py::arg("allocator") = nullptr)
         .def(py::init<int, void*, size_t, int, Allocator*>(),
              py::arg("w") = 1, py::arg("data") = nullptr,
              py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
@@ -263,21 +277,54 @@ PYBIND11_MODULE(ncnn, m)
         .def("fill", (void (Mat::*)(int))(&Mat::fill))
         .def("fill", (void (Mat::*)(float))(&Mat::fill))
         .def("clone", (Mat(Mat::*)(Allocator*)) & Mat::clone, py::arg("allocator") = nullptr)
+        .def(
+            "reshape",
+            [](Mat& mat, py::tuple shape, Allocator* allocator) {
+                switch (shape.size())
+                {
+                case 1:
+                    return mat.reshape(shape[0].cast<int>(), allocator);
+                case 2:
+                    return mat.reshape(shape[0].cast<int>(), shape[1].cast<int>(), allocator);
+                case 3:
+                    return mat.reshape(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), allocator);
+                default:
+                    std::stringstream ss;
+                    ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+                    throw pybind11::value_error(ss.str());
+                }
+                return Mat();
+            },
+            py::arg("shape") = py::tuple(1), py::arg("allocator") = nullptr)
         .def("reshape", (Mat(Mat::*)(int, Allocator*) const) & Mat::reshape,
              py::arg("w") = 1, py::arg("allocator") = nullptr)
         .def("reshape", (Mat(Mat::*)(int, int, Allocator*) const) & Mat::reshape,
              py::arg("w") = 1, py::arg("h") = 1, py::arg("allocator") = nullptr)
         .def("reshape", (Mat(Mat::*)(int, int, int, Allocator*) const) & Mat::reshape,
              py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1, py::arg("allocator") = nullptr)
-        .def("create", (void (Mat::*)(int, size_t, Allocator*)) & Mat::create,
-             py::arg("w") = 1,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-        .def("create", (void (Mat::*)(int, int, size_t, Allocator*)) & Mat::create,
-             py::arg("w") = 1, py::arg("h") = 1,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-        .def("create", (void (Mat::*)(int, int, int, size_t, Allocator*)) & Mat::create,
-             py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
+
+        .def(
+            "create",
+            [](Mat& mat, py::tuple shape, size_t elemsize, int elempack, Allocator* allocator) {
+                switch (shape.size())
+                {
+                case 1:
+                    return mat.create(shape[0].cast<int>(), elemsize, elempack, allocator);
+                case 2:
+                    return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, allocator);
+                case 3:
+                    return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(),
+                                      elemsize, elempack, allocator);
+                default:
+                    std::stringstream ss;
+                    ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+                    throw pybind11::value_error(ss.str());
+                }
+                return;
+            },
+            py::arg("shape") = py::tuple(1),
+            py::arg("elemsize") = 4, py::arg("elempack") = 1,
+            py::arg("allocator") = nullptr)
         .def("create", (void (Mat::*)(int, size_t, int, Allocator*)) & Mat::create,
              py::arg("w") = 1,
              py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
@@ -365,7 +412,7 @@ PYBIND11_MODULE(ncnn, m)
         .def_readwrite("cstep", &Mat::cstep)
         .def("__repr__", [](const Mat& m) {
             char buf[256] = {0};
-            sprintf(buf, "<ncnn.Mat w=%d h=%d c=%d dims=%d cstep=%llu elemsize=%llu elempack=%d\n\trefcount=%d data=0x%p allocator=0x%p>",
+            sprintf(buf, "<ncnn.Mat w=%d h=%d c=%d dims=%d cstep=%ld elemsize=%ld elempack=%d\n\trefcount=%d data=0x%p allocator=0x%p>",
                     m.w, m.h, m.c, m.dims, m.cstep, m.elemsize, m.elempack, m.refcount ? *m.refcount : 0, m.data, m.allocator);
             return std::string(buf);
         });
@@ -409,19 +456,30 @@ PYBIND11_MODULE(ncnn, m)
 #if NCNN_VULKAN
     py::class_<VkMat>(m, "VkMat")
         .def(py::init<>())
-        .def(py::init<int, size_t, VkAllocator*>(),
-             py::arg("w") = 1,
-             py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr)
-        .def(py::init<int, int, size_t, VkAllocator*>(),
-             py::arg("w") = 1, py::arg("h") = 1,
-             py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr)
-        .def(py::init<int, int, int, size_t, VkAllocator*>(),
-             py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
-             py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr)
-
+        .def(py::init(
+                 [](py::tuple shape, size_t elemsize, int elempack, VkAllocator* allocator) {
+                     VkMat* mat = nullptr;
+                     switch (shape.size())
+                     {
+                     case 1:
+                         mat = new VkMat(shape[0].cast<int>(), elemsize, elempack, allocator);
+                         break;
+                     case 2:
+                         mat = new VkMat(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, allocator);
+                         break;
+                     case 3:
+                         mat = new VkMat(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(),
+                                         elemsize, elempack, allocator);
+                         break;
+                     default:
+                         std::stringstream ss;
+                         ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+                         throw pybind11::value_error(ss.str());
+                     }
+                     return mat;
+                 }),
+             py::arg("shape") = py::tuple(1), py::arg("elemsize") = 4,
+             py::arg("elempack") = 1, py::arg("allocator") = nullptr)
         .def(py::init<int, size_t, int, VkAllocator*>(),
              py::arg("w") = 1,
              py::arg("elemsize") = 4, py::arg("elempack") = 1,
@@ -437,16 +495,31 @@ PYBIND11_MODULE(ncnn, m)
 
         .def(py::init<const VkMat&>())
 
-        .def(py::init<int, VkBufferMemory*, size_t, VkAllocator*>(),
-             py::arg("w") = 1, py::arg("data") = nullptr,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-        .def(py::init<int, int, VkBufferMemory*, size_t, VkAllocator*>(),
-             py::arg("w") = 1, py::arg("h") = 1, py::arg("data") = nullptr,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-        .def(py::init<int, int, int, VkBufferMemory*, size_t, VkAllocator*>(),
-             py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1, py::arg("data") = nullptr,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-
+        .def(py::init(
+                 [](py::tuple shape, VkBufferMemory* data, size_t elemsize, int elempack, VkAllocator* allocator) {
+                     VkMat* mat = nullptr;
+                     switch (shape.size())
+                     {
+                     case 1:
+                         mat = new VkMat(shape[0].cast<int>(), data, elemsize, elempack, allocator);
+                         break;
+                     case 2:
+                         mat = new VkMat(shape[0].cast<int>(), shape[1].cast<int>(), data, elemsize, elempack, allocator);
+                         break;
+                     case 3:
+                         mat = new VkMat(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), data,
+                                         elemsize, elempack, allocator);
+                         break;
+                     default:
+                         std::stringstream ss;
+                         ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+                         throw pybind11::value_error(ss.str());
+                     }
+                     return mat;
+                 }),
+             py::arg("shape") = py::tuple(1), py::arg("data") = nullptr,
+             py::arg("elemsize") = 4, py::arg("elempack") = 1,
+             py::arg("allocator") = nullptr)
         .def(py::init<int, VkBufferMemory*, size_t, int, VkAllocator*>(),
              py::arg("w") = 1, py::arg("data") = nullptr,
              py::arg("elemsize") = 4, py::arg("elempack") = 1,
@@ -460,17 +533,28 @@ PYBIND11_MODULE(ncnn, m)
              py::arg("elemsize") = 4, py::arg("elempack") = 1,
              py::arg("allocator") = nullptr)
 
-        .def("create", (void (VkMat::*)(int, size_t, VkAllocator*)) & VkMat::create,
-             py::arg("w") = 1,
-             py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr)
-        .def("create", (void (VkMat::*)(int, int, size_t, VkAllocator*)) & VkMat::create,
-             py::arg("w") = 1, py::arg("h") = 1,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-        .def("create", (void (VkMat::*)(int, int, int, size_t, VkAllocator*)) & VkMat::create,
-             py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-
+        .def(
+            "create",
+            [](VkMat& mat, py::tuple shape, size_t elemsize, int elempack, VkAllocator* allocator) {
+                switch (shape.size())
+                {
+                case 1:
+                    return mat.create(shape[0].cast<int>(), elemsize, elempack, allocator);
+                case 2:
+                    return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, allocator);
+                case 3:
+                    return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(),
+                                      elemsize, elempack, allocator);
+                default:
+                    std::stringstream ss;
+                    ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+                    throw pybind11::value_error(ss.str());
+                }
+                return;
+            },
+            py::arg("shape") = py::tuple(1),
+            py::arg("elemsize") = 4, py::arg("elempack") = 1,
+            py::arg("allocator") = nullptr)
         .def("create", (void (VkMat::*)(int, size_t, int, VkAllocator*)) & VkMat::create,
              py::arg("w") = 1,
              py::arg("elemsize") = 4, py::arg("elempack") = 1,
@@ -510,19 +594,30 @@ PYBIND11_MODULE(ncnn, m)
 
     py::class_<VkImageMat>(m, "VkImageMat")
         .def(py::init<>())
-        .def(py::init<int, size_t, VkAllocator*>(),
-             py::arg("w") = 1,
-             py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr)
-        .def(py::init<int, int, size_t, VkAllocator*>(),
-             py::arg("w") = 1, py::arg("h") = 1,
-             py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr)
-        .def(py::init<int, int, int, size_t, VkAllocator*>(),
-             py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
-             py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr)
-
+        .def(py::init(
+                 [](py::tuple shape, size_t elemsize, int elempack, VkAllocator* allocator) {
+                     VkImageMat* mat = nullptr;
+                     switch (shape.size())
+                     {
+                     case 1:
+                         mat = new VkImageMat(shape[0].cast<int>(), elemsize, elempack, allocator);
+                         break;
+                     case 2:
+                         mat = new VkImageMat(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, allocator);
+                         break;
+                     case 3:
+                         mat = new VkImageMat(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(),
+                                              elemsize, elempack, allocator);
+                         break;
+                     default:
+                         std::stringstream ss;
+                         ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+                         throw pybind11::value_error(ss.str());
+                     }
+                     return mat;
+                 }),
+             py::arg("shape") = py::tuple(1), py::arg("elemsize") = 4,
+             py::arg("elempack") = 1, py::arg("allocator") = nullptr)
         .def(py::init<int, size_t, int, VkAllocator*>(),
              py::arg("w") = 1,
              py::arg("elemsize") = 4, py::arg("elempack") = 1,
@@ -538,16 +633,31 @@ PYBIND11_MODULE(ncnn, m)
 
         .def(py::init<const VkImageMat&>())
 
-        .def(py::init<int, VkImageMemory*, size_t, VkAllocator*>(),
-             py::arg("w") = 1, py::arg("data") = nullptr,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-        .def(py::init<int, int, VkImageMemory*, size_t, VkAllocator*>(),
-             py::arg("w") = 1, py::arg("h") = 1, py::arg("data") = nullptr,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-        .def(py::init<int, int, int, VkImageMemory*, size_t, VkAllocator*>(),
-             py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1, py::arg("data") = nullptr,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-
+        .def(py::init(
+                 [](py::tuple shape, VkImageMemory* data, size_t elemsize, int elempack, VkAllocator* allocator) {
+                     VkImageMat* mat = nullptr;
+                     switch (shape.size())
+                     {
+                     case 1:
+                         mat = new VkImageMat(shape[0].cast<int>(), data, elemsize, elempack, allocator);
+                         break;
+                     case 2:
+                         mat = new VkImageMat(shape[0].cast<int>(), shape[1].cast<int>(), data, elemsize, elempack, allocator);
+                         break;
+                     case 3:
+                         mat = new VkImageMat(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), data,
+                                              elemsize, elempack, allocator);
+                         break;
+                     default:
+                         std::stringstream ss;
+                         ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+                         throw pybind11::value_error(ss.str());
+                     }
+                     return mat;
+                 }),
+             py::arg("shape") = py::tuple(1), py::arg("data") = nullptr,
+             py::arg("elemsize") = 4, py::arg("elempack") = 1,
+             py::arg("allocator") = nullptr)
         .def(py::init<int, VkImageMemory*, size_t, int, VkAllocator*>(),
              py::arg("w") = 1, py::arg("data") = nullptr,
              py::arg("elemsize") = 4, py::arg("elempack") = 1,
@@ -561,17 +671,28 @@ PYBIND11_MODULE(ncnn, m)
              py::arg("elemsize") = 4, py::arg("elempack") = 1,
              py::arg("allocator") = nullptr)
 
-        .def("create", (void (VkImageMat::*)(int, size_t, VkAllocator*)) & VkImageMat::create,
-             py::arg("w") = 1,
-             py::arg("elemsize") = 4,
-             py::arg("allocator") = nullptr)
-        .def("create", (void (VkImageMat::*)(int, int, size_t, VkAllocator*)) & VkImageMat::create,
-             py::arg("w") = 1, py::arg("h") = 1,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-        .def("create", (void (VkImageMat::*)(int, int, int, size_t, VkAllocator*)) & VkImageMat::create,
-             py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
-             py::arg("elemsize") = 4, py::arg("allocator") = nullptr)
-
+        .def(
+            "create",
+            [](VkImageMat& mat, py::tuple shape, size_t elemsize, int elempack, VkAllocator* allocator) {
+                switch (shape.size())
+                {
+                case 1:
+                    return mat.create(shape[0].cast<int>(), elemsize, elempack, allocator);
+                case 2:
+                    return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, allocator);
+                case 3:
+                    return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(),
+                                      elemsize, elempack, allocator);
+                default:
+                    std::stringstream ss;
+                    ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+                    throw pybind11::value_error(ss.str());
+                }
+                return;
+            },
+            py::arg("shape") = py::tuple(1),
+            py::arg("elemsize") = 4, py::arg("elempack") = 1,
+            py::arg("allocator") = nullptr)
         .def("create", (void (VkImageMat::*)(int, size_t, int, VkAllocator*)) & VkImageMat::create,
              py::arg("w") = 1,
              py::arg("elemsize") = 4, py::arg("elempack") = 1,
@@ -919,11 +1040,11 @@ PYBIND11_MODULE(ncnn, m)
         .def_readwrite("image_memory_type_index", &VkAllocator::image_memory_type_index)
         .def_readwrite("mappable", &VkAllocator::mappable)
         .def_readwrite("coherent", &VkAllocator::coherent);
-        
+
     py::class_<VkBlobAllocator, VkAllocator, PyVkAllocatorOther<VkBlobAllocator> >(m, "VkBlobAllocator")
         .def(py::init<const VulkanDevice*>())
         .def("clear", &VkBlobAllocator::clear)
-        .def("fastMalloc", (VkBufferMemory* (VkBlobAllocator::*)(size_t size))&VkBlobAllocator::fastMalloc)
+        .def("fastMalloc", (VkBufferMemory * (VkBlobAllocator::*)(size_t size)) & VkBlobAllocator::fastMalloc)
         .def("fastFree", (void (VkBlobAllocator::*)(VkBufferMemory * ptr)) & VkBlobAllocator::fastFree)
         .def("fastMalloc", (VkImageMemory * (VkBlobAllocator::*)(int, int, int, size_t, int)) & VkBlobAllocator::fastMalloc)
         .def("fastFree", (void (VkBlobAllocator::*)(VkImageMemory * ptr)) & VkBlobAllocator::fastFree);
@@ -1055,19 +1176,19 @@ PYBIND11_MODULE(ncnn, m)
     //    .def("record_pipeline", &VkCompute::record_pipeline)
     //    .def("record_download", &VkCompute::record_download)
 
-//#if NCNN_BENCHMARK
-//        .def("record_write_timestamp", &VkCompute::record_write_timestamp)
-//#endif // NCNN_BENCHMARK
-//
-//        .def("record_queue_transfer_acquire", &VkCompute::record_queue_transfer_acquire)
-//        .def("submit_and_wait", &VkCompute::submit_and_wait)
-//        .def("reset", &VkCompute::reset)
-//
-//#if NCNN_BENCHMARK
-//        .def("create_query_pool", &VkCompute::create_query_pool)
-//        .def("get_query_pool_results", &VkCompute::get_query_pool_results)
-//#endif // NCNN_BENCHMARK
-//        ;
+    //#if NCNN_BENCHMARK
+    //        .def("record_write_timestamp", &VkCompute::record_write_timestamp)
+    //#endif // NCNN_BENCHMARK
+    //
+    //        .def("record_queue_transfer_acquire", &VkCompute::record_queue_transfer_acquire)
+    //        .def("submit_and_wait", &VkCompute::submit_and_wait)
+    //        .def("reset", &VkCompute::reset)
+    //
+    //#if NCNN_BENCHMARK
+    //        .def("create_query_pool", &VkCompute::create_query_pool)
+    //        .def("get_query_pool_results", &VkCompute::get_query_pool_results)
+    //#endif // NCNN_BENCHMARK
+    //        ;
 
     //py::class_<VkTransfer>(m, "VkTransfer")
     //    .def(py::init<const VulkanDevice*>())
