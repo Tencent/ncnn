@@ -39,12 +39,14 @@ PoolAllocator::~PoolAllocator()
     if (!payouts.empty())
     {
         NCNN_LOGE("FATAL ERROR! pool allocator destroyed too early");
+#if NCNN_STDIO
         std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
         for (; it != payouts.end(); ++it)
         {
             void* ptr = it->second;
             NCNN_LOGE("%p still in use", ptr);
         }
+#endif
     }
 }
 
@@ -161,12 +163,14 @@ UnlockedPoolAllocator::~UnlockedPoolAllocator()
     if (!payouts.empty())
     {
         NCNN_LOGE("FATAL ERROR! unlocked pool allocator destroyed too early");
+#if NCNN_STDIO
         std::list<std::pair<size_t, void*> >::iterator it = payouts.begin();
         for (; it != payouts.end(); ++it)
         {
             void* ptr = it->second;
             NCNN_LOGE("%p still in use", ptr);
         }
+#endif
     }
 }
 
