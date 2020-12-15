@@ -18,7 +18,7 @@
 #include "mat.h"
 
 // at most 32 parameters
-#define NCNN_MAX_PARAM_COUNT 50
+#define NCNN_MAX_PARAM_COUNT 32
 
 namespace ncnn {
 
