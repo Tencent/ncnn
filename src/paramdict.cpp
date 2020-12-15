@@ -207,7 +207,7 @@ int ParamDict::load_param(const DataReader& dr)
             else
             {
                 NCNN_LOGE("id < NCNN_MAX_PARAM_COUNT failed (id=%d, NCNN_MAX_PARAM_COUNT=%d)", id, NCNN_MAX_PARAM_COUNT);
-                return -1;
+                // for forward compatibility, we don't return -1
             }
 
             for (int j = 0; j < len; j++)
