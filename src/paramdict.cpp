@@ -195,7 +195,15 @@ int ParamDict::load_param(const DataReader& dr)
                 return -1;
             }
 
-            params[id].v.create(len);
+            if (id < NCNN_MAX_PARAM_COUNT)
+            {
+                params[id].v.create(len);
+            }
+            else
+            {
+                NCNN_LOGE("NCNN_MAX_PARAM_COUNT not large enough");
+                return -1;
+            }
 
             for (int j = 0; j < len; j++)
             {
