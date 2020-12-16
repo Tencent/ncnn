@@ -190,6 +190,12 @@ int ParamDict::load_param(const DataReader& dr)
             id = -id - 23300;
         }
 
+        if (id >= NCNN_MAX_PARAM_COUNT)
+        {
+            NCNN_LOGE("id < NCNN_MAX_PARAM_COUNT failed (id=%d, NCNN_MAX_PARAM_COUNT=%d)", id, NCNN_MAX_PARAM_COUNT);
+            continue; // for forward compatibility, we don't return -1
+        }
+
         if (is_array)
         {
             int len = 0;
@@ -200,15 +206,7 @@ int ParamDict::load_param(const DataReader& dr)
                 return -1;
             }
 
-            if (id < NCNN_MAX_PARAM_COUNT)
-            {
-                params[id].v.create(len);
-            }
-            else
-            {
-                NCNN_LOGE("id < NCNN_MAX_PARAM_COUNT failed (id=%d, NCNN_MAX_PARAM_COUNT=%d)", id, NCNN_MAX_PARAM_COUNT);
-                // for forward compatibility, we don't return -1
-            }
+            params[id].v.create(len);
 
             for (int j = 0; j < len; j++)
             {
@@ -309,6 +307,12 @@ int ParamDict::load_param_bin(const DataReader& dr)
             id = -id - 23300;
         }
 
+        if (id >= NCNN_MAX_PARAM_COUNT)
+        {
+            NCNN_LOGE("id < NCNN_MAX_PARAM_COUNT failed (id=%d, NCNN_MAX_PARAM_COUNT=%d)", id, NCNN_MAX_PARAM_COUNT);
+            continue; // for forward compatibility, we don't return -1
+        }
+
         if (is_array)
         {
             int len = 0;
@@ -319,15 +323,7 @@ int ParamDict::load_param_bin(const DataReader& dr)
                 return -1;
             }
 
-            if (id < NCNN_MAX_PARAM_COUNT)
-            {
-                params[id].v.create(len);
-            }
-            else
-            {
-                NCNN_LOGE("id < NCNN_MAX_PARAM_COUNT failed (id=%d, NCNN_MAX_PARAM_COUNT=%d)", id, NCNN_MAX_PARAM_COUNT);
-                // for forward compatibility, we don't return -1
-            }
+            params[id].v.create(len);
 
             float* ptr = params[id].v;
             nread = dr.read(ptr, sizeof(float) * len);
