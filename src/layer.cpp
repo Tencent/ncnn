@@ -191,11 +191,11 @@ static const layer_registry_entry layer_registry[] = {
 };
 
 #if NCNN_RUNTIME_CPU
-#if _M_IX86 || _M_X64 || __i386__ || __x86_64__
+#if defined(_M_X86) || defined(__i386__)
 static const layer_registry_entry layer_registry_avx2[] = {
 #include "layer_registry_avx2.h"
 };
-#elif __aarch64__
+#elif defined(_M_ARM) || defined(__arm__)
 static const layer_registry_entry layer_registry_arm82[] = {
 #include "layer_registry_arm82.h"
 };
@@ -235,13 +235,13 @@ Layer* create_layer(int index)
     // *INDENT-OFF*
     layer_creator_func layer_creator = 0;
 #if NCNN_RUNTIME_CPU
-#if _M_IX86 || _M_X64 || __i386__ || __x86_64__
+#if defined(_M_X86) || defined(__i386__)
     if (cpu_support_x86_avx2())
     {
         layer_creator = layer_registry_avx2[index].creator;
     }
     else
-#elif __aarch64__
+#elif defined(_M_ARM) || defined(__arm__)
     if (cpu_support_arm_asimdhp())
     {
         layer_creator = layer_registry_arm82[index].creator;
