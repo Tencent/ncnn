@@ -1141,7 +1141,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
 
         // clang-format off
         // *INDENT-OFF*
-#if NCNN_ARM82
+#if defined(_M_ARM) || defined(__arm__)
         if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
         {
             if (bottom_blob.elembits() == 32 && layer->support_fp16_storage)
@@ -1158,7 +1158,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             }
         }
         else
-#endif // NCNN_ARM82
+#endif // defined(_M_ARM) || defined(__arm__)
         if (opt.use_bf16_storage)
         {
             if (bottom_blob.elembits() == 32 && layer->support_bf16_storage)
@@ -1189,12 +1189,12 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
             int dst_elempack = 1;
             if (layer->support_packing)
             {
-#if NCNN_AVX2
+#if defined(_M_X86) || defined(__i386__)
                 if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
-#elif NCNN_ARM82
+#elif defined(_M_ARM) || defined(__arm__)
                 if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && layer->support_fp16_storage)
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
@@ -1276,7 +1276,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
 
             // clang-format off
             // *INDENT-OFF*
-#if NCNN_ARM82
+#if defined(_M_ARM) || defined(__arm__)
             if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
             {
                 if (bottom_blobs[i].elembits() == 32 && layer->support_fp16_storage)
@@ -1293,7 +1293,7 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                 }
             }
             else
-#endif // NCNN_ARM82
+#endif // defined(_M_ARM) || defined(__arm__)
             if (opt.use_bf16_storage)
             {
                 if (bottom_blobs[i].elembits() == 32 && layer->support_bf16_storage)
@@ -1324,12 +1324,12 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
                 int dst_elempack = 1;
                 if (layer->support_packing)
                 {
-#if NCNN_AVX2
+#if defined(_M_X86) || defined(__i386__)
                     if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
                         dst_elempack = 8;
                     else if (elemcount % 4 == 0)
                         dst_elempack = 4;
-#elif NCNN_ARM82
+#elif defined(_M_ARM) || defined(__arm__)
                     if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && layer->support_fp16_storage)
                         dst_elempack = 8;
                     else if (elemcount % 4 == 0)
@@ -2774,7 +2774,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
 
     // clang-format off
     // *INDENT-OFF*
-#if NCNN_ARM82
+#if defined(_M_ARM) || defined(__arm__)
     if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && (type == 0))
     {
         if (feat.elembits() == 16)
@@ -2785,7 +2785,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
         }
     }
     else
-#endif // NCNN_ARM82
+#endif // defined(_M_ARM) || defined(__arm__)
     if (opt.use_bf16_storage && (type == 0))
     {
         if (feat.elembits() == 16)

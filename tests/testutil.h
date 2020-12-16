@@ -309,12 +309,12 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
             int dst_elempack = 1;
 
-#if NCNN_AVX2
+#if defined(_M_X86) || defined(__i386__)
             if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
-#elif NCNN_ARM82
+#elif defined(_M_ARM) || defined(__arm__)
             if (elemcount % 8 == 0 && opt.use_fp16_arithmetic)
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
@@ -727,12 +727,12 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
         int dst_elempack = 1;
 
-#if NCNN_AVX2
+#if defined(_M_X86) || defined(__i386__)
         if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
             dst_elempack = 8;
         else if (elemcount % 4 == 0)
             dst_elempack = 4;
-#elif NCNN_ARM82
+#elif defined(_M_ARM) || defined(__arm__)
         if (elemcount % 8 == 0 && opt.use_fp16_arithmetic)
             dst_elempack = 8;
         else if (elemcount % 4 == 0)
