@@ -1,5 +1,4 @@
 name: release
-#on: [push, pull_request]
 on:
   push:
     tags:
@@ -11,7 +10,17 @@ env:
 
 jobs:
 
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      VERSION: ${{ steps.get_version.outputs.VERSION }}
+    steps:
+    - name: get-version
+      id: get_version
+      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+
   full-source:
+    needs: [setup]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -20,15 +29,16 @@ jobs:
     - name: package
       run: |
         rm -rf .git
-        rm -f /tmp/ncnn-${{ github.ref }}-full-source.zip
-        zip -9 -r /tmp/ncnn-${{ github.ref }}-full-source.zip .
+        rm -f /tmp/ncnn-${{ needs.setup.outputs.VERSION }}-full-source.zip
+        zip -9 -r /tmp/ncnn-${{ needs.setup.outputs.VERSION }}-full-source.zip .
     - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-${{ github.ref }}-full-source
-        path: /tmp/ncnn-${{ github.ref }}-full-source.zip
+        name: ncnn-${{ needs.setup.outputs.VERSION }}-full-source
+        path: /tmp/ncnn-${{ needs.setup.outputs.VERSION }}-full-source.zip
 
   ubuntu-1604:
+    needs: [setup]
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v2
@@ -46,27 +56,28 @@ jobs:
         cmake --build . --target install
     - name: package
       run: |
-        rm -rf ncnn-${{ github.ref }}-ubuntu-1604
-        mkdir -p ncnn-${{ github.ref }}-ubuntu-1604
-        cp -r build/install/* ncnn-${{ github.ref }}-ubuntu-1604
-        mkdir -p ncnn-${{ github.ref }}-ubuntu-1604/bin
-        cp build/tools/caffe/caffe2ncnn ncnn-${{ github.ref }}-ubuntu-1604/bin
-        cp build/tools/mxnet/mxnet2ncnn ncnn-${{ github.ref }}-ubuntu-1604/bin
-        cp build/tools/onnx/onnx2ncnn ncnn-${{ github.ref }}-ubuntu-1604/bin
-        cp build/tools/darknet/darknet2ncnn ncnn-${{ github.ref }}-ubuntu-1604/bin
-        cp build/tools/ncnnoptimize ncnn-${{ github.ref }}-ubuntu-1604/bin
-        cp build/tools/ncnn2mem ncnn-${{ github.ref }}-ubuntu-1604/bin
-        cp build/tools/ncnnmerge ncnn-${{ github.ref }}-ubuntu-1604/bin
-        strip -g ncnn-${{ github.ref }}-ubuntu-1604/bin/*
-        rm -f ncnn-${{ github.ref }}-ubuntu-1604.zip
-        zip -9 -r ncnn-${{ github.ref }}-ubuntu-1604.zip ncnn-${{ github.ref }}-ubuntu-1604
+        rm -rf ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604
+        cp -r build/install/* ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604/bin
+        cp build/tools/caffe/caffe2ncnn ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604/bin
+        cp build/tools/mxnet/mxnet2ncnn ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604/bin
+        cp build/tools/onnx/onnx2ncnn ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604/bin
+        cp build/tools/darknet/darknet2ncnn ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604/bin
+        cp build/tools/ncnnoptimize ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604/bin
+        cp build/tools/ncnn2mem ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604/bin
+        cp build/tools/ncnnmerge ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604/bin
+        strip -g ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604/bin/*
+        rm -f ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604.zip
+        zip -9 -r ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604.zip ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604
     - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-${{ github.ref }}-ubuntu-1604
-        path: ncnn-${{ github.ref }}-ubuntu-1604.zip
+        name: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604
+        path: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604.zip
 
   ubuntu-1804:
+    needs: [setup]
     runs-on: ubuntu-18.04
     steps:
     - uses: actions/checkout@v2
@@ -84,27 +95,28 @@ jobs:
         cmake --build . --target install
     - name: package
       run: |
-        rm -rf ncnn-${{ github.ref }}-ubuntu-1804
-        mkdir -p ncnn-${{ github.ref }}-ubuntu-1804
-        cp -r build/install/* ncnn-${{ github.ref }}-ubuntu-1804
-        mkdir -p ncnn-${{ github.ref }}-ubuntu-1804/bin
-        cp build/tools/caffe/caffe2ncnn ncnn-${{ github.ref }}-ubuntu-1804/bin
-        cp build/tools/mxnet/mxnet2ncnn ncnn-${{ github.ref }}-ubuntu-1804/bin
-        cp build/tools/onnx/onnx2ncnn ncnn-${{ github.ref }}-ubuntu-1804/bin
-        cp build/tools/darknet/darknet2ncnn ncnn-${{ github.ref }}-ubuntu-1804/bin
-        cp build/tools/ncnnoptimize ncnn-${{ github.ref }}-ubuntu-1804/bin
-        cp build/tools/ncnn2mem ncnn-${{ github.ref }}-ubuntu-1804/bin
-        cp build/tools/ncnnmerge ncnn-${{ github.ref }}-ubuntu-1804/bin
-        strip -g ncnn-${{ github.ref }}-ubuntu-1804/bin/*
-        rm -f ncnn-${{ github.ref }}-ubuntu-1804.zip
-        zip -9 -r ncnn-${{ github.ref }}-ubuntu-1804.zip ncnn-${{ github.ref }}-ubuntu-1804
+        rm -rf ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804
+        cp -r build/install/* ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804/bin
+        cp build/tools/caffe/caffe2ncnn ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804/bin
+        cp build/tools/mxnet/mxnet2ncnn ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804/bin
+        cp build/tools/onnx/onnx2ncnn ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804/bin
+        cp build/tools/darknet/darknet2ncnn ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804/bin
+        cp build/tools/ncnnoptimize ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804/bin
+        cp build/tools/ncnn2mem ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804/bin
+        cp build/tools/ncnnmerge ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804/bin
+        strip -g ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804/bin/*
+        rm -f ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804.zip
+        zip -9 -r ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804.zip ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804
     - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-${{ github.ref }}-ubuntu-1804
-        path: ncnn-${{ github.ref }}-ubuntu-1804.zip
+        name: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804
+        path: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804.zip
 
   ubuntu-2004:
+    needs: [setup]
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
@@ -122,25 +134,25 @@ jobs:
         cmake --build . --target install
     - name: package
       run: |
-        rm -rf ncnn-${{ github.ref }}-ubuntu-2004
-        mkdir -p ncnn-${{ github.ref }}-ubuntu-2004
-        cp -r build/install/* ncnn-${{ github.ref }}-ubuntu-2004
-        mkdir -p ncnn-${{ github.ref }}-ubuntu-2004/bin
-        cp build/tools/caffe/caffe2ncnn ncnn-${{ github.ref }}-ubuntu-2004/bin
-        cp build/tools/mxnet/mxnet2ncnn ncnn-${{ github.ref }}-ubuntu-2004/bin
-        cp build/tools/onnx/onnx2ncnn ncnn-${{ github.ref }}-ubuntu-2004/bin
-        cp build/tools/darknet/darknet2ncnn ncnn-${{ github.ref }}-ubuntu-2004/bin
-        cp build/tools/ncnnoptimize ncnn-${{ github.ref }}-ubuntu-2004/bin
-        cp build/tools/ncnn2mem ncnn-${{ github.ref }}-ubuntu-2004/bin
-        cp build/tools/ncnnmerge ncnn-${{ github.ref }}-ubuntu-2004/bin
-        strip -g ncnn-${{ github.ref }}-ubuntu-2004/bin/*
-        rm -f ncnn-${{ github.ref }}-ubuntu-2004.zip
-        zip -9 -r ncnn-${{ github.ref }}-ubuntu-2004.zip ncnn-${{ github.ref }}-ubuntu-2004
+        rm -rf ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004
+        cp -r build/install/* ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004/bin
+        cp build/tools/caffe/caffe2ncnn ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004/bin
+        cp build/tools/mxnet/mxnet2ncnn ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004/bin
+        cp build/tools/onnx/onnx2ncnn ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004/bin
+        cp build/tools/darknet/darknet2ncnn ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004/bin
+        cp build/tools/ncnnoptimize ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004/bin
+        cp build/tools/ncnn2mem ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004/bin
+        cp build/tools/ncnnmerge ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004/bin
+        strip -g ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004/bin/*
+        rm -f ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004.zip
+        zip -9 -r ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004.zip ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004
     - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-${{ github.ref }}-ubuntu-2004
-        path: ncnn-${{ github.ref }}-ubuntu-2004.zip
+        name: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004
+        path: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004.zip
 
   openmp-macos:
     runs-on: macos-latest
@@ -195,7 +207,7 @@ jobs:
         path: openmp-install
 
   macos:
-    needs: [openmp-macos]
+    needs: [setup, openmp-macos]
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
@@ -252,16 +264,16 @@ jobs:
         lipo -create build-x86_64/install/lib/libncnn.a build-arm64/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
         cp -r build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ncnn-${{ github.ref }}-macos.zip
-        zip -9 -y -r ncnn-${{ github.ref }}-macos.zip openmp.framework ncnn.framework
+        rm -f ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip
+        zip -9 -y -r ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip openmp.framework ncnn.framework
     - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-${{ github.ref }}-macos
-        path: ncnn-${{ github.ref }}-macos.zip
+        name: ncnn-${{ needs.setup.outputs.VERSION }}-macos
+        path: ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip
 
   macos-gpu:
-    needs: [openmp-macos]
+    needs: [setup, openmp-macos]
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
@@ -352,13 +364,13 @@ jobs:
         lipo -create build-x86_64/install/lib/libncnn.a build-arm64/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
         cp -r build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ncnn-${{ github.ref }}-macos-vulkan.zip
-        zip -9 -y -r ncnn-${{ github.ref }}-macos-vulkan.zip openmp.framework glslang.framework ncnn.framework
+        rm -f ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip
+        zip -9 -y -r ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-${{ github.ref }}-macos-vulkan
-        path: ncnn-${{ github.ref }}-macos-vulkan.zip
+        name: ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan
+        path: ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip
 
   openmp-ios:
     runs-on: macos-latest
@@ -417,7 +429,7 @@ jobs:
         path: openmp-install
 
   ios:
-    needs: [openmp-ios]
+    needs: [setup, openmp-ios]
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
@@ -478,16 +490,16 @@ jobs:
         lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
         cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ncnn-${{ github.ref }}-ios.zip
-        zip -9 -y -r ncnn-${{ github.ref }}-ios.zip openmp.framework ncnn.framework
+        rm -f ncnn-${{ needs.setup.outputs.VERSION }}-ios.zip
+        zip -9 -y -r ncnn-${{ needs.setup.outputs.VERSION }}-ios.zip openmp.framework ncnn.framework
     - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-${{ github.ref }}-ios
-        path: ncnn-${{ github.ref }}-ios.zip
+        name: ncnn-${{ needs.setup.outputs.VERSION }}-ios
+        path: ncnn-${{ needs.setup.outputs.VERSION }}-ios.zip
 
   ios-gpu:
-    needs: [openmp-ios]
+    needs: [setup, openmp-ios]
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
@@ -582,13 +594,13 @@ jobs:
         lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
         cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ncnn-${{ github.ref }}-ios-vulkan.zip
-        zip -9 -y -r ncnn-${{ github.ref }}-ios-vulkan.zip openmp.framework glslang.framework ncnn.framework
+        rm -f ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan.zip
+        zip -9 -y -r ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-${{ github.ref }}-ios-vulkan
-        path: ncnn-${{ github.ref }}-ios-vulkan.zip
+        name: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan
+        path: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan.zip
 
   openmp-ios-bitcode:
     runs-on: macos-latest
@@ -647,7 +659,7 @@ jobs:
         path: openmp-install
 
   ios-bitcode:
-    needs: [openmp-ios-bitcode]
+    needs: [setup, openmp-ios-bitcode]
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
@@ -708,16 +720,16 @@ jobs:
         lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
         cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ncnn-${{ github.ref }}-ios-bitcode.zip
-        zip -9 -y -r ncnn-${{ github.ref }}-ios-bitcode.zip openmp.framework ncnn.framework
+        rm -f ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode.zip
+        zip -9 -y -r ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode.zip openmp.framework ncnn.framework
     - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-${{ github.ref }}-ios-bitcode
-        path: ncnn-${{ github.ref }}-ios-bitcode.zip
+        name: ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode
+        path: ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode.zip
 
   ios-gpu-bitcode:
-    needs: [openmp-ios-bitcode]
+    needs: [setup, openmp-ios-bitcode]
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v2
@@ -812,15 +824,16 @@ jobs:
         lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
         cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
-        rm -f ncnn-${{ github.ref }}-ios-vulkan-bitcode.zip
-        zip -9 -y -r ncnn-${{ github.ref }}-ios-vulkan-bitcode.zip openmp.framework glslang.framework ncnn.framework
+        rm -f ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode.zip
+        zip -9 -y -r ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-${{ github.ref }}-ios-vulkan-bitcode
-        path: ncnn-${{ github.ref }}-ios-vulkan-bitcode.zip
+        name: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode
+        path: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode.zip
 
   android:
+    needs: [setup]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -860,27 +873,28 @@ jobs:
         cmake --build . --target install
     - name: package
       run: |
-        rm -rf ncnn-${{ github.ref }}-android
-        mkdir -p ncnn-${{ github.ref }}-android
-        mkdir -p ncnn-${{ github.ref }}-android/armeabi-v7a
-        mkdir -p ncnn-${{ github.ref }}-android/arm64-v8a
-        mkdir -p ncnn-${{ github.ref }}-android/x86
-        mkdir -p ncnn-${{ github.ref }}-android/x86_64
-        mkdir -p ncnn-${{ github.ref }}-android/include
-        cp build-armv7/install/lib/lib*.a ncnn-${{ github.ref }}-android/armeabi-v7a/
-        cp build-aarch64/install/lib/lib*.a ncnn-${{ github.ref }}-android/arm64-v8a/
-        cp build-x86/install/lib/lib*.a ncnn-${{ github.ref }}-android/x86/
-        cp build-x86_64/install/lib/lib*.a ncnn-${{ github.ref }}-android/x86_64/
-        cp -r build-aarch64/install/include/* ncnn-${{ github.ref }}-android/include/
-        rm -f ncnn-${{ github.ref }}-android.zip
-        zip -9 -r ncnn-${{ github.ref }}-android.zip ncnn-${{ github.ref }}-android
+        rm -rf ncnn-${{ needs.setup.outputs.VERSION }}-android
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-android
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-android/armeabi-v7a
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-android/arm64-v8a
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-android/x86
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-android/x86_64
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-android/include
+        cp build-armv7/install/lib/lib*.a ncnn-${{ needs.setup.outputs.VERSION }}-android/armeabi-v7a/
+        cp build-aarch64/install/lib/lib*.a ncnn-${{ needs.setup.outputs.VERSION }}-android/arm64-v8a/
+        cp build-x86/install/lib/lib*.a ncnn-${{ needs.setup.outputs.VERSION }}-android/x86/
+        cp build-x86_64/install/lib/lib*.a ncnn-${{ needs.setup.outputs.VERSION }}-android/x86_64/
+        cp -r build-aarch64/install/include/* ncnn-${{ needs.setup.outputs.VERSION }}-android/include/
+        rm -f ncnn-${{ needs.setup.outputs.VERSION }}-android.zip
+        zip -9 -r ncnn-${{ needs.setup.outputs.VERSION }}-android.zip ncnn-${{ needs.setup.outputs.VERSION }}-android
     - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-${{ github.ref }}-android
-        path: ncnn-${{ github.ref }}-android.zip
+        name: ncnn-${{ needs.setup.outputs.VERSION }}-android
+        path: ncnn-${{ needs.setup.outputs.VERSION }}-android.zip
 
   android-gpu:
+    needs: [setup]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -939,27 +953,28 @@ jobs:
         cmake --build . --target install
     - name: package
       run: |
-        rm -rf ncnn-${{ github.ref }}-android-vulkan
-        mkdir -p ncnn-${{ github.ref }}-android-vulkan
-        mkdir -p ncnn-${{ github.ref }}-android-vulkan/armeabi-v7a
-        mkdir -p ncnn-${{ github.ref }}-android-vulkan/arm64-v8a
-        mkdir -p ncnn-${{ github.ref }}-android-vulkan/x86
-        mkdir -p ncnn-${{ github.ref }}-android-vulkan/x86_64
-        mkdir -p ncnn-${{ github.ref }}-android-vulkan/include
-        cp build-armv7/install/lib/lib*.a ncnn-${{ github.ref }}-android-vulkan/armeabi-v7a/
-        cp build-aarch64/install/lib/lib*.a ncnn-${{ github.ref }}-android-vulkan/arm64-v8a/
-        cp build-x86/install/lib/lib*.a ncnn-${{ github.ref }}-android-vulkan/x86/
-        cp build-x86_64/install/lib/lib*.a ncnn-${{ github.ref }}-android-vulkan/x86_64/
-        cp -r build-aarch64/install/include/* ncnn-${{ github.ref }}-android-vulkan/include/
-        rm -f ncnn-${{ github.ref }}-android-vulkan.zip
-        zip -9 -r ncnn-${{ github.ref }}-android-vulkan.zip ncnn-${{ github.ref }}-android-vulkan
+        rm -rf ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan/armeabi-v7a
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan/arm64-v8a
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan/x86
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan/x86_64
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan/include
+        cp build-armv7/install/lib/lib*.a ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan/armeabi-v7a/
+        cp build-aarch64/install/lib/lib*.a ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan/arm64-v8a/
+        cp build-x86/install/lib/lib*.a ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan/x86/
+        cp build-x86_64/install/lib/lib*.a ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan/x86_64/
+        cp -r build-aarch64/install/include/* ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan/include/
+        rm -f ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan.zip
+        zip -9 -r ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan.zip ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan
     - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-${{ github.ref }}-android-vulkan
-        path: ncnn-${{ github.ref }}-android-vulkan.zip
+        name: ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan
+        path: ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan.zip
 
   webassembly:
+    needs: [setup]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
@@ -1007,21 +1022,22 @@ jobs:
         cmake --build . --target install
     - name: package
       run: |
-        rm -rf ncnn-${{ github.ref }}-webassembly
-        mkdir -p ncnn-${{ github.ref }}-webassembly
-        cp -r build/install ncnn-${{ github.ref }}-webassembly/basic
-        cp -r build-simd/install ncnn-${{ github.ref }}-webassembly/simd
-        cp -r build-threads/install ncnn-${{ github.ref }}-webassembly/threads
-        cp -r build-simd-threads/install ncnn-${{ github.ref }}-webassembly/simd-threads
-        rm -f ncnn-${{ github.ref }}-webassembly.zip
-        zip -9 -r ncnn-${{ github.ref }}-webassembly.zip ncnn-${{ github.ref }}-webassembly
+        rm -rf ncnn-${{ needs.setup.outputs.VERSION }}-webassembly
+        mkdir -p ncnn-${{ needs.setup.outputs.VERSION }}-webassembly
+        cp -r build/install ncnn-${{ needs.setup.outputs.VERSION }}-webassembly/basic
+        cp -r build-simd/install ncnn-${{ needs.setup.outputs.VERSION }}-webassembly/simd
+        cp -r build-threads/install ncnn-${{ needs.setup.outputs.VERSION }}-webassembly/threads
+        cp -r build-simd-threads/install ncnn-${{ needs.setup.outputs.VERSION }}-webassembly/simd-threads
+        rm -f ncnn-${{ needs.setup.outputs.VERSION }}-webassembly.zip
+        zip -9 -r ncnn-${{ needs.setup.outputs.VERSION }}-webassembly.zip ncnn-${{ needs.setup.outputs.VERSION }}-webassembly
     - name: upload-zip
       uses: actions/upload-artifact@v2
       with:
-        name: ncnn-${{ github.ref }}-webassembly
-        path: ncnn-${{ github.ref }}-webassembly.zip
+        name: ncnn-${{ needs.setup.outputs.VERSION }}-webassembly
+        path: ncnn-${{ needs.setup.outputs.VERSION }}-webassembly.zip
 
   windows-vs2017:
+    needs: [setup]
     runs-on: windows-2016
     steps:
     - uses: actions/checkout@v2
@@ -1063,23 +1079,24 @@ jobs:
         cmake --build . --config Release --target install
     - name: package
       run: |
-        mkdir ncnn-${{ github.ref }}-windows-vs2017
-        mkdir ncnn-${{ github.ref }}-windows-vs2017/bin
-        Copy-Item -Verbose -Recurse -Path "build\install\*" -Destination "ncnn-${{ github.ref }}-windows-vs2017"
-        Copy-Item -Verbose -Path "build\tools\caffe\Release\caffe2ncnn.exe" -Destination "ncnn-${{ github.ref }}-windows-vs2017\bin"
-        Copy-Item -Verbose -Path "build\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "ncnn-${{ github.ref }}-windows-vs2017\bin"
-        Copy-Item -Verbose -Path "build\tools\onnx\Release\onnx2ncnn.exe" -Destination "ncnn-${{ github.ref }}-windows-vs2017\bin"
-        Copy-Item -Verbose -Path "build\tools\darknet\Release\darknet2ncnn.exe" -Destination "ncnn-${{ github.ref }}-windows-vs2017\bin"
-        Copy-Item -Verbose -Path "build\tools\Release\ncnnoptimize.exe" -Destination "ncnn-${{ github.ref }}-windows-vs2017\bin"
-        Copy-Item -Verbose -Path "build\tools\Release\ncnn2mem.exe" -Destination "ncnn-${{ github.ref }}-windows-vs2017\bin"
-        Copy-Item -Verbose -Path "build\tools\Release\ncnnmerge.exe" -Destination "ncnn-${{ github.ref }}-windows-vs2017\bin"
-        7z a -r ncnn-${{ github.ref }}-windows-vs2017.zip ncnn-${{ github.ref }}-windows-vs2017
+        mkdir ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017
+        mkdir ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017/bin
+        Copy-Item -Verbose -Recurse -Path "build\install\*" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017"
+        Copy-Item -Verbose -Path "build\tools\caffe\Release\caffe2ncnn.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017\bin"
+        Copy-Item -Verbose -Path "build\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017\bin"
+        Copy-Item -Verbose -Path "build\tools\onnx\Release\onnx2ncnn.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017\bin"
+        Copy-Item -Verbose -Path "build\tools\darknet\Release\darknet2ncnn.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017\bin"
+        Copy-Item -Verbose -Path "build\tools\Release\ncnnoptimize.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017\bin"
+        Copy-Item -Verbose -Path "build\tools\Release\ncnn2mem.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017\bin"
+        Copy-Item -Verbose -Path "build\tools\Release\ncnnmerge.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017\bin"
+        7z a -r ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017.zip ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017
     - uses: actions/upload-artifact@v2
       with:
-        name: ncnn-${{ github.ref }}-windows-vs2017
-        path: ncnn-${{ github.ref }}-windows-vs2017.zip
+        name: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017
+        path: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017.zip
 
   windows-vs2019:
+    needs: [setup]
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v2
@@ -1121,24 +1138,24 @@ jobs:
         cmake --build . --config Release --target install
     - name: package
       run: |
-        mkdir ncnn-${{ github.ref }}-windows-vs2019
-        mkdir ncnn-${{ github.ref }}-windows-vs2019/bin
-        Copy-Item -Verbose -Recurse -Path "build\install\*" -Destination "ncnn-${{ github.ref }}-windows-vs2019"
-        Copy-Item -Verbose -Path "build\tools\caffe\Release\caffe2ncnn.exe" -Destination "ncnn-${{ github.ref }}-windows-vs2019\bin"
-        Copy-Item -Verbose -Path "build\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "ncnn-${{ github.ref }}-windows-vs2019\bin"
-        Copy-Item -Verbose -Path "build\tools\onnx\Release\onnx2ncnn.exe" -Destination "ncnn-${{ github.ref }}-windows-vs2019\bin"
-        Copy-Item -Verbose -Path "build\tools\darknet\Release\darknet2ncnn.exe" -Destination "ncnn-${{ github.ref }}-windows-vs2019\bin"
-        Copy-Item -Verbose -Path "build\tools\Release\ncnnoptimize.exe" -Destination "ncnn-${{ github.ref }}-windows-vs2019\bin"
-        Copy-Item -Verbose -Path "build\tools\Release\ncnn2mem.exe" -Destination "ncnn-${{ github.ref }}-windows-vs2019\bin"
-        Copy-Item -Verbose -Path "build\tools\Release\ncnnmerge.exe" -Destination "ncnn-${{ github.ref }}-windows-vs2019\bin"
-        7z a -r ncnn-${{ github.ref }}-windows-vs2019.zip ncnn-${{ github.ref }}-windows-vs2019
+        mkdir ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019
+        mkdir ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019/bin
+        Copy-Item -Verbose -Recurse -Path "build\install\*" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019"
+        Copy-Item -Verbose -Path "build\tools\caffe\Release\caffe2ncnn.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019\bin"
+        Copy-Item -Verbose -Path "build\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019\bin"
+        Copy-Item -Verbose -Path "build\tools\onnx\Release\onnx2ncnn.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019\bin"
+        Copy-Item -Verbose -Path "build\tools\darknet\Release\darknet2ncnn.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019\bin"
+        Copy-Item -Verbose -Path "build\tools\Release\ncnnoptimize.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019\bin"
+        Copy-Item -Verbose -Path "build\tools\Release\ncnn2mem.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019\bin"
+        Copy-Item -Verbose -Path "build\tools\Release\ncnnmerge.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019\bin"
+        7z a -r ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019.zip ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019
     - uses: actions/upload-artifact@v2
       with:
-        name: ncnn-${{ github.ref }}-windows-vs2019
-        path: ncnn-${{ github.ref }}-windows-vs2019.zip
+        name: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019
+        path: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019.zip
 
   release:
-    needs: [full-source, ubuntu-1604, ubuntu-1804, ubuntu-2004, macos, macos-gpu, ios, ios-gpu, ios-bitcode, ios-gpu-bitcode, android, android-gpu, webassembly, windows-vs2017, windows-vs2019]
+    needs: [setup, full-source, ubuntu-1604, ubuntu-1804, ubuntu-2004, macos, macos-gpu, ios, ios-gpu, ios-bitcode, ios-gpu-bitcode, android, android-gpu, webassembly, windows-vs2017, windows-vs2019]
     runs-on: ubuntu-latest
     steps:
     - name: download
@@ -1152,8 +1169,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+        tag_name: ${{ needs.setup.outputs.VERSION }}
+        release_name: Release ${{ needs.setup.outputs.VERSION }}
         draft: false
         prerelease: false
 
@@ -1163,146 +1180,146 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-${{ github.ref }}-full-source/ncnn-${{ github.ref }}-full-source.zip
-        asset_name: ncnn-${{ github.ref }}-full-source.zip
+        asset_path: artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-full-source/ncnn-${{ needs.setup.outputs.VERSION }}-full-source.zip
+        asset_name: ncnn-${{ needs.setup.outputs.VERSION }}-full-source.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-${{ github.ref }}-ubuntu-1604
+    - name: upload-ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-${{ github.ref }}-ubuntu-1604/ncnn-${{ github.ref }}-ubuntu-1604.zip
-        asset_name: ncnn-${{ github.ref }}-ubuntu-1604.zip
+        asset_path: artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604/ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604.zip
+        asset_name: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-${{ github.ref }}-ubuntu-1804
+    - name: upload-ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-${{ github.ref }}-ubuntu-1804/ncnn-${{ github.ref }}-ubuntu-1804.zip
-        asset_name: ncnn-${{ github.ref }}-ubuntu-1804.zip
+        asset_path: artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804/ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804.zip
+        asset_name: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-${{ github.ref }}-ubuntu-2004
+    - name: upload-ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-${{ github.ref }}-ubuntu-2004/ncnn-${{ github.ref }}-ubuntu-2004.zip
-        asset_name: ncnn-${{ github.ref }}-ubuntu-2004.zip
+        asset_path: artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004/ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004.zip
+        asset_name: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-${{ github.ref }}-macos
+    - name: upload-ncnn-${{ needs.setup.outputs.VERSION }}-macos
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-${{ github.ref }}-macos/ncnn-${{ github.ref }}-macos.zip
-        asset_name: ncnn-${{ github.ref }}-macos.zip
+        asset_path: artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos/ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip
+        asset_name: ncnn-${{ needs.setup.outputs.VERSION }}-macos.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-${{ github.ref }}-macos-vulkan
+    - name: upload-ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-${{ github.ref }}-macos-vulkan/ncnn-${{ github.ref }}-macos-vulkan.zip
-        asset_name: ncnn-${{ github.ref }}-macos-vulkan.zip
+        asset_path: artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip
+        asset_name: ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-${{ github.ref }}-ios
+    - name: upload-ncnn-${{ needs.setup.outputs.VERSION }}-ios
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-${{ github.ref }}-ios/ncnn-${{ github.ref }}-ios.zip
-        asset_name: ncnn-${{ github.ref }}-ios.zip
+        asset_path: artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios/ncnn-${{ needs.setup.outputs.VERSION }}-ios.zip
+        asset_name: ncnn-${{ needs.setup.outputs.VERSION }}-ios.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-${{ github.ref }}-ios-vulkan
+    - name: upload-ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-${{ github.ref }}-ios-vulkan/ncnn-${{ github.ref }}-ios-vulkan.zip
-        asset_name: ncnn-${{ github.ref }}-ios-vulkan.zip
+        asset_path: artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan.zip
+        asset_name: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-${{ github.ref }}-ios-bitcode
+    - name: upload-ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-${{ github.ref }}-ios-bitcode/ncnn-${{ github.ref }}-ios-bitcode.zip
-        asset_name: ncnn-${{ github.ref }}-ios-bitcode.zip
+        asset_path: artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode.zip
+        asset_name: ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-${{ github.ref }}-ios-vulkan-bitcode
+    - name: upload-ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-${{ github.ref }}-ios-vulkan-bitcode/ncnn-${{ github.ref }}-ios-vulkan-bitcode.zip
-        asset_name: ncnn-${{ github.ref }}-ios-vulkan-bitcode.zip
+        asset_path: artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode/ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode.zip
+        asset_name: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-${{ github.ref }}-android
+    - name: upload-ncnn-${{ needs.setup.outputs.VERSION }}-android
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-${{ github.ref }}-android/ncnn-${{ github.ref }}-android.zip
-        asset_name: ncnn-${{ github.ref }}-android.zip
+        asset_path: artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-android/ncnn-${{ needs.setup.outputs.VERSION }}-android.zip
+        asset_name: ncnn-${{ needs.setup.outputs.VERSION }}-android.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-${{ github.ref }}-android-vulkan
+    - name: upload-ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-${{ github.ref }}-android-vulkan/ncnn-${{ github.ref }}-android-vulkan.zip
-        asset_name: ncnn-${{ github.ref }}-android-vulkan.zip
+        asset_path: artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan/ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan.zip
+        asset_name: ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-${{ github.ref }}-webassembly
+    - name: upload-ncnn-${{ needs.setup.outputs.VERSION }}-webassembly
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-${{ github.ref }}-webassembly/ncnn-${{ github.ref }}-webassembly.zip
-        asset_name: ncnn-${{ github.ref }}-webassembly.zip
+        asset_path: artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-webassembly/ncnn-${{ needs.setup.outputs.VERSION }}-webassembly.zip
+        asset_name: ncnn-${{ needs.setup.outputs.VERSION }}-webassembly.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-${{ github.ref }}-windows-vs2017
+    - name: upload-ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-${{ github.ref }}-windows-vs2017/ncnn-${{ github.ref }}-windows-vs2017.zip
-        asset_name: ncnn-${{ github.ref }}-windows-vs2017.zip
+        asset_path: artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017/ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017.zip
+        asset_name: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017.zip
         asset_content_type: application/zip
 
-    - name: upload-ncnn-${{ github.ref }}-windows-vs2019
+    - name: upload-ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/ncnn-${{ github.ref }}-windows-vs2019/ncnn-${{ github.ref }}-windows-vs2019.zip
-        asset_name: ncnn-${{ github.ref }}-windows-vs2019.zip
+        asset_path: artifacts/ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019/ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019.zip
+        asset_name: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019.zip
         asset_content_type: application/zip
