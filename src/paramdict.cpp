@@ -319,7 +319,15 @@ int ParamDict::load_param_bin(const DataReader& dr)
                 return -1;
             }
 
-            params[id].v.create(len);
+            if (id < NCNN_MAX_PARAM_COUNT)
+            {
+                params[id].v.create(len);
+            }
+            else
+            {
+                NCNN_LOGE("id < NCNN_MAX_PARAM_COUNT failed (id=%d, NCNN_MAX_PARAM_COUNT=%d)", id, NCNN_MAX_PARAM_COUNT);
+                // for forward compatibility, we don't return -1
+            }
 
             float* ptr = params[id].v;
             nread = dr.read(ptr, sizeof(float) * len);
