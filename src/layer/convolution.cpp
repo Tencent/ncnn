@@ -233,8 +233,8 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     for (int k = 0; k < maxk; k++) // 29.23
                     {
                         float val = sptr[space_ofs[k]]; // 20.72
-                        float w = kptr[k];
-                        sum += val * w; // 41.45
+                        float wt = kptr[k];
+                        sum += val * wt; // 41.45
                     }
 
                     kptr += maxk;
@@ -417,8 +417,8 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                     for (int k = 0; k < maxk; k++)
                     {
                         int val = sptr[space_ofs[k]];
-                        int w = kptr[k];
-                        sum += val * w;
+                        int wt = kptr[k];
+                        sum += val * wt;
                     }
 
                     kptr += maxk;

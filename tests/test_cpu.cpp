@@ -2,7 +2,7 @@
 
 #include "cpu.h"
 
-#if defined __ANDROID__ || defined __linux__
+#if defined __ANDROID__ || defined __linux__ || defined __APPLE__
 
 static int test_cpu_set()
 {
@@ -37,6 +37,17 @@ static int test_cpu_set()
     return 0;
 }
 
+#else
+
+static int test_cpu_set()
+{
+    return 0;
+}
+
+#endif
+
+#if defined __ANDROID__ || defined __linux__
+
 static int test_cpu_info()
 {
     if (ncnn::get_cpu_count() >= 0 && ncnn::get_little_cpu_count() >= 0 && ncnn::get_big_cpu_count() >= 0)
@@ -61,14 +72,36 @@ static int test_cpu_omp()
         fprintf(stderr, "The OMP cannot have a negative number of processors\n");
         return 1;
     }
+
+    ncnn::set_omp_num_threads(1);
+
+    ncnn::set_omp_dynamic(1);
+}
+
+static int test_cpu_powersave()
+{
+    if (ncnn::get_cpu_powersave() >= 0)
+    {
+        return 0;
+    }
+    else
+    {
+        fprintf(stderr, "By default powersave must be zero\n");
+        return 1;
+    }
+
+    if (ncnn::set_cpu_powersave(-1) == -1 && ncnn::set_cpu_powersave(3) == -1)
+    {
+        return 0;
+    }
+    else
+    {
+        fprintf(stderr, "Set cpu powersave for `-1 < argument < 2` works incorrectly.\n");
+        return 1;
+    }
 }
 
 #else
-
-static int test_cpu_set()
-{
-    return 0;
-}
 
 static int test_cpu_info()
 {
@@ -80,6 +113,11 @@ static int test_cpu_omp()
     return 0;
 }
 
+static int test_cpu_powersave()
+{
+    return 0;
+}
+
 #endif
 
 int main()
@@ -87,5 +125,6 @@ int main()
     return 0
            || test_cpu_set()
            || test_cpu_info()
-           || test_cpu_omp();
+           || test_cpu_omp()
+           || test_cpu_powersave();
 }

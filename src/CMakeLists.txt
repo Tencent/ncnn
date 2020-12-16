@@ -260,7 +260,7 @@ else()
     endif()
 
     if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
-        if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+        if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NOT (CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.6))
             target_compile_options(ncnn PRIVATE -Ofast)
         endif()
 
