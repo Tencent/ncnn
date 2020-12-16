@@ -190,17 +190,17 @@ static const layer_registry_entry layer_registry[] = {
 #include "layer_registry.h"
 };
 
-#if NCNN_RUNTIME_CPU
-#if defined(_M_X86) || defined(__i386__)
+#if NCNN_RUNTIME_CPU && NCNN_AVX2
 static const layer_registry_entry layer_registry_avx2[] = {
 #include "layer_registry_avx2.h"
 };
-#elif defined(_M_ARM) || defined(__arm__)
+#endif // NCNN_RUNTIME_CPU && NCNN_AVX2
+
+#if NCNN_RUNTIME_CPU && NCNN_ARM82
 static const layer_registry_entry layer_registry_arm82[] = {
 #include "layer_registry_arm82.h"
 };
-#endif
-#endif // NCNN_RUNTIME_CPU
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM82
 
 static const int layer_registry_entry_count = sizeof(layer_registry) / sizeof(layer_registry_entry);
 
@@ -234,21 +234,20 @@ Layer* create_layer(int index)
     // clang-format off
     // *INDENT-OFF*
     layer_creator_func layer_creator = 0;
-#if NCNN_RUNTIME_CPU
-#if defined(_M_X86) || defined(__i386__)
-    if (cpu_support_x86_avx2())
+#if NCNN_RUNTIME_CPU && NCNN_AVX2
+    if (ncnn::cpu_support_x86_avx2())
     {
         layer_creator = layer_registry_avx2[index].creator;
     }
     else
-#elif defined(_M_ARM) || defined(__arm__)
-    if (cpu_support_arm_asimdhp())
+#endif // NCNN_RUNTIME_CPU && NCNN_AVX2
+#if NCNN_RUNTIME_CPU && NCNN_ARM82
+    if (ncnn::cpu_support_arm_asimdhp())
     {
         layer_creator = layer_registry_arm82[index].creator;
     }
     else
-#endif
-#endif // NCNN_RUNTIME_CPU
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM82
     {
         layer_creator = layer_registry[index].creator;
     }
