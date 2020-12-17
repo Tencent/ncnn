@@ -147,10 +147,10 @@ protected:
 #if NCNN_STRING
     int find_blob_index_by_name(const char* name) const;
     int find_layer_index_by_name(const char* name) const;
-    int custom_layer_to_index(const char* type);
-    Layer* create_custom_layer(const char* type);
+    virtual int custom_layer_to_index(const char* type);
+    virtual Layer* create_custom_layer(const char* type);
 #endif // NCNN_STRING
-    Layer* create_custom_layer(int index);
+    virtual Layer* create_custom_layer(int index);
     int forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const;
 
 #if NCNN_VULKAN

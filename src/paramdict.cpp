@@ -30,6 +30,11 @@ ParamDict::ParamDict()
     clear();
 }
 
+int ParamDict::type(int id) const
+{
+    return params[id].type;
+}
+
 // TODO strict type check
 int ParamDict::get(int id, int def) const
 {
