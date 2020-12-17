@@ -30,6 +30,11 @@ using ncnn::Option;
 extern "C" {
 #endif
 
+const char* ncnn_version()
+{
+    return NCNN_VERSION_STRING;
+}
+
 /* mat api */
 ncnn_mat_t ncnn_mat_create()
 {
