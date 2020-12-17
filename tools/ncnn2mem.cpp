@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "layer.h"
+#include "layer_type.h"
 
 #include <cstddef>
 #include <ctype.h>
@@ -120,6 +121,8 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
     layer_names.resize(layer_count);
     blob_names.resize(blob_count);
 
+    std::vector<std::string> custom_layer_index;
+
     int blob_index = 0;
     for (int i = 0; i < layer_count; i++)
     {
@@ -137,6 +140,26 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
         sanitize_name(layer_name);
 
         int typeindex = ncnn::layer_to_index(layer_type);
+        if (typeindex == -1)
+        {
+            // lookup custom_layer_index
+            for (size_t j = 0; j < custom_layer_index.size(); j++)
+            {
+                if (custom_layer_index[j] == layer_type)
+                {
+                    typeindex = ncnn::LayerType::CustomBit | j;
+                    break;
+                }
+            }
+
+            if (typeindex == -1)
+            {
+                // new custom layer type
+                size_t j = custom_layer_index.size();
+                custom_layer_index.push_back(layer_type);
+                typeindex = ncnn::LayerType::CustomBit | j;
+            }
+        }
         fwrite(&typeindex, sizeof(int), 1, mp);
 
         fwrite(&bottom_count, sizeof(int), 1, mp);
@@ -261,6 +284,17 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
         fwrite(&EOP, sizeof(int), 1, mp);
 
         layer_names[i] = std::string(layer_name);
+    }
+
+    // dump custom layer index
+    for (size_t j = 0; j < custom_layer_index.size(); j++)
+    {
+        const std::string& layer_type = custom_layer_index[j];
+        int typeindex = ncnn::LayerType::CustomBit | j;
+
+        fprintf(ip, "const int TYPEINDEX_%s = %d;\n", layer_type.c_str(), typeindex);
+
+        fprintf(stderr, "net.register_custom_layer(%s_id::TYPEINDEX_%s, %s_layer_creator);\n", param_var.c_str(), layer_type.c_str(), layer_type.c_str());
     }
 
     fprintf(ip, "} // namespace %s_id\n", param_var.c_str());
