@@ -148,17 +148,22 @@ public:
     int support_VK_KHR_8bit_storage;
     int support_VK_KHR_16bit_storage;
     int support_VK_KHR_bind_memory2;
+    int support_VK_KHR_create_renderpass2;
     int support_VK_KHR_dedicated_allocation;
     int support_VK_KHR_descriptor_update_template;
     int support_VK_KHR_external_memory;
     int support_VK_KHR_get_memory_requirements2;
     int support_VK_KHR_maintenance1;
+    int support_VK_KHR_maintenance2;
+    int support_VK_KHR_maintenance3;
+    int support_VK_KHR_multiview;
     int support_VK_KHR_push_descriptor;
     int support_VK_KHR_sampler_ycbcr_conversion;
     int support_VK_KHR_shader_float16_int8;
     int support_VK_KHR_shader_float_controls;
     int support_VK_KHR_storage_buffer_storage_class;
     int support_VK_KHR_swapchain;
+    int support_VK_EXT_descriptor_indexing;
     int support_VK_EXT_memory_budget;
     int support_VK_EXT_queue_family_foreign;
 #if __ANDROID_API__ >= 26
@@ -238,6 +243,12 @@ public:
     PFN_vkBindBufferMemory2KHR vkBindBufferMemory2KHR;
     PFN_vkBindImageMemory2KHR vkBindImageMemory2KHR;
 
+    // VK_KHR_create_renderpass2
+    PFN_vkCmdBeginRenderPass2KHR vkCmdBeginRenderPass2KHR;
+    PFN_vkCmdEndRenderPass2KHR vkCmdEndRenderPass2KHR;
+    PFN_vkCmdNextSubpass2KHR vkCmdNextSubpass2KHR;
+    PFN_vkCreateRenderPass2KHR vkCreateRenderPass2KHR;
+
     // VK_KHR_descriptor_update_template
     PFN_vkCreateDescriptorUpdateTemplateKHR vkCreateDescriptorUpdateTemplateKHR;
     PFN_vkDestroyDescriptorUpdateTemplateKHR vkDestroyDescriptorUpdateTemplateKHR;
@@ -250,6 +261,9 @@ public:
 
     // VK_KHR_maintenance1
     PFN_vkTrimCommandPoolKHR vkTrimCommandPoolKHR;
+
+    // VK_KHR_maintenance3
+    PFN_vkGetDescriptorSetLayoutSupportKHR vkGetDescriptorSetLayoutSupportKHR;
 
     // VK_KHR_push_descriptor
     PFN_vkCmdPushDescriptorSetWithTemplateKHR vkCmdPushDescriptorSetWithTemplateKHR;
@@ -325,6 +339,7 @@ private:
 VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());
 
 // online spirv compilation
+int compile_spirv_module(const char* comp_string, const Option& opt, std::vector<uint32_t>& spirv);
 int compile_spirv_module(const char* comp_data, int comp_data_size, const Option& opt, std::vector<uint32_t>& spirv);
 int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<uint32_t>& spirv);
 
