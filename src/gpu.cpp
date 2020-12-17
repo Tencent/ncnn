@@ -768,7 +768,10 @@ int create_gpu_instance()
             VkPhysicalDeviceSubgroupProperties physicalDeviceSubgroupProperties;
             physicalDeviceSubgroupProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES;
             physicalDeviceSubgroupProperties.pNext = queryDeviceProperties;
-            queryDeviceProperties = &physicalDeviceSubgroupProperties;
+            if (VK_VERSION_MAJOR(instance_api_version) >= 1 && VK_VERSION_MINOR(instance_api_version) >= 1)
+            {
+                queryDeviceProperties = &physicalDeviceSubgroupProperties;
+            }
 
             VkPhysicalDeviceProperties2KHR queryProperties;
             queryProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
@@ -776,13 +779,31 @@ int create_gpu_instance()
 
             vkGetPhysicalDeviceProperties2KHR(physicalDevice, &queryProperties);
 
-            gpu_info.subgroup_size = physicalDeviceSubgroupProperties.subgroupSize;
-            if (physicalDeviceSubgroupProperties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT)
+            if (VK_VERSION_MAJOR(instance_api_version) >= 1 && VK_VERSION_MINOR(instance_api_version) >= 1)
             {
-                gpu_info.support_subgroup_basic = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_BASIC_BIT;
-                gpu_info.support_subgroup_vote = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_VOTE_BIT;
-                gpu_info.support_subgroup_ballot = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_BALLOT_BIT;
-                gpu_info.support_subgroup_shuffle = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+                gpu_info.subgroup_size = physicalDeviceSubgroupProperties.subgroupSize;
+                if (physicalDeviceSubgroupProperties.supportedStages & VK_SHADER_STAGE_COMPUTE_BIT)
+                {
+                    gpu_info.support_subgroup_basic = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_BASIC_BIT;
+                    gpu_info.support_subgroup_vote = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_VOTE_BIT;
+                    gpu_info.support_subgroup_ballot = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_BALLOT_BIT;
+                    gpu_info.support_subgroup_shuffle = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+                }
+            }
+            else
+            {
+                if (physicalDeviceProperties.vendorID == 0x5143) // qcom adreno prefer very large workgroup :P
+                    gpu_info.subgroup_size = 128;
+                if (physicalDeviceProperties.vendorID == 0x13b5) // arm mali
+                    gpu_info.subgroup_size = 16;
+                if (physicalDeviceProperties.vendorID == 0x1010) // imgtec powervr
+                    gpu_info.subgroup_size = 32;
+                if (physicalDeviceProperties.vendorID == 0x1002) // amd
+                    gpu_info.subgroup_size = 64;
+                if (physicalDeviceProperties.vendorID == 0x10de) // nvidia
+                    gpu_info.subgroup_size = 32;
+                if (physicalDeviceProperties.vendorID == 0x8086) // intel
+                    gpu_info.subgroup_size = 32;
             }
         }
 
@@ -810,17 +831,23 @@ int create_gpu_instance()
         gpu_info.support_VK_KHR_8bit_storage = 0;
         gpu_info.support_VK_KHR_16bit_storage = 0;
         gpu_info.support_VK_KHR_bind_memory2 = 0;
+        gpu_info.support_VK_KHR_create_renderpass2 = 0;
         gpu_info.support_VK_KHR_dedicated_allocation = 0;
         gpu_info.support_VK_KHR_descriptor_update_template = 0;
         gpu_info.support_VK_KHR_external_memory = 0;
         gpu_info.support_VK_KHR_get_memory_requirements2 = 0;
         gpu_info.support_VK_KHR_maintenance1 = 0;
+        gpu_info.support_VK_KHR_maintenance2 = 0;
+        gpu_info.support_VK_KHR_maintenance3 = 0;
+        gpu_info.support_VK_KHR_multiview = 0;
         gpu_info.support_VK_KHR_push_descriptor = 0;
         gpu_info.support_VK_KHR_sampler_ycbcr_conversion = 0;
         gpu_info.support_VK_KHR_shader_float16_int8 = 0;
         gpu_info.support_VK_KHR_shader_float_controls = 0;
         gpu_info.support_VK_KHR_storage_buffer_storage_class = 0;
         gpu_info.support_VK_KHR_swapchain = 0;
+        gpu_info.support_VK_EXT_descriptor_indexing = 0;
+        gpu_info.support_VK_EXT_memory_budget = 0;
         gpu_info.support_VK_EXT_queue_family_foreign = 0;
 #if __ANDROID_API__ >= 26
         gpu_info.support_VK_ANDROID_external_memory_android_hardware_buffer = 0;
@@ -828,7 +855,7 @@ int create_gpu_instance()
         for (uint32_t j = 0; j < deviceExtensionPropertyCount; j++)
         {
             const VkExtensionProperties& exp = deviceExtensionProperties[j];
-            //             NCNN_LOGE("device extension %s = %u", exp.extensionName, exp.specVersion);
+            // NCNN_LOGE("device extension %s = %u", exp.extensionName, exp.specVersion);
 
             if (strcmp(exp.extensionName, "VK_KHR_8bit_storage") == 0)
                 gpu_info.support_VK_KHR_8bit_storage = exp.specVersion;
@@ -836,6 +863,8 @@ int create_gpu_instance()
                 gpu_info.support_VK_KHR_16bit_storage = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_bind_memory2") == 0)
                 gpu_info.support_VK_KHR_bind_memory2 = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_create_renderpass2") == 0)
+                gpu_info.support_VK_KHR_create_renderpass2 = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_dedicated_allocation") == 0)
                 gpu_info.support_VK_KHR_dedicated_allocation = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_descriptor_update_template") == 0)
@@ -846,6 +875,12 @@ int create_gpu_instance()
                 gpu_info.support_VK_KHR_get_memory_requirements2 = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_maintenance1") == 0)
                 gpu_info.support_VK_KHR_maintenance1 = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_maintenance2") == 0)
+                gpu_info.support_VK_KHR_maintenance2 = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_maintenance3") == 0)
+                gpu_info.support_VK_KHR_maintenance3 = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_KHR_multiview") == 0)
+                gpu_info.support_VK_KHR_multiview = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_push_descriptor") == 0)
                 gpu_info.support_VK_KHR_push_descriptor = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_sampler_ycbcr_conversion") == 0)
@@ -858,6 +893,8 @@ int create_gpu_instance()
                 gpu_info.support_VK_KHR_storage_buffer_storage_class = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_KHR_swapchain") == 0)
                 gpu_info.support_VK_KHR_swapchain = exp.specVersion;
+            else if (strcmp(exp.extensionName, "VK_EXT_descriptor_indexing") == 0)
+                gpu_info.support_VK_EXT_descriptor_indexing = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_EXT_memory_budget") == 0)
                 gpu_info.support_VK_EXT_memory_budget = exp.specVersion;
             else if (strcmp(exp.extensionName, "VK_EXT_queue_family_foreign") == 0)
@@ -1074,6 +1111,8 @@ VulkanDevice::VulkanDevice(int device_index)
     if (info.support_VK_KHR_bind_memory2)
         enabledExtensions.push_back("VK_KHR_bind_memory2");
     if (info.support_VK_KHR_dedicated_allocation)
+        enabledExtensions.push_back("VK_KHR_create_renderpass2");
+    if (info.support_VK_KHR_create_renderpass2)
         enabledExtensions.push_back("VK_KHR_dedicated_allocation");
     if (info.support_VK_KHR_descriptor_update_template)
         enabledExtensions.push_back("VK_KHR_descriptor_update_template");
@@ -1083,6 +1122,12 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_get_memory_requirements2");
     if (info.support_VK_KHR_maintenance1)
         enabledExtensions.push_back("VK_KHR_maintenance1");
+    if (info.support_VK_KHR_maintenance2)
+        enabledExtensions.push_back("VK_KHR_maintenance2");
+    if (info.support_VK_KHR_maintenance3)
+        enabledExtensions.push_back("VK_KHR_maintenance3");
+    if (info.support_VK_KHR_multiview)
+        enabledExtensions.push_back("VK_KHR_multiview");
     if (info.support_VK_KHR_push_descriptor)
         enabledExtensions.push_back("VK_KHR_push_descriptor");
     if (info.support_VK_KHR_sampler_ycbcr_conversion)
@@ -1095,6 +1140,8 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_storage_buffer_storage_class");
     if (info.support_VK_KHR_swapchain)
         enabledExtensions.push_back("VK_KHR_swapchain");
+    if (info.support_VK_EXT_descriptor_indexing)
+        enabledExtensions.push_back("VK_EXT_descriptor_indexing");
     if (info.support_VK_EXT_memory_budget)
         enabledExtensions.push_back("VK_EXT_memory_budget");
     if (info.support_VK_EXT_queue_family_foreign)
@@ -2110,6 +2157,14 @@ int VulkanDevice::init_device_extension()
         vkBindImageMemory2KHR = (PFN_vkBindImageMemory2KHR)vkGetDeviceProcAddr(device, "vkBindImageMemory2KHR");
     }
 
+    if (info.support_VK_KHR_create_renderpass2)
+    {
+        vkCmdBeginRenderPass2KHR = (PFN_vkCmdBeginRenderPass2KHR)vkGetDeviceProcAddr(device, "vkCmdBeginRenderPass2KHR");
+        vkCmdEndRenderPass2KHR = (PFN_vkCmdEndRenderPass2KHR)vkGetDeviceProcAddr(device, "vkCmdEndRenderPass2KHR");
+        vkCmdNextSubpass2KHR = (PFN_vkCmdNextSubpass2KHR)vkGetDeviceProcAddr(device, "vkCmdNextSubpass2KHR");
+        vkCreateRenderPass2KHR = (PFN_vkCreateRenderPass2KHR)vkGetDeviceProcAddr(device, "vkCreateRenderPass2KHR");
+    }
+
     if (info.support_VK_KHR_descriptor_update_template)
     {
         vkCreateDescriptorUpdateTemplateKHR = (PFN_vkCreateDescriptorUpdateTemplateKHR)vkGetDeviceProcAddr(device, "vkCreateDescriptorUpdateTemplateKHR");
@@ -2127,6 +2182,11 @@ int VulkanDevice::init_device_extension()
     if (info.support_VK_KHR_maintenance1)
     {
         vkTrimCommandPoolKHR = (PFN_vkTrimCommandPoolKHR)vkGetDeviceProcAddr(device, "vkTrimCommandPoolKHR");
+    }
+
+    if (info.support_VK_KHR_maintenance3)
+    {
+        vkGetDescriptorSetLayoutSupportKHR = (PFN_vkGetDescriptorSetLayoutSupportKHR)vkGetDeviceProcAddr(device, "vkGetDescriptorSetLayoutSupportKHR");
     }
 
     if (info.support_VK_KHR_push_descriptor)
@@ -2547,6 +2607,13 @@ static TBuiltInResource get_default_TBuiltInResource()
     resource.limits.generalConstantMatrixVectorIndexing = 1;
 
     return resource;
+}
+
+int compile_spirv_module(const char* comp_string, const Option& opt, std::vector<uint32_t>& spirv)
+{
+    // -1 for omitting the tail '\0'
+    int length = strlen(comp_string) - 1;
+    return compile_spirv_module(comp_string, length, opt, spirv);
 }
 
 int compile_spirv_module(const char* comp_data, int comp_data_size, const Option& opt, std::vector<uint32_t>& spirv)
