@@ -127,6 +127,8 @@ public:
 public:
     // layer type index
     int typeindex;
+    // custom layer creator index
+    int custom_layer_creator_index;
 #if NCNN_STRING
     // layer type name
     std::string type;
@@ -170,6 +172,15 @@ Layer* create_layer(int index);
     ::ncnn::Layer* name##_layer_creator() \
     {                                     \
         return new name;                  \
+    }
+
+#define DEFINE_LAYER_DESTROYER(name)      \
+    void name##_layer_destroyer(::ncnn::Layer* layer) \
+    {                                     \
+        if (layer)                        \
+        {                                 \
+            delete layer;                 \
+        }                                 \
     }
 
 } // namespace ncnn

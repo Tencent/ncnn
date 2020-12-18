@@ -950,16 +950,11 @@ void Net::clear()
             // ignore anyway
         }
 
-        for (size_t j = 0; j < custom_layer_registry.size(); j++)
+        if (layer->custom_layer_creator_index >= 0 && custom_layer_registry[layer->custom_layer_creator_index].destroyer)
         {
-            if (layer->name == custom_layer_registry[j].name && custom_layer_registry[j].destroyer != NULL)
-            {
-                custom_layer_registry[j].destroyer(layer);
-                layer = NULL;
-                break;
-            }
+            custom_layer_registry[layer->custom_layer_creator_index].destroyer(layer);
         }
-        if (layer != NULL)
+        else
         {
             delete layer;
         }
@@ -1103,7 +1098,7 @@ Layer* Net::create_custom_layer(const char* type)
     int index = custom_layer_to_index(type);
     if (index == -1)
         return 0;
-
+    
     return create_custom_layer(index);
 }
 #endif // NCNN_STRING
@@ -1118,7 +1113,9 @@ Layer* Net::create_custom_layer(int index)
     if (!layer_creator)
         return 0;
 
-    return layer_creator();
+    Layer* layer = layer_creator();
+    layer->custom_layer_creator_index = index;
+    return layer;
 }
 
 int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const
