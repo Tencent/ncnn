@@ -162,7 +162,7 @@ jobs:
       uses: actions/cache@v1
       with:
         path: openmp-install
-        key: openmp-macos-install-20201213-2
+        key: openmp-macos-release-11.0.0
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
@@ -384,7 +384,7 @@ jobs:
       uses: actions/cache@v1
       with:
         path: openmp-install
-        key: openmp-ios-install-20201213-2
+        key: openmp-ios-release-11.0.0
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
@@ -402,7 +402,7 @@ jobs:
         cd openmp-11.0.0.src
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64" \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64;arm64e" \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
         cmake --build . -j 2
@@ -452,7 +452,7 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
-            -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64" \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64;arm64e" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
@@ -538,7 +538,7 @@ jobs:
         export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.135.0/macOS
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
-            -DIOS_PLATFORM=OS64 -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="arm64" \
+            -DIOS_PLATFORM=OS64 -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="arm64;arm64e" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
@@ -614,7 +614,7 @@ jobs:
       uses: actions/cache@v1
       with:
         path: openmp-install
-        key: openmp-ios-bitcode-install-20201213-2
+        key: openmp-ios-bitcode-release-11.0.0
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
@@ -632,7 +632,7 @@ jobs:
         cd openmp-11.0.0.src
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
-            -DIOS_PLATFORM=OS -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64" \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64;arm64e" \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
         cmake --build . -j 2
@@ -682,7 +682,7 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
-            -DIOS_PLATFORM=OS -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64" \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64;arm64e" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
@@ -768,7 +768,7 @@ jobs:
         export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.135.0/macOS
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
-            -DIOS_PLATFORM=OS64 -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="arm64" \
+            -DIOS_PLATFORM=OS64 -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="arm64;arm64e" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \

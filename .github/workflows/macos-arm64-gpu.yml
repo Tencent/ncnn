@@ -57,9 +57,8 @@ jobs:
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF \
             -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/include \
             -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
-            -DNCNN_VULKAN=ON ..
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
     - name: build
       run: cmake --build build -j 2

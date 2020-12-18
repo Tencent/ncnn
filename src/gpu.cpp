@@ -121,65 +121,6 @@ PFN_vkGetPhysicalDeviceSurfacePresentModesKHR vkGetPhysicalDeviceSurfacePresentM
 PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR = 0;
 #endif // __ANDROID_API__ >= 26
 
-// compile with old vulkan sdk
-#if VK_HEADER_VERSION < 70
-#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES (VkStructureType)1000094000
-typedef enum VkSubgroupFeatureFlagBits
-{
-    VK_SUBGROUP_FEATURE_BASIC_BIT = 0x00000001,
-    VK_SUBGROUP_FEATURE_VOTE_BIT = 0x00000002,
-    VK_SUBGROUP_FEATURE_ARITHMETIC_BIT = 0x00000004,
-    VK_SUBGROUP_FEATURE_BALLOT_BIT = 0x00000008,
-    VK_SUBGROUP_FEATURE_SHUFFLE_BIT = 0x00000010,
-    VK_SUBGROUP_FEATURE_SHUFFLE_RELATIVE_BIT = 0x00000020,
-    VK_SUBGROUP_FEATURE_CLUSTERED_BIT = 0x00000040,
-    VK_SUBGROUP_FEATURE_QUAD_BIT = 0x00000080,
-    VK_SUBGROUP_FEATURE_PARTITIONED_BIT_NV = 0x00000100,
-    VK_SUBGROUP_FEATURE_FLAG_BITS_MAX_ENUM = 0x7FFFFFFF
-} VkSubgroupFeatureFlagBits;
-typedef VkFlags VkSubgroupFeatureFlags;
-typedef struct VkPhysicalDeviceSubgroupProperties
-{
-    VkStructureType sType;
-    void* pNext;
-    uint32_t subgroupSize;
-    VkShaderStageFlags supportedStages;
-    VkSubgroupFeatureFlags supportedOperations;
-    VkBool32 quadOperationsInAllStages;
-} VkPhysicalDeviceSubgroupProperties;
-#endif // VK_HEADER_VERSION < 70
-#if VK_HEADER_VERSION < 80
-#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR (VkStructureType)1000177000
-typedef struct VkPhysicalDevice8BitStorageFeaturesKHR
-{
-    VkStructureType sType;
-    void* pNext;
-    VkBool32 storageBuffer8BitAccess;
-    VkBool32 uniformAndStorageBuffer8BitAccess;
-    VkBool32 storagePushConstant8;
-} VkPhysicalDevice8BitStorageFeaturesKHR;
-#endif // VK_HEADER_VERSION < 80
-#if VK_HEADER_VERSION < 95
-#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT16_INT8_FEATURES_KHR (VkStructureType)1000082000
-typedef struct VkPhysicalDeviceFloat16Int8FeaturesKHR
-{
-    VkStructureType sType;
-    void* pNext;
-    VkBool32 shaderFloat16;
-    VkBool32 shaderInt8;
-} VkPhysicalDeviceFloat16Int8FeaturesKHR;
-#endif // VK_HEADER_VERSION < 95
-#if VK_HEADER_VERSION < 97
-#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT (VkStructureType)1000237000
-typedef struct VkPhysicalDeviceMemoryBudgetPropertiesEXT
-{
-    VkStructureType sType;
-    void* pNext;
-    VkDeviceSize heapBudget[VK_MAX_MEMORY_HEAPS];
-    VkDeviceSize heapUsage[VK_MAX_MEMORY_HEAPS];
-} VkPhysicalDeviceMemoryBudgetPropertiesEXT;
-#endif // VK_HEADER_VERSION < 97
-
 static int init_instance_extension()
 {
     if (support_VK_KHR_external_memory_capabilities)
