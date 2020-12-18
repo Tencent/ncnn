@@ -144,15 +144,17 @@ public:
 
 // layer factory function
 typedef Layer* (*layer_creator_func)();
+typedef void (*layer_destroyer_func)(Layer*);
 
 struct layer_registry_entry
 {
 #if NCNN_STRING
     // layer type name
-    const char* name;
+    std::string name;
 #endif // NCNN_STRING
     // layer factory entry
     layer_creator_func creator;
+    layer_destroyer_func destroyer;
 };
 
 #if NCNN_STRING

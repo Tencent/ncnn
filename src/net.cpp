@@ -57,7 +57,7 @@ Net::~Net()
 }
 
 #if NCNN_STRING
-int Net::register_custom_layer(const char* type, layer_creator_func creator)
+int Net::register_custom_layer(const char* type, layer_creator_func creator, layer_destroyer_func destroyer)
 {
     int typeindex = layer_to_index(type);
     if (typeindex != -1)
@@ -69,7 +69,7 @@ int Net::register_custom_layer(const char* type, layer_creator_func creator)
     int custom_index = custom_layer_to_index(type);
     if (custom_index == -1)
     {
-        struct layer_registry_entry entry = {type, creator};
+        struct layer_registry_entry entry = {type, creator, destroyer};
         custom_layer_registry.push_back(entry);
     }
     else
@@ -77,13 +77,14 @@ int Net::register_custom_layer(const char* type, layer_creator_func creator)
         NCNN_LOGE("overwrite existing custom layer type %s", type);
         custom_layer_registry[custom_index].name = type;
         custom_layer_registry[custom_index].creator = creator;
+        custom_layer_registry[custom_index].destroyer = destroyer;
     }
 
     return 0;
 }
 #endif // NCNN_STRING
 
-int Net::register_custom_layer(int index, layer_creator_func creator)
+int Net::register_custom_layer(int index, layer_creator_func creator, layer_destroyer_func destroyer)
 {
     int custom_index = index & ~LayerType::CustomBit;
     if (index == custom_index)
@@ -108,6 +109,7 @@ int Net::register_custom_layer(int index, layer_creator_func creator)
     }
 
     custom_layer_registry[custom_index].creator = creator;
+    custom_layer_registry[custom_index].destroyer = destroyer;
     return 0;
 }
 
@@ -948,7 +950,19 @@ void Net::clear()
             // ignore anyway
         }
 
-        delete layer;
+        for (size_t j = 0; j < custom_layer_registry.size(); j++)
+        {
+            if (layer->name == custom_layer_registry[j].name && custom_layer_registry[j].destroyer != NULL)
+            {
+                custom_layer_registry[j].destroyer(layer);
+                layer = NULL;
+                break;
+            }
+        }
+        if (layer != NULL)
+        {
+            delete layer;
+        }
     }
     layers.clear();
 
@@ -1077,7 +1091,7 @@ int Net::custom_layer_to_index(const char* type)
     const size_t custom_layer_registry_entry_count = custom_layer_registry.size();
     for (size_t i = 0; i < custom_layer_registry_entry_count; i++)
     {
-        if (strcmp(type, custom_layer_registry[i].name) == 0)
+        if (strcmp(type, custom_layer_registry[i].name.c_str()) == 0)
             return static_cast<int>(i);
     }
 
