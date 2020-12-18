@@ -23,6 +23,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include "vulkan_header_fix.h"
+
 namespace ncnn {
 
 // instance
