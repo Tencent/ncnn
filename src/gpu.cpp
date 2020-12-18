@@ -1051,9 +1051,9 @@ VulkanDevice::VulkanDevice(int device_index)
         enabledExtensions.push_back("VK_KHR_16bit_storage");
     if (info.support_VK_KHR_bind_memory2)
         enabledExtensions.push_back("VK_KHR_bind_memory2");
-    if (info.support_VK_KHR_dedicated_allocation)
-        enabledExtensions.push_back("VK_KHR_create_renderpass2");
     if (info.support_VK_KHR_create_renderpass2)
+        enabledExtensions.push_back("VK_KHR_create_renderpass2");
+    if (info.support_VK_KHR_dedicated_allocation)
         enabledExtensions.push_back("VK_KHR_dedicated_allocation");
     if (info.support_VK_KHR_descriptor_update_template)
         enabledExtensions.push_back("VK_KHR_descriptor_update_template");
