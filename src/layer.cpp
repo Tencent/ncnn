@@ -211,7 +211,7 @@ int layer_to_index(const char* type)
 {
     for (int i = 0; i < layer_registry_entry_count; i++)
     {
-        if (strcmp(type, layer_registry[i].name.c_str()) == 0)
+        if (strcmp(type, layer_registry[i].name) == 0)
             return i;
     }
 

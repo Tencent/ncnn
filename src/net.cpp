@@ -1086,7 +1086,7 @@ int Net::custom_layer_to_index(const char* type)
     const size_t custom_layer_registry_entry_count = custom_layer_registry.size();
     for (size_t i = 0; i < custom_layer_registry_entry_count; i++)
     {
-        if (strcmp(type, custom_layer_registry[i].name.c_str()) == 0)
+        if (strcmp(type, custom_layer_registry[i].name) == 0)
             return static_cast<int>(i);
     }
 

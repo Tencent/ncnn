@@ -152,7 +152,7 @@ struct layer_registry_entry
 {
 #if NCNN_STRING
     // layer type name
-    std::string name;
+    const char* name;
 #endif // NCNN_STRING
     // layer factory entry
     layer_creator_func creator;
