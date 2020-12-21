@@ -175,10 +175,7 @@ Layer* create_layer(int index);
 #define DEFINE_LAYER_DESTROYER(name)                  \
     void name##_layer_destroyer(::ncnn::Layer* layer) \
     {                                                 \
-        if (layer)                                    \
-        {                                             \
-            delete layer;                             \
-        }                                             \
+        delete layer;                                 \
     }
 
 } // namespace ncnn
