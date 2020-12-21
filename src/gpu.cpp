@@ -746,6 +746,10 @@ int create_gpu_instance()
                 if (physicalDeviceProperties.vendorID == 0x8086) // intel
                     gpu_info.subgroup_size = 32;
             }
+
+            // sanitize some wired subgroup size
+            // though there may be 1/4/8 on some cpu or awkward gpu implementations   --- nihui
+            gpu_info.subgroup_size = std::min(std::max(gpu_info.subgroup_size, 16u), 128u);
         }
 
         // cache memory properties

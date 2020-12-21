@@ -108,9 +108,619 @@ void Pipeline::set_optimal_local_size_xyz(const Mat& local_size_xyz)
 
 void Pipeline::set_local_size_xyz(int w, int h, int c)
 {
-    local_size_x = w;
-    local_size_y = h;
-    local_size_z = c;
+    // always tick to subgroup size
+    if (vkdev->info.subgroup_size == 16)
+    {
+        if (w == 1)
+        {
+            if (h == 1)
+            {
+                local_size_x = 1;
+                local_size_y = 1;
+                local_size_z = 16;
+            }
+            else if (c == 1)
+            {
+                local_size_x = 1;
+                local_size_y = 16;
+                local_size_z = 1;
+            }
+            else if (h < c)
+            {
+                local_size_x = 1;
+                local_size_y = 2;
+                local_size_z = 8;
+            }
+            else if (h > c)
+            {
+                local_size_x = 1;
+                local_size_y = 8;
+                local_size_z = 2;
+            }
+            else
+            {
+                local_size_x = 1;
+                local_size_y = 4;
+                local_size_z = 4;
+            }
+        }
+        else if (h == 1)
+        {
+            if (c == 1)
+            {
+                local_size_x = 16;
+                local_size_y = 1;
+                local_size_z = 1;
+            }
+            else if (w < c)
+            {
+                local_size_x = 2;
+                local_size_y = 1;
+                local_size_z = 8;
+            }
+            else if (w > c)
+            {
+                local_size_x = 8;
+                local_size_y = 1;
+                local_size_z = 2;
+            }
+            else
+            {
+                local_size_x = 4;
+                local_size_y = 1;
+                local_size_z = 4;
+            }
+        }
+        else if (c == 1)
+        {
+            if (w < h)
+            {
+                local_size_x = 2;
+                local_size_y = 8;
+                local_size_z = 1;
+            }
+            else if (w > h)
+            {
+                local_size_x = 8;
+                local_size_y = 2;
+                local_size_z = 1;
+            }
+            else
+            {
+                local_size_x = 4;
+                local_size_y = 4;
+                local_size_z = 1;
+            }
+        }
+        else
+        {
+            if (w == h)
+            {
+                if (c > w)
+                {
+                    local_size_x = 2;
+                    local_size_y = 2;
+                    local_size_z = 4;
+                }
+                else if (c < w)
+                {
+                    local_size_x = 4;
+                    local_size_y = 4;
+                    local_size_z = 1;
+                }
+                else
+                {
+                    // NOTE why
+                    local_size_x = 4;
+                    local_size_y = 2;
+                    local_size_z = 2;
+                }
+            }
+            else if (h == c)
+            {
+                if (w > h)
+                {
+                    local_size_x = 4;
+                    local_size_y = 2;
+                    local_size_z = 2;
+                }
+                else // if (w < h)
+                {
+                    local_size_x = 1;
+                    local_size_y = 4;
+                    local_size_z = 4;
+                }
+            }
+            else if (w == c)
+            {
+                if (h > w)
+                {
+                    local_size_x = 2;
+                    local_size_y = 4;
+                    local_size_z = 2;
+                }
+                else // if (h < w)
+                {
+                    local_size_x = 4;
+                    local_size_y = 1;
+                    local_size_z = 4;
+                }
+            }
+            else
+            {
+                if (w > h)
+                {
+                    local_size_x = 4;
+                    local_size_y = 2;
+                    local_size_z = 2;
+                }
+                else // if (w < h)
+                {
+                    local_size_x = 2;
+                    local_size_y = 4;
+                    local_size_z = 2;
+                }
+            }
+        }
+    }
+    if (vkdev->info.subgroup_size == 32)
+    {
+        if (w == 1)
+        {
+            if (h == 1)
+            {
+                local_size_x = 1;
+                local_size_y = 1;
+                local_size_z = 32;
+            }
+            else if (c == 1)
+            {
+                local_size_x = 1;
+                local_size_y = 32;
+                local_size_z = 1;
+            }
+            else if (h < c)
+            {
+                local_size_x = 1;
+                local_size_y = 4;
+                local_size_z = 8;
+            }
+            else if (h > c)
+            {
+                local_size_x = 1;
+                local_size_y = 8;
+                local_size_z = 4;
+            }
+            else
+            {
+                // NOTE why
+                local_size_x = 1;
+                local_size_y = 8;
+                local_size_z = 4;
+            }
+        }
+        else if (h == 1)
+        {
+            if (c == 1)
+            {
+                local_size_x = 32;
+                local_size_y = 1;
+                local_size_z = 1;
+            }
+            else if (w < c)
+            {
+                local_size_x = 4;
+                local_size_y = 1;
+                local_size_z = 8;
+            }
+            else if (w > c)
+            {
+                local_size_x = 8;
+                local_size_y = 1;
+                local_size_z = 4;
+            }
+            else
+            {
+                // NOTE why
+                local_size_x = 8;
+                local_size_y = 1;
+                local_size_z = 4;
+            }
+        }
+        else if (c == 1)
+        {
+            if (w < h)
+            {
+                local_size_x = 4;
+                local_size_y = 8;
+                local_size_z = 1;
+            }
+            else if (w > h)
+            {
+                local_size_x = 8;
+                local_size_y = 4;
+                local_size_z = 1;
+            }
+            else
+            {
+                // NOTE why
+                local_size_x = 8;
+                local_size_y = 4;
+                local_size_z = 1;
+            }
+        }
+        else
+        {
+            if (w == h)
+            {
+                if (c > w)
+                {
+                    local_size_x = 2;
+                    local_size_y = 2;
+                    local_size_z = 8;
+                }
+                else if (c < w)
+                {
+                    local_size_x = 4;
+                    local_size_y = 4;
+                    local_size_z = 2;
+                }
+                else
+                {
+                    // NOTE why
+                    local_size_x = 4;
+                    local_size_y = 4;
+                    local_size_z = 2;
+                }
+            }
+            else if (h == c)
+            {
+                if (w > h)
+                {
+                    local_size_x = 8;
+                    local_size_y = 2;
+                    local_size_z = 2;
+                }
+                else // if (w < h)
+                {
+                    local_size_x = 2;
+                    local_size_y = 4;
+                    local_size_z = 4;
+                }
+            }
+            else if (w == c)
+            {
+                if (h > w)
+                {
+                    local_size_x = 2;
+                    local_size_y = 8;
+                    local_size_z = 2;
+                }
+                else // if (h < w)
+                {
+                    local_size_x = 4;
+                    local_size_y = 2;
+                    local_size_z = 4;
+                }
+            }
+            else
+            {
+                if (w > h)
+                {
+                    local_size_x = 8;
+                    local_size_y = 2;
+                    local_size_z = 2;
+                }
+                else // if (w < h)
+                {
+                    local_size_x = 2;
+                    local_size_y = 8;
+                    local_size_z = 2;
+                }
+            }
+        }
+    }
+    if (vkdev->info.subgroup_size == 64)
+    {
+        if (w == 1)
+        {
+            if (h == 1)
+            {
+                local_size_x = 1;
+                local_size_y = 1;
+                local_size_z = 64;
+            }
+            else if (c == 1)
+            {
+                local_size_x = 1;
+                local_size_y = 64;
+                local_size_z = 1;
+            }
+            else if (h < c)
+            {
+                local_size_x = 1;
+                local_size_y = 4;
+                local_size_z = 16;
+            }
+            else if (h > c)
+            {
+                local_size_x = 1;
+                local_size_y = 16;
+                local_size_z = 4;
+            }
+            else
+            {
+                local_size_x = 1;
+                local_size_y = 8;
+                local_size_z = 8;
+            }
+        }
+        else if (h == 1)
+        {
+            if (c == 1)
+            {
+                local_size_x = 64;
+                local_size_y = 1;
+                local_size_z = 1;
+            }
+            else if (w < c)
+            {
+                local_size_x = 4;
+                local_size_y = 1;
+                local_size_z = 16;
+            }
+            else if (w > c)
+            {
+                local_size_x = 16;
+                local_size_y = 1;
+                local_size_z = 4;
+            }
+            else
+            {
+                local_size_x = 8;
+                local_size_y = 1;
+                local_size_z = 8;
+            }
+        }
+        else if (c == 1)
+        {
+            if (w < h)
+            {
+                local_size_x = 4;
+                local_size_y = 16;
+                local_size_z = 1;
+            }
+            else if (w > h)
+            {
+                local_size_x = 16;
+                local_size_y = 4;
+                local_size_z = 1;
+            }
+            else
+            {
+                local_size_x = 8;
+                local_size_y = 8;
+                local_size_z = 1;
+            }
+        }
+        else
+        {
+            if (w == h || h == c || w == c)
+            {
+                local_size_x = 4;
+                local_size_y = 4;
+                local_size_z = 4;
+            }
+            else
+            {
+                if (w > h && w > c)
+                {
+                    local_size_x = 8;
+                    local_size_y = 2;
+                    local_size_z = 2;
+                }
+                else if (w < h && h > c)
+                {
+                    local_size_x = 2;
+                    local_size_y = 8;
+                    local_size_z = 2;
+                }
+                else if (w < c && h < c)
+                {
+                    local_size_x = 2;
+                    local_size_y = 2;
+                    local_size_z = 8;
+                }
+                else
+                {
+                    local_size_x = 4;
+                    local_size_y = 4;
+                    local_size_z = 4;
+                }
+            }
+        }
+    }
+    if (vkdev->info.subgroup_size == 128)
+    {
+        if (w == 1)
+        {
+            if (h == 1)
+            {
+                local_size_x = 1;
+                local_size_y = 1;
+                local_size_z = 128;
+            }
+            else if (c == 1)
+            {
+                local_size_x = 1;
+                local_size_y = 128;
+                local_size_z = 1;
+            }
+            else if (h < c)
+            {
+                local_size_x = 1;
+                local_size_y = 8;
+                local_size_z = 16;
+            }
+            else if (h > c)
+            {
+                local_size_x = 1;
+                local_size_y = 16;
+                local_size_z = 8;
+            }
+            else
+            {
+                // NOTE why
+                local_size_x = 1;
+                local_size_y = 16;
+                local_size_z = 8;
+            }
+        }
+        else if (h == 1)
+        {
+            if (c == 1)
+            {
+                local_size_x = 128;
+                local_size_y = 1;
+                local_size_z = 1;
+            }
+            else if (w < c)
+            {
+                local_size_x = 8;
+                local_size_y = 1;
+                local_size_z = 16;
+            }
+            else if (w > c)
+            {
+                local_size_x = 16;
+                local_size_y = 1;
+                local_size_z = 8;
+            }
+            else
+            {
+                // NOTE why
+                local_size_x = 16;
+                local_size_y = 1;
+                local_size_z = 8;
+            }
+        }
+        else if (c == 1)
+        {
+            if (w < h)
+            {
+                local_size_x = 8;
+                local_size_y = 16;
+                local_size_z = 1;
+            }
+            else if (w > h)
+            {
+                local_size_x = 16;
+                local_size_y = 8;
+                local_size_z = 1;
+            }
+            else
+            {
+                // NOTE why
+                local_size_x = 16;
+                local_size_y = 8;
+                local_size_z = 1;
+            }
+        }
+        else
+        {
+            if (w == h)
+            {
+                if (c > w)
+                {
+                    local_size_x = 4;
+                    local_size_y = 4;
+                    local_size_z = 8;
+                }
+                else if (c < w)
+                {
+                    local_size_x = 8;
+                    local_size_y = 8;
+                    local_size_z = 2;
+                }
+                else
+                {
+                    // NOTE why
+                    local_size_x = 8;
+                    local_size_y = 8;
+                    local_size_z = 2;
+                }
+            }
+            else if (h == c)
+            {
+                if (w > h)
+                {
+                    local_size_x = 8;
+                    local_size_y = 4;
+                    local_size_z = 4;
+                }
+                else // if (w < h)
+                {
+                    local_size_x = 2;
+                    local_size_y = 8;
+                    local_size_z = 8;
+                }
+            }
+            else if (w == c)
+            {
+                if (h > w)
+                {
+                    local_size_x = 4;
+                    local_size_y = 8;
+                    local_size_z = 4;
+                }
+                else // if (h < w)
+                {
+                    local_size_x = 8;
+                    local_size_y = 2;
+                    local_size_z = 8;
+                }
+            }
+            else
+            {
+                if (w > h && h > c)
+                {
+                    local_size_x = 8;
+                    local_size_y = 4;
+                    local_size_z = 2;
+                }
+                if (w > c && c > h)
+                {
+                    local_size_x = 8;
+                    local_size_y = 2;
+                    local_size_z = 4;
+                }
+                else if (h > w && w > c)
+                {
+                    local_size_x = 4;
+                    local_size_y = 8;
+                    local_size_z = 2;
+                }
+                else if (h > c && c > w)
+                {
+                    local_size_x = 2;
+                    local_size_y = 8;
+                    local_size_z = 4;
+                }
+                else if (c > w && w > h)
+                {
+                    local_size_x = 4;
+                    local_size_y = 2;
+                    local_size_z = 8;
+                }
+                else // if (c > h && h > w)
+                {
+                    local_size_x = 2;
+                    local_size_y = 4;
+                    local_size_z = 8;
+                }
+            }
+        }
+    }
 
     //     NCNN_LOGE("local size = %d %d %d", local_size_x, local_size_y, local_size_z);
 }
