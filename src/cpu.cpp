@@ -512,7 +512,7 @@ static int set_sched_affinity(const CpuSet& thread_affinity_mask)
 #if defined(__GLIBC__) || defined(__OHOS__)
     pid_t pid = syscall(SYS_gettid);
 #else
-#ifdef PI3
+#if defined(PI3) || (defined(__MUSL__) && __MUSL_MINOR__ <= 14)
     pid_t pid = getpid();
 #else
     pid_t pid = gettid();

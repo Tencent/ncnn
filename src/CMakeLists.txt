@@ -347,6 +347,7 @@ if(NCNN_INSTALL_SDK)
         simpleocv.h
         simpleomp.h
         simplestl.h
+        vulkan_header_fix.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/platform.h

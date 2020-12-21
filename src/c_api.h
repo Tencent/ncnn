@@ -23,6 +23,8 @@
 extern "C" {
 #endif
 
+const char* ncnn_version();
+
 /* mat api */
 typedef struct __ncnn_mat_t* ncnn_mat_t;
 

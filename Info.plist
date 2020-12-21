@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>ncnn</string>
+    <string>__NAME__</string>
     <key>CFBundleIdentifier</key>
-    <string>com.tencent.ncnn</string>
+    <string>__IDENTIFIER__</string>
     <key>CFBundleVersion</key>
-    <string>1.0</string>
+    <string>__VERSION__</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>__VERSION__</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundlePackageType</key>

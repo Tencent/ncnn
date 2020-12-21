@@ -51,6 +51,77 @@ Parameter
 
 Typical output (executed in android adb shell)
 
+AMD Ryzen Threadripper 3970X 32-Core Processor
+```
+i@s:~/qtang/ncnn/benchmark$ ../build-vulkan/benchmark/benchncnn 10 1 0 -1 0
+loop_count = 10
+num_threads = 1
+powersave = 0
+gpu_device = -1
+cooling_down = 0
+          squeezenet  min =   11.73  max =   11.88  avg =   11.78
+           mobilenet  min =   21.63  max =   21.73  avg =   21.68
+        mobilenet_v2  min =   14.70  max =   14.95  avg =   14.82
+        mobilenet_v3  min =   12.12  max =   12.17  avg =   12.15
+          shufflenet  min =   14.08  max =   14.16  avg =   14.12
+       shufflenet_v2  min =   25.99  max =   26.13  avg =   26.06
+             mnasnet  min =   14.12  max =   14.17  avg =   14.14
+     proxylessnasnet  min =   16.51  max =   16.71  avg =   16.61
+     efficientnet_b0  min =   22.88  max =   22.97  avg =   22.93
+        regnety_400m  min =   18.50  max =   18.61  avg =   18.56
+           blazeface  min =    6.18  max =    6.27  avg =    6.21
+           googlenet  min =   58.42  max =   58.60  avg =   58.49
+            resnet18  min =   61.13  max =   61.84  avg =   61.40
+             alexnet  min =   50.82  max =   50.98  avg =   50.92
+               vgg16  min =  217.19  max =  218.40  avg =  217.87
+            resnet50  min =  126.84  max =  137.46  avg =  128.21
+      squeezenet_ssd  min =  114.24  max =  114.57  avg =  114.47
+       mobilenet_ssd  min =   51.60  max =   51.89  avg =   51.77
+      mobilenet_yolo  min =  125.09  max =  126.33  avg =  125.83
+  mobilenetv2_yolov3  min =   57.51  max =   57.79  avg =   57.65
+         yolov4-tiny  min =   85.65  max =   85.97  avg =   85.79
+```
+
+Quadro RTX 8000
+```
+i@s:~/qtang/ncnn/benchmark$ ../build-vulkan/benchmark/benchncnn 256 1 0 1 0
+[0 Quadro RTX 8000]  queueC=2[8]  queueG=0[16]  queueT=1[2]
+[0 Quadro RTX 8000]  bugsbn1=0  bugcopc=0  bugihfa=0
+[0 Quadro RTX 8000]  fp16p=1  fp16s=1  fp16a=1  int8s=1  int8a=1
+[0 Quadro RTX 8000]  subgroup=32  basic=1  vote=1  ballot=1  shuffle=1
+[1 Quadro RTX 8000]  queueC=2[8]  queueG=0[16]  queueT=1[2]
+[1 Quadro RTX 8000]  bugsbn1=0  bugcopc=0  bugihfa=0
+[1 Quadro RTX 8000]  fp16p=1  fp16s=1  fp16a=1  int8s=1  int8a=1
+[1 Quadro RTX 8000]  subgroup=32  basic=1  vote=1  ballot=1  shuffle=1
+loop_count = 256
+num_threads = 1
+powersave = 0
+gpu_device = 1
+cooling_down = 0
+          squeezenet  min =    0.84  max =    1.39  avg =    0.93
+           mobilenet  min =    0.90  max =    2.30  avg =    0.91
+        mobilenet_v2  min =    1.35  max =    9.59  avg =    1.46
+        mobilenet_v3  min =    1.60  max =   77.94  avg =    2.12
+          shufflenet  min =    0.86  max =    2.27  avg =    0.88
+       shufflenet_v2  min =    1.25  max =    1.47  avg =    1.27
+             mnasnet  min =    1.42  max =   20.77  avg =    1.72
+     proxylessnasnet  min =    1.48  max =    1.67  avg =    1.49
+     efficientnet_b0  min =    2.56  max =   12.86  avg =    2.77
+        regnety_400m  min =    1.84  max =   14.98  avg =    2.42
+           blazeface  min =    0.64  max =    0.90  avg =    0.65
+           googlenet  min =    2.94  max =   76.82  avg =    3.45
+            resnet18  min =    1.27  max =   10.56  avg =    1.56
+             alexnet  min =    1.53  max =   71.76  avg =    1.96
+               vgg16  min =    4.90  max =   78.12  avg =    5.80
+            resnet50  min =    3.00  max =   12.51  avg =    3.07
+      squeezenet_ssd  min =    5.60  max =   97.09  avg =    6.50
+       mobilenet_ssd  min =    2.40  max =   93.64  avg =    3.30
+      mobilenet_yolo  min =    2.96  max =   19.15  avg =    3.25
+  mobilenetv2_yolov3  min =    4.52  max =   66.96  avg =    5.32
+         yolov4-tiny  min =    9.32  max =   72.92  avg =   14.01
+
+```
+
 Qualcomm SM8150-AC Snapdragon 855+ (Kyro485 2.96 GHz + 2.42 GHz x 3 + 1.80 GHz x 4 + Adreno 640)
 ```
 OnePlus7T:/data/local/tmp $ ./benchncnn 8 4 2 -1 1
