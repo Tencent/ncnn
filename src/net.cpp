@@ -57,7 +57,7 @@ Net::~Net()
 }
 
 #if NCNN_STRING
-int Net::register_custom_layer(const char* type, layer_creator_func creator)
+int Net::register_custom_layer(const char* type, layer_creator_func creator, layer_destroyer_func destroyer)
 {
     int typeindex = layer_to_index(type);
     if (typeindex != -1)
@@ -69,7 +69,7 @@ int Net::register_custom_layer(const char* type, layer_creator_func creator)
     int custom_index = custom_layer_to_index(type);
     if (custom_index == -1)
     {
-        struct layer_registry_entry entry = {type, creator};
+        struct layer_registry_entry entry = {type, creator, destroyer};
         custom_layer_registry.push_back(entry);
     }
     else
@@ -77,13 +77,14 @@ int Net::register_custom_layer(const char* type, layer_creator_func creator)
         NCNN_LOGE("overwrite existing custom layer type %s", type);
         custom_layer_registry[custom_index].name = type;
         custom_layer_registry[custom_index].creator = creator;
+        custom_layer_registry[custom_index].destroyer = destroyer;
     }
 
     return 0;
 }
 #endif // NCNN_STRING
 
-int Net::register_custom_layer(int index, layer_creator_func creator)
+int Net::register_custom_layer(int index, layer_creator_func creator, layer_destroyer_func destroyer)
 {
     int custom_index = index & ~LayerType::CustomBit;
     if (index == custom_index)
@@ -108,6 +109,7 @@ int Net::register_custom_layer(int index, layer_creator_func creator)
     }
 
     custom_layer_registry[custom_index].creator = creator;
+    custom_layer_registry[custom_index].destroyer = destroyer;
     return 0;
 }
 
@@ -948,7 +950,22 @@ void Net::clear()
             // ignore anyway
         }
 
-        delete layer;
+        if (layer->typeindex & ncnn::LayerType::CustomBit)
+        {
+            int custom_index = layer->typeindex & ~ncnn::LayerType::CustomBit;
+            if (custom_layer_registry[custom_index].destroyer)
+            {
+                custom_layer_registry[custom_index].destroyer(layer);
+            }
+            else
+            {
+                delete layer;
+            }
+        }
+        else
+        {
+            delete layer;
+        }
     }
     layers.clear();
 
@@ -1104,7 +1121,9 @@ Layer* Net::create_custom_layer(int index)
     if (!layer_creator)
         return 0;
 
-    return layer_creator();
+    Layer* layer = layer_creator();
+    layer->typeindex = ncnn::LayerType::CustomBit | index;
+    return layer;
 }
 
 int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const
