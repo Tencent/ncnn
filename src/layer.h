@@ -144,6 +144,7 @@ public:
 
 // layer factory function
 typedef Layer* (*layer_creator_func)();
+typedef void (*layer_destroyer_func)(Layer*);
 
 struct layer_registry_entry
 {
@@ -153,6 +154,7 @@ struct layer_registry_entry
 #endif // NCNN_STRING
     // layer factory entry
     layer_creator_func creator;
+    layer_destroyer_func destroyer;
 };
 
 #if NCNN_STRING
@@ -168,6 +170,12 @@ Layer* create_layer(int index);
     ::ncnn::Layer* name##_layer_creator() \
     {                                     \
         return new name;                  \
+    }
+
+#define DEFINE_LAYER_DESTROYER(name)                  \
+    void name##_layer_destroyer(::ncnn::Layer* layer) \
+    {                                                 \
+        delete layer;                                 \
     }
 
 } // namespace ncnn
