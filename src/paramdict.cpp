@@ -190,6 +190,12 @@ int ParamDict::load_param(const DataReader& dr)
             id = -id - 23300;
         }
 
+        if (id >= NCNN_MAX_PARAM_COUNT)
+        {
+            NCNN_LOGE("id < NCNN_MAX_PARAM_COUNT failed (id=%d, NCNN_MAX_PARAM_COUNT=%d)", id, NCNN_MAX_PARAM_COUNT);
+            return -1;
+        }
+
         if (is_array)
         {
             int len = 0;
@@ -299,6 +305,12 @@ int ParamDict::load_param_bin(const DataReader& dr)
         if (is_array)
         {
             id = -id - 23300;
+        }
+
+        if (id >= NCNN_MAX_PARAM_COUNT)
+        {
+            NCNN_LOGE("id < NCNN_MAX_PARAM_COUNT failed (id=%d, NCNN_MAX_PARAM_COUNT=%d)", id, NCNN_MAX_PARAM_COUNT);
+            return -1;
         }
 
         if (is_array)
