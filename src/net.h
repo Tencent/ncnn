@@ -58,11 +58,11 @@ public:
 #if NCNN_STRING
     // register custom layer by layer type name
     // return 0 if success
-    int register_custom_layer(const char* type, layer_creator_func creator);
+    int register_custom_layer(const char* type, layer_creator_func creator, layer_destroyer_func destroyer = NULL);
 #endif // NCNN_STRING
     // register custom layer by layer type
     // return 0 if success
-    int register_custom_layer(int index, layer_creator_func creator);
+    int register_custom_layer(int index, layer_creator_func creator, layer_destroyer_func destroyer = NULL);
 
 #if NCNN_STRING
     int load_param(const DataReader& dr);
