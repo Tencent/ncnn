@@ -70,7 +70,6 @@ public:
     float top_blob_int8_scale; // TODO load param
 
     bool use_int8_requantize;
-
 };
 
 } // namespace ncnn
