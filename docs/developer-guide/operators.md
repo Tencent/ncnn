@@ -13,8 +13,8 @@
 * [crop](#crop)
 * [dequantize](#dequantize)
 * [lstm](#lstm)
-* [softmax](#softmax)
 * [sigmoid](#sigmoid)
+* [softmax](#softmax)
 * [tanh](#tanh)
 
 # absval
@@ -274,6 +274,14 @@ Apply a single-layer LSTM to a feature sequence of `T` timesteps. The input blob
 |bias_c_data|float|`[w=num_output, h=4, c=num_directions]`||
 |weight_hc_data|float|`[w=num_output, h=num_output * 4, c=num_directions]`||
 
+# sigmoid
+```
+y = 1 / (1 + exp(-x))
+```
+
+* one_blob_only
+* support_inplace
+
 # softmax
 ```
 softmax(x, axis)
@@ -287,20 +295,10 @@ softmax(x, axis)
 |0|axis|int|0||
 |1|fixbug0|int|0|hack for bug fix, should be 1|
 
-# sigmoid
-```
-y = 1 / (1 + exp(-x))
-```
-
-* one_blob_only
-* support_inplace
-
 # tanh
 ```
-y = exp(x) - exp(-x) / exp(x) + exp(-x)
+y = tanh(x)
 ```
 
 * one_blob_only
 * support_inplace
-
-
