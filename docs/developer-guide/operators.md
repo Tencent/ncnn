@@ -178,7 +178,6 @@ y = activation(x3, act_type, act_params)
 |15|pad_right|int|pad_left|
 |14|pad_top|int|pad_left|
 |16|pad_bottom|int|pad_top|
-|17|impl_type|int|0|
 |18|pad_value|float|0.f|
 
 |weight|type|
