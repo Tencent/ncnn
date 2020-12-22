@@ -33,14 +33,14 @@ static std::string get_mlir_value_uniq_id(const mlir::Value& value)
     {
         mlir::FileLineColLoc floc = value.getLoc().cast<mlir::FileLineColLoc>();
 
-        return floc.getFilename().str() + ":" + std::to_string(floc.getLine()) + ":" + std::to_string(floc.getColumn());
+        return std::to_string(floc.getLine()) + ":" + std::to_string(floc.getColumn());
     }
 
     if (value.getLoc().isa<mlir::FusedLoc>())
     {
         mlir::FileLineColLoc floc = value.getLoc().cast<mlir::FusedLoc>().getLocations().front().cast<mlir::FileLineColLoc>();
 
-        return floc.getFilename().str() + ":" + std::to_string(floc.getLine()) + ":" + std::to_string(floc.getColumn());
+        return std::to_string(floc.getLine()) + ":" + std::to_string(floc.getColumn());
     }
 
     fprintf(stderr, "unhandled get_mlir_value_uniq_id\n");
