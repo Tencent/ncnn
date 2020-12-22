@@ -71,6 +71,8 @@ public:
 
     bool use_int8_requantize;
 
+    // implementation type, 0 means do not use auto pack model
+    int impl_type;
 };
 
 } // namespace ncnn
