@@ -1224,9 +1224,12 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
 #endif
             }
 
-            Mat bottom_blob_packed;
-            convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, opt);
-            bottom_blob = bottom_blob_packed;
+            if (bottom_blob.elempack != dst_elempack)
+            {
+                Mat bottom_blob_packed;
+                convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, opt);
+                bottom_blob = bottom_blob_packed;
+            }
         }
 
         // forward
@@ -1359,9 +1362,12 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
 #endif
                 }
 
-                Mat bottom_blob_packed;
-                convert_packing(bottom_blobs[i], bottom_blob_packed, dst_elempack, opt);
-                bottom_blobs[i] = bottom_blob_packed;
+                if (bottom_blobs[i].elempack != dst_elempack)
+                {
+                    Mat bottom_blob_packed;
+                    convert_packing(bottom_blobs[i], bottom_blob_packed, dst_elempack, opt);
+                    bottom_blobs[i] = bottom_blob_packed;
+                }
             }
         }
 
@@ -2784,7 +2790,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
 
     feat = blob_mats[blob_index];
 
-    if (opt.use_packing_layout && (type == 0))
+    if (opt.use_packing_layout && (type == 0) && feat.elempack != 1)
     {
         Mat bottom_blob_unpacked;
         convert_packing(feat, bottom_blob_unpacked, 1, opt);
