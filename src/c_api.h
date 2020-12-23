@@ -82,8 +82,7 @@ typedef struct __ncnn_blob_t* ncnn_blob_t;
 const char* ncnn_blob_get_name(ncnn_blob_t blob);
 
 int ncnn_blob_get_producer(ncnn_blob_t blob);
-int ncnn_blob_get_consumer_count(ncnn_blob_t blob);
-int ncnn_blob_get_consumer(ncnn_blob_t blob, int i);
+int ncnn_blob_get_consumer(ncnn_blob_t blob);
 
 void ncnn_blob_get_shape(ncnn_blob_t blob, int* dims, int* w, int* h, int* c);
 

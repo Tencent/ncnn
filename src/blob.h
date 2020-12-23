@@ -34,7 +34,7 @@ public:
     // layer index which produce this blob as output
     int producer;
     // layer index which need this blob as input
-    std::vector<int> consumers;
+    int consumer;
     // shape hint
     Mat shape;
 };
