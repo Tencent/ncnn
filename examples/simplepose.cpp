@@ -104,8 +104,7 @@ static void draw_pose(const cv::Mat& bgr, const std::vector<KeyPoint>& keypoints
 
     // draw bone
     static const int joint_pairs[16][2] = {
-        {0, 1}, {1, 3}, {0, 2}, {2, 4}, {5, 6}, {5, 7}, {7, 9}, {6, 8}, {8, 10}, {5, 11}, {6, 12}, {11, 12}, {11, 13}, {12, 14}, {13, 15}, {14, 16}
-    };
+        {0, 1}, {1, 3}, {0, 2}, {2, 4}, {5, 6}, {5, 7}, {7, 9}, {6, 8}, {8, 10}, {5, 11}, {6, 12}, {11, 12}, {11, 13}, {12, 14}, {13, 15}, {14, 16}};
 
     for (int i = 0; i < 16; i++)
     {
@@ -142,7 +141,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
         return -1;
     }
-    
+
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, 1);
