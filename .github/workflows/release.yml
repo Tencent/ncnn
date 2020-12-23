@@ -1090,7 +1090,8 @@ jobs:
         Copy-Item -Verbose -Path "build\tools\Release\ncnn2mem.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017\bin"
         Copy-Item -Verbose -Path "build\tools\Release\ncnnmerge.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017\bin"
         7z a -r ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017.zip ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017
-    - uses: actions/upload-artifact@v2
+    - name: upload-zip
+      uses: actions/upload-artifact@v2
       with:
         name: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017
         path: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017.zip
@@ -1149,7 +1150,8 @@ jobs:
         Copy-Item -Verbose -Path "build\tools\Release\ncnn2mem.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019\bin"
         Copy-Item -Verbose -Path "build\tools\Release\ncnnmerge.exe" -Destination "ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019\bin"
         7z a -r ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019.zip ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019
-    - uses: actions/upload-artifact@v2
+    - name: upload-zip
+      uses: actions/upload-artifact@v2
       with:
         name: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019
         path: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019.zip
