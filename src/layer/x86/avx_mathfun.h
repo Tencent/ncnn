@@ -99,20 +99,20 @@ typedef union imm_xmm_union
     __m128i xmm[2];
 } imm_xmm_union;
 
-#define COPY_IMM_TO_XMM(imm_, xmm0_, xmm1_)           \
-    {                                                 \
+#define COPY_IMM_TO_XMM(imm_, xmm0_, xmm1_)      \
+    {                                            \
         ALIGN32_BEG imm_xmm_union u ALIGN32_END; \
-        u.imm = imm_;                                 \
-        xmm0_ = u.xmm[0];                             \
-        xmm1_ = u.xmm[1];                             \
+        u.imm = imm_;                            \
+        xmm0_ = u.xmm[0];                        \
+        xmm1_ = u.xmm[1];                        \
     }
 
-#define COPY_XMM_TO_IMM(xmm0_, xmm1_, imm_)           \
-    {                                                 \
+#define COPY_XMM_TO_IMM(xmm0_, xmm1_, imm_)      \
+    {                                            \
         ALIGN32_BEG imm_xmm_union u ALIGN32_END; \
-        u.xmm[0] = xmm0_;                             \
-        u.xmm[1] = xmm1_;                             \
-        imm_ = u.imm;                                 \
+        u.xmm[0] = xmm0_;                        \
+        u.xmm[1] = xmm1_;                        \
+        imm_ = u.imm;                            \
     }
 
 #define AVX2_BITOP_USING_SSE2(fn)                            \
