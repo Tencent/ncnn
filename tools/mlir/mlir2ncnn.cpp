@@ -18,7 +18,6 @@
 #include <set>
 
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/Module.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Parser.h>
 #include <mlir/Pass/PassManager.h>
