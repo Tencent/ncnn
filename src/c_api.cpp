@@ -203,14 +203,9 @@ int ncnn_blob_get_producer(ncnn_blob_t blob)
     return ((Blob*)blob)->producer;
 }
 
-int ncnn_blob_get_consumer_count(ncnn_blob_t blob)
+int ncnn_blob_get_consumer(ncnn_blob_t blob)
 {
-    return (int)((Blob*)blob)->consumers.size();
-}
-
-int ncnn_blob_get_consumer(ncnn_blob_t blob, int i)
-{
-    return ((Blob*)blob)->consumers[i];
+    return ((Blob*)blob)->consumer;
 }
 
 void ncnn_blob_get_shape(ncnn_blob_t blob, int* dims, int* w, int* h, int* c)
