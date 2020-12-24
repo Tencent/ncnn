@@ -2761,7 +2761,7 @@ int NetOptimize::shape_inference()
 {
     if (custom_layer_index)
     {
-        fprintf(stderr, "model has %d custom layer, shape_inference aborted\n", custom_layer_index);
+        fprintf(stderr, "model has %d custom layer, shape_inference skipped\n", custom_layer_index);
         return -1;
     }
 
@@ -2794,7 +2794,7 @@ int NetOptimize::shape_inference()
 
         if (dims == 0)
         {
-            fprintf(stderr, "Input layer %s without shape info, shape_inference aborted\n", layer->name.c_str());
+            fprintf(stderr, "Input layer %s without shape info, shape_inference skipped\n", layer->name.c_str());
             return -1;
         }
 
@@ -2880,7 +2880,7 @@ int NetOptimize::estimate_memory_footprint()
 {
     if (custom_layer_index)
     {
-        fprintf(stderr, "model has %d custom layer, estimate_memory_footprint aborted\n", custom_layer_index);
+        fprintf(stderr, "model has %d custom layer, estimate_memory_footprint skipped\n", custom_layer_index);
         return -1;
     }
 
@@ -2918,7 +2918,7 @@ int NetOptimize::estimate_memory_footprint()
 
         if (dims == 0)
         {
-            fprintf(stderr, "Input layer %s without shape info, estimate_memory_footprint aborted\n", layer->name.c_str());
+            fprintf(stderr, "Input layer %s without shape info, estimate_memory_footprint skipped\n", layer->name.c_str());
             return -1;
         }
 
