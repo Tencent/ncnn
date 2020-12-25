@@ -96,9 +96,9 @@ int Net::register_custom_layer(int index, layer_creator_func creator, layer_dest
     if ((int)custom_layer_registry.size() <= custom_index)
     {
 #if NCNN_STRING
-        struct layer_registry_entry dummy = {"", 0};
+        struct layer_registry_entry dummy = {"", 0, 0};
 #else
-        struct layer_registry_entry dummy = {0};
+        struct layer_registry_entry dummy = {0, 0};
 #endif // NCNN_STRING
         custom_layer_registry.resize(custom_index + 1, dummy);
     }

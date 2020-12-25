@@ -276,6 +276,10 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
     for (int i = 0; i < (int)class_candidates.size(); i++)
     {
         std::vector<Object>& candidates = class_candidates[i];
+        if (candidates.size() == 0)
+        {
+            continue;
+        }
 
         qsort_descent_inplace(candidates);
 
