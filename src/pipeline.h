@@ -58,6 +58,7 @@ public:
     uint32_t local_size_z;
 };
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 class VkCompute;
 class ImportAndroidHardwareBufferPipeline : private Pipeline
@@ -85,6 +86,8 @@ public:
     VkSampler sampler;
 };
 #endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
+
 #endif // NCNN_VULKAN
 
 } // namespace ncnn

@@ -83,6 +83,7 @@ size_t DataReaderFromMemory::read(void* buf, size_t size) const
     return size;
 }
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
 DataReaderFromAndroidAsset::DataReaderFromAndroidAsset(AAsset* _asset)
     : asset(_asset), mem(0)
@@ -133,5 +134,6 @@ size_t DataReaderFromAndroidAsset::read(void* buf, size_t size) const
     return nread;
 }
 #endif // __ANDROID_API__ >= 9
+#endif // NCNN_PLATFORM_API
 
 } // namespace ncnn

@@ -708,6 +708,7 @@ int Net::load_model(const unsigned char* _mem)
     return static_cast<int>(mem - _mem);
 }
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
 #if NCNN_STRING
 int Net::load_param(AAsset* asset)
@@ -771,6 +772,7 @@ int Net::load_model(AAssetManager* mgr, const char* assetpath)
     return ret;
 }
 #endif // __ANDROID_API__ >= 9
+#endif // NCNN_PLATFORM_API
 
 int Net::fuse_network()
 {

@@ -21,9 +21,11 @@
 #include "option.h"
 #include "platform.h"
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
 #include <android/asset_manager.h>
 #endif // __ANDROID_API__ >= 9
+#endif // NCNN_PLATFORM_API
 
 namespace ncnn {
 
@@ -103,6 +105,7 @@ public:
     // return bytes consumed
     int load_model(const unsigned char* mem);
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
 #if NCNN_STRING
     // convenient load network structure from android asset plain param file
@@ -117,6 +120,7 @@ public:
     int load_model(AAsset* asset);
     int load_model(AAssetManager* mgr, const char* assetpath);
 #endif // __ANDROID_API__ >= 9
+#endif // NCNN_PLATFORM_API
 
     // unload network structure and weight data
     void clear();

@@ -28,9 +28,11 @@
 #include <vulkan/vulkan.h>
 #endif // NCNN_VULKAN
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
 #endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
 
 namespace ncnn {
 
@@ -388,6 +390,7 @@ public:
 protected:
 };
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 class ImportAndroidHardwareBufferPipeline;
 class VkAndroidHardwareBufferImageAllocator : public VkAllocator
@@ -422,6 +425,7 @@ public:
     VkSamplerYcbcrConversionKHR samplerYcbcrConversion;
 };
 #endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
 
 #endif // NCNN_VULKAN
 
