@@ -185,10 +185,12 @@ public:
 class ThreadLocalStorage
 {
 public:
-    ThreadLocalStorage() {}
+    ThreadLocalStorage() { data = 0; }
     ~ThreadLocalStorage() {}
-    void set(void* /*value*/) {}
-    void* get() { return 0; }
+    void set(void* value) { data = value; }
+    void* get() { return data; }
+private:
+    void* data;
 };
 #endif // NCNN_THREADS
 

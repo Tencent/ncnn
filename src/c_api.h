@@ -25,6 +25,31 @@ extern "C" {
 
 const char* ncnn_version();
 
+/* allocator api */
+typedef struct __ncnn_allocator_t* ncnn_allocator_t;
+
+ncnn_allocator_t ncnn_allocator_create_pool_allocator();
+ncnn_allocator_t ncnn_allocator_create_unlocked_pool_allocator();
+void ncnn_allocator_destroy(ncnn_allocator_t allocator);
+
+void* ncnn_allocator_fast_malloc(ncnn_allocator_t allocator, size_t size);
+void ncnn_allocator_fast_free(ncnn_allocator_t allocator, void* ptr);
+
+ncnn_allocator_t ncnn_allocator_get_tls_allocator();
+void ncnn_allocator_set_tls_allocator(ncnn_allocator_t allocator);
+
+/* option api */
+typedef struct __ncnn_option_t* ncnn_option_t;
+
+ncnn_option_t ncnn_option_create();
+void ncnn_option_destroy(ncnn_option_t opt);
+
+int ncnn_option_get_num_threads(const ncnn_option_t opt);
+void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads);
+
+int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt);
+void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute);
+
 /* mat api */
 typedef struct __ncnn_mat_t* ncnn_mat_t;
 
@@ -32,15 +57,15 @@ ncnn_mat_t ncnn_mat_create();
 ncnn_mat_t ncnn_mat_create_1d(int w);
 ncnn_mat_t ncnn_mat_create_2d(int w, int h);
 ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c);
-ncnn_mat_t ncnn_mat_create_1d_packed(int w, size_t elemsize, int elempack);
-ncnn_mat_t ncnn_mat_create_2d_packed(int w, int h, size_t elemsize, int elempack);
-ncnn_mat_t ncnn_mat_create_3d_packed(int w, int h, int c, size_t elemsize, int elempack);
 ncnn_mat_t ncnn_mat_create_external_1d(int w, void* data);
 ncnn_mat_t ncnn_mat_create_external_2d(int w, int h, void* data);
 ncnn_mat_t ncnn_mat_create_external_3d(int w, int h, int c, void* data);
-ncnn_mat_t ncnn_mat_create_external_1d_packed(int w, void* data, size_t elemsize, int elempack);
-ncnn_mat_t ncnn_mat_create_external_2d_packed(int w, int h, void* data, size_t elemsize, int elempack);
-ncnn_mat_t ncnn_mat_create_external_3d_packed(int w, int h, int c, void* data, size_t elemsize, int elempack);
+ncnn_mat_t ncnn_mat_create_1d_elem(int w, size_t elemsize, int elempack);
+ncnn_mat_t ncnn_mat_create_2d_elem(int w, int h, size_t elemsize, int elempack);
+ncnn_mat_t ncnn_mat_create_3d_elem(int w, int h, int c, size_t elemsize, int elempack);
+ncnn_mat_t ncnn_mat_create_external_1d_elem(int w, void* data, size_t elemsize, int elempack);
+ncnn_mat_t ncnn_mat_create_external_2d_elem(int w, int h, void* data, size_t elemsize, int elempack);
+ncnn_mat_t ncnn_mat_create_external_3d_elem(int w, int h, int c, void* data, size_t elemsize, int elempack);
 void ncnn_mat_destroy(ncnn_mat_t mat);
 
 void ncnn_mat_fill_float(ncnn_mat_t mat, float v);
@@ -70,6 +95,8 @@ void* ncnn_mat_get_data(const ncnn_mat_t mat);
 #define NCNN_MAT_PIXEL_X2Y(X, Y) (X | (Y << 16))
 ncnn_mat_t ncnn_mat_from_pixels(const unsigned char* pixels, int type, int w, int h, int stride);
 ncnn_mat_t ncnn_mat_from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int stride, int target_width, int target_height);
+ncnn_mat_t ncnn_mat_from_pixels_roi(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih);
+ncnn_mat_t ncnn_mat_from_pixels_roi_resize(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, int target_width, int target_height);
 void ncnn_mat_to_pixels(const ncnn_mat_t mat, unsigned char* pixels, int type, int stride);
 void ncnn_mat_to_pixels_resize(const ncnn_mat_t mat, unsigned char* pixels, int type, int target_width, int target_height, int target_stride);
 
@@ -77,20 +104,8 @@ void ncnn_mat_to_pixels_resize(const ncnn_mat_t mat, unsigned char* pixels, int 
 
 void ncnn_mat_substract_mean_normalize(ncnn_mat_t mat, const float* mean_vals, const float* norm_vals);
 
-void ncnn_convert_packing(const ncnn_mat_t src, ncnn_mat_t* dst, int elempack);
-void ncnn_flatten(const ncnn_mat_t src, ncnn_mat_t* dst);
-
-/* option api */
-typedef struct __ncnn_option_t* ncnn_option_t;
-
-ncnn_option_t ncnn_option_create();
-void ncnn_option_destroy(ncnn_option_t opt);
-
-int ncnn_option_get_num_threads(const ncnn_option_t opt);
-void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads);
-
-int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt);
-void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute);
+void ncnn_convert_packing(const ncnn_mat_t src, ncnn_mat_t* dst, int elempack, const ncnn_option_t opt);
+void ncnn_flatten(const ncnn_mat_t src, ncnn_mat_t* dst, const ncnn_option_t opt);
 
 /* blob api */
 typedef struct __ncnn_blob_t* ncnn_blob_t;
@@ -122,16 +137,16 @@ void ncnn_paramdict_set_array(ncnn_paramdict_t pd, int id, const ncnn_mat_t v);
 typedef struct __ncnn_datareader_t* ncnn_datareader_t;
 
 #if NCNN_STDIO
-ncnn_datareader_t ncnn_datareader_from_stdio(FILE* fp);
+ncnn_datareader_t ncnn_datareader_create_from_stdio(FILE* fp);
 #endif /* NCNN_STDIO */
-ncnn_datareader_t ncnn_datareader_from_memory(const unsigned char** mem);
+ncnn_datareader_t ncnn_datareader_create_from_memory(const unsigned char** mem);
 void ncnn_datareader_destroy(ncnn_datareader_t dr);
 
 /* modelbin api */
 typedef struct __ncnn_modelbin_t* ncnn_modelbin_t;
 
-ncnn_modelbin_t ncnn_modelbin_from_datareader(const ncnn_datareader_t dr);
-ncnn_modelbin_t ncnn_modelbin_from_mat_array(const ncnn_mat_t* weights, int n);
+ncnn_modelbin_t ncnn_modelbin_create_from_datareader(const ncnn_datareader_t dr);
+ncnn_modelbin_t ncnn_modelbin_create_from_mat_array(const ncnn_mat_t* weights, int n);
 void ncnn_modelbin_destroy(ncnn_modelbin_t mb);
 
 ncnn_mat_t ncnn_modelbin_load_1d(const ncnn_modelbin_t mb, int w, int type);
@@ -142,7 +157,9 @@ ncnn_mat_t ncnn_modelbin_load_3d(const ncnn_modelbin_t mb, int w, int h, int c, 
 typedef struct __ncnn_layer_t* ncnn_layer_t;
 
 ncnn_layer_t ncnn_layer_create_by_typeindex(int typeindex);
+#if NCNN_STDIO
 ncnn_layer_t ncnn_layer_create_by_type(const char* type);
+#endif /* NCNN_STDIO */
 void ncnn_layer_destroy(ncnn_layer_t layer);
 
 const char* ncnn_layer_get_name(const ncnn_layer_t layer);

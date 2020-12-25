@@ -21,6 +21,8 @@ static int test_c_api_0()
     ncnn_mat_t b = ncnn_mat_create_1d(2);
     ncnn_mat_t c = 0;
 
+    ncnn_option_t opt = ncnn_option_create();
+
     // set a and b
     {
         ncnn_mat_fill_float(a, 2.f);
@@ -29,8 +31,6 @@ static int test_c_api_0()
 
     // c = a + b
     {
-        ncnn_option_t opt = ncnn_option_create();
-
         ncnn_layer_t op = ncnn_layer_create_by_type("BinaryOp");
 
         // load param
@@ -45,7 +45,7 @@ static int test_c_api_0()
 
         // load model
         {
-            ncnn_modelbin_t mb = ncnn_modelbin_from_mat_array(0, 0);
+            ncnn_modelbin_t mb = ncnn_modelbin_create_from_mat_array(0, 0);
 
             ncnn_layer_load_model(op, mb);
 
@@ -61,8 +61,6 @@ static int test_c_api_0()
         ncnn_layer_destroy_pipeline(op, opt);
 
         ncnn_layer_destroy(op);
-
-        ncnn_option_destroy(opt);
     }
 
     // check c == a + b
@@ -75,6 +73,8 @@ static int test_c_api_0()
 
         success = dims == 1 && w == 2 && c_data[0] == 5.f && c_data[1] == 5.f;
     }
+
+    ncnn_option_destroy(opt);
 
     ncnn_mat_destroy(a);
     ncnn_mat_destroy(b);
@@ -96,10 +96,10 @@ static int test_c_api_1()
     ncnn_mat_t b = ncnn_mat_reshape_3d(a, 4, 2, 3);
     ncnn_mat_t c = 0;
 
+    ncnn_option_t opt = ncnn_option_create();
+
     // c = reorg(b, 2)
     {
-        ncnn_option_t opt = ncnn_option_create();
-
         ncnn_layer_t op = ncnn_layer_create_by_type("Reorg");
 
         // load param
@@ -114,7 +114,7 @@ static int test_c_api_1()
 
         // load model
         {
-            ncnn_modelbin_t mb = ncnn_modelbin_from_mat_array(0, 0);
+            ncnn_modelbin_t mb = ncnn_modelbin_create_from_mat_array(0, 0);
 
             ncnn_layer_load_model(op, mb);
 
@@ -128,8 +128,6 @@ static int test_c_api_1()
         ncnn_layer_destroy_pipeline(op, opt);
 
         ncnn_layer_destroy(op);
-
-        ncnn_option_destroy(opt);
     }
 
     // check c
@@ -159,7 +157,7 @@ static int test_c_api_1()
             25,27
         };
         ncnn_mat_t c2 = 0;
-        ncnn_flatten(c, &c2);
+        ncnn_flatten(c, &c2, opt);
         const float* c2_data = (const float*)ncnn_mat_get_data(c2);
         if (memcmp(c2_data, expected, 24) != 0)
         {
@@ -167,6 +165,8 @@ static int test_c_api_1()
         }
         ncnn_mat_destroy(c2);
     }
+
+    ncnn_option_destroy(opt);
 
     ncnn_mat_destroy(a);
     ncnn_mat_destroy(b);
