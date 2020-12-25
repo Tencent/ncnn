@@ -137,6 +137,12 @@ static void draw_pose(const cv::Mat& bgr, const std::vector<KeyPoint>& keypoints
 
 int main(int argc, char** argv)
 {
+    if (argc != 2)
+    {
+        fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
+        return -1;
+    }
+
     const char* imagepath = argv[1];
 
     cv::Mat m = cv::imread(imagepath, 1);

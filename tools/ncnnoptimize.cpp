@@ -24,6 +24,7 @@
 // ncnn public header
 #include "datareader.h"
 #include "layer.h"
+#include "layer_type.h"
 #include "net.h"
 
 // ncnn private header
@@ -134,8 +135,71 @@ public:
     std::map<void*, size_t> bookkeeper;
 };
 
+class CustomLayer : public ncnn::Layer
+{
+public:
+    virtual int load_param(const ncnn::ParamDict& pd)
+    {
+        mpd = pd;
+        return 0;
+    }
+
+    void write_param(FILE* pp)
+    {
+        for (int i = 0; i < NCNN_MAX_PARAM_COUNT; i++)
+        {
+            int type = mpd.type(i);
+            if (type == 0)
+                continue;
+
+            if (type == 2)
+            {
+                fprintf(pp, " %d=%d", i, mpd.get(i, 0));
+            }
+            if (type == 3)
+            {
+                fprintf(pp, " %d=%e", i, mpd.get(i, 0.f));
+            }
+            if (type == 5)
+            {
+                ncnn::Mat v = mpd.get(i, ncnn::Mat());
+                int len = v.w;
+                fprintf(pp, " %d=%d", -i - 23300, len);
+                const int* p = v;
+                for (int j = 0; j < len; j++)
+                {
+                    fprintf(pp, ",%d", p[j]);
+                }
+            }
+            if (type == 6)
+            {
+                ncnn::Mat v = mpd.get(i, ncnn::Mat());
+                int len = v.w;
+                fprintf(pp, " %d=%d", -i - 23300, len);
+                const float* p = v;
+                for (int j = 0; j < len; j++)
+                {
+                    fprintf(pp, ",%e", p[j]);
+                }
+            }
+        }
+    }
+
+public:
+    ncnn::ParamDict mpd;
+};
+
 class NetOptimize : public ncnn::Net
 {
+public:
+    NetOptimize();
+
+    virtual int custom_layer_to_index(const char* type);
+    virtual ncnn::Layer* create_custom_layer(const char* type);
+    virtual ncnn::Layer* create_custom_layer(int index);
+
+    int custom_layer_index;
+
 public:
     // 0=fp32 1=fp16
     int storage_type;
@@ -189,6 +253,51 @@ public:
 
     int save(const char* parampath, const char* binpath);
 };
+
+NetOptimize::NetOptimize()
+{
+    custom_layer_index = 0;
+}
+
+int NetOptimize::custom_layer_to_index(const char* type)
+{
+    int index = Net::custom_layer_to_index(type);
+    if (index != -1)
+        return index;
+
+    fprintf(stderr, "custom_layer_to_index %s\n", type);
+
+    index = ncnn::LayerType::CustomBit | custom_layer_index;
+    custom_layer_index++;
+    return index;
+}
+
+ncnn::Layer* NetOptimize::create_custom_layer(const char* type)
+{
+    ncnn::Layer* layer = Net::create_custom_layer(type);
+    if (layer)
+        return layer;
+
+    fprintf(stderr, "create_custom_layer %s\n", type);
+
+    layer = new CustomLayer;
+    layer->type = type;
+    layer->typeindex = custom_layer_to_index(type);
+    return layer;
+}
+
+ncnn::Layer* NetOptimize::create_custom_layer(int index)
+{
+    ncnn::Layer* layer = Net::create_custom_layer(index);
+    if (layer)
+        return layer;
+
+    fprintf(stderr, "create_custom_layer %d\n", index);
+
+    layer = new CustomLayer;
+    layer->typeindex = index;
+    return layer;
+}
 
 int NetOptimize::fuse_batchnorm_scale()
 {
@@ -2393,8 +2502,7 @@ int NetOptimize::eliminate_reshape_before_binaryop()
             binaryop->bottoms[0] = bottom_blob_index_final;
         if (layers[j]->bottoms[1] == top_blob_index)
             binaryop->bottoms[1] = bottom_blob_index_final;
-        blobs[bottom_blob_index_final].consumers.erase(std::find(blobs[bottom_blob_index_final].consumers.begin(), blobs[bottom_blob_index_final].consumers.end(), i));
-        blobs[bottom_blob_index_final].consumers.push_back(j);
+        blobs[bottom_blob_index_final].consumer = j;
         reshape->type = "ncnnfused";
     }
 
@@ -2470,8 +2578,7 @@ int NetOptimize::replace_reduction_with_global_pooling()
 
         int bottom_blob_index_final = reduction1->bottoms[0];
         pooling->bottoms[0] = bottom_blob_index_final;
-        blobs[bottom_blob_index_final].consumers.clear();
-        blobs[bottom_blob_index_final].consumers.push_back(j);
+        blobs[bottom_blob_index_final].consumer = j;
         reduction1->type = "ncnnfused";
     }
 
@@ -2650,6 +2757,12 @@ int NetOptimize::replace_convolution_with_innerproduct_after_innerproduct()
 
 int NetOptimize::shape_inference()
 {
+    if (custom_layer_index)
+    {
+        fprintf(stderr, "model has %d custom layer, shape_inference skipped\n", custom_layer_index);
+        return -1;
+    }
+
     const size_t layer_count = layers.size();
     const size_t blob_count = blobs.size();
 
@@ -2679,7 +2792,7 @@ int NetOptimize::shape_inference()
 
         if (dims == 0)
         {
-            fprintf(stderr, "Input layer %s without shape info, shape_inference aborted\n", layer->name.c_str());
+            fprintf(stderr, "Input layer %s without shape info, shape_inference skipped\n", layer->name.c_str());
             return -1;
         }
 
@@ -2763,6 +2876,12 @@ int NetOptimize::shape_inference()
 
 int NetOptimize::estimate_memory_footprint()
 {
+    if (custom_layer_index)
+    {
+        fprintf(stderr, "model has %d custom layer, estimate_memory_footprint skipped\n", custom_layer_index);
+        return -1;
+    }
+
     const size_t layer_count = layers.size();
     const size_t blob_count = blobs.size();
 
@@ -2797,7 +2916,7 @@ int NetOptimize::estimate_memory_footprint()
 
         if (dims == 0)
         {
-            fprintf(stderr, "Input layer %s without shape info, estimate_memory_footprint aborted\n", layer->name.c_str());
+            fprintf(stderr, "Input layer %s without shape info, estimate_memory_footprint skipped\n", layer->name.c_str());
             return -1;
         }
 
@@ -2817,7 +2936,7 @@ int NetOptimize::estimate_memory_footprint()
     {
         const ncnn::Blob& blob = blobs[i];
 
-        if (!blob.consumers.empty())
+        if (blob.consumer != -1)
             continue;
 
         // treat blob without any consumers as output
@@ -2999,6 +3118,16 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
                 fprintf(pp, ",%d,%d,%d,%d", dims, w, h, c);
             }
+        }
+
+        // custom op
+        if (layer->typeindex & ncnn::LayerType::CustomBit)
+        {
+            ((CustomLayer*)layer)->write_param(pp);
+
+            fprintf(pp, "\n");
+
+            continue;
         }
 
         ncnn::Layer* layer_default = ncnn::create_layer(layer->typeindex);

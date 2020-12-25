@@ -1167,7 +1167,7 @@ static void fuse_groupnorm(onnx::GraphProto* mutable_graph, std::map<std::string
                 continue;
 
             // +eps
-            float eps = get_node_attr_f(*node2, "epsilon", 1e-05);
+            float eps = get_node_attr_f(*node2, "epsilon", 1e-05f);
 
             // InstanceNormalization S=1 B=0
             std::vector<float> S = get_node_attr_from_input_af(weights[node2->input(1)]);
@@ -1787,6 +1787,50 @@ int main(int argc, char** argv)
                 }
             }
         }
+        else if (op == "Gemm")
+        {
+            float alpha = get_node_attr_f(node, "alpha", 1.f);
+            float beta = get_node_attr_f(node, "beta", 1.f);
+            int transA = get_node_attr_i(node, "transA", 0);
+            int transB = get_node_attr_i(node, "transB", 0);
+
+            if (alpha == 1.f && beta == 1.f && transA == 0 && transB == 1)
+            {
+                // InnerProduct-like A * B + C
+            }
+            else
+            {
+                // gemm A
+                const std::string& A = node.input(0);
+                std::map<std::string, onnx::TensorProto>::iterator itA = weights.find(A);
+                if (itA != weights.end())
+                {
+                    binaryop_weights[A] = itA->second;
+                    weights.erase(itA);
+                }
+
+                // gemm B
+                const std::string& B = node.input(1);
+                std::map<std::string, onnx::TensorProto>::iterator itB = weights.find(B);
+                if (itB != weights.end())
+                {
+                    binaryop_weights[B] = itB->second;
+                    weights.erase(itB);
+                }
+
+                if (node.input_size() == 3)
+                {
+                    // gemm C
+                    const std::string& C = node.input(2);
+                    std::map<std::string, onnx::TensorProto>::iterator itC = weights.find(C);
+                    if (itC != weights.end())
+                    {
+                        binaryop_weights[C] = itC->second;
+                        weights.erase(itC);
+                    }
+                }
+            }
+        }
         else if (op == "MatMul")
         {
             // gemm A
@@ -1937,7 +1981,22 @@ int main(int argc, char** argv)
         }
     }
 
-    fprintf(pp, "%lu %lu\n", node_count - reduced_node_count + input_node_count + node_reference.size() + binaryop_weights.size() - reduced_binaryop_weights.size(), blob_names.size() - reduced_binaryop_weights.size() + splitncnn_blob_count);
+    // we always treat constant node as weight or binaryop_weights
+    // do not count it twice for layer_count
+    int constant_node_count_moved_to_weight = 0;
+    for (int i = 0; i < node_count; i++)
+    {
+        const onnx::NodeProto& node = graph.node(i);
+
+        const std::string& op = node.op_type();
+
+        if (op == "Constant")
+        {
+            constant_node_count_moved_to_weight++;
+        }
+    }
+
+    fprintf(pp, "%zu %zu\n", node_count - reduced_node_count + input_node_count + node_reference.size() + binaryop_weights.size() - reduced_binaryop_weights.size() - constant_node_count_moved_to_weight, blob_names.size() - reduced_binaryop_weights.size() + splitncnn_blob_count);
 
     int internal_split = 0;
 
@@ -1981,9 +2040,9 @@ int main(int argc, char** argv)
     }
 
     // place MemoryData next
-    for (std::map<std::string, onnx::TensorProto>::iterator it = binaryop_weights.begin(); it != binaryop_weights.end(); it++)
+    for (std::map<std::string, onnx::TensorProto>::iterator weight_it = binaryop_weights.begin(); weight_it != binaryop_weights.end(); weight_it++)
     {
-        const std::string& input_name = it->first;
+        const std::string& input_name = weight_it->first;
 
         if (std::find(reduced_binaryop_weights.begin(), reduced_binaryop_weights.end(), input_name) != reduced_binaryop_weights.end())
             continue;
@@ -2131,18 +2190,7 @@ int main(int argc, char** argv)
         }
         else if (op == "Constant")
         {
-            // check weight before BinaryOp
-            if (binaryop_weights.find(node.output(0)) != binaryop_weights.end())
-            {
-                if (std::find(reduced_binaryop_weights.begin(), reduced_binaryop_weights.end(), node.output(0)) != reduced_binaryop_weights.end())
-                    continue;
-
-                fprintf(pp, "%-16s", "MemoryData");
-            }
-            else
-            {
-                continue;
-            }
+            continue;
         }
         else if (op == "Conv")
         {
@@ -2608,37 +2656,7 @@ int main(int argc, char** argv)
         }
         else if (op == "Constant")
         {
-            // check weight before BinaryOp
-            if (binaryop_weights.find(name) != binaryop_weights.end())
-            {
-                const onnx::TensorProto& M = binaryop_weights[name];
-
-                if (M.dims_size() == 0)
-                {
-                    fprintf(pp, " 0=%d", get_tensor_proto_data_size(M));
-                }
-                else if (M.dims_size() == 1)
-                {
-                    fprintf(pp, " 0=%d", (int)M.dims(0));
-                }
-                else if (M.dims_size() == 2)
-                {
-                    fprintf(pp, " 0=%d", (int)M.dims(1));
-                }
-                else if (M.dims_size() == 3)
-                {
-                    fprintf(pp, " 0=%d", (int)M.dims(2));
-                    fprintf(pp, " 1=%d", (int)M.dims(1));
-                }
-                else if (M.dims_size() == 4)
-                {
-                    fprintf(pp, " 0=%d", (int)M.dims(3));
-                    fprintf(pp, " 1=%d", (int)M.dims(2));
-                    fprintf(pp, " 2=%d", (int)M.dims(1));
-                }
-
-                fwrite_tensor_proto_data(M, bp);
-            }
+            // never reach here
         }
         else if (op == "Conv")
         {
@@ -3454,11 +3472,11 @@ int main(int argc, char** argv)
                 // if axes set, reduce according to axes
                 fprintf(pp, " 1=%d", 0);
                 fprintf(pp, " -23303=%zu", axes.size());
-                for (size_t i = 0; i < axes.size(); i++)
+                for (size_t j = 0; j < axes.size(); j++)
                 {
-                    if (axes[i] == 0 || axes[i] > 3 || axes[i] < -3)
+                    if (axes[j] == 0 || axes[j] > 3 || axes[j] < -3)
                         fprintf(stderr, "Unsupported reduction axes !\n");
-                    fprintf(pp, ",%d", axes[i]);
+                    fprintf(pp, ",%d", axes[j]);
                 }
             }
             else

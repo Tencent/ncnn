@@ -56,7 +56,7 @@ static inline __m128 prelu_sse(__m128 inputs, __m128 alphas)
     return _mm_add_ps(pos, _mm_mul_ps(alphas, neg));
 }
 
-static inline __m128 activation_ps(__m128 _v, int activation_type, const ncnn::Mat& activation_params)
+static inline __m128 activation_sse(__m128 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     // Process fused activations
     if (activation_type == 1)

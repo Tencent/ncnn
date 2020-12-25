@@ -44,6 +44,8 @@ Layer::Layer()
     use_int8_inference = false;
     support_weight_fp16_storage = false;
 
+    typeindex = -1;
+
 #if NCNN_VULKAN
     vkdev = 0;
 #endif // NCNN_VULKAN

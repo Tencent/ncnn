@@ -239,7 +239,7 @@ if(NCNN_VULKAN)
 endif()
 
 if(ANDROID_NDK)
-    target_link_libraries(ncnn PUBLIC android log)
+    target_link_libraries(ncnn PUBLIC android jnigraphics log)
 endif()
 
 if(WIN32)
@@ -260,7 +260,7 @@ else()
     endif()
 
     if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
-        if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+        if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NOT (CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.6))
             target_compile_options(ncnn PRIVATE -Ofast)
         endif()
 
@@ -347,6 +347,7 @@ if(NCNN_INSTALL_SDK)
         simpleocv.h
         simpleomp.h
         simplestl.h
+        vulkan_header_fix.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/platform.h

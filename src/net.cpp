@@ -57,7 +57,7 @@ Net::~Net()
 }
 
 #if NCNN_STRING
-int Net::register_custom_layer(const char* type, layer_creator_func creator)
+int Net::register_custom_layer(const char* type, layer_creator_func creator, layer_destroyer_func destroyer)
 {
     int typeindex = layer_to_index(type);
     if (typeindex != -1)
@@ -69,7 +69,7 @@ int Net::register_custom_layer(const char* type, layer_creator_func creator)
     int custom_index = custom_layer_to_index(type);
     if (custom_index == -1)
     {
-        struct layer_registry_entry entry = {type, creator};
+        struct layer_registry_entry entry = {type, creator, destroyer};
         custom_layer_registry.push_back(entry);
     }
     else
@@ -77,13 +77,14 @@ int Net::register_custom_layer(const char* type, layer_creator_func creator)
         NCNN_LOGE("overwrite existing custom layer type %s", type);
         custom_layer_registry[custom_index].name = type;
         custom_layer_registry[custom_index].creator = creator;
+        custom_layer_registry[custom_index].destroyer = destroyer;
     }
 
     return 0;
 }
 #endif // NCNN_STRING
 
-int Net::register_custom_layer(int index, layer_creator_func creator)
+int Net::register_custom_layer(int index, layer_creator_func creator, layer_destroyer_func destroyer)
 {
     int custom_index = index & ~LayerType::CustomBit;
     if (index == custom_index)
@@ -95,9 +96,9 @@ int Net::register_custom_layer(int index, layer_creator_func creator)
     if ((int)custom_layer_registry.size() <= custom_index)
     {
 #if NCNN_STRING
-        struct layer_registry_entry dummy = {"", 0};
+        struct layer_registry_entry dummy = {"", 0, 0};
 #else
-        struct layer_registry_entry dummy = {0};
+        struct layer_registry_entry dummy = {0, 0};
 #endif // NCNN_STRING
         custom_layer_registry.resize(custom_index + 1, dummy);
     }
@@ -108,6 +109,7 @@ int Net::register_custom_layer(int index, layer_creator_func creator)
     }
 
     custom_layer_registry[custom_index].creator = creator;
+    custom_layer_registry[custom_index].destroyer = destroyer;
     return 0;
 }
 
@@ -241,7 +243,7 @@ int Net::load_param(const DataReader& dr)
 
             Blob& blob = blobs[bottom_blob_index];
 
-            blob.consumers.push_back(i);
+            blob.consumer = i;
 
             layer->bottoms[j] = bottom_blob_index;
         }
@@ -439,7 +441,7 @@ int Net::load_param_bin(const DataReader& dr)
 
             Blob& blob = blobs[bottom_blob_index];
 
-            blob.consumers.push_back(i);
+            blob.consumer = i;
 
             layer->bottoms[j] = bottom_blob_index;
         }
@@ -804,119 +806,116 @@ int Net::fuse_network()
             if (layer->type == "ConvolutionDepthWise" && (((ConvolutionDepthWise*)layer)->weight_data.elemsize != 1u))
                 continue;
 
-            for (size_t n = 0; n < blobs[layer->tops[0]].consumers.size(); n++)
+            int layer_next_index = blobs[layer->tops[0]].consumer;
+            Layer* layer_next = layers[layer_next_index];
+
+            if (layer_next->type == "Convolution" || layer_next->type == "ConvolutionDepthWise")
             {
-                int layer_next_index = blobs[layer->tops[0]].consumers[n];
-                Layer* layer_next = layers[layer_next_index];
+                if (layer_next->type == "Convolution" && ((Convolution*)layer_next)->weight_data.elemsize != 1u)
+                    continue;
+                if (layer_next->type == "ConvolutionDepthWise" && ((ConvolutionDepthWise*)layer_next)->weight_data.elemsize != 1u)
+                    continue;
 
-                if (layer_next->type == "Convolution" || layer_next->type == "ConvolutionDepthWise")
+                // NCNN_LOGE("%s, %s", layer->name.c_str(), layer_next->name.c_str());
+                if (layer->type == "Convolution" && layer_next->type == "Convolution")
                 {
-                    if (layer_next->type == "Convolution" && ((Convolution*)layer_next)->weight_data.elemsize != 1u)
-                        continue;
-                    if (layer_next->type == "ConvolutionDepthWise" && ((ConvolutionDepthWise*)layer_next)->weight_data.elemsize != 1u)
-                        continue;
-
-                    // NCNN_LOGE("%s, %s", layer->name.c_str(), layer_next->name.c_str());
-                    if (layer->type == "Convolution" && layer_next->type == "Convolution")
-                    {
-                        ((Convolution*)layer)->use_int8_requantize = true;
-                        ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next)->bottom_blob_int8_scale;
-                    }
-                    else if (layer->type == "ConvolutionDepthWise" && layer_next->type == "Convolution")
-                    {
-                        ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
-                        ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((Convolution*)layer_next)->bottom_blob_int8_scale;
-                    }
-                    else if (layer->type == "Convolution" && layer_next->type == "ConvolutionDepthWise")
-                    {
-                        ((Convolution*)layer)->use_int8_requantize = true;
-                        ((Convolution*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next)->bottom_blob_int8_scales[0];
-                    }
-                    else
-                    {
-                        ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
-                        ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next)->bottom_blob_int8_scales[0];
-                    }
+                    ((Convolution*)layer)->use_int8_requantize = true;
+                    ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next)->bottom_blob_int8_scale;
                 }
-                else if (layer_next->type == "ReLU")
+                else if (layer->type == "ConvolutionDepthWise" && layer_next->type == "Convolution")
                 {
-                    int layer_next_2_index = blobs[layer_next->tops[0]].consumers[0];
-                    Layer* layer_next_2 = layers[layer_next_2_index];
-
-                    if (layer_next_2->type == "Convolution" || layer_next_2->type == "ConvolutionDepthWise")
-                    {
-                        if (layer_next_2->type == "Convolution" && ((Convolution*)layer_next_2)->weight_data.elemsize != 1u)
-                            continue;
-                        if (layer_next_2->type == "ConvolutionDepthWise" && ((ConvolutionDepthWise*)layer_next_2)->weight_data.elemsize != 1u)
-                            continue;
-
-                        //                         NCNN_LOGE("%s, %s, %s", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
-                        if (layer->type == "Convolution" && layer_next_2->type == "Convolution")
-                        {
-                            ((Convolution*)layer)->use_int8_requantize = true;
-                            ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_2)->bottom_blob_int8_scale;
-                        }
-                        else if (layer->type == "ConvolutionDepthWise" && layer_next_2->type == "Convolution")
-                        {
-                            ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
-                            ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_2)->bottom_blob_int8_scale;
-                        }
-                        else if (layer->type == "Convolution" && layer_next_2->type == "ConvolutionDepthWise")
-                        {
-                            ((Convolution*)layer)->use_int8_requantize = true;
-                            ((Convolution*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next_2)->bottom_blob_int8_scales[0];
-                        }
-                        else
-                        {
-                            ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
-                            ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next_2)->bottom_blob_int8_scales[0];
-                        }
-                    }
-                    else if (layer_next_2->type == "Split")
-                    {
-                        bool all_conv = true;
-                        for (size_t i = 0; i < layer_next_2->tops.size(); i++)
-                        {
-                            int layer_next_3_index = blobs[layer_next_2->tops[i]].consumers[0];
-                            if (layers[layer_next_3_index]->type != "Convolution" && layers[layer_next_3_index]->type != "ConvolutionDepthWise" && layers[layer_next_3_index]->type != "PriorBox")
-                            {
-                                // NCNN_LOGE("%s, %s, %s, %s", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str(), layers[layer_next_3_index]->name.c_str());
-                                all_conv = false;
-                            }
-                        }
-
-                        if (all_conv == true && layer_next_2->tops.size() >= size_t(2))
-                        {
-                            // NCNN_LOGE("%s, %s, %s, ", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
-                            for (size_t i = 0; i < layer_next_2->tops.size(); i++)
-                            {
-                                int layer_next_3_index = blobs[layer_next_2->tops[i]].consumers[0];
-                                Layer* layer_next_3 = layers[layer_next_3_index];
-
-                                // NCNN_LOGE("%s, ", layer_next_3->name.c_str());
-                                if (layer_next_3->type == "Convolution")
-                                {
-                                    ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_3)->bottom_blob_int8_scale;
-                                }
-                            }
-
-                            ((Convolution*)layer)->use_int8_requantize = true;
-                            // NCNN_LOGE("");
-                        }
-                    }
-                    else
-                    {
-                        // NCNN_LOGE("%s, %s", layer->name.c_str(), layer_next->name.c_str());
-                    }
+                    ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
+                    ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((Convolution*)layer_next)->bottom_blob_int8_scale;
                 }
-                else if (layer_next->type == "Pooling")
+                else if (layer->type == "Convolution" && layer_next->type == "ConvolutionDepthWise")
                 {
-                    // ToDo
+                    ((Convolution*)layer)->use_int8_requantize = true;
+                    ((Convolution*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next)->bottom_blob_int8_scales[0];
                 }
                 else
                 {
-                    // NCNN_LOGE("%s", layer->name.c_str());
+                    ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
+                    ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next)->bottom_blob_int8_scales[0];
                 }
+            }
+            else if (layer_next->type == "ReLU")
+            {
+                int layer_next_2_index = blobs[layer_next->tops[0]].consumer;
+                Layer* layer_next_2 = layers[layer_next_2_index];
+
+                if (layer_next_2->type == "Convolution" || layer_next_2->type == "ConvolutionDepthWise")
+                {
+                    if (layer_next_2->type == "Convolution" && ((Convolution*)layer_next_2)->weight_data.elemsize != 1u)
+                        continue;
+                    if (layer_next_2->type == "ConvolutionDepthWise" && ((ConvolutionDepthWise*)layer_next_2)->weight_data.elemsize != 1u)
+                        continue;
+
+                    //                         NCNN_LOGE("%s, %s, %s", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
+                    if (layer->type == "Convolution" && layer_next_2->type == "Convolution")
+                    {
+                        ((Convolution*)layer)->use_int8_requantize = true;
+                        ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_2)->bottom_blob_int8_scale;
+                    }
+                    else if (layer->type == "ConvolutionDepthWise" && layer_next_2->type == "Convolution")
+                    {
+                        ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
+                        ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_2)->bottom_blob_int8_scale;
+                    }
+                    else if (layer->type == "Convolution" && layer_next_2->type == "ConvolutionDepthWise")
+                    {
+                        ((Convolution*)layer)->use_int8_requantize = true;
+                        ((Convolution*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next_2)->bottom_blob_int8_scales[0];
+                    }
+                    else
+                    {
+                        ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
+                        ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next_2)->bottom_blob_int8_scales[0];
+                    }
+                }
+                else if (layer_next_2->type == "Split")
+                {
+                    bool all_conv = true;
+                    for (size_t i = 0; i < layer_next_2->tops.size(); i++)
+                    {
+                        int layer_next_3_index = blobs[layer_next_2->tops[i]].consumer;
+                        if (layers[layer_next_3_index]->type != "Convolution" && layers[layer_next_3_index]->type != "ConvolutionDepthWise" && layers[layer_next_3_index]->type != "PriorBox")
+                        {
+                            // NCNN_LOGE("%s, %s, %s, %s", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str(), layers[layer_next_3_index]->name.c_str());
+                            all_conv = false;
+                        }
+                    }
+
+                    if (all_conv == true && layer_next_2->tops.size() >= size_t(2))
+                    {
+                        // NCNN_LOGE("%s, %s, %s, ", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
+                        for (size_t i = 0; i < layer_next_2->tops.size(); i++)
+                        {
+                            int layer_next_3_index = blobs[layer_next_2->tops[i]].consumer;
+                            Layer* layer_next_3 = layers[layer_next_3_index];
+
+                            // NCNN_LOGE("%s, ", layer_next_3->name.c_str());
+                            if (layer_next_3->type == "Convolution")
+                            {
+                                ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_3)->bottom_blob_int8_scale;
+                            }
+                        }
+
+                        ((Convolution*)layer)->use_int8_requantize = true;
+                        // NCNN_LOGE("");
+                    }
+                }
+                else
+                {
+                    // NCNN_LOGE("%s, %s", layer->name.c_str(), layer_next->name.c_str());
+                }
+            }
+            else if (layer_next->type == "Pooling")
+            {
+                // ToDo
+            }
+            else
+            {
+                // NCNN_LOGE("%s", layer->name.c_str());
             }
         }
     }
@@ -948,7 +947,22 @@ void Net::clear()
             // ignore anyway
         }
 
-        delete layer;
+        if (layer->typeindex & ncnn::LayerType::CustomBit)
+        {
+            int custom_index = layer->typeindex & ~ncnn::LayerType::CustomBit;
+            if (custom_layer_registry[custom_index].destroyer)
+            {
+                custom_layer_registry[custom_index].destroyer(layer);
+            }
+            else
+            {
+                delete layer;
+            }
+        }
+        else
+        {
+            delete layer;
+        }
     }
     layers.clear();
 
@@ -1104,7 +1118,9 @@ Layer* Net::create_custom_layer(int index)
     if (!layer_creator)
         return 0;
 
-    return layer_creator();
+    Layer* layer = layer_creator();
+    layer->typeindex = ncnn::LayerType::CustomBit | index;
+    return layer;
 }
 
 int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const
@@ -1205,9 +1221,12 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
 #endif
             }
 
-            Mat bottom_blob_packed;
-            convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, opt);
-            bottom_blob = bottom_blob_packed;
+            if (bottom_blob.elempack != dst_elempack)
+            {
+                Mat bottom_blob_packed;
+                convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, opt);
+                bottom_blob = bottom_blob_packed;
+            }
         }
 
         // forward
@@ -1340,9 +1359,12 @@ int Net::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Optio
 #endif
                 }
 
-                Mat bottom_blob_packed;
-                convert_packing(bottom_blobs[i], bottom_blob_packed, dst_elempack, opt);
-                bottom_blobs[i] = bottom_blob_packed;
+                if (bottom_blobs[i].elempack != dst_elempack)
+                {
+                    Mat bottom_blob_packed;
+                    convert_packing(bottom_blobs[i], bottom_blob_packed, dst_elempack, opt);
+                    bottom_blobs[i] = bottom_blob_packed;
+                }
             }
         }
 
@@ -2765,7 +2787,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
 
     feat = blob_mats[blob_index];
 
-    if (opt.use_packing_layout && (type == 0))
+    if (opt.use_packing_layout && (type == 0) && feat.elempack != 1)
     {
         Mat bottom_blob_unpacked;
         convert_packing(feat, bottom_blob_unpacked, 1, opt);

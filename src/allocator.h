@@ -36,7 +36,7 @@ namespace ncnn {
 
 #if __AVX__
 // the alignment of all the allocated buffers
-#define MALLOC_ALIGN 256
+#define MALLOC_ALIGN 32
 #else
 // the alignment of all the allocated buffers
 #define MALLOC_ALIGN 16

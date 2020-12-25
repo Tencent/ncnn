@@ -356,7 +356,7 @@ int cpu_support_x86_avx2()
     __builtin_cpu_init();
 #endif
     return __builtin_cpu_supports("avx2");
-#elif defined(__GNUC__)
+#elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)
     __builtin_cpu_init();
     return __builtin_cpu_supports("avx2");
 #else
@@ -512,7 +512,7 @@ static int set_sched_affinity(const CpuSet& thread_affinity_mask)
 #if defined(__GLIBC__) || defined(__OHOS__)
     pid_t pid = syscall(SYS_gettid);
 #else
-#ifdef PI3
+#if defined(PI3) || (defined(__MUSL__) && __MUSL_MINOR__ <= 14)
     pid_t pid = getpid();
 #else
     pid_t pid = gettid();
@@ -730,9 +730,10 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 
     return 0;
 #elif __APPLE__
-    int num_threads = thread_affinity_mask.num_enabled();
 
 #ifdef _OPENMP
+    int num_threads = thread_affinity_mask.num_enabled();
+
     // set affinity for each thread
     set_omp_num_threads(num_threads);
     std::vector<int> ssarets(num_threads, 0);

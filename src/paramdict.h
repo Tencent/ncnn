@@ -30,6 +30,9 @@ public:
     // empty
     ParamDict();
 
+    // get type
+    int type(int id) const;
+
     // get int
     int get(int id, int def) const;
     // get float
