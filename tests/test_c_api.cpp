@@ -17,8 +17,8 @@
 
 static int test_c_api_0()
 {
-    ncnn_mat_t a = ncnn_mat_create_1d(2);
-    ncnn_mat_t b = ncnn_mat_create_1d(2);
+    ncnn_mat_t a = ncnn_mat_create_1d(2, NULL);
+    ncnn_mat_t b = ncnn_mat_create_1d(2, NULL);
     ncnn_mat_t c = 0;
 
     ncnn_option_t opt = ncnn_option_create();
@@ -92,8 +92,8 @@ static int test_c_api_1()
         20,21,22,23,24,25,26,27
     };
 
-    ncnn_mat_t a = ncnn_mat_create_external_1d(24, (void*)data);
-    ncnn_mat_t b = ncnn_mat_reshape_3d(a, 4, 2, 3);
+    ncnn_mat_t a = ncnn_mat_create_external_1d(24, (void*)data, NULL);
+    ncnn_mat_t b = ncnn_mat_reshape_3d(a, 4, 2, 3, NULL);
     ncnn_mat_t c = 0;
 
     ncnn_option_t opt = ncnn_option_create();
