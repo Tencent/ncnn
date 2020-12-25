@@ -79,9 +79,64 @@ ncnn_mat_t ncnn_mat_create_3d_packed(int w, int h, int c, size_t elemsize, int e
     return (ncnn_mat_t)(new Mat(w, h, c, elemsize, elempack));
 }
 
+ncnn_mat_t ncnn_mat_create_external_1d(int w, void* data)
+{
+    return (ncnn_mat_t)(new Mat(w, data));
+}
+
+ncnn_mat_t ncnn_mat_create_external_2d(int w, int h, void* data)
+{
+    return (ncnn_mat_t)(new Mat(w, h, data));
+}
+
+ncnn_mat_t ncnn_mat_create_external_3d(int w, int h, int c, void* data)
+{
+    return (ncnn_mat_t)(new Mat(w, h, c, data));
+}
+
+ncnn_mat_t ncnn_mat_create_external_1d_packed(int w, void* data, size_t elemsize, int elempack)
+{
+    return (ncnn_mat_t)(new Mat(w, data, elemsize, elempack));
+}
+
+ncnn_mat_t ncnn_mat_create_external_2d_packedl(int w, int h, void* data, size_t elemsize, int elempack)
+{
+    return (ncnn_mat_t)(new Mat(w, h, data, elemsize, elempack));
+}
+
+ncnn_mat_t ncnn_mat_create_external_3d_packed(int w, int h, int c, void* data, size_t elemsize, int elempack)
+{
+    return (ncnn_mat_t)(new Mat(w, h, c, data, elemsize, elempack));
+}
+
 void ncnn_mat_destroy(ncnn_mat_t mat)
 {
     delete (Mat*)mat;
+}
+
+void ncnn_mat_fill_float(ncnn_mat_t mat, float v)
+{
+    ((Mat*)mat)->fill(v);
+}
+
+ncnn_mat_t ncnn_mat_clone(const ncnn_mat_t mat)
+{
+    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->clone()));
+}
+
+ncnn_mat_t ncnn_mat_reshape_1d(const ncnn_mat_t mat, int w)
+{
+    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w)));
+}
+
+ncnn_mat_t ncnn_mat_reshape_2d(const ncnn_mat_t mat, int w, int h)
+{
+    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, h)));
+}
+
+ncnn_mat_t ncnn_mat_reshape_3d(const ncnn_mat_t mat, int w, int h, int c)
+{
+    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, h, c)));
 }
 
 int ncnn_mat_get_dims(const ncnn_mat_t mat)
@@ -154,9 +209,18 @@ void ncnn_mat_substract_mean_normalize(ncnn_mat_t mat, const float* mean_vals, c
     ((Mat*)mat)->substract_mean_normalize(mean_vals, norm_vals);
 }
 
-void ncnn_mat_fill_float(ncnn_mat_t mat, float v)
+void ncnn_convert_packing(const ncnn_mat_t src, ncnn_mat_t* dst, int elempack)
 {
-    ((Mat*)mat)->fill(v);
+    Mat _dst;
+    ncnn::convert_packing(*(const Mat*)src, _dst, elempack);
+    *dst = (ncnn_mat_t)(new Mat(_dst));
+}
+
+void ncnn_flatten(const ncnn_mat_t src, ncnn_mat_t* dst)
+{
+    Mat _dst;
+    ncnn::flatten(*(const Mat*)src, _dst);
+    *dst = (ncnn_mat_t)(new Mat(_dst));
 }
 
 /* option api */
