@@ -115,6 +115,7 @@ void Pipeline::set_local_size_xyz(int w, int h, int c)
     //     NCNN_LOGE("local size = %d %d %d", local_size_x, local_size_y, local_size_z);
 }
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 ImportAndroidHardwareBufferPipeline::ImportAndroidHardwareBufferPipeline(const VulkanDevice* _vkdev)
     : Pipeline(_vkdev)
@@ -340,6 +341,8 @@ int ImportAndroidHardwareBufferPipeline::create_descriptorset_layout()
     return 0;
 }
 #endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
+
 #endif // NCNN_VULKAN
 
 } // namespace ncnn
