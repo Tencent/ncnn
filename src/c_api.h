@@ -35,9 +35,6 @@ void ncnn_allocator_destroy(ncnn_allocator_t allocator);
 void* ncnn_allocator_fast_malloc(ncnn_allocator_t allocator, size_t size);
 void ncnn_allocator_fast_free(ncnn_allocator_t allocator, void* ptr);
 
-ncnn_allocator_t ncnn_allocator_get_tls_allocator();
-void ncnn_allocator_set_tls_allocator(ncnn_allocator_t allocator);
-
 /* option api */
 typedef struct __ncnn_option_t* ncnn_option_t;
 
@@ -53,27 +50,26 @@ void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_comput
 /* mat api */
 typedef struct __ncnn_mat_t* ncnn_mat_t;
 
-ncnn_mat_t ncnn_mat_create();
-ncnn_mat_t ncnn_mat_create_1d(int w);
-ncnn_mat_t ncnn_mat_create_2d(int w, int h);
-ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c);
-ncnn_mat_t ncnn_mat_create_external_1d(int w, void* data);
-ncnn_mat_t ncnn_mat_create_external_2d(int w, int h, void* data);
-ncnn_mat_t ncnn_mat_create_external_3d(int w, int h, int c, void* data);
-ncnn_mat_t ncnn_mat_create_1d_elem(int w, size_t elemsize, int elempack);
-ncnn_mat_t ncnn_mat_create_2d_elem(int w, int h, size_t elemsize, int elempack);
-ncnn_mat_t ncnn_mat_create_3d_elem(int w, int h, int c, size_t elemsize, int elempack);
-ncnn_mat_t ncnn_mat_create_external_1d_elem(int w, void* data, size_t elemsize, int elempack);
-ncnn_mat_t ncnn_mat_create_external_2d_elem(int w, int h, void* data, size_t elemsize, int elempack);
-ncnn_mat_t ncnn_mat_create_external_3d_elem(int w, int h, int c, void* data, size_t elemsize, int elempack);
+ncnn_mat_t ncnn_mat_create_1d(int w, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_create_2d(int w, int h, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_create_external_1d(int w, void* data, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_create_external_2d(int w, int h, void* data, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_create_external_3d(int w, int h, int c, void* data, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_create_1d_elem(int w, size_t elemsize, int elempack, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_create_2d_elem(int w, int h, size_t elemsize, int elempack, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_create_3d_elem(int w, int h, int c, size_t elemsize, int elempack, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_create_external_1d_elem(int w, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_create_external_2d_elem(int w, int h, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_create_external_3d_elem(int w, int h, int c, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 void ncnn_mat_destroy(ncnn_mat_t mat);
 
 void ncnn_mat_fill_float(ncnn_mat_t mat, float v);
 
-ncnn_mat_t ncnn_mat_clone(const ncnn_mat_t mat);
-ncnn_mat_t ncnn_mat_reshape_1d(const ncnn_mat_t mat, int w);
-ncnn_mat_t ncnn_mat_reshape_2d(const ncnn_mat_t mat, int w, int h);
-ncnn_mat_t ncnn_mat_reshape_3d(const ncnn_mat_t mat, int w, int h, int c);
+ncnn_mat_t ncnn_mat_clone(const ncnn_mat_t mat, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_reshape_1d(const ncnn_mat_t mat, int w, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_reshape_2d(const ncnn_mat_t mat, int w, int h, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_reshape_3d(const ncnn_mat_t mat, int w, int h, int c, ncnn_allocator_t allocator);
 
 int ncnn_mat_get_dims(const ncnn_mat_t mat);
 int ncnn_mat_get_w(const ncnn_mat_t mat);
@@ -93,10 +89,10 @@ void* ncnn_mat_get_data(const ncnn_mat_t mat);
 #define NCNN_MAT_PIXEL_RGBA      4
 #define NCNN_MAT_PIXEL_BGRA      5
 #define NCNN_MAT_PIXEL_X2Y(X, Y) (X | (Y << 16))
-ncnn_mat_t ncnn_mat_from_pixels(const unsigned char* pixels, int type, int w, int h, int stride);
-ncnn_mat_t ncnn_mat_from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int stride, int target_width, int target_height);
-ncnn_mat_t ncnn_mat_from_pixels_roi(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih);
-ncnn_mat_t ncnn_mat_from_pixels_roi_resize(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, int target_width, int target_height);
+ncnn_mat_t ncnn_mat_from_pixels(const unsigned char* pixels, int type, int w, int h, int stride, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int stride, int target_width, int target_height, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_from_pixels_roi(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, ncnn_allocator_t allocator);
+ncnn_mat_t ncnn_mat_from_pixels_roi_resize(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, int target_width, int target_height, ncnn_allocator_t allocator);
 void ncnn_mat_to_pixels(const ncnn_mat_t mat, unsigned char* pixels, int type, int stride);
 void ncnn_mat_to_pixels_resize(const ncnn_mat_t mat, unsigned char* pixels, int type, int target_width, int target_height, int target_stride);
 
