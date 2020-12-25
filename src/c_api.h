@@ -35,7 +35,20 @@ ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c);
 ncnn_mat_t ncnn_mat_create_1d_packed(int w, size_t elemsize, int elempack);
 ncnn_mat_t ncnn_mat_create_2d_packed(int w, int h, size_t elemsize, int elempack);
 ncnn_mat_t ncnn_mat_create_3d_packed(int w, int h, int c, size_t elemsize, int elempack);
+ncnn_mat_t ncnn_mat_create_external_1d(int w, void* data);
+ncnn_mat_t ncnn_mat_create_external_2d(int w, int h, void* data);
+ncnn_mat_t ncnn_mat_create_external_3d(int w, int h, int c, void* data);
+ncnn_mat_t ncnn_mat_create_external_1d_packed(int w, void* data, size_t elemsize, int elempack);
+ncnn_mat_t ncnn_mat_create_external_2d_packed(int w, int h, void* data, size_t elemsize, int elempack);
+ncnn_mat_t ncnn_mat_create_external_3d_packed(int w, int h, int c, void* data, size_t elemsize, int elempack);
 void ncnn_mat_destroy(ncnn_mat_t mat);
+
+void ncnn_mat_fill_float(ncnn_mat_t mat, float v);
+
+ncnn_mat_t ncnn_mat_clone(const ncnn_mat_t mat);
+ncnn_mat_t ncnn_mat_reshape_1d(const ncnn_mat_t mat, int w);
+ncnn_mat_t ncnn_mat_reshape_2d(const ncnn_mat_t mat, int w, int h);
+ncnn_mat_t ncnn_mat_reshape_3d(const ncnn_mat_t mat, int w, int h, int c);
 
 int ncnn_mat_get_dims(const ncnn_mat_t mat);
 int ncnn_mat_get_w(const ncnn_mat_t mat);
@@ -64,7 +77,8 @@ void ncnn_mat_to_pixels_resize(const ncnn_mat_t mat, unsigned char* pixels, int 
 
 void ncnn_mat_substract_mean_normalize(ncnn_mat_t mat, const float* mean_vals, const float* norm_vals);
 
-void ncnn_mat_fill_float(ncnn_mat_t mat, float v);
+void ncnn_convert_packing(const ncnn_mat_t src, ncnn_mat_t* dst, int elempack);
+void ncnn_flatten(const ncnn_mat_t src, ncnn_mat_t* dst);
 
 /* option api */
 typedef struct __ncnn_option_t* ncnn_option_t;
