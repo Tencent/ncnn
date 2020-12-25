@@ -20,9 +20,11 @@
 #include <stdio.h>
 #endif
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
 #include <android/asset_manager.h>
 #endif
+#endif // NCNN_PLATFORM_API
 
 namespace ncnn {
 
@@ -73,6 +75,7 @@ protected:
     const unsigned char*& mem;
 };
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
 class DataReaderFromAndroidAsset : public DataReader
 {
@@ -89,6 +92,7 @@ protected:
     mutable const unsigned char* mem;
 };
 #endif // __ANDROID_API__ >= 9
+#endif // NCNN_PLATFORM_API
 
 } // namespace ncnn
 

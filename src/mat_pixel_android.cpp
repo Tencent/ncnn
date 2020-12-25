@@ -16,13 +16,16 @@
 
 #if NCNN_PIXEL
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
 #include <android/bitmap.h>
 #include <jni.h>
 #endif // __ANDROID_API__ >= 9
+#endif // NCNN_PLATFORM_API
 
 namespace ncnn {
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
 Mat Mat::from_android_bitmap(JNIEnv* env, jobject bitmap, int type_to, Allocator* allocator)
 {
@@ -214,6 +217,7 @@ void Mat::to_android_bitmap(JNIEnv* env, jobject bitmap, int type_from) const
     AndroidBitmap_unlockPixels(env, bitmap);
 }
 #endif // __ANDROID_API__ >= 9
+#endif // NCNN_PLATFORM_API
 
 } // namespace ncnn
 

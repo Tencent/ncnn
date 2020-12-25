@@ -73,11 +73,13 @@ public:
     void record_write_timestamp(uint32_t query);
 #endif // NCNN_BENCHMARK
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
     void record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& src, const VkMat& dst);
 
     void record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& src, const VkImageMat& dst);
 #endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
 
     int submit_and_wait();
 
