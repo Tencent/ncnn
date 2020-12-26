@@ -112,7 +112,9 @@ void ncnn_flatten(const ncnn_mat_t src, ncnn_mat_t* dst, const ncnn_option_t opt
 /* blob api */
 typedef struct __ncnn_blob_t* ncnn_blob_t;
 
+#if NCNN_STRING
 const char* ncnn_blob_get_name(const ncnn_blob_t blob);
+#endif /* NCNN_STRING */
 
 int ncnn_blob_get_producer(const ncnn_blob_t blob);
 int ncnn_blob_get_consumer(const ncnn_blob_t blob);
@@ -143,7 +145,7 @@ struct __ncnn_datareader_t
 
 #if NCNN_STRING
     int (*scan)(ncnn_datareader_t dr, const char* format, void* p);
-#endif // NCNN_STRING
+#endif /* NCNN_STRING */
     size_t (*read)(ncnn_datareader_t dr, void* buf, size_t size);
 };
 
@@ -190,15 +192,19 @@ struct __ncnn_layer_t
 
 ncnn_layer_t ncnn_layer_create();
 ncnn_layer_t ncnn_layer_create_by_typeindex(int typeindex);
-#if NCNN_STDIO
+#if NCNN_STRING
 ncnn_layer_t ncnn_layer_create_by_type(const char* type);
-#endif /* NCNN_STDIO */
+#endif /* NCNN_STRING */
 void ncnn_layer_destroy(ncnn_layer_t layer);
 
+#if NCNN_STRING
 const char* ncnn_layer_get_name(const ncnn_layer_t layer);
+#endif /* NCNN_STRING */
 
 int ncnn_layer_get_typeindex(const ncnn_layer_t layer);
+#if NCNN_STRING
 const char* ncnn_layer_get_type(const ncnn_layer_t layer);
+#endif /* NCNN_STRING */
 
 int ncnn_layer_get_one_blob_only(const ncnn_layer_t layer);
 int ncnn_layer_get_support_inplace(const ncnn_layer_t layer);
@@ -251,9 +257,9 @@ void ncnn_net_destroy(ncnn_net_t net);
 
 void ncnn_net_set_option(ncnn_net_t net, ncnn_option_t opt);
 
-#if NCNN_STDIO
+#if NCNN_STRING
 void ncnn_net_register_custom_layer_by_type(ncnn_net_t net, const char* type, ncnn_layer_creator_t creator, ncnn_layer_destroyer_t destroyer, void* userdata);
-#endif /* NCNN_STDIO */
+#endif /* NCNN_STRING */
 void ncnn_net_register_custom_layer_by_typeindex(ncnn_net_t net, int typeindex, ncnn_layer_creator_t creator, ncnn_layer_destroyer_t destroyer, void* userdata);
 
 #if NCNN_STDIO

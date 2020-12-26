@@ -346,7 +346,7 @@ void ncnn_mat_to_pixels_resize(const ncnn_mat_t mat, unsigned char* pixels, int 
     ((const Mat*)mat)->to_pixels_resize(pixels, type, target_width, target_height, target_stride);
 }
 
-#endif
+#endif /* NCNN_PIXEL */
 
 void ncnn_mat_substract_mean_normalize(ncnn_mat_t mat, const float* mean_vals, const float* norm_vals)
 {
@@ -368,15 +368,12 @@ void ncnn_flatten(const ncnn_mat_t src, ncnn_mat_t* dst, const ncnn_option_t opt
 }
 
 /* blob api */
+#if NCNN_STRING
 const char* ncnn_blob_get_name(const ncnn_blob_t blob)
 {
-#if NCNN_STRING
     return ((const Blob*)blob)->name.c_str();
-#else
-    (void)blob;
-    return "";
-#endif
 }
+#endif /* NCNN_STRING */
 
 int ncnn_blob_get_producer(const ncnn_blob_t blob)
 {
@@ -457,7 +454,7 @@ public:
     {
         return dr->scan(dr, format, p);
     }
-#endif
+#endif /* NCNN_STRING */
 
     virtual size_t read(void* buf, size_t size) const
     {
@@ -473,13 +470,14 @@ static int __ncnn_DataReader_scan(ncnn_datareader_t dr, const char* format, void
 {
     return ((ncnn::DataReader*)dr->pthis)->ncnn::DataReader::scan(format, p);
 }
-#endif // NCNN_STRING
+#endif /* NCNN_STRING */
 
 static size_t __ncnn_DataReader_read(ncnn_datareader_t dr, void* buf, size_t size)
 {
     return ((ncnn::DataReader*)dr->pthis)->ncnn::DataReader::read(buf, size);
 }
 
+#if NCNN_STDIO
 class DataReaderFromStdio_c_api : public ncnn::DataReaderFromStdio
 {
 public:
@@ -493,7 +491,7 @@ public:
     {
         return dr->scan(dr, format, p);
     }
-#endif
+#endif /* NCNN_STRING */
 
     virtual size_t read(void* buf, size_t size) const
     {
@@ -509,12 +507,13 @@ static int __ncnn_DataReaderFromStdio_scan(ncnn_datareader_t dr, const char* for
 {
     return ((ncnn::DataReaderFromStdio*)dr->pthis)->ncnn::DataReaderFromStdio::scan(format, p);
 }
-#endif // NCNN_STRING
+#endif /* NCNN_STRING */
 
 static size_t __ncnn_DataReaderFromStdio_read(ncnn_datareader_t dr, void* buf, size_t size)
 {
     return ((ncnn::DataReaderFromStdio*)dr->pthis)->ncnn::DataReaderFromStdio::read(buf, size);
 }
+#endif /* NCNN_STDIO */
 
 class DataReaderFromMemory_c_api : public ncnn::DataReaderFromMemory
 {
@@ -529,7 +528,7 @@ public:
     {
         return dr->scan(dr, format, p);
     }
-#endif
+#endif /* NCNN_STRING */
 
     virtual size_t read(void* buf, size_t size) const
     {
@@ -545,7 +544,7 @@ static int __ncnn_DataReaderFromMemory_scan(ncnn_datareader_t dr, const char* fo
 {
     return ((ncnn::DataReaderFromMemory*)dr->pthis)->ncnn::DataReaderFromMemory::scan(format, p);
 }
-#endif // NCNN_STRING
+#endif /* NCNN_STRING */
 
 static size_t __ncnn_DataReaderFromMemory_read(ncnn_datareader_t dr, void* buf, size_t size)
 {
@@ -556,7 +555,9 @@ ncnn_datareader_t ncnn_datareader_create()
 {
     ncnn_datareader_t dr = (ncnn_datareader_t)malloc(sizeof(struct __ncnn_datareader_t));
     dr->pthis = (void*)(new DataReader_c_api(dr));
+#if NCNN_STRING
     dr->scan = __ncnn_DataReader_scan;
+#endif /* NCNN_STRING */
     dr->read = __ncnn_DataReader_read;
     return dr;
 }
@@ -568,11 +569,11 @@ ncnn_datareader_t ncnn_datareader_create_from_stdio(FILE* fp)
     dr->pthis = (void*)(new DataReaderFromStdio_c_api(fp, dr));
 #if NCNN_STRING
     dr->scan = __ncnn_DataReaderFromStdio_scan;
-#endif
+#endif /* NCNN_STRING */
     dr->read = __ncnn_DataReaderFromStdio_read;
     return dr;
 }
-#endif
+#endif /* NCNN_STDIO */
 
 ncnn_datareader_t ncnn_datareader_create_from_memory(const unsigned char** mem)
 {
@@ -580,7 +581,7 @@ ncnn_datareader_t ncnn_datareader_create_from_memory(const unsigned char** mem)
     dr->pthis = (void*)(new DataReaderFromMemory_c_api(*mem, dr));
 #if NCNN_STRING
     dr->scan = __ncnn_DataReaderFromMemory_scan;
-#endif
+#endif /* NCNN_STRING */
     dr->read = __ncnn_DataReaderFromMemory_read;
     return dr;
 }
@@ -783,7 +784,7 @@ public:
         {
             bottom_blobs0[i] = (ncnn_mat_t)&bottom_blobs[i];
         }
-        std::vector<ncnn_mat_t*> top_blobs0(n2, 0);
+        std::vector<ncnn_mat_t*> top_blobs0(n2, (ncnn_mat_t*)0);
         int ret = layer->forward_n(layer, bottom_blobs0.data(), n, top_blobs0.data(), n2, (ncnn_option_t)&opt);
         for (int i = 0; i < n2; i++)
         {
@@ -970,7 +971,7 @@ ncnn_layer_t ncnn_layer_create_by_typeindex(int typeindex)
     return layer;
 }
 
-#if NCNN_STDIO
+#if NCNN_STRING
 ncnn_layer_t ncnn_layer_create_by_type(const char* type)
 {
     ncnn_layer_t layer = (ncnn_layer_t)malloc(sizeof(__ncnn_layer_t));
@@ -985,7 +986,7 @@ ncnn_layer_t ncnn_layer_create_by_type(const char* type)
     layer->forward_inplace_n = __ncnn_layer_forward_inplace_n;
     return layer;
 }
-#endif
+#endif /* NCNN_STRING */
 
 void ncnn_layer_destroy(ncnn_layer_t layer)
 {
@@ -993,30 +994,24 @@ void ncnn_layer_destroy(ncnn_layer_t layer)
     free(layer);
 }
 
+#if NCNN_STRING
 const char* ncnn_layer_get_name(const ncnn_layer_t layer)
 {
-#if NCNN_STRING
     return ((const Layer*)layer->pthis)->name.c_str();
-#else
-    (void)layer;
-    return "";
-#endif
 }
+#endif /* NCNN_STRING */
 
 int ncnn_layer_get_typeindex(const ncnn_layer_t layer)
 {
     return ((const Layer*)layer->pthis)->typeindex;
 }
 
+#if NCNN_STRING
 const char* ncnn_layer_get_type(const ncnn_layer_t layer)
 {
-#if NCNN_STRING
     return ((const Layer*)layer->pthis)->type.c_str();
-#else
-    (void)layer;
-    return "";
-#endif
 }
+#endif /* NCNN_STRING */
 
 int ncnn_layer_get_one_blob_only(const ncnn_layer_t layer)
 {
@@ -1184,7 +1179,7 @@ static void __Layer_c_api_layer_destroyer(::ncnn::Layer* layer, void* userdata)
     ud->destroyer(layer0, ud->userdata);
 }
 
-#if NCNN_STDIO
+#if NCNN_STRING
 void ncnn_net_register_custom_layer_by_type(ncnn_net_t net, const char* type, ncnn_layer_creator_t creator, ncnn_layer_destroyer_t destroyer, void* userdata)
 {
     ncnn_net_custom_layer_factory_t ud = (ncnn_net_custom_layer_factory_t)malloc(sizeof(struct __ncnn_net_custom_layer_factory_t));
@@ -1195,7 +1190,7 @@ void ncnn_net_register_custom_layer_by_type(ncnn_net_t net, const char* type, nc
     net->custom_layer_factory = ud;
     ((Net*)net->pthis)->register_custom_layer(type, __Layer_c_api_layer_creator, __Layer_c_api_layer_destroyer, (void*)ud);
 }
-#endif /* NCNN_STDIO */
+#endif /* NCNN_STRING */
 
 void ncnn_net_register_custom_layer_by_typeindex(ncnn_net_t net, int typeindex, ncnn_layer_creator_t creator, ncnn_layer_destroyer_t destroyer, void* userdata)
 {
