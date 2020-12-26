@@ -238,8 +238,8 @@ if(NCNN_VULKAN)
     target_link_libraries(ncnn PRIVATE glslang SPIRV)
 endif()
 
-if(ANDROID_NDK)
-    target_link_libraries(ncnn PUBLIC android log)
+if(NCNN_PLATFORM_API AND ANDROID_NDK)
+    target_link_libraries(ncnn PUBLIC android jnigraphics log)
 endif()
 
 if(WIN32)

@@ -1646,6 +1646,7 @@ void VkCompute::record_write_timestamp(uint32_t query)
 }
 #endif // NCNN_BENCHMARK
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& src, const VkMat& dst)
 {
@@ -2076,6 +2077,7 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
     }
 }
 #endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
 
 int VkCompute::submit_and_wait()
 {

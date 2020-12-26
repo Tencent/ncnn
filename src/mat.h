@@ -33,10 +33,12 @@
 #endif // NCNN_VULKAN
 
 #if NCNN_PIXEL
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
 #include <android/bitmap.h>
 #include <jni.h>
 #endif // __ANDROID_API__ >= 9
+#endif // NCNN_PLATFORM_API
 #endif // NCNN_PIXEL
 
 namespace ncnn {
@@ -233,6 +235,7 @@ public:
     // convenient export to pixel data and resize to specific size with stride(bytes-per-row) parameter
     void to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height, int target_stride) const;
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
     // convenient construct from android Bitmap
     static Mat from_android_bitmap(JNIEnv* env, jobject bitmap, int type_to, Allocator* allocator = 0);
@@ -245,6 +248,7 @@ public:
     // convenient export to android Bitmap and resize to the android Bitmap size
     void to_android_bitmap(JNIEnv* env, jobject bitmap, int type_from) const;
 #endif // __ANDROID_API__ >= 9
+#endif // NCNN_PLATFORM_API
 #endif // NCNN_PIXEL
 
     // substract channel-wise mean values, then multiply by normalize values, pass 0 to skip
@@ -475,10 +479,12 @@ public:
     VkImage image() const;
     VkImageView imageview() const;
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
     // convenient construct from android hardware buffer
     static VkImageMat from_android_hardware_buffer(VkAndroidHardwareBufferImageAllocator* allocator);
 #endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
 
     // device image
     VkImageMemory* data;

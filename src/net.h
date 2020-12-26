@@ -21,9 +21,11 @@
 #include "option.h"
 #include "platform.h"
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
 #include <android/asset_manager.h>
 #endif // __ANDROID_API__ >= 9
+#endif // NCNN_PLATFORM_API
 
 namespace ncnn {
 
@@ -58,11 +60,11 @@ public:
 #if NCNN_STRING
     // register custom layer by layer type name
     // return 0 if success
-    int register_custom_layer(const char* type, layer_creator_func creator, layer_destroyer_func destroyer = NULL);
+    int register_custom_layer(const char* type, layer_creator_func creator, layer_destroyer_func destroyer = 0, void* userdata = 0);
 #endif // NCNN_STRING
     // register custom layer by layer type
     // return 0 if success
-    int register_custom_layer(int index, layer_creator_func creator, layer_destroyer_func destroyer = NULL);
+    int register_custom_layer(int index, layer_creator_func creator, layer_destroyer_func destroyer = 0, void* userdata = 0);
 
 #if NCNN_STRING
     int load_param(const DataReader& dr);
@@ -103,6 +105,7 @@ public:
     // return bytes consumed
     int load_model(const unsigned char* mem);
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
 #if NCNN_STRING
     // convenient load network structure from android asset plain param file
@@ -117,6 +120,7 @@ public:
     int load_model(AAsset* asset);
     int load_model(AAssetManager* mgr, const char* assetpath);
 #endif // __ANDROID_API__ >= 9
+#endif // NCNN_PLATFORM_API
 
     // unload network structure and weight data
     void clear();
@@ -159,7 +163,7 @@ protected:
 #endif // NCNN_VULKAN
 
 protected:
-    std::vector<layer_registry_entry> custom_layer_registry;
+    std::vector<custom_layer_registry_entry> custom_layer_registry;
 
 #if NCNN_VULKAN
     const VulkanDevice* vkdev;

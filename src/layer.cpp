@@ -49,6 +49,8 @@ Layer::Layer()
 #if NCNN_VULKAN
     vkdev = 0;
 #endif // NCNN_VULKAN
+
+    userdata = 0;
 }
 
 Layer::~Layer()
@@ -258,7 +260,7 @@ Layer* create_layer(int index)
     if (!layer_creator)
         return 0;
 
-    Layer* layer = layer_creator();
+    Layer* layer = layer_creator(0);
     layer->typeindex = index;
     return layer;
 }

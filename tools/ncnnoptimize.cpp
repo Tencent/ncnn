@@ -2502,8 +2502,7 @@ int NetOptimize::eliminate_reshape_before_binaryop()
             binaryop->bottoms[0] = bottom_blob_index_final;
         if (layers[j]->bottoms[1] == top_blob_index)
             binaryop->bottoms[1] = bottom_blob_index_final;
-        blobs[bottom_blob_index_final].consumers.erase(std::find(blobs[bottom_blob_index_final].consumers.begin(), blobs[bottom_blob_index_final].consumers.end(), i));
-        blobs[bottom_blob_index_final].consumers.push_back(j);
+        blobs[bottom_blob_index_final].consumer = j;
         reshape->type = "ncnnfused";
     }
 
@@ -2579,8 +2578,7 @@ int NetOptimize::replace_reduction_with_global_pooling()
 
         int bottom_blob_index_final = reduction1->bottoms[0];
         pooling->bottoms[0] = bottom_blob_index_final;
-        blobs[bottom_blob_index_final].consumers.clear();
-        blobs[bottom_blob_index_final].consumers.push_back(j);
+        blobs[bottom_blob_index_final].consumer = j;
         reduction1->type = "ncnnfused";
     }
 
@@ -2761,7 +2759,7 @@ int NetOptimize::shape_inference()
 {
     if (custom_layer_index)
     {
-        fprintf(stderr, "model has %d custom layer, shape_inference aborted\n", custom_layer_index);
+        fprintf(stderr, "model has %d custom layer, shape_inference skipped\n", custom_layer_index);
         return -1;
     }
 
@@ -2794,7 +2792,7 @@ int NetOptimize::shape_inference()
 
         if (dims == 0)
         {
-            fprintf(stderr, "Input layer %s without shape info, shape_inference aborted\n", layer->name.c_str());
+            fprintf(stderr, "Input layer %s without shape info, shape_inference skipped\n", layer->name.c_str());
             return -1;
         }
 
@@ -2880,7 +2878,7 @@ int NetOptimize::estimate_memory_footprint()
 {
     if (custom_layer_index)
     {
-        fprintf(stderr, "model has %d custom layer, estimate_memory_footprint aborted\n", custom_layer_index);
+        fprintf(stderr, "model has %d custom layer, estimate_memory_footprint skipped\n", custom_layer_index);
         return -1;
     }
 
@@ -2918,7 +2916,7 @@ int NetOptimize::estimate_memory_footprint()
 
         if (dims == 0)
         {
-            fprintf(stderr, "Input layer %s without shape info, estimate_memory_footprint aborted\n", layer->name.c_str());
+            fprintf(stderr, "Input layer %s without shape info, estimate_memory_footprint skipped\n", layer->name.c_str());
             return -1;
         }
 
@@ -2938,7 +2936,7 @@ int NetOptimize::estimate_memory_footprint()
     {
         const ncnn::Blob& blob = blobs[i];
 
-        if (!blob.consumers.empty())
+        if (blob.consumer != -1)
             continue;
 
         // treat blob without any consumers as output

@@ -24,9 +24,11 @@
 #include <math.h>
 
 #if NCNN_VULKAN
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
 #endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
 #endif // NCNN_VULKAN
 
 namespace ncnn {
@@ -179,6 +181,7 @@ Mat Mat::from_float16(const unsigned short* data, int size)
 }
 
 #if NCNN_VULKAN
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 VkImageMat VkImageMat::from_android_hardware_buffer(VkAndroidHardwareBufferImageAllocator* allocator)
 {
@@ -188,6 +191,7 @@ VkImageMat VkImageMat::from_android_hardware_buffer(VkAndroidHardwareBufferImage
     return VkImageMat(width, height, allocator);
 }
 #endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
 #endif // NCNN_VULKAN
 
 unsigned short float32_to_float16(float value)
