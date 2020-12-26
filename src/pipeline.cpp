@@ -106,621 +106,103 @@ void Pipeline::set_optimal_local_size_xyz(const Mat& local_size_xyz)
     set_local_size_xyz(w, h, c);
 }
 
+static inline int lep2(int x)
+{
+    if (x >= 128) return 128;
+    if (x >= 64) return 64;
+    if (x >= 32) return 32;
+    if (x >= 16) return 16;
+    if (x >= 8) return 8;
+    if (x >= 4) return 4;
+    if (x >= 2) return 2;
+    return 1;
+}
+
 void Pipeline::set_local_size_xyz(int w, int h, int c)
 {
-    // always tick to subgroup size
-    if (vkdev->info.subgroup_size == 16)
+    // be power of 2
+    w = lep2(w);
+    h = lep2(h);
+    c = lep2(c);
+
+    int local_size = w * h * c;
+
+    // be multiple of subgroup size
+    int subgroup_size = vkdev->info.subgroup_size;
+    int local_size2 = std::max(1, local_size / subgroup_size) * subgroup_size;
+    for (; local_size > local_size2; local_size = w * h * c)
     {
-        if (w == 1)
+        if (w > 1 && h > 1 && c > 1)
         {
-            if (h == 1)
+            if (local_size == local_size2 * 2)
             {
-                local_size_x = 1;
-                local_size_y = 1;
-                local_size_z = 16;
+                c = std::max(1, c / 2);
             }
-            else if (c == 1)
+            else if (local_size == local_size2 * 4)
             {
-                local_size_x = 1;
-                local_size_y = 16;
-                local_size_z = 1;
-            }
-            else if (h < c)
-            {
-                local_size_x = 1;
-                local_size_y = 2;
-                local_size_z = 8;
-            }
-            else if (h > c)
-            {
-                local_size_x = 1;
-                local_size_y = 8;
-                local_size_z = 2;
+                w = std::max(1, w / 2);
+                h = std::max(1, h / 2);
             }
             else
             {
-                local_size_x = 1;
-                local_size_y = 4;
-                local_size_z = 4;
+                w = std::max(1, w / 2);
+                h = std::max(1, h / 2);
+                c = std::max(1, c / 2);
+            }
+        }
+        else if (h == 1 && c == 1)
+        {
+            w = std::max(1, w / 2);
+        }
+        else if (w == 1 && c == 1)
+        {
+            h = std::max(1, h / 2);
+        }
+        else if (w == 1 && h == 1)
+        {
+            c = std::max(1, c / 2);
+        }
+        else if (w == 1)
+        {
+            if (local_size == local_size2 * 2)
+            {
+                c = std::max(1, c / 2);
+            }
+            else
+            {
+                h = std::max(1, h / 2);
+                c = std::max(1, c / 2);
             }
         }
         else if (h == 1)
         {
-            if (c == 1)
+            if (local_size == local_size2 * 2)
             {
-                local_size_x = 16;
-                local_size_y = 1;
-                local_size_z = 1;
-            }
-            else if (w < c)
-            {
-                local_size_x = 2;
-                local_size_y = 1;
-                local_size_z = 8;
-            }
-            else if (w > c)
-            {
-                local_size_x = 8;
-                local_size_y = 1;
-                local_size_z = 2;
+                c = std::max(1, c / 2);
             }
             else
             {
-                local_size_x = 4;
-                local_size_y = 1;
-                local_size_z = 4;
+                w = std::max(1, h / 2);
+                c = std::max(1, c / 2);
             }
         }
         else if (c == 1)
         {
-            if (w < h)
+            if (local_size == local_size2 * 2)
             {
-                local_size_x = 2;
-                local_size_y = 8;
-                local_size_z = 1;
-            }
-            else if (w > h)
-            {
-                local_size_x = 8;
-                local_size_y = 2;
-                local_size_z = 1;
+                h = std::max(1, c / 2);
             }
             else
             {
-                local_size_x = 4;
-                local_size_y = 4;
-                local_size_z = 1;
-            }
-        }
-        else
-        {
-            if (w == h)
-            {
-                if (c > w)
-                {
-                    local_size_x = 2;
-                    local_size_y = 2;
-                    local_size_z = 4;
-                }
-                else if (c < w)
-                {
-                    local_size_x = 4;
-                    local_size_y = 4;
-                    local_size_z = 1;
-                }
-                else
-                {
-                    // NOTE why
-                    local_size_x = 4;
-                    local_size_y = 2;
-                    local_size_z = 2;
-                }
-            }
-            else if (h == c)
-            {
-                if (w > h)
-                {
-                    local_size_x = 4;
-                    local_size_y = 2;
-                    local_size_z = 2;
-                }
-                else // if (w < h)
-                {
-                    local_size_x = 1;
-                    local_size_y = 4;
-                    local_size_z = 4;
-                }
-            }
-            else if (w == c)
-            {
-                if (h > w)
-                {
-                    local_size_x = 2;
-                    local_size_y = 4;
-                    local_size_z = 2;
-                }
-                else // if (h < w)
-                {
-                    local_size_x = 4;
-                    local_size_y = 1;
-                    local_size_z = 4;
-                }
-            }
-            else
-            {
-                if (w > h)
-                {
-                    local_size_x = 4;
-                    local_size_y = 2;
-                    local_size_z = 2;
-                }
-                else // if (w < h)
-                {
-                    local_size_x = 2;
-                    local_size_y = 4;
-                    local_size_z = 2;
-                }
+                w = std::max(1, h / 2);
+                h = std::max(1, c / 2);
             }
         }
     }
-    if (vkdev->info.subgroup_size == 32)
-    {
-        if (w == 1)
-        {
-            if (h == 1)
-            {
-                local_size_x = 1;
-                local_size_y = 1;
-                local_size_z = 32;
-            }
-            else if (c == 1)
-            {
-                local_size_x = 1;
-                local_size_y = 32;
-                local_size_z = 1;
-            }
-            else if (h < c)
-            {
-                local_size_x = 1;
-                local_size_y = 4;
-                local_size_z = 8;
-            }
-            else if (h > c)
-            {
-                local_size_x = 1;
-                local_size_y = 8;
-                local_size_z = 4;
-            }
-            else
-            {
-                // NOTE why
-                local_size_x = 1;
-                local_size_y = 8;
-                local_size_z = 4;
-            }
-        }
-        else if (h == 1)
-        {
-            if (c == 1)
-            {
-                local_size_x = 32;
-                local_size_y = 1;
-                local_size_z = 1;
-            }
-            else if (w < c)
-            {
-                local_size_x = 4;
-                local_size_y = 1;
-                local_size_z = 8;
-            }
-            else if (w > c)
-            {
-                local_size_x = 8;
-                local_size_y = 1;
-                local_size_z = 4;
-            }
-            else
-            {
-                // NOTE why
-                local_size_x = 8;
-                local_size_y = 1;
-                local_size_z = 4;
-            }
-        }
-        else if (c == 1)
-        {
-            if (w < h)
-            {
-                local_size_x = 4;
-                local_size_y = 8;
-                local_size_z = 1;
-            }
-            else if (w > h)
-            {
-                local_size_x = 8;
-                local_size_y = 4;
-                local_size_z = 1;
-            }
-            else
-            {
-                // NOTE why
-                local_size_x = 8;
-                local_size_y = 4;
-                local_size_z = 1;
-            }
-        }
-        else
-        {
-            if (w == h)
-            {
-                if (c > w)
-                {
-                    local_size_x = 2;
-                    local_size_y = 2;
-                    local_size_z = 8;
-                }
-                else if (c < w)
-                {
-                    local_size_x = 4;
-                    local_size_y = 4;
-                    local_size_z = 2;
-                }
-                else
-                {
-                    // NOTE why
-                    local_size_x = 4;
-                    local_size_y = 4;
-                    local_size_z = 2;
-                }
-            }
-            else if (h == c)
-            {
-                if (w > h)
-                {
-                    local_size_x = 8;
-                    local_size_y = 2;
-                    local_size_z = 2;
-                }
-                else // if (w < h)
-                {
-                    local_size_x = 2;
-                    local_size_y = 4;
-                    local_size_z = 4;
-                }
-            }
-            else if (w == c)
-            {
-                if (h > w)
-                {
-                    local_size_x = 2;
-                    local_size_y = 8;
-                    local_size_z = 2;
-                }
-                else // if (h < w)
-                {
-                    local_size_x = 4;
-                    local_size_y = 2;
-                    local_size_z = 4;
-                }
-            }
-            else
-            {
-                if (w > h)
-                {
-                    local_size_x = 8;
-                    local_size_y = 2;
-                    local_size_z = 2;
-                }
-                else // if (w < h)
-                {
-                    local_size_x = 2;
-                    local_size_y = 8;
-                    local_size_z = 2;
-                }
-            }
-        }
-    }
-    if (vkdev->info.subgroup_size == 64)
-    {
-        if (w == 1)
-        {
-            if (h == 1)
-            {
-                local_size_x = 1;
-                local_size_y = 1;
-                local_size_z = 64;
-            }
-            else if (c == 1)
-            {
-                local_size_x = 1;
-                local_size_y = 64;
-                local_size_z = 1;
-            }
-            else if (h < c)
-            {
-                local_size_x = 1;
-                local_size_y = 4;
-                local_size_z = 16;
-            }
-            else if (h > c)
-            {
-                local_size_x = 1;
-                local_size_y = 16;
-                local_size_z = 4;
-            }
-            else
-            {
-                local_size_x = 1;
-                local_size_y = 8;
-                local_size_z = 8;
-            }
-        }
-        else if (h == 1)
-        {
-            if (c == 1)
-            {
-                local_size_x = 64;
-                local_size_y = 1;
-                local_size_z = 1;
-            }
-            else if (w < c)
-            {
-                local_size_x = 4;
-                local_size_y = 1;
-                local_size_z = 16;
-            }
-            else if (w > c)
-            {
-                local_size_x = 16;
-                local_size_y = 1;
-                local_size_z = 4;
-            }
-            else
-            {
-                local_size_x = 8;
-                local_size_y = 1;
-                local_size_z = 8;
-            }
-        }
-        else if (c == 1)
-        {
-            if (w < h)
-            {
-                local_size_x = 4;
-                local_size_y = 16;
-                local_size_z = 1;
-            }
-            else if (w > h)
-            {
-                local_size_x = 16;
-                local_size_y = 4;
-                local_size_z = 1;
-            }
-            else
-            {
-                local_size_x = 8;
-                local_size_y = 8;
-                local_size_z = 1;
-            }
-        }
-        else
-        {
-            if (w == h || h == c || w == c)
-            {
-                local_size_x = 4;
-                local_size_y = 4;
-                local_size_z = 4;
-            }
-            else
-            {
-                if (w > h && w > c)
-                {
-                    local_size_x = 8;
-                    local_size_y = 2;
-                    local_size_z = 2;
-                }
-                else if (w < h && h > c)
-                {
-                    local_size_x = 2;
-                    local_size_y = 8;
-                    local_size_z = 2;
-                }
-                else if (w < c && h < c)
-                {
-                    local_size_x = 2;
-                    local_size_y = 2;
-                    local_size_z = 8;
-                }
-                else
-                {
-                    local_size_x = 4;
-                    local_size_y = 4;
-                    local_size_z = 4;
-                }
-            }
-        }
-    }
-    if (vkdev->info.subgroup_size == 128)
-    {
-        if (w == 1)
-        {
-            if (h == 1)
-            {
-                local_size_x = 1;
-                local_size_y = 1;
-                local_size_z = 128;
-            }
-            else if (c == 1)
-            {
-                local_size_x = 1;
-                local_size_y = 128;
-                local_size_z = 1;
-            }
-            else if (h < c)
-            {
-                local_size_x = 1;
-                local_size_y = 8;
-                local_size_z = 16;
-            }
-            else if (h > c)
-            {
-                local_size_x = 1;
-                local_size_y = 16;
-                local_size_z = 8;
-            }
-            else
-            {
-                // NOTE why
-                local_size_x = 1;
-                local_size_y = 16;
-                local_size_z = 8;
-            }
-        }
-        else if (h == 1)
-        {
-            if (c == 1)
-            {
-                local_size_x = 128;
-                local_size_y = 1;
-                local_size_z = 1;
-            }
-            else if (w < c)
-            {
-                local_size_x = 8;
-                local_size_y = 1;
-                local_size_z = 16;
-            }
-            else if (w > c)
-            {
-                local_size_x = 16;
-                local_size_y = 1;
-                local_size_z = 8;
-            }
-            else
-            {
-                // NOTE why
-                local_size_x = 16;
-                local_size_y = 1;
-                local_size_z = 8;
-            }
-        }
-        else if (c == 1)
-        {
-            if (w < h)
-            {
-                local_size_x = 8;
-                local_size_y = 16;
-                local_size_z = 1;
-            }
-            else if (w > h)
-            {
-                local_size_x = 16;
-                local_size_y = 8;
-                local_size_z = 1;
-            }
-            else
-            {
-                // NOTE why
-                local_size_x = 16;
-                local_size_y = 8;
-                local_size_z = 1;
-            }
-        }
-        else
-        {
-            if (w == h)
-            {
-                if (c > w)
-                {
-                    local_size_x = 4;
-                    local_size_y = 4;
-                    local_size_z = 8;
-                }
-                else if (c < w)
-                {
-                    local_size_x = 8;
-                    local_size_y = 8;
-                    local_size_z = 2;
-                }
-                else
-                {
-                    // NOTE why
-                    local_size_x = 8;
-                    local_size_y = 8;
-                    local_size_z = 2;
-                }
-            }
-            else if (h == c)
-            {
-                if (w > h)
-                {
-                    local_size_x = 8;
-                    local_size_y = 4;
-                    local_size_z = 4;
-                }
-                else // if (w < h)
-                {
-                    local_size_x = 2;
-                    local_size_y = 8;
-                    local_size_z = 8;
-                }
-            }
-            else if (w == c)
-            {
-                if (h > w)
-                {
-                    local_size_x = 4;
-                    local_size_y = 8;
-                    local_size_z = 4;
-                }
-                else // if (h < w)
-                {
-                    local_size_x = 8;
-                    local_size_y = 2;
-                    local_size_z = 8;
-                }
-            }
-            else
-            {
-                if (w > h && h > c)
-                {
-                    local_size_x = 8;
-                    local_size_y = 4;
-                    local_size_z = 2;
-                }
-                if (w > c && c > h)
-                {
-                    local_size_x = 8;
-                    local_size_y = 2;
-                    local_size_z = 4;
-                }
-                else if (h > w && w > c)
-                {
-                    local_size_x = 4;
-                    local_size_y = 8;
-                    local_size_z = 2;
-                }
-                else if (h > c && c > w)
-                {
-                    local_size_x = 2;
-                    local_size_y = 8;
-                    local_size_z = 4;
-                }
-                else if (c > w && w > h)
-                {
-                    local_size_x = 4;
-                    local_size_y = 2;
-                    local_size_z = 8;
-                }
-                else // if (c > h && h > w)
-                {
-                    local_size_x = 2;
-                    local_size_y = 4;
-                    local_size_z = 8;
-                }
-            }
-        }
-    }
+
+    local_size_x = w;
+    local_size_y = h;
+    local_size_z = c;
 
     //     NCNN_LOGE("local size = %d %d %d", local_size_x, local_size_y, local_size_z);
 }
