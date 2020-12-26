@@ -125,6 +125,8 @@ public:
 #endif // NCNN_VULKAN
 
 public:
+    // custom user data
+    void* userdata;
     // layer type index
     int typeindex;
 #if NCNN_STRING
@@ -143,8 +145,8 @@ public:
 };
 
 // layer factory function
-typedef Layer* (*layer_creator_func)();
-typedef void (*layer_destroyer_func)(Layer*);
+typedef Layer* (*layer_creator_func)(void*);
+typedef void (*layer_destroyer_func)(Layer*, void*);
 
 struct layer_registry_entry
 {
@@ -154,7 +156,18 @@ struct layer_registry_entry
 #endif // NCNN_STRING
     // layer factory entry
     layer_creator_func creator;
+};
+
+struct custom_layer_registry_entry
+{
+#if NCNN_STRING
+    // layer type name
+    const char* name;
+#endif // NCNN_STRING
+    // layer factory entry
+    layer_creator_func creator;
     layer_destroyer_func destroyer;
+    void* userdata;
 };
 
 #if NCNN_STRING
@@ -167,13 +180,13 @@ Layer* create_layer(const char* type);
 Layer* create_layer(int index);
 
 #define DEFINE_LAYER_CREATOR(name)        \
-    ::ncnn::Layer* name##_layer_creator() \
+    ::ncnn::Layer* name##_layer_creator(void* /*userdata*/) \
     {                                     \
         return new name;                  \
     }
 
 #define DEFINE_LAYER_DESTROYER(name)                  \
-    void name##_layer_destroyer(::ncnn::Layer* layer) \
+    void name##_layer_destroyer(::ncnn::Layer* layer, void* /*userdata*/) \
     {                                                 \
         delete layer;                                 \
     }

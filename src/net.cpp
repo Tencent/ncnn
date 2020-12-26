@@ -57,7 +57,7 @@ Net::~Net()
 }
 
 #if NCNN_STRING
-int Net::register_custom_layer(const char* type, layer_creator_func creator, layer_destroyer_func destroyer)
+int Net::register_custom_layer(const char* type, layer_creator_func creator, layer_destroyer_func destroyer, void* userdata)
 {
     int typeindex = layer_to_index(type);
     if (typeindex != -1)
@@ -69,7 +69,7 @@ int Net::register_custom_layer(const char* type, layer_creator_func creator, lay
     int custom_index = custom_layer_to_index(type);
     if (custom_index == -1)
     {
-        struct layer_registry_entry entry = {type, creator, destroyer};
+        struct custom_layer_registry_entry entry = {type, creator, destroyer, userdata};
         custom_layer_registry.push_back(entry);
     }
     else
@@ -78,13 +78,14 @@ int Net::register_custom_layer(const char* type, layer_creator_func creator, lay
         custom_layer_registry[custom_index].name = type;
         custom_layer_registry[custom_index].creator = creator;
         custom_layer_registry[custom_index].destroyer = destroyer;
+        custom_layer_registry[custom_index].userdata = userdata;
     }
 
     return 0;
 }
 #endif // NCNN_STRING
 
-int Net::register_custom_layer(int index, layer_creator_func creator, layer_destroyer_func destroyer)
+int Net::register_custom_layer(int index, layer_creator_func creator, layer_destroyer_func destroyer, void* userdata)
 {
     int custom_index = index & ~LayerType::CustomBit;
     if (index == custom_index)
@@ -96,9 +97,9 @@ int Net::register_custom_layer(int index, layer_creator_func creator, layer_dest
     if ((int)custom_layer_registry.size() <= custom_index)
     {
 #if NCNN_STRING
-        struct layer_registry_entry dummy = {"", 0, 0};
+        struct custom_layer_registry_entry dummy = {"", 0, 0, 0};
 #else
-        struct layer_registry_entry dummy = {0, 0};
+        struct custom_layer_registry_entry dummy = {0, 0, 0};
 #endif // NCNN_STRING
         custom_layer_registry.resize(custom_index + 1, dummy);
     }
@@ -110,6 +111,7 @@ int Net::register_custom_layer(int index, layer_creator_func creator, layer_dest
 
     custom_layer_registry[custom_index].creator = creator;
     custom_layer_registry[custom_index].destroyer = destroyer;
+    custom_layer_registry[custom_index].userdata = userdata;
     return 0;
 }
 
@@ -954,7 +956,7 @@ void Net::clear()
             int custom_index = layer->typeindex & ~ncnn::LayerType::CustomBit;
             if (custom_layer_registry[custom_index].destroyer)
             {
-                custom_layer_registry[custom_index].destroyer(layer);
+                custom_layer_registry[custom_index].destroyer(layer, custom_layer_registry[custom_index].userdata);
             }
             else
             {
@@ -1120,7 +1122,7 @@ Layer* Net::create_custom_layer(int index)
     if (!layer_creator)
         return 0;
 
-    Layer* layer = layer_creator();
+    Layer* layer = layer_creator(custom_layer_registry[index].userdata);
     layer->typeindex = ncnn::LayerType::CustomBit | index;
     return layer;
 }
