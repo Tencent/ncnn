@@ -182,7 +182,7 @@ void Pipeline::set_local_size_xyz(int w, int h, int c)
             }
             else
             {
-                w = std::max(1, h / 2);
+                w = std::max(1, w / 2);
                 c = std::max(1, c / 2);
             }
         }
@@ -190,12 +190,12 @@ void Pipeline::set_local_size_xyz(int w, int h, int c)
         {
             if (local_size == local_size2 * 2)
             {
-                h = std::max(1, c / 2);
+                h = std::max(1, h / 2);
             }
             else
             {
-                w = std::max(1, h / 2);
-                h = std::max(1, c / 2);
+                w = std::max(1, w / 2);
+                h = std::max(1, h / 2);
             }
         }
     }
