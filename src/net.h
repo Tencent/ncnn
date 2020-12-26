@@ -60,11 +60,11 @@ public:
 #if NCNN_STRING
     // register custom layer by layer type name
     // return 0 if success
-    int register_custom_layer(const char* type, layer_creator_func creator, layer_destroyer_func destroyer = NULL);
+    int register_custom_layer(const char* type, layer_creator_func creator, layer_destroyer_func destroyer = 0, void* userdata = 0);
 #endif // NCNN_STRING
     // register custom layer by layer type
     // return 0 if success
-    int register_custom_layer(int index, layer_creator_func creator, layer_destroyer_func destroyer = NULL);
+    int register_custom_layer(int index, layer_creator_func creator, layer_destroyer_func destroyer = 0, void* userdata = 0);
 
 #if NCNN_STRING
     int load_param(const DataReader& dr);
@@ -163,7 +163,7 @@ protected:
 #endif // NCNN_VULKAN
 
 protected:
-    std::vector<layer_registry_entry> custom_layer_registry;
+    std::vector<custom_layer_registry_entry> custom_layer_registry;
 
 #if NCNN_VULKAN
     const VulkanDevice* vkdev;
