@@ -106,25 +106,8 @@ void Pipeline::set_optimal_local_size_xyz(const Mat& local_size_xyz)
     set_local_size_xyz(w, h, c);
 }
 
-static inline int lep2(int x)
-{
-    if (x >= 128) return 128;
-    if (x >= 64) return 64;
-    if (x >= 32) return 32;
-    if (x >= 16) return 16;
-    if (x >= 8) return 8;
-    if (x >= 4) return 4;
-    if (x >= 2) return 2;
-    return 1;
-}
-
 void Pipeline::set_local_size_xyz(int w, int h, int c)
 {
-    // be power of 2
-    w = lep2(w);
-    h = lep2(h);
-    c = lep2(c);
-
     int local_size = w * h * c;
 
     // be multiple of subgroup size
@@ -132,72 +115,89 @@ void Pipeline::set_local_size_xyz(int w, int h, int c)
     int local_size2 = std::max(1, local_size / subgroup_size) * subgroup_size;
     for (; local_size > local_size2; local_size = w * h * c)
     {
-        if (w > 1 && h > 1 && c > 1)
+        if (local_size == local_size2 * 2)
         {
-            if (local_size == local_size2 * 2)
+            if (c % 2 == 0)
+                c /= 2;
+            else if (h % 2 == 0)
+                w /= 2;
+            else if (w % 2 == 0)
+                h /= 2;
+            else
+                c /= 2;
+        }
+        else if (local_size == local_size2 * 4)
+        {
+            if (w % 2 == 0 && h % 2 == 0)
             {
-                c = std::max(1, c / 2);
+                w /= 2;
+                h /= 2;
             }
-            else if (local_size == local_size2 * 4)
+            else if (h % 2 == 0 && c % 2 == 0)
             {
-                w = std::max(1, w / 2);
-                h = std::max(1, h / 2);
+                h /= 2;
+                c /= 2;
+            }
+            else if (w % 2 == 0 && c % 2 == 0)
+            {
+                w /= 2;
+                c /= 2;
+            }
+            else if (c % 4 == 0)
+            {
+                c /= 4;
+            }
+            else if (h % 4 == 0)
+            {
+                h /= 4;
+            }
+            else if (w % 4 == 0)
+            {
+                w /= 4;
+            }
+            else if (c % 2 == 0)
+            {
+                h /= 2;
+                c /= 2;
+            }
+            else if (h % 2 == 0)
+            {
+                w /= 2;
+                h /= 2;
+            }
+            else if (w % 2 == 0)
+            {
+                w /= 2;
+                h /= 2;
             }
             else
             {
-                w = std::max(1, w / 2);
-                h = std::max(1, h / 2);
-                c = std::max(1, c / 2);
+                w /= 2;
+                h /= 2;
             }
         }
-        else if (h == 1 && c == 1)
+        else
         {
-            w = std::max(1, w / 2);
-        }
-        else if (w == 1 && c == 1)
-        {
-            h = std::max(1, h / 2);
-        }
-        else if (w == 1 && h == 1)
-        {
-            c = std::max(1, c / 2);
-        }
-        else if (w == 1)
-        {
-            if (local_size == local_size2 * 2)
+            if (w % 2 != 0 && h % 2 != 0 && c % 2 != 0)
             {
-                c = std::max(1, c / 2);
+                w /= 2;
+                h /= 2;
+                c /= 2;
             }
             else
             {
-                h = std::max(1, h / 2);
-                c = std::max(1, c / 2);
+                if (c % 2 == 0)
+                    c /= 2;
+                if (h % 2 == 0)
+                    h /= 2;
+                if (w % 2 == 0)
+                    w /= 2;
             }
         }
-        else if (h == 1)
-        {
-            if (local_size == local_size2 * 2)
-            {
-                c = std::max(1, c / 2);
-            }
-            else
-            {
-                w = std::max(1, w / 2);
-                c = std::max(1, c / 2);
-            }
-        }
-        else if (c == 1)
-        {
-            if (local_size == local_size2 * 2)
-            {
-                h = std::max(1, h / 2);
-            }
-            else
-            {
-                w = std::max(1, w / 2);
-                h = std::max(1, h / 2);
-            }
-        }
+
+        w = std::max(1, w);
+        h = std::max(1, h);
+        c = std::max(1, c);
     }
 
     local_size_x = w;
