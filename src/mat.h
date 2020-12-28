@@ -103,6 +103,8 @@ public:
     void fill(T v);
     // deep copy
     Mat clone(Allocator* allocator = 0) const;
+    // deep copy from other mat, inplacc
+    void clone_from(const ncnn::Mat& mat, Allocator* allocator = 0);
     // reshape vec
     Mat reshape(int w, Allocator* allocator = 0) const;
     // reshape image
@@ -977,6 +979,11 @@ inline Mat Mat::clone(Allocator* _allocator) const
     }
 
     return m;
+}
+
+inline void Mat::clone_from(const ncnn::Mat& mat, Allocator* allocator)
+{
+    *this = mat.clone(allocator);
 }
 
 inline Mat Mat::reshape(int _w, Allocator* _allocator) const
