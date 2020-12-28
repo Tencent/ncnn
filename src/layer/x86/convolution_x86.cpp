@@ -34,6 +34,7 @@ namespace ncnn {
 #include "convolution_sgemm.h"
 #include "convolution_sgemm_int8.h"
 #if __SSE2__
+#include "convolution_1x1_pack4.h"
 #if __AVX__
 #include "convolution_3x3_pack1to8.h"
 #include "convolution_3x3_pack8to1.h"
@@ -246,6 +247,20 @@ int Convolution_x86::create_pipeline(const Option& opt)
         }
     }
 
+#if __SSE2__
+    // pack4
+    if (elempack == 4 && out_elempack == 4)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv1x1s1_sgemm_transform_kernel_pack4_sse(weight_data, weight_data_packed, num_input, num_output);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv1x1s1_sgemm_transform_kernel_pack4_sse(weight_data, weight_data_packed, num_input, num_output);
+        }
+    }
+
 #if __AVX__
     // pack8
     if (elempack == 8 && out_elempack == 8)
@@ -270,7 +285,12 @@ int Convolution_x86::create_pipeline(const Option& opt)
         {
             conv1x1s1_sgemm_transform_kernel_pack8_avx(weight_data, weight_data_packed, num_input, num_output);
         }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv1x1s1_sgemm_transform_kernel_pack8_avx(weight_data, weight_data_packed, num_input, num_output);
+        }
     }
+#endif
 #endif
 
     return 0;
@@ -784,6 +804,25 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (elempack == 4 && out_elempack == 4)
     {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv1x1s1_sgemm_pack4_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv1x1s2_pack4_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else
         {
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
