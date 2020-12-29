@@ -176,7 +176,7 @@ PYBIND11_MODULE(ncnn, m)
         .def_readwrite("blob_vkallocator", &Option::blob_vkallocator)
         .def_readwrite("workspace_vkallocator", &Option::workspace_vkallocator)
         .def_readwrite("staging_vkallocator", &Option::staging_vkallocator)
-        //.def_readwrite("pipeline_cache", &Option::pipeline_cache)
+    //.def_readwrite("pipeline_cache", &Option::pipeline_cache)
 #endif // NCNN_VULKAN
         .def_readwrite("openmp_blocktime", &Option::openmp_blocktime)
         .def_readwrite("use_winograd_convolution", &Option::use_winograd_convolution)
@@ -894,8 +894,7 @@ PYBIND11_MODULE(ncnn, m)
         .def("fastFree", (void (VkWeightStagingAllocator::*)(VkImageMemory * ptr)) & VkWeightStagingAllocator::fastFree);
 
     py::class_<VulkanDevice>(m, "VulkanDevice")
-        .def(py::init<int>(), py::arg("device_index") = 0)
-        ;
+        .def(py::init<int>(), py::arg("device_index") = 0);
 #endif // NCNN_VULKAN
 
     m.doc() = R"pbdoc(
