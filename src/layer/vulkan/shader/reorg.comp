@@ -22,8 +22,9 @@
 #endif
 
 layout (constant_id = 0) const int stride = 0;
+layout (constant_id = 1) const int mode = 0;
 
-#define shape_constant_id_offset 1
+#define shape_constant_id_offset 2
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
@@ -68,8 +69,18 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    int z = gz / (stride * stride);
-    int zi = gz % (stride * stride);
+    int z;
+    int zi;
+    if (mode == 0)
+    {
+        z = gz / (stride * stride);
+        zi = gz % (stride * stride);
+    }
+    else // if (mode == 1)
+    {
+        z = gz % psc(c);
+        zi = gz / psc(c);
+    }
     int y = gy * stride + zi / stride;
     int x = gx * stride + zi % stride;
 
