@@ -281,9 +281,6 @@ int main(int argc, char** argv)
     // weight node and weight reshape node
     std::map<std::string, mlir::Attribute> weights;
 
-    // weight node before BinaryOp
-    std::map<std::string, mlir::Attribute> binaryop_weights;
-
     fprintf(pp, "7767517\n");
 
     const mlir::Block::OpListType& operations = bb.getOperations();
@@ -307,44 +304,11 @@ int main(int argc, char** argv)
             // weight
             std::string output_name = get_mlir_value_uniq_id(operation.getResult(0));
             weights[output_name] = operation.getAttr("value");
-            continue;
-        }
-        else
-        {
-            bool isBinaryOp = false;
-            // TODO add more binaryop
-            if (op == "tf.BiasAdd" || op == "tf.AddV2" || op == "tf.Sub" || op == "tf.Maximum" || op == "tf.Minimum" || op == "tf.Mul")
-            {
-                isBinaryOp = true;
-            }
-
-            if (isBinaryOp)
-            {
-                // check weights
-                for (int j = 0; j < num_input; j++)
-                {
-                    std::string input_name = get_mlir_value_uniq_id(operation.getOperand(j));
-
-                    std::map<std::string, mlir::Attribute>::iterator it = weights.find(input_name);
-                    if (it != weights.end())
-                    {
-                        // binary op with weight, insert MemoryData layer and const blob
-                        binaryop_weights[input_name] = it->second;
-                        weights.erase(it);
-                    }
-                }
-            }
         }
 
         for (int j = 0; j < num_input; j++)
         {
             std::string input_name = get_mlir_value_uniq_id(operation.getOperand(j));
-
-            // check weight
-            if (weights.find(input_name) != weights.end())
-            {
-                continue;
-            }
 
             blob_names.insert(input_name);
 
@@ -363,29 +327,232 @@ int main(int argc, char** argv)
             std::string output_name = get_mlir_value_uniq_id(operation.getResult(j));
 
             blob_names.insert(output_name);
+
+            node_reference[output_name] = 0;
         }
+    }
+
+    // reduce common const weight node_reference
+    for (const mlir::Operation& _operation : operations)
+    {
+        mlir::Operation& operation = const_cast<mlir::Operation&>(_operation);
+
+        std::string op = operation.getName().getStringRef().str();
+
+        if (op == "ncnn.KerasConv2D")
+        {
+            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            std::string bias_name = get_mlir_value_uniq_id(operation.getOperand(2));
+            node_reference[weight_name] -= 1;
+            node_reference[bias_name] -= 1;
+        }
+        else if (op == "ncnn.KerasDense")
+        {
+            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            std::string bias_name = get_mlir_value_uniq_id(operation.getOperand(2));
+            node_reference[weight_name] -= 1;
+            node_reference[bias_name] -= 1;
+        }
+        else if (op == "ncnn.KerasBatchNorm")
+        {
+            std::string gamma_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            std::string bias_name = get_mlir_value_uniq_id(operation.getOperand(2));
+            node_reference[gamma_name] -= 1;
+            node_reference[bias_name] -= 1;
+        }
+        else if (op == "ncnn.InstanceNormAffine")
+        {
+            std::string gamma_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            std::string bias_name = get_mlir_value_uniq_id(operation.getOperand(2));
+            node_reference[gamma_name] -= 1;
+            node_reference[bias_name] -= 1;
+        }
+        else if (op == "tf.ConcatV2")
+        {
+            std::string axis_name = get_mlir_value_uniq_id(operation.getOperand(operation.getNumOperands() - 1));
+            node_reference[axis_name] -= 1;
+        }
+        else if (op == "tf.Conv2D")
+        {
+            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            node_reference[weight_name] -= 1;
+        }
+        else if (op == "tf.Conv2DBackpropInput")
+        {
+            std::string output_shape_name = get_mlir_value_uniq_id(operation.getOperand(0));
+            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            node_reference[output_shape_name] -= 1;
+            node_reference[weight_name] -= 1;
+        }
+        else if (op == "tf.DepthwiseConv2dNative")
+        {
+            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            node_reference[weight_name] -= 1;
+        }
+        else if (op == "tf.MatMul")
+        {
+            int transpose_a = get_operation_attr_b(operation, "transpose_a");
+            int transpose_b = get_operation_attr_b(operation, "transpose_b");
+
+            if (transpose_a == 0 && transpose_b == 1)
+            {
+                // InnerProduct-like A * B + C
+                std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+                node_reference[weight_name] -= 1;
+            }
+        }
+        else if (op == "tf.Mean")
+        {
+            std::string reduction_indices_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            node_reference[reduction_indices_name] -= 1;
+        }
+        else if (op == "tf.Pad")
+        {
+            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            node_reference[weight_name] -= 1;
+        }
+        else if (op == "tf.Reshape")
+        {
+            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            node_reference[weight_name] -= 1;
+        }
+        else if (op == "tf.ResizeBilinear")
+        {
+            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            node_reference[weight_name] -= 1;
+        }
+        else if (op == "tf.ResizeNearestNeighbor")
+        {
+            std::string weight_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            node_reference[weight_name] -= 1;
+        }
+        else if (op == "tf.StridedSlice")
+        {
+            std::string begin_name = get_mlir_value_uniq_id(operation.getOperand(1));
+            std::string end_name = get_mlir_value_uniq_id(operation.getOperand(2));
+            std::string strides_name = get_mlir_value_uniq_id(operation.getOperand(3));
+            node_reference[begin_name] -= 1;
+            node_reference[end_name] -= 1;
+            node_reference[strides_name] -= 1;
+        }
+    }
+
+    // count all weight node with zero reference
+    int zero_reference_weight_node_count = 0;
+    for (std::map<std::string, mlir::Attribute>::iterator it = weights.begin(); it != weights.end(); it++)
+    {
+        const std::string& input_name = it->first;
+
+        int refcount = node_reference[input_name];
+        if (refcount == 0)
+            zero_reference_weight_node_count++;
     }
 
     // remove node_reference entry with reference equals to one
+    int split_layer_count = 0;
     int splitncnn_blob_count = 0;
-    std::map<std::string, int>::iterator it = node_reference.begin();
-    while (it != node_reference.end())
+    // split node reference
+    std::map<std::string, int> split_node_reference;
+    for (std::map<std::string, int>::iterator it = node_reference.begin(); it != node_reference.end(); it++)
     {
-        if (it->second == 1)
+        if (it->second > 1)
         {
-            node_reference.erase(it++);
-        }
-        else
-        {
+            split_layer_count++;
             splitncnn_blob_count += it->second;
-            //             fprintf(stderr, "%s %d\n", it->first.c_str(), it->second);
-            ++it;
+
+            split_node_reference[it->first] = it->second;
         }
     }
 
-    fprintf(pp, "%lu %lu\n", node_count + node_reference.size() - weights.size(), blob_names.size() + splitncnn_blob_count);
+    fprintf(pp, "%lu %lu\n", node_count - zero_reference_weight_node_count + split_layer_count, blob_names.size() - zero_reference_weight_node_count + splitncnn_blob_count);
 
     int internal_split = 0;
+
+    // place MemoryData next
+    for (std::map<std::string, mlir::Attribute>::iterator weight_it = weights.begin(); weight_it != weights.end(); weight_it++)
+    {
+        const std::string& input_name = weight_it->first;
+
+        int refcount = node_reference[input_name];
+        if (refcount == 0)
+        {
+            continue;
+        }
+
+        fprintf(pp, "%-16s %-24s 0 1 %s", "MemoryData", input_name.c_str(), input_name.c_str());
+
+        const mlir::Attribute& M = weights[input_name];
+
+        llvm::ArrayRef<int64_t> shape = M.getType().cast<mlir::RankedTensorType>().getShape();
+
+        // c wc hwc
+        if (shape.size() == 0)
+        {
+            // scalar
+            fprintf(pp, " 0=1");
+        }
+        else if (shape.size() == 1)
+        {
+            fprintf(pp, " 0=%d", (int)shape[0]);
+        }
+        else if (shape.size() == 2)
+        {
+            fprintf(pp, " 0=%d", (int)shape[1]);
+            fprintf(pp, " 1=%d", (int)shape[0]);
+        }
+        else if (shape.size() == 3)
+        {
+            fprintf(pp, " 0=%d", (int)shape[1]);
+            fprintf(pp, " 1=%d", (int)shape[0]);
+            fprintf(pp, " 2=%d", (int)shape[2]);
+        }
+
+        std::vector<float> v = get_attr_af(M);
+
+        if (shape.size() != 3)
+        {
+            fwrite(v.data(), sizeof(float), v.size(), bp);
+        }
+        else
+        {
+            int w = (int)shape[1];
+            int h = (int)shape[0];
+            int c = (int)shape[2];
+
+            float tmp;
+            // h-w-c to c-h-w
+            for (int p = 0; p < c; p++)
+            {
+                for (int i = 0; i < h; i++)
+                {
+                    for (int j = 0; j < w; j++)
+                    {
+                        tmp = v[i * w * c + j * c + p];
+                        fwrite(&tmp, sizeof(float), 1, bp);
+                    }
+                }
+            }
+        }
+
+        if (refcount <= 1)
+        {
+            continue;
+        }
+
+        char splitname[256];
+        sprintf(splitname, "splitncnn_%d", internal_split);
+        fprintf(pp, "%-16s %-24s %d %d", "Split", splitname, 1, refcount);
+
+        fprintf(pp, " %s", input_name.c_str());
+
+        for (int k = 0; k < refcount; k++)
+        {
+            fprintf(pp, " %s_splitncnn_%d", input_name.c_str(), k);
+        }
+        fprintf(pp, "\n");
+
+        internal_split++;
+    }
 
     // model op
     int g_opid = 0;
@@ -406,7 +573,7 @@ int main(int argc, char** argv)
             std::string input_name = get_mlir_value_uniq_id(operation.getOperand(i));
 
             // check weight
-            if (weights.find(input_name) != weights.end())
+            if (weights.find(input_name) != weights.end() && node_reference[input_name] == 0)
             {
                 num_input--;
             }
@@ -462,16 +629,7 @@ int main(int argc, char** argv)
         }
         else if (op == "tf.Const")
         {
-            // check weight before BinaryOp
-            std::string output_name = get_mlir_value_uniq_id(operation.getResult(0));
-            if (binaryop_weights.find(output_name) != binaryop_weights.end())
-            {
-                fprintf(pp, "%-16s", "MemoryData");
-            }
-            else
-            {
-                continue;
-            }
+            continue;
         }
         else if (op == "tf.Conv2D")
         {
@@ -580,6 +738,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Softmax");
         }
+        else if (op == "tf.SpaceToDepth")
+        {
+            fprintf(pp, "%-16s", "Reorg");
+        }
         else if (op == "tf.StridedSlice")
         {
             fprintf(pp, "%-16s", "Crop");
@@ -606,15 +768,15 @@ int main(int argc, char** argv)
             std::string input_name = get_mlir_value_uniq_id(operation.getOperand(i));
 
             // check weight
-            if (weights.find(input_name) != weights.end())
+            if (weights.find(input_name) != weights.end() && node_reference[input_name] == 0)
             {
                 continue;
             }
 
-            if (node_reference.find(input_name) != node_reference.end())
+            if (split_node_reference.find(input_name) != split_node_reference.end())
             {
-                int refidx = node_reference[input_name] - 1;
-                node_reference[input_name] = refidx;
+                int refidx = split_node_reference[input_name] - 1;
+                split_node_reference[input_name] = refidx;
 
                 char splitsuffix[256];
                 sprintf(splitsuffix, "_splitncnn_%d", refidx);
@@ -904,63 +1066,7 @@ int main(int argc, char** argv)
         }
         else if (op == "tf.Const")
         {
-            // check weight before BinaryOp
-            std::string output_name = get_mlir_value_uniq_id(operation.getResult(0));
-            if (binaryop_weights.find(output_name) != binaryop_weights.end())
-            {
-                const mlir::Attribute& M = binaryop_weights[output_name];
-
-                llvm::ArrayRef<int64_t> shape = M.getType().cast<mlir::RankedTensorType>().getShape();
-
-                // c wc hwc
-                if (shape.size() == 0)
-                {
-                    // scalar
-                    fprintf(pp, " 0=1");
-                }
-                else if (shape.size() == 1)
-                {
-                    fprintf(pp, " 0=%d", (int)shape[0]);
-                }
-                else if (shape.size() == 2)
-                {
-                    fprintf(pp, " 0=%d", (int)shape[1]);
-                    fprintf(pp, " 1=%d", (int)shape[0]);
-                }
-                else if (shape.size() == 3)
-                {
-                    fprintf(pp, " 0=%d", (int)shape[1]);
-                    fprintf(pp, " 1=%d", (int)shape[0]);
-                    fprintf(pp, " 2=%d", (int)shape[2]);
-                }
-
-                std::vector<float> v = get_attr_af(M);
-
-                if (shape.size() != 3)
-                {
-                    fwrite(v.data(), sizeof(float), v.size(), bp);
-                }
-                else
-                {
-                    int w = (int)shape[1];
-                    int h = (int)shape[0];
-                    int c = (int)shape[2];
-
-                    float tmp;
-                    // h-w-c to c-h-w
-                    for (int p = 0; p < c; p++)
-                    {
-                        for (int i = 0; i < h; i++)
-                        {
-                            for (int j = 0; j < w; j++)
-                            {
-                                tmp = v[i * w * c + j * c + p];
-                                fwrite(&tmp, sizeof(float), 1, bp);
-                            }
-                        }
-                    }
-                }
-            }
+            // never reach here
         }
         else if (op == "tf.Conv2D")
         {
@@ -1437,6 +1543,12 @@ int main(int argc, char** argv)
         }
         else if (op == "tf.Softmax")
         {
+        }
+        else if (op == "tf.SpaceToDepth")
+        {
+            int block_size = get_operation_attr_i(operation, "block_size");
+            fprintf(pp, " 0=%d", block_size);
+            fprintf(pp, " 1=1"); // mode
         }
         else if (op == "tf.StridedSlice")
         {
