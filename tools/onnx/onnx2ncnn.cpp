@@ -3489,7 +3489,7 @@ int main(int argc, char** argv)
             {
                 float b = get_node_attr_from_input_f(weights[node.input(1)]);
                 fprintf(pp, " 1=1");
-                fprintf(pp, " 2=%e");
+                fprintf(pp, " 2=%e", b);
             }
         }
         else if (op == "Mul")
