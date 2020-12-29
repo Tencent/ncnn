@@ -3058,15 +3058,16 @@ int main(int argc, char** argv)
         else if (op == "DepthToSpace")
         {
             // pixelshuffle
+            int scale_factor = get_node_attr_i(node, "blocksize", 1);
             std::string mode = get_node_attr_s(node, "mode");
+            fprintf(pp, " 0=%d", scale_factor);
             if (mode == "CRD")
             {
-                int scale_factor = get_node_attr_i(node, "blocksize", 1);
-                fprintf(pp, " 0=%d", scale_factor);
+                fprintf(pp, " 1=0");
             }
-            else
+            else if (mode == "DCR")
             {
-                fprintf(stderr, "Unsupported DepthToSpace mode %s!\n", mode.c_str());
+                fprintf(pp, " 1=1");
             }
         }
         else if (op == "Div")

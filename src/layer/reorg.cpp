@@ -24,7 +24,7 @@ Reorg::Reorg()
 
 int Reorg::load_param(const ParamDict& pd)
 {
-    stride = pd.get(0, 0);
+    stride = pd.get(0, 1);
     mode = pd.get(1, 0);
 
     return 0;

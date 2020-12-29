@@ -639,6 +639,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Deconvolution");
         }
+        else if (op == "tf.DepthToSpace")
+        {
+            fprintf(pp, "%-16s", "PixelShuffle");
+        }
         else if (op == "tf.DepthwiseConv2dNative")
         {
             fprintf(pp, "%-16s", "ConvolutionDepthWise");
@@ -1235,6 +1239,12 @@ int main(int argc, char** argv)
                     }
                 }
             }
+        }
+        else if (op == "tf.DepthToSpace")
+        {
+            int block_size = get_operation_attr_i(operation, "block_size");
+            fprintf(pp, " 0=%d", block_size);
+            fprintf(pp, " 1=1"); // mode
         }
         else if (op == "tf.DepthwiseConv2dNative")
         {

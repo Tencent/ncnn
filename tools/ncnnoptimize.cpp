@@ -3677,6 +3677,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::PixelShuffle* op_default = (ncnn::PixelShuffle*)layer_default;
 
             fprintf_param_value(" 0=%d", upscale_factor)
+            fprintf_param_value(" 1=%d", mode)
         }
         else if (layer->type == "Pooling")
         {
