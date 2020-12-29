@@ -189,10 +189,11 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
 
         int sum = 0;
 
+        int offset = size * channels * p;
         // channels
         for (int q = 0; q < channels; q++)
         {
-            const signed char* w = (const signed char*)weight_data + size * channels * p + size * q;
+            const signed char* w = (const signed char*)weight_data + offset + size * q;
             const signed char* m = bottom_blob_tm.channel(q);
 
             for (int i = 0; i < size; i++)
