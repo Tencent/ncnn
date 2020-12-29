@@ -279,6 +279,12 @@ PYBIND11_MODULE(ncnn, m)
              }),
              py::arg("array"))
         .def_buffer([](Mat& m) -> py::buffer_info {
+            if (m.elempack != 1)
+            {
+                std::stringstream ss;
+                ss << "convert ncnn.Mat to numpy.ndarray only elempack 1 support now, but given " << m.elempack;
+                throw pybind11::value_error(ss.str());
+            }
             std::string format = get_mat_format(m);
             std::vector<ssize_t> shape;
             std::vector<ssize_t> strides;
@@ -544,8 +550,10 @@ PYBIND11_MODULE(ncnn, m)
         .def("forward_inplace", (int (Layer::*)(Mat&, const Option&) const) & Layer::forward_inplace,
              py::arg("bottom_top_blob"), py::arg("opt"))
         .def_readwrite("typeindex", &Layer::typeindex)
+#if NCNN_STRING
         .def_readwrite("type", &Layer::type)
         .def_readwrite("name", &Layer::name)
+#endif // NCNN_STRING
         .def_readwrite("bottoms", &Layer::bottoms)
         .def_readwrite("tops", &Layer::tops)
         .def_readwrite("bottom_shapes", &Layer::bottom_shapes)
