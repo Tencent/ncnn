@@ -179,16 +179,16 @@ Layer* create_layer(const char* type);
 // create layer from layer type
 Layer* create_layer(int index);
 
-#define DEFINE_LAYER_CREATOR(name)        \
+#define DEFINE_LAYER_CREATOR(name)                          \
     ::ncnn::Layer* name##_layer_creator(void* /*userdata*/) \
-    {                                     \
-        return new name;                  \
+    {                                                       \
+        return new name;                                    \
     }
 
-#define DEFINE_LAYER_DESTROYER(name)                  \
+#define DEFINE_LAYER_DESTROYER(name)                                      \
     void name##_layer_destroyer(::ncnn::Layer* layer, void* /*userdata*/) \
-    {                                                 \
-        delete layer;                                 \
+    {                                                                     \
+        delete layer;                                                     \
     }
 
 } // namespace ncnn

@@ -22,8 +22,9 @@
 #endif
 
 layout (constant_id = 0) const int stride = 0;
+layout (constant_id = 1) const int mode = 0;
 
-#define shape_constant_id_offset 1
+#define shape_constant_id_offset 2
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
@@ -70,8 +71,18 @@ void main()
 
     ivec4 gz4 = gz * 4 + ivec4(0, 1, 2, 3);
 
-    ivec4 z4 = gz4 / (stride * stride);
-    ivec4 zi4 = gz4 % (stride * stride);
+    ivec4 z4;
+    ivec4 zi4;
+    if (mode == 0)
+    {
+        z4 = gz4 / (stride * stride);
+        zi4 = gz4 % (stride * stride);
+    }
+    else // if (mode == 1)
+    {
+        z4 = gz4 % psc(c);
+        zi4 = gz4 / psc(c);
+    }
     ivec4 y4 = gy * stride + zi4 / stride;
     ivec4 x4 = gx * stride + zi4 % stride;
 

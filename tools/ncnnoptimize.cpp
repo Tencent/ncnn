@@ -3804,6 +3804,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Reorg* op_default = (ncnn::Reorg*)layer_default;
 
             fprintf_param_value(" 0=%d", stride)
+            fprintf_param_value(" 1=%d", mode)
         }
         else if (layer->type == "Requantize")
         {

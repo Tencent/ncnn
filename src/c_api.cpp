@@ -51,7 +51,8 @@ const char* ncnn_version()
 class PoolAllocator_c_api : public ncnn::PoolAllocator
 {
 public:
-    PoolAllocator_c_api(ncnn_allocator_t _allocator) : ncnn::PoolAllocator()
+    PoolAllocator_c_api(ncnn_allocator_t _allocator)
+        : ncnn::PoolAllocator()
     {
         allocator = _allocator;
     }
@@ -83,7 +84,8 @@ static void __ncnn_PoolAllocator_fast_free(ncnn_allocator_t allocator, void* ptr
 class UnlockedPoolAllocator_c_api : public ncnn::UnlockedPoolAllocator
 {
 public:
-    UnlockedPoolAllocator_c_api(ncnn_allocator_t _allocator) : ncnn::UnlockedPoolAllocator()
+    UnlockedPoolAllocator_c_api(ncnn_allocator_t _allocator)
+        : ncnn::UnlockedPoolAllocator()
     {
         allocator = _allocator;
     }
@@ -444,7 +446,8 @@ void ncnn_paramdict_set_array(ncnn_paramdict_t pd, int id, ncnn_mat_t v)
 class DataReader_c_api : public ncnn::DataReader
 {
 public:
-    DataReader_c_api(ncnn_datareader_t _dr) : ncnn::DataReader()
+    DataReader_c_api(ncnn_datareader_t _dr)
+        : ncnn::DataReader()
     {
         dr = _dr;
     }
@@ -481,7 +484,8 @@ static size_t __ncnn_DataReader_read(ncnn_datareader_t dr, void* buf, size_t siz
 class DataReaderFromStdio_c_api : public ncnn::DataReaderFromStdio
 {
 public:
-    DataReaderFromStdio_c_api(FILE* fp, ncnn_datareader_t _dr) : ncnn::DataReaderFromStdio(fp)
+    DataReaderFromStdio_c_api(FILE* fp, ncnn_datareader_t _dr)
+        : ncnn::DataReaderFromStdio(fp)
     {
         dr = _dr;
     }
@@ -518,7 +522,8 @@ static size_t __ncnn_DataReaderFromStdio_read(ncnn_datareader_t dr, void* buf, s
 class DataReaderFromMemory_c_api : public ncnn::DataReaderFromMemory
 {
 public:
-    DataReaderFromMemory_c_api(const unsigned char*& mem, ncnn_datareader_t _dr) : ncnn::DataReaderFromMemory(mem)
+    DataReaderFromMemory_c_api(const unsigned char*& mem, ncnn_datareader_t _dr)
+        : ncnn::DataReaderFromMemory(mem)
     {
         dr = _dr;
     }
@@ -596,7 +601,8 @@ void ncnn_datareader_destroy(ncnn_datareader_t dr)
 class ModelBinFromDataReader_c_api : public ncnn::ModelBinFromDataReader
 {
 public:
-    ModelBinFromDataReader_c_api(ncnn_modelbin_t _mb, const DataReader& dr) : ncnn::ModelBinFromDataReader(dr)
+    ModelBinFromDataReader_c_api(ncnn_modelbin_t _mb, const DataReader& dr)
+        : ncnn::ModelBinFromDataReader(dr)
     {
         mb = _mb;
     }
@@ -647,7 +653,8 @@ static ncnn_mat_t __ncnn_ModelBinFromDataReader_load_3d(const ncnn_modelbin_t mb
 class ModelBinFromMatArray_c_api : public ncnn::ModelBinFromMatArray
 {
 public:
-    ModelBinFromMatArray_c_api(ncnn_modelbin_t _mb, const Mat* weights) : ncnn::ModelBinFromMatArray(weights)
+    ModelBinFromMatArray_c_api(ncnn_modelbin_t _mb, const Mat* weights)
+        : ncnn::ModelBinFromMatArray(weights)
     {
         mb = _mb;
     }
@@ -745,7 +752,8 @@ static ncnn_mat_t __ncnn_modelbin_load_3d(const ncnn_modelbin_t mb, int w, int h
 class Layer_c_api : public Layer
 {
 public:
-    Layer_c_api(ncnn_layer_t _layer) : Layer()
+    Layer_c_api(ncnn_layer_t _layer)
+        : Layer()
     {
         layer = _layer;
     }
