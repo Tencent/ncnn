@@ -41,7 +41,7 @@ public:
     // empty init
     Net();
     // clear and destroy
-    ~Net();
+    virtual ~Net();
 
 public:
     // option can be changed before loading
