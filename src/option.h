@@ -25,7 +25,7 @@ class PipelineCache;
 #endif // NCNN_VULKAN
 
 class Allocator;
-class Option
+class NCNN_EXPORT Option
 {
 public:
     // default option

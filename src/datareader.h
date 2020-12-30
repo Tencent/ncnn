@@ -29,7 +29,7 @@
 namespace ncnn {
 
 // data read wrapper
-class DataReader
+class NCNN_EXPORT DataReader
 {
 public:
     virtual ~DataReader();
@@ -46,7 +46,7 @@ public:
 };
 
 #if NCNN_STDIO
-class DataReaderFromStdio : public DataReader
+class NCNN_EXPORT DataReaderFromStdio : public DataReader
 {
 public:
     DataReaderFromStdio(FILE* fp);
@@ -61,7 +61,7 @@ protected:
 };
 #endif // NCNN_STDIO
 
-class DataReaderFromMemory : public DataReader
+class NCNN_EXPORT DataReaderFromMemory : public DataReader
 {
 public:
     DataReaderFromMemory(const unsigned char*& mem);
@@ -77,7 +77,7 @@ protected:
 
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
-class DataReaderFromAndroidAsset : public DataReader
+class NCNN_EXPORT DataReaderFromAndroidAsset : public DataReader
 {
 public:
     DataReaderFromAndroidAsset(AAsset* asset);

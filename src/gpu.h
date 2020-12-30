@@ -28,8 +28,8 @@
 namespace ncnn {
 
 // instance
-int create_gpu_instance();
-void destroy_gpu_instance();
+NCNN_EXPORT int create_gpu_instance();
+NCNN_EXPORT void destroy_gpu_instance();
 
 // instance extension capability
 extern int support_VK_KHR_external_memory_capabilities;
@@ -70,10 +70,10 @@ extern PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR;
 #endif // __ANDROID_API__ >= 26
 
 // get info
-int get_gpu_count();
-int get_default_gpu_index();
+NCNN_EXPORT int get_gpu_count();
+NCNN_EXPORT int get_default_gpu_index();
 
-class GpuInfo
+class NCNN_EXPORT GpuInfo
 {
 public:
     // vulkan physical device
@@ -173,7 +173,7 @@ public:
 #endif // __ANDROID_API__ >= 26
 };
 
-const GpuInfo& get_gpu_info(int device_index = get_default_gpu_index());
+NCNN_EXPORT const GpuInfo& get_gpu_info(int device_index = get_default_gpu_index());
 
 class VkAllocator;
 class VkCompute;
@@ -181,7 +181,7 @@ class Layer;
 class Packing_vulkan;
 class Option;
 class PipelineCache;
-class VulkanDevice
+class NCNN_EXPORT VulkanDevice
 {
 public:
     VulkanDevice(int device_index = get_default_gpu_index());
@@ -338,15 +338,15 @@ private:
     mutable Mutex uop_lock;
 };
 
-VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());
+NCNN_EXPORT VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());
 
 // online spirv compilation
-int compile_spirv_module(const char* comp_string, const Option& opt, std::vector<uint32_t>& spirv);
-int compile_spirv_module(const char* comp_data, int comp_data_size, const Option& opt, std::vector<uint32_t>& spirv);
-int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<uint32_t>& spirv);
+NCNN_EXPORT int compile_spirv_module(const char* comp_string, const Option& opt, std::vector<uint32_t>& spirv);
+NCNN_EXPORT int compile_spirv_module(const char* comp_data, int comp_data_size, const Option& opt, std::vector<uint32_t>& spirv);
+NCNN_EXPORT int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<uint32_t>& spirv);
 
 // info from spirv
-class ShaderInfo
+class NCNN_EXPORT ShaderInfo
 {
 public:
     int specialization_count;
@@ -360,7 +360,7 @@ public:
     int binding_types[16]; // 16 is large enough I think ...
 };
 
-int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderInfo& shader_info);
+NCNN_EXPORT int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderInfo& shader_info);
 
 } // namespace ncnn
 

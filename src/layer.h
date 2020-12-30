@@ -32,7 +32,7 @@
 
 namespace ncnn {
 
-class Layer
+class NCNN_EXPORT Layer
 {
 public:
     // empty
@@ -172,12 +172,12 @@ struct custom_layer_registry_entry
 
 #if NCNN_STRING
 // get layer type from type name
-int layer_to_index(const char* type);
+NCNN_EXPORT int layer_to_index(const char* type);
 // create layer from type name
-Layer* create_layer(const char* type);
+NCNN_EXPORT Layer* create_layer(const char* type);
 #endif // NCNN_STRING
 // create layer from layer type
-Layer* create_layer(int index);
+NCNN_EXPORT Layer* create_layer(int index);
 
 #define DEFINE_LAYER_CREATOR(name)                          \
     ::ncnn::Layer* name##_layer_creator(void* /*userdata*/) \

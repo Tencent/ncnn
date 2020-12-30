@@ -34,6 +34,8 @@
 
 #cmakedefine NCNN_VERSION_STRING "@NCNN_VERSION_STRING@"
 
+#include "ncnn_export.h"
+
 #ifdef __cplusplus
 
 #if NCNN_THREADS

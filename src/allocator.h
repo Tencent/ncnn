@@ -148,7 +148,7 @@ static inline int NCNN_XADD(int* addr, int delta)
 }
 #endif // NCNN_THREADS
 
-class Allocator
+class NCNN_EXPORT Allocator
 {
 public:
     virtual ~Allocator();
@@ -156,7 +156,7 @@ public:
     virtual void fastFree(void* ptr) = 0;
 };
 
-class PoolAllocator : public Allocator
+class NCNN_EXPORT PoolAllocator : public Allocator
 {
 public:
     PoolAllocator();
@@ -180,7 +180,7 @@ private:
     std::list<std::pair<size_t, void*> > payouts;
 };
 
-class UnlockedPoolAllocator : public Allocator
+class NCNN_EXPORT UnlockedPoolAllocator : public Allocator
 {
 public:
     UnlockedPoolAllocator();
@@ -206,7 +206,7 @@ private:
 
 class VulkanDevice;
 
-class VkBufferMemory
+class NCNN_EXPORT VkBufferMemory
 {
 public:
     VkBuffer buffer;
@@ -226,7 +226,7 @@ public:
     int refcount;
 };
 
-class VkImageMemory
+class NCNN_EXPORT VkImageMemory
 {
 public:
     VkImage image;
@@ -257,7 +257,7 @@ public:
     int refcount;
 };
 
-class VkAllocator
+class NCNN_EXPORT VkAllocator
 {
 public:
     VkAllocator(const VulkanDevice* _vkdev);
@@ -293,7 +293,7 @@ protected:
     VkImageView create_imageview(VkImage image, VkFormat format);
 };
 
-class VkBlobAllocator : public VkAllocator
+class NCNN_EXPORT VkBlobAllocator : public VkAllocator
 {
 public:
     VkBlobAllocator(const VulkanDevice* vkdev);
@@ -318,7 +318,7 @@ protected:
     std::vector<VkDeviceMemory> image_memory_blocks;
 };
 
-class VkWeightAllocator : public VkAllocator
+class NCNN_EXPORT VkWeightAllocator : public VkAllocator
 {
 public:
     VkWeightAllocator(const VulkanDevice* vkdev);
@@ -346,7 +346,7 @@ protected:
     std::vector<VkDeviceMemory> dedicated_image_memory_blocks;
 };
 
-class VkStagingAllocator : public VkAllocator
+class NCNN_EXPORT VkStagingAllocator : public VkAllocator
 {
 public:
     VkStagingAllocator(const VulkanDevice* vkdev);
@@ -370,7 +370,7 @@ protected:
     std::list<VkBufferMemory*> buffer_budgets;
 };
 
-class VkWeightStagingAllocator : public VkAllocator
+class NCNN_EXPORT VkWeightStagingAllocator : public VkAllocator
 {
 public:
     VkWeightStagingAllocator(const VulkanDevice* vkdev);
@@ -393,7 +393,7 @@ protected:
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 class ImportAndroidHardwareBufferPipeline;
-class VkAndroidHardwareBufferImageAllocator : public VkAllocator
+class NCNN_EXPORT VkAndroidHardwareBufferImageAllocator : public VkAllocator
 {
 public:
     VkAndroidHardwareBufferImageAllocator(const VulkanDevice* _vkdev, AHardwareBuffer* _hb);

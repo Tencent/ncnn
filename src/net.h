@@ -35,7 +35,7 @@ class PipelineCache;
 #endif // NCNN_VULKAN
 class DataReader;
 class Extractor;
-class Net
+class NCNN_EXPORT Net
 {
 public:
     // empty init
@@ -175,7 +175,7 @@ protected:
 #endif // NCNN_VULKAN
 };
 
-class Extractor
+class NCNN_EXPORT Extractor
 {
 public:
     ~Extractor();

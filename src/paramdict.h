@@ -24,7 +24,7 @@ namespace ncnn {
 
 class DataReader;
 class Net;
-class ParamDict
+class NCNN_EXPORT ParamDict
 {
 public:
     // empty

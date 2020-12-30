@@ -20,7 +20,7 @@
 namespace ncnn {
 
 class DataReader;
-class ModelBin
+class NCNN_EXPORT ModelBin
 {
 public:
     virtual ~ModelBin();
@@ -37,7 +37,7 @@ public:
     virtual Mat load(int w, int h, int c, int type) const;
 };
 
-class ModelBinFromDataReader : public ModelBin
+class NCNN_EXPORT ModelBinFromDataReader : public ModelBin
 {
 public:
     ModelBinFromDataReader(const DataReader& dr);
@@ -48,7 +48,7 @@ protected:
     const DataReader& dr;
 };
 
-class ModelBinFromMatArray : public ModelBin
+class NCNN_EXPORT ModelBinFromMatArray : public ModelBin
 {
 public:
     // construct from weight blob array

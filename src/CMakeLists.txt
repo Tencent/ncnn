@@ -156,8 +156,20 @@ configure_file(layer_shader_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shad
 configure_file(layer_shader_spv_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_spv_data.h)
 configure_file(layer_shader_type_enum.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h)
 
-add_library(ncnn STATIC ${ncnn_SRCS})
+if(NCNN_SHARED_LIB)
+    add_library(ncnn SHARED ${ncnn_SRCS})
+else()
+    add_library(ncnn STATIC ${ncnn_SRCS})
+endif()
 set_target_properties(ncnn PROPERTIES DEBUG_POSTFIX "d")
+set_target_properties(ncnn PROPERTIES VERSION ${NCNN_VERSION_STRING} SOVERSION ${NCNN_VERSION_MAJOR})
+
+include(GenerateExportHeader)
+generate_export_header(ncnn)
+
+if(NOT NCNN_SHARED_LIB)
+    set_target_properties(ncnn PROPERTIES COMPILE_FLAGS -DNCNN_STATIC_DEFINE)
+endif()
 
 if(NCNN_SIMPLESTL)
     # link math lib explicitly
@@ -272,8 +284,10 @@ else()
         target_compile_definitions(ncnn PRIVATE __ARM_NEON __ANDROID__)
     endif()
     # target_compile_options(ncnn PRIVATE -march=native)
-    # set_target_properties(ncnn PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
     target_compile_options(ncnn PRIVATE -fvisibility=hidden -fvisibility-inlines-hidden)
+    if(NCNN_SHARED_LIB AND NCNN_ENABLE_LTO)
+        set_target_properties(ncnn PROPERTIES INTERPROCEDURAL_OPTIMIZATION ON)
+    endif()
 endif()
 
 if(NCNN_DISABLE_RTTI)
@@ -316,15 +330,14 @@ if(NCNN_COVERAGE)
     target_link_libraries(ncnn PUBLIC -coverage -lgcov)
 endif()
 
-if(ANDROID OR IOS)
-    # disable shared library on android and xcode ios
-    set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS FALSE)
-endif()
-
 add_dependencies(ncnn ncnn-generate-spirv)
 
 if(NCNN_INSTALL_SDK)
-    install(TARGETS ncnn EXPORT ncnn ARCHIVE DESTINATION lib)
+    install(TARGETS ncnn EXPORT ncnn
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION bin
+    )
     install(FILES
         allocator.h
         benchmark.h
@@ -348,6 +361,7 @@ if(NCNN_INSTALL_SDK)
         simpleomp.h
         simplestl.h
         vulkan_header_fix.h
+        ${CMAKE_CURRENT_BINARY_DIR}/ncnn_export.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/platform.h
