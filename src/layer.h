@@ -75,12 +75,32 @@ public:
     // accept fp16
     bool support_fp16_storage;
 
+    // accept int8
+    bool support_int8_storage;
+
     // shader image storage
     bool support_image_storage;
+
+    // shader tensor storage
+    bool support_tensor_storage;
 
     // TODO drop these fields
     bool use_int8_inference;
     bool support_weight_fp16_storage;
+
+    bool support_reserved_0;
+    bool support_reserved_1;
+    bool support_reserved_2;
+    bool support_reserved_3;
+    bool support_reserved_4;
+    bool support_reserved_5;
+    bool support_reserved_6;
+    bool support_reserved_7;
+    bool support_reserved_8;
+    bool support_reserved_9;
+    bool support_reserved_10;
+    bool support_reserved_11;
+    bool support_reserved_12;
 
 public:
     // implement inference
