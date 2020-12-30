@@ -140,11 +140,14 @@ public:
     bool support_fp16_packed;
     bool support_fp16_storage;
     bool support_fp16_arithmetic;
+    bool support_int8_packed;
     bool support_int8_storage;
     bool support_int8_arithmetic;
 
     // ycbcr conversion feature
     bool support_ycbcr_conversion;
+
+    bool support_reserved_0;;
 
     // extension capability
     int support_VK_KHR_8bit_storage;
@@ -177,10 +180,9 @@ NCNN_EXPORT const GpuInfo& get_gpu_info(int device_index = get_default_gpu_index
 
 class VkAllocator;
 class VkCompute;
-class Layer;
-class Packing_vulkan;
 class Option;
 class PipelineCache;
+class VulkanDevicePrivate;
 class NCNN_EXPORT VulkanDevice
 {
 public:
@@ -189,10 +191,7 @@ public:
 
     const GpuInfo& info;
 
-    VkDevice vkdevice() const
-    {
-        return device;
-    }
+    VkDevice vkdevice() const;
 
     VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const;
 
@@ -292,50 +291,8 @@ protected:
     // device extension
     int init_device_extension();
 
-    // dummy buffer and image
-    int create_dummy_buffer_image();
-    void destroy_dummy_buffer_image();
-
-    // utility operator
-    const ncnn::Packing_vulkan* get_utility_operator(int storage_type_from, int storage_type_to, int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const;
-    void destroy_utility_operator();
-
 private:
-    VkDevice device;
-
-    // hardware queue
-    mutable std::vector<VkQueue> compute_queues;
-    mutable std::vector<VkQueue> graphics_queues;
-    mutable std::vector<VkQueue> transfer_queues;
-    mutable Mutex queue_lock;
-
-    // default blob allocator for each queue
-    mutable std::vector<VkAllocator*> blob_allocators;
-    mutable Mutex blob_allocator_lock;
-
-    // default staging allocator for each queue
-    mutable std::vector<VkAllocator*> staging_allocators;
-    mutable Mutex staging_allocator_lock;
-
-    // nearest sampler for texelfetch
-    VkSampler texelfetch_sampler;
-
-    // dummy buffer and image
-    VkAllocator* dummy_allocator;
-    VkMat dummy_buffer;
-    VkImageMat dummy_image;
-
-    // device-wide pipeline cache
-    PipelineCache* pipeline_cache;
-
-    // utility operator
-    // from buffer | image
-    // to buffer | image
-    // from fp32-b/i | fp16p-b/i | fp16s-b/i
-    // to fp32-b/i | fp16p-b/i | fp16s-b/i
-    // to pack1 | pack4 | pack8
-    mutable ncnn::Packing_vulkan* uop_packing[2][2][3][3][3];
-    mutable Mutex uop_lock;
+    VulkanDevicePrivate* const d;
 };
 
 NCNN_EXPORT VulkanDevice* get_gpu_device(int device_index = get_default_gpu_index());
