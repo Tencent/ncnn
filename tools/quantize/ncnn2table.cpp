@@ -81,7 +81,8 @@ public:
     std::vector<std::string> input_names;
 };
 
-QuantNet::QuantNet() : blobs(mutable_blobs()), layers(mutable_layers())
+QuantNet::QuantNet()
+    : blobs(mutable_blobs()), layers(mutable_layers())
 {
 }
 

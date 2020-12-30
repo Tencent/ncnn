@@ -147,7 +147,8 @@ public:
     // ycbcr conversion feature
     bool support_ycbcr_conversion;
 
-    bool support_reserved_0;;
+    bool support_reserved_0;
+    ;
 
     // extension capability
     int support_VK_KHR_8bit_storage;
@@ -290,6 +291,10 @@ public:
 protected:
     // device extension
     int init_device_extension();
+
+private:
+    VulkanDevice(const VulkanDevice&);
+    VulkanDevice& operator=(const VulkanDevice&);
 
 private:
     VulkanDevicePrivate* const d;

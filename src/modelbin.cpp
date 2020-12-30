@@ -49,7 +49,10 @@ Mat ModelBin::load(int w, int h, int c, int type) const
 class ModelBinFromDataReaderPrivate
 {
 public:
-    ModelBinFromDataReaderPrivate(const DataReader& _dr) : dr(_dr) {}
+    ModelBinFromDataReaderPrivate(const DataReader& _dr)
+        : dr(_dr)
+    {
+    }
     const DataReader& dr;
 };
 
@@ -63,7 +66,8 @@ ModelBinFromDataReader::~ModelBinFromDataReader()
     delete d;
 }
 
-ModelBinFromDataReader::ModelBinFromDataReader(const ModelBinFromDataReader&) : d(0)
+ModelBinFromDataReader::ModelBinFromDataReader(const ModelBinFromDataReader&)
+    : d(0)
 {
 }
 
@@ -224,7 +228,10 @@ Mat ModelBinFromDataReader::load(int w, int type) const
 class ModelBinFromMatArrayPrivate
 {
 public:
-    ModelBinFromMatArrayPrivate(const Mat* _weights) : weights(_weights) {}
+    ModelBinFromMatArrayPrivate(const Mat* _weights)
+        : weights(_weights)
+    {
+    }
     mutable const Mat* weights;
 };
 
@@ -238,7 +245,8 @@ ModelBinFromMatArray::~ModelBinFromMatArray()
     delete d;
 }
 
-ModelBinFromMatArray::ModelBinFromMatArray(const ModelBinFromMatArray&) : d(0)
+ModelBinFromMatArray::ModelBinFromMatArray(const ModelBinFromMatArray&)
+    : d(0)
 {
 }
 

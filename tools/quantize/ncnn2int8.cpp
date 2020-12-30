@@ -175,7 +175,8 @@ public:
     int save(const char* parampath, const char* binpath);
 };
 
-NetQuantize::NetQuantize() : blobs(mutable_blobs()), layers(mutable_layers())
+NetQuantize::NetQuantize()
+    : blobs(mutable_blobs()), layers(mutable_layers())
 {
 }
 

@@ -257,7 +257,8 @@ public:
     int save(const char* parampath, const char* binpath);
 };
 
-NetOptimize::NetOptimize() : blobs(mutable_blobs()), layers(mutable_layers())
+NetOptimize::NetOptimize()
+    : blobs(mutable_blobs()), layers(mutable_layers())
 {
     custom_layer_index = 0;
 }

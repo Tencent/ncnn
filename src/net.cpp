@@ -76,10 +76,10 @@ public:
 
     PipelineCache* pipeline_cache;
 #endif // NCNN_VULKAN
-
 };
 
-NetPrivate::NetPrivate(Option& _opt) : opt(_opt)
+NetPrivate::NetPrivate(Option& _opt)
+    : opt(_opt)
 {
 #if NCNN_VULKAN
     vkdev = 0;
@@ -1731,7 +1731,8 @@ Net::~Net()
     delete d;
 }
 
-Net::Net(const Net&) : d(0)
+Net::Net(const Net&)
+    : d(0)
 {
 }
 
@@ -2630,7 +2631,10 @@ Layer* Net::create_custom_layer(int index)
 class ExtractorPrivate
 {
 public:
-    ExtractorPrivate(const Net* _net) : net(_net) {}
+    ExtractorPrivate(const Net* _net)
+        : net(_net)
+    {
+    }
     const Net* net;
     std::vector<Mat> blob_mats;
     Option opt;
@@ -2642,7 +2646,6 @@ public:
     std::vector<VkMat> blob_mats_gpu;
     std::vector<VkImageMat> blob_mats_gpu_image;
 #endif // NCNN_VULKAN
-
 };
 
 Extractor::Extractor(const Net* _net, size_t blob_count)

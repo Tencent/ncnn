@@ -37,7 +37,8 @@ public:
     std::list<std::pair<size_t, void*> > payouts;
 };
 
-PoolAllocator::PoolAllocator() : Allocator(), d(new PoolAllocatorPrivate)
+PoolAllocator::PoolAllocator()
+    : Allocator(), d(new PoolAllocatorPrivate)
 {
     d->size_compare_ratio = 192; // 0.75f * 256
 }
@@ -62,7 +63,8 @@ PoolAllocator::~PoolAllocator()
     delete d;
 }
 
-PoolAllocator::PoolAllocator(const PoolAllocator&) : d(0)
+PoolAllocator::PoolAllocator(const PoolAllocator&)
+    : d(0)
 {
 }
 
@@ -180,7 +182,8 @@ public:
     std::list<std::pair<size_t, void*> > payouts;
 };
 
-UnlockedPoolAllocator::UnlockedPoolAllocator() : Allocator(), d(new UnlockedPoolAllocatorPrivate)
+UnlockedPoolAllocator::UnlockedPoolAllocator()
+    : Allocator(), d(new UnlockedPoolAllocatorPrivate)
 {
     d->size_compare_ratio = 192; // 0.75f * 256
 }
@@ -205,7 +208,8 @@ UnlockedPoolAllocator::~UnlockedPoolAllocator()
     delete d;
 }
 
-UnlockedPoolAllocator::UnlockedPoolAllocator(const UnlockedPoolAllocator&) : d(0)
+UnlockedPoolAllocator::UnlockedPoolAllocator(const UnlockedPoolAllocator&)
+    : d(0)
 {
 }
 
@@ -544,7 +548,8 @@ VkBlobAllocator::~VkBlobAllocator()
     clear();
 }
 
-VkBlobAllocator::VkBlobAllocator(const VkBlobAllocator&) : VkAllocator(0), d(0)
+VkBlobAllocator::VkBlobAllocator(const VkBlobAllocator&)
+    : VkAllocator(0), d(0)
 {
 }
 
@@ -1084,7 +1089,8 @@ VkWeightAllocator::~VkWeightAllocator()
     delete d;
 }
 
-VkWeightAllocator::VkWeightAllocator(const VkWeightAllocator&) : VkAllocator(0), d(0)
+VkWeightAllocator::VkWeightAllocator(const VkWeightAllocator&)
+    : VkAllocator(0), d(0)
 {
 }
 
@@ -1569,7 +1575,8 @@ VkStagingAllocator::~VkStagingAllocator()
     delete d;
 }
 
-VkStagingAllocator::VkStagingAllocator(const VkStagingAllocator&) : VkAllocator(0), d(0)
+VkStagingAllocator::VkStagingAllocator(const VkStagingAllocator&)
+    : VkAllocator(0), d(0)
 {
 }
 
@@ -1726,7 +1733,8 @@ VkWeightStagingAllocator::~VkWeightStagingAllocator()
     delete d;
 }
 
-VkWeightStagingAllocator::VkWeightStagingAllocator(const VkWeightStagingAllocator&) : VkAllocator(0), d(0)
+VkWeightStagingAllocator::VkWeightStagingAllocator(const VkWeightStagingAllocator&)
+    : VkAllocator(0), d(0)
 {
 }
 
@@ -1806,7 +1814,8 @@ VkAndroidHardwareBufferImageAllocator::~VkAndroidHardwareBufferImageAllocator()
     }
 }
 
-VkAndroidHardwareBufferImageAllocator::VkAndroidHardwareBufferImageAllocator(const VkAndroidHardwareBufferImageAllocator&) : VkAllocator(0), d(0)
+VkAndroidHardwareBufferImageAllocator::VkAndroidHardwareBufferImageAllocator(const VkAndroidHardwareBufferImageAllocator&)
+    : VkAllocator(0), d(0)
 {
 }
 

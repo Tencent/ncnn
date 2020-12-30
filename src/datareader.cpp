@@ -42,7 +42,10 @@ size_t DataReader::read(void* /*buf*/, size_t /*size*/) const
 class DataReaderFromStdioPrivate
 {
 public:
-    DataReaderFromStdioPrivate(FILE* _fp) : fp(_fp) {}
+    DataReaderFromStdioPrivate(FILE* _fp)
+        : fp(_fp)
+    {
+    }
     FILE* fp;
 };
 
@@ -56,7 +59,8 @@ DataReaderFromStdio::~DataReaderFromStdio()
     delete d;
 }
 
-DataReaderFromStdio::DataReaderFromStdio(const DataReaderFromStdio&) : d(0)
+DataReaderFromStdio::DataReaderFromStdio(const DataReaderFromStdio&)
+    : d(0)
 {
 }
 
@@ -81,7 +85,10 @@ size_t DataReaderFromStdio::read(void* buf, size_t size) const
 class DataReaderFromMemoryPrivate
 {
 public:
-    DataReaderFromMemoryPrivate(const unsigned char*& _mem) : mem(_mem) {}
+    DataReaderFromMemoryPrivate(const unsigned char*& _mem)
+        : mem(_mem)
+    {
+    }
     const unsigned char*& mem;
 };
 
@@ -95,7 +102,8 @@ DataReaderFromMemory::~DataReaderFromMemory()
     delete d;
 }
 
-DataReaderFromMemory::DataReaderFromMemory(const DataReaderFromMemory&) : d(0)
+DataReaderFromMemory::DataReaderFromMemory(const DataReaderFromMemory&)
+    : d(0)
 {
 }
 
@@ -134,7 +142,10 @@ size_t DataReaderFromMemory::read(void* buf, size_t size) const
 class DataReaderFromAndroidAssetPrivate
 {
 public:
-    DataReaderFromAndroidAssetPrivate(AAsset* _asset) : asset(_asset), mem(0) {}
+    DataReaderFromAndroidAssetPrivate(AAsset* _asset)
+        : asset(_asset), mem(0)
+    {
+    }
     AAsset* asset;
     mutable const unsigned char* mem;
 };
@@ -149,7 +160,8 @@ DataReaderFromAndroidAsset::~DataReaderFromAndroidAsset()
     delete d;
 }
 
-DataReaderFromAndroidAsset::DataReaderFromAndroidAsset(const DataReaderFromAndroidAsset&) : d(0)
+DataReaderFromAndroidAsset::DataReaderFromAndroidAsset(const DataReaderFromAndroidAsset&)
+    : d(0)
 {
 }
 

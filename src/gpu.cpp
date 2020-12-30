@@ -1150,7 +1150,10 @@ public:
 class VulkanDevicePrivate
 {
 public:
-    VulkanDevicePrivate(VulkanDevice* _vkdev) : vkdev(_vkdev) {}
+    VulkanDevicePrivate(VulkanDevice* _vkdev)
+        : vkdev(_vkdev)
+    {
+    }
     VulkanDevice* const vkdev;
 
     // dummy buffer and image
@@ -1614,6 +1617,16 @@ VulkanDevice::~VulkanDevice()
     vkDestroyDevice(d->device, 0);
 
     delete d;
+}
+
+VulkanDevice::VulkanDevice(const VulkanDevice&)
+    : info(g_gpu_infos[0]), d(0)
+{
+}
+
+VulkanDevice& VulkanDevice::operator=(const VulkanDevice&)
+{
+    return *this;
 }
 
 VkDevice VulkanDevice::vkdevice() const
