@@ -27,10 +27,10 @@ namespace ncnn {
 
 #if NCNN_VULKAN
 class Option;
-class Pipeline
+class NCNN_EXPORT Pipeline
 {
 public:
-    Pipeline(const VulkanDevice* vkdev);
+    explicit Pipeline(const VulkanDevice* vkdev);
     virtual ~Pipeline();
 
 public:
@@ -56,16 +56,20 @@ public:
     uint32_t local_size_x;
     uint32_t local_size_y;
     uint32_t local_size_z;
+
+private:
+    Pipeline(const Pipeline&);
+    Pipeline& operator=(const Pipeline&);
 };
 
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 class VkCompute;
-class ImportAndroidHardwareBufferPipeline : private Pipeline
+class NCNN_EXPORT ImportAndroidHardwareBufferPipeline : private Pipeline
 {
 public:
-    ImportAndroidHardwareBufferPipeline(const VulkanDevice* vkdev);
-    ~ImportAndroidHardwareBufferPipeline();
+    explicit ImportAndroidHardwareBufferPipeline(const VulkanDevice* vkdev);
+    virtual ~ImportAndroidHardwareBufferPipeline();
 
     int create(VkAndroidHardwareBufferImageAllocator* ahb_im_allocator, int type_to, int rotate_from, const Option& opt);
     int create(VkAndroidHardwareBufferImageAllocator* ahb_im_allocator, int type_to, int rotate_from, int target_width, int target_height, const Option& opt);

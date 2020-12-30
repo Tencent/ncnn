@@ -46,6 +46,15 @@ Pipeline::~Pipeline()
 {
 }
 
+Pipeline::Pipeline(const Pipeline&)
+{
+}
+
+Pipeline& Pipeline::operator=(const Pipeline&)
+{
+    return *this;
+}
+
 int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations)
 {
     const PipelineCache* pipeline_cache = vkdev->get_pipeline_cache();
