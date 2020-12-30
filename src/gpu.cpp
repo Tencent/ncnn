@@ -2169,11 +2169,10 @@ int VulkanDevice::init_device_extension()
 class VkDummyAllocator : public VkBlobAllocator
 {
 public:
+    // NOTE 16k is large enough I think ...
     VkDummyAllocator(const VulkanDevice* _vkdev)
-        : VkBlobAllocator(_vkdev)
+        : VkBlobAllocator(_vkdev, 16 * 1024)
     {
-        // NOTE 16k is large enough I think ...
-        block_size = alignSize(16 * 1024, buffer_offset_alignment);
     }
 };
 
