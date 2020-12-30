@@ -546,6 +546,8 @@ VkBlobAllocator::VkBlobAllocator(const VulkanDevice* _vkdev, size_t preferred_bl
 VkBlobAllocator::~VkBlobAllocator()
 {
     clear();
+
+    delete d;
 }
 
 VkBlobAllocator::VkBlobAllocator(const VkBlobAllocator&)
@@ -601,8 +603,6 @@ void VkBlobAllocator::clear()
     d->image_memory_blocks.clear();
 
     d->image_memory_budgets.clear();
-
-    delete d;
 }
 
 VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)

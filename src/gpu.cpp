@@ -1060,90 +1060,17 @@ public:
 
     void record_dummy(const VkMat& buffer)
     {
-        //         NCNN_LOGE("xxx barrier buffer %p +%d ~%d", buffer.buffer(), buffer.buffer_offset(), buffer.buffer_capacity());
-
-        // barrier device any @ compute/null to shader-readwrite @ compute
-        VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
-        barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-        barriers[0].pNext = 0;
-        barriers[0].srcAccessMask = buffer.data->access_flags;
-        barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[0].buffer = buffer.buffer();
-        barriers[0].offset = buffer.buffer_offset();
-        barriers[0].size = buffer.buffer_capacity();
-
-        VkPipelineStageFlags src_stage = buffer.data->stage_flags;
-        VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-
-        if (vkdev->info.support_VK_KHR_push_descriptor)
-        {
-            vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
-            delete[] barriers;
-        }
-        else
-        {
-            record r;
-            r.type = record::TYPE_buffer_barrers;
-            r.command_buffer = compute_command_buffer;
-            r.buffer_barrers.src_stage = src_stage;
-            r.buffer_barrers.dst_stage = dst_stage;
-            r.buffer_barrers.barrier_count = 1;
-            r.buffer_barrers.barriers = barriers;
-            delayed_records.push_back(r);
-        }
-
-        // mark device shader-readwrite @ compute
-        buffer.data->access_flags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        buffer.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+        barrier_readwrite(buffer);
     }
 
     void record_dummy(const VkImageMat& image)
     {
-        //         NCNN_LOGE("xxx barrier image %p +%d ~%d %p", image.image(), image.data->bind_offset, image.data->bind_capacity, image.imageview());
+        barrier_readwrite(image);
+    }
 
-        // image layout transform any @ any to shader-write @ compute
-        VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
-        barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barriers[0].pNext = 0;
-        barriers[0].srcAccessMask = image.data->access_flags;
-        barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        barriers[0].oldLayout = image.data->image_layout;
-        barriers[0].newLayout = VK_IMAGE_LAYOUT_GENERAL;
-        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[0].image = image.image();
-        barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        barriers[0].subresourceRange.baseMipLevel = 0;
-        barriers[0].subresourceRange.levelCount = 1;
-        barriers[0].subresourceRange.baseArrayLayer = 0;
-        barriers[0].subresourceRange.layerCount = 1;
-
-        VkPipelineStageFlags src_stage = image.data->stage_flags;
-        VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-
-        if (vkdev->info.support_VK_KHR_push_descriptor)
-        {
-            vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
-            delete[] barriers;
-        }
-        else
-        {
-            record r;
-            r.type = record::TYPE_image_barrers;
-            r.command_buffer = compute_command_buffer;
-            r.image_barrers.src_stage = src_stage;
-            r.image_barrers.dst_stage = dst_stage;
-            r.image_barrers.barrier_count = 1;
-            r.image_barrers.barriers = barriers;
-            delayed_records.push_back(r);
-        }
-
-        // mark image shader-write @ compute
-        image.data->access_flags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        image.data->image_layout = VK_IMAGE_LAYOUT_GENERAL;
-        image.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    void record_dummy_readonly(const VkImageMat& image)
+    {
+        barrier_readonly(image);
     }
 };
 
@@ -1187,6 +1114,7 @@ public:
     VkAllocator* dummy_allocator;
     VkMat dummy_buffer;
     VkImageMat dummy_image;
+    VkImageMat dummy_image_readonly;
 
     // device-wide pipeline cache
     PipelineCache* pipeline_cache;
@@ -1207,11 +1135,13 @@ int VulkanDevicePrivate::create_dummy_buffer_image()
 
     dummy_buffer.create(1, 4u, dummy_allocator);
     dummy_image.create(1, 4u, dummy_allocator);
+    dummy_image_readonly.create(1, 4u, dummy_allocator);
 
     VkDummyCompute cmd(vkdev);
 
     cmd.record_dummy(dummy_buffer);
     cmd.record_dummy(dummy_image);
+    cmd.record_dummy_readonly(dummy_image_readonly);
 
     cmd.submit_and_wait();
 
@@ -1222,6 +1152,7 @@ void VulkanDevicePrivate::destroy_dummy_buffer_image()
 {
     dummy_buffer.release();
     dummy_image.release();
+    dummy_image_readonly.release();
 
     delete dummy_allocator;
 }
@@ -2200,6 +2131,11 @@ VkMat VulkanDevice::get_dummy_buffer() const
 VkImageMat VulkanDevice::get_dummy_image() const
 {
     return d->dummy_image;
+}
+
+VkImageMat VulkanDevice::get_dummy_image_readonly() const
+{
+    return d->dummy_image_readonly;
 }
 
 const PipelineCache* VulkanDevice::get_pipeline_cache() const

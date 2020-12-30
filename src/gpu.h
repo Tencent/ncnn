@@ -225,6 +225,7 @@ public:
     // dummy buffer image
     VkMat get_dummy_buffer() const;
     VkImageMat get_dummy_image() const;
+    VkImageMat get_dummy_image_readonly() const;
 
     // pipeline cache on this device
     const PipelineCache* get_pipeline_cache() const;
