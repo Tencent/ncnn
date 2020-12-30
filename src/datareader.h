@@ -16,7 +16,7 @@
 #define NCNN_DATAREADER_H
 
 #include "platform.h"
-#if NCNN_STDIO || NCNN_STRING
+#if NCNN_STDIO
 #include <stdio.h>
 #endif
 
@@ -32,6 +32,7 @@ namespace ncnn {
 class NCNN_EXPORT DataReader
 {
 public:
+    DataReader();
     virtual ~DataReader();
 
 #if NCNN_STRING
@@ -46,50 +47,55 @@ public:
 };
 
 #if NCNN_STDIO
+class DataReaderFromStdioPrivate;
 class NCNN_EXPORT DataReaderFromStdio : public DataReader
 {
 public:
-    DataReaderFromStdio(FILE* fp);
+    explicit DataReaderFromStdio(FILE* fp);
+    virtual ~DataReaderFromStdio();
 
 #if NCNN_STRING
     virtual int scan(const char* format, void* p) const;
 #endif // NCNN_STRING
     virtual size_t read(void* buf, size_t size) const;
 
-protected:
-    FILE* fp;
+private:
+    DataReaderFromStdioPrivate* const d;
 };
 #endif // NCNN_STDIO
 
+class DataReaderFromMemoryPrivate;
 class NCNN_EXPORT DataReaderFromMemory : public DataReader
 {
 public:
-    DataReaderFromMemory(const unsigned char*& mem);
+    explicit DataReaderFromMemory(const unsigned char*& mem);
+    virtual ~DataReaderFromMemory();
 
 #if NCNN_STRING
     virtual int scan(const char* format, void* p) const;
 #endif // NCNN_STRING
     virtual size_t read(void* buf, size_t size) const;
 
-protected:
-    const unsigned char*& mem;
+private:
+    DataReaderFromMemoryPrivate* const d;
 };
 
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
+class DataReaderFromAndroidAssetPrivate;
 class NCNN_EXPORT DataReaderFromAndroidAsset : public DataReader
 {
 public:
-    DataReaderFromAndroidAsset(AAsset* asset);
+    explicit DataReaderFromAndroidAsset(AAsset* asset);
+    virtual ~DataReaderFromAndroidAsset();
 
 #if NCNN_STRING
     virtual int scan(const char* format, void* p) const;
 #endif // NCNN_STRING
     virtual size_t read(void* buf, size_t size) const;
 
-protected:
-    AAsset* asset;
-    mutable const unsigned char* mem;
+private:
+    DataReaderFromAndroidAssetPrivate* const d;
 };
 #endif // __ANDROID_API__ >= 9
 #endif // NCNN_PLATFORM_API
