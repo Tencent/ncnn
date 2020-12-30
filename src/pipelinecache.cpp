@@ -180,7 +180,8 @@ PipelineCache::~PipelineCache()
     delete d;
 }
 
-PipelineCache::PipelineCache(const PipelineCache&) : d(0)
+PipelineCache::PipelineCache(const PipelineCache&)
+    : d(0)
 {
 }
 
