@@ -25,7 +25,7 @@ static void conv3x3s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
     const float* kernel = _kernel;
     const float* bias = _bias;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         Mat out = top_blob.channel(p);
@@ -146,9 +146,10 @@ static void conv3x3s1_winograd23_transform_kernel_sse(const Mat& kernel, Mat& ke
         {1.0f, 0.0f, 0.0f},
         {1.0f / 2, 1.0f / 2, 1.0f / 2},
         {1.0f / 2, -1.0f / 2, 1.0f / 2},
-        {0.0f, 0.0f, 1.0f}};
+        {0.0f, 0.0f, 1.0f}
+    };
 
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -228,7 +229,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
 //     {0.0f, -1.0f,  1.00f, 0.0f},
 //     {0.0f, -1.0f,  0.00f, 1.0f}
 // };
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < inch; q++)
         {
             const float* img = bottom_blob_bordered.channel(q);
@@ -357,7 +358,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
         int nn_outch = outch >> 2;
         int remain_outch_start = nn_outch << 2;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < nn_outch; pp++)
         {
             int p = pp * 4;
@@ -610,7 +611,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
             }
         }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = remain_outch_start; p < outch; p++)
         {
             Mat out0_tm = top_blob_tm.channel(p);
@@ -688,7 +689,7 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
         int nColBlocks = h_tm / 4; // may be the block num in Feathercnn
         int nRowBlocks = w_tm / 4;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outch; p++)
         {
             Mat out_tm = top_blob_tm.channel(p);
@@ -769,9 +770,10 @@ static void conv3x3s1_winograd43_transform_kernel_sse(const Mat& kernel, std::ve
         {-1.0f / 6, 1.0f / 6, -1.0f / 6},
         {1.0f / 24, 1.0f / 12, 1.0f / 6},
         {1.0f / 24, -1.0f / 12, 1.0f / 6},
-        {0.0f, 0.0f, 1.0f}};
+        {0.0f, 0.0f, 1.0f}
+    };
 
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -1010,7 +1012,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
         __m256 _5_n = _mm256_set1_ps(-5);
 #endif
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < inch; q++)
         {
             const float* img = bottom_blob_bordered.channel(q);
@@ -1377,7 +1379,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
 
         top_blob_tm.create(36, tiles, outch, elemsize, opt.workspace_allocator);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int r = 0; r < 9; r++)
         {
             int nn_outch = 0;
@@ -1862,7 +1864,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
         int nColBlocks = h_tm / 6; // may be the block num in Feathercnn
         int nRowBlocks = w_tm / 6;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outch; p++)
         {
             float* out_tile = top_blob_tm.channel(p);
@@ -1980,7 +1982,7 @@ static void conv3x3s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
     const float* kernel = _kernel;
     const float* bias = _bias;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         Mat out = top_blob.channel(p);
