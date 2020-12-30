@@ -97,6 +97,7 @@ int InnerProduct_arm::create_pipeline_int8(const Option& opt)
     // convert fp32 to int8
     InnerProduct::create_pipeline(opt);
 
+#if __aarch64__
     // first reorder Matrix A before MatMul
     const int m = num_output; 
     const int k = weight_data.c;
@@ -118,6 +119,7 @@ int InnerProduct_arm::create_pipeline_int8(const Option& opt)
             scales_in[i] = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[i]);
         }
     }
+#endif
     return 0;
 }
 
