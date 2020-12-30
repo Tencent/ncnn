@@ -56,6 +56,15 @@ DataReaderFromStdio::~DataReaderFromStdio()
     delete d;
 }
 
+DataReaderFromStdio::DataReaderFromStdio(const DataReaderFromStdio&) : d(0)
+{
+}
+
+DataReaderFromStdio& DataReaderFromStdio::operator=(const DataReaderFromStdio&)
+{
+    return *this;
+}
+
 #if NCNN_STRING
 int DataReaderFromStdio::scan(const char* format, void* p) const
 {
@@ -84,6 +93,15 @@ DataReaderFromMemory::DataReaderFromMemory(const unsigned char*& _mem)
 DataReaderFromMemory::~DataReaderFromMemory()
 {
     delete d;
+}
+
+DataReaderFromMemory::DataReaderFromMemory(const DataReaderFromMemory&) : d(0)
+{
+}
+
+DataReaderFromMemory& DataReaderFromMemory::operator=(const DataReaderFromMemory&)
+{
+    return *this;
 }
 
 #if NCNN_STRING
@@ -129,6 +147,15 @@ DataReaderFromAndroidAsset::DataReaderFromAndroidAsset(AAsset* _asset)
 DataReaderFromAndroidAsset::~DataReaderFromAndroidAsset()
 {
     delete d;
+}
+
+DataReaderFromAndroidAsset::DataReaderFromAndroidAsset(const DataReaderFromAndroidAsset&) : d(0)
+{
+}
+
+DataReaderFromAndroidAsset& DataReaderFromAndroidAsset::operator=(const DataReaderFromAndroidAsset&)
+{
+    return *this;
 }
 
 #if NCNN_STRING

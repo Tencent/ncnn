@@ -62,6 +62,15 @@ PoolAllocator::~PoolAllocator()
     delete d;
 }
 
+PoolAllocator::PoolAllocator(const PoolAllocator&) : d(0)
+{
+}
+
+PoolAllocator& PoolAllocator::operator=(const PoolAllocator&)
+{
+    return *this;
+}
+
 void PoolAllocator::clear()
 {
     d->budgets_lock.lock();
@@ -194,6 +203,15 @@ UnlockedPoolAllocator::~UnlockedPoolAllocator()
     }
 
     delete d;
+}
+
+UnlockedPoolAllocator::UnlockedPoolAllocator(const UnlockedPoolAllocator&) : d(0)
+{
+}
+
+UnlockedPoolAllocator& UnlockedPoolAllocator::operator=(const UnlockedPoolAllocator&)
+{
+    return *this;
 }
 
 void UnlockedPoolAllocator::clear()
@@ -524,6 +542,15 @@ VkBlobAllocator::VkBlobAllocator(const VulkanDevice* _vkdev, size_t preferred_bl
 VkBlobAllocator::~VkBlobAllocator()
 {
     clear();
+}
+
+VkBlobAllocator::VkBlobAllocator(const VkBlobAllocator&) : VkAllocator(0), d(0)
+{
+}
+
+VkBlobAllocator& VkBlobAllocator::operator=(const VkBlobAllocator&)
+{
+    return *this;
 }
 
 void VkBlobAllocator::clear()
@@ -1057,6 +1084,15 @@ VkWeightAllocator::~VkWeightAllocator()
     delete d;
 }
 
+VkWeightAllocator::VkWeightAllocator(const VkWeightAllocator&) : VkAllocator(0), d(0)
+{
+}
+
+VkWeightAllocator& VkWeightAllocator::operator=(const VkWeightAllocator&)
+{
+    return *this;
+}
+
 void VkWeightAllocator::clear()
 {
     //     NCNN_LOGE("VkWeightAllocator %lu %lu", d->buffer_blocks.size(), d->dedicated_buffer_blocks.size());
@@ -1533,6 +1569,15 @@ VkStagingAllocator::~VkStagingAllocator()
     delete d;
 }
 
+VkStagingAllocator::VkStagingAllocator(const VkStagingAllocator&) : VkAllocator(0), d(0)
+{
+}
+
+VkStagingAllocator& VkStagingAllocator::operator=(const VkStagingAllocator&)
+{
+    return *this;
+}
+
 void VkStagingAllocator::set_size_compare_ratio(float scr)
 {
     if (scr < 0.f || scr > 1.f)
@@ -1681,6 +1726,15 @@ VkWeightStagingAllocator::~VkWeightStagingAllocator()
     delete d;
 }
 
+VkWeightStagingAllocator::VkWeightStagingAllocator(const VkWeightStagingAllocator&) : VkAllocator(0), d(0)
+{
+}
+
+VkWeightStagingAllocator& VkWeightStagingAllocator::operator=(const VkWeightStagingAllocator&)
+{
+    return *this;
+}
+
 VkBufferMemory* VkWeightStagingAllocator::fastMalloc(size_t size)
 {
     VkBufferMemory* ptr = new VkBufferMemory;
@@ -1750,6 +1804,15 @@ VkAndroidHardwareBufferImageAllocator::~VkAndroidHardwareBufferImageAllocator()
         vkdev->vkDestroySamplerYcbcrConversionKHR(vkdev->vkdevice(), samplerYcbcrConversion, 0);
         samplerYcbcrConversion = 0;
     }
+}
+
+VkAndroidHardwareBufferImageAllocator::VkAndroidHardwareBufferImageAllocator(const VkAndroidHardwareBufferImageAllocator&) : VkAllocator(0), d(0)
+{
+}
+
+VkAndroidHardwareBufferImageAllocator& VkAndroidHardwareBufferImageAllocator::operator=(const VkAndroidHardwareBufferImageAllocator&)
+{
+    return *this;
 }
 
 VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int /*h*/, int /*c*/, size_t /*elemsize*/, int /*elempack*/)

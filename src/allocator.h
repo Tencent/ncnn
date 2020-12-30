@@ -174,6 +174,10 @@ public:
     virtual void fastFree(void* ptr);
 
 private:
+    PoolAllocator(const PoolAllocator&);
+    PoolAllocator& operator=(const PoolAllocator&);
+
+private:
     PoolAllocatorPrivate* const d;
 };
 
@@ -193,6 +197,10 @@ public:
 
     virtual void* fastMalloc(size_t size);
     virtual void fastFree(void* ptr);
+
+private:
+    UnlockedPoolAllocator(const UnlockedPoolAllocator&);
+    UnlockedPoolAllocator& operator=(const UnlockedPoolAllocator&);
 
 private:
     UnlockedPoolAllocatorPrivate* const d;
@@ -256,7 +264,7 @@ public:
 class NCNN_EXPORT VkAllocator
 {
 public:
-    VkAllocator(const VulkanDevice* _vkdev);
+    explicit VkAllocator(const VulkanDevice* _vkdev);
     virtual ~VkAllocator();
 
     virtual void clear();
@@ -290,7 +298,7 @@ class VkBlobAllocatorPrivate;
 class NCNN_EXPORT VkBlobAllocator : public VkAllocator
 {
 public:
-    VkBlobAllocator(const VulkanDevice* vkdev, size_t preferred_block_size = 16 * 1024 * 1024); // 16M
+    explicit VkBlobAllocator(const VulkanDevice* vkdev, size_t preferred_block_size = 16 * 1024 * 1024); // 16M
     virtual ~VkBlobAllocator();
 
 public:
@@ -303,6 +311,10 @@ public:
     virtual void fastFree(VkImageMemory* ptr);
 
 private:
+    VkBlobAllocator(const VkBlobAllocator&);
+    VkBlobAllocator& operator=(const VkBlobAllocator&);
+
+private:
     VkBlobAllocatorPrivate* const d;
 };
 
@@ -310,7 +322,7 @@ class VkWeightAllocatorPrivate;
 class NCNN_EXPORT VkWeightAllocator : public VkAllocator
 {
 public:
-    VkWeightAllocator(const VulkanDevice* vkdev, size_t preferred_block_size = 8 * 1024 * 1024); // 8M
+    explicit VkWeightAllocator(const VulkanDevice* vkdev, size_t preferred_block_size = 8 * 1024 * 1024); // 8M
     virtual ~VkWeightAllocator();
 
 public:
@@ -324,6 +336,10 @@ public:
     virtual void fastFree(VkImageMemory* ptr);
 
 private:
+    VkWeightAllocator(const VkWeightAllocator&);
+    VkWeightAllocator& operator=(const VkWeightAllocator&);
+
+private:
     VkWeightAllocatorPrivate* const d;
 };
 
@@ -331,7 +347,7 @@ class VkStagingAllocatorPrivate;
 class NCNN_EXPORT VkStagingAllocator : public VkAllocator
 {
 public:
-    VkStagingAllocator(const VulkanDevice* vkdev);
+    explicit VkStagingAllocator(const VulkanDevice* vkdev);
     virtual ~VkStagingAllocator();
 
 public:
@@ -348,6 +364,10 @@ public:
     virtual void fastFree(VkImageMemory* ptr);
 
 private:
+    VkStagingAllocator(const VkStagingAllocator&);
+    VkStagingAllocator& operator=(const VkStagingAllocator&);
+
+private:
     VkStagingAllocatorPrivate* const d;
 };
 
@@ -355,7 +375,7 @@ class VkWeightStagingAllocatorPrivate;
 class NCNN_EXPORT VkWeightStagingAllocator : public VkAllocator
 {
 public:
-    VkWeightStagingAllocator(const VulkanDevice* vkdev);
+    explicit VkWeightStagingAllocator(const VulkanDevice* vkdev);
     virtual ~VkWeightStagingAllocator();
 
 public:
@@ -363,6 +383,10 @@ public:
     virtual void fastFree(VkBufferMemory* ptr);
     virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
+
+private:
+    VkWeightStagingAllocator(const VkWeightStagingAllocator&);
+    VkWeightStagingAllocator& operator=(const VkWeightStagingAllocator&);
 
 private:
     VkWeightStagingAllocatorPrivate* const d;
@@ -386,6 +410,10 @@ public:
     virtual void fastFree(VkBufferMemory* /*ptr*/)
     {
     }
+
+private:
+    VkAndroidHardwareBufferImageAllocator(const VkAndroidHardwareBufferImageAllocator&);
+    VkAndroidHardwareBufferImageAllocator& operator=(const VkAndroidHardwareBufferImageAllocator&);
 
 public:
     int init();

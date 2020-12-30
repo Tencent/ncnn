@@ -60,6 +60,10 @@ public:
     virtual size_t read(void* buf, size_t size) const;
 
 private:
+    DataReaderFromStdio(const DataReaderFromStdio&);
+    DataReaderFromStdio& operator=(const DataReaderFromStdio&);
+
+private:
     DataReaderFromStdioPrivate* const d;
 };
 #endif // NCNN_STDIO
@@ -75,6 +79,10 @@ public:
     virtual int scan(const char* format, void* p) const;
 #endif // NCNN_STRING
     virtual size_t read(void* buf, size_t size) const;
+
+private:
+    DataReaderFromMemory(const DataReaderFromMemory&);
+    DataReaderFromMemory& operator=(const DataReaderFromMemory&);
 
 private:
     DataReaderFromMemoryPrivate* const d;
@@ -93,6 +101,10 @@ public:
     virtual int scan(const char* format, void* p) const;
 #endif // NCNN_STRING
     virtual size_t read(void* buf, size_t size) const;
+
+private:
+    DataReaderFromAndroidAsset(const DataReaderFromAndroidAsset&);
+    DataReaderFromAndroidAsset& operator=(const DataReaderFromAndroidAsset&);
 
 private:
     DataReaderFromAndroidAssetPrivate* const d;
