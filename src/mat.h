@@ -103,7 +103,7 @@ public:
     void fill(T v);
     // deep copy
     Mat clone(Allocator* allocator = 0) const;
-    // deep copy from other mat, inplacc
+    // deep copy from other mat, inplace
     void clone_from(const ncnn::Mat& mat, Allocator* allocator = 0);
     // reshape vec
     Mat reshape(int w, Allocator* allocator = 0) const;
@@ -256,7 +256,7 @@ public:
     // substract channel-wise mean values, then multiply by normalize values, pass 0 to skip
     void substract_mean_normalize(const float* mean_vals, const float* norm_vals);
 
-    // convenient construct from half precisoin floating point data
+    // convenient construct from half precision floating point data
     static Mat from_float16(const unsigned short* data, int size);
 
     // pointer to the data
