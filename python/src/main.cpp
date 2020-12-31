@@ -223,17 +223,17 @@ PYBIND11_MODULE(ncnn, m)
         }
         return mat;
     }),
-    py::arg("shape") = py::tuple(1), py::arg("elemsize") = 4,
+    py::arg("shape"), py::kw_only(), py::arg("elemsize") = 4,
     py::arg("elempack") = 1, py::arg("allocator") = nullptr)
     .def(py::init<int, size_t, int, Allocator*>(),
-         py::arg("w") = 1,
-         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+        py::arg("w"), py::kw_only(),
+        py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
     .def(py::init<int, int, size_t, int, Allocator*>(),
-         py::arg("w") = 1, py::arg("h") = 1,
-         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+        py::arg("w"), py::arg("h"), py::kw_only(),
+        py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
     .def(py::init<int, int, int, size_t, int, Allocator*>(),
-         py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
-         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+        py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(),
+        py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
 
     .def(py::init<const Mat&>(), py::arg("m"))
 
@@ -279,6 +279,12 @@ PYBIND11_MODULE(ncnn, m)
     }),
     py::arg("array"))
     .def_buffer([](Mat& m) -> py::buffer_info {
+        if (m.elemsize != 1 && m.elemsize != 2 && m.elemsize != 4)
+        {
+            std::stringstream ss;
+            ss << "convert ncnn.Mat to numpy.ndarray only elemsize 1, 2, 4 support now, but given " << m.elemsize;
+            throw pybind11::value_error(ss.str());
+        }
         if (m.elempack != 1)
         {
             std::stringstream ss;
@@ -367,20 +373,20 @@ PYBIND11_MODULE(ncnn, m)
         }
         return;
     },
-    py::arg("shape") = py::tuple(1),
+    py::arg("shape"), py::kw_only(),
     py::arg("elemsize") = 4, py::arg("elempack") = 1,
     py::arg("allocator") = nullptr)
     .def("create", (void (Mat::*)(int, size_t, int, Allocator*)) & Mat::create,
-         py::arg("w") = 1,
-         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+        py::arg("w"), py::kw_only(),
+        py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
     .def("create", (void (Mat::*)(int, int, size_t, int, Allocator*)) & Mat::create,
-         py::arg("w") = 1, py::arg("h") = 1,
-         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+        py::arg("w"), py::arg("h"), py::kw_only(),
+        py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
     .def("create", (void (Mat::*)(int, int, int, size_t, int, Allocator*)) & Mat::create,
-         py::arg("w") = 1, py::arg("h") = 1, py::arg("c") = 1,
-         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+        py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(),
+        py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
     .def("create_like", (void (Mat::*)(const Mat&, Allocator*)) & Mat::create_like,
-         py::arg("m") = nullptr, py::arg("allocator") = nullptr)
+        py::arg("m") = nullptr, py::arg("allocator") = nullptr)
     .def("addref", &Mat::addref)
     .def("release", &Mat::release)
     .def("empty", &Mat::empty)
