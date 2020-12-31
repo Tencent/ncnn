@@ -256,7 +256,7 @@ public:
     // substract channel-wise mean values, then multiply by normalize values, pass 0 to skip
     void substract_mean_normalize(const float* mean_vals, const float* norm_vals);
 
-    // convenient construct from half precisoin floating point data
+    // convenient construct from half precision floating point data
     static Mat from_float16(const unsigned short* data, int size);
 
     // pointer to the data
