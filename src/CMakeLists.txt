@@ -167,7 +167,12 @@ set_target_properties(ncnn PROPERTIES VERSION ${NCNN_VERSION_STRING} SOVERSION $
 include(GenerateExportHeader)
 generate_export_header(ncnn)
 
-if(NOT NCNN_SHARED_LIB)
+if(NCNN_SHARED_LIB)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+        # for cpu_support_x86_avx2
+        target_link_libraries(ncnn PRIVATE gcc)
+    endif()
+else()
     set_target_properties(ncnn PROPERTIES COMPILE_FLAGS -DNCNN_STATIC_DEFINE)
 endif()
 
