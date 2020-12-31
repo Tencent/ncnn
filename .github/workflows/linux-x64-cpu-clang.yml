@@ -19,6 +19,14 @@ jobs:
         cmake --build . -j 2
     - name: test-sse2
       run: cd build-sse2 && ctest --output-on-failure -j 2
+    - name: build-shared
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-shared && cd build-shared
+        cmake -DNCNN_AVX2=ON -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
+        cmake --build . -j 2
     - name: build-avx2
       env:
         CC: clang

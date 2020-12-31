@@ -103,11 +103,6 @@ if(NCNN_SHARED_LIB)
             set(NCNN_ENABLE_LTO OFF)
         endif()
     endif()
-else()
-    if(NCNN_ENABLE_LTO)
-        message(WARNING "NCNN_SHARED_LIB must be ON to enable lto! NCNN_ENABLE_LTO will be turned off.")
-        set(NCNN_ENABLE_LTO OFF)
-    endif()
 endif()
 
 ##############################################
