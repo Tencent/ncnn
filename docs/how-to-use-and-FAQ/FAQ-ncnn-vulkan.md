@@ -26,7 +26,7 @@ Some platforms have been tested and known working. In theory, if your platform s
 |amd|Y|Y|/|?|/|
 |nvidia|Y|Y|?|/|/|
 |qcom|/|/|Y|/|/|
-|apple|/|/|/|?|Y|
+|apple|/|/|/|Y|Y|
 |arm|/|?|Y|/|/|
 
 You can search [the vulkan database](https://vulkan.gpuinfo.org) to see if your device supports vulkan.
