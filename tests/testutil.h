@@ -74,7 +74,7 @@ static bool NearlyEqual(float a, float b, float epsilon)
     if (a == b)
         return true;
 
-    float diff = fabs(a - b);
+    float diff = (float)fabs(a - b);
     if (diff <= epsilon)
         return true;
 

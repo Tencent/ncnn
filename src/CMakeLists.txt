@@ -269,6 +269,11 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang
     if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
         target_compile_options(ncnn PRIVATE /fp:fast)
     endif()
+
+    if(NCNN_SHARED_LIB)
+        # msvc argues about stl string and vector uses in exported functions
+        target_compile_options(ncnn PRIVATE /wd4251)
+    endif()
 else()
     target_compile_options(ncnn PRIVATE -Wall -Wextra -Wno-unused-function)
 

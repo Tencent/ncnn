@@ -19,6 +19,10 @@
 #include <math.h>
 #include <string.h>
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4250)
+#endif
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Woverloaded-virtual"
@@ -26,6 +30,9 @@
 #include "layer_declaration.h"
 #ifdef __clang__
 #pragma clang diagnostic pop
+#endif
+#ifdef _MSC_VER
+#pragma warning(pop)
 #endif
 
 namespace ncnn {
