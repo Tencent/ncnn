@@ -130,7 +130,7 @@ NCNN_EXPORT void ncnn_paramdict_destroy(ncnn_paramdict_t pd);
 NCNN_EXPORT int ncnn_paramdict_get_type(const ncnn_paramdict_t pd, int id);
 
 NCNN_EXPORT int ncnn_paramdict_get_int(const ncnn_paramdict_t pd, int id, int def);
-NCNN_EXPORT int ncnn_paramdict_get_float(const ncnn_paramdict_t pd, int id, float def);
+NCNN_EXPORT float ncnn_paramdict_get_float(const ncnn_paramdict_t pd, int id, float def);
 NCNN_EXPORT ncnn_mat_t ncnn_paramdict_get_array(const ncnn_paramdict_t pd, int id, const ncnn_mat_t def);
 
 NCNN_EXPORT void ncnn_paramdict_set_int(ncnn_paramdict_t pd, int id, int i);
