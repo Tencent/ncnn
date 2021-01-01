@@ -26,6 +26,11 @@
 namespace ncnn {
 
 class Pipeline;
+#if NCNN_PLATFORM_API
+#if __ANDROID_API__ >= 26
+class ImportAndroidHardwareBufferPipeline;
+#endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
 class VkComputePrivate;
 class VkCompute
 {

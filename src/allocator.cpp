@@ -1815,13 +1815,22 @@ VkAndroidHardwareBufferImageAllocator::~VkAndroidHardwareBufferImageAllocator()
 }
 
 VkAndroidHardwareBufferImageAllocator::VkAndroidHardwareBufferImageAllocator(const VkAndroidHardwareBufferImageAllocator&)
-    : VkAllocator(0), d(0)
+    : VkAllocator(0)
 {
 }
 
 VkAndroidHardwareBufferImageAllocator& VkAndroidHardwareBufferImageAllocator::operator=(const VkAndroidHardwareBufferImageAllocator&)
 {
     return *this;
+}
+
+VkBufferMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(size_t /*size*/)
+{
+    return 0;
+}
+
+void VkAndroidHardwareBufferImageAllocator::fastFree(VkBufferMemory* /*ptr*/)
+{
 }
 
 VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int /*h*/, int /*c*/, size_t /*elemsize*/, int /*elempack*/)

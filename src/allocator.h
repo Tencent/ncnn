@@ -401,15 +401,10 @@ public:
     virtual ~VkAndroidHardwareBufferImageAllocator();
 
 public:
+    virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual void fastFree(VkBufferMemory* ptr);
     virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
-    virtual VkBufferMemory* fastMalloc(size_t /*size*/)
-    {
-        return 0;
-    }
-    virtual void fastFree(VkBufferMemory* /*ptr*/)
-    {
-    }
 
 private:
     VkAndroidHardwareBufferImageAllocator(const VkAndroidHardwareBufferImageAllocator&);
