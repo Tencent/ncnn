@@ -20,7 +20,7 @@
 
 namespace ncnn {
 
-class Blob
+class NCNN_EXPORT Blob
 {
 public:
     // empty

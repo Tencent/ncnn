@@ -21,9 +21,11 @@
 #include <sched.h> // cpu_set_t
 #endif
 
+#include "platform.h"
+
 namespace ncnn {
 
-class CpuSet
+class NCNN_EXPORT CpuSet
 {
 public:
     CpuSet();
@@ -44,19 +46,19 @@ public:
 
 // test optional cpu features
 // neon = armv7 neon or aarch64 asimd
-int cpu_support_arm_neon();
+NCNN_EXPORT int cpu_support_arm_neon();
 // vfpv4 = armv7 fp16 + fma
-int cpu_support_arm_vfpv4();
+NCNN_EXPORT int cpu_support_arm_vfpv4();
 // asimdhp = aarch64 asimd half precision
-int cpu_support_arm_asimdhp();
+NCNN_EXPORT int cpu_support_arm_asimdhp();
 
 // avx2 = x86_64 avx2 + fma + f16c
-int cpu_support_x86_avx2();
+NCNN_EXPORT int cpu_support_x86_avx2();
 
 // cpu info
-int get_cpu_count();
-int get_little_cpu_count();
-int get_big_cpu_count();
+NCNN_EXPORT int get_cpu_count();
+NCNN_EXPORT int get_little_cpu_count();
+NCNN_EXPORT int get_big_cpu_count();
 
 // bind all threads on little clusters if powersave enabled
 // affects HMP arch cpu like ARM big.LITTLE
@@ -66,26 +68,26 @@ int get_big_cpu_count();
 // 1 = only little clusters enabled
 // 2 = only big clusters enabled
 // return 0 if success for setter function
-int get_cpu_powersave();
-int set_cpu_powersave(int powersave);
+NCNN_EXPORT int get_cpu_powersave();
+NCNN_EXPORT int set_cpu_powersave(int powersave);
 
 // convenient wrapper
-const CpuSet& get_cpu_thread_affinity_mask(int powersave);
+NCNN_EXPORT const CpuSet& get_cpu_thread_affinity_mask(int powersave);
 
 // set explicit thread affinity
-int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask);
+NCNN_EXPORT int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask);
 
 // misc function wrapper for openmp routines
-int get_omp_num_threads();
-void set_omp_num_threads(int num_threads);
+NCNN_EXPORT int get_omp_num_threads();
+NCNN_EXPORT void set_omp_num_threads(int num_threads);
 
-int get_omp_dynamic();
-void set_omp_dynamic(int dynamic);
+NCNN_EXPORT int get_omp_dynamic();
+NCNN_EXPORT void set_omp_dynamic(int dynamic);
 
-int get_omp_thread_num();
+NCNN_EXPORT int get_omp_thread_num();
 
-int get_kmp_blocktime();
-void set_kmp_blocktime(int time_ms);
+NCNN_EXPORT int get_kmp_blocktime();
+NCNN_EXPORT void set_kmp_blocktime(int time_ms);
 
 } // namespace ncnn
 

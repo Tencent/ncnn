@@ -5,11 +5,15 @@ jobs:
     runs-on: windows-2016
     steps:
     - uses: actions/checkout@v2
-    - name: configure
+    - name: build
       run: |
         mkdir build; cd build
         cmake -T v141,host=x64 -A Win32 -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-    - name: build
-      run: cmake --build build --config Release -j 2
+        cmake --build . --config Release -j 2
     - name: test
       run: cd build; ctest -C Release --output-on-failure -j 2
+    - name: build-shared
+      run: |
+        mkdir build-shared; cd build-shared
+        cmake -T v141,host=x64 -A Win32 -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
+        cmake --build . --config Release -j 2

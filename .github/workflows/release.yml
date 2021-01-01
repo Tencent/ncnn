@@ -54,7 +54,7 @@ jobs:
     - name: build
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
@@ -95,7 +95,7 @@ jobs:
     - name: build
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
@@ -136,7 +136,7 @@ jobs:
     - name: build
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
@@ -233,7 +233,7 @@ jobs:
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" -DCMAKE_OSX_ARCHITECTURES="x86_64" \
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DCMAKE_OSX_ARCHITECTURES="x86_64" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
@@ -243,7 +243,7 @@ jobs:
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" -DCMAKE_OSX_ARCHITECTURES="arm64" \
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
@@ -319,7 +319,7 @@ jobs:
       run: |
         export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.162.0/macOS
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" -DCMAKE_OSX_ARCHITECTURES="x86_64" \
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DCMAKE_OSX_ARCHITECTURES="x86_64" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
@@ -332,7 +332,7 @@ jobs:
       run: |
         export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.162.0/macOS
         mkdir build-arm64 && cd build-arm64
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" -DCMAKE_OSX_ARCHITECTURES="arm64" \
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DCMAKE_CROSSCOMPILING=ON -DCMAKE_SYSTEM_PROCESSOR=arm64 \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
@@ -465,7 +465,7 @@ jobs:
     - name: build
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64;arm64e" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
@@ -476,7 +476,7 @@ jobs:
     - name: build-simulator
       run: |
         mkdir build-simulator && cd build-simulator
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DIOS_PLATFORM=SIMULATOR -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="i386;x86_64" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
@@ -553,7 +553,7 @@ jobs:
       run: |
         export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.135.0/macOS
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DIOS_PLATFORM=OS64 -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="arm64;arm64e" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
@@ -566,7 +566,7 @@ jobs:
     - name: build-simulator
       run: |
         mkdir build-simulator && cd build-simulator
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DIOS_PLATFORM=SIMULATOR64 -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="x86_64" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
@@ -699,7 +699,7 @@ jobs:
     - name: build
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DIOS_PLATFORM=OS -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64;arm64e" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
@@ -710,7 +710,7 @@ jobs:
     - name: build-simulator
       run: |
         mkdir build-simulator && cd build-simulator
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DIOS_PLATFORM=SIMULATOR -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="i386;x86_64" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
@@ -787,7 +787,7 @@ jobs:
       run: |
         export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.135.0/macOS
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DIOS_PLATFORM=OS64 -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="arm64;arm64e" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
@@ -800,7 +800,7 @@ jobs:
     - name: build-simulator
       run: |
         mkdir build-simulator && cd build-simulator
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DIOS_PLATFORM=SIMULATOR64 -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="x86_64" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
@@ -868,7 +868,7 @@ jobs:
     - name: build-armv7
       run: |
         mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -876,7 +876,7 @@ jobs:
     - name: build-aarch64
       run: |
         mkdir build-aarch64 && cd build-aarch64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -884,7 +884,7 @@ jobs:
     - name: build-x86
       run: |
         mkdir build-x86 && cd build-x86
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -892,7 +892,7 @@ jobs:
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -945,7 +945,7 @@ jobs:
       run: |
         export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
         mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -954,7 +954,7 @@ jobs:
       run: |
         export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
         mkdir build-aarch64 && cd build-aarch64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -963,7 +963,7 @@ jobs:
       run: |
         export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
         mkdir build-x86 && cd build-x86
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -972,7 +972,7 @@ jobs:
       run: |
         export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -1014,7 +1014,7 @@ jobs:
       run: |
         source emsdk/emsdk_env.sh
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -1023,7 +1023,7 @@ jobs:
       run: |
         source emsdk/emsdk_env.sh
         mkdir build-simd && cd build-simd
-        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -1032,7 +1032,7 @@ jobs:
       run: |
         source emsdk/emsdk_env.sh
         mkdir build-threads && cd build-threads
-        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -1041,7 +1041,7 @@ jobs:
       run: |
         source emsdk/emsdk_env.sh
         mkdir build-simd-threads && cd build-simd-threads
-        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -1108,14 +1108,14 @@ jobs:
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"
         mkdir build-x86; cd build-x86
-        cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"
         mkdir build-x64; cd build-x64
-        cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: package
@@ -1194,14 +1194,14 @@ jobs:
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"
         mkdir build-x86; cd build-x86
-        cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"
         mkdir build-x64; cd build-x64
-        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: package
@@ -1280,14 +1280,14 @@ jobs:
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"
         mkdir build-x86; cd build-x86
-        cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"
         mkdir build-x64; cd build-x64
-        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="release-${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: package

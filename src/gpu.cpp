@@ -64,7 +64,7 @@ static int g_default_gpu_index = -1;
 
 // NOTE 8 is large enough i think ...
 #define NCNN_MAX_GPU_COUNT 8
-static GpuInfo g_gpu_infos[NCNN_MAX_GPU_COUNT];
+static GpuInfo* g_gpu_infos[NCNN_MAX_GPU_COUNT] = {0};
 
 // default vulkan device
 static Mutex g_default_vkdev_lock;
@@ -119,6 +119,480 @@ PFN_vkGetPhysicalDeviceSurfacePresentModesKHR vkGetPhysicalDeviceSurfacePresentM
 #if __ANDROID_API__ >= 26
 // VK_KHR_android_surface
 PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR = 0;
+#endif // __ANDROID_API__ >= 26
+
+class GpuInfoPrivate
+{
+public:
+    // vulkan physical device
+    VkPhysicalDevice physical_device;
+
+    // memory properties
+    VkPhysicalDeviceMemoryProperties physical_device_memory_properties;
+
+    // info
+    uint32_t api_version;
+    uint32_t driver_version;
+    uint32_t vendor_id;
+    uint32_t device_id;
+    char device_name[VK_MAX_PHYSICAL_DEVICE_NAME_SIZE];
+    uint8_t pipeline_cache_uuid[VK_UUID_SIZE];
+
+    // 0 = discrete gpu
+    // 1 = integrated gpu
+    // 2 = virtual gpu
+    // 3 = cpu
+    int type;
+
+    // hardware limit
+    uint32_t max_shared_memory_size;
+    uint32_t max_workgroup_count_x;
+    uint32_t max_workgroup_count_y;
+    uint32_t max_workgroup_count_z;
+    uint32_t max_workgroup_invocations;
+    uint32_t max_workgroup_size_x;
+    uint32_t max_workgroup_size_y;
+    uint32_t max_workgroup_size_z;
+    size_t memory_map_alignment;
+    size_t buffer_offset_alignment;
+    size_t non_coherent_atom_size;
+    size_t buffer_image_granularity;
+    uint32_t max_image_dimension_1d;
+    uint32_t max_image_dimension_2d;
+    uint32_t max_image_dimension_3d;
+    float timestamp_period;
+
+    // runtime
+    uint32_t compute_queue_family_index;
+    uint32_t graphics_queue_family_index;
+    uint32_t transfer_queue_family_index;
+
+    uint32_t compute_queue_count;
+    uint32_t graphics_queue_count;
+    uint32_t transfer_queue_count;
+
+    // property
+    bool unified_compute_transfer_queue;
+
+    // subgroup
+    uint32_t subgroup_size;
+    bool support_subgroup_basic;
+    bool support_subgroup_vote;
+    bool support_subgroup_ballot;
+    bool support_subgroup_shuffle;
+
+    // bug is not feature
+    bool bug_storage_buffer_no_l1;
+    bool bug_corrupted_online_pipeline_cache;
+
+    // but sometimes bug is a feature
+    bool bug_implicit_fp16_arithmetic;
+
+    // fp16 and int8 feature
+    bool support_fp16_packed;
+    bool support_fp16_storage;
+    bool support_fp16_arithmetic;
+    bool support_int8_packed;
+    bool support_int8_storage;
+    bool support_int8_arithmetic;
+
+    // ycbcr conversion feature
+    bool support_ycbcr_conversion;
+
+    bool support_reserved_0;
+
+    // extension capability
+    int support_VK_KHR_8bit_storage;
+    int support_VK_KHR_16bit_storage;
+    int support_VK_KHR_bind_memory2;
+    int support_VK_KHR_create_renderpass2;
+    int support_VK_KHR_dedicated_allocation;
+    int support_VK_KHR_descriptor_update_template;
+    int support_VK_KHR_external_memory;
+    int support_VK_KHR_get_memory_requirements2;
+    int support_VK_KHR_maintenance1;
+    int support_VK_KHR_maintenance2;
+    int support_VK_KHR_maintenance3;
+    int support_VK_KHR_multiview;
+    int support_VK_KHR_push_descriptor;
+    int support_VK_KHR_sampler_ycbcr_conversion;
+    int support_VK_KHR_shader_float16_int8;
+    int support_VK_KHR_shader_float_controls;
+    int support_VK_KHR_storage_buffer_storage_class;
+    int support_VK_KHR_swapchain;
+    int support_VK_EXT_descriptor_indexing;
+    int support_VK_EXT_memory_budget;
+    int support_VK_EXT_queue_family_foreign;
+#if __ANDROID_API__ >= 26
+    int support_VK_ANDROID_external_memory_android_hardware_buffer;
+#endif // __ANDROID_API__ >= 26
+};
+
+GpuInfo::GpuInfo()
+    : d(new GpuInfoPrivate)
+{
+}
+
+GpuInfo::~GpuInfo()
+{
+    delete d;
+}
+
+GpuInfo::GpuInfo(const GpuInfo&)
+    : d(0)
+{
+}
+
+GpuInfo& GpuInfo::operator=(const GpuInfo&)
+{
+    return *this;
+}
+
+VkPhysicalDevice GpuInfo::physical_device() const
+{
+    return d->physical_device;
+}
+
+const VkPhysicalDeviceMemoryProperties& GpuInfo::physical_device_memory_properties() const
+{
+    return d->physical_device_memory_properties;
+}
+
+uint32_t GpuInfo::api_version() const
+{
+    return d->api_version;
+}
+
+uint32_t GpuInfo::driver_version() const
+{
+    return d->driver_version;
+}
+
+uint32_t GpuInfo::vendor_id() const
+{
+    return d->vendor_id;
+}
+
+uint32_t GpuInfo::device_id() const
+{
+    return d->device_id;
+}
+
+const char* GpuInfo::device_name() const
+{
+    return d->device_name;
+}
+
+uint8_t* GpuInfo::pipeline_cache_uuid() const
+{
+    return d->pipeline_cache_uuid;
+}
+
+int GpuInfo::type() const
+{
+    return d->type;
+}
+
+uint32_t GpuInfo::max_shared_memory_size() const
+{
+    return d->max_shared_memory_size;
+}
+
+uint32_t GpuInfo::max_workgroup_count_x() const
+{
+    return d->max_workgroup_count_x;
+}
+
+uint32_t GpuInfo::max_workgroup_count_y() const
+{
+    return d->max_workgroup_count_y;
+}
+
+uint32_t GpuInfo::max_workgroup_count_z() const
+{
+    return d->max_workgroup_count_z;
+}
+
+uint32_t GpuInfo::max_workgroup_invocations() const
+{
+    return d->max_workgroup_invocations;
+}
+
+uint32_t GpuInfo::max_workgroup_size_x() const
+{
+    return d->max_workgroup_size_x;
+}
+
+uint32_t GpuInfo::max_workgroup_size_y() const
+{
+    return d->max_workgroup_size_y;
+}
+
+uint32_t GpuInfo::max_workgroup_size_z() const
+{
+    return d->max_workgroup_size_z;
+}
+
+size_t GpuInfo::memory_map_alignment() const
+{
+    return d->memory_map_alignment;
+}
+
+size_t GpuInfo::buffer_offset_alignment() const
+{
+    return d->buffer_offset_alignment;
+}
+
+size_t GpuInfo::non_coherent_atom_size() const
+{
+    return d->non_coherent_atom_size;
+}
+
+size_t GpuInfo::buffer_image_granularity() const
+{
+    return d->buffer_image_granularity;
+}
+
+uint32_t GpuInfo::max_image_dimension_1d() const
+{
+    return d->max_image_dimension_1d;
+}
+
+uint32_t GpuInfo::max_image_dimension_2d() const
+{
+    return d->max_image_dimension_2d;
+}
+
+uint32_t GpuInfo::max_image_dimension_3d() const
+{
+    return d->max_image_dimension_3d;
+}
+
+float GpuInfo::timestamp_period() const
+{
+    return d->timestamp_period;
+}
+
+uint32_t GpuInfo::compute_queue_family_index() const
+{
+    return d->compute_queue_family_index;
+}
+
+uint32_t GpuInfo::graphics_queue_family_index() const
+{
+    return d->graphics_queue_family_index;
+}
+
+uint32_t GpuInfo::transfer_queue_family_index() const
+{
+    return d->transfer_queue_family_index;
+}
+
+uint32_t GpuInfo::compute_queue_count() const
+{
+    return d->compute_queue_count;
+}
+
+uint32_t GpuInfo::graphics_queue_count() const
+{
+    return d->graphics_queue_count;
+}
+
+uint32_t GpuInfo::transfer_queue_count() const
+{
+    return d->transfer_queue_count;
+}
+
+bool GpuInfo::unified_compute_transfer_queue() const
+{
+    return d->unified_compute_transfer_queue;
+}
+
+uint32_t GpuInfo::subgroup_size() const
+{
+    return d->subgroup_size;
+}
+
+bool GpuInfo::support_subgroup_basic() const
+{
+    return d->support_subgroup_basic;
+}
+
+bool GpuInfo::support_subgroup_vote() const
+{
+    return d->support_subgroup_vote;
+}
+
+bool GpuInfo::support_subgroup_ballot() const
+{
+    return d->support_subgroup_ballot;
+}
+
+bool GpuInfo::support_subgroup_shuffle() const
+{
+    return d->support_subgroup_shuffle;
+}
+
+bool GpuInfo::bug_storage_buffer_no_l1() const
+{
+    return d->bug_storage_buffer_no_l1;
+}
+
+bool GpuInfo::bug_corrupted_online_pipeline_cache() const
+{
+    return d->bug_corrupted_online_pipeline_cache;
+}
+
+bool GpuInfo::bug_implicit_fp16_arithmetic() const
+{
+    return d->bug_implicit_fp16_arithmetic;
+}
+
+bool GpuInfo::support_fp16_packed() const
+{
+    return d->support_fp16_packed;
+}
+
+bool GpuInfo::support_fp16_storage() const
+{
+    return d->support_fp16_storage;
+}
+
+bool GpuInfo::support_fp16_arithmetic() const
+{
+    return d->support_fp16_arithmetic;
+}
+
+bool GpuInfo::support_int8_packed() const
+{
+    return d->support_int8_packed;
+}
+
+bool GpuInfo::support_int8_storage() const
+{
+    return d->support_int8_storage;
+}
+
+bool GpuInfo::support_int8_arithmetic() const
+{
+    return d->support_int8_arithmetic;
+}
+
+bool GpuInfo::support_ycbcr_conversion() const
+{
+    return d->support_ycbcr_conversion;
+}
+
+int GpuInfo::support_VK_KHR_8bit_storage() const
+{
+    return d->support_VK_KHR_8bit_storage;
+}
+
+int GpuInfo::support_VK_KHR_16bit_storage() const
+{
+    return d->support_VK_KHR_16bit_storage;
+}
+
+int GpuInfo::support_VK_KHR_bind_memory2() const
+{
+    return d->support_VK_KHR_bind_memory2;
+}
+
+int GpuInfo::support_VK_KHR_create_renderpass2() const
+{
+    return d->support_VK_KHR_create_renderpass2;
+}
+
+int GpuInfo::support_VK_KHR_dedicated_allocation() const
+{
+    return d->support_VK_KHR_dedicated_allocation;
+}
+
+int GpuInfo::support_VK_KHR_descriptor_update_template() const
+{
+    return d->support_VK_KHR_descriptor_update_template;
+}
+
+int GpuInfo::support_VK_KHR_external_memory() const
+{
+    return d->support_VK_KHR_external_memory;
+}
+
+int GpuInfo::support_VK_KHR_get_memory_requirements2() const
+{
+    return d->support_VK_KHR_get_memory_requirements2;
+}
+
+int GpuInfo::support_VK_KHR_maintenance1() const
+{
+    return d->support_VK_KHR_maintenance1;
+}
+
+int GpuInfo::support_VK_KHR_maintenance2() const
+{
+    return d->support_VK_KHR_maintenance2;
+}
+
+int GpuInfo::support_VK_KHR_maintenance3() const
+{
+    return d->support_VK_KHR_maintenance3;
+}
+
+int GpuInfo::support_VK_KHR_multiview() const
+{
+    return d->support_VK_KHR_multiview;
+}
+
+int GpuInfo::support_VK_KHR_push_descriptor() const
+{
+    return d->support_VK_KHR_push_descriptor;
+}
+
+int GpuInfo::support_VK_KHR_sampler_ycbcr_conversion() const
+{
+    return d->support_VK_KHR_sampler_ycbcr_conversion;
+}
+
+int GpuInfo::support_VK_KHR_shader_float16_int8() const
+{
+    return d->support_VK_KHR_shader_float16_int8;
+}
+
+int GpuInfo::support_VK_KHR_shader_float_controls() const
+{
+    return d->support_VK_KHR_shader_float_controls;
+}
+
+int GpuInfo::support_VK_KHR_storage_buffer_storage_class() const
+{
+    return d->support_VK_KHR_storage_buffer_storage_class;
+}
+
+int GpuInfo::support_VK_KHR_swapchain() const
+{
+    return d->support_VK_KHR_swapchain;
+}
+
+int GpuInfo::support_VK_EXT_descriptor_indexing() const
+{
+    return d->support_VK_EXT_descriptor_indexing;
+}
+
+int GpuInfo::support_VK_EXT_memory_budget() const
+{
+    return d->support_VK_EXT_memory_budget;
+}
+
+int GpuInfo::support_VK_EXT_queue_family_foreign() const
+{
+    return d->support_VK_EXT_queue_family_foreign;
+}
+
+#if __ANDROID_API__ >= 26
+int GpuInfo::support_VK_ANDROID_external_memory_android_hardware_buffer() const
+{
+    return d->support_VK_ANDROID_external_memory_android_hardware_buffer;
+}
 #endif // __ANDROID_API__ >= 26
 
 static int init_instance_extension()
@@ -326,14 +800,14 @@ static int find_default_vulkan_device_index()
     // first try, discrete gpu
     for (int i = 0; i < g_gpu_count; i++)
     {
-        if (g_gpu_infos[i].type == 0)
+        if (g_gpu_infos[i]->type() == 0)
             return i;
     }
 
     // second try, integrated gpu
     for (int i = 0; i < g_gpu_count; i++)
     {
-        if (g_gpu_infos[i].type == 1)
+        if (g_gpu_infos[i]->type() == 1)
             return i;
     }
 
@@ -543,7 +1017,9 @@ int create_gpu_instance()
     for (uint32_t i = 0; i < physicalDeviceCount; i++)
     {
         const VkPhysicalDevice& physicalDevice = physicalDevices[i];
-        GpuInfo& gpu_info = g_gpu_infos[gpu_info_index];
+        delete g_gpu_infos[gpu_info_index];
+        g_gpu_infos[gpu_info_index] = new GpuInfo;
+        GpuInfoPrivate& gpu_info = *(g_gpu_infos[gpu_info_index]->d);
 
         // device type
         VkPhysicalDeviceProperties physicalDeviceProperties;
@@ -634,7 +1110,7 @@ int create_gpu_instance()
         gpu_info.driver_version = physicalDeviceProperties.driverVersion;
         gpu_info.vendor_id = physicalDeviceProperties.vendorID;
         gpu_info.device_id = physicalDeviceProperties.deviceID;
-        gpu_info.device_name = std::string(physicalDeviceProperties.deviceName);
+        memcpy(gpu_info.device_name, physicalDeviceProperties.deviceName, VK_MAX_PHYSICAL_DEVICE_NAME_SIZE);
         memcpy(gpu_info.pipeline_cache_uuid, physicalDeviceProperties.pipelineCacheUUID, VK_UUID_SIZE);
 
         if (physicalDeviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
@@ -651,15 +1127,15 @@ int create_gpu_instance()
         // device capability
         gpu_info.max_shared_memory_size = physicalDeviceProperties.limits.maxComputeSharedMemorySize;
 
-        gpu_info.max_workgroup_count[0] = physicalDeviceProperties.limits.maxComputeWorkGroupCount[0];
-        gpu_info.max_workgroup_count[1] = physicalDeviceProperties.limits.maxComputeWorkGroupCount[1];
-        gpu_info.max_workgroup_count[2] = physicalDeviceProperties.limits.maxComputeWorkGroupCount[2];
+        gpu_info.max_workgroup_count_x = physicalDeviceProperties.limits.maxComputeWorkGroupCount[0];
+        gpu_info.max_workgroup_count_y = physicalDeviceProperties.limits.maxComputeWorkGroupCount[1];
+        gpu_info.max_workgroup_count_z = physicalDeviceProperties.limits.maxComputeWorkGroupCount[2];
 
         gpu_info.max_workgroup_invocations = physicalDeviceProperties.limits.maxComputeWorkGroupInvocations;
 
-        gpu_info.max_workgroup_size[0] = physicalDeviceProperties.limits.maxComputeWorkGroupSize[0];
-        gpu_info.max_workgroup_size[1] = physicalDeviceProperties.limits.maxComputeWorkGroupSize[1];
-        gpu_info.max_workgroup_size[2] = physicalDeviceProperties.limits.maxComputeWorkGroupSize[2];
+        gpu_info.max_workgroup_size_x = physicalDeviceProperties.limits.maxComputeWorkGroupSize[0];
+        gpu_info.max_workgroup_size_y = physicalDeviceProperties.limits.maxComputeWorkGroupSize[1];
+        gpu_info.max_workgroup_size_z = physicalDeviceProperties.limits.maxComputeWorkGroupSize[2];
 
         gpu_info.memory_map_alignment = physicalDeviceProperties.limits.minMemoryMapAlignment;
         gpu_info.buffer_offset_alignment = physicalDeviceProperties.limits.minStorageBufferOffsetAlignment;
@@ -749,7 +1225,7 @@ int create_gpu_instance()
         }
 
         // cache memory properties
-        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &gpu_info.physicalDeviceMemoryProperties);
+        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &gpu_info.physical_device_memory_properties);
 
         // get device extension
         uint32_t deviceExtensionPropertyCount = 0;
@@ -850,6 +1326,7 @@ int create_gpu_instance()
         gpu_info.support_fp16_packed = true;
         gpu_info.support_fp16_storage = false;
         gpu_info.support_fp16_arithmetic = false;
+        gpu_info.support_int8_packed = true;
         gpu_info.support_int8_storage = false;
         gpu_info.support_int8_arithmetic = false;
         gpu_info.support_ycbcr_conversion = false;
@@ -955,9 +1432,9 @@ int create_gpu_instance()
         NCNN_LOGE("[%u %s]  bugsbn1=%d  bugcopc=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_corrupted_online_pipeline_cache, gpu_info.bug_implicit_fp16_arithmetic);
 
-        NCNN_LOGE("[%u %s]  fp16p=%d  fp16s=%d  fp16a=%d  int8s=%d  int8a=%d", i, physicalDeviceProperties.deviceName,
+        NCNN_LOGE("[%u %s]  fp16-p/s/a=%d/%d/%d  int8-p/s/a=%d/%d/%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
-                  gpu_info.support_int8_storage, gpu_info.support_int8_arithmetic);
+                  gpu_info.support_int8_packed, gpu_info.support_int8_storage, gpu_info.support_int8_arithmetic);
 
         NCNN_LOGE("[%u %s]  subgroup=%u  basic=%d  vote=%d  ballot=%d  shuffle=%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.subgroup_size, gpu_info.support_subgroup_basic, gpu_info.support_subgroup_vote,
@@ -991,6 +1468,9 @@ void destroy_gpu_instance()
     {
         delete g_default_vkdev[i];
         g_default_vkdev[i] = 0;
+
+        delete g_gpu_infos[i];
+        g_gpu_infos[i] = 0;
     }
 
 #if ENABLE_VALIDATION_LAYER
@@ -1036,59 +1516,299 @@ const GpuInfo& get_gpu_info(int device_index)
 {
     try_create_gpu_instance();
 
-    return g_gpu_infos[device_index];
+    return *g_gpu_infos[device_index];
+}
+
+class VkDummyAllocator : public VkBlobAllocator
+{
+public:
+    // NOTE 16k is large enough I think ...
+    VkDummyAllocator(const VulkanDevice* _vkdev)
+        : VkBlobAllocator(_vkdev, 16 * 1024)
+    {
+    }
+};
+
+class VkDummyCompute : public VkCompute
+{
+public:
+    VkDummyCompute(const VulkanDevice* _vkdev)
+        : VkCompute(_vkdev)
+    {
+    }
+
+    void record_dummy(const VkMat& buffer)
+    {
+        barrier_readwrite(buffer);
+    }
+
+    void record_dummy(const VkImageMat& image)
+    {
+        barrier_readwrite(image);
+    }
+
+    void record_dummy_readonly(const VkImageMat& image)
+    {
+        barrier_readonly(image);
+    }
+};
+
+class VulkanDevicePrivate
+{
+public:
+    VulkanDevicePrivate(VulkanDevice* _vkdev)
+        : vkdev(_vkdev)
+    {
+    }
+    VulkanDevice* const vkdev;
+
+    // dummy buffer and image
+    int create_dummy_buffer_image();
+    void destroy_dummy_buffer_image();
+
+    // utility operator
+    const ncnn::Packing_vulkan* get_utility_operator(int storage_type_from, int storage_type_to, int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const;
+    void destroy_utility_operator();
+
+    VkDevice device;
+
+    // hardware queue
+    mutable std::vector<VkQueue> compute_queues;
+    mutable std::vector<VkQueue> graphics_queues;
+    mutable std::vector<VkQueue> transfer_queues;
+    mutable Mutex queue_lock;
+
+    // default blob allocator for each queue
+    mutable std::vector<VkAllocator*> blob_allocators;
+    mutable Mutex blob_allocator_lock;
+
+    // default staging allocator for each queue
+    mutable std::vector<VkAllocator*> staging_allocators;
+    mutable Mutex staging_allocator_lock;
+
+    // nearest sampler for texelfetch
+    VkSampler texelfetch_sampler;
+
+    // dummy buffer and image
+    VkAllocator* dummy_allocator;
+    VkMat dummy_buffer;
+    VkImageMat dummy_image;
+    VkImageMat dummy_image_readonly;
+
+    // device-wide pipeline cache
+    PipelineCache* pipeline_cache;
+
+    // utility operator
+    // from buffer | image
+    // to buffer | image
+    // from fp32-b/i | fp16p-b/i | fp16s-b/i
+    // to fp32-b/i | fp16p-b/i | fp16s-b/i
+    // to pack1 | pack4 | pack8
+    mutable ncnn::Packing_vulkan* uop_packing[2][2][3][3][3];
+    mutable Mutex uop_lock;
+};
+
+int VulkanDevicePrivate::create_dummy_buffer_image()
+{
+    dummy_allocator = new VkDummyAllocator(vkdev);
+
+    dummy_buffer.create(1, 4u, dummy_allocator);
+    dummy_image.create(1, 4u, dummy_allocator);
+    dummy_image_readonly.create(1, 4u, dummy_allocator);
+
+    VkDummyCompute cmd(vkdev);
+
+    cmd.record_dummy(dummy_buffer);
+    cmd.record_dummy(dummy_image);
+    cmd.record_dummy_readonly(dummy_image_readonly);
+
+    cmd.submit_and_wait();
+
+    return 0;
+}
+
+void VulkanDevicePrivate::destroy_dummy_buffer_image()
+{
+    dummy_buffer.release();
+    dummy_image.release();
+    dummy_image_readonly.release();
+
+    delete dummy_allocator;
+}
+
+const ncnn::Packing_vulkan* VulkanDevicePrivate::get_utility_operator(int storage_type_from, int storage_type_to, int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const
+{
+    MutexLockGuard lock(uop_lock);
+
+    const ncnn::Packing_vulkan* cached_uop = uop_packing[storage_type_from][storage_type_to][cast_type_from_index][cast_type_to_index][packing_type_to_index];
+    if (cached_uop)
+        return cached_uop;
+
+    if ((cast_type_from_index == 1 && cast_type_to_index == 2) || (cast_type_from_index == 2 && cast_type_to_index == 1))
+    {
+        NCNN_LOGE("no fp16p to/from fp16s conversion");
+        return 0;
+    }
+
+    // create uop
+    Option opt;
+    opt.use_image_storage = (storage_type_from == 1 || storage_type_to == 1);
+    opt.use_fp16_packed = (cast_type_from_index == 1 || cast_type_to_index == 1);
+    opt.use_fp16_storage = (cast_type_from_index == 2 || cast_type_to_index == 2);
+
+    if (!vkdev->info.support_fp16_packed() && opt.use_fp16_packed)
+    {
+        NCNN_LOGE("cannot create uop with use_fp16_packed if not support_fp16_packed");
+        return 0;
+    }
+
+    if (!vkdev->info.support_fp16_storage() && opt.use_fp16_storage)
+    {
+        NCNN_LOGE("cannot create uop with use_fp16_storage if not support_fp16_storage");
+        return 0;
+    }
+
+    // fp16/int8 arithmetic are not necessary for packing
+    // and may conflict with storage options
+    opt.use_fp16_arithmetic = false;
+    opt.use_int8_arithmetic = false;
+
+    // enable pack8 for pack8to1/pack8to4
+    opt.use_shader_pack8 = true;
+
+    opt.use_vulkan_compute = true;
+
+    // cache uop pipeline as device member explicitly
+    opt.pipeline_cache = 0;
+
+    ncnn::Packing_vulkan* uop = new ncnn::Packing_vulkan;
+    uop->vkdev = vkdev;
+
+    ncnn::ParamDict pd;
+    pd.set(0, packing_type_to_index == 0 ? 1 : packing_type_to_index == 1 ? 4 : 8); // out_elempack
+    pd.set(2, cast_type_from_index + 1);                                            // 0=auto 1=fp32 2=fp16p 3=fp16s
+    pd.set(3, cast_type_to_index + 1);
+    pd.set(4, storage_type_from); // 0=buffer 1=image
+    pd.set(5, storage_type_to);
+
+    uop->load_param(pd);
+
+    uop->create_pipeline(opt);
+
+    uop_packing[storage_type_from][storage_type_to][cast_type_from_index][cast_type_to_index][packing_type_to_index] = uop;
+
+    return uop;
+}
+
+void VulkanDevicePrivate::destroy_utility_operator()
+{
+    Option opt;
+    opt.use_vulkan_compute = true;
+    opt.use_fp16_arithmetic = false;
+    opt.use_int8_arithmetic = false;
+    opt.pipeline_cache = 0;
+
+    // from buffer | image
+    // to buffer | image
+    for (int i0 = 0; i0 < 2; i0++)
+    {
+        for (int i1 = 0; i1 < 2; i1++)
+        {
+            opt.use_image_storage = (i0 == 1 || i1 == 1);
+
+            // from fp32-b/i | fp16p-b/i | fp16s-b/i
+            // to fp32-b/i | fp16p-b/i | fp16s-b/i
+            for (int j0 = 0; j0 < 3; j0++)
+            {
+                for (int j1 = 0; j1 < 3; j1++)
+                {
+                    if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
+                    {
+                        // no fp16p to/from fp16s conversion
+                        continue;
+                    }
+
+                    opt.use_fp16_packed = (j0 == 1 || j1 == 1);
+                    opt.use_fp16_storage = (j0 == 2 || j1 == 2);
+
+                    if (!vkdev->info.support_fp16_packed() && opt.use_fp16_packed)
+                        continue;
+
+                    if (!vkdev->info.support_fp16_storage() && opt.use_fp16_storage)
+                        continue;
+
+                    // to pack1 | pack4 | pack8
+                    for (int k = 0; k < 3; k++)
+                    {
+                        // enable pack8 for pack8to1/pack8to4
+                        opt.use_shader_pack8 = true;
+
+                        ncnn::Layer* uop = uop_packing[i0][i1][j0][j1][k];
+                        if (!uop)
+                            continue;
+
+                        uop->destroy_pipeline(opt);
+
+                        delete uop;
+
+                        uop_packing[i0][i1][j0][j1][k] = 0;
+                    }
+                }
+            }
+        }
+    }
 }
 
 VulkanDevice::VulkanDevice(int device_index)
-    : info(g_gpu_infos[device_index])
+    : info(get_gpu_info(device_index)), d(new VulkanDevicePrivate(this))
 {
     try_create_gpu_instance();
 
     std::vector<const char*> enabledExtensions;
-    if (info.support_VK_KHR_8bit_storage)
+    if (info.support_VK_KHR_8bit_storage())
         enabledExtensions.push_back("VK_KHR_8bit_storage");
-    if (info.support_VK_KHR_16bit_storage)
+    if (info.support_VK_KHR_16bit_storage())
         enabledExtensions.push_back("VK_KHR_16bit_storage");
-    if (info.support_VK_KHR_bind_memory2)
+    if (info.support_VK_KHR_bind_memory2())
         enabledExtensions.push_back("VK_KHR_bind_memory2");
-    if (info.support_VK_KHR_create_renderpass2)
+    if (info.support_VK_KHR_create_renderpass2())
         enabledExtensions.push_back("VK_KHR_create_renderpass2");
-    if (info.support_VK_KHR_dedicated_allocation)
+    if (info.support_VK_KHR_dedicated_allocation())
         enabledExtensions.push_back("VK_KHR_dedicated_allocation");
-    if (info.support_VK_KHR_descriptor_update_template)
+    if (info.support_VK_KHR_descriptor_update_template())
         enabledExtensions.push_back("VK_KHR_descriptor_update_template");
-    if (info.support_VK_KHR_external_memory)
+    if (info.support_VK_KHR_external_memory())
         enabledExtensions.push_back("VK_KHR_external_memory");
-    if (info.support_VK_KHR_get_memory_requirements2)
+    if (info.support_VK_KHR_get_memory_requirements2())
         enabledExtensions.push_back("VK_KHR_get_memory_requirements2");
-    if (info.support_VK_KHR_maintenance1)
+    if (info.support_VK_KHR_maintenance1())
         enabledExtensions.push_back("VK_KHR_maintenance1");
-    if (info.support_VK_KHR_maintenance2)
+    if (info.support_VK_KHR_maintenance2())
         enabledExtensions.push_back("VK_KHR_maintenance2");
-    if (info.support_VK_KHR_maintenance3)
+    if (info.support_VK_KHR_maintenance3())
         enabledExtensions.push_back("VK_KHR_maintenance3");
-    if (info.support_VK_KHR_multiview)
+    if (info.support_VK_KHR_multiview())
         enabledExtensions.push_back("VK_KHR_multiview");
-    if (info.support_VK_KHR_push_descriptor)
+    if (info.support_VK_KHR_push_descriptor())
         enabledExtensions.push_back("VK_KHR_push_descriptor");
-    if (info.support_VK_KHR_sampler_ycbcr_conversion)
+    if (info.support_VK_KHR_sampler_ycbcr_conversion())
         enabledExtensions.push_back("VK_KHR_sampler_ycbcr_conversion");
-    if (info.support_VK_KHR_shader_float16_int8)
+    if (info.support_VK_KHR_shader_float16_int8())
         enabledExtensions.push_back("VK_KHR_shader_float16_int8");
-    if (info.support_VK_KHR_shader_float_controls)
+    if (info.support_VK_KHR_shader_float_controls())
         enabledExtensions.push_back("VK_KHR_shader_float_controls");
-    if (info.support_VK_KHR_storage_buffer_storage_class)
+    if (info.support_VK_KHR_storage_buffer_storage_class())
         enabledExtensions.push_back("VK_KHR_storage_buffer_storage_class");
-    if (info.support_VK_KHR_swapchain)
+    if (info.support_VK_KHR_swapchain())
         enabledExtensions.push_back("VK_KHR_swapchain");
-    if (info.support_VK_EXT_descriptor_indexing)
+    if (info.support_VK_EXT_descriptor_indexing())
         enabledExtensions.push_back("VK_EXT_descriptor_indexing");
-    if (info.support_VK_EXT_memory_budget)
+    if (info.support_VK_EXT_memory_budget())
         enabledExtensions.push_back("VK_EXT_memory_budget");
-    if (info.support_VK_EXT_queue_family_foreign)
+    if (info.support_VK_EXT_queue_family_foreign())
         enabledExtensions.push_back("VK_EXT_queue_family_foreign");
 #if __ANDROID_API__ >= 26
-    if (info.support_VK_ANDROID_external_memory_android_hardware_buffer)
+    if (info.support_VK_ANDROID_external_memory_android_hardware_buffer())
         enabledExtensions.push_back("VK_ANDROID_external_memory_android_hardware_buffer");
 #endif // __ANDROID_API__ >= 26
 
@@ -1098,10 +1818,10 @@ VulkanDevice::VulkanDevice(int device_index)
     VkPhysicalDevice8BitStorageFeaturesKHR enabled8BitStorageFeatures;
     enabled8BitStorageFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR;
     enabled8BitStorageFeatures.pNext = 0;
-    enabled8BitStorageFeatures.storageBuffer8BitAccess = info.support_int8_storage;
-    enabled8BitStorageFeatures.uniformAndStorageBuffer8BitAccess = info.support_int8_storage;
+    enabled8BitStorageFeatures.storageBuffer8BitAccess = info.support_int8_storage();
+    enabled8BitStorageFeatures.uniformAndStorageBuffer8BitAccess = info.support_int8_storage();
     enabled8BitStorageFeatures.storagePushConstant8 = VK_FALSE;
-    if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_8bit_storage)
+    if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_8bit_storage())
     {
         enabled8BitStorageFeatures.pNext = enabledExtensionFeatures;
         enabledExtensionFeatures = &enabled8BitStorageFeatures;
@@ -1111,11 +1831,11 @@ VulkanDevice::VulkanDevice(int device_index)
     VkPhysicalDevice16BitStorageFeaturesKHR enabled16BitStorageFeatures;
     enabled16BitStorageFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR;
     enabled16BitStorageFeatures.pNext = 0;
-    enabled16BitStorageFeatures.storageBuffer16BitAccess = info.support_fp16_storage;
-    enabled16BitStorageFeatures.uniformAndStorageBuffer16BitAccess = info.support_fp16_storage;
+    enabled16BitStorageFeatures.storageBuffer16BitAccess = info.support_fp16_storage();
+    enabled16BitStorageFeatures.uniformAndStorageBuffer16BitAccess = info.support_fp16_storage();
     enabled16BitStorageFeatures.storagePushConstant16 = VK_FALSE;
     enabled16BitStorageFeatures.storageInputOutput16 = VK_FALSE;
-    if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_16bit_storage)
+    if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_16bit_storage())
     {
         enabled16BitStorageFeatures.pNext = enabledExtensionFeatures;
         enabledExtensionFeatures = &enabled16BitStorageFeatures;
@@ -1125,9 +1845,9 @@ VulkanDevice::VulkanDevice(int device_index)
     VkPhysicalDeviceFloat16Int8FeaturesKHR enabledFloat16Int8Features;
     enabledFloat16Int8Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT16_INT8_FEATURES_KHR;
     enabledFloat16Int8Features.pNext = 0;
-    enabledFloat16Int8Features.shaderFloat16 = info.support_fp16_arithmetic;
-    enabledFloat16Int8Features.shaderInt8 = info.support_int8_arithmetic;
-    if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_shader_float16_int8)
+    enabledFloat16Int8Features.shaderFloat16 = info.support_fp16_arithmetic();
+    enabledFloat16Int8Features.shaderInt8 = info.support_int8_arithmetic();
+    if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_shader_float16_int8())
     {
         enabledFloat16Int8Features.pNext = enabledExtensionFeatures;
         enabledExtensionFeatures = &enabledFloat16Int8Features;
@@ -1137,16 +1857,16 @@ VulkanDevice::VulkanDevice(int device_index)
     VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR querySamplerYcbcrConversionFeatures;
     querySamplerYcbcrConversionFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES_KHR;
     querySamplerYcbcrConversionFeatures.pNext = 0;
-    querySamplerYcbcrConversionFeatures.samplerYcbcrConversion = info.support_ycbcr_conversion;
-    if (support_VK_KHR_get_physical_device_properties2 && info.support_ycbcr_conversion)
+    querySamplerYcbcrConversionFeatures.samplerYcbcrConversion = info.support_ycbcr_conversion();
+    if (support_VK_KHR_get_physical_device_properties2 && info.support_ycbcr_conversion())
     {
         querySamplerYcbcrConversionFeatures.pNext = enabledExtensionFeatures;
         enabledExtensionFeatures = &querySamplerYcbcrConversionFeatures;
     }
 
-    std::vector<float> compute_queue_priorities(info.compute_queue_count, 1.f);   // 0.f ~ 1.f
-    std::vector<float> graphics_queue_priorities(info.graphics_queue_count, 1.f); // 0.f ~ 1.f
-    std::vector<float> transfer_queue_priorities(info.transfer_queue_count, 1.f); // 0.f ~ 1.f
+    std::vector<float> compute_queue_priorities(info.compute_queue_count(), 1.f);   // 0.f ~ 1.f
+    std::vector<float> graphics_queue_priorities(info.graphics_queue_count(), 1.f); // 0.f ~ 1.f
+    std::vector<float> transfer_queue_priorities(info.transfer_queue_count(), 1.f); // 0.f ~ 1.f
 
     VkDeviceQueueCreateInfo deviceQueueCreateInfos[3];
 
@@ -1154,48 +1874,48 @@ VulkanDevice::VulkanDevice(int device_index)
     deviceComputeQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     deviceComputeQueueCreateInfo.pNext = 0;
     deviceComputeQueueCreateInfo.flags = 0;
-    deviceComputeQueueCreateInfo.queueFamilyIndex = info.compute_queue_family_index;
-    deviceComputeQueueCreateInfo.queueCount = info.compute_queue_count;
+    deviceComputeQueueCreateInfo.queueFamilyIndex = info.compute_queue_family_index();
+    deviceComputeQueueCreateInfo.queueCount = info.compute_queue_count();
     deviceComputeQueueCreateInfo.pQueuePriorities = compute_queue_priorities.data();
 
     VkDeviceQueueCreateInfo deviceGraphicsQueueCreateInfo;
     deviceGraphicsQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     deviceGraphicsQueueCreateInfo.pNext = 0;
     deviceGraphicsQueueCreateInfo.flags = 0;
-    deviceGraphicsQueueCreateInfo.queueFamilyIndex = info.graphics_queue_family_index;
-    deviceGraphicsQueueCreateInfo.queueCount = info.graphics_queue_count;
+    deviceGraphicsQueueCreateInfo.queueFamilyIndex = info.graphics_queue_family_index();
+    deviceGraphicsQueueCreateInfo.queueCount = info.graphics_queue_count();
     deviceGraphicsQueueCreateInfo.pQueuePriorities = graphics_queue_priorities.data();
 
     VkDeviceQueueCreateInfo deviceTransferQueueCreateInfo;
     deviceTransferQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     deviceTransferQueueCreateInfo.pNext = 0;
     deviceTransferQueueCreateInfo.flags = 0;
-    deviceTransferQueueCreateInfo.queueFamilyIndex = info.transfer_queue_family_index;
-    deviceTransferQueueCreateInfo.queueCount = info.transfer_queue_count;
+    deviceTransferQueueCreateInfo.queueFamilyIndex = info.transfer_queue_family_index();
+    deviceTransferQueueCreateInfo.queueCount = info.transfer_queue_count();
     deviceTransferQueueCreateInfo.pQueuePriorities = transfer_queue_priorities.data();
 
     VkDeviceCreateInfo deviceCreateInfo;
     deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
     deviceCreateInfo.pNext = enabledExtensionFeatures;
     deviceCreateInfo.flags = 0;
-    if (info.compute_queue_family_index == info.graphics_queue_family_index && info.compute_queue_family_index == info.transfer_queue_family_index)
+    if (info.compute_queue_family_index() == info.graphics_queue_family_index() && info.compute_queue_family_index() == info.transfer_queue_family_index())
     {
         deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
         deviceCreateInfo.queueCreateInfoCount = 1;
     }
-    else if (info.compute_queue_family_index == info.graphics_queue_family_index && info.compute_queue_family_index != info.transfer_queue_family_index)
+    else if (info.compute_queue_family_index() == info.graphics_queue_family_index() && info.compute_queue_family_index() != info.transfer_queue_family_index())
     {
         deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
         deviceQueueCreateInfos[1] = deviceTransferQueueCreateInfo;
         deviceCreateInfo.queueCreateInfoCount = 2;
     }
-    else if (info.compute_queue_family_index != info.graphics_queue_family_index && info.graphics_queue_family_index == info.transfer_queue_family_index)
+    else if (info.compute_queue_family_index() != info.graphics_queue_family_index() && info.graphics_queue_family_index() == info.transfer_queue_family_index())
     {
         deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
         deviceQueueCreateInfos[1] = deviceGraphicsQueueCreateInfo;
         deviceCreateInfo.queueCreateInfoCount = 2;
     }
-    else // if (info.compute_queue_family_index != info.graphics_queue_family_index && info.graphics_queue_family_index != info.transfer_queue_family_index)
+    else // if (info.compute_queue_family_index() != info.graphics_queue_family_index() && info.graphics_queue_family_index() != info.transfer_queue_family_index())
     {
         deviceQueueCreateInfos[0] = deviceComputeQueueCreateInfo;
         deviceQueueCreateInfos[1] = deviceGraphicsQueueCreateInfo;
@@ -1209,7 +1929,7 @@ VulkanDevice::VulkanDevice(int device_index)
     deviceCreateInfo.ppEnabledExtensionNames = enabledExtensions.data();
     deviceCreateInfo.pEnabledFeatures = 0; // VkPhysicalDeviceFeatures pointer
 
-    VkResult ret = vkCreateDevice(info.physical_device, &deviceCreateInfo, 0, &device);
+    VkResult ret = vkCreateDevice(info.physical_device(), &deviceCreateInfo, 0, &d->device);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateDevice failed %d", ret);
@@ -1217,29 +1937,29 @@ VulkanDevice::VulkanDevice(int device_index)
 
     init_device_extension();
 
-    compute_queues.resize(info.compute_queue_count);
-    blob_allocators.resize(info.compute_queue_count);
-    staging_allocators.resize(info.compute_queue_count);
-    for (uint32_t i = 0; i < info.compute_queue_count; i++)
+    d->compute_queues.resize(info.compute_queue_count());
+    d->blob_allocators.resize(info.compute_queue_count());
+    d->staging_allocators.resize(info.compute_queue_count());
+    for (uint32_t i = 0; i < info.compute_queue_count(); i++)
     {
-        vkGetDeviceQueue(device, info.compute_queue_family_index, i, &compute_queues[i]);
-        blob_allocators[i] = new VkBlobAllocator(this);
-        staging_allocators[i] = new VkStagingAllocator(this);
+        vkGetDeviceQueue(d->device, info.compute_queue_family_index(), i, &d->compute_queues[i]);
+        d->blob_allocators[i] = new VkBlobAllocator(this);
+        d->staging_allocators[i] = new VkStagingAllocator(this);
     }
-    if (info.compute_queue_family_index != info.graphics_queue_family_index)
+    if (info.compute_queue_family_index() != info.graphics_queue_family_index())
     {
-        graphics_queues.resize(info.graphics_queue_count);
-        for (uint32_t i = 0; i < info.graphics_queue_count; i++)
+        d->graphics_queues.resize(info.graphics_queue_count());
+        for (uint32_t i = 0; i < info.graphics_queue_count(); i++)
         {
-            vkGetDeviceQueue(device, info.graphics_queue_family_index, i, &graphics_queues[i]);
+            vkGetDeviceQueue(d->device, info.graphics_queue_family_index(), i, &d->graphics_queues[i]);
         }
     }
-    if (info.compute_queue_family_index != info.transfer_queue_family_index && info.graphics_queue_family_index != info.transfer_queue_family_index)
+    if (info.compute_queue_family_index() != info.transfer_queue_family_index() && info.graphics_queue_family_index() != info.transfer_queue_family_index())
     {
-        transfer_queues.resize(info.transfer_queue_count);
-        for (uint32_t i = 0; i < info.transfer_queue_count; i++)
+        d->transfer_queues.resize(info.transfer_queue_count());
+        for (uint32_t i = 0; i < info.transfer_queue_count(); i++)
         {
-            vkGetDeviceQueue(device, info.transfer_queue_family_index, i, &transfer_queues[i]);
+            vkGetDeviceQueue(d->device, info.transfer_queue_family_index(), i, &d->transfer_queues[i]);
         }
     }
 
@@ -1265,46 +1985,63 @@ VulkanDevice::VulkanDevice(int device_index)
         samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
         samplerCreateInfo.unnormalizedCoordinates = VK_TRUE;
 
-        texelfetch_sampler = 0;
-        ret = vkCreateSampler(device, &samplerCreateInfo, 0, &texelfetch_sampler);
+        d->texelfetch_sampler = 0;
+        ret = vkCreateSampler(d->device, &samplerCreateInfo, 0, &d->texelfetch_sampler);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateSampler failed %d", ret);
         }
     }
 
-    create_dummy_buffer_image();
+    d->create_dummy_buffer_image();
 
-    pipeline_cache = new PipelineCache(this);
+    d->pipeline_cache = new PipelineCache(this);
 
-    memset(uop_packing, 0, sizeof(uop_packing));
+    memset(d->uop_packing, 0, sizeof(d->uop_packing));
 }
 
 VulkanDevice::~VulkanDevice()
 {
-    destroy_utility_operator();
+    d->destroy_utility_operator();
 
-    destroy_dummy_buffer_image();
+    d->destroy_dummy_buffer_image();
 
-    if (texelfetch_sampler)
+    if (d->texelfetch_sampler)
     {
-        vkDestroySampler(device, texelfetch_sampler, 0);
+        vkDestroySampler(d->device, d->texelfetch_sampler, 0);
     }
 
-    for (size_t i = 0; i < blob_allocators.size(); i++)
+    for (size_t i = 0; i < d->blob_allocators.size(); i++)
     {
-        delete blob_allocators[i];
+        delete d->blob_allocators[i];
     }
-    blob_allocators.clear();
-    for (size_t i = 0; i < staging_allocators.size(); i++)
+    d->blob_allocators.clear();
+    for (size_t i = 0; i < d->staging_allocators.size(); i++)
     {
-        delete staging_allocators[i];
+        delete d->staging_allocators[i];
     }
-    staging_allocators.clear();
+    d->staging_allocators.clear();
 
-    delete pipeline_cache;
+    delete d->pipeline_cache;
 
-    vkDestroyDevice(device, 0);
+    vkDestroyDevice(d->device, 0);
+
+    delete d;
+}
+
+VulkanDevice::VulkanDevice(const VulkanDevice&)
+    : info(get_gpu_info(0)), d(0)
+{
+}
+
+VulkanDevice& VulkanDevice::operator=(const VulkanDevice&)
+{
+    return *this;
+}
+
+VkDevice VulkanDevice::vkdevice() const
+{
+    return d->device;
 }
 
 VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size) const
@@ -1317,7 +2054,7 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
     shaderModuleCreateInfo.pCode = spv_data;
 
     VkShaderModule shader_module;
-    VkResult ret = vkCreateShaderModule(device, &shaderModuleCreateInfo, 0, &shader_module);
+    VkResult ret = vkCreateShaderModule(d->device, &shaderModuleCreateInfo, 0, &shader_module);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateShaderModule failed %d", ret);
@@ -1478,12 +2215,12 @@ int VulkanDevice::create_descriptorset_layout(int binding_count, const int* bind
     descriptorSetLayoutCreateInfo.bindingCount = binding_count;
     descriptorSetLayoutCreateInfo.pBindings = descriptorSetLayoutBindings.data();
 
-    if (info.support_VK_KHR_push_descriptor)
+    if (info.support_VK_KHR_push_descriptor())
     {
         descriptorSetLayoutCreateInfo.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
     }
 
-    VkResult ret = vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, 0, descriptorset_layout);
+    VkResult ret = vkCreateDescriptorSetLayout(d->device, &descriptorSetLayoutCreateInfo, 0, descriptorset_layout);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateDescriptorSetLayout failed %d", ret);
@@ -1527,7 +2264,7 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
         pipelineLayoutCreateInfo.pPushConstantRanges = 0;
     }
 
-    VkResult ret = vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, 0, pipeline_layout);
+    VkResult ret = vkCreatePipelineLayout(d->device, &pipelineLayoutCreateInfo, 0, pipeline_layout);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreatePipelineLayout failed %d", ret);
@@ -1573,7 +2310,7 @@ int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout
     computePipelineCreateInfo.basePipelineHandle = 0;
     computePipelineCreateInfo.basePipelineIndex = 0;
 
-    VkResult ret = vkCreateComputePipelines(device, 0, 1, &computePipelineCreateInfo, 0, pipeline);
+    VkResult ret = vkCreateComputePipelines(d->device, 0, 1, &computePipelineCreateInfo, 0, pipeline);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateComputePipelines failed %d", ret);
@@ -1627,7 +2364,7 @@ int VulkanDevice::create_descriptor_update_template(int binding_count, const int
     descriptorUpdateTemplateCreateInfo.flags = 0;
     descriptorUpdateTemplateCreateInfo.descriptorUpdateEntryCount = binding_count; // TODO do not update weights
     descriptorUpdateTemplateCreateInfo.pDescriptorUpdateEntries = descriptorUpdateTemplateEntries.data();
-    if (info.support_VK_KHR_push_descriptor)
+    if (info.support_VK_KHR_push_descriptor())
     {
         descriptorUpdateTemplateCreateInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR;
     }
@@ -1642,7 +2379,7 @@ int VulkanDevice::create_descriptor_update_template(int binding_count, const int
     descriptorUpdateTemplateCreateInfo.pipelineLayout = pipeline_layout;
     descriptorUpdateTemplateCreateInfo.set = 0;
 
-    VkResult ret = vkCreateDescriptorUpdateTemplateKHR(device, &descriptorUpdateTemplateCreateInfo, 0, descriptor_update_template);
+    VkResult ret = vkCreateDescriptorUpdateTemplateKHR(d->device, &descriptorUpdateTemplateCreateInfo, 0, descriptor_update_template);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkCreateDescriptorUpdateTemplateKHR failed %d", ret);
@@ -1654,13 +2391,15 @@ int VulkanDevice::create_descriptor_update_template(int binding_count, const int
 
 uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const
 {
+    const VkPhysicalDeviceMemoryProperties& memory_properties = info.physical_device_memory_properties();
+
     // first try, find required and with preferred and without preferred_not
-    for (uint32_t i = 0; i < info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
     {
         bool is_required = (1 << i) & memory_type_bits;
         if (is_required)
         {
-            const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
+            const VkMemoryType& memoryType = memory_properties.memoryTypes[i];
             if ((memoryType.propertyFlags & required) == required
                     && (preferred && (memoryType.propertyFlags & preferred))
                     && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
@@ -1671,12 +2410,12 @@ uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags requ
     }
 
     // second try, find required and with preferred
-    for (uint32_t i = 0; i < info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
     {
         bool is_required = (1 << i) & memory_type_bits;
         if (is_required)
         {
-            const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
+            const VkMemoryType& memoryType = memory_properties.memoryTypes[i];
             if ((memoryType.propertyFlags & required) == required
                     && (preferred && (memoryType.propertyFlags & preferred)))
             {
@@ -1686,12 +2425,12 @@ uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags requ
     }
 
     // third try, find required and without preferred_not
-    for (uint32_t i = 0; i < info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
     {
         bool is_required = (1 << i) & memory_type_bits;
         if (is_required)
         {
-            const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
+            const VkMemoryType& memoryType = memory_properties.memoryTypes[i];
             if ((memoryType.propertyFlags & required) == required
                     && (preferred_not && !(memoryType.propertyFlags & preferred_not)))
             {
@@ -1701,12 +2440,12 @@ uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags requ
     }
 
     // fourth try, find any required
-    for (uint32_t i = 0; i < info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
     {
         bool is_required = (1 << i) & memory_type_bits;
         if (is_required)
         {
-            const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[i];
+            const VkMemoryType& memoryType = memory_properties.memoryTypes[i];
             if ((memoryType.propertyFlags & required) == required)
             {
                 return i;
@@ -1720,32 +2459,32 @@ uint32_t VulkanDevice::find_memory_index(uint32_t memory_type_bits, VkFlags requ
 
 bool VulkanDevice::is_mappable(uint32_t memory_type_index) const
 {
-    const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[memory_type_index];
+    const VkMemoryType& memoryType = info.physical_device_memory_properties().memoryTypes[memory_type_index];
 
     return memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 }
 
 bool VulkanDevice::is_coherent(uint32_t memory_type_index) const
 {
-    const VkMemoryType& memoryType = info.physicalDeviceMemoryProperties.memoryTypes[memory_type_index];
+    const VkMemoryType& memoryType = info.physical_device_memory_properties().memoryTypes[memory_type_index];
 
     return memoryType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 }
 
 VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
 {
-    if (queue_family_index != info.compute_queue_family_index
-            && queue_family_index != info.graphics_queue_family_index
-            && queue_family_index != info.transfer_queue_family_index)
+    if (queue_family_index != info.compute_queue_family_index()
+            && queue_family_index != info.graphics_queue_family_index()
+            && queue_family_index != info.transfer_queue_family_index())
     {
         NCNN_LOGE("invalid queue_family_index %u", queue_family_index);
         return 0;
     }
 
-    MutexLockGuard lock(queue_lock);
+    MutexLockGuard lock(d->queue_lock);
 
-    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues
-                                   : queue_family_index == info.graphics_queue_family_index ? graphics_queues : transfer_queues;
+    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index() ? d->compute_queues
+                                   : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queues : d->transfer_queues;
     for (int i = 0; i < (int)queues.size(); i++)
     {
         VkQueue queue = queues[i];
@@ -1762,18 +2501,18 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
 
 void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) const
 {
-    if (queue_family_index != info.compute_queue_family_index
-            && queue_family_index != info.graphics_queue_family_index
-            && queue_family_index != info.transfer_queue_family_index)
+    if (queue_family_index != info.compute_queue_family_index()
+            && queue_family_index != info.graphics_queue_family_index()
+            && queue_family_index != info.transfer_queue_family_index())
     {
         NCNN_LOGE("invalid queue_family_index %u", queue_family_index);
         return;
     }
 
-    MutexLockGuard lock(queue_lock);
+    MutexLockGuard lock(d->queue_lock);
 
-    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index ? compute_queues
-                                   : queue_family_index == info.graphics_queue_family_index ? graphics_queues : transfer_queues;
+    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index() ? d->compute_queues
+                                   : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queues : d->transfer_queues;
     for (int i = 0; i < (int)queues.size(); i++)
     {
         if (!queues[i])
@@ -1788,34 +2527,34 @@ void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) con
 
 VkAllocator* VulkanDevice::acquire_blob_allocator() const
 {
-    MutexLockGuard lock(blob_allocator_lock);
+    MutexLockGuard lock(d->blob_allocator_lock);
 
-    for (int i = 0; i < (int)blob_allocators.size(); i++)
+    for (int i = 0; i < (int)d->blob_allocators.size(); i++)
     {
-        VkAllocator* allocator = blob_allocators[i];
+        VkAllocator* allocator = d->blob_allocators[i];
         if (allocator)
         {
-            blob_allocators[i] = 0;
+            d->blob_allocators[i] = 0;
             return allocator;
         }
     }
 
     // pre-allocated allcator exhausted, create new
     VkAllocator* allocator = new VkBlobAllocator(this);
-    blob_allocators.push_back(allocator);
-    blob_allocators[blob_allocators.size() - 1] = 0;
+    d->blob_allocators.push_back(allocator);
+    d->blob_allocators[d->blob_allocators.size() - 1] = 0;
     return allocator;
 }
 
 void VulkanDevice::reclaim_blob_allocator(VkAllocator* allocator) const
 {
-    MutexLockGuard lock(blob_allocator_lock);
+    MutexLockGuard lock(d->blob_allocator_lock);
 
-    for (int i = 0; i < (int)blob_allocators.size(); i++)
+    for (int i = 0; i < (int)d->blob_allocators.size(); i++)
     {
-        if (!blob_allocators[i])
+        if (!d->blob_allocators[i])
         {
-            blob_allocators[i] = allocator;
+            d->blob_allocators[i] = allocator;
             return;
         }
     }
@@ -1825,34 +2564,34 @@ void VulkanDevice::reclaim_blob_allocator(VkAllocator* allocator) const
 
 VkAllocator* VulkanDevice::acquire_staging_allocator() const
 {
-    MutexLockGuard lock(staging_allocator_lock);
+    MutexLockGuard lock(d->staging_allocator_lock);
 
-    for (int i = 0; i < (int)staging_allocators.size(); i++)
+    for (int i = 0; i < (int)d->staging_allocators.size(); i++)
     {
-        VkAllocator* allocator = staging_allocators[i];
+        VkAllocator* allocator = d->staging_allocators[i];
         if (allocator)
         {
-            staging_allocators[i] = 0;
+            d->staging_allocators[i] = 0;
             return allocator;
         }
     }
 
     // pre-allocated allcator exhausted, create new
     VkAllocator* allocator = new VkStagingAllocator(this);
-    staging_allocators.push_back(allocator);
-    staging_allocators[staging_allocators.size() - 1] = 0;
+    d->staging_allocators.push_back(allocator);
+    d->staging_allocators[d->staging_allocators.size() - 1] = 0;
     return allocator;
 }
 
 void VulkanDevice::reclaim_staging_allocator(VkAllocator* allocator) const
 {
-    MutexLockGuard lock(staging_allocator_lock);
+    MutexLockGuard lock(d->staging_allocator_lock);
 
-    for (int i = 0; i < (int)staging_allocators.size(); i++)
+    for (int i = 0; i < (int)d->staging_allocators.size(); i++)
     {
-        if (!staging_allocators[i])
+        if (!d->staging_allocators[i])
         {
-            staging_allocators[i] = allocator;
+            d->staging_allocators[i] = allocator;
             return;
         }
     }
@@ -1862,22 +2601,27 @@ void VulkanDevice::reclaim_staging_allocator(VkAllocator* allocator) const
 
 const VkSampler* VulkanDevice::immutable_texelfetch_sampler() const
 {
-    return &texelfetch_sampler;
+    return &d->texelfetch_sampler;
 }
 
 VkMat VulkanDevice::get_dummy_buffer() const
 {
-    return dummy_buffer;
+    return d->dummy_buffer;
 }
 
 VkImageMat VulkanDevice::get_dummy_image() const
 {
-    return dummy_image;
+    return d->dummy_image;
+}
+
+VkImageMat VulkanDevice::get_dummy_image_readonly() const
+{
+    return d->dummy_image_readonly;
 }
 
 const PipelineCache* VulkanDevice::get_pipeline_cache() const
 {
-    return pipeline_cache;
+    return d->pipeline_cache;
 }
 
 bool VulkanDevice::shape_support_image_storage(const Mat& shape) const
@@ -1896,21 +2640,21 @@ bool VulkanDevice::shape_support_image_storage(const Mat& shape) const
 
     if (dims == 1)
     {
-        if (width > (int)info.max_image_dimension_1d)
+        if (width > (int)info.max_image_dimension_1d())
         {
             return false;
         }
     }
     else if (dims == 2)
     {
-        if (width > (int)info.max_image_dimension_2d || height > (int)info.max_image_dimension_2d)
+        if (width > (int)info.max_image_dimension_2d() || height > (int)info.max_image_dimension_2d())
         {
             return false;
         }
     }
     else // if (dims == 3)
     {
-        if (width > (int)info.max_image_dimension_3d || height > (int)info.max_image_dimension_3d || depth > (int)info.max_image_dimension_3d)
+        if (width > (int)info.max_image_dimension_3d() || height > (int)info.max_image_dimension_3d() || depth > (int)info.max_image_dimension_3d())
         {
             return false;
         }
@@ -1921,12 +2665,14 @@ bool VulkanDevice::shape_support_image_storage(const Mat& shape) const
 
 uint32_t VulkanDevice::get_heap_budget() const
 {
+    const VkPhysicalDeviceMemoryProperties& memory_properties = info.physical_device_memory_properties();
+
     // the first device local heap
     uint32_t device_local_heap_index = 0;
     uint32_t device_local_heap_size = 0;
-    for (uint32_t i = 0; i < info.physicalDeviceMemoryProperties.memoryTypeCount; i++)
+    for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++)
     {
-        const VkMemoryHeap& memoryHeap = info.physicalDeviceMemoryProperties.memoryHeaps[i];
+        const VkMemoryHeap& memoryHeap = memory_properties.memoryHeaps[i];
         if (memoryHeap.flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
         {
             device_local_heap_index = i;
@@ -1935,7 +2681,7 @@ uint32_t VulkanDevice::get_heap_budget() const
         }
     }
 
-    if (!info.support_VK_EXT_memory_budget)
+    if (!info.support_VK_EXT_memory_budget())
     {
         //         NCNN_LOGE("heap budget from assumption\n");
 
@@ -1953,7 +2699,7 @@ uint32_t VulkanDevice::get_heap_budget() const
     memoryProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2_KHR;
     memoryProperties.pNext = &memoryBudgetProperties;
 
-    vkGetPhysicalDeviceMemoryProperties2KHR(info.physical_device, &memoryProperties);
+    vkGetPhysicalDeviceMemoryProperties2KHR(info.physical_device(), &memoryProperties);
 
     return memoryBudgetProperties.heapBudget[device_local_heap_index] / 1024 / 1024;
 }
@@ -1978,11 +2724,11 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
         {
             cast_type_from_index = cast_type_to_index;
         }
-        else if (info.support_fp16_storage)
+        else if (info.support_fp16_storage())
         {
             cast_type_from_index = 2;
         }
-        else // if (info.support_fp16_packed)
+        else // if (info.support_fp16_packed())
         {
             cast_type_from_index = 1;
         }
@@ -1990,7 +2736,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkMat& dst, int dst_elempac
 
     // NCNN_LOGE("convert_packing b2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
-    const ncnn::Packing_vulkan* uop = get_utility_operator(0, 0, cast_type_from_index, cast_type_to_index, packing_type_to_index);
+    const ncnn::Packing_vulkan* uop = d->get_utility_operator(0, 0, cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt);
 }
 
@@ -2010,11 +2756,11 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int d
         {
             cast_type_from_index = cast_type_to_index;
         }
-        else if (info.support_fp16_storage)
+        else if (info.support_fp16_storage())
         {
             cast_type_from_index = 2;
         }
-        else // if (info.support_fp16_packed)
+        else // if (info.support_fp16_packed())
         {
             cast_type_from_index = 1;
         }
@@ -2022,7 +2768,7 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkImageMat& dst, int d
 
     // NCNN_LOGE("convert_packing i2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
-    const ncnn::Packing_vulkan* uop = get_utility_operator(1, 1, cast_type_from_index, cast_type_to_index, packing_type_to_index);
+    const ncnn::Packing_vulkan* uop = d->get_utility_operator(1, 1, cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt);
 }
 
@@ -2042,11 +2788,11 @@ void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_el
         {
             cast_type_from_index = cast_type_to_index;
         }
-        else if (info.support_fp16_storage)
+        else if (info.support_fp16_storage())
         {
             cast_type_from_index = 2;
         }
-        else // if (info.support_fp16_packed)
+        else // if (info.support_fp16_packed())
         {
             cast_type_from_index = 1;
         }
@@ -2054,7 +2800,7 @@ void VulkanDevice::convert_packing(const VkMat& src, VkImageMat& dst, int dst_el
 
     // NCNN_LOGE("convert_packing b2i %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
-    const ncnn::Packing_vulkan* uop = get_utility_operator(0, 1, cast_type_from_index, cast_type_to_index, packing_type_to_index);
+    const ncnn::Packing_vulkan* uop = d->get_utility_operator(0, 1, cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt);
 }
 
@@ -2074,11 +2820,11 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_el
         {
             cast_type_from_index = cast_type_to_index;
         }
-        else if (info.support_fp16_storage)
+        else if (info.support_fp16_storage())
         {
             cast_type_from_index = 2;
         }
-        else // if (info.support_fp16_packed)
+        else // if (info.support_fp16_packed())
         {
             cast_type_from_index = 1;
         }
@@ -2086,340 +2832,84 @@ void VulkanDevice::convert_packing(const VkImageMat& src, VkMat& dst, int dst_el
 
     // NCNN_LOGE("convert_packing i2b %d %d %d", cast_type_from_index, cast_type_to_index, packing_type_to_index);
 
-    const ncnn::Packing_vulkan* uop = get_utility_operator(1, 0, cast_type_from_index, cast_type_to_index, packing_type_to_index);
+    const ncnn::Packing_vulkan* uop = d->get_utility_operator(1, 0, cast_type_from_index, cast_type_to_index, packing_type_to_index);
     uop->forward(src, dst, cmd, opt);
 }
 
 int VulkanDevice::init_device_extension()
 {
-    if (info.support_VK_KHR_bind_memory2)
+    if (info.support_VK_KHR_bind_memory2())
     {
-        vkBindBufferMemory2KHR = (PFN_vkBindBufferMemory2KHR)vkGetDeviceProcAddr(device, "vkBindBufferMemory2KHR");
-        vkBindImageMemory2KHR = (PFN_vkBindImageMemory2KHR)vkGetDeviceProcAddr(device, "vkBindImageMemory2KHR");
+        vkBindBufferMemory2KHR = (PFN_vkBindBufferMemory2KHR)vkGetDeviceProcAddr(d->device, "vkBindBufferMemory2KHR");
+        vkBindImageMemory2KHR = (PFN_vkBindImageMemory2KHR)vkGetDeviceProcAddr(d->device, "vkBindImageMemory2KHR");
     }
 
-    if (info.support_VK_KHR_create_renderpass2)
+    if (info.support_VK_KHR_create_renderpass2())
     {
-        vkCmdBeginRenderPass2KHR = (PFN_vkCmdBeginRenderPass2KHR)vkGetDeviceProcAddr(device, "vkCmdBeginRenderPass2KHR");
-        vkCmdEndRenderPass2KHR = (PFN_vkCmdEndRenderPass2KHR)vkGetDeviceProcAddr(device, "vkCmdEndRenderPass2KHR");
-        vkCmdNextSubpass2KHR = (PFN_vkCmdNextSubpass2KHR)vkGetDeviceProcAddr(device, "vkCmdNextSubpass2KHR");
-        vkCreateRenderPass2KHR = (PFN_vkCreateRenderPass2KHR)vkGetDeviceProcAddr(device, "vkCreateRenderPass2KHR");
+        vkCmdBeginRenderPass2KHR = (PFN_vkCmdBeginRenderPass2KHR)vkGetDeviceProcAddr(d->device, "vkCmdBeginRenderPass2KHR");
+        vkCmdEndRenderPass2KHR = (PFN_vkCmdEndRenderPass2KHR)vkGetDeviceProcAddr(d->device, "vkCmdEndRenderPass2KHR");
+        vkCmdNextSubpass2KHR = (PFN_vkCmdNextSubpass2KHR)vkGetDeviceProcAddr(d->device, "vkCmdNextSubpass2KHR");
+        vkCreateRenderPass2KHR = (PFN_vkCreateRenderPass2KHR)vkGetDeviceProcAddr(d->device, "vkCreateRenderPass2KHR");
     }
 
-    if (info.support_VK_KHR_descriptor_update_template)
+    if (info.support_VK_KHR_descriptor_update_template())
     {
-        vkCreateDescriptorUpdateTemplateKHR = (PFN_vkCreateDescriptorUpdateTemplateKHR)vkGetDeviceProcAddr(device, "vkCreateDescriptorUpdateTemplateKHR");
-        vkDestroyDescriptorUpdateTemplateKHR = (PFN_vkDestroyDescriptorUpdateTemplateKHR)vkGetDeviceProcAddr(device, "vkDestroyDescriptorUpdateTemplateKHR");
-        vkUpdateDescriptorSetWithTemplateKHR = (PFN_vkUpdateDescriptorSetWithTemplateKHR)vkGetDeviceProcAddr(device, "vkUpdateDescriptorSetWithTemplateKHR");
+        vkCreateDescriptorUpdateTemplateKHR = (PFN_vkCreateDescriptorUpdateTemplateKHR)vkGetDeviceProcAddr(d->device, "vkCreateDescriptorUpdateTemplateKHR");
+        vkDestroyDescriptorUpdateTemplateKHR = (PFN_vkDestroyDescriptorUpdateTemplateKHR)vkGetDeviceProcAddr(d->device, "vkDestroyDescriptorUpdateTemplateKHR");
+        vkUpdateDescriptorSetWithTemplateKHR = (PFN_vkUpdateDescriptorSetWithTemplateKHR)vkGetDeviceProcAddr(d->device, "vkUpdateDescriptorSetWithTemplateKHR");
     }
 
-    if (info.support_VK_KHR_get_memory_requirements2)
+    if (info.support_VK_KHR_get_memory_requirements2())
     {
-        vkGetImageMemoryRequirements2KHR = (PFN_vkGetImageMemoryRequirements2KHR)vkGetDeviceProcAddr(device, "vkGetImageMemoryRequirements2KHR");
-        vkGetBufferMemoryRequirements2KHR = (PFN_vkGetBufferMemoryRequirements2KHR)vkGetDeviceProcAddr(device, "vkGetBufferMemoryRequirements2KHR");
-        vkGetImageSparseMemoryRequirements2KHR = (PFN_vkGetImageSparseMemoryRequirements2KHR)vkGetDeviceProcAddr(device, "vkGetImageSparseMemoryRequirements2KHR");
+        vkGetImageMemoryRequirements2KHR = (PFN_vkGetImageMemoryRequirements2KHR)vkGetDeviceProcAddr(d->device, "vkGetImageMemoryRequirements2KHR");
+        vkGetBufferMemoryRequirements2KHR = (PFN_vkGetBufferMemoryRequirements2KHR)vkGetDeviceProcAddr(d->device, "vkGetBufferMemoryRequirements2KHR");
+        vkGetImageSparseMemoryRequirements2KHR = (PFN_vkGetImageSparseMemoryRequirements2KHR)vkGetDeviceProcAddr(d->device, "vkGetImageSparseMemoryRequirements2KHR");
     }
 
-    if (info.support_VK_KHR_maintenance1)
+    if (info.support_VK_KHR_maintenance1())
     {
-        vkTrimCommandPoolKHR = (PFN_vkTrimCommandPoolKHR)vkGetDeviceProcAddr(device, "vkTrimCommandPoolKHR");
+        vkTrimCommandPoolKHR = (PFN_vkTrimCommandPoolKHR)vkGetDeviceProcAddr(d->device, "vkTrimCommandPoolKHR");
     }
 
-    if (info.support_VK_KHR_maintenance3)
+    if (info.support_VK_KHR_maintenance3())
     {
-        vkGetDescriptorSetLayoutSupportKHR = (PFN_vkGetDescriptorSetLayoutSupportKHR)vkGetDeviceProcAddr(device, "vkGetDescriptorSetLayoutSupportKHR");
+        vkGetDescriptorSetLayoutSupportKHR = (PFN_vkGetDescriptorSetLayoutSupportKHR)vkGetDeviceProcAddr(d->device, "vkGetDescriptorSetLayoutSupportKHR");
     }
 
-    if (info.support_VK_KHR_push_descriptor)
+    if (info.support_VK_KHR_push_descriptor())
     {
-        if (info.support_VK_KHR_descriptor_update_template)
+        if (info.support_VK_KHR_descriptor_update_template())
         {
-            vkCmdPushDescriptorSetWithTemplateKHR = (PFN_vkCmdPushDescriptorSetWithTemplateKHR)vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetWithTemplateKHR");
+            vkCmdPushDescriptorSetWithTemplateKHR = (PFN_vkCmdPushDescriptorSetWithTemplateKHR)vkGetDeviceProcAddr(d->device, "vkCmdPushDescriptorSetWithTemplateKHR");
         }
 
-        vkCmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(device, "vkCmdPushDescriptorSetKHR");
+        vkCmdPushDescriptorSetKHR = (PFN_vkCmdPushDescriptorSetKHR)vkGetDeviceProcAddr(d->device, "vkCmdPushDescriptorSetKHR");
     }
 
-    if (info.support_VK_KHR_sampler_ycbcr_conversion)
+    if (info.support_VK_KHR_sampler_ycbcr_conversion())
     {
-        vkCreateSamplerYcbcrConversionKHR = (PFN_vkCreateSamplerYcbcrConversionKHR)vkGetDeviceProcAddr(device, "vkCreateSamplerYcbcrConversionKHR");
-        vkDestroySamplerYcbcrConversionKHR = (PFN_vkDestroySamplerYcbcrConversionKHR)vkGetDeviceProcAddr(device, "vkDestroySamplerYcbcrConversionKHR");
+        vkCreateSamplerYcbcrConversionKHR = (PFN_vkCreateSamplerYcbcrConversionKHR)vkGetDeviceProcAddr(d->device, "vkCreateSamplerYcbcrConversionKHR");
+        vkDestroySamplerYcbcrConversionKHR = (PFN_vkDestroySamplerYcbcrConversionKHR)vkGetDeviceProcAddr(d->device, "vkDestroySamplerYcbcrConversionKHR");
     }
 
-    if (info.support_VK_KHR_swapchain)
+    if (info.support_VK_KHR_swapchain())
     {
-        vkCreateSwapchainKHR = (PFN_vkCreateSwapchainKHR)vkGetDeviceProcAddr(device, "vkCreateSwapchainKHR");
-        vkDestroySwapchainKHR = (PFN_vkDestroySwapchainKHR)vkGetDeviceProcAddr(device, "vkDestroySwapchainKHR");
-        vkGetSwapchainImagesKHR = (PFN_vkGetSwapchainImagesKHR)vkGetDeviceProcAddr(device, "vkGetSwapchainImagesKHR");
-        vkAcquireNextImageKHR = (PFN_vkAcquireNextImageKHR)vkGetDeviceProcAddr(device, "vkAcquireNextImageKHR");
-        vkQueuePresentKHR = (PFN_vkQueuePresentKHR)vkGetDeviceProcAddr(device, "vkQueuePresentKHR");
+        vkCreateSwapchainKHR = (PFN_vkCreateSwapchainKHR)vkGetDeviceProcAddr(d->device, "vkCreateSwapchainKHR");
+        vkDestroySwapchainKHR = (PFN_vkDestroySwapchainKHR)vkGetDeviceProcAddr(d->device, "vkDestroySwapchainKHR");
+        vkGetSwapchainImagesKHR = (PFN_vkGetSwapchainImagesKHR)vkGetDeviceProcAddr(d->device, "vkGetSwapchainImagesKHR");
+        vkAcquireNextImageKHR = (PFN_vkAcquireNextImageKHR)vkGetDeviceProcAddr(d->device, "vkAcquireNextImageKHR");
+        vkQueuePresentKHR = (PFN_vkQueuePresentKHR)vkGetDeviceProcAddr(d->device, "vkQueuePresentKHR");
     }
 
 #if __ANDROID_API__ >= 26
-    if (info.support_VK_ANDROID_external_memory_android_hardware_buffer)
+    if (info.support_VK_ANDROID_external_memory_android_hardware_buffer())
     {
-        vkGetAndroidHardwareBufferPropertiesANDROID = (PFN_vkGetAndroidHardwareBufferPropertiesANDROID)vkGetDeviceProcAddr(device, "vkGetAndroidHardwareBufferPropertiesANDROID");
-        vkGetMemoryAndroidHardwareBufferANDROID = (PFN_vkGetMemoryAndroidHardwareBufferANDROID)vkGetDeviceProcAddr(device, "vkGetMemoryAndroidHardwareBufferANDROID");
+        vkGetAndroidHardwareBufferPropertiesANDROID = (PFN_vkGetAndroidHardwareBufferPropertiesANDROID)vkGetDeviceProcAddr(d->device, "vkGetAndroidHardwareBufferPropertiesANDROID");
+        vkGetMemoryAndroidHardwareBufferANDROID = (PFN_vkGetMemoryAndroidHardwareBufferANDROID)vkGetDeviceProcAddr(d->device, "vkGetMemoryAndroidHardwareBufferANDROID");
     }
 #endif // __ANDROID_API__ >= 26
 
     return 0;
-}
-
-class VkDummyAllocator : public VkBlobAllocator
-{
-public:
-    VkDummyAllocator(const VulkanDevice* _vkdev)
-        : VkBlobAllocator(_vkdev)
-    {
-        // NOTE 16k is large enough I think ...
-        block_size = alignSize(16 * 1024, buffer_offset_alignment);
-    }
-};
-
-class VkDummyCompute : public VkCompute
-{
-public:
-    VkDummyCompute(const VulkanDevice* _vkdev)
-        : VkCompute(_vkdev)
-    {
-    }
-
-    void record_dummy(const VkMat& buffer)
-    {
-        //         NCNN_LOGE("xxx barrier buffer %p +%d ~%d", buffer.buffer(), buffer.buffer_offset(), buffer.buffer_capacity());
-
-        // barrier device any @ compute/null to shader-readwrite @ compute
-        VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
-        barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-        barriers[0].pNext = 0;
-        barriers[0].srcAccessMask = buffer.data->access_flags;
-        barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[0].buffer = buffer.buffer();
-        barriers[0].offset = buffer.buffer_offset();
-        barriers[0].size = buffer.buffer_capacity();
-
-        VkPipelineStageFlags src_stage = buffer.data->stage_flags;
-        VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-
-        if (vkdev->info.support_VK_KHR_push_descriptor)
-        {
-            vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
-            delete[] barriers;
-        }
-        else
-        {
-            record r;
-            r.type = record::TYPE_buffer_barrers;
-            r.command_buffer = compute_command_buffer;
-            r.buffer_barrers.src_stage = src_stage;
-            r.buffer_barrers.dst_stage = dst_stage;
-            r.buffer_barrers.barrier_count = 1;
-            r.buffer_barrers.barriers = barriers;
-            delayed_records.push_back(r);
-        }
-
-        // mark device shader-readwrite @ compute
-        buffer.data->access_flags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        buffer.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-    }
-
-    void record_dummy(const VkImageMat& image)
-    {
-        //         NCNN_LOGE("xxx barrier image %p +%d ~%d %p", image.image(), image.data->bind_offset, image.data->bind_capacity, image.imageview());
-
-        // image layout transform any @ any to shader-write @ compute
-        VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
-        barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barriers[0].pNext = 0;
-        barriers[0].srcAccessMask = image.data->access_flags;
-        barriers[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        barriers[0].oldLayout = image.data->image_layout;
-        barriers[0].newLayout = VK_IMAGE_LAYOUT_GENERAL;
-        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[0].image = image.image();
-        barriers[0].subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        barriers[0].subresourceRange.baseMipLevel = 0;
-        barriers[0].subresourceRange.levelCount = 1;
-        barriers[0].subresourceRange.baseArrayLayer = 0;
-        barriers[0].subresourceRange.layerCount = 1;
-
-        VkPipelineStageFlags src_stage = image.data->stage_flags;
-        VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-
-        if (vkdev->info.support_VK_KHR_push_descriptor)
-        {
-            vkCmdPipelineBarrier(compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
-            delete[] barriers;
-        }
-        else
-        {
-            record r;
-            r.type = record::TYPE_image_barrers;
-            r.command_buffer = compute_command_buffer;
-            r.image_barrers.src_stage = src_stage;
-            r.image_barrers.dst_stage = dst_stage;
-            r.image_barrers.barrier_count = 1;
-            r.image_barrers.barriers = barriers;
-            delayed_records.push_back(r);
-        }
-
-        // mark image shader-write @ compute
-        image.data->access_flags = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
-        image.data->image_layout = VK_IMAGE_LAYOUT_GENERAL;
-        image.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-    }
-};
-
-int VulkanDevice::create_dummy_buffer_image()
-{
-    dummy_allocator = new VkDummyAllocator(this);
-
-    dummy_buffer.create(1, 4u, dummy_allocator);
-    dummy_image.create(1, 4u, dummy_allocator);
-
-    VkDummyCompute cmd(this);
-
-    cmd.record_dummy(dummy_buffer);
-    cmd.record_dummy(dummy_image);
-
-    cmd.submit_and_wait();
-
-    return 0;
-}
-
-void VulkanDevice::destroy_dummy_buffer_image()
-{
-    dummy_buffer.release();
-    dummy_image.release();
-
-    delete dummy_allocator;
-}
-
-const ncnn::Packing_vulkan* VulkanDevice::get_utility_operator(int storage_type_from, int storage_type_to, int cast_type_from_index, int cast_type_to_index, int packing_type_to_index) const
-{
-    MutexLockGuard lock(uop_lock);
-
-    const ncnn::Packing_vulkan* cached_uop = uop_packing[storage_type_from][storage_type_to][cast_type_from_index][cast_type_to_index][packing_type_to_index];
-    if (cached_uop)
-        return cached_uop;
-
-    if ((cast_type_from_index == 1 && cast_type_to_index == 2) || (cast_type_from_index == 2 && cast_type_to_index == 1))
-    {
-        NCNN_LOGE("no fp16p to/from fp16s conversion");
-        return 0;
-    }
-
-    // create uop
-    Option opt;
-    opt.use_image_storage = (storage_type_from == 1 || storage_type_to == 1);
-    opt.use_fp16_packed = (cast_type_from_index == 1 || cast_type_to_index == 1);
-    opt.use_fp16_storage = (cast_type_from_index == 2 || cast_type_to_index == 2);
-
-    if (!info.support_fp16_packed && opt.use_fp16_packed)
-    {
-        NCNN_LOGE("cannot create uop with use_fp16_packed if not support_fp16_packed");
-        return 0;
-    }
-
-    if (!info.support_fp16_storage && opt.use_fp16_storage)
-    {
-        NCNN_LOGE("cannot create uop with use_fp16_storage if not support_fp16_storage");
-        return 0;
-    }
-
-    // fp16/int8 arithmetic are not necessary for packing
-    // and may conflict with storage options
-    opt.use_fp16_arithmetic = false;
-    opt.use_int8_arithmetic = false;
-
-    // enable pack8 for pack8to1/pack8to4
-    opt.use_shader_pack8 = true;
-
-    opt.use_vulkan_compute = true;
-
-    // cache uop pipeline as device member explicitly
-    opt.pipeline_cache = 0;
-
-    ncnn::Packing_vulkan* uop = new ncnn::Packing_vulkan;
-    uop->vkdev = this;
-
-    ncnn::ParamDict pd;
-    pd.set(0, packing_type_to_index == 0 ? 1 : packing_type_to_index == 1 ? 4 : 8); // out_elempack
-    pd.set(2, cast_type_from_index + 1);                                            // 0=auto 1=fp32 2=fp16p 3=fp16s
-    pd.set(3, cast_type_to_index + 1);
-    pd.set(4, storage_type_from); // 0=buffer 1=image
-    pd.set(5, storage_type_to);
-
-    uop->load_param(pd);
-
-    uop->create_pipeline(opt);
-
-    uop_packing[storage_type_from][storage_type_to][cast_type_from_index][cast_type_to_index][packing_type_to_index] = uop;
-
-    return uop;
-}
-
-void VulkanDevice::destroy_utility_operator()
-{
-    Option opt;
-    opt.use_vulkan_compute = true;
-    opt.use_fp16_arithmetic = false;
-    opt.use_int8_arithmetic = false;
-    opt.pipeline_cache = 0;
-
-    // from buffer | image
-    // to buffer | image
-    for (int i0 = 0; i0 < 2; i0++)
-    {
-        for (int i1 = 0; i1 < 2; i1++)
-        {
-            opt.use_image_storage = (i0 == 1 || i1 == 1);
-
-            // from fp32-b/i | fp16p-b/i | fp16s-b/i
-            // to fp32-b/i | fp16p-b/i | fp16s-b/i
-            for (int j0 = 0; j0 < 3; j0++)
-            {
-                for (int j1 = 0; j1 < 3; j1++)
-                {
-                    if ((j0 == 1 && j1 == 2) || (j0 == 2 && j1 == 1))
-                    {
-                        // no fp16p to/from fp16s conversion
-                        continue;
-                    }
-
-                    opt.use_fp16_packed = (j0 == 1 || j1 == 1);
-                    opt.use_fp16_storage = (j0 == 2 || j1 == 2);
-
-                    if (!info.support_fp16_packed && opt.use_fp16_packed)
-                        continue;
-
-                    if (!info.support_fp16_storage && opt.use_fp16_storage)
-                        continue;
-
-                    // to pack1 | pack4 | pack8
-                    for (int k = 0; k < 3; k++)
-                    {
-                        // enable pack8 for pack8to1/pack8to4
-                        opt.use_shader_pack8 = true;
-
-                        ncnn::Layer* uop = uop_packing[i0][i1][j0][j1][k];
-                        if (!uop)
-                            continue;
-
-                        uop->destroy_pipeline(opt);
-
-                        delete uop;
-
-                        uop_packing[i0][i1][j0][j1][k] = 0;
-                    }
-                }
-            }
-        }
-    }
 }
 
 VulkanDevice* get_gpu_device(int device_index)
@@ -2908,6 +3398,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (opt.use_int8_storage)
     {
         custom_defines.push_back(std::make_pair("NCNN_int8_storage", "1"));
+    }
+    else if (opt.use_int8_packed)
+    {
+        custom_defines.push_back(std::make_pair("NCNN_int8_packed", "1"));
     }
 
     if (opt.use_int8_arithmetic)

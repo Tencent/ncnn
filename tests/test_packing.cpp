@@ -164,8 +164,8 @@ static int test_packing_gpu_buffer(const ncnn::Mat& a, int in_elempack, int out_
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
 
     ncnn::Layer* op = ncnn::create_layer("Packing");
 
@@ -251,8 +251,8 @@ static int test_packing_gpu_image(const ncnn::Mat& a, int in_elempack, int out_e
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
 
     ncnn::Layer* op = ncnn::create_layer("Packing");
 
@@ -338,8 +338,8 @@ static int test_packing_gpu_buffer2image(const ncnn::Mat& a, int in_elempack, in
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
 
     ncnn::Packing_vulkan* op = new ncnn::Packing_vulkan;
 
@@ -425,8 +425,8 @@ static int test_packing_gpu_image2buffer(const ncnn::Mat& a, int in_elempack, in
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
 
     ncnn::Packing_vulkan* op = new ncnn::Packing_vulkan;
 
