@@ -61,15 +61,20 @@ jobs:
         cmake --build . --config Release -j 2
         mkdir "$env:GITHUB_WORKSPACE/swiftshader-install"
         Copy-Item -Path "Windows\*" -Destination "$env:GITHUB_WORKSPACE\swiftshader-install"
-    - name: configure
+    - name: build
       run: |
         $env:VULKAN_SDK="$(pwd)/VulkanSDK"
         mkdir build; cd build
         cmake -T v141,host=x64 -A x64 -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_TESTS=ON ..
-    - name: build
-      run: cmake --build build --config Release -j 2
+        cmake --build . --config Release -j 2
     - name: test
       run: |
         Copy-Item -Path '.\VulkanSDK\RunTimeInstaller\x64\vulkan-1.dll' -Destination 'build\tests'
         $env:VK_ICD_FILENAMES="$env:GITHUB_WORKSPACE\swiftshader-install\vk_swiftshader_icd.json"
         cd build; ctest -C Release --output-on-failure -j 2
+    - name: build-shared
+      run: |
+        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        mkdir build-shared; cd build-shared
+        cmake -T v141,host=x64 -A x64 -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
+        cmake --build . --config Release -j 2

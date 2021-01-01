@@ -26,22 +26,22 @@
 #else
 
 // allocation functions
-void* operator new(size_t size);
-void* operator new[](size_t size);
+NCNN_EXPORT void* operator new(size_t size);
+NCNN_EXPORT void* operator new[](size_t size);
 // placement allocation functions
-void* operator new(size_t size, void* ptr);
-void* operator new[](size_t size, void* ptr);
+NCNN_EXPORT void* operator new(size_t size, void* ptr);
+NCNN_EXPORT void* operator new[](size_t size, void* ptr);
 // deallocation functions
-void operator delete(void* ptr);
-void operator delete[](void* ptr);
+NCNN_EXPORT void operator delete(void* ptr);
+NCNN_EXPORT void operator delete[](void* ptr);
 // deallocation functions since c++14
 #if __cplusplus >= 201402L
-void operator delete(void* ptr, size_t sz);
-void operator delete[](void* ptr, size_t sz);
+NCNN_EXPORT void operator delete(void* ptr, size_t sz);
+NCNN_EXPORT void operator delete[](void* ptr, size_t sz);
 #endif
 // placement deallocation functions
-void operator delete(void* ptr, void* voidptr2);
-void operator delete[](void* ptr, void* voidptr2);
+NCNN_EXPORT void operator delete(void* ptr, void* voidptr2);
+NCNN_EXPORT void operator delete[](void* ptr, void* voidptr2);
 
 #endif
 
@@ -519,7 +519,7 @@ protected:
     }
 };
 
-struct string : public vector<char>
+struct NCNN_EXPORT string : public vector<char>
 {
     string()
     {

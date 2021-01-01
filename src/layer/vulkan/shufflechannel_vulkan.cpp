@@ -65,7 +65,7 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
 
     std::vector<vk_specialization_type> specializations(2 + 10);
     specializations[0].i = reverse ? shape.c / group : group;
-    specializations[1].i = vkdev->info.bug_implicit_fp16_arithmetic;
+    specializations[1].i = vkdev->info.bug_implicit_fp16_arithmetic();
     specializations[2 + 0].i = shape_packed.dims;
     specializations[2 + 1].i = shape_packed.w;
     specializations[2 + 2].i = shape_packed.h;

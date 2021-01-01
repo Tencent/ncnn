@@ -28,42 +28,49 @@
 namespace ncnn {
 
 #if NCNN_VULKAN
-Pipeline::Pipeline(const VulkanDevice* _vkdev)
-    : vkdev(_vkdev)
+class PipelinePrivate
 {
-    shader_module = 0;
-    descriptorset_layout = 0;
-    pipeline_layout = 0;
-    pipeline = 0;
-    descriptor_update_template = 0;
+public:
+    VkShaderModule shader_module;
+    VkDescriptorSetLayout descriptorset_layout;
+    VkPipelineLayout pipeline_layout;
+    VkPipeline pipeline;
+    VkDescriptorUpdateTemplateKHR descriptor_update_template;
 
-    local_size_x = 1;
-    local_size_y = 1;
-    local_size_z = 1;
+    ShaderInfo shader_info;
+
+    uint32_t local_size_x;
+    uint32_t local_size_y;
+    uint32_t local_size_z;
+};
+
+Pipeline::Pipeline(const VulkanDevice* _vkdev)
+    : vkdev(_vkdev), d(new PipelinePrivate)
+{
+    d->shader_module = 0;
+    d->descriptorset_layout = 0;
+    d->pipeline_layout = 0;
+    d->pipeline = 0;
+    d->descriptor_update_template = 0;
+
+    d->local_size_x = 1;
+    d->local_size_y = 1;
+    d->local_size_z = 1;
 }
 
 Pipeline::~Pipeline()
 {
+    delete d;
 }
 
-int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations)
+Pipeline::Pipeline(const Pipeline&)
+    : d(0)
 {
-    const PipelineCache* pipeline_cache = vkdev->get_pipeline_cache();
-
-    // get from pipeline cache
-    return pipeline_cache->get_pipeline(spv_data, spv_data_size, specializations, local_size_x, local_size_y, local_size_z,
-                                        &shader_module, &descriptorset_layout, &pipeline_layout, &pipeline, &descriptor_update_template,
-                                        shader_info);
 }
 
-int Pipeline::create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations)
+Pipeline& Pipeline::operator=(const Pipeline&)
 {
-    const PipelineCache* pipeline_cache = opt.pipeline_cache ? opt.pipeline_cache : vkdev->get_pipeline_cache();
-
-    // get from pipeline cache
-    return pipeline_cache->get_pipeline(shader_type_index, opt, specializations, local_size_x, local_size_y, local_size_z,
-                                        &shader_module, &descriptorset_layout, &pipeline_layout, &pipeline, &descriptor_update_template,
-                                        shader_info);
+    return *this;
 }
 
 void Pipeline::set_optimal_local_size_xyz(int w, int h, int c)
@@ -85,16 +92,16 @@ void Pipeline::set_optimal_local_size_xyz(const Mat& local_size_xyz)
         c = 4;
     }
 
-    w = std::min(w, (int)vkdev->info.max_workgroup_size[0]);
-    h = std::min(h, (int)vkdev->info.max_workgroup_size[1]);
-    c = std::min(c, (int)vkdev->info.max_workgroup_size[2]);
+    w = std::min(w, (int)vkdev->info.max_workgroup_size_x());
+    h = std::min(h, (int)vkdev->info.max_workgroup_size_y());
+    c = std::min(c, (int)vkdev->info.max_workgroup_size_z());
 
-    if (w * h * c <= (int)vkdev->info.max_workgroup_invocations)
+    if (w * h * c <= (int)vkdev->info.max_workgroup_invocations())
     {
         return set_local_size_xyz(w, h, c);
     }
 
-    int max_local_size_xy = (int)vkdev->info.max_workgroup_invocations / c;
+    int max_local_size_xy = (int)vkdev->info.max_workgroup_invocations() / c;
 
     int wh_max = std::max(1, (int)sqrt(max_local_size_xy));
     while (w * h >= wh_max)
@@ -108,13 +115,109 @@ void Pipeline::set_optimal_local_size_xyz(const Mat& local_size_xyz)
 
 void Pipeline::set_local_size_xyz(int w, int h, int c)
 {
-    local_size_x = w;
-    local_size_y = h;
-    local_size_z = c;
+    d->local_size_x = w;
+    d->local_size_y = h;
+    d->local_size_z = c;
 
     //     NCNN_LOGE("local size = %d %d %d", local_size_x, local_size_y, local_size_z);
 }
 
+int Pipeline::create(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations)
+{
+    const PipelineCache* pipeline_cache = vkdev->get_pipeline_cache();
+
+    // get from pipeline cache
+    return pipeline_cache->get_pipeline(spv_data, spv_data_size, specializations, d->local_size_x, d->local_size_y, d->local_size_z,
+                                        &d->shader_module, &d->descriptorset_layout, &d->pipeline_layout, &d->pipeline, &d->descriptor_update_template,
+                                        d->shader_info);
+}
+
+int Pipeline::create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations)
+{
+    const PipelineCache* pipeline_cache = opt.pipeline_cache ? opt.pipeline_cache : vkdev->get_pipeline_cache();
+
+    // get from pipeline cache
+    return pipeline_cache->get_pipeline(shader_type_index, opt, specializations, d->local_size_x, d->local_size_y, d->local_size_z,
+                                        &d->shader_module, &d->descriptorset_layout, &d->pipeline_layout, &d->pipeline, &d->descriptor_update_template,
+                                        d->shader_info);
+}
+
+VkShaderModule Pipeline::shader_module() const
+{
+    return d->shader_module;
+}
+
+VkDescriptorSetLayout Pipeline::descriptorset_layout() const
+{
+    return d->descriptorset_layout;
+}
+
+VkPipelineLayout Pipeline::pipeline_layout() const
+{
+    return d->pipeline_layout;
+}
+
+VkPipeline Pipeline::pipeline() const
+{
+    return d->pipeline;
+}
+
+VkDescriptorUpdateTemplateKHR Pipeline::descriptor_update_template() const
+{
+    return d->descriptor_update_template;
+}
+
+const ShaderInfo& Pipeline::shader_info() const
+{
+    return d->shader_info;
+}
+
+uint32_t Pipeline::local_size_x() const
+{
+    return d->local_size_x;
+}
+
+uint32_t Pipeline::local_size_y() const
+{
+    return d->local_size_y;
+}
+
+uint32_t Pipeline::local_size_z() const
+{
+    return d->local_size_z;
+}
+
+void Pipeline::set_shader_module(VkShaderModule shader_module)
+{
+    d->shader_module = shader_module;
+}
+
+void Pipeline::set_descriptorset_layout(VkDescriptorSetLayout descriptorset_layout)
+{
+    d->descriptorset_layout = descriptorset_layout;
+}
+
+void Pipeline::set_pipeline_layout(VkPipelineLayout pipeline_layout)
+{
+    d->pipeline_layout = pipeline_layout;
+}
+
+void Pipeline::set_pipeline(VkPipeline pipeline)
+{
+    d->pipeline = pipeline;
+}
+
+void Pipeline::set_descriptor_update_template(VkDescriptorUpdateTemplateKHR descriptor_update_template)
+{
+    d->descriptor_update_template = descriptor_update_template;
+}
+
+void Pipeline::set_shader_info(const ShaderInfo& shader_info)
+{
+    d->shader_info = shader_info;
+}
+
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 ImportAndroidHardwareBufferPipeline::ImportAndroidHardwareBufferPipeline(const VulkanDevice* _vkdev)
     : Pipeline(_vkdev)
@@ -169,19 +272,19 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
     //     if (type_to == 1 || type_to == 2)
     //     {
     //         outc = 3;
-    //         out_elemsize = vkdev->info.support_fp16_storage && opt.use_fp16_storage ? 2u : 4u;
+    //         out_elemsize = vkdev->info.support_fp16_storage() && opt.use_fp16_storage ? 2u : 4u;
     //         out_elempack = 1;
     //     }
     //     else if (type_to == 3)
     //     {
     //         outc = 1;
-    //         out_elemsize = vkdev->info.support_fp16_storage && opt.use_fp16_storage ? 2u : 4u;
+    //         out_elemsize = vkdev->info.support_fp16_storage() && opt.use_fp16_storage ? 2u : 4u;
     //         out_elempack = 1;
     //     }
     //     else // if (type_to == 4 || type_to == 5)
     //     {
     //         outc = 1;
-    //         out_elemsize = ((vkdev->info.support_fp16_packed && opt.use_fp16_packed) || (vkdev->info.support_fp16_storage && opt.use_fp16_storage)) ? 8u : 16u;
+    //         out_elemsize = ((vkdev->info.support_fp16_packed() && opt.use_fp16_packed) || (vkdev->info.support_fp16_storage() && opt.use_fp16_storage)) ? 8u : 16u;
     //         out_elempack = 4;
     //     }
 
@@ -198,9 +301,11 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
 
     create_shader_module(opt);
 
-    if ((int)specializations.size() != shader_info.specialization_count)
+    const ShaderInfo& _shader_info = shader_info();
+
+    if ((int)specializations.size() != _shader_info.specialization_count)
     {
-        NCNN_LOGE("pipeline convert_ycbcr specialization count mismatch, expect %d but got %d", shader_info.specialization_count, (int)specializations.size());
+        NCNN_LOGE("pipeline convert_ycbcr specialization count mismatch, expect %d but got %d", _shader_info.specialization_count, (int)specializations.size());
         return -1;
     }
 
@@ -208,14 +313,22 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
 
     create_descriptorset_layout();
 
-    vkdev->create_pipeline_layout(shader_info.push_constant_count, descriptorset_layout, &pipeline_layout);
+    VkPipelineLayout pipeline_layout = 0;
+    VkPipeline pipeline = 0;
+    VkDescriptorUpdateTemplateKHR descriptor_update_template = 0;
 
-    vkdev->create_pipeline(shader_module, pipeline_layout, specializations, &pipeline);
+    vkdev->create_pipeline_layout(_shader_info.push_constant_count, descriptorset_layout(), &pipeline_layout);
 
-    if (vkdev->info.support_VK_KHR_descriptor_update_template)
+    vkdev->create_pipeline(shader_module(), pipeline_layout, specializations, &pipeline);
+
+    if (vkdev->info.support_VK_KHR_descriptor_update_template())
     {
-        vkdev->create_descriptor_update_template(shader_info.binding_count, shader_info.binding_types, descriptorset_layout, pipeline_layout, &descriptor_update_template);
+        vkdev->create_descriptor_update_template(_shader_info.binding_count, _shader_info.binding_types, descriptorset_layout(), pipeline_layout, &descriptor_update_template);
     }
+
+    set_pipeline_layout(pipeline_layout);
+    set_pipeline(pipeline);
+    set_descriptor_update_template(descriptor_update_template);
 
     return 0;
 }
@@ -244,6 +357,7 @@ int ImportAndroidHardwareBufferPipeline::create_shader_module(const Option& opt)
     const uint32_t* spv_data = spirv.data();
     size_t spv_data_size = spirv.size() * 4;
 
+    ShaderInfo shader_info;
     int ret = resolve_shader_info(spv_data, spv_data_size, shader_info);
     if (ret != 0)
     {
@@ -251,7 +365,10 @@ int ImportAndroidHardwareBufferPipeline::create_shader_module(const Option& opt)
         return -1;
     }
 
-    shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
+    set_shader_info(shader_info);
+
+    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x(), local_size_y(), local_size_z());
+    set_shader_module(shader_module);
 
     return 0;
 }
@@ -325,11 +442,12 @@ int ImportAndroidHardwareBufferPipeline::create_descriptorset_layout()
     descriptorSetLayoutCreateInfo.bindingCount = 3;
     descriptorSetLayoutCreateInfo.pBindings = descriptorSetLayoutBindings;
 
-    if (vkdev->info.support_VK_KHR_push_descriptor)
+    if (vkdev->info.support_VK_KHR_push_descriptor())
     {
         descriptorSetLayoutCreateInfo.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
     }
 
+    VkDescriptorSetLayout descriptorset_layout = 0;
     VkResult ret = vkCreateDescriptorSetLayout(vkdev->vkdevice(), &descriptorSetLayoutCreateInfo, 0, &descriptorset_layout);
     if (ret != VK_SUCCESS)
     {
@@ -337,9 +455,13 @@ int ImportAndroidHardwareBufferPipeline::create_descriptorset_layout()
         return -1;
     }
 
+    set_descriptorset_layout(descriptorset_layout);
+
     return 0;
 }
 #endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
+
 #endif // NCNN_VULKAN
 
 } // namespace ncnn

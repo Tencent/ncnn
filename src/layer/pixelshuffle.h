@@ -30,6 +30,7 @@ public:
 
 public:
     int upscale_factor;
+    int mode;
 };
 
 } // namespace ncnn

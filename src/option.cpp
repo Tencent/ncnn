@@ -39,9 +39,12 @@ Option::Option()
     use_int8_inference = true;
     use_vulkan_compute = false; // TODO enable me
 
+    use_bf16_storage = false;
+
     use_fp16_packed = true;
     use_fp16_storage = true;
     use_fp16_arithmetic = true;
+    use_int8_packed = true;
     use_int8_storage = true;
     use_int8_arithmetic = false;
 
@@ -55,8 +58,7 @@ Option::Option()
     use_subgroup_shuffle = false;
 
     use_image_storage = false;
-
-    use_bf16_storage = false;
+    use_tensor_storage = false;
 
     use_weight_fp16_storage = false;
 }

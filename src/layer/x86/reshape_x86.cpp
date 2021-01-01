@@ -129,7 +129,7 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             top_blob.dims = 2;
             top_blob.w = _w;
             top_blob.h = _h;
-            top_blob.cstep = _w * _h;
+            top_blob.cstep = (size_t)_w * _h;
             top_blob.elemsize = out_elemsize;
             top_blob.elempack = out_elempack;
 

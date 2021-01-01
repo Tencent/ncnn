@@ -31,7 +31,7 @@
 // minimal opencv style data structure implementation
 namespace cv {
 
-struct Size
+struct NCNN_EXPORT Size
 {
     Size()
         : width(0), height(0)
@@ -135,7 +135,7 @@ typedef Point_<float> Point2f;
 #define CV_8UC4  4
 #define CV_32FC1 4
 
-struct Mat
+struct NCNN_EXPORT Mat
 {
     Mat()
         : data(0), refcount(0), rows(0), cols(0), c(0)
@@ -300,11 +300,11 @@ struct Mat
 
 #define CV_LOAD_IMAGE_GRAYSCALE 1
 #define CV_LOAD_IMAGE_COLOR     3
-Mat imread(const std::string& path, int flags);
-void imwrite(const std::string& path, const Mat& m);
+NCNN_EXPORT Mat imread(const std::string& path, int flags);
+NCNN_EXPORT void imwrite(const std::string& path, const Mat& m);
 
 #if NCNN_PIXEL
-void resize(const Mat& src, Mat& dst, const Size& size, float sw = 0.f, float sh = 0.f, int flags = 0);
+NCNN_EXPORT void resize(const Mat& src, Mat& dst, const Size& size, float sw = 0.f, float sh = 0.f, int flags = 0);
 #endif // NCNN_PIXEL
 
 } // namespace cv

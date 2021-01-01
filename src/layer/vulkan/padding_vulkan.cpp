@@ -136,7 +136,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     specializations[0].i = type;
     specializations[1].f = value;
     specializations[2].i = per_channel_pad_data_size ? 1 : 0;
-    specializations[3].i = vkdev->info.bug_implicit_fp16_arithmetic;
+    specializations[3].i = vkdev->info.bug_implicit_fp16_arithmetic();
     specializations[4 + 0].i = shape_unpacked.dims;
     specializations[4 + 1].i = shape_unpacked.w;
     specializations[4 + 2].i = shape_unpacked.h;
