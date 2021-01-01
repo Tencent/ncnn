@@ -29,6 +29,9 @@ static int test_command_upload_download(const ncnn::Mat& a)
     opt.blob_vkallocator = blob_allocator;
     opt.staging_vkallocator = staging_allocator;
 
+    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+
     ncnn::Mat d;
     ncnn::Mat e;
     {
@@ -77,6 +80,9 @@ static int test_command_clone(const ncnn::Mat& a)
     opt.use_vulkan_compute = true;
     opt.blob_vkallocator = blob_allocator;
     opt.staging_vkallocator = staging_allocator;
+
+    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
 
     ncnn::Mat d;
     ncnn::Mat e;
@@ -130,6 +136,9 @@ static int test_command_transfer(const ncnn::Mat& a)
     opt.use_vulkan_compute = true;
     opt.blob_vkallocator = blob_allocator;
     opt.staging_vkallocator = staging_allocator;
+
+    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
 
     ncnn::Mat d;
     ncnn::Mat e;
