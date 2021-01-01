@@ -788,7 +788,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
                         if (start == 0 || end == 0)
                             continue;
 
-                        double duration_us = (end - start) * vkdev->info.timestamp_period / 1000;
+                        double duration_us = (end - start) * vkdev->info.timestamp_period() / 1000;
                         NCNN_LOGE("%-24s %-30s %8.2lfus    |", layers[i]->type.c_str(), layers[i]->name.c_str(), duration_us);
                     }
 #endif // NCNN_BENCHMARK
@@ -892,7 +892,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
                     if (start == 0 || end == 0)
                         continue;
 
-                    double duration_us = (end - start) * vkdev->info.timestamp_period / 1000;
+                    double duration_us = (end - start) * vkdev->info.timestamp_period() / 1000;
                     NCNN_LOGE("%-24s %-30s %8.2lfus    |", layers[i]->type.c_str(), layers[i]->name.c_str(), duration_us);
                 }
 #endif // NCNN_BENCHMARK
@@ -1510,7 +1510,7 @@ IMAGE_ALLOCATION_FAILED:
                     if (start == 0 || end == 0)
                         continue;
 
-                    double duration_us = (end - start) * vkdev->info.timestamp_period / 1000;
+                    double duration_us = (end - start) * vkdev->info.timestamp_period() / 1000;
                     NCNN_LOGE("%-24s %-30s %8.2lfus    |", layers[i]->type.c_str(), layers[i]->name.c_str(), duration_us);
                 }
 #endif // NCNN_BENCHMARK
@@ -1638,7 +1638,7 @@ IMAGE_ALLOCATION_FAILED:
                     if (start == 0 || end == 0)
                         continue;
 
-                    double duration_us = (end - start) * vkdev->info.timestamp_period / 1000;
+                    double duration_us = (end - start) * vkdev->info.timestamp_period() / 1000;
                     NCNN_LOGE("%-24s %-30s %8.2lfus    |", layers[i]->type.c_str(), layers[i]->name.c_str(), duration_us);
                 }
 #endif // NCNN_BENCHMARK
@@ -1845,14 +1845,14 @@ int Net::load_param(const DataReader& dr)
     if (opt.use_vulkan_compute)
     {
         // sanitize use options
-        if (!d->vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-        if (!d->vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
-        if (!d->vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
-        if (!d->vkdev->info.support_int8_storage) opt.use_int8_storage = false;
-        if (!d->vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
+        if (!d->vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+        if (!d->vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+        if (!d->vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
+        if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
+        if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
 
         // TODO give user a choice
-        if (d->vkdev->info.bug_storage_buffer_no_l1) opt.use_image_storage = true;
+        if (d->vkdev->info.bug_storage_buffer_no_l1()) opt.use_image_storage = true;
 
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
@@ -2059,14 +2059,14 @@ int Net::load_param_bin(const DataReader& dr)
     if (opt.use_vulkan_compute)
     {
         // sanitize use options
-        if (!d->vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-        if (!d->vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
-        if (!d->vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
-        if (!d->vkdev->info.support_int8_storage) opt.use_int8_storage = false;
-        if (!d->vkdev->info.support_int8_arithmetic) opt.use_int8_arithmetic = false;
+        if (!d->vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+        if (!d->vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+        if (!d->vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
+        if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
+        if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
 
         // TODO give user a choice
-        if (d->vkdev->info.bug_storage_buffer_no_l1) opt.use_image_storage = true;
+        if (d->vkdev->info.bug_storage_buffer_no_l1()) opt.use_image_storage = true;
 
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
@@ -2865,7 +2865,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
                         if (start == 0 || end == 0)
                             continue;
 
-                        double duration_us = (end - start) * d->net->vulkan_device()->info.timestamp_period / 1000;
+                        double duration_us = (end - start) * d->net->vulkan_device()->info.timestamp_period() / 1000;
                         NCNN_LOGE("%-24s %-30s %8.2lfus    |", d->net->layers()[i]->type.c_str(), d->net->layers()[i]->name.c_str(), duration_us);
                     }
 #endif // NCNN_BENCHMARK
@@ -2892,7 +2892,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
                         if (start == 0 || end == 0)
                             continue;
 
-                        double duration_us = (end - start) * d->net->vulkan_device()->info.timestamp_period / 1000;
+                        double duration_us = (end - start) * d->net->vulkan_device()->info.timestamp_period() / 1000;
                         NCNN_LOGE("%-24s %-30s %8.2lfus    |", d->net->layers()[i]->type.c_str(), d->net->layers()[i]->name.c_str(), duration_us);
                     }
 #endif // NCNN_BENCHMARK

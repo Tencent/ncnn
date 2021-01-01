@@ -22,6 +22,11 @@ jobs:
         mkdir build-termux && cd build-termux
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON -DNCNN_PLATFORM_API=OFF ..
         cmake --build . -j 2
+    - name: build-android-29
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-29 -DNCNN_VULKAN=ON ..
+        cmake --build . -j 2
 
   android-aarch64-gpu-ndk-r16b:
     runs-on: ubuntu-latest

@@ -330,8 +330,8 @@ int VkAllocator::flush(VkBufferMemory* ptr)
     mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
     mappedMemoryRange.pNext = 0;
     mappedMemoryRange.memory = ptr->memory;
-    mappedMemoryRange.offset = round_down(ptr->offset, vkdev->info.non_coherent_atom_size);
-    mappedMemoryRange.size = round_up(ptr->offset + ptr->capacity, vkdev->info.non_coherent_atom_size) - mappedMemoryRange.offset;
+    mappedMemoryRange.offset = round_down(ptr->offset, vkdev->info.non_coherent_atom_size());
+    mappedMemoryRange.size = round_up(ptr->offset + ptr->capacity, vkdev->info.non_coherent_atom_size()) - mappedMemoryRange.offset;
 
     VkResult ret = vkFlushMappedMemoryRanges(vkdev->vkdevice(), 1, &mappedMemoryRange);
     if (ret != VK_SUCCESS)
@@ -352,8 +352,8 @@ int VkAllocator::invalidate(VkBufferMemory* ptr)
     mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
     mappedMemoryRange.pNext = 0;
     mappedMemoryRange.memory = ptr->memory;
-    mappedMemoryRange.offset = round_down(ptr->offset, vkdev->info.non_coherent_atom_size);
-    mappedMemoryRange.size = round_up(ptr->offset + ptr->capacity, vkdev->info.non_coherent_atom_size) - mappedMemoryRange.offset;
+    mappedMemoryRange.offset = round_down(ptr->offset, vkdev->info.non_coherent_atom_size());
+    mappedMemoryRange.size = round_up(ptr->offset + ptr->capacity, vkdev->info.non_coherent_atom_size()) - mappedMemoryRange.offset;
 
     VkResult ret = vkInvalidateMappedMemoryRanges(vkdev->vkdevice(), 1, &mappedMemoryRange);
     if (ret != VK_SUCCESS)
@@ -527,17 +527,17 @@ public:
 VkBlobAllocator::VkBlobAllocator(const VulkanDevice* _vkdev, size_t preferred_block_size)
     : VkAllocator(_vkdev), d(new VkBlobAllocatorPrivate)
 {
-    d->buffer_offset_alignment = vkdev->info.buffer_offset_alignment;
-    d->bind_memory_offset_alignment = vkdev->info.buffer_image_granularity;
+    d->buffer_offset_alignment = vkdev->info.buffer_offset_alignment();
+    d->bind_memory_offset_alignment = vkdev->info.buffer_image_granularity();
 
-    if (vkdev->info.type == 1)
+    if (vkdev->info.type() == 1)
     {
         // on integrated gpu, there may be device local only memory too, eg. AMD APU
         // assuming larger alignment always keeps us safe :)
 
         // least common multiple for memory_map_alignment and buffer_offset_alignment and non_coherent_atom_size
-        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.memory_map_alignment);
-        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.non_coherent_atom_size);
+        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.memory_map_alignment());
+        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.non_coherent_atom_size());
     }
 
     d->block_size = alignSize(preferred_block_size, d->buffer_offset_alignment);
@@ -668,7 +668,7 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     // setup memory type and alignment
     if (buffer_memory_type_index == (uint32_t)-1)
     {
-        if (vkdev->info.type == 1)
+        if (vkdev->info.type() == 1)
         {
             // integrated gpu, prefer unified memory
             buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
@@ -825,9 +825,9 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
     // large elempack spills on image w
     if (elempack == 8) width *= 2;
 
-    if (width > (int)vkdev->info.max_image_dimension_3d || height > (int)vkdev->info.max_image_dimension_3d || depth > (int)vkdev->info.max_image_dimension_3d)
+    if (width > (int)vkdev->info.max_image_dimension_3d() || height > (int)vkdev->info.max_image_dimension_3d() || depth > (int)vkdev->info.max_image_dimension_3d())
     {
-        NCNN_LOGE("image dimension too large %d %d %d > %d", width, height, depth, (int)vkdev->info.max_image_dimension_3d);
+        NCNN_LOGE("image dimension too large %d %d %d > %d", width, height, depth, (int)vkdev->info.max_image_dimension_3d());
         return 0;
     }
 
@@ -915,7 +915,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
     // setup memory type and alignment
     if (image_memory_type_index == (uint32_t)-1)
     {
-        if (vkdev->info.type == 1)
+        if (vkdev->info.type() == 1)
         {
             // integrated gpu, prefer unified memory
             image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
@@ -1066,17 +1066,17 @@ public:
 VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev, size_t preferred_block_size)
     : VkAllocator(_vkdev), d(new VkWeightAllocatorPrivate)
 {
-    d->buffer_offset_alignment = vkdev->info.buffer_offset_alignment;
-    d->bind_memory_offset_alignment = vkdev->info.buffer_image_granularity;
+    d->buffer_offset_alignment = vkdev->info.buffer_offset_alignment();
+    d->bind_memory_offset_alignment = vkdev->info.buffer_image_granularity();
 
-    if (vkdev->info.type == 1)
+    if (vkdev->info.type() == 1)
     {
         // on integrated gpu, there may be device local only memory too, eg. AMD APU
         // assuming larger alignment always keeps us safe :)
 
         // least common multiple for memory_map_alignment and buffer_offset_alignment and non_coherent_atom_size
-        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.memory_map_alignment);
-        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.non_coherent_atom_size);
+        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.memory_map_alignment());
+        d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.non_coherent_atom_size());
     }
 
     d->block_size = alignSize(preferred_block_size, d->buffer_offset_alignment);
@@ -1193,7 +1193,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     block->buffer = create_buffer(new_block_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
     block->offset = 0;
 
-    if (vkdev->info.support_VK_KHR_get_memory_requirements2 && vkdev->info.support_VK_KHR_dedicated_allocation)
+    if (vkdev->info.support_VK_KHR_get_memory_requirements2() && vkdev->info.support_VK_KHR_dedicated_allocation())
     {
         VkBufferMemoryRequirementsInfo2KHR bufferMemoryRequirementsInfo2;
         bufferMemoryRequirementsInfo2.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2_KHR;
@@ -1218,7 +1218,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             // setup memory type and alignment
             if (buffer_memory_type_index == (uint32_t)-1)
             {
-                if (vkdev->info.type == 1)
+                if (vkdev->info.type() == 1)
                 {
                     // integrated gpu, prefer unified memory
                     buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
@@ -1267,7 +1267,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     // setup memory type and alignment
     if (buffer_memory_type_index == (uint32_t)-1)
     {
-        if (vkdev->info.type == 1)
+        if (vkdev->info.type() == 1)
         {
             // integrated gpu, prefer unified memory
             buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
@@ -1363,9 +1363,9 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
     if (elempack == 32) width *= 8;
     if (elempack == 64) width *= 16;
 
-    if (width > (int)vkdev->info.max_image_dimension_3d || height > (int)vkdev->info.max_image_dimension_3d || depth > (int)vkdev->info.max_image_dimension_3d)
+    if (width > (int)vkdev->info.max_image_dimension_3d() || height > (int)vkdev->info.max_image_dimension_3d() || depth > (int)vkdev->info.max_image_dimension_3d())
     {
-        NCNN_LOGE("image dimension too large %d %d %d > %d", width, height, depth, (int)vkdev->info.max_image_dimension_3d);
+        NCNN_LOGE("image dimension too large %d %d %d > %d", width, height, depth, (int)vkdev->info.max_image_dimension_3d());
         return 0;
     }
 
@@ -1378,7 +1378,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
     ptr->depth = depth;
     ptr->format = format;
 
-    if (vkdev->info.support_VK_KHR_get_memory_requirements2 && vkdev->info.support_VK_KHR_dedicated_allocation)
+    if (vkdev->info.support_VK_KHR_get_memory_requirements2() && vkdev->info.support_VK_KHR_dedicated_allocation())
     {
         VkImageMemoryRequirementsInfo2KHR imageMemoryRequirementsInfo2;
         imageMemoryRequirementsInfo2.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2_KHR;
@@ -1403,7 +1403,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
             // setup memory type and alignment
             if (image_memory_type_index == (uint32_t)-1)
             {
-                if (vkdev->info.type == 1)
+                if (vkdev->info.type() == 1)
                 {
                     // integrated gpu, prefer unified memory
                     image_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);
@@ -1497,7 +1497,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
     // setup memory type and alignment
     if (image_memory_type_index == (uint32_t)-1)
     {
-        if (vkdev->info.type == 1)
+        if (vkdev->info.type() == 1)
         {
             // integrated gpu, prefer unified memory
             image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, 0);

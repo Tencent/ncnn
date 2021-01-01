@@ -198,7 +198,7 @@ void PipelineCache::clear()
     {
         const PipelineCachePrivate::pipeline_cache_artifact& cc = d->cache_artifacts[i];
 
-        if (vkdev->info.support_VK_KHR_descriptor_update_template)
+        if (vkdev->info.support_VK_KHR_descriptor_update_template())
         {
             if (cc.descriptor_update_template)
             {
@@ -244,7 +244,7 @@ int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, 
 
     PipelineCachePrivate::pipeline_cache_digest key(spv_data, spv_data_size, specializations, local_size_x, local_size_y, local_size_z);
 
-    if (!vkdev->info.bug_corrupted_online_pipeline_cache)
+    if (!vkdev->info.bug_corrupted_online_pipeline_cache())
     {
         // find cache
         for (size_t i = 0; i < d->cache_digests.size(); i++)
@@ -327,7 +327,7 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
 
     PipelineCachePrivate::pipeline_cache_digest key(shader_type_index, opt, specializations, local_size_x, local_size_y, local_size_z);
 
-    if (!vkdev->info.bug_corrupted_online_pipeline_cache)
+    if (!vkdev->info.bug_corrupted_online_pipeline_cache())
     {
         // find cache
         for (size_t i = 0; i < d->cache_digests.size(); i++)
@@ -458,7 +458,7 @@ int PipelineCache::new_pipeline(VkShaderModule shader_module, const ShaderInfo& 
     if (ret != 0)
         goto ERROR_PipelineCache;
 
-    if (vkdev->info.support_VK_KHR_descriptor_update_template)
+    if (vkdev->info.support_VK_KHR_descriptor_update_template())
     {
         ret = vkdev->create_descriptor_update_template(shader_info.binding_count, shader_info.binding_types, descriptorset_layout, pipeline_layout, &descriptor_update_template);
         if (ret != 0)
@@ -474,7 +474,7 @@ int PipelineCache::new_pipeline(VkShaderModule shader_module, const ShaderInfo& 
 
 ERROR_PipelineCache:
 
-    if (vkdev->info.support_VK_KHR_descriptor_update_template)
+    if (vkdev->info.support_VK_KHR_descriptor_update_template())
     {
         if (descriptor_update_template)
         {

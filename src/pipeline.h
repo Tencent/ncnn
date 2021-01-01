@@ -27,6 +27,7 @@ namespace ncnn {
 
 #if NCNN_VULKAN
 class Option;
+class PipelinePrivate;
 class NCNN_EXPORT Pipeline
 {
 public:
@@ -43,23 +44,36 @@ public:
     int create(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations);
 
 public:
+    VkShaderModule shader_module() const;
+    VkDescriptorSetLayout descriptorset_layout() const;
+    VkPipelineLayout pipeline_layout() const;
+    VkPipeline pipeline() const;
+    VkDescriptorUpdateTemplateKHR descriptor_update_template() const;
+
+    const ShaderInfo& shader_info() const;
+
+    uint32_t local_size_x() const;
+    uint32_t local_size_y() const;
+    uint32_t local_size_z() const;
+
+protected:
+    void set_shader_module(VkShaderModule shader_module);
+    void set_descriptorset_layout(VkDescriptorSetLayout descriptorset_layout);
+    void set_pipeline_layout(VkPipelineLayout pipeline_layout);
+    void set_pipeline(VkPipeline pipeline);
+    void set_descriptor_update_template(VkDescriptorUpdateTemplateKHR descriptor_update_template);
+
+    void set_shader_info(const ShaderInfo& shader_info);
+
+public:
     const VulkanDevice* vkdev;
-
-    VkShaderModule shader_module;
-    VkDescriptorSetLayout descriptorset_layout;
-    VkPipelineLayout pipeline_layout;
-    VkPipeline pipeline;
-    VkDescriptorUpdateTemplateKHR descriptor_update_template;
-
-    ShaderInfo shader_info;
-
-    uint32_t local_size_x;
-    uint32_t local_size_y;
-    uint32_t local_size_z;
 
 private:
     Pipeline(const Pipeline&);
     Pipeline& operator=(const Pipeline&);
+
+private:
+    PipelinePrivate* const d;
 };
 
 #if NCNN_PLATFORM_API
