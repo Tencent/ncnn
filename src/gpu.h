@@ -182,6 +182,10 @@ public:
 #endif // __ANDROID_API__ >= 26
 
 private:
+    GpuInfo(const GpuInfo&);
+    GpuInfo& operator=(const GpuInfo&);
+
+private:
     friend int create_gpu_instance();
     GpuInfoPrivate* const d;
 };

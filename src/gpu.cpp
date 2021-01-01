@@ -238,6 +238,16 @@ GpuInfo::~GpuInfo()
     delete d;
 }
 
+GpuInfo::GpuInfo(const GpuInfo&)
+    : d(0)
+{
+}
+
+GpuInfo& GpuInfo::operator=(const GpuInfo&)
+{
+    return *this;
+}
+
 VkPhysicalDevice GpuInfo::physical_device() const
 {
     return d->physical_device;
