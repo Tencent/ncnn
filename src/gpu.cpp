@@ -64,7 +64,7 @@ static int g_default_gpu_index = -1;
 
 // NOTE 8 is large enough i think ...
 #define NCNN_MAX_GPU_COUNT 8
-static GpuInfo g_gpu_infos[NCNN_MAX_GPU_COUNT];
+static GpuInfo* g_gpu_infos[NCNN_MAX_GPU_COUNT] = {0};
 
 // default vulkan device
 static Mutex g_default_vkdev_lock;
@@ -800,14 +800,14 @@ static int find_default_vulkan_device_index()
     // first try, discrete gpu
     for (int i = 0; i < g_gpu_count; i++)
     {
-        if (g_gpu_infos[i].type() == 0)
+        if (g_gpu_infos[i]->type() == 0)
             return i;
     }
 
     // second try, integrated gpu
     for (int i = 0; i < g_gpu_count; i++)
     {
-        if (g_gpu_infos[i].type() == 1)
+        if (g_gpu_infos[i]->type() == 1)
             return i;
     }
 
@@ -1017,7 +1017,9 @@ int create_gpu_instance()
     for (uint32_t i = 0; i < physicalDeviceCount; i++)
     {
         const VkPhysicalDevice& physicalDevice = physicalDevices[i];
-        GpuInfoPrivate& gpu_info = *g_gpu_infos[gpu_info_index].d;
+        delete g_gpu_infos[gpu_info_index];
+        g_gpu_infos[gpu_info_index] = new GpuInfo;
+        GpuInfoPrivate& gpu_info = *(g_gpu_infos[gpu_info_index]->d);
 
         // device type
         VkPhysicalDeviceProperties physicalDeviceProperties;
@@ -1466,6 +1468,9 @@ void destroy_gpu_instance()
     {
         delete g_default_vkdev[i];
         g_default_vkdev[i] = 0;
+
+        delete g_gpu_infos[i];
+        g_gpu_infos[i] = 0;
     }
 
 #if ENABLE_VALIDATION_LAYER
@@ -1511,7 +1516,7 @@ const GpuInfo& get_gpu_info(int device_index)
 {
     try_create_gpu_instance();
 
-    return g_gpu_infos[device_index];
+    return *g_gpu_infos[device_index];
 }
 
 class VkDummyAllocator : public VkBlobAllocator
@@ -1755,7 +1760,7 @@ void VulkanDevicePrivate::destroy_utility_operator()
 }
 
 VulkanDevice::VulkanDevice(int device_index)
-    : info(g_gpu_infos[device_index]), d(new VulkanDevicePrivate(this))
+    : info(get_gpu_info(device_index)), d(new VulkanDevicePrivate(this))
 {
     try_create_gpu_instance();
 
@@ -2025,7 +2030,7 @@ VulkanDevice::~VulkanDevice()
 }
 
 VulkanDevice::VulkanDevice(const VulkanDevice&)
-    : info(g_gpu_infos[0]), d(0)
+    : info(get_gpu_info(0)), d(0)
 {
 }
 
