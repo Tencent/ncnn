@@ -31,11 +31,11 @@ namespace ncnn {
 
 #if NCNN_VULKAN
 class VkCompute;
-class PipelineCache;
 #endif // NCNN_VULKAN
 class DataReader;
 class Extractor;
-class Net
+class NetPrivate;
+class NCNN_EXPORT Net
 {
 public:
     // empty init
@@ -128,25 +128,13 @@ public:
     // construct an Extractor from network
     Extractor create_extractor() const;
 
-public:
-    std::vector<Blob> blobs;
-    std::vector<Layer*> layers;
+    const std::vector<Blob>& blobs() const;
+    const std::vector<Layer*>& layers() const;
+
+    std::vector<Blob>& mutable_blobs();
+    std::vector<Layer*>& mutable_layers();
 
 protected:
-    // parse the structure of network
-    // fuse int8 op dequantize and quantize by requantize
-    int fuse_network();
-
-#if NCNN_VULKAN
-
-    int upload_model();
-
-    int create_pipeline();
-
-    int destroy_pipeline();
-
-#endif // NCNN_VULKAN
-
     friend class Extractor;
 #if NCNN_STRING
     int find_blob_index_by_name(const char* name) const;
@@ -155,30 +143,26 @@ protected:
     virtual Layer* create_custom_layer(const char* type);
 #endif // NCNN_STRING
     virtual Layer* create_custom_layer(int index);
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const;
 
-#if NCNN_VULKAN
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, VkCompute& cmd, const Option& opt) const;
-    int forward_layer(int layer_index, std::vector<Mat>& blob_mats, std::vector<VkMat>& blob_mats_gpu, std::vector<VkImageMat>& blob_mats_gpu_image, VkCompute& cmd, const Option& opt) const;
-#endif // NCNN_VULKAN
+private:
+    Net(const Net&);
+    Net& operator=(const Net&);
 
-protected:
-    std::vector<custom_layer_registry_entry> custom_layer_registry;
-
-#if NCNN_VULKAN
-    const VulkanDevice* vkdev;
-
-    VkAllocator* weight_vkallocator;
-    VkAllocator* weight_staging_vkallocator;
-
-    PipelineCache* pipeline_cache;
-#endif // NCNN_VULKAN
+private:
+    NetPrivate* const d;
 };
 
-class Extractor
+class ExtractorPrivate;
+class NCNN_EXPORT Extractor
 {
 public:
-    ~Extractor();
+    virtual ~Extractor();
+
+    // copy
+    Extractor(const Extractor&);
+
+    // assign
+    Extractor& operator=(const Extractor&);
 
     // enable light mode
     // intermediate blob will be recycled when enabled
@@ -269,17 +253,7 @@ protected:
     Extractor(const Net* net, size_t blob_count);
 
 private:
-    const Net* net;
-    std::vector<Mat> blob_mats;
-    Option opt;
-
-#if NCNN_VULKAN
-    VkAllocator* local_blob_vkallocator;
-    VkAllocator* local_staging_vkallocator;
-
-    std::vector<VkMat> blob_mats_gpu;
-    std::vector<VkImageMat> blob_mats_gpu_image;
-#endif // NCNN_VULKAN
+    ExtractorPrivate* const d;
 };
 
 } // namespace ncnn

@@ -11,49 +11,33 @@ jobs:
         cd emsdk
         ./emsdk install latest
         ./emsdk activate latest
-    - name: configure
-      run: source emsdk/emsdk_env.sh && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_BUILD_TESTS=ON ..
-    - name: build
-      run: cmake --build build -j 2
-    - name: test
+    - name: build-basic
       run: |
-        cd build
-        TESTS_EXECUTABLE_LOADER=node TESTS_EXECUTABLE_LOADER_ARGUMENTS="--experimental-wasm-simd" ctest --output-on-failure -j 2
-
-  webassembly-nosimd:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: emsdk
+        source emsdk/emsdk_env.sh
+        mkdir build-basic && cd build-basic
+        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-basic
       run: |
-        git clone https://github.com/emscripten-core/emsdk.git
-        cd emsdk
-        ./emsdk install latest
-        ./emsdk activate latest
-    - name: configure
-      run: source emsdk/emsdk_env.sh && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
-    - name: build
-      run: cmake --build build -j 2
-    - name: test
-      run: |
-        cd build
+        cd build-basic
         TESTS_EXECUTABLE_LOADER=node ctest --output-on-failure -j 2
-
-  webassembly-simpleomp:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: emsdk
+    - name: build-simd
       run: |
-        git clone https://github.com/emscripten-core/emsdk.git
-        cd emsdk
-        ./emsdk install latest
-        ./emsdk activate latest
-    - name: configure
-      run: source emsdk/emsdk_env.sh && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_SIMPLEOMP=ON -DNCNN_BUILD_TESTS=ON ..
-    - name: build
-      run: cmake --build build -j 2
-    - name: test
+        source emsdk/emsdk_env.sh
+        mkdir build-simd && cd build-simd
+        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-simd
       run: |
-        cd build
+        cd build-simd
+        TESTS_EXECUTABLE_LOADER=node TESTS_EXECUTABLE_LOADER_ARGUMENTS="--experimental-wasm-simd" ctest --output-on-failure -j 2
+    - name: build-simd-omp
+      run: |
+        source emsdk/emsdk_env.sh
+        mkdir build-simd-omp && cd build-simd-omp
+        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-simd-omp
+      run: |
+        cd build-simd-omp
         TESTS_EXECUTABLE_LOADER=node TESTS_EXECUTABLE_LOADER_ARGUMENTS="--experimental-wasm-simd;--experimental-wasm-threads;--experimental-wasm-bulk-memory" ctest --output-on-failure -j 2

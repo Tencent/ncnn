@@ -34,6 +34,8 @@
 
 #cmakedefine NCNN_VERSION_STRING "@NCNN_VERSION_STRING@"
 
+#include "ncnn_export.h"
+
 #ifdef __cplusplus
 
 #if NCNN_THREADS
@@ -54,7 +56,7 @@ namespace ncnn {
 
 #if NCNN_THREADS
 #if (defined _WIN32 && !(defined __MINGW32__))
-class Mutex
+class NCNN_EXPORT Mutex
 {
 public:
     Mutex() { InitializeSRWLock(&srwlock); }
@@ -67,7 +69,7 @@ private:
     SRWLOCK srwlock;
 };
 
-class ConditionVariable
+class NCNN_EXPORT ConditionVariable
 {
 public:
     ConditionVariable() { InitializeConditionVariable(&condvar); }
@@ -80,7 +82,7 @@ private:
 };
 
 static unsigned __stdcall start_wrapper(void* args);
-class Thread
+class NCNN_EXPORT Thread
 {
 public:
     Thread(void* (*start)(void*), void* args = 0) { _start = start; _args = args; handle = (HANDLE)_beginthreadex(0, 0, start_wrapper, this, 0, 0); }
@@ -98,7 +100,7 @@ private:
     void* _args;
 };
 
-class ThreadLocalStorage
+class NCNN_EXPORT ThreadLocalStorage
 {
 public:
     ThreadLocalStorage() { key = TlsAlloc(); }
@@ -109,7 +111,7 @@ private:
     DWORD key;
 };
 #else // (defined _WIN32 && !(defined __MINGW32__))
-class Mutex
+class NCNN_EXPORT Mutex
 {
 public:
     Mutex() { pthread_mutex_init(&mutex, 0); }
@@ -121,7 +123,7 @@ private:
     pthread_mutex_t mutex;
 };
 
-class ConditionVariable
+class NCNN_EXPORT ConditionVariable
 {
 public:
     ConditionVariable() { pthread_cond_init(&cond, 0); }
@@ -133,7 +135,7 @@ private:
     pthread_cond_t cond;
 };
 
-class Thread
+class NCNN_EXPORT Thread
 {
 public:
     Thread(void* (*start)(void*), void* args = 0) { pthread_create(&t, 0, start, args); }
@@ -143,7 +145,7 @@ private:
     pthread_t t;
 };
 
-class ThreadLocalStorage
+class NCNN_EXPORT ThreadLocalStorage
 {
 public:
     ThreadLocalStorage() { pthread_key_create(&key, 0); }
@@ -155,7 +157,7 @@ private:
 };
 #endif // (defined _WIN32 && !(defined __MINGW32__))
 #else // NCNN_THREADS
-class Mutex
+class NCNN_EXPORT Mutex
 {
 public:
     Mutex() {}
@@ -164,7 +166,7 @@ public:
     void unlock() {}
 };
 
-class ConditionVariable
+class NCNN_EXPORT ConditionVariable
 {
 public:
     ConditionVariable() {}
@@ -174,7 +176,7 @@ public:
     void signal() {}
 };
 
-class Thread
+class NCNN_EXPORT Thread
 {
 public:
     Thread(void* (*/*start*/)(void*), void* /*args*/ = 0) {}
@@ -182,7 +184,7 @@ public:
     void join() {}
 };
 
-class ThreadLocalStorage
+class NCNN_EXPORT ThreadLocalStorage
 {
 public:
     ThreadLocalStorage() { data = 0; }
@@ -194,7 +196,7 @@ private:
 };
 #endif // NCNN_THREADS
 
-class MutexLockGuard
+class NCNN_EXPORT MutexLockGuard
 {
 public:
     MutexLockGuard(Mutex& _mutex) : mutex(_mutex) { mutex.lock(); }

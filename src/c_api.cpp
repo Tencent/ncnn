@@ -417,7 +417,7 @@ int ncnn_paramdict_get_int(const ncnn_paramdict_t pd, int id, int def)
     return ((const ParamDict*)pd)->get(id, def);
 }
 
-int ncnn_paramdict_get_float(const ncnn_paramdict_t pd, int id, float def)
+float ncnn_paramdict_get_float(const ncnn_paramdict_t pd, int id, float def)
 {
     return ((const ParamDict*)pd)->get(id, def);
 }

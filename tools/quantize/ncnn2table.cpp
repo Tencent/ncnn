@@ -64,6 +64,11 @@ int parse_images_dir(const std::string& base_path, std::vector<std::string>& fil
 class QuantNet : public ncnn::Net
 {
 public:
+    QuantNet();
+
+    std::vector<ncnn::Blob>& blobs;
+    std::vector<ncnn::Layer*>& layers;
+
     int get_conv_names();
     int get_conv_bottom_blob_names();
     int get_conv_weight_blob_scales();
@@ -75,6 +80,11 @@ public:
     std::map<std::string, std::vector<float> > weight_scales;
     std::vector<std::string> input_names;
 };
+
+QuantNet::QuantNet()
+    : blobs(mutable_blobs()), layers(mutable_layers())
+{
+}
 
 int QuantNet::get_input_names()
 {

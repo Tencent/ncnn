@@ -176,7 +176,7 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     }
 
     std::vector<vk_specialization_type> specializations(1 + 10);
-    specializations[0].i = vkdev->info.bug_implicit_fp16_arithmetic;
+    specializations[0].i = vkdev->info.bug_implicit_fp16_arithmetic();
     specializations[1 + 0].i = shape_unpacked.dims;
     specializations[1 + 1].i = shape_unpacked.w;
     specializations[1 + 2].i = shape_unpacked.h;

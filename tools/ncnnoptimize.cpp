@@ -194,6 +194,9 @@ class NetOptimize : public ncnn::Net
 public:
     NetOptimize();
 
+    std::vector<ncnn::Blob>& blobs;
+    std::vector<ncnn::Layer*>& layers;
+
     virtual int custom_layer_to_index(const char* type);
     virtual ncnn::Layer* create_custom_layer(const char* type);
     virtual ncnn::Layer* create_custom_layer(int index);
@@ -255,6 +258,7 @@ public:
 };
 
 NetOptimize::NetOptimize()
+    : blobs(mutable_blobs()), layers(mutable_layers())
 {
     custom_layer_index = 0;
 }

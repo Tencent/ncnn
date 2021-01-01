@@ -19,6 +19,10 @@
 #include <math.h>
 #include <string.h>
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4250)
+#endif
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Woverloaded-virtual"
@@ -26,6 +30,9 @@
 #include "layer_declaration.h"
 #ifdef __clang__
 #pragma clang diagnostic pop
+#endif
+#ifdef _MSC_VER
+#pragma warning(pop)
 #endif
 
 namespace ncnn {
@@ -39,7 +46,9 @@ Layer::Layer()
 
     support_bf16_storage = false;
     support_fp16_storage = false;
+    support_int8_storage = false;
     support_image_storage = false;
+    support_tensor_storage = false;
 
     use_int8_inference = false;
     support_weight_fp16_storage = false;
