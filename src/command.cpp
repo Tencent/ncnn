@@ -2947,7 +2947,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
             Mat src_fp16;
             cast_float32_to_float16(src, src_fp16);
 
-            record_upload(src_fp16, dst, opt);
+            record_upload(src_fp16, dst, opt, flatten);
 
             return;
         }
