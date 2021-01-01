@@ -61,7 +61,7 @@ NCNN_EXPORT int get_little_cpu_count();
 NCNN_EXPORT int get_big_cpu_count();
 
 // bind all threads on little clusters if powersave enabled
-// affacts HMP arch cpu like ARM big.LITTLE
+// affects HMP arch cpu like ARM big.LITTLE
 // only implemented on android at the moment
 // switching powersave is expensive and not thread-safe
 // 0 = all cores enabled(default)
