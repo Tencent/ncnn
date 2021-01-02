@@ -108,7 +108,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         return -100;
 
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < num_output; p++)
     {
         float sum = 0.f;
@@ -182,7 +182,7 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         return -100;
 
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < num_output; p++)
     {
         float* outptr = top_blob;
