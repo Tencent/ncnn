@@ -622,7 +622,7 @@ PYBIND11_MODULE(ncnn, m)
 #endif // NCNN_STDIO
 
     .def("clear", &Net::clear)
-    .def("create_extractor", &Net::create_extractor);
+    .def("create_extractor", &Net::create_extractor)
     //.def_property("blobs", &Net::mutable_blobs)
     //.def_property("layers", &Net::mutable_layers);
 
