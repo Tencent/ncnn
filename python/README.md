@@ -13,6 +13,18 @@ python wrapper of ncnn with [pybind11](https://github.com/pybind/pybind11), only
 * Visual Studio 2015 or higher
 * CMake >= 3.4
 
+以下测试py3.7
+* 需要 Windows x86-64 executable installer
+* cmake -DNCNN_PYTHON=ON ..   -G"NMake Makefiles" -DCMAKE_BUILD_TYPE=Release
+* 编译可过
+* 如果pip有问题，卸载，删除原安装目录，重装。
+* 测试 
+```
+cd \pathto\ncnn\python\tests
+python test.py
+timespan =  0.009000539779663086
+```
+
 ## Build
 1. clone ncnn and init submodule.
 ```bash
