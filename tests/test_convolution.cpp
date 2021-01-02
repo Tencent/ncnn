@@ -202,7 +202,7 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         weights[2] = input_scales; 
     }
 
-    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a, 0.0f, requant ? set_param : 0);
+    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a, 1.0f, requant ? set_param : 0);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant);
@@ -232,7 +232,7 @@ static int test_convolution_1()
         {7, 2, 1, 3},
     };
 
-    for (int i = 4; i < 16; i++)
+    for (int i = 0; i < 16; i++)
     {
         const int k = kdsp[i][0];
         const int d = kdsp[i][1];
@@ -240,12 +240,12 @@ static int test_convolution_1()
         const int p = kdsp[i][3];
 
         int ret = 0
-//                  || test_convolution_int8(9, 7, 1, 1, k, d, s, p, 1)
-//                  || test_convolution_int8(9, 7, 2, 2, k, d, s, p, 1)
-//                  || test_convolution_int8(9, 7, 3, 3, k, d, s, p, 1)
-//                  || test_convolution_int8(9, 7, 4, 4, k, d, s, p, 1)
-//                  || test_convolution_int8(9, 7, 7, 7, k, d, s, p, 1)
-//                  || test_convolution_int8(9, 7, 8, 8, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 1, 1, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 2, 2, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 3, 3, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 4, 4, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 7, 7, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 8, 8, k, d, s, p, 1)
                   || test_convolution_int8(9, 7, 15, 15, k, d, s, p, 1)
                   || test_convolution_int8(9, 7, 16, 16, k, d, s, p, 1);
 
@@ -281,7 +281,7 @@ int main()
 {
     SRAND(7767517);
     return 0
-//           || test_convolution_0()
+           || test_convolution_0()
            || test_convolution_1()
            || test_convolution_2();
 }

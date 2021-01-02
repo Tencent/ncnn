@@ -141,7 +141,7 @@ int main()
 {
     SRAND(7767517);
 
-    return 0 
+    return 0
            || test_innerproduct_0()
            || test_innerproduct_1()
            || test_innerproduct_2()

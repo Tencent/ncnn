@@ -56,7 +56,6 @@ public:
     // int8
     Mat weight_data_int8; 
     Mat scales_in;
-
 };
 
 } // namespace ncnn

@@ -22,6 +22,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #if NCNN_VULKAN
 #include "command.h"
@@ -74,7 +75,7 @@ static ncnn::Mat scales_mat(const ncnn::Mat& mat, int m, int k, int ldx)
     ncnn::Mat weight_scales(m);
     for (int i = 0; i < m; ++i)
     {
-        float min = mat[0], max = mat[0];
+        float min = mat[0], _max = mat[0];
         const float* ptr = (const float*)(mat.data) + i * ldx;
         for (int j = 0; j < k; ++j)
         {
@@ -82,12 +83,13 @@ static ncnn::Mat scales_mat(const ncnn::Mat& mat, int m, int k, int ldx)
             {
                 min = ptr[j];
             }
-            if (max < ptr[j])
+            if (_max < ptr[j])
             {
-                max = ptr[j];
+                _max = ptr[j];
             }
         }
-        weight_scales[i] = 127.f / std::max(std::abs(min), std::abs(max));
+        const float abs_min = abs(min), abs_max = abs(_max);
+        weight_scales[i] = 127.f / (abs_min > abs_max ? abs_min : abs_max);
     }
     return weight_scales;
 }

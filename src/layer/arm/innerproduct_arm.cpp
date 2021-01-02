@@ -152,7 +152,6 @@ int InnerProduct_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const 
     const int w = bottom_blob_tm.w;
     const int h = bottom_blob_tm.h;
 
-    const int n = num_output;
     const int m = 1;
     const int k = bottom_blob_tm.c * w * h; 
     Mat bottom_blob_reorder(m * k, (size_t)1u, opt.workspace_allocator);
@@ -160,11 +159,11 @@ int InnerProduct_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const 
         reorder_a(bottom_blob_tm_flattened, bottom_blob_reorder, m, k, k);
     }
 
-    Mat top_blob_tm(m * n, (size_t)4u, opt.workspace_allocator);
+    Mat top_blob_tm(m * num_output, (size_t)4u, opt.workspace_allocator);
     int32_t* pc = top_blob_tm;
     const int8_t* pa = bottom_blob_reorder;
     const int8_t* pb = weight_data_int8;
-    int8kernel((void*)pc, pa, pb, m, k, n, n, 0, 0, opt);
+    int8kernel((void*)pc, pa, pb, m, k, num_output, num_output, 0, 0, opt);
 
     float* outptr = top_blob;
 
@@ -193,6 +192,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 {
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
+        // TODO
         return forward_int8(bottom_blob, top_blob, opt);
     }
 
@@ -549,7 +549,6 @@ int InnerProduct_arm::create_pipeline_fp16s(const Option& opt)
 
     return 0;
 }
-
 
 int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
