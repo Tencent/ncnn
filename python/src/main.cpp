@@ -622,9 +622,9 @@ PYBIND11_MODULE(ncnn, m)
 #endif // NCNN_STDIO
 
     .def("clear", &Net::clear)
-    .def("create_extractor", &Net::create_extractor)
-    .def_readwrite("blobs", &Net::blobs)
-    .def_readwrite("layers", &Net::layers);
+    .def("create_extractor", &Net::create_extractor);
+    //.def_property("blobs", &Net::mutable_blobs)
+    //.def_property("layers", &Net::mutable_layers);
 
     py::enum_<ncnn::BorderType>(m, "BorderType")
     .value("BORDER_CONSTANT", ncnn::BorderType::BORDER_CONSTANT)
