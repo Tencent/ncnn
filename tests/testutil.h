@@ -69,6 +69,29 @@ static ncnn::Mat RandomMat(int w, int h, int c)
     return m;
 }
 
+static ncnn::Mat scales_mat(const ncnn::Mat& mat, int m, int k, int ldx)
+{
+    ncnn::Mat weight_scales(m);
+    for (int i = 0; i < m; ++i)
+    {
+        float min = mat[0], max = mat[0];
+        const float* ptr = (const float*)(mat.data) + i * ldx;
+        for (int j = 0; j < k; ++j)
+        {
+            if (min > ptr[j])
+            {
+                min = ptr[j];
+            }
+            if (max < ptr[j])
+            {
+                max = ptr[j];
+            }
+        }
+        weight_scales[i] = 127.f / std::max(std::abs(min), std::abs(max));
+    }
+    return weight_scales;
+}
+
 static bool NearlyEqual(float a, float b, float epsilon)
 {
     if (a == b)

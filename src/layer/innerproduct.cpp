@@ -94,7 +94,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 {
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
-        return forward_int8(bottom_blob, top_blob, opt);
+        return InnerProduct::forward_int8(bottom_blob, top_blob, opt);
     }
 
     int w = bottom_blob.w;

@@ -48,7 +48,7 @@ InnerProduct_arm::InnerProduct_arm()
 int InnerProduct_arm::create_pipeline(const Option& opt)
 {
 #if __ARM_NEON
-    if (opt.use_packing_layout)
+    if (opt.use_packing_layout or opt.use_int8_inference)
     {
         flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
 
@@ -95,8 +95,6 @@ int InnerProduct_arm::destroy_pipeline(const Option& opt)
 int InnerProduct_arm::create_pipeline_int8(const Option& opt)
 {
     // convert fp32 to int8
-    InnerProduct::create_pipeline(opt);
-
     if (weight_data_int8_scales.empty())
     {
         return 0;
@@ -104,12 +102,12 @@ int InnerProduct_arm::create_pipeline_int8(const Option& opt)
 #if __aarch64__
     // first reorder Matrix A before MatMul
     const int n = num_output; 
-    const int k = weight_data.c * weight_data.h * weight_data.w;
+    const int k = weight_data.total() / n;
     weight_data_int8.create(n * k, (size_t)1u, opt.blob_allocator);
 
     int8_t* b = weight_data;
     int8_t* sb = weight_data_int8;
-    reorder_b(b, sb, k, n, n);
+    reorder_a(b, sb, n, k, k);
 
     // pre-built scales
     scales_in.create(num_output, 4u, opt.blob_allocator);
@@ -118,7 +116,8 @@ int InnerProduct_arm::create_pipeline_int8(const Option& opt)
         if (std::fabs(static_cast<float>(weight_data_int8_scales[i])) <= 1e-6)
         {
             scales_in[i] = 0.f;
-        } else
+        }
+        else
         {
             scales_in[i] = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[i]);
         }
@@ -136,6 +135,14 @@ int InnerProduct_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const 
         quantize_float32_to_int8(bottom_blob, bottom_blob_tm, bottom_blob_int8_scale, opt);
     }
 
+    Mat bottom_blob_tm_flattened = bottom_blob_tm;
+    if (bottom_blob_tm.dims != 1)
+    {
+        Option opt_flatten = opt;
+        opt_flatten.blob_allocator = opt.workspace_allocator;
+        flatten->forward(bottom_blob_tm, bottom_blob_tm_flattened, opt_flatten);
+    }
+
     top_blob.create(num_output, 4u, opt.blob_allocator);
     if (top_blob.empty())
     {
@@ -150,16 +157,15 @@ int InnerProduct_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const 
     const int k = bottom_blob_tm.c * w * h; 
     Mat bottom_blob_reorder(m * k, (size_t)1u, opt.workspace_allocator);
     {
-        reorder_a(bottom_blob_tm, bottom_blob_reorder, m, k, k);
+        reorder_a(bottom_blob_tm_flattened, bottom_blob_reorder, m, k, k);
     }
 
     Mat top_blob_tm(m * n, (size_t)4u, opt.workspace_allocator);
     int32_t* pc = top_blob_tm;
     const int8_t* pa = bottom_blob_reorder;
     const int8_t* pb = weight_data_int8;
-    const size_t ldc = top_blob_tm.cstep;
-    int8kernel((void*)pc, pa, pb, m, k, n, ldc, 0, 0, opt);
-    
+    int8kernel((void*)pc, pa, pb, m, k, n, n, 0, 0, opt);
+
     float* outptr = top_blob;
 
     // dequant.fused.relu int32_t to float
