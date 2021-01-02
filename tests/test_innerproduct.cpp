@@ -103,13 +103,13 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
     if (bias)
     {
         weights[1] = RandomMat(outch);
-        weights[2] = weight_scales; 
+        weights[2] = weight_scales;
         weights[3] = input_scales;
     }
     else
     {
-        weights[1] = weight_scales; 
-        weights[2] = input_scales; 
+        weights[1] = weight_scales;
+        weights[2] = input_scales;
     }
 
     int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, a);
