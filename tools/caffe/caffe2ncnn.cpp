@@ -16,23 +16,20 @@
 #define _CRT_SECURE_NO_DEPRECATE
 #endif
 
-#include <stdio.h>
-#include <limits.h>
-#include <math.h>
-
-#include <fstream>
-#include <set>
-#include <limits>
-#include <map>
-#include <algorithm>
-
-#include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-#include <google/protobuf/text_format.h>
-#include <google/protobuf/message.h>
-
 #include "caffe.pb.h"
 
+#include <algorithm>
+#include <fstream>
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/message.h>
+#include <google/protobuf/text_format.h>
+#include <limits.h>
+#include <limits>
+#include <map>
+#include <math.h>
+#include <set>
+#include <stdio.h>
 
 static inline size_t alignSize(size_t sz, int n)
 {
@@ -58,7 +55,7 @@ static unsigned short float2half(float value)
 
     //     fprintf(stderr, "%d %d %d\n", sign, exponent, significand);
 
-        // 1 : 5 : 10
+    // 1 : 5 : 10
     unsigned short fp16;
     if (exponent == 0)
     {
@@ -107,8 +104,10 @@ static unsigned short float2half(float value)
 static signed char float2int8(float value)
 {
     float tmp;
-    if (value >= 0.f) tmp = value + 0.5f;
-    else tmp = value - 0.5f;
+    if (value >= 0.f)
+        tmp = value + 0.5f;
+    else
+        tmp = value - 0.5f;
 
     if (tmp > 127)
         return 127;
@@ -198,7 +197,7 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
     return true;
 }
 
-static int quantize_weight(float *data, size_t data_length, std::vector<unsigned short>& float16_weights)
+static int quantize_weight(float* data, size_t data_length, std::vector<unsigned short>& float16_weights)
 {
     float16_weights.resize(data_length);
 
@@ -215,7 +214,7 @@ static int quantize_weight(float *data, size_t data_length, std::vector<unsigned
     return 0x01306B47;
 }
 
-static int quantize_weight(float *data, size_t data_length, std::vector<float> scales, std::vector<signed char>& int8_weights)
+static int quantize_weight(float* data, size_t data_length, std::vector<float> scales, std::vector<signed char>& int8_weights)
 {
     int8_weights.resize(data_length);
 
@@ -234,13 +233,14 @@ static int quantize_weight(float *data, size_t data_length, std::vector<float> s
     return 0x000D4B38;
 }
 
-static bool quantize_weight(float *data, size_t data_length, int quantize_level, std::vector<float> &quantize_table, std::vector<unsigned char> &quantize_index) {
-
+static bool quantize_weight(float* data, size_t data_length, int quantize_level, std::vector<float>& quantize_table, std::vector<unsigned char>& quantize_index)
+{
     assert(quantize_level != 0);
     assert(data != NULL);
     assert(data_length > 0);
 
-    if (data_length < static_cast<size_t>(quantize_level)) {
+    if (data_length < static_cast<size_t>(quantize_level))
+    {
         fprintf(stderr, "No need quantize,because: data_length < quantize_level");
         return false;
     }
@@ -314,7 +314,11 @@ static bool read_proto_from_binary(const char* filepath, google::protobuf::Messa
     google::protobuf::io::IstreamInputStream input(&fs);
     google::protobuf::io::CodedInputStream codedstr(&input);
 
+#if GOOGLE_PROTOBUF_VERSION >= 3011000
+    codedstr.SetTotalBytesLimit(INT_MAX);
+#else
     codedstr.SetTotalBytesLimit(INT_MAX, INT_MAX / 2);
+#endif
 
     bool success = message->ParseFromCodedStream(&codedstr);
 
@@ -339,7 +343,8 @@ int main(int argc, char** argv)
     const char* int8scale_table_path = argc == 7 ? argv[6] : NULL;
     int quantize_level = atoi(quantize_param);
 
-    if (quantize_level != 0 && quantize_level != 256 && quantize_level != 65536) {
+    if (quantize_level != 0 && quantize_level != 256 && quantize_level != 65536)
+    {
         fprintf(stderr, "%s: only support quantize level = 0, 256, or 65536", argv[0]);
         return -1;
     }
@@ -568,7 +573,7 @@ int main(int argc, char** argv)
             float eps = batch_norm_param.eps();
 
             std::vector<float> ones(mean_blob.data_size(), 1.f);
-            fwrite(ones.data(), sizeof(float), ones.size(), bp);// slope
+            fwrite(ones.data(), sizeof(float), ones.size(), bp); // slope
 
             if (binlayer.blobs_size() < 3)
             {
@@ -598,7 +603,7 @@ int main(int argc, char** argv)
             }
 
             std::vector<float> zeros(mean_blob.data_size(), 0.f);
-            fwrite(zeros.data(), sizeof(float), zeros.size(), bp);// bias
+            fwrite(zeros.data(), sizeof(float), zeros.size(), bp); // bias
         }
         else if (layer.type() == "BN")
         {
@@ -726,16 +731,16 @@ int main(int argc, char** argv)
                         }
                         else if (quantize_level == 256)
                         {
-                            quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), weight_int8scale, int8_weights);
+                            quantize_tag = quantize_weight((float*)blob.data().data(), blob.data_size(), weight_int8scale, int8_weights);
                         }
                     }
                     else if (quantize_level == 256)
                     {
-                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), quantize_level, quantize_table, quantize_index);
+                        quantize_tag = quantize_weight((float*)blob.data().data(), blob.data_size(), quantize_level, quantize_table, quantize_index);
                     }
                     else if (quantize_level == 65536)
                     {
-                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), float16_weights);
+                        quantize_tag = quantize_weight((float*)blob.data().data(), blob.data_size(), float16_weights);
                     }
 
                     // write quantize tag first
@@ -770,7 +775,7 @@ int main(int argc, char** argv)
                         // padding to 32bit align
                         int nwrite = ftell(bp) - p0;
                         int nalign = int(alignSize(nwrite, 4));
-                        unsigned char padding[4] = { 0x00, 0x00, 0x00, 0x00 };
+                        unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
                         fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
                     }
                     else
@@ -900,7 +905,7 @@ int main(int argc, char** argv)
                 {
                     for (int j = 0; j < num_input; j++)
                     {
-                        fwrite(weight_data_ptr + (j*num_output + k) * maxk, sizeof(float), maxk, bp);
+                        fwrite(weight_data_ptr + (j * num_output + k) * maxk, sizeof(float), maxk, bp);
                     }
                 }
             }
@@ -972,11 +977,11 @@ int main(int argc, char** argv)
                 {
                     if (quantize_level == 256)
                     {
-                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), quantize_level, quantize_table, quantize_index);
+                        quantize_tag = quantize_weight((float*)blob.data().data(), blob.data_size(), quantize_level, quantize_table, quantize_index);
                     }
                     else if (quantize_level == 65536)
                     {
-                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), float16_weights);
+                        quantize_tag = quantize_weight((float*)blob.data().data(), blob.data_size(), float16_weights);
                     }
                 }
 
@@ -1000,7 +1005,7 @@ int main(int argc, char** argv)
                     // padding to 32bit align
                     int nwrite = ftell(bp) - p0;
                     int nalign = int(alignSize(nwrite, 4));
-                    unsigned char padding[4] = { 0x00, 0x00, 0x00, 0x00 };
+                    unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
                     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
                 }
                 else
@@ -1068,16 +1073,16 @@ int main(int argc, char** argv)
                         }
                         else if (quantize_level == 256)
                         {
-                            quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), weight_int8scale, int8_weights);
+                            quantize_tag = quantize_weight((float*)blob.data().data(), blob.data_size(), weight_int8scale, int8_weights);
                         }
                     }
                     else if (quantize_level == 256)
                     {
-                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), quantize_level, quantize_table, quantize_index);
+                        quantize_tag = quantize_weight((float*)blob.data().data(), blob.data_size(), quantize_level, quantize_table, quantize_index);
                     }
                     else if (quantize_level == 65536)
                     {
-                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), float16_weights);
+                        quantize_tag = quantize_weight((float*)blob.data().data(), blob.data_size(), float16_weights);
                     }
 
                     // write quantize tag first
@@ -1112,7 +1117,7 @@ int main(int argc, char** argv)
                         // padding to 32bit align
                         int nwrite = ftell(bp) - p0;
                         int nalign = int(alignSize(nwrite, 4));
-                        unsigned char padding[4] = { 0x00, 0x00, 0x00, 0x00 };
+                        unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
                         fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
                     }
                     else
@@ -1198,11 +1203,11 @@ int main(int argc, char** argv)
                 {
                     if (quantize_level == 256)
                     {
-                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), quantize_level, quantize_table, quantize_index);
+                        quantize_tag = quantize_weight((float*)blob.data().data(), blob.data_size(), quantize_level, quantize_table, quantize_index);
                     }
                     else if (quantize_level == 65536)
                     {
-                        quantize_tag = quantize_weight((float *)blob.data().data(), blob.data_size(), float16_weights);
+                        quantize_tag = quantize_weight((float*)blob.data().data(), blob.data_size(), float16_weights);
                     }
                 }
 
@@ -1225,7 +1230,7 @@ int main(int argc, char** argv)
                     // padding to 32bit align
                     int nwrite = ftell(bp) - p0;
                     int nalign = int(alignSize(nwrite, 4));
-                    unsigned char padding[4] = { 0x00, 0x00, 0x00, 0x00 };
+                    unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
                     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
                 }
                 else
@@ -1378,12 +1383,13 @@ int main(int argc, char** argv)
             for (int j = 0; j < prior_box_param.aspect_ratio_size(); j++)
             {
                 float ar = prior_box_param.aspect_ratio(j);
-                if (fabs(ar - 1.) < 1e-6) {
+                if (fabs(ar - 1.) < 1e-6)
+                {
                     num_aspect_ratio--;
                 }
             }
 
-            float variances[4] = { 0.1f, 0.1f, 0.1f, 0.1f };
+            float variances[4] = {0.1f, 0.1f, 0.1f, 0.1f};
             if (prior_box_param.variance_size() == 4)
             {
                 variances[0] = prior_box_param.variance(0);
@@ -1441,7 +1447,8 @@ int main(int argc, char** argv)
             for (int j = 0; j < prior_box_param.aspect_ratio_size(); j++)
             {
                 float ar = prior_box_param.aspect_ratio(j);
-                if (fabs(ar - 1.) < 1e-6) {
+                if (fabs(ar - 1.) < 1e-6)
+                {
                     continue;
                 }
                 fprintf(pp, ",%e", ar);
@@ -1524,13 +1531,13 @@ int main(int argc, char** argv)
             }
             else if (bs.dim_size() == 3)
             {
-                fprintf(pp, " 0=%zd 1=%zd 2=-233", size_t(bs.dim(2)), bs.dim(1));
+                fprintf(pp, " 0=%zd 1=%zd 2=-233", size_t(bs.dim(2)), size_t(bs.dim(1)));
             }
             else // bs.dim_size() == 4
             {
                 fprintf(pp, " 0=%zd 1=%zd 2=%zd", size_t(bs.dim(3)), size_t(bs.dim(2)), size_t(bs.dim(1)));
             }
-            fprintf(pp, " 3=0");// permute
+            fprintf(pp, " 3=0"); // permute
         }
         else if (layer.type() == "ROIAlign")
         {
@@ -1538,6 +1545,9 @@ int main(int argc, char** argv)
             fprintf(pp, " 0=%d", roi_align_param.pooled_w());
             fprintf(pp, " 1=%d", roi_align_param.pooled_h());
             fprintf(pp, " 2=%e", roi_align_param.spatial_scale());
+            fprintf(pp, " 3=%d", 0);
+            fprintf(pp, " 4=%d", false);
+            fprintf(pp, " 5=%d", 0);
         }
         else if (layer.type() == "ROIPooling")
         {
@@ -1720,7 +1730,6 @@ int main(int argc, char** argv)
                 }
             }
         }
-
     }
 
     fclose(pp);

@@ -20,10 +20,10 @@ static void pooling3x3s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
     int outw = top_blob.w;
     int outh = top_blob.h;
 
-    const int tailstep = (w - 2*outw + w) * 4;
+    const int tailstep = (w - 2 * outw + w) * 4;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<inch; q++)
+    for (int q = 0; q < inch; q++)
     {
         const Mat img0 = bottom_blob.channel(q);
         float* outptr = top_blob.channel(q);
@@ -36,7 +36,7 @@ static void pooling3x3s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
         {
             int j = 0;
 
-            for (; j+3<outw; j+=4)
+            for (; j + 3 < outw; j += 4)
             {
 #if __aarch64__
                 asm volatile(
@@ -111,17 +111,16 @@ static void pooling3x3s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
 
                     "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%0], #64 \n"
 
-                    : "=r"(outptr),     // %0
-                      "=r"(r0),         // %1
-                      "=r"(r1),         // %2
-                      "=r"(r2)          // %3
+                    : "=r"(outptr), // %0
+                    "=r"(r0),     // %1
+                    "=r"(r1),     // %2
+                    "=r"(r2)      // %3
                     : "0"(outptr),
-                      "1"(r0),
-                      "2"(r1),
-                      "3"(r2)
-                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-                );
-#else // __aarch64__
+                    "1"(r0),
+                    "2"(r1),
+                    "3"(r2)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+#else  // __aarch64__
                 asm volatile(
                     "pld        [%1, #512]      \n"
                     "vldm       %1!, {d0-d7}    \n"
@@ -185,19 +184,18 @@ static void pooling3x3s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
 
                     "vstm       %0!, {d24-d31}  \n"
 
-                    : "=r"(outptr),     // %0
-                      "=r"(r0),         // %1
-                      "=r"(r1),         // %2
-                      "=r"(r2)          // %3
+                    : "=r"(outptr), // %0
+                    "=r"(r0),     // %1
+                    "=r"(r1),     // %2
+                    "=r"(r2)      // %3
                     : "0"(outptr),
-                      "1"(r0),
-                      "2"(r1),
-                      "3"(r2)
-                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                );
+                    "1"(r0),
+                    "2"(r1),
+                    "3"(r2)
+                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
             }
-            for (; j+1<outw; j+=2)
+            for (; j + 1 < outw; j += 2)
             {
 #if __aarch64__
                 asm volatile(
@@ -240,17 +238,16 @@ static void pooling3x3s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
 
                     "st1    {v20.4s, v21.4s}, [%0], #32 \n"
 
-                    : "=r"(outptr),     // %0
-                      "=r"(r0),         // %1
-                      "=r"(r1),         // %2
-                      "=r"(r2)          // %3
+                    : "=r"(outptr), // %0
+                    "=r"(r0),     // %1
+                    "=r"(r1),     // %2
+                    "=r"(r2)      // %3
                     : "0"(outptr),
-                      "1"(r0),
-                      "2"(r1),
-                      "3"(r2)
-                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23"
-                );
-#else // __aarch64__
+                    "1"(r0),
+                    "2"(r1),
+                    "3"(r2)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
+#else  // __aarch64__
                 asm volatile(
                     "pld        [%1, #512]      \n"
                     "vldm       %1!, {d0-d7}    \n"
@@ -291,29 +288,28 @@ static void pooling3x3s2_max_pack4_neon(const Mat& bottom_blob, Mat& top_blob, c
 
                     "vst1.f32   {d8-d11}, [%0 :128]! \n"
 
-                    : "=r"(outptr),     // %0
-                      "=r"(r0),         // %1
-                      "=r"(r1),         // %2
-                      "=r"(r2)          // %3
+                    : "=r"(outptr), // %0
+                    "=r"(r0),     // %1
+                    "=r"(r1),     // %2
+                    "=r"(r2)      // %3
                     : "0"(outptr),
-                      "1"(r0),
-                      "2"(r1),
-                      "3"(r2)
-                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15"
-                );
+                    "1"(r0),
+                    "2"(r1),
+                    "3"(r2)
+                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
             }
-            for (; j<outw; j++)
+            for (; j < outw; j++)
             {
                 float32x4_t _r00 = vld1q_f32(r0);
-                float32x4_t _r01 = vld1q_f32(r0+4);
-                float32x4_t _r02 = vld1q_f32(r0+8);
+                float32x4_t _r01 = vld1q_f32(r0 + 4);
+                float32x4_t _r02 = vld1q_f32(r0 + 8);
                 float32x4_t _r10 = vld1q_f32(r1);
-                float32x4_t _r11 = vld1q_f32(r1+4);
-                float32x4_t _r12 = vld1q_f32(r1+8);
+                float32x4_t _r11 = vld1q_f32(r1 + 4);
+                float32x4_t _r12 = vld1q_f32(r1 + 8);
                 float32x4_t _r20 = vld1q_f32(r2);
-                float32x4_t _r21 = vld1q_f32(r2+4);
-                float32x4_t _r22 = vld1q_f32(r2+8);
+                float32x4_t _r21 = vld1q_f32(r2 + 4);
+                float32x4_t _r22 = vld1q_f32(r2 + 8);
 
                 float32x4_t _max0 = vmaxq_f32(vmaxq_f32(_r00, _r01), _r02);
                 float32x4_t _max1 = vmaxq_f32(vmaxq_f32(_r10, _r11), _r12);

@@ -1,0 +1,5 @@
+7767517
+3 3
+Input            data                             0 1 data
+Convolution      conv0_fwd                        1 1 data conv0_fwd 0=3 1=3 11=3 2=1 12=1 3=1 13=1 4=0 14=0 5=1 6=81
+InnerProduct     dense0_fwd                       1 1 conv0_fwd output 0=1 1=1 2=151875

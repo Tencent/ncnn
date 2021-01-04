@@ -25,7 +25,7 @@ static void resize_bilinear_image_pack4(const Mat& src, Mat& dst, float* alpha, 
 
     int prev_sy1 = -2;
 
-    for (int dy = 0; dy < h; dy++ )
+    for (int dy = 0; dy < h; dy++)
     {
         int sy = yofs[dy];
 
@@ -39,12 +39,12 @@ static void resize_bilinear_image_pack4(const Mat& src, Mat& dst, float* alpha, 
             float* rows0_old = rows0;
             rows0 = rows1;
             rows1 = rows0_old;
-            const float* S1 = src.row(sy+1);
+            const float* S1 = src.row(sy + 1);
 
             const float* alphap = alpha;
             float* rows1p = rows1;
             int dx = 0;
-            for ( ; dx < w; dx++ )
+            for (; dx < w; dx++)
             {
                 int sx = xofs[dx] * 4;
                 const float* S1p = S1 + sx;
@@ -64,13 +64,13 @@ static void resize_bilinear_image_pack4(const Mat& src, Mat& dst, float* alpha, 
         {
             // hresize two rows
             const float* S0 = src.row(sy);
-            const float* S1 = src.row(sy+1);
+            const float* S1 = src.row(sy + 1);
 
             const float* alphap = alpha;
             float* rows0p = rows0;
             float* rows1p = rows1;
             int dx = 0;
-            for ( ; dx < w; dx++ )
+            for (; dx < w; dx++)
             {
                 int sx = xofs[dx] * 4;
                 const float* S0p = S0 + sx;

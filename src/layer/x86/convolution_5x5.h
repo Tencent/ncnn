@@ -25,7 +25,7 @@ static void conv5x5s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p=0; p<outch; p++)
+    for (int p = 0; p < outch; p++)
     {
         Mat out = top_blob.channel(p);
 
@@ -33,21 +33,21 @@ static void conv5x5s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
 
         out.fill(bias0);
 
-        for (int q=0; q<inch; q++)
+        for (int q = 0; q < inch; q++)
         {
             float* outptr = out;
             float* outptr2 = outptr + outw;
 
             const float* img0 = bottom_blob.channel(q);
 
-            const float* kernel0 = kernel + p*inch*25  + q*25;
+            const float* kernel0 = kernel + p * inch * 25 + q * 25;
 
             const float* r0 = img0;
             const float* r1 = img0 + w;
-            const float* r2 = img0 + w*2;
-            const float* r3 = img0 + w*3;
-            const float* r4 = img0 + w*4;
-            const float* r5 = img0 + w*5;
+            const float* r2 = img0 + w * 2;
+            const float* r3 = img0 + w * 3;
+            const float* r4 = img0 + w * 4;
+            const float* r5 = img0 + w * 5;
 
             const float* k0 = kernel0;
             const float* k1 = kernel0 + 5;
@@ -57,12 +57,11 @@ static void conv5x5s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
 
             int i = 0;
 
-            for (; i+1 < outh; i+=2)
+            for (; i + 1 < outh; i += 2)
             {
-
                 int remain = outw;
 
-                for (; remain>0; remain--)
+                for (; remain > 0; remain--)
                 {
                     float sum = 0;
                     float sum2 = 0;
@@ -153,10 +152,9 @@ static void conv5x5s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
 
             for (; i < outh; i++)
             {
-
                 int remain = outw;
 
-                for (; remain>0; remain--)
+                for (; remain > 0; remain--)
                 {
                     float sum = 0;
 
@@ -205,15 +203,12 @@ static void conv5x5s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _ker
                 r2 += 4;
                 r3 += 4;
                 r4 += 4;
-
             }
-
         }
     }
-
 }
 
-static void conv5x5s2_sse(const Mat &bottom_blob, Mat &top_blob, const Mat &_kernel, const Mat& _bias, const Option& opt)
+static void conv5x5s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel, const Mat& _bias, const Option& opt)
 {
     int kernel_w = 5;
     int kernel_h = 5;

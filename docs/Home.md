@@ -1,5 +1,5 @@
 ### input data and extract output
-```
+```cpp
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include "net.h"
@@ -35,7 +35,7 @@ int main()
 ```
 
 ### print Mat content
-```
+```cpp
 void pretty_print(const ncnn::Mat& m)
 {
     for (int q=0; q<m.c; q++)
@@ -56,7 +56,7 @@ void pretty_print(const ncnn::Mat& m)
 ```
 
 ### visualize Mat content
-```
+```cpp
 void visualize(const char* title, const ncnn::Mat& m)
 {
     std::vector<cv::Mat> normed_feats(m.c);

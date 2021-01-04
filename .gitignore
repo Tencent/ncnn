@@ -43,3 +43,6 @@ build*/
 # IDE
 .vs
 .vscode
+.idea
+cmake-build-debug
+cmake-build-release

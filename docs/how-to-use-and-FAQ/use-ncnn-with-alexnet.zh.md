@@ -48,20 +48,20 @@ ncnn2mem alexnet.param alexnet.bin alexnet.id.h alexnet.mem.h
 ### 加载模型
 
 直接加载 param 和 bin，适合快速验证效果使用
-```
+```cpp
 ncnn::Net net;
 net.load_param("alexnet.param");
 net.load_model("alexnet.bin");
 ```
 加载二进制的 param.bin 和 bin，没有可见字符串，适合 APP 分发模型资源
-```
+```cpp
 ncnn::Net net;
 net.load_param_bin("alexnet.param.bin");
 net.load_model("alexnet.bin");
 ```
 从内存引用加载网络和模型，没有可见字符串，模型数据全在代码里头，没有任何外部文件
 另外，android apk 打包的资源文件读出来也是内存块
-```
+```cpp
 #include "alexnet.mem.h"
 ncnn::Net net;
 net.load_param(alexnet_param_bin);
@@ -70,7 +70,7 @@ net.load_model(alexnet_bin);
 以上三种都可以加载模型，其中内存引用方式加载是 zero-copy 的，所以使用 net 模型的来源内存块必须存在
 
 ### 卸载模型
-```
+```cpp
 net.clear();
 ```
 
@@ -78,7 +78,7 @@ net.clear();
 
 ncnn 用自己的数据结构 Mat 来存放输入和输出数据
 输入图像的数据要转换为 Mat，依需要减去均值和乘系数
-```
+```cpp
 #include "mat.h"
 unsigned char* rgbdata;// data pointer to RGB image pixels
 int w;// image width
@@ -89,7 +89,7 @@ const float mean_vals[3] = {104.f, 117.f, 123.f};
 in.substract_mean_normalize(mean_vals, 0);
 ```
 执行前向网络，获得计算结果
-```
+```cpp
 #include "net.h"
 ncnn::Mat in;// input blob as above
 ncnn::Mat out;
@@ -99,7 +99,7 @@ ex.input("data", in);
 ex.extract("prob", out);
 ```
 如果是二进制的 param.bin 方式，没有可见字符串，利用 alexnet.id.h 的枚举来代替 blob 的名字
-```
+```cpp
 #include "net.h"
 #include "alexnet.id.h"
 ncnn::Mat in;// input blob as above
@@ -110,7 +110,7 @@ ex.input(alexnet_param_id::BLOB_data, in);
 ex.extract(alexnet_param_id::BLOB_prob, out);
 ```
 获取 Mat 中的输出数据，Mat 内部的数据通常是三维的，c / h / w，遍历所有获得全部分类的分数
-```
+```cpp
 ncnn::Mat out_flatterned = out.reshape(out.w * out.h * out.c);
 std::vector<float> scores;
 scores.resize(out_flatterned.w);
@@ -122,12 +122,12 @@ for (int j=0; j<out_flatterned.w; j++)
 ### 某些使用技巧
 
 Extractor 有个多线程加速的开关，设置线程数能加快计算
-```
+```cpp
 ex.set_num_threads(4);
 ```
 Mat 转换图像的时候可以顺便转换颜色和缩放大小，这些顺带的操作也是有优化的
 支持 RGB2GRAY GRAY2RGB RGB2BGR 等常用转换，支持缩小和放大
-```
+```cpp
 #include "mat.h"
 unsigned char* rgbdata;// data pointer to RGB image pixels
 int w;// image width
@@ -137,9 +137,10 @@ int target_height = 227;// target resized height
 ncnn::Mat in = ncnn::Mat::from_pixels_resize(rgbdata, ncnn::Mat::PIXEL_RGB2GRAY, w, h, target_width, target_height);
 ```
 Net 有从 FILE* 文件描述加载的接口，可以利用这点把多个网络和模型文件合并为一个，分发时能方便些，内存引用就无所谓了
-```
-$ cat alexnet.param.bin alexnet.bin > alexnet-all.bin
 
+> $ cat alexnet.param.bin alexnet.bin > alexnet-all.bin
+
+```cpp
 #include "net.h"
 FILE* fp = fopen("alexnet-all.bin", "rb");
 net.load_param_bin(fp);

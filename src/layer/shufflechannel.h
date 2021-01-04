@@ -30,6 +30,7 @@ public:
 
 public:
     int group;
+    int reverse;
 };
 
 } // namespace ncnn

@@ -4,7 +4,7 @@ The good-old ncnn::fastMalloc()/ncnn::fastFree() will be used for a null allocat
 
 You could pass a custom allocator to delegate all memory allocation and deallocation.
 
-```
+```cpp
 class Allocator
 {
 public:
@@ -15,7 +15,7 @@ public:
 
 ncnn has already implemented two simple pooled Allocator class, with mutex lock or without it.
 
-```
+```cpp
 ncnn::PoolAllocator locked_mempool;
 ncnn::UnlockedPoolAllocator unlocked_mempool;
 ```

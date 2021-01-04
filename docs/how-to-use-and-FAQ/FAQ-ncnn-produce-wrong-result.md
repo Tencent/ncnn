@@ -36,6 +36,22 @@ ncnn::Mat in_bgr = ncnn::Mat::from_pixels(rgb_data, ncnn::Mat::PIXEL_RGB2BGR, w,
 ncnn::Mat in_rgb = ncnn::Mat::from_pixels(bgr_data, ncnn::Mat::PIXEL_BGR2RGB, w, h);
 ```
 
+
+### image decoding
+
+JPEG(`.jpg`,`.jpeg`) is loss compression, people may get different pixel value for same image on same position. 
+
+`.bmp` images are recommended instead.
+
+### interpolation / resizing
+
+There are several image resizing methods, which may generate different result for same input image.
+
+Even we specify same interpolation method, different frameworks/libraries and their various versions may also introduce difference.
+
+A good practice is feed same size image as the input layer expected, e.g. read a 224x244 bmp image when input layer need 224x224 size.
+
+
 ### Mat::from_pixels/from_pixels_resize assume that the pixel data is continuous
 
 You shall pass continuous pixel buffer to from_pixels family.
@@ -63,7 +79,7 @@ transform_param {
 }
 ```
 Then the corresponding code for ncnn pre process is
-```
+```cpp
 const float mean_vals[3] = { 103.94f, 116.78f, 123.68f };
 const float norm_vals[3] = { 0.017f, 0.017f, 0.017f };
 in.substract_mean_normalize(mean_vals, norm_vals);
@@ -79,12 +95,12 @@ transform_param {
 ```
 
 For pytorch or mxnet-gluon
-```
+```python
 transforms.ToTensor(),
 transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
 ```
 Then the corresponding code for ncnn pre process is
-```
+```cpp
 // R' = (R / 255 - 0.485) / 0.229 = (R - 0.485 * 255) / 0.229 / 255
 // G' = (G / 255 - 0.456) / 0.224 = (G - 0.456 * 255) / 0.224 / 255
 // B' = (B / 255 - 0.406) / 0.225 = (B - 0.406 * 255) / 0.225 / 255
@@ -100,7 +116,7 @@ For example, squeezenet v1.1 use "data" as input blob and "prob" as output blob 
 
 Some models may need multiple input or produce multiple output.
 
-```
+```cpp
 ncnn::Extractor ex = net.create_extractor();
 
 ex.input("data", in);// change "data" to yours
@@ -118,7 +134,7 @@ blob may have gaps between channels if (width x height) can not divided exactly 
 Prefer using ncnn::Mat::from_pixels or ncnn::Mat::from_pixels_resize for constructing input blob from image data
 
 If you do need a continuous blob buffer, reshape the output.
-```
+```cpp
 // out is the output blob extracted
 ncnn::Mat flattened_out = out.reshape(out.w * out.h * out.c);
 
@@ -130,7 +146,7 @@ const float* outptr = flattened_out;
 The `ncnn::Extractor` object is stateful, if you reuse for different input, you will always get exact the same result cached inside.
 
 Always create new Extractor to process images in loop unless you do know how the stateful Extractor works.
-```
+```cpp
 for (int i=0; i<count; i++)
 {
     // always create Extractor
@@ -148,7 +164,7 @@ If you want to load plain param file buffer, you shall use Net::load_param_mem i
 
 For more information about the ncnn model load api, see [ncnn-load-model](ncnn-load-model)
 
-```
+```cpp
 ncnn::Net net;
 
 // param_buffer is the content buffe of XYZ.param file

@@ -18,13 +18,13 @@
 // refer the scalar version from Cephes Math Library
 
 #define c_cephes_HALFMAXLOGF 44.014845935754205f
-#define c_cephes_tanh_C1 0.625f
+#define c_cephes_tanh_C1     0.625f
 
-#define c_cephes_tanh_p0 - 5.70498872745E-3
-#define c_cephes_tanh_p1 + 2.06390887954E-2
-#define c_cephes_tanh_p2 - 5.37397155531E-2
-#define c_cephes_tanh_p3 + 1.33314422036E-1
-#define c_cephes_tanh_p4 - 3.33332819422E-1
+#define c_cephes_tanh_p0 -5.70498872745E-3
+#define c_cephes_tanh_p1 +2.06390887954E-2
+#define c_cephes_tanh_p2 -5.37397155531E-2
+#define c_cephes_tanh_p3 +1.33314422036E-1
+#define c_cephes_tanh_p4 -3.33332819422E-1
 
 /* Single precision hyperbolic tangent computed for 4 simultaneous float */
 static inline float32x4_t tanh_ps(float32x4_t x)
@@ -35,13 +35,14 @@ static inline float32x4_t tanh_ps(float32x4_t x)
     uint32x4_t mask_l2 = vcgtq_f32(x2, vdupq_n_f32(c_cephes_HALFMAXLOGF));
 
     // abs(x) >= 0.625
-    // tanh(x) = (exp(2x) - 1) / (exp(2x) + 1)
+    // tanh(x) = 1 − 2 / (exp(2x) + 1)
     float32x4_t _one = vdupq_n_f32(1.f);
+    float32x4_t _two = vdupq_n_f32(2.f);
     float32x4_t exp_x_x = exp_ps(vaddq_f32(x, x));
 #if __aarch64__
-    float32x4_t y0 = vdivq_f32(vsubq_f32(exp_x_x, _one), vaddq_f32(exp_x_x, _one));
+    float32x4_t y0 = vsubq_f32(_one, vdivq_f32(_two, vaddq_f32(exp_x_x, _one)));
 #else
-    float32x4_t y0 = div_ps(vsubq_f32(exp_x_x, _one), vaddq_f32(exp_x_x, _one));
+    float32x4_t y0 = vsubq_f32(_one, div_ps(_two, vaddq_f32(exp_x_x, _one)));
 #endif
 
     // abs(x) < 0.625
@@ -55,12 +56,12 @@ static inline float32x4_t tanh_ps(float32x4_t x)
         - 3.33332819422E-1) * z * x
         + x;
     */
-    static const float cephes_tanh_p[5] = { c_cephes_tanh_p0, c_cephes_tanh_p1, c_cephes_tanh_p2, c_cephes_tanh_p3, c_cephes_tanh_p4 };
-    float32x4_t y = vld1q_dup_f32(cephes_tanh_p+0);
-    float32x4_t c1 = vld1q_dup_f32(cephes_tanh_p+1);
-    float32x4_t c2 = vld1q_dup_f32(cephes_tanh_p+2);
-    float32x4_t c3 = vld1q_dup_f32(cephes_tanh_p+3);
-    float32x4_t c4 = vld1q_dup_f32(cephes_tanh_p+4);
+    static const float cephes_tanh_p[5] = {c_cephes_tanh_p0, c_cephes_tanh_p1, c_cephes_tanh_p2, c_cephes_tanh_p3, c_cephes_tanh_p4};
+    float32x4_t y = vld1q_dup_f32(cephes_tanh_p + 0);
+    float32x4_t c1 = vld1q_dup_f32(cephes_tanh_p + 1);
+    float32x4_t c2 = vld1q_dup_f32(cephes_tanh_p + 2);
+    float32x4_t c3 = vld1q_dup_f32(cephes_tanh_p + 3);
+    float32x4_t c4 = vld1q_dup_f32(cephes_tanh_p + 4);
 
     float32x4_t z = vmulq_f32(x, x);
 

@@ -13,12 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "pixelshuffle_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
 
 namespace ncnn {
-
-DEFINE_LAYER_CREATOR(PixelShuffle_vulkan)
 
 PixelShuffle_vulkan::PixelShuffle_vulkan()
 {
@@ -84,20 +82,21 @@ int PixelShuffle_vulkan::create_pipeline(const Option& _opt)
         opt.use_image_storage = false;
     }
 
-    std::vector<vk_specialization_type> specializations(1 + 10);
+    std::vector<vk_specialization_type> specializations(2 + 10);
     specializations[0].i = upscale_factor;
-    specializations[1 + 0].i = shape_packed.dims;
-    specializations[1 + 1].i = shape_packed.w;
-    specializations[1 + 2].i = shape_packed.h;
-    specializations[1 + 3].i = shape_packed.c;
-    specializations[1 + 4].i = shape_packed.cstep;
-    specializations[1 + 5].i = out_shape_packed.dims;
-    specializations[1 + 6].i = out_shape_packed.w;
-    specializations[1 + 7].i = out_shape_packed.h;
-    specializations[1 + 8].i = out_shape_packed.c;
-    specializations[1 + 9].i = out_shape_packed.cstep;
+    specializations[1].i = mode;
+    specializations[2 + 0].i = shape_packed.dims;
+    specializations[2 + 1].i = shape_packed.w;
+    specializations[2 + 2].i = shape_packed.h;
+    specializations[2 + 3].i = shape_packed.c;
+    specializations[2 + 4].i = shape_packed.cstep;
+    specializations[2 + 5].i = out_shape_packed.dims;
+    specializations[2 + 6].i = out_shape_packed.w;
+    specializations[2 + 7].i = out_shape_packed.h;
+    specializations[2 + 8].i = out_shape_packed.c;
+    specializations[2 + 9].i = out_shape_packed.cstep;
 
-    Mat local_size_xyz_bottom;// pack4to1 and pack8to1
+    Mat local_size_xyz_bottom; // pack4to1 and pack8to1
     if (shape_packed.dims != 3)
     {
         local_size_xyz_bottom.w = std::min(4, shape_packed.w);
@@ -204,8 +203,8 @@ int PixelShuffle_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_elempack == 8) out_elemsize = 8*2u;
-        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
@@ -274,8 +273,8 @@ int PixelShuffle_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
     {
-        if (out_elempack == 8) out_elemsize = 8*2u;
-        if (out_elempack == 4) out_elemsize = 4*2u;
+        if (out_elempack == 8) out_elemsize = 8 * 2u;
+        if (out_elempack == 4) out_elemsize = 4 * 2u;
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
@@ -292,12 +291,12 @@ int PixelShuffle_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_
     constants[1].i = bottom_blob.w;
     constants[2].i = bottom_blob.h;
     constants[3].i = bottom_blob.c;
-    constants[4].i = 0;//bottom_blob.cstep;
+    constants[4].i = 0; //bottom_blob.cstep;
     constants[5].i = top_blob.dims;
     constants[6].i = top_blob.w;
     constants[7].i = top_blob.h;
     constants[8].i = top_blob.c;
-    constants[9].i = 0;//top_blob.cstep;
+    constants[9].i = 0; //top_blob.cstep;
 
     if (elempack == 1 && out_elempack == 1)
     {

@@ -39,7 +39,7 @@ You may implement them as custom layer followed in [how-to-implement-custom-laye
 
 Or you could simply register them as no-op if you are sure those operations make no sense.
 
-```
+```cpp
 class Noop : public ncnn::Layer {};
 DEFINE_LAYER_CREATOR(Noop)
 
@@ -93,3 +93,37 @@ For recent ndk >= 21
 ```
 -fstatic-openmp
 ```
+
+### dlopen failed: library "libomp.so" not found
+
+Newer android ndk defaults to dynamic openmp runtime
+
+modify the link flags as
+
+```
+-fstatic-openmp -fopenmp
+```
+
+### crash when freeing a ncnn dynamic library(*.dll/*.so) built with openMP
+
+for optimal performance, the openmp threadpool spin waits for about a second prior to shutting down in case more work becomes available. 
+
+If you unload a dynamic library that's in the process of spin-waiting, it will crash in the manner you see (most of the time).
+
+Just set OMP_WAIT_POLICY=passive in your environment, before calling loadlibrary. or Just wait a few seconds before calling freelibrary.
+
+You can also use the following method to set environment variables in your code:
+
+for msvc++:
+
+```
+SetEnvironmentVariable(_T("OMP_WAIT_POLICY"), _T("passive"));
+```
+
+for g++:
+
+```
+setenv("OMP_WAIT_POLICY", "passive", 1)
+```
+
+reference: https://stackoverflow.com/questions/34439956/vc-crash-when-freeing-a-dll-built-with-openmp

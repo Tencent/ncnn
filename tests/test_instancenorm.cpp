@@ -12,31 +12,26 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include "layer/instancenorm.h"
 #include "testutil.h"
 
-#include "layer/instancenorm.h"
-
-static int test_instancenorm(const ncnn::Mat& a, float eps)
+static int test_instancenorm(const ncnn::Mat& a, float eps, int affine)
 {
     int channels = a.c;
 
     ncnn::ParamDict pd;
-    pd.set(0, channels);
+    pd.set(0, affine ? channels : 0);
     pd.set(1, eps);
+    pd.set(2, affine);
 
     std::vector<ncnn::Mat> weights(2);
     weights[0] = RandomMat(channels);
     weights[1] = RandomMat(channels);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::InstanceNorm>("InstanceNorm", pd, weights, opt, a);
+    int ret = test_layer<ncnn::InstanceNorm>("InstanceNorm", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_instancenorm failed a.dims=%d a=(%d %d %d) eps=%f\n", a.dims, a.w, a.h, a.c, eps);
+        fprintf(stderr, "test_instancenorm failed a.dims=%d a=(%d %d %d) eps=%f affine=%d\n", a.dims, a.w, a.h, a.c, eps, affine);
     }
 
     return ret;
@@ -45,9 +40,12 @@ static int test_instancenorm(const ncnn::Mat& a, float eps)
 static int test_instancenorm_0()
 {
     return 0
-        || test_instancenorm(RandomMat(6, 4, 2), 0.01f)
-        || test_instancenorm(RandomMat(3, 3, 8), 0.002f)
-        ;
+           || test_instancenorm(RandomMat(6, 4, 2), 0.01f, 0)
+           || test_instancenorm(RandomMat(3, 3, 12), 0.002f, 0)
+           || test_instancenorm(RandomMat(5, 7, 16), 0.02f, 0)
+           || test_instancenorm(RandomMat(6, 4, 2), 0.01f, 1)
+           || test_instancenorm(RandomMat(3, 3, 12), 0.002f, 1)
+           || test_instancenorm(RandomMat(5, 7, 16), 0.02f, 1);
 }
 
 int main()
@@ -55,6 +53,5 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_instancenorm_0()
-        ;
+           || test_instancenorm_0();
 }

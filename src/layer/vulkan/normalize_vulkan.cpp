@@ -13,16 +13,15 @@
 // specific language governing permissions and limitations under the License.
 
 #include "normalize_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Normalize_vulkan)
-
 Normalize_vulkan::Normalize_vulkan()
 {
     support_vulkan = true;
+    support_image_storage = true;
 
     pipeline_normalize_reduce_sum4_fp16_to_fp32 = 0;
     pipeline_normalize_reduce_sum4_fp32[0] = 0;
@@ -76,7 +75,7 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         specializations[0].i = across_spatial;
         specializations[1].i = across_channel;
 
-        Mat local_size_xyz;// TODO select by across_channel / across_spatial
+        Mat local_size_xyz; // TODO select by across_channel / across_spatial
 
         // pack1
         if (shape.dims == 0 || elempack == 1)
@@ -131,7 +130,7 @@ int Normalize_vulkan::create_pipeline(const Option& opt)
         specializations[2].f = eps;
         specializations[3].i = eps_mode;
 
-        Mat local_size_xyz;// TODO resolve sqsum_workspace shape
+        Mat local_size_xyz; // TODO resolve sqsum_workspace shape
 
         if (shape.dims == 0 || elempack == 1)
         {
@@ -257,7 +256,14 @@ int Normalize_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         Mat scale_data_packed;
         convert_packing(scale_data, scale_data_packed, elempack);
 
-        cmd.record_upload(scale_data_packed, scale_data_gpu, opt);
+        if (opt.use_image_storage)
+        {
+            cmd.record_upload(scale_data_packed, scale_data_gpu_image, opt);
+        }
+        else
+        {
+            cmd.record_upload(scale_data_packed, scale_data_gpu, opt);
+        }
     }
 
     return 0;
@@ -275,103 +281,107 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     VkMat sqsum_workspace;
     {
         {
-        int reduced_w;
-        int reduced_h;
-        int reduced_c;
+            int reduced_w;
+            int reduced_h;
+            int reduced_c;
 
-        if (across_spatial && across_channel)
-        {
-            reduced_w = (bottom_top_blob.w * bottom_top_blob.h + 1) / 2;
-            reduced_h = 1;
-            reduced_c = (bottom_top_blob.c + 1) / 2;
-        }
-        else if (across_spatial && !across_channel)
-        {
-            reduced_w = (bottom_top_blob.w * bottom_top_blob.h + 3) / 4;
-            reduced_h = 1;
-            reduced_c = bottom_top_blob.c;
-        }
-        else // if (!across_spatial && across_channel)
-        {
-            reduced_w = bottom_top_blob.w * bottom_top_blob.h;
-            reduced_h = 1;
-            reduced_c = (bottom_top_blob.c + 3) / 4;
-        }
+            if (across_spatial && across_channel)
+            {
+                reduced_w = (bottom_top_blob.w * bottom_top_blob.h + 1) / 2;
+                reduced_h = 1;
+                reduced_c = (bottom_top_blob.c + 1) / 2;
+            }
+            else if (across_spatial && !across_channel)
+            {
+                reduced_w = (bottom_top_blob.w * bottom_top_blob.h + 3) / 4;
+                reduced_h = 1;
+                reduced_c = bottom_top_blob.c;
+            }
+            else // if (!across_spatial && across_channel)
+            {
+                reduced_w = bottom_top_blob.w * bottom_top_blob.h;
+                reduced_h = 1;
+                reduced_c = (bottom_top_blob.c + 3) / 4;
+            }
 
-        sqsum_workspace.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
-        {
-        std::vector<VkMat> bindings(2);
-        bindings[0] = bottom_top_blob;
-        bindings[1] = sqsum_workspace;
+            sqsum_workspace.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+            {
+                std::vector<VkMat> bindings(2);
+                bindings[0] = bottom_top_blob;
+                bindings[1] = sqsum_workspace;
 
-        std::vector<vk_constant_type> constants(6);
-        constants[0].i = bottom_top_blob.w * bottom_top_blob.h;
-        constants[1].i = bottom_top_blob.c;
-        constants[2].i = bottom_top_blob.cstep;
-        constants[3].i = sqsum_workspace.w;
-        constants[4].i = sqsum_workspace.c;
-        constants[5].i = sqsum_workspace.cstep;
+                std::vector<vk_constant_type> constants(8);
+                constants[0].i = bottom_top_blob.w * bottom_top_blob.h;
+                constants[1].i = 1;
+                constants[2].i = bottom_top_blob.c;
+                constants[3].i = bottom_top_blob.cstep;
+                constants[4].i = sqsum_workspace.w;
+                constants[5].i = 1;
+                constants[6].i = sqsum_workspace.c;
+                constants[7].i = sqsum_workspace.cstep;
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8
-                                 : elempack == 4 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4
-                                 : pipeline_normalize_reduce_sum4_fp16_to_fp32;
+                const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8
+                                           : elempack == 4 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4
+                                           : pipeline_normalize_reduce_sum4_fp16_to_fp32;
 
-        cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace);
-        }
+                cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace);
+            }
         }
 
         int pb = 0;
         while ((across_spatial && sqsum_workspace.w > 1) || (across_channel && sqsum_workspace.c > 1))
         {
-        int reduced_w;
-        int reduced_h;
-        int reduced_c;
+            int reduced_w;
+            int reduced_h;
+            int reduced_c;
 
-        if (across_spatial && across_channel)
-        {
-            reduced_w = (sqsum_workspace.w + 1) / 2;
-            reduced_h = 1;
-            reduced_c = (sqsum_workspace.c + 1) / 2;
-        }
-        else if (across_spatial && !across_channel)
-        {
-            reduced_w = (sqsum_workspace.w + 3) / 4;
-            reduced_h = 1;
-            reduced_c = sqsum_workspace.c;
-        }
-        else // if (!across_spatial && across_channel)
-        {
-            reduced_w = sqsum_workspace.w;
-            reduced_h = 1;
-            reduced_c = (sqsum_workspace.c + 3) / 4;
-        }
+            if (across_spatial && across_channel)
+            {
+                reduced_w = (sqsum_workspace.w + 1) / 2;
+                reduced_h = 1;
+                reduced_c = (sqsum_workspace.c + 1) / 2;
+            }
+            else if (across_spatial && !across_channel)
+            {
+                reduced_w = (sqsum_workspace.w + 3) / 4;
+                reduced_h = 1;
+                reduced_c = sqsum_workspace.c;
+            }
+            else // if (!across_spatial && across_channel)
+            {
+                reduced_w = sqsum_workspace.w;
+                reduced_h = 1;
+                reduced_c = (sqsum_workspace.c + 3) / 4;
+            }
 
-        VkMat sqsum_workspace_reduced;
-        sqsum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u*elempack, elempack, opt.workspace_vkallocator);
+            VkMat sqsum_workspace_reduced;
+            sqsum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
 
-        {
-        std::vector<VkMat> bindings(2);
-        bindings[0] = sqsum_workspace;
-        bindings[1] = sqsum_workspace_reduced;
+            {
+                std::vector<VkMat> bindings(2);
+                bindings[0] = sqsum_workspace;
+                bindings[1] = sqsum_workspace_reduced;
 
-        std::vector<vk_constant_type> constants(6);
-        constants[0].i = sqsum_workspace.w;
-        constants[1].i = sqsum_workspace.c;
-        constants[2].i = sqsum_workspace.cstep;
-        constants[3].i = sqsum_workspace_reduced.w;
-        constants[4].i = sqsum_workspace_reduced.c;
-        constants[5].i = sqsum_workspace_reduced.cstep;
+                std::vector<vk_constant_type> constants(8);
+                constants[0].i = sqsum_workspace.w;
+                constants[1].i = 1;
+                constants[2].i = sqsum_workspace.c;
+                constants[3].i = sqsum_workspace.cstep;
+                constants[4].i = sqsum_workspace_reduced.w;
+                constants[5].i = 1;
+                constants[6].i = sqsum_workspace_reduced.c;
+                constants[7].i = sqsum_workspace_reduced.cstep;
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp32_pack8[pb%2]
-                                 : elempack == 4 ? pipeline_normalize_reduce_sum4_fp32_pack4[pb%2]
-                                 : pipeline_normalize_reduce_sum4_fp32[pb%2];
+                const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp32_pack8[pb % 2]
+                                           : elempack == 4 ? pipeline_normalize_reduce_sum4_fp32_pack4[pb % 2]
+                                           : pipeline_normalize_reduce_sum4_fp32[pb % 2];
 
-        cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace_reduced);
+                cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace_reduced);
 
-        pb++;
-        }
+                pb++;
+            }
 
-        sqsum_workspace = sqsum_workspace_reduced;
+            sqsum_workspace = sqsum_workspace_reduced;
         }
     }
 
@@ -383,14 +393,15 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         bindings[0] = sqsum_workspace;
         bindings[1] = coeffs_workspace;
 
-        std::vector<vk_constant_type> constants(3);
+        std::vector<vk_constant_type> constants(4);
         constants[0].i = sqsum_workspace.w;
-        constants[1].i = sqsum_workspace.c;
-        constants[2].i = sqsum_workspace.cstep;
+        constants[1].i = sqsum_workspace.h;
+        constants[2].i = sqsum_workspace.c;
+        constants[3].i = sqsum_workspace.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_coeffs_pack8
-                                 : elempack == 4 ? pipeline_normalize_coeffs_pack4
-                                 : pipeline_normalize_coeffs;
+                                   : elempack == 4 ? pipeline_normalize_coeffs_pack4
+                                   : pipeline_normalize_coeffs;
 
         cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace);
     }
@@ -400,7 +411,7 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         std::vector<VkMat> bindings(3);
         bindings[0] = bottom_top_blob;
         bindings[1] = coeffs_workspace;
-        bindings[2] = channel_shared || (scale_data_size == 1 && scale_data[0] == 1.f) ? coeffs_workspace : scale_data_gpu;
+        bindings[2] = scale_data_gpu;
 
         std::vector<vk_constant_type> constants(5);
         constants[0].i = bottom_top_blob.dims;
@@ -410,8 +421,170 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         constants[4].i = bottom_top_blob.cstep;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_norm_pack8
-                                 : elempack == 4 ? pipeline_normalize_norm_pack4
-                                 : pipeline_normalize_norm;
+                                   : elempack == 4 ? pipeline_normalize_norm_pack4
+                                   : pipeline_normalize_norm;
+
+        cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
+    }
+
+    return 0;
+}
+
+int Normalize_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const
+{
+    // int w = bottom_top_blob.w;
+    // int h = bottom_top_blob.h;
+    // int size = w * h;
+    size_t elemsize = bottom_top_blob.elemsize;
+    int elempack = bottom_top_blob.elempack;
+
+    // reduce square sum
+    VkImageMat sqsum_workspace;
+    {
+        {
+            int reduced_w;
+            int reduced_h;
+            int reduced_c;
+
+            if (across_spatial && across_channel)
+            {
+                reduced_w = (bottom_top_blob.w + 1) / 2;
+                reduced_h = (bottom_top_blob.h + 1) / 2;
+                reduced_c = (bottom_top_blob.c + 1) / 2;
+            }
+            else if (across_spatial && !across_channel)
+            {
+                reduced_w = (bottom_top_blob.w + 1) / 2;
+                reduced_h = (bottom_top_blob.h + 1) / 2;
+                reduced_c = bottom_top_blob.c;
+            }
+            else // if (!across_spatial && across_channel)
+            {
+                reduced_w = bottom_top_blob.w;
+                reduced_h = bottom_top_blob.h;
+                reduced_c = (bottom_top_blob.c + 3) / 4;
+            }
+
+            sqsum_workspace.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+            {
+                std::vector<VkImageMat> bindings(2);
+                bindings[0] = bottom_top_blob;
+                bindings[1] = sqsum_workspace;
+
+                std::vector<vk_constant_type> constants(8);
+                constants[0].i = bottom_top_blob.w;
+                constants[1].i = bottom_top_blob.h;
+                constants[2].i = bottom_top_blob.c;
+                constants[3].i = 0; //bottom_top_blob.cstep;
+                constants[4].i = sqsum_workspace.w;
+                constants[5].i = sqsum_workspace.h;
+                constants[6].i = sqsum_workspace.c;
+                constants[7].i = 0; //sqsum_workspace.cstep;
+
+                const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack8
+                                           : elempack == 4 ? pipeline_normalize_reduce_sum4_fp16_to_fp32_pack4
+                                           : pipeline_normalize_reduce_sum4_fp16_to_fp32;
+
+                cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace);
+            }
+        }
+
+        int pb = 0;
+        while ((across_spatial && sqsum_workspace.w * sqsum_workspace.h > 1) || (across_channel && sqsum_workspace.c > 1))
+        {
+            int reduced_w;
+            int reduced_h;
+            int reduced_c;
+
+            if (across_spatial && across_channel)
+            {
+                reduced_w = (sqsum_workspace.w + 1) / 2;
+                reduced_h = (sqsum_workspace.h + 1) / 2;
+                reduced_c = (sqsum_workspace.c + 1) / 2;
+            }
+            else if (across_spatial && !across_channel)
+            {
+                reduced_w = (sqsum_workspace.w + 1) / 2;
+                reduced_h = (sqsum_workspace.h + 1) / 2;
+                reduced_c = sqsum_workspace.c;
+            }
+            else // if (!across_spatial && across_channel)
+            {
+                reduced_w = sqsum_workspace.w;
+                reduced_h = sqsum_workspace.h;
+                reduced_c = (sqsum_workspace.c + 3) / 4;
+            }
+
+            VkImageMat sqsum_workspace_reduced;
+            sqsum_workspace_reduced.create(reduced_w, reduced_h, reduced_c, 4u * elempack, elempack, opt.workspace_vkallocator);
+
+            {
+                std::vector<VkImageMat> bindings(2);
+                bindings[0] = sqsum_workspace;
+                bindings[1] = sqsum_workspace_reduced;
+
+                std::vector<vk_constant_type> constants(8);
+                constants[0].i = sqsum_workspace.w;
+                constants[1].i = sqsum_workspace.h;
+                constants[2].i = sqsum_workspace.c;
+                constants[3].i = 0; //sqsum_workspace.cstep;
+                constants[4].i = sqsum_workspace_reduced.w;
+                constants[5].i = sqsum_workspace_reduced.h;
+                constants[6].i = sqsum_workspace_reduced.c;
+                constants[7].i = 0; //sqsum_workspace_reduced.cstep;
+
+                const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_reduce_sum4_fp32_pack8[pb % 2]
+                                           : elempack == 4 ? pipeline_normalize_reduce_sum4_fp32_pack4[pb % 2]
+                                           : pipeline_normalize_reduce_sum4_fp32[pb % 2];
+
+                cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace_reduced);
+
+                pb++;
+            }
+
+            sqsum_workspace = sqsum_workspace_reduced;
+        }
+    }
+
+    // coeffs
+    VkImageMat coeffs_workspace;
+    coeffs_workspace.create(sqsum_workspace.w * sqsum_workspace.h * sqsum_workspace.c, elemsize, elempack, opt.workspace_vkallocator);
+    {
+        std::vector<VkImageMat> bindings(2);
+        bindings[0] = sqsum_workspace;
+        bindings[1] = coeffs_workspace;
+
+        std::vector<vk_constant_type> constants(4);
+        constants[0].i = sqsum_workspace.w;
+        constants[1].i = sqsum_workspace.h;
+        constants[2].i = sqsum_workspace.c;
+        constants[3].i = 0; //sqsum_workspace.cstep;
+
+        const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_coeffs_pack8
+                                   : elempack == 4 ? pipeline_normalize_coeffs_pack4
+                                   : pipeline_normalize_coeffs;
+
+        cmd.record_pipeline(pipeline, bindings, constants, sqsum_workspace);
+    }
+
+    // norm
+    {
+        std::vector<VkImageMat> bindings(4);
+        bindings[0] = bottom_top_blob;
+        bindings[1] = bottom_top_blob;
+        bindings[2] = coeffs_workspace;
+        bindings[3] = scale_data_gpu_image;
+
+        std::vector<vk_constant_type> constants(5);
+        constants[0].i = bottom_top_blob.dims;
+        constants[1].i = bottom_top_blob.w;
+        constants[2].i = bottom_top_blob.h;
+        constants[3].i = bottom_top_blob.c;
+        constants[4].i = 0; //bottom_top_blob.cstep;
+
+        const Pipeline* pipeline = elempack == 8 ? pipeline_normalize_norm_pack8
+                                   : elempack == 4 ? pipeline_normalize_norm_pack4
+                                   : pipeline_normalize_norm;
 
         cmd.record_pipeline(pipeline, bindings, constants, bottom_top_blob);
     }

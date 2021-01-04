@@ -10,9 +10,8 @@
 |              |
 +-----im_w-----+
 ```
-```
-const unsigned char* data = im.data + (y * im_w + x) * 3;
-ncnn::Mat in = ncnn::Mat::from_pixels(data, ncnn::PIXEL_RGB, roiw, roih, im_w * 3);
+```cpp
+ncnn::Mat in = ncnn::Mat::from_pixels_roi(im.data, ncnn::Mat::PIXEL_RGB, im_w, im_h, x, y, roiw, roih);
 ```
 
 ### image roi crop + resize + convert to ncnn::Mat
@@ -26,9 +25,8 @@ ncnn::Mat in = ncnn::Mat::from_pixels(data, ncnn::PIXEL_RGB, roiw, roih, im_w * 
 |              |          +----+/
 +-----im_w-----+         target_w
 ```
-```
-const unsigned char* data = im.data + (y * im_w + x) * 3;
-ncnn::Mat in = ncnn::Mat::from_pixels_resize(data, ncnn::PIXEL_RGB, roiw, roih, im_w * 3, target_w, target_h);
+```cpp
+ncnn::Mat in = ncnn::Mat::from_pixels_roi_resize(im.data, ncnn::Mat::PIXEL_RGB, im_w, im_h, x, y, roiw, roih, target_w, target_h);
 ```
 
 ### ncnn::Mat export image + offset paste
@@ -42,9 +40,9 @@ ncnn::Mat in = ncnn::Mat::from_pixels_resize(data, ncnn::PIXEL_RGB, roiw, roih, 
                 |              |
                 +-----im_w-----+
 ```
-```
+```cpp
 const unsigned char* data = im.data + (y * im_w + x) * 3;
-out.to_pixels(data, ncnn::PIXEL_RGB, im_w * 3);
+out.to_pixels(data, ncnn::Mat::PIXEL_RGB, im_w * 3);
 ```
 
 ### ncnn::Mat export image + resize + roi paste
@@ -58,9 +56,9 @@ out.to_pixels(data, ncnn::PIXEL_RGB, im_w * 3);
 +-w--+/     |              |
             +-----im_w-----+
 ```
-```
+```cpp
 const unsigned char* data = im.data + (y * im_w + x) * 3;
-out.to_pixels_resize(data, ncnn::PIXEL_RGB, roiw, roih, im_w * 3);
+out.to_pixels_resize(data, ncnn::Mat::PIXEL_RGB, roiw, roih, im_w * 3);
 ```
 
 ### image roi crop + resize
@@ -73,7 +71,7 @@ out.to_pixels_resize(data, ncnn::PIXEL_RGB, roiw, roih, im_w * 3);
 |              |          +----+
 +-----im_w-----+         target_w
 ```
-```
+```cpp
 const unsigned char* data = im.data + (y * im_w + x) * 3;
 ncnn::resize_bilinear_c3(data, roiw, roih, im_w * 3, outdata, target_w, target_h, target_w * 3);
 ```
@@ -88,7 +86,7 @@ ncnn::resize_bilinear_c3(data, roiw, roih, im_w * 3, outdata, target_w, target_h
 +-w--+      |              |
             +-----im_w-----+
 ```
-```
+```cpp
 unsigned char* outdata = im.data + (y * im_w + x) * 3;
 ncnn::resize_bilinear_c3(data, w, h, w * 3, outdata, roiw, roih, im_w * 3);
 ```
@@ -103,7 +101,7 @@ ncnn::resize_bilinear_c3(data, w, h, w * 3, outdata, roiw, roih, im_w * 3);
 |              |         |   +-target_w-+  |
 +-----im_w-----+         +-----outim_w-----+
 ```
-```
+```cpp
 const unsigned char* data = im.data + (y * im_w + x) * 3;
 unsigned char* outdata = outim.data + (roiy * outim_w + roix) * 3;
 ncnn::resize_bilinear_c3(data, w, h, im_w * 3, outdata, target_w, target_h, outim_w * 3);
@@ -119,7 +117,7 @@ ncnn::resize_bilinear_c3(data, w, h, im_w * 3, outdata, target_w, target_h, outi
 |              |          +---+
 +-----im_w-----+            h
 ```
-```
+```cpp
 const unsigned char* data = im.data + (y * im_w + x) * 3;
 ncnn::kanna_rotate_c3(data, w, h, im_w * 3, outdata, h, w, h * 3, 6);
 ```
@@ -134,7 +132,7 @@ ncnn::kanna_rotate_c3(data, w, h, im_w * 3, outdata, h, w, h * 3, 6);
  +---+       |              |
    w         +-----im_w-----+
 ```
-```
+```cpp
 unsigned char* outdata = im.data + (y * im_w + x) * 3;
 ncnn::kanna_rotate_c3(data, w, h, w * 3, outdata, h, w, im_w * 3, 7);
 ```
@@ -149,7 +147,7 @@ ncnn::kanna_rotate_c3(data, w, h, w * 3, outdata, h, w, im_w * 3, 7);
 |              |         |         +-h-+   |
 +-----im_w-----+         +-----outim_w-----+
 ```
-```
+```cpp
 const unsigned char* data = im.data + (y * im_w + x) * 3;
 unsigned char* outdata = outim.data + (roiy * outim_w + roix) * 3;
 ncnn::kanna_rotate_c3(data, w, h, im_w * 3, outdata, h, w, outim_w * 3, 6);

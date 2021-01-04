@@ -28,7 +28,11 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
-    enum PoolMethod { PoolMethod_MAX = 0, PoolMethod_AVE = 1 };
+    enum PoolMethod
+    {
+        PoolMethod_MAX = 0,
+        PoolMethod_AVE = 1
+    };
 
 public:
     // param

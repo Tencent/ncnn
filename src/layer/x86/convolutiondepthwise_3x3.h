@@ -25,13 +25,13 @@ static void convdw3x3s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int g=0; g<group; g++)
+    for (int g = 0; g < group; g++)
     {
         Mat out = top_blob.channel(g);
 
         const float bias0 = bias ? bias[g] : 0.f;
 
-        const float* kernel0 = kernel + g*9;
+        const float* kernel0 = kernel + g * 9;
 
         float* outptr = out;
         float* outptr2 = outptr + outw;
@@ -40,8 +40,8 @@ static void convdw3x3s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
 
         const float* r0 = img0;
         const float* r1 = img0 + w;
-        const float* r2 = img0 + w*2;
-        const float* r3 = img0 + w*3;
+        const float* r2 = img0 + w * 2;
+        const float* r3 = img0 + w * 3;
 
         const float* k0 = kernel0;
         const float* k1 = kernel0 + 3;
@@ -49,12 +49,11 @@ static void convdw3x3s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
 
         int i = 0;
 
-        for (; i+1 < outh; i+=2)
+        for (; i + 1 < outh; i += 2)
         {
-
             int remain = outw;
 
-            for (; remain>0; remain--)
+            for (; remain > 0; remain--)
             {
                 float sum = bias0;
                 sum += r0[0] * k0[0];
@@ -102,7 +101,7 @@ static void convdw3x3s1_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
         {
             int remain = outw;
 
-            for (; remain>0; remain--)
+            for (; remain > 0; remain--)
             {
                 float sum = bias0;
                 sum += r0[0] * k0[0];
@@ -139,19 +138,19 @@ static void convdw3x3s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
 
     const int group = bottom_blob.c;
 
-    const int tailstep = w - 2*outw + w;
+    const int tailstep = w - 2 * outw + w;
 
     const float* kernel = _kernel;
     const float* bias = _bias;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int g=0; g<group; g++)
+    for (int g = 0; g < group; g++)
     {
         Mat out = top_blob.channel(g);
 
         const float bias0 = bias ? bias[g] : 0.f;
 
-        const float* kernel0 = kernel + g*9;
+        const float* kernel0 = kernel + g * 9;
 
         float* outptr = out;
 
@@ -159,7 +158,7 @@ static void convdw3x3s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
 
         const float* r0 = img0;
         const float* r1 = img0 + w;
-        const float* r2 = img0 + w*2;
+        const float* r2 = img0 + w * 2;
 
         const float* k0 = kernel0;
         const float* k1 = kernel0 + 3;
@@ -171,7 +170,7 @@ static void convdw3x3s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
         {
             int remain = outw;
 
-            for (; remain>0; remain--)
+            for (; remain > 0; remain--)
             {
                 float sum = bias0;
                 sum += r0[0] * k0[0];
@@ -196,6 +195,5 @@ static void convdw3x3s2_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _k
             r1 += tailstep;
             r2 += tailstep;
         }
-
     }
 }

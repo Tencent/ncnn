@@ -97,7 +97,7 @@ Here is an example of using convert packing to convert RGB interleaved data to p
 
 **NOTE:** The following code is just presented to explain what packing is and the conversion process. Do not use it in production due to its poor performance. Do use ncnn::Mat::from_pixels()
 
-```
+```cpp
 // rgb_interleaved_u8 is RGB RGB RGB ...
 // rgb_interleaved_u8.w = w;
 // rgb_interleaved_u8.h = h;

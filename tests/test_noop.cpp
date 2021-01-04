@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/noop.h"
+#include "testutil.h"
 
 static int test_noop(const ncnn::Mat& a)
 {
@@ -22,15 +21,10 @@ static int test_noop(const ncnn::Mat& a)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
     std::vector<ncnn::Mat> as(1);
     as[0] = a;
 
-    int ret = test_layer<ncnn::Noop>("Noop", pd, weights, opt, as, 1);
+    int ret = test_layer<ncnn::Noop>("Noop", pd, weights, as, 1);
     if (ret != 0)
     {
         fprintf(stderr, "test_noop failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
@@ -42,25 +36,25 @@ static int test_noop(const ncnn::Mat& a)
 static int test_noop_0()
 {
     return 0
-        || test_noop(RandomMat(6, 7, 16))
-        || test_noop(RandomMat(3, 5, 13))
-        ;
+           || test_noop(RandomMat(5, 7, 24))
+           || test_noop(RandomMat(7, 9, 12))
+           || test_noop(RandomMat(3, 5, 13));
 }
 
 static int test_noop_1()
 {
     return 0
-        || test_noop(RandomMat(6, 16))
-        || test_noop(RandomMat(7, 15))
-        ;
+           || test_noop(RandomMat(15, 24))
+           || test_noop(RandomMat(17, 12))
+           || test_noop(RandomMat(19, 15));
 }
 
 static int test_noop_2()
 {
     return 0
-        || test_noop(RandomMat(128))
-        || test_noop(RandomMat(127))
-        ;
+           || test_noop(RandomMat(128))
+           || test_noop(RandomMat(124))
+           || test_noop(RandomMat(127));
 }
 
 int main()
@@ -68,8 +62,7 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_noop_0()
-        || test_noop_1()
-        || test_noop_2()
-        ;
+           || test_noop_0()
+           || test_noop_1()
+           || test_noop_2();
 }

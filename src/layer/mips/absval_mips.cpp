@@ -14,13 +14,11 @@
 
 #include "absval_mips.h"
 
-#if __MIPS_MSA
+#if __mips_msa
 #include <msa.h>
-#endif // __MIPS_MSA
+#endif // __mips_msa
 
 namespace ncnn {
-
-DEFINE_LAYER_CREATOR(AbsVal_mips)
 
 int AbsVal_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
@@ -30,19 +28,19 @@ int AbsVal_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int size = w * h;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
-#if __MIPS_MSA
+#if __mips_msa
         int nn = size >> 2;
         int remain = size - (nn << 2);
 #else
         int remain = size;
-#endif // __MIPS_MSA
+#endif // __mips_msa
 
-#if __MIPS_MSA
-        for (; nn>0; nn--)
+#if __mips_msa
+        for (; nn > 0; nn--)
         {
             v4u32 _p = (v4u32)__msa_ld_w(ptr, 0);
             v4f32 _outp = (v4f32)__msa_bclri_w(_p, 31);
@@ -50,8 +48,8 @@ int AbsVal_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             ptr += 4;
         }
-#endif // __MIPS_MSA
-        for (; remain>0; remain--)
+#endif // __mips_msa
+        for (; remain > 0; remain--)
         {
             *ptr = *ptr > 0 ? *ptr : -*ptr;
 

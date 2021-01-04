@@ -28,7 +28,12 @@ public:
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
-    enum OperationType { Operation_PROD = 0, Operation_SUM = 1, Operation_MAX = 2 };
+    enum OperationType
+    {
+        Operation_PROD = 0,
+        Operation_SUM = 1,
+        Operation_MAX = 2
+    };
 
 public:
     // param

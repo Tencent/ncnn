@@ -46,7 +46,7 @@ public:
     int dilation_h;
     int stride_w;
     int stride_h;
-    int pad_left;// -233=SAME_UPPER -234=SAME_LOWER
+    int pad_left; // -233=SAME_UPPER -234=SAME_LOWER
     int pad_right;
     int pad_top;
     int pad_bottom;

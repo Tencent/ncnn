@@ -1,0 +1,196 @@
+name: elf-riscv64-cpu-gcc
+on: [push, pull_request]
+jobs:
+  newlib-rv64gcv-gcc:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - name: cache-riscv
+      id: cache-riscv
+      uses: actions/cache@v1
+      with:
+        path: rv64gcv-install
+        key: rv64gcv-newlib-install
+
+    - name: install-riscv-build-deps
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
+
+    - name: checkout-riscv-gnu-toolchain
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: riscv/riscv-gnu-toolchain
+        path: riscv-gnu-toolchain
+        ref: 5842fde8ee5bb3371643b60ed34906eff7a5fa31
+    - name: checkout-riscv-gnu-toolchain-submodules
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        cd riscv-gnu-toolchain
+        git submodule update --init --recursive --depth 1 riscv-binutils
+        git submodule update --init --recursive --depth 1 riscv-gcc
+        git submodule update --init --recursive --depth 1 riscv-glibc
+        git submodule update --init --recursive --depth 1 riscv-dejagnu
+        git submodule update --init --recursive --depth 1 riscv-newlib
+        git submodule update --init --recursive --depth 1 riscv-gdb
+    - name: riscv-gnu-toolchain
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        cd riscv-gnu-toolchain
+        sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
+        ./configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install --with-arch=rv64gcv
+        make -j2
+
+    - name: checkout-riscv-pk
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: riscv/riscv-pk
+        path: riscv-pk
+        ref: 5d9ed238e1cabfbca3c47f50d32894ce94bfc304
+    - name: riscv-pk
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        cd riscv-pk
+        mkdir build
+        cd build
+        export PATH=$GITHUB_WORKSPACE/rv64gcv-install/bin:$PATH
+        ../configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install --with-arch=rv64gcv --host=riscv64-unknown-elf
+        make -j2
+        make install
+
+    - name: checkout-riscv-isa-sim
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: riscv/riscv-isa-sim
+        path: riscv-isa-sim
+        ref: ecc039ef5726315b7e37e8a9c7b682bbe09c9cf5
+    - name: riscv-isa-sim
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        cd riscv-isa-sim
+        mkdir build
+        cd build
+        export PATH=$GITHUB_WORKSPACE/rv64gcv-install/bin:$PATH
+        ../configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install --with-isa=rv64gcv
+        make -j2
+        make install
+
+    - name: riscv-strip-install
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: find $GITHUB_WORKSPACE/rv64gcv-install -type f | xargs -i strip -g {} || true
+
+    - name: configure
+      run: export RISCV_ROOT_PATH=$GITHUB_WORKSPACE/rv64gcv-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-elf.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j 2
+    - name: test
+      run: |
+        sudo apt-get update
+        sudo apt-get install device-tree-compiler
+        export PATH=$GITHUB_WORKSPACE/rv64gcv-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=spike TESTS_EXECUTABLE_LOADER_ARGUMENTS=$GITHUB_WORKSPACE/rv64gcv-install/riscv64-unknown-elf/bin/pk ctest --output-on-failure -j 2
+
+  newlib-rv64gc-gcc:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - name: cache-riscv
+      id: cache-riscv
+      uses: actions/cache@v1
+      with:
+        path: rv64gc-install
+        key: rv64gc-newlib-install
+
+    - name: install-riscv-build-deps
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
+
+    - name: checkout-riscv-gnu-toolchain
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: riscv/riscv-gnu-toolchain
+        path: riscv-gnu-toolchain
+        ref: 256a4108922f76403a63d6567501c479971d5575
+    - name: checkout-riscv-gnu-toolchain-submodules
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        cd riscv-gnu-toolchain
+        git submodule update --init --recursive --depth 1 riscv-binutils
+        git submodule update --init --recursive --depth 1 riscv-gcc
+        git submodule update --init --recursive --depth 1 riscv-glibc
+        git submodule update --init --recursive --depth 1 riscv-dejagnu
+        git submodule update --init --recursive --depth 1 riscv-newlib
+        git submodule update --init --recursive --depth 1 riscv-gdb
+    - name: riscv-gnu-toolchain
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        cd riscv-gnu-toolchain
+        sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
+        ./configure --prefix=$GITHUB_WORKSPACE/rv64gc-install --with-arch=rv64gc
+        make -j2
+
+    - name: checkout-riscv-pk
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: riscv/riscv-pk
+        path: riscv-pk
+        ref: 5d9ed238e1cabfbca3c47f50d32894ce94bfc304
+    - name: riscv-pk
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        cd riscv-pk
+        mkdir build
+        cd build
+        export PATH=$GITHUB_WORKSPACE/rv64gc-install/bin:$PATH
+        ../configure --prefix=$GITHUB_WORKSPACE/rv64gc-install --with-arch=rv64gc --host=riscv64-unknown-elf
+        make -j2
+        make install
+
+    - name: checkout-riscv-isa-sim
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: riscv/riscv-isa-sim
+        path: riscv-isa-sim
+        ref: ecc039ef5726315b7e37e8a9c7b682bbe09c9cf5
+    - name: riscv-isa-sim
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        cd riscv-isa-sim
+        mkdir build
+        cd build
+        export PATH=$GITHUB_WORKSPACE/rv64gc-install/bin:$PATH
+        ../configure --prefix=$GITHUB_WORKSPACE/rv64gc-install --with-isa=rv64gc
+        make -j2
+        make install
+
+    - name: riscv-strip-install
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: find $GITHUB_WORKSPACE/rv64gc-install -type f | xargs -i strip -g {} || true
+
+    - name: configure
+      run: export RISCV_ROOT_PATH=$GITHUB_WORKSPACE/rv64gc-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-elf.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j 2
+    - name: test
+      run: |
+        sudo apt-get update
+        sudo apt-get install device-tree-compiler
+        export PATH=$GITHUB_WORKSPACE/rv64gc-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=spike TESTS_EXECUTABLE_LOADER_ARGUMENTS=$GITHUB_WORKSPACE/rv64gc-install/riscv64-unknown-elf/bin/pk ctest --output-on-failure -j 2

@@ -15,20 +15,25 @@
 #include "sigmoid_arm.h"
 
 #if __ARM_NEON
-#include <arm_neon.h>
 #include "neon_mathfun.h"
+
+#include <arm_neon.h>
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "neon_mathfun_fp16s.h"
+#endif
 #endif // __ARM_NEON
 
 #include <math.h>
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Sigmoid_arm)
-
 Sigmoid_arm::Sigmoid_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    support_fp16_storage = true;
+#endif
 #endif // __ARM_NEON
 
     support_bf16_storage = true;
@@ -36,7 +41,19 @@ Sigmoid_arm::Sigmoid_arm()
 
 int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    if (opt.use_bf16_storage)
+    int elembits = bottom_top_blob.elembits();
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (opt.use_fp16_storage && elembits == 16)
+    {
+        if (opt.use_fp16_arithmetic)
+            return forward_inplace_fp16sa(bottom_top_blob, opt);
+        else
+            return forward_inplace_fp16s(bottom_top_blob, opt);
+    }
+#endif
+
+    if (opt.use_bf16_storage && elembits == 16)
         return forward_inplace_bf16s(bottom_top_blob, opt);
 
     int w = bottom_top_blob.w;
@@ -49,21 +66,15 @@ int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     if (elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            float32x4_t _one = vdupq_n_f32(1.f);
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
                 float32x4_t _p = vld1q_f32(ptr);
-                _p = vnegq_f32(_p);
-                _p = exp_ps(_p);
-                _p = vaddq_f32(_p, _one);
-                float32x4_t _outp = vrecpeq_f32(_p);
-                _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
-//                 _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
-                vst1q_f32(ptr, _outp);
+                _p = sigmoid_ps(_p);
+                vst1q_f32(ptr, _p);
 
                 ptr += 4;
             }
@@ -74,7 +85,7 @@ int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
@@ -86,22 +97,16 @@ int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-        float32x4_t _one = vdupq_n_f32(1.f);
-        for (; nn>0; nn--)
+        for (; nn > 0; nn--)
         {
             float32x4_t _p = vld1q_f32(ptr);
-            _p = vnegq_f32(_p);
-            _p = exp_ps(_p);
-            _p = vaddq_f32(_p, _one);
-            float32x4_t _outp = vrecpeq_f32(_p);
-            _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
-//             _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
-            vst1q_f32(ptr, _outp);
+            _p = sigmoid_ps(_p);
+            vst1q_f32(ptr, _p);
 
             ptr += 4;
         }
 #endif // __ARM_NEON
-        for (; remain>0; remain--)
+        for (; remain > 0; remain--)
         {
             *ptr = 1.f / (1.f + exp(-*ptr));
 
@@ -111,6 +116,136 @@ int Sigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+int Sigmoid_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    int size = w * h;
+    int elempack = bottom_top_blob.elempack;
+
+    if (elempack == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr = bottom_top_blob.channel(q);
+
+            for (int i = 0; i < size; i++)
+            {
+                float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
+                _p = sigmoid_ps(_p);
+                vst1_f16(ptr, vcvt_f16_f32(_p));
+
+                ptr += 4;
+            }
+        }
+
+        return 0;
+    }
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        __fp16* ptr = bottom_top_blob.channel(q);
+
+        int i = 0;
+        for (; i + 3 < size; i += 4)
+        {
+            float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
+            _p = sigmoid_ps(_p);
+            vst1_f16(ptr, vcvt_f16_f32(_p));
+
+            ptr += 4;
+        }
+        for (; i < size; i++)
+        {
+            float v = (float)*ptr;
+            v = 1.f / (1.f + exp(-v));
+            *ptr = (__fp16)v;
+            ptr++;
+        }
+    }
+
+    return 0;
+}
+
+int Sigmoid_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    int size = w * h;
+    int elempack = bottom_top_blob.elempack;
+
+    if (elempack == 8)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr = bottom_top_blob.channel(q);
+
+            for (int i = 0; i < size; i++)
+            {
+                float16x8_t _p = vld1q_f16(ptr);
+                _p = sigmoid_ps(_p);
+                vst1q_f16(ptr, _p);
+
+                ptr += 8;
+            }
+        }
+
+        return 0;
+    }
+
+    if (elempack == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            __fp16* ptr = bottom_top_blob.channel(q);
+
+            for (int i = 0; i < size; i++)
+            {
+                float16x4_t _p = vld1_f16(ptr);
+                _p = sigmoid_ps(_p);
+                vst1_f16(ptr, _p);
+
+                ptr += 4;
+            }
+        }
+
+        return 0;
+    }
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        __fp16* ptr = bottom_top_blob.channel(q);
+
+        int i = 0;
+        for (; i + 3 < size; i += 4)
+        {
+            float16x4_t _p = vld1_f16(ptr);
+            _p = sigmoid_ps(_p);
+            vst1_f16(ptr, _p);
+
+            ptr += 4;
+        }
+        for (; i < size; i++)
+        {
+            __fp16 v = *ptr;
+            v = 1.f / (1.f + exp(-v));
+            *ptr = v;
+            ptr++;
+        }
+    }
+
+    return 0;
+}
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 int Sigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
@@ -124,21 +259,15 @@ int Sigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
     if (elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q=0; q<channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             unsigned short* ptr = bottom_top_blob.channel(q);
 
-            float32x4_t _one = vdupq_n_f32(1.f);
-            for (int i=0; i<size; i++)
+            for (int i = 0; i < size; i++)
             {
-                float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-                _p = vnegq_f32(_p);
-                _p = exp_ps(_p);
-                _p = vaddq_f32(_p, _one);
-                float32x4_t _outp = vrecpeq_f32(_p);
-                _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
-//                 _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
-                vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+                float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+                _p = sigmoid_ps(_p);
+                vst1_u16(ptr, vcvt_bf16_f32(_p));
 
                 ptr += 4;
             }
@@ -149,7 +278,7 @@ int Sigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<channels; q++)
+    for (int q = 0; q < channels; q++)
     {
         unsigned short* ptr = bottom_top_blob.channel(q);
 
@@ -161,22 +290,16 @@ int Sigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-        float32x4_t _one = vdupq_n_f32(1.f);
-        for (; nn>0; nn--)
+        for (; nn > 0; nn--)
         {
-            float32x4_t _p = vreinterpretq_f32_u32(vshll_n_u16(vld1_u16(ptr), 16));
-            _p = vnegq_f32(_p);
-            _p = exp_ps(_p);
-            _p = vaddq_f32(_p, _one);
-            float32x4_t _outp = vrecpeq_f32(_p);
-            _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
-//             _outp = vmulq_f32(vrecpsq_f32(_p, _outp), _outp);
-            vst1_u16(ptr, vshrn_n_u32(vreinterpretq_u32_f32(_outp), 16));
+            float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+            _p = sigmoid_ps(_p);
+            vst1_u16(ptr, vcvt_bf16_f32(_p));
 
             ptr += 4;
         }
 #endif // __ARM_NEON
-        for (; remain>0; remain--)
+        for (; remain > 0; remain--)
         {
             float v = bfloat16_to_float32(*ptr);
             v = 1.f / (1.f + exp(-v));

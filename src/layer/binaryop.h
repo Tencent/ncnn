@@ -32,16 +32,17 @@ public:
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
-    enum OperationType {
-        Operation_ADD   = 0,
-        Operation_SUB   = 1,
-        Operation_MUL   = 2,
-        Operation_DIV   = 3,
-        Operation_MAX   = 4,
-        Operation_MIN   = 5,
-        Operation_POW   = 6,
-        Operation_RSUB  = 7,
-        Operation_RDIV  = 8
+    enum OperationType
+    {
+        Operation_ADD = 0,
+        Operation_SUB = 1,
+        Operation_MUL = 2,
+        Operation_DIV = 3,
+        Operation_MAX = 4,
+        Operation_MIN = 5,
+        Operation_POW = 6,
+        Operation_RSUB = 7,
+        Operation_RDIV = 8
     };
 
 public:

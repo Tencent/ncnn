@@ -12,26 +12,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include "layer/pixelshuffle.h"
 #include "testutil.h"
 
-#include "layer/pixelshuffle.h"
-
-static int test_pixelshuffle(const ncnn::Mat& a, int upscale_factor)
+static int test_pixelshuffle(const ncnn::Mat& a, int upscale_factor, int mode)
 {
     ncnn::ParamDict pd;
     pd.set(0, upscale_factor);
+    pd.set(1, mode);
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::PixelShuffle>("PixelShuffle", pd, weights, opt, a);
+    int ret = test_layer<ncnn::PixelShuffle>("PixelShuffle", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_pixelshuffle failed a.dims=%d a=(%d %d %d) upscale_factor=%d\n", a.dims, a.w, a.h, a.c, upscale_factor);
+        fprintf(stderr, "test_pixelshuffle failed a.dims=%d a=(%d %d %d) upscale_factor=%d mode=%d\n", a.dims, a.w, a.h, a.c, upscale_factor, mode);
     }
 
     return ret;
@@ -40,19 +35,30 @@ static int test_pixelshuffle(const ncnn::Mat& a, int upscale_factor)
 static int test_pixelshuffle_0()
 {
     return 0
-        || test_pixelshuffle(RandomMat(3, 7, 1), 1)
-        || test_pixelshuffle(RandomMat(2, 3, 4), 2)
-        || test_pixelshuffle(RandomMat(3, 4, 12), 2)
-        || test_pixelshuffle(RandomMat(2, 2, 64), 4)
-        || test_pixelshuffle(RandomMat(4, 4, 32), 2)
-        || test_pixelshuffle(RandomMat(5, 5, 48), 2)
-        || test_pixelshuffle(RandomMat(3, 3, 90), 3)
-        ;
+           || test_pixelshuffle(RandomMat(3, 7, 1), 1, 0)
+           || test_pixelshuffle(RandomMat(2, 3, 4), 2, 0)
+           || test_pixelshuffle(RandomMat(3, 4, 12), 2, 0)
+           || test_pixelshuffle(RandomMat(2, 2, 64), 4, 0)
+           || test_pixelshuffle(RandomMat(4, 4, 32), 2, 0)
+           || test_pixelshuffle(RandomMat(5, 5, 48), 2, 0)
+           || test_pixelshuffle(RandomMat(3, 3, 90), 3, 0);
+}
+
+static int test_pixelshuffle_1()
+{
+    return 0
+           || test_pixelshuffle(RandomMat(3, 7, 1), 1, 1)
+           || test_pixelshuffle(RandomMat(2, 3, 4), 2, 1)
+           || test_pixelshuffle(RandomMat(3, 4, 12), 2, 1)
+           || test_pixelshuffle(RandomMat(2, 2, 64), 4, 1)
+           || test_pixelshuffle(RandomMat(4, 4, 32), 2, 1)
+           || test_pixelshuffle(RandomMat(5, 5, 48), 2, 1)
+           || test_pixelshuffle(RandomMat(3, 3, 90), 3, 1);
 }
 
 int main()
 {
     SRAND(7767517);
 
-    return test_pixelshuffle_0();
+    return test_pixelshuffle_0() || test_pixelshuffle_1();
 }

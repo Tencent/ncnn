@@ -45,15 +45,11 @@ layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
-layout (local_size_x_id = 233) in;
-layout (local_size_y_id = 234) in;
-layout (local_size_z_id = 235) in;
-
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob;
 layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
 layout (binding = 2) uniform unfp sampler3D weight_blob;
-layout (binding = 3) uniform unfp sampler1D bias_blob;
+layout (binding = 3) uniform unfp sampler3D bias_blob;
 #else
 #if NCNN_fp16_packed
 layout (binding = 0) readonly buffer bottom_blob { vec4 bottom_blob_data[]; };
@@ -84,11 +80,11 @@ layout (push_constant) uniform parameter
 void main()
 {
 #if NCNN_image_shader
-    int gx = int(gl_GlobalInvocationID.x) * 2;
-    int gy = int(gl_GlobalInvocationID.y) * 2;
+    int gx = int(gl_GlobalInvocationID.x) * 4;
+    int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+    if (gx >= psc(outw) * psc(outh) || gy >= 1 || gz >= psc(outc))
         return;
 #else
     int gx = int(gl_GlobalInvocationID.x);
@@ -104,7 +100,7 @@ void main()
     if (bias_term == 1)
     {
 #if NCNN_image_shader
-        sum = afpvec4(image1d_ld1(bias_blob, gz));
+        sum = afpvec4(image3d_ld1(bias_blob, ivec3(gz, 0, 0)));
 #else
         sum = afpvec4(buffer_ld1(bias_data, gz));
 #endif
@@ -115,14 +111,19 @@ void main()
     }
 
 #if NCNN_image_shader
+    ivec4 gx4 = gx + ivec4(0, 1, 2, 3);
+
+    ivec4 sy4 = gx4 / psc(w);
+    ivec4 sx4 = gx4 % psc(w);
+
     for (int z = 0; z < psc(c); z++)
     {
         afp k = image3d_ld1(weight_blob, ivec3(0, z, gz));
 
-        sum.r += k * image3d_ld1(bottom_blob, ivec3(gx, gy, z));
-        sum.g += k * image3d_ld1(bottom_blob, ivec3(gx+1, gy, z));
-        sum.b += k * image3d_ld1(bottom_blob, ivec3(gx, gy+1, z));
-        sum.a += k * image3d_ld1(bottom_blob, ivec3(gx+1, gy+1, z));
+        sum.r += k * image3d_ld1(bottom_blob, ivec3(sx4.r, sy4.r, z));
+        sum.g += k * image3d_ld1(bottom_blob, ivec3(sx4.g, sy4.g, z));
+        sum.b += k * image3d_ld1(bottom_blob, ivec3(sx4.b, sy4.b, z));
+        sum.a += k * image3d_ld1(bottom_blob, ivec3(sx4.a, sy4.a, z));
     }
 #else
     int w_offset = gz * psc(c);
@@ -160,14 +161,18 @@ void main()
     {
         sum = afp(1.f) / (afp(1.f) + exp(-sum));
     }
+    if (activation_type == 5)
+    {
+        sum = sum * tanh(log(exp(sum) + afp(1.f)));
+    }
 
 #if NCNN_image_shader
-    image3d_st1(top_blob, ivec3(gx, gy, gz), sum.r);
-    image3d_st1(top_blob, ivec3(gx+1, gy, gz), sum.g);
-    image3d_st1(top_blob, ivec3(gx, gy+1, gz), sum.b);
-    image3d_st1(top_blob, ivec3(gx+1, gy+1, gz), sum.a);
+    image3d_st1(top_blob, ivec3(sx4.r, sy4.r, gz), sum.r);
+    image3d_st1(top_blob, ivec3(sx4.g, sy4.g, gz), sum.g);
+    image3d_st1(top_blob, ivec3(sx4.b, sy4.b, gz), sum.b);
+    image3d_st1(top_blob, ivec3(sx4.a, sy4.a, gz), sum.a);
 #else
-    const int gi = gz * psc(outcstep) + gx;
+    const int gi = gz * psc(outcstep) / 4 + gx;
 
 #if NCNN_fp16_packed
     top_blob_data[gi] = sum;

@@ -22,12 +22,13 @@
 
 namespace ncnn {
 
-DEFINE_LAYER_CREATOR(Cast_arm)
-
 Cast_arm::Cast_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    support_fp16_storage = true;
+#endif
 #endif // __ARM_NEON
 
     support_bf16_storage = true;
@@ -104,7 +105,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (type_from == 1 && type_to == 2)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
                 unsigned short* outptr = top_blob.channel(q);
@@ -120,14 +121,13 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "subs   %w0, %w0, #1            \n"
                     "st1    {v1.4h}, [%2], #8       \n"
                     "bne    0b                      \n"
-                    : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    : "=r"(nn),    // %0
+                    "=r"(ptr),   // %1
+                    "=r"(outptr) // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
-                    : "cc", "memory", "v0", "v1"
-                );
+                    "1"(ptr),
+                    "2"(outptr)
+                    : "cc", "memory", "v0", "v1");
 #else
                 asm volatile(
                     "0:                             \n"
@@ -137,14 +137,13 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "subs       %0, #1              \n"
                     "vst1.f32   {d2}, [%2 :64]!     \n"
                     "bne        0b                  \n"
-                    : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    : "=r"(nn),    // %0
+                    "=r"(ptr),   // %1
+                    "=r"(outptr) // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
-                    : "cc", "memory", "q0", "q1"
-                );
+                    "1"(ptr),
+                    "2"(outptr)
+                    : "cc", "memory", "q0", "q1");
 #endif // __aarch64__
             }
         }
@@ -152,7 +151,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (type_from == 2 && type_to == 1)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const unsigned short* ptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
@@ -168,14 +167,13 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "subs   %w0, %w0, #1            \n"
                     "st1    {v1.4s}, [%2], #16      \n"
                     "bne    0b                      \n"
-                    : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    : "=r"(nn),    // %0
+                    "=r"(ptr),   // %1
+                    "=r"(outptr) // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
-                    : "cc", "memory", "v0", "v1"
-                );
+                    "1"(ptr),
+                    "2"(outptr)
+                    : "cc", "memory", "v0", "v1");
 #else
                 asm volatile(
                     "0:                             \n"
@@ -185,14 +183,13 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "subs       %0, #1              \n"
                     "vst1.f32   {d2-d3}, [%2 :128]! \n"
                     "bne        0b                  \n"
-                    : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    : "=r"(nn),    // %0
+                    "=r"(ptr),   // %1
+                    "=r"(outptr) // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
-                    : "cc", "memory", "q0", "q1"
-                );
+                    "1"(ptr),
+                    "2"(outptr)
+                    : "cc", "memory", "q0", "q1");
 #endif // __aarch64__
             }
         }
@@ -201,12 +198,12 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (type_from == 3 && type_to == 1)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const signed char* ptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int i=0; i<size; i++)
+                for (int i = 0; i < size; i++)
                 {
                     outptr[i] = (float)ptr[i];
                 }
@@ -216,7 +213,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (type_from == 1 && type_to == 4)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
                 unsigned short* outptr = top_blob.channel(q);
@@ -232,14 +229,13 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "subs   %w0, %w0, #1            \n"
                     "st1    {v1.4h}, [%2], #8       \n"
                     "bne    0b                      \n"
-                    : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    : "=r"(nn),    // %0
+                    "=r"(ptr),   // %1
+                    "=r"(outptr) // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
-                    : "cc", "memory", "v0", "v1"
-                );
+                    "1"(ptr),
+                    "2"(outptr)
+                    : "cc", "memory", "v0", "v1");
 #else
                 asm volatile(
                     "0:                             \n"
@@ -249,14 +245,13 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "subs       %0, #1              \n"
                     "vst1.u16   {d2}, [%2 :64]!     \n"
                     "bne        0b                  \n"
-                    : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    : "=r"(nn),    // %0
+                    "=r"(ptr),   // %1
+                    "=r"(outptr) // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
-                    : "cc", "memory", "q0", "q1"
-                );
+                    "1"(ptr),
+                    "2"(outptr)
+                    : "cc", "memory", "q0", "q1");
 #endif // __aarch64__
             }
         }
@@ -264,7 +259,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (type_from == 4 && type_to == 1)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q=0; q<channels; q++)
+            for (int q = 0; q < channels; q++)
             {
                 const unsigned short* ptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
@@ -280,14 +275,13 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "subs   %w0, %w0, #1            \n"
                     "st1    {v1.4s}, [%2], #16      \n"
                     "bne    0b                      \n"
-                    : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    : "=r"(nn),    // %0
+                    "=r"(ptr),   // %1
+                    "=r"(outptr) // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
-                    : "cc", "memory", "v0", "v1"
-                );
+                    "1"(ptr),
+                    "2"(outptr)
+                    : "cc", "memory", "v0", "v1");
 #else
                 asm volatile(
                     "0:                             \n"
@@ -297,14 +291,13 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "subs       %0, #1              \n"
                     "vst1.f32   {d2-d3}, [%2 :128]! \n"
                     "bne        0b                  \n"
-                    : "=r"(nn),     // %0
-                      "=r"(ptr),    // %1
-                      "=r"(outptr)  // %2
+                    : "=r"(nn),    // %0
+                    "=r"(ptr),   // %1
+                    "=r"(outptr) // %2
                     : "0"(nn),
-                      "1"(ptr),
-                      "2"(outptr)
-                    : "cc", "memory", "q0", "q1"
-                );
+                    "1"(ptr),
+                    "2"(outptr)
+                    : "cc", "memory", "q0", "q1");
 #endif // __aarch64__
             }
         }

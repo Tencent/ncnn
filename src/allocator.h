@@ -18,33 +18,39 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#else
-#include <pthread.h>
 #endif
 
-#include <stdlib.h>
-#include <list>
 #include "platform.h"
+
+#include <stdlib.h>
 
 #if NCNN_VULKAN
 #include <vulkan/vulkan.h>
 #endif // NCNN_VULKAN
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
 #endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
 
 namespace ncnn {
 
+#if __AVX__
 // the alignment of all the allocated buffers
-#define MALLOC_ALIGN    16
+#define MALLOC_ALIGN 32
+#else
+// the alignment of all the allocated buffers
+#define MALLOC_ALIGN 16
+#endif
 
 // Aligns a pointer to the specified number of bytes
 // ptr Aligned pointer
 // n Alignment size that must be a power of two
-template<typename _Tp> static inline _Tp* alignPtr(_Tp* ptr, int n=(int)sizeof(_Tp))
+template<typename _Tp>
+static inline _Tp* alignPtr(_Tp* ptr, int n = (int)sizeof(_Tp))
 {
-    return (_Tp*)(((size_t)ptr + n-1) & -n);
+    return (_Tp*)(((size_t)ptr + n - 1) & -n);
 }
 
 // Aligns a buffer size to the specified number of bytes
@@ -53,14 +59,14 @@ template<typename _Tp> static inline _Tp* alignPtr(_Tp* ptr, int n=(int)sizeof(_
 // n Alignment size that must be a power of two
 static inline size_t alignSize(size_t sz, int n)
 {
-    return (sz + n-1) & -n;
+    return (sz + n - 1) & -n;
 }
 
 static inline void* fastMalloc(size_t size)
 {
 #if _MSC_VER
     return _aligned_malloc(size, MALLOC_ALIGN);
-#elif _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
+#elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
     void* ptr = 0;
     if (posix_memalign(&ptr, MALLOC_ALIGN, size))
         ptr = 0;
@@ -83,7 +89,7 @@ static inline void fastFree(void* ptr)
     {
 #if _MSC_VER
         _aligned_free(ptr);
-#elif _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
+#elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
         free(ptr);
 #elif __ANDROID__ && __ANDROID_API__ < 17
         free(ptr);
@@ -94,34 +100,55 @@ static inline void fastFree(void* ptr)
     }
 }
 
+#if NCNN_THREADS
 // exchange-add operation for atomic operations on reference counters
-#if defined __INTEL_COMPILER && !(defined WIN32 || defined _WIN32)
+#if defined __riscv && !defined __riscv_atomic
+// riscv target without A extension
+static inline int NCNN_XADD(int* addr, int delta)
+{
+    int tmp = *addr;
+    *addr += delta;
+    return tmp;
+}
+#elif defined __INTEL_COMPILER && !(defined WIN32 || defined _WIN32)
 // atomic increment on the linux version of the Intel(tm) compiler
-#  define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd(const_cast<void*>(reinterpret_cast<volatile void*>(addr)), delta)
+#define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd(const_cast<void*>(reinterpret_cast<volatile void*>(addr)), delta)
 #elif defined __GNUC__
-#  if defined __clang__ && __clang_major__ >= 3 && !defined __ANDROID__ && !defined __EMSCRIPTEN__ && !defined(__CUDACC__)
-#    ifdef __ATOMIC_ACQ_REL
-#      define NCNN_XADD(addr, delta) __c11_atomic_fetch_add((_Atomic(int)*)(addr), delta, __ATOMIC_ACQ_REL)
-#    else
-#      define NCNN_XADD(addr, delta) __atomic_fetch_add((_Atomic(int)*)(addr), delta, 4)
-#    endif
-#  else
-#    if defined __ATOMIC_ACQ_REL && !defined __clang__
+#if defined __clang__ && __clang_major__ >= 3 && !defined __ANDROID__ && !defined __EMSCRIPTEN__ && !defined(__CUDACC__)
+#ifdef __ATOMIC_ACQ_REL
+#define NCNN_XADD(addr, delta) __c11_atomic_fetch_add((_Atomic(int)*)(addr), delta, __ATOMIC_ACQ_REL)
+#else
+#define NCNN_XADD(addr, delta) __atomic_fetch_add((_Atomic(int)*)(addr), delta, 4)
+#endif
+#else
+#if defined __ATOMIC_ACQ_REL && !defined __clang__
 // version for gcc >= 4.7
-#      define NCNN_XADD(addr, delta) (int)__atomic_fetch_add((unsigned*)(addr), (unsigned)(delta), __ATOMIC_ACQ_REL)
-#    else
-#      define NCNN_XADD(addr, delta) (int)__sync_fetch_and_add((unsigned*)(addr), (unsigned)(delta))
-#    endif
-#  endif
+#define NCNN_XADD(addr, delta) (int)__atomic_fetch_add((unsigned*)(addr), (unsigned)(delta), __ATOMIC_ACQ_REL)
+#else
+#define NCNN_XADD(addr, delta) (int)__sync_fetch_and_add((unsigned*)(addr), (unsigned)(delta))
+#endif
+#endif
 #elif defined _MSC_VER && !defined RC_INVOKED
-#  include <intrin.h>
-#  define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd((long volatile*)addr, delta)
+#define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd((long volatile*)addr, delta)
 #else
 // thread-unsafe branch
-static inline int NCNN_XADD(int* addr, int delta) { int tmp = *addr; *addr += delta; return tmp; }
+static inline int NCNN_XADD(int* addr, int delta)
+{
+    int tmp = *addr;
+    *addr += delta;
+    return tmp;
+}
 #endif
+#else  // NCNN_THREADS
+static inline int NCNN_XADD(int* addr, int delta)
+{
+    int tmp = *addr;
+    *addr += delta;
+    return tmp;
+}
+#endif // NCNN_THREADS
 
-class Allocator
+class NCNN_EXPORT Allocator
 {
 public:
     virtual ~Allocator();
@@ -129,7 +156,8 @@ public:
     virtual void fastFree(void* ptr) = 0;
 };
 
-class PoolAllocator : public Allocator
+class PoolAllocatorPrivate;
+class NCNN_EXPORT PoolAllocator : public Allocator
 {
 public:
     PoolAllocator();
@@ -146,14 +174,15 @@ public:
     virtual void fastFree(void* ptr);
 
 private:
-    Mutex budgets_lock;
-    Mutex payouts_lock;
-    unsigned int size_compare_ratio;// 0~256
-    std::list< std::pair<size_t, void*> > budgets;
-    std::list< std::pair<size_t, void*> > payouts;
+    PoolAllocator(const PoolAllocator&);
+    PoolAllocator& operator=(const PoolAllocator&);
+
+private:
+    PoolAllocatorPrivate* const d;
 };
 
-class UnlockedPoolAllocator : public Allocator
+class UnlockedPoolAllocatorPrivate;
+class NCNN_EXPORT UnlockedPoolAllocator : public Allocator
 {
 public:
     UnlockedPoolAllocator();
@@ -170,16 +199,18 @@ public:
     virtual void fastFree(void* ptr);
 
 private:
-    unsigned int size_compare_ratio;// 0~256
-    std::list< std::pair<size_t, void*> > budgets;
-    std::list< std::pair<size_t, void*> > payouts;
+    UnlockedPoolAllocator(const UnlockedPoolAllocator&);
+    UnlockedPoolAllocator& operator=(const UnlockedPoolAllocator&);
+
+private:
+    UnlockedPoolAllocatorPrivate* const d;
 };
 
 #if NCNN_VULKAN
 
 class VulkanDevice;
 
-class VkBufferMemory
+class NCNN_EXPORT VkBufferMemory
 {
 public:
     VkBuffer buffer;
@@ -199,15 +230,13 @@ public:
     int refcount;
 };
 
-class VkImageMemory
+class NCNN_EXPORT VkImageMemory
 {
 public:
     VkImage image;
     VkImageView imageview;
 
     // underlying info assigned by allocator
-    VkImageType image_type;
-    VkImageViewType imageview_type;
     int width;
     int height;
     int depth;
@@ -232,40 +261,44 @@ public:
     int refcount;
 };
 
-class VkAllocator
+class NCNN_EXPORT VkAllocator
 {
 public:
-    VkAllocator(const VulkanDevice* _vkdev);
-    virtual ~VkAllocator() { clear(); }
-    virtual void clear() {}
+    explicit VkAllocator(const VulkanDevice* _vkdev);
+    virtual ~VkAllocator();
+
+    virtual void clear();
 
     virtual VkBufferMemory* fastMalloc(size_t size) = 0;
     virtual void fastFree(VkBufferMemory* ptr) = 0;
     virtual int flush(VkBufferMemory* ptr);
     virtual int invalidate(VkBufferMemory* ptr);
 
-    virtual VkImageMemory* fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack) = 0;
+    virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack) = 0;
     virtual void fastFree(VkImageMemory* ptr) = 0;
 
 public:
     const VulkanDevice* vkdev;
-    uint32_t memory_type_index;
+    uint32_t buffer_memory_type_index;
+    uint32_t image_memory_type_index;
+    uint32_t reserved_type_index;
     bool mappable;
     bool coherent;
 
 protected:
     VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage);
-    VkDeviceMemory allocate_memory(size_t size);
-    VkDeviceMemory allocate_dedicated_memory(size_t size, VkImage image, VkBuffer buffer);
+    VkDeviceMemory allocate_memory(size_t size, uint32_t memory_type_index);
+    VkDeviceMemory allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkImage image, VkBuffer buffer);
 
-    VkImage create_image(VkImageType type, int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage);
-    VkImageView create_imageview(VkImageViewType type, VkImage image, VkFormat format);
+    VkImage create_image(int width, int height, int depth, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage);
+    VkImageView create_imageview(VkImage image, VkFormat format);
 };
 
-class VkBlobAllocator : public VkAllocator
+class VkBlobAllocatorPrivate;
+class NCNN_EXPORT VkBlobAllocator : public VkAllocator
 {
 public:
-    VkBlobAllocator(const VulkanDevice* vkdev);
+    explicit VkBlobAllocator(const VulkanDevice* vkdev, size_t preferred_block_size = 16 * 1024 * 1024); // 16M
     virtual ~VkBlobAllocator();
 
 public:
@@ -274,23 +307,22 @@ public:
 
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
-    virtual VkImageMemory* fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack);
+    virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
 
-protected:
-    size_t block_size;
-    size_t buffer_offset_alignment;
-    size_t bind_memory_offset_alignment;
-    std::vector< std::list< std::pair<size_t, size_t> > > buffer_budgets;
-    std::vector<VkBufferMemory*> buffer_blocks;
-    std::vector< std::list< std::pair<size_t, size_t> > > image_memory_budgets;
-    std::vector<VkDeviceMemory> image_memory_blocks;
+private:
+    VkBlobAllocator(const VkBlobAllocator&);
+    VkBlobAllocator& operator=(const VkBlobAllocator&);
+
+private:
+    VkBlobAllocatorPrivate* const d;
 };
 
-class VkWeightAllocator : public VkAllocator
+class VkWeightAllocatorPrivate;
+class NCNN_EXPORT VkWeightAllocator : public VkAllocator
 {
 public:
-    VkWeightAllocator(const VulkanDevice* vkdev);
+    explicit VkWeightAllocator(const VulkanDevice* vkdev, size_t preferred_block_size = 8 * 1024 * 1024); // 8M
     virtual ~VkWeightAllocator();
 
 public:
@@ -300,25 +332,22 @@ public:
 public:
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
-    virtual VkImageMemory* fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack);
+    virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
 
-protected:
-    size_t block_size;
-    size_t buffer_offset_alignment;
-    size_t bind_memory_offset_alignment;
-    std::vector<size_t> buffer_block_free_spaces;
-    std::vector<VkBufferMemory*> buffer_blocks;
-    std::vector<VkBufferMemory*> dedicated_buffer_blocks;
-    std::vector<size_t> image_memory_block_free_spaces;
-    std::vector<VkDeviceMemory> image_memory_blocks;
-    std::vector<VkDeviceMemory> dedicated_image_memory_blocks;
+private:
+    VkWeightAllocator(const VkWeightAllocator&);
+    VkWeightAllocator& operator=(const VkWeightAllocator&);
+
+private:
+    VkWeightAllocatorPrivate* const d;
 };
 
-class VkStagingAllocator : public VkAllocator
+class VkStagingAllocatorPrivate;
+class NCNN_EXPORT VkStagingAllocator : public VkAllocator
 {
 public:
-    VkStagingAllocator(const VulkanDevice* vkdev);
+    explicit VkStagingAllocator(const VulkanDevice* vkdev);
     virtual ~VkStagingAllocator();
 
 public:
@@ -331,42 +360,55 @@ public:
 
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
-    virtual VkImageMemory* fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack);
+    virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
 
-protected:
-    unsigned int size_compare_ratio;// 0~256
-    std::list<VkBufferMemory*> buffer_budgets;
+private:
+    VkStagingAllocator(const VkStagingAllocator&);
+    VkStagingAllocator& operator=(const VkStagingAllocator&);
+
+private:
+    VkStagingAllocatorPrivate* const d;
 };
 
-class VkWeightStagingAllocator : public VkAllocator
+class VkWeightStagingAllocatorPrivate;
+class NCNN_EXPORT VkWeightStagingAllocator : public VkAllocator
 {
 public:
-    VkWeightStagingAllocator(const VulkanDevice* vkdev);
+    explicit VkWeightStagingAllocator(const VulkanDevice* vkdev);
     virtual ~VkWeightStagingAllocator();
 
 public:
     virtual VkBufferMemory* fastMalloc(size_t size);
     virtual void fastFree(VkBufferMemory* ptr);
-    virtual VkImageMemory* fastMalloc(int /*dims*/, int /*w*/, int /*h*/, int /*c*/, size_t /*elemsize*/, int /*elempack*/) { return 0; }
-    virtual void fastFree(VkImageMemory* /*ptr*/) {}
+    virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack);
+    virtual void fastFree(VkImageMemory* ptr);
 
-protected:
+private:
+    VkWeightStagingAllocator(const VkWeightStagingAllocator&);
+    VkWeightStagingAllocator& operator=(const VkWeightStagingAllocator&);
+
+private:
+    VkWeightStagingAllocatorPrivate* const d;
 };
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
-class ImportAndroidHardwareBufferPipeline;
-class VkAndroidHardwareBufferImageAllocator : public VkAllocator
+class NCNN_EXPORT VkAndroidHardwareBufferImageAllocator : public VkAllocator
 {
 public:
     VkAndroidHardwareBufferImageAllocator(const VulkanDevice* _vkdev, AHardwareBuffer* _hb);
     virtual ~VkAndroidHardwareBufferImageAllocator();
 
 public:
-    virtual VkImageMemory* fastMalloc(int dims, int w, int h, int c, size_t elemsize, int elempack);
+    virtual VkBufferMemory* fastMalloc(size_t size);
+    virtual void fastFree(VkBufferMemory* ptr);
+    virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
-    virtual VkBufferMemory* fastMalloc(size_t /*size*/) { return 0; }
-    virtual void fastFree(VkBufferMemory* /*ptr*/) {}
+
+private:
+    VkAndroidHardwareBufferImageAllocator(const VkAndroidHardwareBufferImageAllocator&);
+    VkAndroidHardwareBufferImageAllocator& operator=(const VkAndroidHardwareBufferImageAllocator&);
 
 public:
     int init();
@@ -383,6 +425,7 @@ public:
     VkSamplerYcbcrConversionKHR samplerYcbcrConversion;
 };
 #endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
 
 #endif // NCNN_VULKAN
 

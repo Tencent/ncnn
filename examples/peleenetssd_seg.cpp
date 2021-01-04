@@ -12,17 +12,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <stdio.h>
-#include <vector>
+#include "net.h"
+
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-
-#include "platform.h"
-#include "net.h"
-#if NCNN_VULKAN
-#include "gpu.h"
-#endif // NCNN_VULKAN
+#include <stdio.h>
+#include <vector>
 
 struct Object
 {
@@ -31,13 +27,11 @@ struct Object
     float prob;
 };
 
-static int detect_peleenet(const cv::Mat& bgr, std::vector<Object>& objects,ncnn::Mat &resized)
+static int detect_peleenet(const cv::Mat& bgr, std::vector<Object>& objects, ncnn::Mat& resized)
 {
     ncnn::Net peleenet;
 
-#if NCNN_VULKAN
     peleenet.opt.use_vulkan_compute = true;
-#endif // NCNN_VULKAN
 
     // model is converted from https://github.com/eric612/MobileNet-YOLO
     // and can be downloaded from https://drive.google.com/open?id=1Wt6jKv13sBRMHgrGAJYlOlRF-o80pC0g
@@ -53,20 +47,19 @@ static int detect_peleenet(const cv::Mat& bgr, std::vector<Object>& objects,ncnn
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, target_size, target_size);
 
     const float mean_vals[3] = {103.9f, 116.7f, 123.6f};
-    const float norm_vals[3] = {0.017f,0.017f,0.017f};
+    const float norm_vals[3] = {0.017f, 0.017f, 0.017f};
     in.substract_mean_normalize(mean_vals, norm_vals);
 
     ncnn::Extractor ex = peleenet.create_extractor();
-//     ex.set_num_threads(4);
 
     ex.input("data", in);
 
     ncnn::Mat out;
-    ex.extract("detection_out",out);
+    ex.extract("detection_out", out);
 
-//     printf("%d %d %d\n", out.w, out.h, out.c);
+    //     printf("%d %d %d\n", out.w, out.h, out.c);
     objects.clear();
-    for (int i=0; i<out.h; i++)
+    for (int i = 0; i < out.h; i++)
     {
         const float* values = out.row(i);
 
@@ -81,23 +74,24 @@ static int detect_peleenet(const cv::Mat& bgr, std::vector<Object>& objects,ncnn
         objects.push_back(object);
     }
     ncnn::Mat seg_out;
-    ex.extract("sigmoid",seg_out);
-    resize_bilinear(seg_out,resized,img_w,img_h);
+    ex.extract("sigmoid", seg_out);
+    resize_bilinear(seg_out, resized, img_w, img_h);
     //resize_bicubic(seg_out,resized,img_w,img_h); // sharpness
     return 0;
 }
 
-static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects,ncnn::Mat map)
+static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects, ncnn::Mat map)
 {
     static const char* class_names[] = {"background",
-        "person","rider", "car","bus",
-        "truck","bike","motor",
-        "traffic light","traffic sign","train"};
+                                        "person", "rider", "car", "bus",
+                                        "truck", "bike", "motor",
+                                        "traffic light", "traffic sign", "train"
+                                       };
 
     cv::Mat image = bgr.clone();
-    const int color[] = {128,255,128,244,35,232};
+    const int color[] = {128, 255, 128, 244, 35, 232};
     const int color_count = sizeof(color) / sizeof(int);
-    
+
     for (size_t i = 0; i < objects.size(); i++)
     {
         const Object& obj = objects[i];
@@ -120,8 +114,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects,
         if (x + label_size.width > image.cols)
             x = image.cols - label_size.width;
 
-        cv::rectangle(image, cv::Rect(cv::Point(x, y),
-                                      cv::Size(label_size.width, label_size.height + baseLine)),
+        cv::rectangle(image, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
                       cv::Scalar(255, 255, 255), -1);
 
         cv::putText(image, text, cv::Point(x, y + label_size.height),
@@ -133,33 +126,38 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects,
     int img_index2 = 0;
     float threshold = 0.45;
     const float* ptr2 = map;
-    for (int i = 0; i < height; i++) {
-        unsigned char* ptr1 = image.ptr<unsigned char>(i);        
-        int img_index1 = 0;        
-        for (int j = 0; j < width; j++) {
-            float maxima = threshold; 
+    for (int i = 0; i < height; i++)
+    {
+        unsigned char* ptr1 = image.ptr<unsigned char>(i);
+        int img_index1 = 0;
+        for (int j = 0; j < width; j++)
+        {
+            float maxima = threshold;
             int index = -1;
-            for (int c = 0; c < size; c++) {
-                //const float* ptr3 = map.channel(c);  
-                const float* ptr3 = ptr2 + c*width*height;
-                if(ptr3[img_index2]>maxima) {
+            for (int c = 0; c < size; c++)
+            {
+                //const float* ptr3 = map.channel(c);
+                const float* ptr3 = ptr2 + c * width * height;
+                if (ptr3[img_index2] > maxima)
+                {
                     maxima = ptr3[img_index2];
                     index = c;
                 }
             }
-            if(index > -1) {
+            if (index > -1)
+            {
                 int color_index = (index)*3;
-                if(color_index<color_count) {
+                if (color_index < color_count)
+                {
                     int b = color[color_index];
-                    int g = color[color_index+1];
-                    int r = color[color_index+2];
-                    ptr1[img_index1] = b/2 + ptr1[img_index1]/2;
-                    ptr1[img_index1+1] = g/2 + ptr1[img_index1+1]/2;
-                    ptr1[img_index1+2] = r/2 + ptr1[img_index1+2]/2;
+                    int g = color[color_index + 1];
+                    int r = color[color_index + 2];
+                    ptr1[img_index1] = b / 2 + ptr1[img_index1] / 2;
+                    ptr1[img_index1 + 1] = g / 2 + ptr1[img_index1 + 1] / 2;
+                    ptr1[img_index1 + 2] = r / 2 + ptr1[img_index1 + 2] / 2;
                 }
-
             }
-            img_index1+=3;
+            img_index1 += 3;
             img_index2++;
         }
     }
@@ -184,17 +182,9 @@ int main(int argc, char** argv)
         return -1;
     }
 
-#if NCNN_VULKAN
-    ncnn::create_gpu_instance();
-#endif // NCNN_VULKAN
-
     std::vector<Object> objects;
     ncnn::Mat seg_out;
     detect_peleenet(m, objects, seg_out);
-
-#if NCNN_VULKAN
-    ncnn::destroy_gpu_instance();
-#endif // NCNN_VULKAN
 
     draw_objects(m, objects, seg_out);
 

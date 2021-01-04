@@ -1,0 +1,16 @@
+# See https://github.com/restyled-io/restyled.io/wiki/Configuring-Restyled
+
+enabled: true
+
+pull_requests: true
+
+statuses:
+  differences: true
+  no_differences: true
+  error: true
+
+restylers:
+  - clang-format
+  - astyle
+  - clang-format
+  - astyle

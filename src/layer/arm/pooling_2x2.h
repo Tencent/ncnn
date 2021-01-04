@@ -19,11 +19,11 @@ static void pooling2x2s2_max_neon(const Mat& bottom_blob, Mat& top_blob, const O
 
     int outw = top_blob.w;
     int outh = top_blob.h;
-    
-    const int tailstep = w - 2*outw + w;
-    
+
+    const int tailstep = w - 2 * outw + w;
+
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q=0; q<inch; q++)
+    for (int q = 0; q < inch; q++)
     {
         const float* img0 = bottom_blob.channel(q);
         float* outptr = top_blob.channel(q);
@@ -44,59 +44,57 @@ static void pooling2x2s2_max_neon(const Mat& bottom_blob, Mat& top_blob, const O
 #if __aarch64__
             if (nn > 0)
             {
-            asm volatile(
-                "0:                                   \n"
-                "prfm       pldl1keep, [%1, #256]     \n"
-                "prfm       pldl1keep, [%2, #256]     \n"
-                "ld1        {v0.4s, v1.4s}, [%1], #32 \n"
-                "ld1        {v2.4s, v3.4s}, [%2], #32 \n"
-                "fmax       v0.4s, v0.4s, v2.4s       \n"
-                "fmax       v1.4s, v1.4s, v3.4s       \n"
-                "fmaxp      v2.4s, v0.4s, v1.4s       \n"
-                "subs       %w0, %w0, #1              \n"
-                "st1        {v2.4s}, [%3], #16        \n"
-                "bne        0b                        \n"
-                : "=r"(nn),     // %0
-                  "=r"(r0),     // %1
-                  "=r"(r1),     // %2
-                  "=r"(outptr)  // %3
-                : "0"(nn),
-                  "1"(r0),
-                  "2"(r1),
-                  "3"(outptr)
-                : "cc", "memory", "v0", "v1", "v2", "v3"
-            );
+                asm volatile(
+                    "0:                                   \n"
+                    "prfm       pldl1keep, [%1, #256]     \n"
+                    "prfm       pldl1keep, [%2, #256]     \n"
+                    "ld1        {v0.4s, v1.4s}, [%1], #32 \n"
+                    "ld1        {v2.4s, v3.4s}, [%2], #32 \n"
+                    "fmax       v0.4s, v0.4s, v2.4s       \n"
+                    "fmax       v1.4s, v1.4s, v3.4s       \n"
+                    "fmaxp      v2.4s, v0.4s, v1.4s       \n"
+                    "subs       %w0, %w0, #1              \n"
+                    "st1        {v2.4s}, [%3], #16        \n"
+                    "bne        0b                        \n"
+                    : "=r"(nn),    // %0
+                    "=r"(r0),    // %1
+                    "=r"(r1),    // %2
+                    "=r"(outptr) // %3
+                    : "0"(nn),
+                    "1"(r0),
+                    "2"(r1),
+                    "3"(outptr)
+                    : "cc", "memory", "v0", "v1", "v2", "v3");
             }
 #else
             if (nn > 0)
             {
-            asm volatile(
-                "0:                             \n"
-                "pld        [%1, #256]          \n"
-                "pld        [%2, #256]          \n"
-                "vld1.f32   {d0-d3}, [%1]!      \n"
-                "vld1.f32   {d4-d7}, [%2]!      \n"
-                "vmax.f32   q0, q0, q2          \n"
-                "vmax.f32   q1, q1, q3          \n"
-                "vpmax.f32  d4, d0, d1          \n"
-                "vpmax.f32  d5, d2, d3          \n"
-                "subs       %0, #1              \n"
-                "vst1.f32   {d4-d5}, [%3]!      \n"
-                "bne        0b                  \n"
-                : "=r"(nn),     // %0
-                  "=r"(r0),     // %1
-                  "=r"(r1),     // %2
-                  "=r"(outptr)  // %3
-                : "0"(nn),
-                  "1"(r0),
-                  "2"(r1),
-                  "3"(outptr)
-                : "cc", "memory", "q0", "q1", "q2", "q3"
-            );
+                asm volatile(
+                    "0:                             \n"
+                    "pld        [%1, #256]          \n"
+                    "pld        [%2, #256]          \n"
+                    "vld1.f32   {d0-d3}, [%1]!      \n"
+                    "vld1.f32   {d4-d7}, [%2]!      \n"
+                    "vmax.f32   q0, q0, q2          \n"
+                    "vmax.f32   q1, q1, q3          \n"
+                    "vpmax.f32  d4, d0, d1          \n"
+                    "vpmax.f32  d5, d2, d3          \n"
+                    "subs       %0, #1              \n"
+                    "vst1.f32   {d4-d5}, [%3]!      \n"
+                    "bne        0b                  \n"
+                    : "=r"(nn),    // %0
+                    "=r"(r0),    // %1
+                    "=r"(r1),    // %2
+                    "=r"(outptr) // %3
+                    : "0"(nn),
+                    "1"(r0),
+                    "2"(r1),
+                    "3"(outptr)
+                    : "cc", "memory", "q0", "q1", "q2", "q3");
             }
 #endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain>0; remain--)
+            for (; remain > 0; remain--)
             {
                 float max0 = std::max(r0[0], r0[1]);
                 float max1 = std::max(r1[0], r1[1]);

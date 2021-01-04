@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "testutil.h"
-
 #include "layer/tanh.h"
+#include "testutil.h"
 
 static int test_tanh(const ncnn::Mat& a)
 {
@@ -22,12 +21,7 @@ static int test_tanh(const ncnn::Mat& a)
 
     std::vector<ncnn::Mat> weights(0);
 
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_vulkan_compute = true;
-    opt.use_int8_inference = false;
-
-    int ret = test_layer<ncnn::TanH>("TanH", pd, weights, opt, a);
+    int ret = test_layer<ncnn::TanH>("TanH", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_tanh failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
@@ -39,25 +33,25 @@ static int test_tanh(const ncnn::Mat& a)
 static int test_tanh_0()
 {
     return 0
-        || test_tanh(RandomMat(6, 7, 16))
-        || test_tanh(RandomMat(3, 5, 13))
-        ;
+           || test_tanh(RandomMat(5, 7, 24))
+           || test_tanh(RandomMat(7, 9, 12))
+           || test_tanh(RandomMat(3, 5, 13));
 }
 
 static int test_tanh_1()
 {
     return 0
-        || test_tanh(RandomMat(6, 16))
-        || test_tanh(RandomMat(7, 15))
-        ;
+           || test_tanh(RandomMat(15, 24))
+           || test_tanh(RandomMat(17, 12))
+           || test_tanh(RandomMat(19, 15));
 }
 
 static int test_tanh_2()
 {
     return 0
-        || test_tanh(RandomMat(128))
-        || test_tanh(RandomMat(127))
-        ;
+           || test_tanh(RandomMat(128))
+           || test_tanh(RandomMat(124))
+           || test_tanh(RandomMat(127));
 }
 
 int main()
@@ -65,8 +59,7 @@ int main()
     SRAND(7767517);
 
     return 0
-        || test_tanh_0()
-        || test_tanh_1()
-        || test_tanh_2()
-        ;
+           || test_tanh_0()
+           || test_tanh_1()
+           || test_tanh_2();
 }

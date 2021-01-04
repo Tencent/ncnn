@@ -28,17 +28,18 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
-    enum ReductionOp {
-        ReductionOp_SUM       = 0,
-        ReductionOp_ASUM      = 1,
-        ReductionOp_SUMSQ     = 2,
-        ReductionOp_MEAN      = 3,
-        ReductionOp_MAX       = 4,
-        ReductionOp_MIN       = 5,
-        ReductionOp_PROD      = 6,
-        ReductionOp_L1        = 7,
-        ReductionOp_L2        = 8,
-        ReductionOp_LogSum    = 9,
+    enum ReductionOp
+    {
+        ReductionOp_SUM = 0,
+        ReductionOp_ASUM = 1,
+        ReductionOp_SUMSQ = 2,
+        ReductionOp_MEAN = 3,
+        ReductionOp_MAX = 4,
+        ReductionOp_MIN = 5,
+        ReductionOp_PROD = 6,
+        ReductionOp_L1 = 7,
+        ReductionOp_L2 = 8,
+        ReductionOp_LogSum = 9,
         ReductionOp_LogSumExp = 10
     };
 

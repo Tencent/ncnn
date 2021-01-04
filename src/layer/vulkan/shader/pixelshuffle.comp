@@ -22,8 +22,9 @@
 #endif
 
 layout (constant_id = 0) const int upscale_factor = 0;
+layout (constant_id = 1) const int mode = 0;
 
-#define shape_constant_id_offset 1
+#define shape_constant_id_offset 2
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
@@ -35,10 +36,6 @@ layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
 layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
 layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
-
-layout (local_size_x_id = 233) in;
-layout (local_size_y_id = 234) in;
-layout (local_size_z_id = 235) in;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob;
@@ -74,7 +71,15 @@ void main()
 
     int x = gx / upscale_factor;
     int y = gy / upscale_factor;
-    int z = gz * upscale_factor * upscale_factor + (gy % upscale_factor) * upscale_factor + gx % upscale_factor;
+    int z;
+    if (mode == 0)
+    {
+        z = gz * upscale_factor * upscale_factor + (gy % upscale_factor) * upscale_factor + gx % upscale_factor;
+    }
+    else // if (mode == 1)
+    {
+        z = ((gy % upscale_factor) * upscale_factor + gx % upscale_factor) * psc(outc) + gz;
+    }
 
 #if NCNN_image_shader
     image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));

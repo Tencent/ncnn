@@ -22,7 +22,7 @@ enum LayerShaderType
 {
 #include "layer_shader_type_enum.h"
 };
-} // namespace LayerType
+} // namespace LayerShaderType
 
 } // namespace ncnn
 

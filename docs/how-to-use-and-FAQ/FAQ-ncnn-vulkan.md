@@ -4,18 +4,12 @@ follow [the build and install instruction](how-to-build)
 
 make sure you have installed vulkan sdk from [lunarg vulkan sdk website](https://vulkan.lunarg.com/sdk/home)
 
-Usually, you can enable the vulkan compute inference feature by adding only three lines of code to your application.
+Usually, you can enable the vulkan compute inference feature by adding only one line of code to your application.
 
-```
-// initialize when app starts
-ncnn::create_gpu_instance();// line1
-
+```cpp
 // enable vulkan compute feature before loading
 ncnn::Net net;
-net.opt.use_vulkan_compute = 1;// line2
-
-// deinitialize when app exits
-ncnn::destroy_gpu_instance();// line3
+net.opt.use_vulkan_compute = 1;
 ```
 
 ### does my graphics device support vulkan
@@ -32,7 +26,7 @@ Some platforms have been tested and known working. In theory, if your platform s
 |amd|Y|Y|/|?|/|
 |nvidia|Y|Y|?|/|/|
 |qcom|/|/|Y|/|/|
-|apple|/|/|/|?|Y|
+|apple|/|/|/|Y|Y|
 |arm|/|?|Y|/|/|
 
 You can search [the vulkan database](https://vulkan.gpuinfo.org) to see if your device supports vulkan.

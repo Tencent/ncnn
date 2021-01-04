@@ -52,7 +52,7 @@ $ ./build.sh iPhoneOS9.3.sdk.tar.xz armv7
 svn co http://llvm.org/svn/llvm-project/openmp/trunk openmp
 ```
 准备好 ios 交叉编译的 cmake toolchain，文件名 iosxc.toolchain.cmake，放在 openmp 目录中
-```
+```cmake
 # standard settings
 set (CMAKE_SYSTEM_NAME Darwin)
 set (CMAKE_SYSTEM_VERSION 1)

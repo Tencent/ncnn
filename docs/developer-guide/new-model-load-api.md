@@ -4,7 +4,7 @@
 #### two functions
 #### deal float32 float16 quantized-u8
 #### deal alignment size
-```
+```cpp
 #if NCNN_STDIO
 int Convolution::load_model(FILE* binfp)
 {
@@ -173,7 +173,7 @@ int Convolution::load_model(const unsigned char*& mem)
 ### Pros
 #### clean and simple api
 #### element type detection
-```
+```cpp
 int Convolution::load_model(const ModelBin& mb)
 {
     // auto detect element type

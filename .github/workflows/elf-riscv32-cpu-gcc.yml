@@ -1,0 +1,100 @@
+name: elf-riscv32-cpu-gcc
+on: [push, pull_request]
+jobs:
+  newlib-rv32imc-gcc:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - name: cache-riscv
+      id: cache-riscv
+      uses: actions/cache@v1
+      with:
+        path: rv32imc-install
+        key: rv32imc-newlib-install
+
+    - name: install-riscv-build-deps
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
+
+    - name: checkout-riscv-gnu-toolchain
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: riscv/riscv-gnu-toolchain
+        path: riscv-gnu-toolchain
+        ref: 256a4108922f76403a63d6567501c479971d5575
+    - name: checkout-riscv-gnu-toolchain-submodules
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        cd riscv-gnu-toolchain
+        git submodule update --init --recursive --depth 1 riscv-binutils
+        git submodule update --init --recursive --depth 1 riscv-gcc
+        git submodule update --init --recursive --depth 1 riscv-glibc
+        git submodule update --init --recursive --depth 1 riscv-dejagnu
+        git submodule update --init --recursive --depth 1 riscv-newlib
+        git submodule update --init --recursive --depth 1 riscv-gdb
+    - name: riscv-gnu-toolchain
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        cd riscv-gnu-toolchain
+        ./configure --prefix=$GITHUB_WORKSPACE/rv32imc-install --with-arch=rv32imc
+        make -j2
+
+    - name: checkout-riscv-pk
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: riscv/riscv-pk
+        path: riscv-pk
+        ref: 5d9ed238e1cabfbca3c47f50d32894ce94bfc304
+    - name: riscv-pk
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        cd riscv-pk
+        mkdir build
+        cd build
+        export PATH=$GITHUB_WORKSPACE/rv32imc-install/bin:$PATH
+        ../configure --prefix=$GITHUB_WORKSPACE/rv32imc-install --with-arch=rv32imc --host=riscv32-unknown-elf
+        make -j2
+        make install
+
+    - name: checkout-riscv-isa-sim
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: riscv/riscv-isa-sim
+        path: riscv-isa-sim
+        ref: ecc039ef5726315b7e37e8a9c7b682bbe09c9cf5
+    - name: riscv-isa-sim
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        cd riscv-isa-sim
+        mkdir build
+        cd build
+        export PATH=$GITHUB_WORKSPACE/rv32imc-install/bin:$PATH
+        ../configure --prefix=$GITHUB_WORKSPACE/rv32imc-install --with-isa=rv32imc
+        make -j2
+        make install
+
+    - name: riscv-strip-install
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: find $GITHUB_WORKSPACE/rv32imc-install -type f | xargs -i strip -g {} || true
+
+    - name: configure
+      run: export RISCV_ROOT_PATH=$GITHUB_WORKSPACE/rv32imc-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv32-unknown-elf.toolchain.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j 2
+
+    # too slow for softfloat arch :(
+    #- name: test
+      #run: |
+        #sudo apt-get update
+        #sudo apt-get install device-tree-compiler
+        #export PATH=$GITHUB_WORKSPACE/rv32imc-install/bin:$PATH
+        #cd build
+        #TESTS_EXECUTABLE_LOADER=spike TESTS_EXECUTABLE_LOADER_ARGUMENTS=$GITHUB_WORKSPACE/rv32imc-install/riscv32-unknown-elf/bin/pk ctest --output-on-failure -j 2

@@ -13,12 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "deconvolutiondepthwise.h"
-#include <algorithm>
+
 #include "layer_type.h"
 
 namespace ncnn {
-
-DEFINE_LAYER_CREATOR(DeconvolutionDepthWise)
 
 DeconvolutionDepthWise::DeconvolutionDepthWise()
 {
@@ -128,7 +126,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
     if (channels == group && group == num_output)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int g=0; g<group; g++)
+        for (int g = 0; g < group; g++)
         {
             const float* inptr = bottom_blob.channel(g);
             const float* kptr = (const float*)weight_data + maxk * g;
@@ -142,17 +140,16 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
             {
                 for (int j = 0; j < w; j++)
                 {
-                    float* outptr = m.row(i*stride_h) + j*stride_w;
+                    float* outptr = m.row(i * stride_h) + j * stride_w;
 
                     for (int k = 0; k < maxk; k++)
                     {
-                        float val = inptr[i*w + j];
+                        float val = inptr[i * w + j];
                         float w = kptr[k];
-                        outptr[ space_ofs[k] ] += val * w;
+                        outptr[space_ofs[k]] += val * w;
                     }
                 }
             }
-
 
             if (activation_type == 1)
             {
@@ -228,7 +225,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
                 {
                     for (int j = 0; j < w; j++)
                     {
-                        float* outptr = out.row(i*stride_h) + j*stride_w;
+                        float* outptr = out.row(i * stride_h) + j * stride_w;
 
                         const float* kptr = weight_data_ptr + maxk * channels_g * p;
 
@@ -240,7 +237,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                outptr[ space_ofs[k] ] += val * kptr[k];
+                                outptr[space_ofs[k]] += val * kptr[k];
                             }
 
                             kptr += maxk;
@@ -298,6 +295,15 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
         }
     }
 
+    cut_padding(top_blob_bordered, top_blob, opt);
+    if (top_blob.empty())
+        return -100;
+
+    return 0;
+}
+
+void DeconvolutionDepthWise::cut_padding(const Mat& top_blob_bordered, Mat& top_blob, const Option& opt) const
+{
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
         Mat top_blob_bordered_adj = top_blob_bordered;
@@ -307,15 +313,10 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
             opt_b.blob_allocator = opt.workspace_allocator;
             copy_make_border(top_blob_bordered, top_blob_bordered_adj, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt_b);
             if (top_blob_bordered_adj.empty())
-                return -100;
+                return;
         }
 
         copy_cut_border(top_blob_bordered_adj, top_blob, pad_top, pad_bottom, pad_left, pad_right, opt);
-        if (top_blob.empty())
-            return -100;
-
-        outw = top_blob.w;
-        outh = top_blob.h;
     }
     else if (output_w > 0 && output_h > 0)
     {
@@ -326,7 +327,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
             opt_b.blob_allocator = opt.workspace_allocator;
             copy_make_border(top_blob_bordered, top_blob_bordered_adj, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt_b);
             if (top_blob_bordered_adj.empty())
-                return -100;
+                return;
         }
 
         int wcut = top_blob_bordered_adj.w - output_w;
@@ -342,27 +343,18 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
             // onnx padding=SAME_LOWER
             copy_cut_border(top_blob_bordered_adj, top_blob, hcut - hcut / 2, hcut / 2, wcut - wcut / 2, wcut / 2, opt);
         }
-        if (top_blob.empty())
-            return -100;
-
-        outw = top_blob.w;
-        outh = top_blob.h;
     }
     else
     {
         if (output_pad_right > 0 || output_pad_bottom > 0)
         {
             copy_make_border(top_blob_bordered, top_blob, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt);
-            if (top_blob.empty())
-                return -100;
         }
         else
         {
             top_blob = top_blob_bordered;
         }
     }
-
-    return 0;
 }
 
 } // namespace ncnn

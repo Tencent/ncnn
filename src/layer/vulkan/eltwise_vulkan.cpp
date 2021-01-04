@@ -13,12 +13,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "eltwise_vulkan.h"
-#include <algorithm>
+
 #include "layer_shader_type.h"
 
 namespace ncnn {
-
-DEFINE_LAYER_CREATOR(Eltwise_vulkan)
 
 Eltwise_vulkan::Eltwise_vulkan()
 {
@@ -154,11 +152,10 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
     VkMat& top_blob = top_blobs[0];
-    top_blob.create(w, h, channels, elemsize, elempack, opt.blob_vkallocator);
+    top_blob.create_like(bottom_blob, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -177,17 +174,17 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     constants[6].f = coeffs.w == 0 ? 1.f : coeffs[1];
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[1]
-                             : elempack == 4 ? pipeline_eltwise_pack4[1]
-                             : pipeline_eltwise[1];
+                               : elempack == 4 ? pipeline_eltwise_pack4[1]
+                               : pipeline_eltwise[1];
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
-    for (size_t b=2; b<bottom_blobs.size(); b++)
+    for (size_t b = 2; b < bottom_blobs.size(); b++)
     {
         std::vector<VkMat> bindings(3);
         bindings[0] = top_blob;
         bindings[1] = bottom_blobs[b];
-        bindings[2] = top_blob;// TODO use separated pipeline ?
+        bindings[2] = top_blob; // TODO use separated pipeline ?
 
         std::vector<vk_constant_type> constants(5 + 2);
         constants[0].i = top_blob.dims;
@@ -198,9 +195,9 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         constants[5].f = 1.f;
         constants[6].f = coeffs.w == 0 ? 1 : coeffs[b];
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[b%2]
-                                 : elempack == 4 ? pipeline_eltwise_pack4[b%2]
-                                 : pipeline_eltwise[b%2];
+        const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[b % 2]
+                                   : elempack == 4 ? pipeline_eltwise_pack4[b % 2]
+                                   : pipeline_eltwise[b % 2];
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
@@ -216,11 +213,10 @@ int Eltwise_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
     VkImageMat& top_blob = top_blobs[0];
-    top_blob.create(w, h, channels, elemsize, elempack, opt.blob_vkallocator);
+    top_blob.create_like(bottom_blob, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -234,35 +230,35 @@ int Eltwise_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     constants[1].i = top_blob.w;
     constants[2].i = top_blob.h;
     constants[3].i = top_blob.c;
-    constants[4].i = 0;//top_blob.cstep;
+    constants[4].i = 0; //top_blob.cstep;
     constants[5].f = coeffs.w == 0 ? 1.f : coeffs[0];
     constants[6].f = coeffs.w == 0 ? 1.f : coeffs[1];
 
     const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[1]
-                             : elempack == 4 ? pipeline_eltwise_pack4[1]
-                             : pipeline_eltwise[1];
+                               : elempack == 4 ? pipeline_eltwise_pack4[1]
+                               : pipeline_eltwise[1];
 
     cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
-    for (size_t b=2; b<bottom_blobs.size(); b++)
+    for (size_t b = 2; b < bottom_blobs.size(); b++)
     {
         std::vector<VkImageMat> bindings(3);
         bindings[0] = top_blob;
         bindings[1] = bottom_blobs[b];
-        bindings[2] = top_blob;// TODO use separated pipeline ?
+        bindings[2] = top_blob; // TODO use separated pipeline ?
 
         std::vector<vk_constant_type> constants(5 + 2);
         constants[0].i = top_blob.dims;
         constants[1].i = top_blob.w;
         constants[2].i = top_blob.h;
         constants[3].i = top_blob.c;
-        constants[4].i = 0;//top_blob.cstep;
+        constants[4].i = 0; //top_blob.cstep;
         constants[5].f = 1.f;
         constants[6].f = coeffs.w == 0 ? 1 : coeffs[b];
 
-        const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[b%2]
-                                 : elempack == 4 ? pipeline_eltwise_pack4[b%2]
-                                 : pipeline_eltwise[b%2];
+        const Pipeline* pipeline = elempack == 8 ? pipeline_eltwise_pack8[b % 2]
+                                   : elempack == 4 ? pipeline_eltwise_pack4[b % 2]
+                                   : pipeline_eltwise[b % 2];
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }

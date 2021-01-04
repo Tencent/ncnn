@@ -23,13 +23,13 @@ https://github.com/BUG1989/caffe-int8-convert-tools
 
 ## use ncnn int8 inference
 the ncnn library would use int8 inference automatically, nothing changed in your code
-```
+```cpp
 ncnn::Net resnet;
 resnet.load_param("resnet-int8.param");
 resnet.load_model("resnet-int8.bin");
 ```
 ### turn off int8 inference, the runtime model only
-```
+```cpp
 ncnn::Net resnet;
 resnet.use_int8_inference = 0;// set the switch before loading, force int8 inference off
 resnet.load_param("resnet-fp32-int8.param");

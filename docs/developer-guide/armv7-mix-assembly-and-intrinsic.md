@@ -1,4 +1,4 @@
-```
+```c
 // d寄存器全部使用 %P
 // d reg matches %P
 // a += b * c
@@ -14,7 +14,7 @@ asm volatile(
     :
 );
 ```
-```
+```c
 // q寄存器全部使用 %q
 // q reg matches %q
 // a += b * c
@@ -30,7 +30,7 @@ asm volatile(
     :
 );
 ```
-```
+```c
 // d寄存器单路使用 %P[0] %P[1]
 // 32bit d reg matches %P[0]
 // a += b * c[0]
@@ -48,7 +48,7 @@ asm volatile(
     :
 );
 ```
-```
+```c
 // q寄存器单路使用 %e[0] %e[1] %f[0] %f[1]
 // 32-bit q reg matches %e[0]
 // a += b * c[0]
@@ -70,7 +70,7 @@ asm volatile(
     :
 );
 ```
-```
+```c
 // q寄存器拆分d寄存器使用 %e %f
 // use %e %f to split q reg into two d regs
 // a += b * c[0]c[1]
@@ -88,7 +88,7 @@ asm volatile(
     :
 );
 ```
-```
+```c
 // d寄存器声明绑定
 // specify concrete d reg which want to save
 // vmla.f32  d0, d2, d4
@@ -105,7 +105,7 @@ asm volatile(
     :
 );
 ```
-```
+```c
 // q寄存器声明绑定
 // bind q reg with data
 // vmla.f32  q0, q1, q2
