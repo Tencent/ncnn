@@ -3178,7 +3178,7 @@ int main(int argc, char** argv)
             {
                 fprintf(pp, " 8=%d", out_shape[0]);
             }
-            else if (kernel_shape.size() == 2)
+            else if (out_shape.size() == 2)
             {
                 fprintf(pp, " 8=%d", out_shape[0]);
                 fprintf(pp, " 18=%d", out_shape[1]);
