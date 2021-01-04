@@ -3174,8 +3174,15 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 0=%d", pool);
             fprintf(pp, " 7=%d", adaptive_pooling);
-            fprintf(pp, " 17=%d", out_shape[0]);
-            fprintf(pp, " 18=%d", out_shape[1]);
+            if (out_shape.size() == 1)
+            {
+                fprintf(pp, " 8=%d", out_shape[0]);
+            }
+            else if (kernel_shape.size() == 2)
+            {
+                fprintf(pp, " 8=%d", out_shape[0]);
+                fprintf(pp, " 18=%d", out_shape[1]);
+            }
         }
         else if (op == "GroupNorm")
         {
