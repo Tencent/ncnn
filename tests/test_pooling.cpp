@@ -248,7 +248,6 @@ static int test_pooling_4()
            || test_pooling(13, 11, 16, 0, 1, 1, 0, 1, 0, 1, 0, 12);
 }
 
-
 int main()
 {
     SRAND(7767517);
