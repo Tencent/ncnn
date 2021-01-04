@@ -41,8 +41,8 @@ int Pooling::load_param(const ParamDict& pd)
     pad_mode = pd.get(5, 0);
     avgpool_count_include_pad = pd.get(6, 0);
     adaptive_pooling = pd.get(7, 0);
-    out_w = pd.get(17, 0);
-    out_h = pd.get(18, out_w);
+    out_h = pd.get(17, 0);
+    out_w = pd.get(18, out_h);
 
     return 0;
 }
