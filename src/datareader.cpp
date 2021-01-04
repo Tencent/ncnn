@@ -18,6 +18,10 @@
 
 namespace ncnn {
 
+DataReader::DataReader()
+{
+}
+
 DataReader::~DataReader()
 {
 }
@@ -35,27 +39,77 @@ size_t DataReader::read(void* /*buf*/, size_t /*size*/) const
 }
 
 #if NCNN_STDIO
-DataReaderFromStdio::DataReaderFromStdio(FILE* _fp)
-    : fp(_fp)
+class DataReaderFromStdioPrivate
 {
+public:
+    DataReaderFromStdioPrivate(FILE* _fp)
+        : fp(_fp)
+    {
+    }
+    FILE* fp;
+};
+
+DataReaderFromStdio::DataReaderFromStdio(FILE* _fp)
+    : DataReader(), d(new DataReaderFromStdioPrivate(_fp))
+{
+}
+
+DataReaderFromStdio::~DataReaderFromStdio()
+{
+    delete d;
+}
+
+DataReaderFromStdio::DataReaderFromStdio(const DataReaderFromStdio&)
+    : d(0)
+{
+}
+
+DataReaderFromStdio& DataReaderFromStdio::operator=(const DataReaderFromStdio&)
+{
+    return *this;
 }
 
 #if NCNN_STRING
 int DataReaderFromStdio::scan(const char* format, void* p) const
 {
-    return fscanf(fp, format, p);
+    return fscanf(d->fp, format, p);
 }
 #endif // NCNN_STRING
 
 size_t DataReaderFromStdio::read(void* buf, size_t size) const
 {
-    return fread(buf, 1, size, fp);
+    return fread(buf, 1, size, d->fp);
 }
 #endif // NCNN_STDIO
 
-DataReaderFromMemory::DataReaderFromMemory(const unsigned char*& _mem)
-    : mem(_mem)
+class DataReaderFromMemoryPrivate
 {
+public:
+    DataReaderFromMemoryPrivate(const unsigned char*& _mem)
+        : mem(_mem)
+    {
+    }
+    const unsigned char*& mem;
+};
+
+DataReaderFromMemory::DataReaderFromMemory(const unsigned char*& _mem)
+    : DataReader(), d(new DataReaderFromMemoryPrivate(_mem))
+{
+}
+
+DataReaderFromMemory::~DataReaderFromMemory()
+{
+    delete d;
+}
+
+DataReaderFromMemory::DataReaderFromMemory(const DataReaderFromMemory&)
+    : d(0)
+{
+}
+
+DataReaderFromMemory& DataReaderFromMemory::operator=(const DataReaderFromMemory&)
+{
+    return *this;
 }
 
 #if NCNN_STRING
@@ -67,8 +121,8 @@ int DataReaderFromMemory::scan(const char* format, void* p) const
     sprintf(format_with_n, "%s%%n", format);
 
     int nconsumed = 0;
-    int nscan = sscanf((const char*)mem, format_with_n, p, &nconsumed);
-    mem += nconsumed;
+    int nscan = sscanf((const char*)d->mem, format_with_n, p, &nconsumed);
+    d->mem += nconsumed;
 
     delete[] format_with_n;
 
@@ -78,25 +132,52 @@ int DataReaderFromMemory::scan(const char* format, void* p) const
 
 size_t DataReaderFromMemory::read(void* buf, size_t size) const
 {
-    memcpy(buf, mem, size);
-    mem += size;
+    memcpy(buf, d->mem, size);
+    d->mem += size;
     return size;
 }
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
-DataReaderFromAndroidAsset::DataReaderFromAndroidAsset(AAsset* _asset)
-    : asset(_asset), mem(0)
+class DataReaderFromAndroidAssetPrivate
 {
+public:
+    DataReaderFromAndroidAssetPrivate(AAsset* _asset)
+        : asset(_asset), mem(0)
+    {
+    }
+    AAsset* asset;
+    mutable const unsigned char* mem;
+};
+
+DataReaderFromAndroidAsset::DataReaderFromAndroidAsset(AAsset* _asset)
+    : DataReader(), d(new DataReaderFromAndroidAssetPrivate(_asset))
+{
+}
+
+DataReaderFromAndroidAsset::~DataReaderFromAndroidAsset()
+{
+    delete d;
+}
+
+DataReaderFromAndroidAsset::DataReaderFromAndroidAsset(const DataReaderFromAndroidAsset&)
+    : d(0)
+{
+}
+
+DataReaderFromAndroidAsset& DataReaderFromAndroidAsset::operator=(const DataReaderFromAndroidAsset&)
+{
+    return *this;
 }
 
 #if NCNN_STRING
 int DataReaderFromAndroidAsset::scan(const char* format, void* p) const
 {
-    if (!mem)
+    if (!d->mem)
     {
-        off_t pos = AAsset_seek(asset, 0, SEEK_CUR);
-        mem = (const unsigned char*)AAsset_getBuffer(asset);
-        mem += pos;
+        off_t pos = AAsset_seek(d->asset, 0, SEEK_CUR);
+        d->mem = (const unsigned char*)AAsset_getBuffer(d->asset);
+        d->mem += pos;
     }
 
     int fmtlen = strlen(format);
@@ -105,15 +186,15 @@ int DataReaderFromAndroidAsset::scan(const char* format, void* p) const
     sprintf(format_with_n, "%s%%n", format);
 
     int nconsumed = 0;
-    int nscan = sscanf((const char*)mem, format_with_n, p, &nconsumed);
-    mem += nconsumed;
+    int nscan = sscanf((const char*)d->mem, format_with_n, p, &nconsumed);
+    d->mem += nconsumed;
 
     delete[] format_with_n;
 
     if (nconsumed == 0)
         return 0;
 
-    AAsset_seek(asset, nconsumed, SEEK_CUR);
+    AAsset_seek(d->asset, nconsumed, SEEK_CUR);
 
     return nscan;
 }
@@ -121,17 +202,18 @@ int DataReaderFromAndroidAsset::scan(const char* format, void* p) const
 
 size_t DataReaderFromAndroidAsset::read(void* buf, size_t size) const
 {
-    int nread = AAsset_read(asset, buf, size);
+    int nread = AAsset_read(d->asset, buf, size);
     if (nread < 0)
         return 0;
 
-    if (mem)
+    if (d->mem)
     {
-        mem += nread;
+        d->mem += nread;
     }
 
     return nread;
 }
 #endif // __ANDROID_API__ >= 9
+#endif // NCNN_PLATFORM_API
 
 } // namespace ncnn

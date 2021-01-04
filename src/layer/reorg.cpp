@@ -24,7 +24,8 @@ Reorg::Reorg()
 
 int Reorg::load_param(const ParamDict& pd)
 {
-    stride = pd.get(0, 0);
+    stride = pd.get(0, 1);
+    mode = pd.get(1, 0);
 
     return 0;
 }
@@ -53,7 +54,13 @@ int Reorg::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) con
         {
             for (int sw = 0; sw < stride; sw++)
             {
-                float* outptr = top_blob.channel(q * stride * stride + sh * stride + sw);
+                int p;
+                if (mode == 0)
+                    p = q * stride * stride + sh * stride + sw;
+                else // if (mode == 1)
+                    p = (sh * stride + sw) * channels + q;
+
+                float* outptr = top_blob.channel(p);
 
                 for (int i = 0; i < outh; i++)
                 {

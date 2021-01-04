@@ -36,14 +36,17 @@
 #include <emmintrin.h>
 
 /* yes I know, the top of this file is quite ugly */
-#if defined(__GNUC__)
-#define ALIGN32_BEG __attribute__((aligned(32)))
-#elif defined(_WIN32)
+
+#ifdef _MSC_VER /* visual c++ */
 #define ALIGN32_BEG __declspec(align(32))
+#define ALIGN32_END
+#else /* gcc or icc */
+#define ALIGN32_BEG
+#define ALIGN32_END __attribute__((aligned(32)))
 #endif
 
 #define _PI32AVX_CONST(Name, Val) \
-    static const ALIGN32_BEG int _pi32avx_##Name[4] = {Val, Val, Val, Val}
+    static const ALIGN32_BEG int _pi32avx_##Name[4] ALIGN32_END = {Val, Val, Val, Val}
 
 _PI32AVX_CONST(1, 1);
 _PI32AVX_CONST(inv1, ~1);
@@ -52,11 +55,11 @@ _PI32AVX_CONST(4, 4);
 
 /* declare some AVX constants -- why can't I figure a better way to do that? */
 #define _PS256_CONST(Name, Val) \
-    static const ALIGN32_BEG float _ps256_##Name[8] = {Val, Val, Val, Val, Val, Val, Val, Val}
+    static const ALIGN32_BEG float _ps256_##Name[8] ALIGN32_END = {Val, Val, Val, Val, Val, Val, Val, Val}
 #define _PI32_CONST256(Name, Val) \
-    static const ALIGN32_BEG int _pi32_256_##Name[8] = {Val, Val, Val, Val, Val, Val, Val, Val}
+    static const ALIGN32_BEG int _pi32_256_##Name[8] ALIGN32_END = {Val, Val, Val, Val, Val, Val, Val, Val}
 #define _PS256_CONST_TYPE(Name, Type, Val) \
-    static const ALIGN32_BEG Type _ps256_##Name[8] = {Val, Val, Val, Val, Val, Val, Val, Val}
+    static const ALIGN32_BEG Type _ps256_##Name[8] ALIGN32_END = {Val, Val, Val, Val, Val, Val, Val, Val}
 
 _PS256_CONST(1, 1.0f);
 _PS256_CONST(0p5, 0.5f);
@@ -96,20 +99,20 @@ typedef union imm_xmm_union
     __m128i xmm[2];
 } imm_xmm_union;
 
-#define COPY_IMM_TO_XMM(imm_, xmm0_, xmm1_)           \
-    {                                                 \
-        imm_xmm_union u __attribute__((aligned(32))); \
-        u.imm = imm_;                                 \
-        xmm0_ = u.xmm[0];                             \
-        xmm1_ = u.xmm[1];                             \
+#define COPY_IMM_TO_XMM(imm_, xmm0_, xmm1_)      \
+    {                                            \
+        ALIGN32_BEG imm_xmm_union u ALIGN32_END; \
+        u.imm = imm_;                            \
+        xmm0_ = u.xmm[0];                        \
+        xmm1_ = u.xmm[1];                        \
     }
 
-#define COPY_XMM_TO_IMM(xmm0_, xmm1_, imm_)           \
-    {                                                 \
-        imm_xmm_union u __attribute__((aligned(32))); \
-        u.xmm[0] = xmm0_;                             \
-        u.xmm[1] = xmm1_;                             \
-        imm_ = u.imm;                                 \
+#define COPY_XMM_TO_IMM(xmm0_, xmm1_, imm_)      \
+    {                                            \
+        ALIGN32_BEG imm_xmm_union u ALIGN32_END; \
+        u.xmm[0] = xmm0_;                        \
+        u.xmm[1] = xmm1_;                        \
+        imm_ = u.imm;                            \
     }
 
 #define AVX2_BITOP_USING_SSE2(fn)                            \
@@ -125,7 +128,11 @@ typedef union imm_xmm_union
         return (ret);                                        \
     }
 
+#if _MSC_VER
+#pragma WARNING(Using SSE2 to perform AVX2 bitshift ops)
+#else
 #warning "Using SSE2 to perform AVX2 bitshift ops"
+#endif
 AVX2_BITOP_USING_SSE2(slli_epi32)
 AVX2_BITOP_USING_SSE2(srli_epi32)
 
@@ -144,7 +151,11 @@ AVX2_BITOP_USING_SSE2(srli_epi32)
         return (ret);                                                     \
     }
 
+#if _MSC_VER
+#pragma WARNING(Using SSE2 to perform AVX2 bitshift ops)
+#else
 #warning "Using SSE2 to perform AVX2 integer ops"
+#endif
 AVX2_INTOP_USING_SSE2(and_si128)
 AVX2_INTOP_USING_SSE2(andnot_si128)
 AVX2_INTOP_USING_SSE2(cmpeq_epi32)
@@ -231,16 +242,16 @@ static inline __m256 log256_ps(__m256 x)
 _PS256_CONST(exp_hi, 88.3762626647949f);
 _PS256_CONST(exp_lo, -88.3762626647949f);
 
-_PS256_CONST(cephes_LOG2EF, 1.44269504088896341);
-_PS256_CONST(cephes_exp_C1, 0.693359375);
-_PS256_CONST(cephes_exp_C2, -2.12194440e-4);
+_PS256_CONST(cephes_LOG2EF, 1.44269504088896341f);
+_PS256_CONST(cephes_exp_C1, 0.693359375f);
+_PS256_CONST(cephes_exp_C2, -2.12194440e-4f);
 
-_PS256_CONST(cephes_exp_p0, 1.9875691500E-4);
-_PS256_CONST(cephes_exp_p1, 1.3981999507E-3);
-_PS256_CONST(cephes_exp_p2, 8.3334519073E-3);
-_PS256_CONST(cephes_exp_p3, 4.1665795894E-2);
-_PS256_CONST(cephes_exp_p4, 1.6666665459E-1);
-_PS256_CONST(cephes_exp_p5, 5.0000001201E-1);
+_PS256_CONST(cephes_exp_p0, 1.9875691500E-4f);
+_PS256_CONST(cephes_exp_p1, 1.3981999507E-3f);
+_PS256_CONST(cephes_exp_p2, 8.3334519073E-3f);
+_PS256_CONST(cephes_exp_p3, 4.1665795894E-2f);
+_PS256_CONST(cephes_exp_p4, 1.6666665459E-1f);
+_PS256_CONST(cephes_exp_p5, 5.0000001201E-1f);
 
 static inline __m256 exp256_ps(__m256 x)
 {
@@ -299,16 +310,16 @@ static inline __m256 exp256_ps(__m256 x)
     return y;
 }
 
-_PS256_CONST(minus_cephes_DP1, -0.78515625);
-_PS256_CONST(minus_cephes_DP2, -2.4187564849853515625e-4);
-_PS256_CONST(minus_cephes_DP3, -3.77489497744594108e-8);
-_PS256_CONST(sincof_p0, -1.9515295891E-4);
-_PS256_CONST(sincof_p1, 8.3321608736E-3);
-_PS256_CONST(sincof_p2, -1.6666654611E-1);
-_PS256_CONST(coscof_p0, 2.443315711809948E-005);
-_PS256_CONST(coscof_p1, -1.388731625493765E-003);
-_PS256_CONST(coscof_p2, 4.166664568298827E-002);
-_PS256_CONST(cephes_FOPI, 1.27323954473516); // 4 / M_PI
+_PS256_CONST(minus_cephes_DP1, -0.78515625f);
+_PS256_CONST(minus_cephes_DP2, -2.4187564849853515625e-4f);
+_PS256_CONST(minus_cephes_DP3, -3.77489497744594108e-8f);
+_PS256_CONST(sincof_p0, -1.9515295891E-4f);
+_PS256_CONST(sincof_p1, 8.3321608736E-3f);
+_PS256_CONST(sincof_p2, -1.6666654611E-1f);
+_PS256_CONST(coscof_p0, 2.443315711809948E-005f);
+_PS256_CONST(coscof_p1, -1.388731625493765E-003f);
+_PS256_CONST(coscof_p2, 4.166664568298827E-002f);
+_PS256_CONST(cephes_FOPI, 1.27323954473516f); // 4 / M_PI
 
 /* evaluation of 8 sines at onces using AVX intrisics
 

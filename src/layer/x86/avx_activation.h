@@ -56,7 +56,7 @@ static inline __m256 prelu_avx(__m256 inputs, __m256 alphas)
     return _mm256_add_ps(pos, _mm256_mul_ps(alphas, neg));
 }
 
-static inline __m256 activation_ps(__m256 _v, int activation_type, const ncnn::Mat& activation_params)
+static inline __m256 activation_avx(__m256 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     // Process fused activations
     if (activation_type == 1)

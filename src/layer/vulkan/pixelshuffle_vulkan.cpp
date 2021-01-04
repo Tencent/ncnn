@@ -82,18 +82,19 @@ int PixelShuffle_vulkan::create_pipeline(const Option& _opt)
         opt.use_image_storage = false;
     }
 
-    std::vector<vk_specialization_type> specializations(1 + 10);
+    std::vector<vk_specialization_type> specializations(2 + 10);
     specializations[0].i = upscale_factor;
-    specializations[1 + 0].i = shape_packed.dims;
-    specializations[1 + 1].i = shape_packed.w;
-    specializations[1 + 2].i = shape_packed.h;
-    specializations[1 + 3].i = shape_packed.c;
-    specializations[1 + 4].i = shape_packed.cstep;
-    specializations[1 + 5].i = out_shape_packed.dims;
-    specializations[1 + 6].i = out_shape_packed.w;
-    specializations[1 + 7].i = out_shape_packed.h;
-    specializations[1 + 8].i = out_shape_packed.c;
-    specializations[1 + 9].i = out_shape_packed.cstep;
+    specializations[1].i = mode;
+    specializations[2 + 0].i = shape_packed.dims;
+    specializations[2 + 1].i = shape_packed.w;
+    specializations[2 + 2].i = shape_packed.h;
+    specializations[2 + 3].i = shape_packed.c;
+    specializations[2 + 4].i = shape_packed.cstep;
+    specializations[2 + 5].i = out_shape_packed.dims;
+    specializations[2 + 6].i = out_shape_packed.w;
+    specializations[2 + 7].i = out_shape_packed.h;
+    specializations[2 + 8].i = out_shape_packed.c;
+    specializations[2 + 9].i = out_shape_packed.cstep;
 
     Mat local_size_xyz_bottom; // pack4to1 and pack8to1
     if (shape_packed.dims != 3)

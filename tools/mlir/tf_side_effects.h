@@ -89,6 +89,16 @@ struct DatasetIterator : ::mlir::SideEffects::Resource::Base<DatasetIterator>
     }
 };
 
+// Special resource type to track TPU Embedding specific ops, which must execute
+// but do not have side effects with one another or with resource variable ops.
+struct TPUEmbedding : ::mlir::SideEffects::Resource::Base<TPUEmbedding>
+{
+    StringRef getName() final
+    {
+        return "TPUEmbedding";
+    }
+};
+
 } // namespace ResourceEffects
 } // namespace TF
 } // namespace mlir

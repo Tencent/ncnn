@@ -20,9 +20,10 @@
 namespace ncnn {
 
 class DataReader;
-class ModelBin
+class NCNN_EXPORT ModelBin
 {
 public:
+    ModelBin();
     virtual ~ModelBin();
     // element type
     // 0 = auto
@@ -37,27 +38,39 @@ public:
     virtual Mat load(int w, int h, int c, int type) const;
 };
 
-class ModelBinFromDataReader : public ModelBin
+class ModelBinFromDataReaderPrivate;
+class NCNN_EXPORT ModelBinFromDataReader : public ModelBin
 {
 public:
-    ModelBinFromDataReader(const DataReader& dr);
+    explicit ModelBinFromDataReader(const DataReader& dr);
+    virtual ~ModelBinFromDataReader();
 
     virtual Mat load(int w, int type) const;
 
-protected:
-    const DataReader& dr;
+private:
+    ModelBinFromDataReader(const ModelBinFromDataReader&);
+    ModelBinFromDataReader& operator=(const ModelBinFromDataReader&);
+
+private:
+    ModelBinFromDataReaderPrivate* const d;
 };
 
-class ModelBinFromMatArray : public ModelBin
+class ModelBinFromMatArrayPrivate;
+class NCNN_EXPORT ModelBinFromMatArray : public ModelBin
 {
 public:
     // construct from weight blob array
-    ModelBinFromMatArray(const Mat* weights);
+    explicit ModelBinFromMatArray(const Mat* weights);
+    virtual ~ModelBinFromMatArray();
 
     virtual Mat load(int w, int type) const;
 
-protected:
-    mutable const Mat* weights;
+private:
+    ModelBinFromMatArray(const ModelBinFromMatArray&);
+    ModelBinFromMatArray& operator=(const ModelBinFromMatArray&);
+
+private:
+    ModelBinFromMatArrayPrivate* const d;
 };
 
 } // namespace ncnn

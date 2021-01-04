@@ -19,7 +19,6 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/DialectImplementation.h>
-#include <mlir/IR/Function.h>
 #include <mlir/IR/Location.h>
 #include <mlir/IR/Matchers.h>
 #include <mlir/IR/MLIRContext.h>
@@ -28,7 +27,6 @@
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/OperationSupport.h>
 #include <mlir/IR/PatternMatch.h>
-#include <mlir/IR/StandardTypes.h>
 #include <mlir/IR/TypeUtilities.h>
 #include <mlir/IR/Types.h>
 #include <mlir/IR/Value.h>

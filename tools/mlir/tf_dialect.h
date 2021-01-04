@@ -16,9 +16,10 @@
 #define TF_DIALECT_H
 
 #include <mlir/Dialect/Traits.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Dialect.h>
-#include <mlir/IR/Function.h>
 #include <mlir/IR/OpImplementation.h>
+#include <mlir/Interfaces/ControlFlowInterfaces.h>
 #include <mlir/Interfaces/DerivedAttributeOpInterface.h>
 #include <mlir/Interfaces/InferTypeOpInterface.h>
 #include <mlir/Interfaces/LoopLikeInterface.h>

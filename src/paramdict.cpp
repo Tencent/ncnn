@@ -15,61 +15,135 @@
 #include "paramdict.h"
 
 #include "datareader.h"
+#include "mat.h"
 #include "platform.h"
 
 #include <ctype.h>
 
-#if NCNN_STDIO || NCNN_STRING
+#if NCNN_STDIO
 #include <stdio.h>
 #endif
 
 namespace ncnn {
 
+class ParamDictPrivate
+{
+public:
+    struct
+    {
+        // 0 = null
+        // 1 = int/float
+        // 2 = int
+        // 3 = float
+        // 4 = array of int/float
+        // 5 = array of int
+        // 6 = array of float
+        int type;
+        union
+        {
+            int i;
+            float f;
+        };
+        Mat v;
+    } params[NCNN_MAX_PARAM_COUNT];
+};
+
 ParamDict::ParamDict()
+    : d(new ParamDictPrivate)
 {
     clear();
+}
+
+ParamDict::~ParamDict()
+{
+    delete d;
+}
+
+ParamDict::ParamDict(const ParamDict& rhs)
+    : d(new ParamDictPrivate)
+{
+    for (int i = 0; i < NCNN_MAX_PARAM_COUNT; i++)
+    {
+        int type = rhs.d->params[i].type;
+        d->params[i].type = type;
+        if (type == 1 || type == 2 || type == 3)
+        {
+            d->params[i].i = rhs.d->params[i].i;
+        }
+        else // if (type == 4 || type == 5 || type == 6)
+        {
+            d->params[i].v = rhs.d->params[i].v;
+        }
+    }
+}
+
+ParamDict& ParamDict::operator=(const ParamDict& rhs)
+{
+    if (this == &rhs)
+        return *this;
+
+    for (int i = 0; i < NCNN_MAX_PARAM_COUNT; i++)
+    {
+        int type = rhs.d->params[i].type;
+        d->params[i].type = type;
+        if (type == 1 || type == 2 || type == 3)
+        {
+            d->params[i].i = rhs.d->params[i].i;
+        }
+        else // if (type == 4 || type == 5 || type == 6)
+        {
+            d->params[i].v = rhs.d->params[i].v;
+        }
+    }
+
+    return *this;
+}
+
+int ParamDict::type(int id) const
+{
+    return d->params[id].type;
 }
 
 // TODO strict type check
 int ParamDict::get(int id, int def) const
 {
-    return params[id].type ? params[id].i : def;
+    return d->params[id].type ? d->params[id].i : def;
 }
 
 float ParamDict::get(int id, float def) const
 {
-    return params[id].type ? params[id].f : def;
+    return d->params[id].type ? d->params[id].f : def;
 }
 
 Mat ParamDict::get(int id, const Mat& def) const
 {
-    return params[id].type ? params[id].v : def;
+    return d->params[id].type ? d->params[id].v : def;
 }
 
 void ParamDict::set(int id, int i)
 {
-    params[id].type = 2;
-    params[id].i = i;
+    d->params[id].type = 2;
+    d->params[id].i = i;
 }
 
 void ParamDict::set(int id, float f)
 {
-    params[id].type = 3;
-    params[id].f = f;
+    d->params[id].type = 3;
+    d->params[id].f = f;
 }
 
 void ParamDict::set(int id, const Mat& v)
 {
-    params[id].type = 4;
-    params[id].v = v;
+    d->params[id].type = 4;
+    d->params[id].v = v;
 }
 
 void ParamDict::clear()
 {
     for (int i = 0; i < NCNN_MAX_PARAM_COUNT; i++)
     {
-        params[i].type = 0;
-        params[i].v = Mat();
+        d->params[i].type = 0;
+        d->params[i].v = Mat();
     }
 }
 
@@ -185,6 +259,12 @@ int ParamDict::load_param(const DataReader& dr)
             id = -id - 23300;
         }
 
+        if (id >= NCNN_MAX_PARAM_COUNT)
+        {
+            NCNN_LOGE("id < NCNN_MAX_PARAM_COUNT failed (id=%d, NCNN_MAX_PARAM_COUNT=%d)", id, NCNN_MAX_PARAM_COUNT);
+            return -1;
+        }
+
         if (is_array)
         {
             int len = 0;
@@ -195,7 +275,7 @@ int ParamDict::load_param(const DataReader& dr)
                 return -1;
             }
 
-            params[id].v.create(len);
+            d->params[id].v.create(len);
 
             for (int j = 0; j < len; j++)
             {
@@ -211,12 +291,12 @@ int ParamDict::load_param(const DataReader& dr)
 
                 if (is_float)
                 {
-                    float* ptr = params[id].v;
+                    float* ptr = d->params[id].v;
                     ptr[j] = vstr_to_float(vstr);
                 }
                 else
                 {
-                    int* ptr = params[id].v;
+                    int* ptr = d->params[id].v;
                     nscan = sscanf(vstr, "%d", &ptr[j]);
                     if (nscan != 1)
                     {
@@ -225,7 +305,7 @@ int ParamDict::load_param(const DataReader& dr)
                     }
                 }
 
-                params[id].type = is_float ? 6 : 5;
+                d->params[id].type = is_float ? 6 : 5;
             }
         }
         else
@@ -242,11 +322,11 @@ int ParamDict::load_param(const DataReader& dr)
 
             if (is_float)
             {
-                params[id].f = vstr_to_float(vstr);
+                d->params[id].f = vstr_to_float(vstr);
             }
             else
             {
-                nscan = sscanf(vstr, "%d", &params[id].i);
+                nscan = sscanf(vstr, "%d", &d->params[id].i);
                 if (nscan != 1)
                 {
                     NCNN_LOGE("ParamDict parse value failed");
@@ -254,7 +334,7 @@ int ParamDict::load_param(const DataReader& dr)
                 }
             }
 
-            params[id].type = is_float ? 3 : 2;
+            d->params[id].type = is_float ? 3 : 2;
         }
     }
 
@@ -296,6 +376,12 @@ int ParamDict::load_param_bin(const DataReader& dr)
             id = -id - 23300;
         }
 
+        if (id >= NCNN_MAX_PARAM_COUNT)
+        {
+            NCNN_LOGE("id < NCNN_MAX_PARAM_COUNT failed (id=%d, NCNN_MAX_PARAM_COUNT=%d)", id, NCNN_MAX_PARAM_COUNT);
+            return -1;
+        }
+
         if (is_array)
         {
             int len = 0;
@@ -306,9 +392,9 @@ int ParamDict::load_param_bin(const DataReader& dr)
                 return -1;
             }
 
-            params[id].v.create(len);
+            d->params[id].v.create(len);
 
-            float* ptr = params[id].v;
+            float* ptr = d->params[id].v;
             nread = dr.read(ptr, sizeof(float) * len);
             if (nread != sizeof(float) * len)
             {
@@ -316,18 +402,18 @@ int ParamDict::load_param_bin(const DataReader& dr)
                 return -1;
             }
 
-            params[id].type = 4;
+            d->params[id].type = 4;
         }
         else
         {
-            nread = dr.read(&params[id].f, sizeof(float));
+            nread = dr.read(&d->params[id].f, sizeof(float));
             if (nread != sizeof(float))
             {
                 NCNN_LOGE("ParamDict read value failed %zd", nread);
                 return -1;
             }
 
-            params[id].type = 1;
+            d->params[id].type = 1;
         }
 
         nread = dr.read(&id, sizeof(int));

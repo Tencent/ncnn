@@ -30,6 +30,7 @@ public:
 
 public:
     int stride;
+    int mode;
 };
 
 } // namespace ncnn

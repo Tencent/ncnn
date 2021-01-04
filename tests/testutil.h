@@ -74,7 +74,7 @@ static bool NearlyEqual(float a, float b, float epsilon)
     if (a == b)
         return true;
 
-    float diff = fabs(a - b);
+    float diff = (float)fabs(a - b);
     if (diff <= epsilon)
         return true;
 
@@ -463,9 +463,9 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
-    if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
+    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
 
     // FIXME fp16a may produce large error
     opt.use_fp16_arithmetic = false;
@@ -857,9 +857,9 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
-    if (!vkdev->info.support_fp16_arithmetic) opt.use_fp16_arithmetic = false;
+    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
 
     // FIXME fp16a may produce large error
     opt.use_fp16_arithmetic = false;

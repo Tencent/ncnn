@@ -120,6 +120,14 @@ make -j4
 make install
 popd
 
+##### linux of v831 toolchain with neon and openmp
+mkdir -p build-v831-linux
+pushd build-v831-linux
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/v831.toolchain.cmake ..
+make -j4
+make install
+popd
+
 ##### linux for aarch64-linux-gnu toolchain
 mkdir -p build-aarch64-linux-gnu
 pushd build-aarch64-linux-gnu
@@ -204,9 +212,8 @@ popd
 mkdir -p build-mac
 pushd build-mac
 cmake   -DNCNN_OPENMP=OFF \
-        -DNCNN_OPENCV=ON \
         -DNCNN_BENCHMARK=ON \
         ..
-make -j 8
+make -j8
 make install
 popd

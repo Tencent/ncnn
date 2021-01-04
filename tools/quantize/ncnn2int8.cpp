@@ -150,6 +150,11 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
 class NetQuantize : public ncnn::Net
 {
 public:
+    NetQuantize();
+
+    std::vector<ncnn::Blob>& blobs;
+    std::vector<ncnn::Layer*>& layers;
+
     // 0=fp32 1=fp16 2=int8
     int storage_type;
     std::map<std::string, std::vector<float> > blob_int8scale_table;
@@ -169,6 +174,11 @@ public:
 
     int save(const char* parampath, const char* binpath);
 };
+
+NetQuantize::NetQuantize()
+    : blobs(mutable_blobs()), layers(mutable_layers())
+{
+}
 
 int NetQuantize::quantize_convolution()
 {
