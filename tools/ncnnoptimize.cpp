@@ -3709,6 +3709,10 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             }
             fprintf_param_value(" 4=%d", global_pooling)
             fprintf_param_value(" 5=%d", pad_mode)
+            fprintf_param_value(" 6=%d", avgpool_count_include_pad)
+            fprintf_param_value(" 7=%d", adaptive_pooling)
+            fprintf_param_value(" 17=%d", out_w)
+            fprintf_param_value(" 18=%d", out_h)
         }
         else if (layer->type == "Power")
         {
