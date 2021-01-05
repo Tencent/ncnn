@@ -95,17 +95,21 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
     pd.set(8, 1); // int8_scale_term
 
     std::vector<ncnn::Mat> weights(bias ? 4 : 3);
-    weights[0] = RandomMat(outch * a.w * a.h * a.c);
+    const int k = a.w * a.h * a.c;
+    weights[0] = RandomMat(outch * k);
+    ncnn::Mat weight_scales = scales_mat(weights[0], outch, k, k);
+    ncnn::Mat input_scales = scales_mat(a, 1, k, k);
+
     if (bias)
     {
         weights[1] = RandomMat(outch);
-        weights[2] = RandomMat(outch);
-        weights[3] = RandomMat(1);
+        weights[2] = weight_scales;
+        weights[3] = input_scales;
     }
     else
     {
-        weights[1] = RandomMat(outch);
-        weights[2] = RandomMat(1);
+        weights[1] = weight_scales;
+        weights[2] = input_scales;
     }
 
     int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, a);

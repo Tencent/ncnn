@@ -22,6 +22,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #if NCNN_VULKAN
 #include "command.h"
@@ -67,6 +68,30 @@ static ncnn::Mat RandomMat(int w, int h, int c)
     ncnn::Mat m(w, h, c);
     Randomize(m);
     return m;
+}
+
+static ncnn::Mat scales_mat(const ncnn::Mat& mat, int m, int k, int ldx)
+{
+    ncnn::Mat weight_scales(m);
+    for (int i = 0; i < m; ++i)
+    {
+        float min = mat[0], _max = mat[0];
+        const float* ptr = (const float*)(mat.data) + i * ldx;
+        for (int j = 0; j < k; ++j)
+        {
+            if (min > ptr[j])
+            {
+                min = ptr[j];
+            }
+            if (_max < ptr[j])
+            {
+                _max = ptr[j];
+            }
+        }
+        const float abs_min = abs(min), abs_max = abs(_max);
+        weight_scales[i] = 127.f / (abs_min > abs_max ? abs_min : abs_max);
+    }
+    return weight_scales;
 }
 
 static bool NearlyEqual(float a, float b, float epsilon)
