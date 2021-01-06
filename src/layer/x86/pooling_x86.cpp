@@ -43,16 +43,16 @@ int Pooling_x86::create_pipeline(const Option& _opt)
 {
     if (adaptive_pooling)
     {
-		support_packing = false;
+        support_packing = false;
 
-		support_bf16_storage = false;
-		support_fp16_storage = false;
-		support_int8_storage = false;
-		support_image_storage = false;
-		support_tensor_storage = false;
+        support_bf16_storage = false;
+        support_fp16_storage = false;
+        support_int8_storage = false;
+        support_image_storage = false;
+        support_tensor_storage = false;
 
-		use_int8_inference = false;
-		support_weight_fp16_storage = false;
+        use_int8_inference = false;
+        support_weight_fp16_storage = false;
     }
     return 0;
 }
@@ -89,7 +89,7 @@ int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
             if (pooling_type == PoolMethod_MAX)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob.channel(q);
@@ -108,7 +108,7 @@ int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             }
             else if (pooling_type == PoolMethod_AVE)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob.channel(q);
@@ -182,7 +182,7 @@ int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 return 0;
             }
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat m = bottom_blob_bordered.channel(q);
@@ -222,7 +222,7 @@ int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     htailpad = bottom_blob_bordered.h - bottom_blob.h - pad_top - pad_bottom;
                 }
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
@@ -276,7 +276,7 @@ int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             }
             else // if (avgpool_count_include_pad == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const Mat m = bottom_blob_bordered.channel(q);
