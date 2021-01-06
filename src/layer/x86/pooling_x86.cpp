@@ -39,6 +39,24 @@ Pooling_x86::Pooling_x86()
 #endif // __SSE2__
 }
 
+int Pooling_x86::create_pipeline(const Option& _opt)
+{
+    if (adaptive_pooling)
+    {
+		support_packing = false;
+
+		support_bf16_storage = false;
+		support_fp16_storage = false;
+		support_int8_storage = false;
+		support_image_storage = false;
+		support_tensor_storage = false;
+
+		use_int8_inference = false;
+		support_weight_fp16_storage = false;
+    }
+    return 0;
+}
+
 int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // max value in NxN window
