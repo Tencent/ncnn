@@ -19,6 +19,9 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #include "neon_mathfun.h"
+#if __aarch64__
+#include "gemm_symm_int8.h"
+#endif
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "neon_mathfun_fp16s.h"
 #endif
@@ -45,7 +48,7 @@ InnerProduct_arm::InnerProduct_arm()
 int InnerProduct_arm::create_pipeline(const Option& opt)
 {
 #if __ARM_NEON
-    if (opt.use_packing_layout)
+    if (opt.use_packing_layout or opt.use_int8_inference)
     {
         flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
 
@@ -69,6 +72,11 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
         return create_pipeline_bf16s(opt);
     }
 
+    if (opt.use_int8_inference)
+    {
+        return create_pipeline_int8(opt);
+    }
+
     return 0;
 }
 
@@ -84,12 +92,108 @@ int InnerProduct_arm::destroy_pipeline(const Option& opt)
     return 0;
 }
 
+int InnerProduct_arm::create_pipeline_int8(const Option& opt)
+{
+    // convert fp32 to int8
+    if (weight_data_int8_scales.empty())
+    {
+        return 0;
+    }
+#if __aarch64__
+    // first reorder Matrix A before MatMul
+    const int n = num_output;
+    const int k = weight_data.total() / n;
+    weight_data_int8.create(n * k, (size_t)1u, opt.blob_allocator);
+
+    int8_t* b = weight_data;
+    int8_t* sb = weight_data_int8;
+    reorder_a(b, sb, n, k, k);
+
+    // pre-built scales
+    scales_in.create(num_output, 4u, opt.blob_allocator);
+    for (int i = 0; i < num_output; ++i)
+    {
+        if (std::fabs(static_cast<float>(weight_data_int8_scales[i])) <= 1e-6)
+        {
+            scales_in[i] = 0.f;
+        }
+        else
+        {
+            scales_in[i] = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[i]);
+        }
+    }
+#endif
+    return 0;
+}
+
+int InnerProduct_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+#if __aarch64__
+    Mat bottom_blob_tm = bottom_blob;
+    if (bottom_blob.elemsize != 1)
+    {
+        quantize_float32_to_int8(bottom_blob, bottom_blob_tm, bottom_blob_int8_scale, opt);
+    }
+
+    Mat bottom_blob_tm_flattened = bottom_blob_tm;
+    if (bottom_blob_tm.dims != 1)
+    {
+        Option opt_flatten = opt;
+        opt_flatten.blob_allocator = opt.workspace_allocator;
+        flatten->forward(bottom_blob_tm, bottom_blob_tm_flattened, opt_flatten);
+    }
+
+    top_blob.create(num_output, 4u, opt.blob_allocator);
+    if (top_blob.empty())
+    {
+        return -100;
+    }
+
+    const int w = bottom_blob_tm.w;
+    const int h = bottom_blob_tm.h;
+
+    const int m = 1;
+    const int k = bottom_blob_tm.c * w * h;
+    Mat bottom_blob_reorder(m * k, (size_t)1u, opt.workspace_allocator);
+    {
+        reorder_a(bottom_blob_tm_flattened, bottom_blob_reorder, m, k, k);
+    }
+
+    Mat top_blob_tm(m * num_output, (size_t)4u, opt.workspace_allocator);
+    int32_t* pc = top_blob_tm;
+    const int8_t* pa = bottom_blob_reorder;
+    const int8_t* pb = weight_data_int8;
+    int8kernel((void*)pc, pa, pb, m, k, num_output, num_output, 0, 0, opt);
+
+    float* outptr = top_blob;
+
+    // dequant.fused.relu int32_t to float
+    for (int p = 0; p < num_output; ++p)
+    {
+        float sumfp32 = pc[p] * scales_in[p];
+        if (bias_term)
+        {
+            sumfp32 += bias_data[p];
+        }
+        if (1 == activation_type)
+        {
+            sumfp32 = std::max(0.f, sumfp32);
+        }
+
+        outptr[p] = sumfp32;
+    }
+    return 0;
+#else
+    return InnerProduct::forward(bottom_blob, top_blob, opt);
+#endif
+}
+
 int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         // TODO
-        return InnerProduct::forward(bottom_blob, top_blob, opt);
+        return forward_int8(bottom_blob, top_blob, opt);
     }
 
     int elembits = bottom_blob.elembits();
