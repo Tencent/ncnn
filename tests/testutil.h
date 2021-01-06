@@ -321,7 +321,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     op->create_pipeline(opt);
 
     std::vector<ncnn::Mat> a4(a.size());
-    if (opt.use_packing_layout)
+    if (opt.use_packing_layout && op->support_packing)
     {
         for (size_t i = 0; i < a.size(); i++)
         {
@@ -357,7 +357,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         a4 = a;
     }
 
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage && op->support_fp16_storage)
     {
         for (size_t i = 0; i < a4.size(); i++)
         {
@@ -366,7 +366,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             a4[i] = a_fp16;
         }
     }
-    else if (opt.use_bf16_storage)
+    else if (opt.use_bf16_storage && op->support_bf16_storage)
     {
         for (size_t i = 0; i < a4.size(); i++)
         {
@@ -392,7 +392,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         op->forward(a4, c, opt);
     }
 
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage && op->support_fp16_storage)
     {
         for (size_t i = 0; i < c.size(); i++)
         {
@@ -401,7 +401,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             c[i] = c_fp32;
         }
     }
-    else if (opt.use_bf16_storage)
+    else if (opt.use_bf16_storage && op->support_bf16_storage)
     {
         for (size_t i = 0; i < c.size(); i++)
         {
@@ -741,7 +741,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     op->create_pipeline(opt);
 
     ncnn::Mat a4;
-    if (opt.use_packing_layout)
+    if (opt.use_packing_layout && op->support_packing)
     {
         // resolve dst_elempack
         int dims = a.dims;
@@ -774,13 +774,13 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         a4 = a;
     }
 
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage && op->support_fp16_storage)
     {
         ncnn::Mat a_fp16;
         ncnn::cast_float32_to_float16(a4, a_fp16, opt);
         a4 = a_fp16;
     }
-    else if (opt.use_bf16_storage)
+    else if (opt.use_bf16_storage && op->support_bf16_storage)
     {
         ncnn::Mat a_bf16;
         ncnn::cast_float32_to_bfloat16(a4, a_bf16, opt);
@@ -797,13 +797,13 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         op->forward(a4, c, opt);
     }
 
-    if (opt.use_fp16_storage)
+    if (opt.use_fp16_storage && op->support_fp16_storage)
     {
         ncnn::Mat c_fp32;
         ncnn::cast_float16_to_float32(c, c_fp32, opt);
         c = c_fp32;
     }
-    else if (opt.use_bf16_storage)
+    else if (opt.use_bf16_storage && op->support_bf16_storage)
     {
         ncnn::Mat c_fp32;
         ncnn::cast_bfloat16_to_float32(c, c_fp32, opt);
