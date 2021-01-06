@@ -44,6 +44,11 @@ int Pooling_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     // max value in NxN window
     // avg value in NxN window
 
+    if (adaptive_pooling)
+    {
+        return Pooling::forward(bottom_blob, top_blob, opt);
+    }
+
 #if __SSE2__
     int elempack = bottom_blob.elempack;
 

@@ -44,6 +44,11 @@ Pooling_arm::Pooling_arm()
 
 int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    if (adaptive_pooling)
+    {
+        return Pooling::forward(bottom_blob, top_blob, opt);
+    }
+
     int elembits = bottom_blob.elembits();
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
