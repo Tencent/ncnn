@@ -3180,9 +3180,9 @@ int main(int argc, char** argv)
             }
             else if (out_shape.size() == 2)
             {
-                # out_w
+                // out_w
                 fprintf(pp, " 8=%d", out_shape[1]);
-                # out_h
+                // out_h
                 fprintf(pp, " 18=%d", out_shape[0]);
             }
         }
