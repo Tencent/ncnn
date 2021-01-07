@@ -40,6 +40,9 @@ int Pooling::load_param(const ParamDict& pd)
     global_pooling = pd.get(4, 0);
     pad_mode = pd.get(5, 0);
     avgpool_count_include_pad = pd.get(6, 0);
+    adaptive_pooling = pd.get(7, 0);
+    out_w = pd.get(8, 0);
+    out_h = pd.get(18, out_w);
 
     return 0;
 }
@@ -93,6 +96,83 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 }
 
                 top_blob[q] = sum / size;
+            }
+        }
+
+        return 0;
+    }
+
+    if (adaptive_pooling)
+    {
+        top_blob.create(out_w, out_h, channels, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        if (pooling_type == PoolMethod_MAX)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* inptr = bottom_blob.channel(q);
+                float* outptr = top_blob.channel(q);
+
+                for (int i = 0; i < out_h; i++)
+                {
+                    int ih0 = floor((float)(i * h) / out_h);
+                    int ih1 = ceil((float)((i + 1) * h) / out_h);
+                    for (int j = 0; j < out_w; j++)
+                    {
+                        int iw0 = floor((float)(j * w) / out_w);
+                        int iw1 = ceil((float)((j + 1) * w) / out_w);
+
+                        float max = inptr[ih0 * w + iw0];
+                        for (int ih = ih0; ih < ih1; ih++)
+                        {
+                            for (int iw = iw0; iw < iw1; iw++)
+                            {
+                                max = std::max(max, inptr[ih * w + iw]);
+                            }
+                        }
+
+                        outptr[j] = max;
+                    }
+                    outptr += out_w;
+                }
+            }
+        }
+        else if (pooling_type == PoolMethod_AVE)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* inptr = bottom_blob.channel(q);
+                float* outptr = top_blob.channel(q);
+
+                for (int i = 0; i < out_h; i++)
+                {
+                    int ih0 = floor((float)(i * h) / out_h);
+                    int ih1 = ceil((float)((i + 1) * h) / out_h);
+                    int hk = ih1 - ih0;
+                    for (int j = 0; j < out_w; j++)
+                    {
+                        int iw0 = floor((float)(j * w) / out_w);
+                        int iw1 = ceil((float)((j + 1) * w) / out_w);
+                        int wk = iw1 - iw0;
+
+                        float sum = 0;
+                        for (int ih = ih0; ih < ih1; ih++)
+                        {
+                            for (int iw = iw0; iw < iw1; iw++)
+                            {
+                                sum += inptr[ih * w + iw];
+                            }
+                        }
+
+                        outptr[j] = sum / hk / wk;
+                    }
+
+                    outptr += out_w;
+                }
             }
         }
 

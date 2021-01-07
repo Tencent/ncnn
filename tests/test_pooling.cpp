@@ -15,7 +15,7 @@
 #include "layer/pooling.h"
 #include "testutil.h"
 
-static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int stride, int pad, int global_pooling, int pad_mode, int avgpool_count_include_pad)
+static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int stride, int pad, int global_pooling, int pad_mode, int avgpool_count_include_pad, int adaptive_pooling, int out_h)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -27,13 +27,15 @@ static int test_pooling(int w, int h, int c, int pooling_type, int kernel, int s
     pd.set(4, global_pooling);            // global_pooling
     pd.set(5, pad_mode);                  // pad_mode
     pd.set(6, avgpool_count_include_pad); // avgpool_count_include_pad
+    pd.set(7, adaptive_pooling);          // adaptive_pooling
+    pd.set(8, out_h);                     // out_h
 
     std::vector<ncnn::Mat> weights(0);
 
     int ret = test_layer<ncnn::Pooling>("Pooling", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_pooling failed w=%d h=%d c=%d pooling_type=%d kernel=%d stride=%d pad=%d global_pooling=%d pad_mode=%d avgpool_count_include_pad=%d\n", w, h, c, pooling_type, kernel, stride, pad, global_pooling, pad_mode, avgpool_count_include_pad);
+        fprintf(stderr, "test_pooling failed w=%d h=%d c=%d pooling_type=%d kernel=%d stride=%d pad=%d global_pooling=%d pad_mode=%d avgpool_count_include_pad=%d adaptive_pooling=%d out_h=%d\n", w, h, c, pooling_type, kernel, stride, pad, global_pooling, pad_mode, avgpool_count_include_pad, adaptive_pooling, out_h);
     }
 
     return ret;
@@ -58,14 +60,14 @@ static int test_pooling_0()
     for (int i = 0; i < 11; i++)
     {
         int ret = 0
-                  || test_pooling(9, 7, 1, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
-                  || test_pooling(9, 7, 2, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
-                  || test_pooling(9, 7, 3, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 2, 0)
-                  || test_pooling(9, 7, 4, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 3, 0)
-                  || test_pooling(9, 7, 7, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
-                  || test_pooling(9, 7, 8, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
-                  || test_pooling(9, 7, 15, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 2, 0)
-                  || test_pooling(9, 7, 16, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 3, 0);
+                  || test_pooling(9, 7, 1, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, 0, 0)
+                  || test_pooling(9, 7, 2, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, 0, 0)
+                  || test_pooling(9, 7, 3, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 2, 0, 0, 0)
+                  || test_pooling(9, 7, 4, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 3, 0, 0, 0)
+                  || test_pooling(9, 7, 7, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, 0, 0)
+                  || test_pooling(9, 7, 8, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, 0, 0)
+                  || test_pooling(9, 7, 15, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 2, 0, 0, 0)
+                  || test_pooling(9, 7, 16, 0, ksp[i][0], ksp[i][1], ksp[i][2], 0, 3, 0, 0, 0);
 
         if (ret != 0)
             return -1;
@@ -93,14 +95,14 @@ static int test_pooling_1()
     for (int i = 0; i < 11; i++)
     {
         int ret = 0
-                  || test_pooling(9, 7, 1, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
-                  || test_pooling(9, 7, 2, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
-                  || test_pooling(9, 7, 3, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 1)
-                  || test_pooling(9, 7, 4, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0)
-                  || test_pooling(9, 7, 7, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
-                  || test_pooling(9, 7, 8, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 1)
-                  || test_pooling(9, 7, 15, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0)
-                  || test_pooling(9, 7, 16, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0);
+                  || test_pooling(9, 7, 1, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, 0, 0)
+                  || test_pooling(9, 7, 2, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, 0, 0)
+                  || test_pooling(9, 7, 3, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 1, 0, 0)
+                  || test_pooling(9, 7, 4, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, 0, 0)
+                  || test_pooling(9, 7, 7, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, 0, 0)
+                  || test_pooling(9, 7, 8, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 1, 0, 0)
+                  || test_pooling(9, 7, 15, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 0, 0, 0, 0)
+                  || test_pooling(9, 7, 16, 1, ksp[i][0], ksp[i][1], ksp[i][2], 0, 1, 0, 0, 0);
 
         if (ret != 0)
             return -1;
@@ -112,18 +114,138 @@ static int test_pooling_1()
 static int test_pooling_2()
 {
     return 0
-           || test_pooling(2, 5, 1, 0, 1, 1, 0, 1, 0, 0)
-           || test_pooling(5, 2, 1, 1, 1, 1, 0, 1, 0, 0)
-           || test_pooling(3, 6, 3, 0, 1, 1, 0, 1, 0, 0)
-           || test_pooling(6, 3, 3, 1, 1, 1, 0, 1, 0, 0)
-           || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0)
-           || test_pooling(6, 4, 4, 1, 1, 1, 0, 1, 0, 0)
-           || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0)
-           || test_pooling(7, 8, 8, 1, 1, 1, 0, 1, 0, 0)
-           || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 0)
-           || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 0)
-           || test_pooling(48, 48, 4, 0, 2, 2, 0, 0, 0, 0)
-           || test_pooling(48, 48, 15, 0, 2, 2, 1, 0, 0, 0);
+           || test_pooling(2, 5, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_pooling(5, 2, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_pooling(3, 6, 3, 0, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_pooling(6, 3, 3, 1, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_pooling(6, 4, 4, 1, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_pooling(7, 8, 8, 1, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 0, 0, 0)
+           || test_pooling(48, 48, 4, 0, 2, 2, 0, 0, 0, 0, 0, 0)
+           || test_pooling(48, 48, 15, 0, 2, 2, 1, 0, 0, 0, 0, 0);
+}
+
+// adaptive avg pool
+static int test_pooling_3()
+{
+    return 0
+           || test_pooling(2, 5, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1)
+           || test_pooling(2, 5, 1, 1, 1, 1, 0, 1, 0, 0, 1, 2)
+           || test_pooling(2, 5, 1, 1, 1, 1, 0, 1, 0, 0, 1, 3)
+           || test_pooling(2, 5, 1, 1, 1, 1, 0, 1, 0, 0, 1, 4)
+           || test_pooling(2, 5, 1, 1, 1, 1, 0, 1, 0, 0, 1, 5)
+           || test_pooling(2, 5, 1, 1, 1, 1, 0, 1, 0, 0, 1, 6)
+           || test_pooling(5, 2, 1, 1, 1, 1, 0, 1, 0, 0, 1, 1)
+           || test_pooling(5, 2, 1, 1, 1, 1, 0, 1, 0, 0, 1, 2)
+           || test_pooling(5, 2, 1, 1, 1, 1, 0, 1, 0, 0, 1, 3)
+           || test_pooling(5, 2, 1, 1, 1, 1, 0, 1, 0, 0, 1, 4)
+           || test_pooling(5, 2, 1, 1, 1, 1, 0, 1, 0, 0, 1, 5)
+           || test_pooling(5, 2, 1, 1, 1, 1, 0, 1, 0, 0, 1, 6)
+           || test_pooling(3, 6, 3, 1, 1, 1, 0, 1, 0, 0, 1, 1)
+           || test_pooling(3, 6, 3, 1, 1, 1, 0, 1, 0, 0, 1, 2)
+           || test_pooling(3, 6, 3, 1, 1, 1, 0, 1, 0, 0, 1, 3)
+           || test_pooling(3, 6, 3, 1, 1, 1, 0, 1, 0, 0, 1, 4)
+           || test_pooling(3, 6, 3, 1, 1, 1, 0, 1, 0, 0, 1, 5)
+           || test_pooling(3, 6, 3, 1, 1, 1, 0, 1, 0, 0, 1, 6)
+           || test_pooling(4, 4, 4, 1, 1, 1, 0, 1, 0, 0, 1, 1)
+           || test_pooling(4, 4, 4, 1, 1, 1, 0, 1, 0, 0, 1, 2)
+           || test_pooling(4, 4, 4, 1, 1, 1, 0, 1, 0, 0, 1, 3)
+           || test_pooling(4, 4, 4, 1, 1, 1, 0, 1, 0, 0, 1, 4)
+           || test_pooling(4, 4, 4, 1, 1, 1, 0, 1, 0, 0, 1, 5)
+           || test_pooling(4, 4, 4, 1, 1, 1, 0, 1, 0, 0, 1, 6)
+           || test_pooling(4, 4, 4, 1, 1, 1, 0, 1, 0, 0, 1, 7)
+           || test_pooling(4, 4, 4, 1, 1, 1, 0, 1, 0, 0, 1, 8)
+           || test_pooling(6, 4, 4, 1, 1, 1, 0, 1, 0, 0, 1, 1)
+           || test_pooling(6, 4, 4, 1, 1, 1, 0, 1, 0, 0, 1, 2)
+           || test_pooling(6, 4, 4, 1, 1, 1, 0, 1, 0, 0, 1, 3)
+           || test_pooling(6, 4, 4, 1, 1, 1, 0, 1, 0, 0, 1, 4)
+           || test_pooling(6, 4, 4, 1, 1, 1, 0, 1, 0, 0, 1, 5)
+           || test_pooling(6, 4, 4, 1, 1, 1, 0, 1, 0, 0, 1, 6)
+           || test_pooling(8, 7, 8, 1, 1, 1, 0, 1, 0, 0, 1, 1)
+           || test_pooling(8, 7, 8, 1, 1, 1, 0, 1, 0, 0, 1, 2)
+           || test_pooling(8, 7, 8, 1, 1, 1, 0, 1, 0, 0, 1, 3)
+           || test_pooling(8, 7, 8, 1, 1, 1, 0, 1, 0, 0, 1, 4)
+           || test_pooling(8, 7, 8, 1, 1, 1, 0, 1, 0, 0, 1, 5)
+           || test_pooling(8, 7, 8, 1, 1, 1, 0, 1, 0, 0, 1, 6)
+           || test_pooling(8, 7, 8, 1, 1, 1, 0, 1, 0, 0, 1, 7)
+           || test_pooling(8, 7, 8, 1, 1, 1, 0, 1, 0, 0, 1, 8)
+           || test_pooling(8, 7, 8, 1, 1, 1, 0, 1, 0, 0, 1, 9)
+           || test_pooling(11, 13, 16, 1, 1, 1, 0, 1, 0, 1, 0, 1)
+           || test_pooling(11, 13, 16, 1, 1, 1, 0, 1, 0, 1, 0, 3)
+           || test_pooling(11, 13, 16, 1, 1, 1, 0, 1, 0, 1, 0, 5)
+           || test_pooling(11, 13, 16, 1, 1, 1, 0, 1, 0, 1, 0, 7)
+           || test_pooling(11, 13, 16, 1, 1, 1, 0, 1, 0, 1, 0, 9)
+           || test_pooling(11, 13, 16, 1, 1, 1, 0, 1, 0, 1, 0, 11)
+           || test_pooling(11, 13, 16, 1, 1, 1, 0, 1, 0, 1, 0, 13)
+           || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 1, 0, 2)
+           || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 1, 0, 4)
+           || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 1, 0, 6)
+           || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 1, 0, 8)
+           || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 1, 0, 10)
+           || test_pooling(13, 11, 16, 1, 1, 1, 0, 1, 0, 1, 0, 12);
+}
+
+// adaptive max pool
+static int test_pooling_4()
+{
+    return 0
+           || test_pooling(2, 5, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1)
+           || test_pooling(2, 5, 1, 0, 1, 1, 0, 1, 0, 0, 1, 2)
+           || test_pooling(2, 5, 1, 0, 1, 1, 0, 1, 0, 0, 1, 3)
+           || test_pooling(2, 5, 1, 0, 1, 1, 0, 1, 0, 0, 1, 4)
+           || test_pooling(2, 5, 1, 0, 1, 1, 0, 1, 0, 0, 1, 5)
+           || test_pooling(2, 5, 1, 0, 1, 1, 0, 1, 0, 0, 1, 6)
+           || test_pooling(5, 2, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1)
+           || test_pooling(5, 2, 1, 0, 1, 1, 0, 1, 0, 0, 1, 2)
+           || test_pooling(5, 2, 1, 0, 1, 1, 0, 1, 0, 0, 1, 3)
+           || test_pooling(5, 2, 1, 0, 1, 1, 0, 1, 0, 0, 1, 4)
+           || test_pooling(5, 2, 1, 0, 1, 1, 0, 1, 0, 0, 1, 5)
+           || test_pooling(5, 2, 1, 0, 1, 1, 0, 1, 0, 0, 1, 6)
+           || test_pooling(3, 6, 3, 0, 1, 1, 0, 1, 0, 0, 1, 1)
+           || test_pooling(3, 6, 3, 0, 1, 1, 0, 1, 0, 0, 1, 2)
+           || test_pooling(3, 6, 3, 0, 1, 1, 0, 1, 0, 0, 1, 3)
+           || test_pooling(3, 6, 3, 0, 1, 1, 0, 1, 0, 0, 1, 4)
+           || test_pooling(3, 6, 3, 0, 1, 1, 0, 1, 0, 0, 1, 5)
+           || test_pooling(3, 6, 3, 0, 1, 1, 0, 1, 0, 0, 1, 6)
+           || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0, 1, 1)
+           || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0, 1, 2)
+           || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0, 1, 3)
+           || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0, 1, 4)
+           || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0, 1, 5)
+           || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0, 1, 6)
+           || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0, 1, 7)
+           || test_pooling(4, 4, 4, 0, 1, 1, 0, 1, 0, 0, 1, 8)
+           || test_pooling(6, 4, 4, 0, 1, 1, 0, 1, 0, 0, 1, 1)
+           || test_pooling(6, 4, 4, 0, 1, 1, 0, 1, 0, 0, 1, 2)
+           || test_pooling(6, 4, 4, 0, 1, 1, 0, 1, 0, 0, 1, 3)
+           || test_pooling(6, 4, 4, 0, 1, 1, 0, 1, 0, 0, 1, 4)
+           || test_pooling(6, 4, 4, 0, 1, 1, 0, 1, 0, 0, 1, 5)
+           || test_pooling(6, 4, 4, 0, 1, 1, 0, 1, 0, 0, 1, 6)
+           || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0, 1, 1)
+           || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0, 1, 2)
+           || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0, 1, 3)
+           || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0, 1, 4)
+           || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0, 1, 5)
+           || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0, 1, 6)
+           || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0, 1, 7)
+           || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0, 1, 8)
+           || test_pooling(8, 7, 8, 0, 1, 1, 0, 1, 0, 0, 1, 9)
+           || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 1, 0, 1)
+           || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 1, 0, 3)
+           || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 1, 0, 5)
+           || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 1, 0, 7)
+           || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 1, 0, 9)
+           || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 1, 0, 11)
+           || test_pooling(11, 13, 16, 0, 1, 1, 0, 1, 0, 1, 0, 13)
+           || test_pooling(13, 11, 16, 0, 1, 1, 0, 1, 0, 1, 0, 2)
+           || test_pooling(13, 11, 16, 0, 1, 1, 0, 1, 0, 1, 0, 4)
+           || test_pooling(13, 11, 16, 0, 1, 1, 0, 1, 0, 1, 0, 6)
+           || test_pooling(13, 11, 16, 0, 1, 1, 0, 1, 0, 1, 0, 8)
+           || test_pooling(13, 11, 16, 0, 1, 1, 0, 1, 0, 1, 0, 10)
+           || test_pooling(13, 11, 16, 0, 1, 1, 0, 1, 0, 1, 0, 12);
 }
 
 int main()
@@ -133,5 +255,7 @@ int main()
     return 0
            || test_pooling_0()
            || test_pooling_1()
-           || test_pooling_2();
+           || test_pooling_2()
+           || test_pooling_3()
+           || test_pooling_4();
 }
