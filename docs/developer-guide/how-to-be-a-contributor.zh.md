@@ -1,7 +1,7 @@
 ### 如何提交代码
 
 #### 一、fork 分支
-在浏览器中打开 [ncnn](github.com/tencent/ncnn), `fork` 到自己的 repositories，例如
+在浏览器中打开 [ncnn](https://github.com/tencent/ncnn), `fork` 到自己的 repositories，例如
 ```
 github.com/user/ncnn
 ```
