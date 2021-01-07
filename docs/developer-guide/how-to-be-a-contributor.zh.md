@@ -36,11 +36,7 @@ $ git push origin add-conv-int8
 推荐使用 [`commitizen`](https://pypi.org/project/commitizen/) 等工具格式化 commit message，方便事后检索海量提交记录
 
 #### 三、代码提交
-浏览器中打开 github.com/user/ncnn，此时应有此分支 pr 提示，例如
-```
- add-conv-int8 had recent pushes less than a minute ago
-```
-点击 `Compare & pull request`
+浏览器中打开 [ncnn pulls](https://github.com/Tencent/ncnn/pulls)，此时应有此分支 pr 提示，点击 `Compare & pull request`
 
 * 标题**必须**是英文。未完成的分支应以 `WIP:` 开头，例如 `WIP: add conv int8`
 * 正文宜包含以下内容，中英不限
