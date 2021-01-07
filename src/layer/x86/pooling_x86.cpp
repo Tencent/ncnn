@@ -39,9 +39,8 @@ Pooling_x86::Pooling_x86()
 #endif // __SSE2__
 }
 
-int Pooling_x86::create_pipeline(const Option& _opt)
+int Pooling_x86::create_pipeline(const Option& /*opt*/)
 {
-    (void)_opt;
     if (adaptive_pooling)
     {
         support_packing = false;
