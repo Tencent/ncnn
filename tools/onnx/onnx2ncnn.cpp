@@ -1831,7 +1831,126 @@ static void fuse_bilstm(onnx::GraphProto* mutable_graph, std::map<std::string, o
     {
         onnx::NodeProto* node = mutable_graph->mutable_node(i);
 
-        // LSTM <= Transpose - LSTM - Transpose - Reshape - Transpose
+        // LSTM <= LSTM - Transpose - Reshape - Transpose
+        if (node->op_type() == "LSTM")
+        {
+            if (node_reference[node->output(0)] != 1)
+                continue;
+
+            if (i + 2 >= node_count)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i + 1);
+            onnx::NodeProto* node3 = mutable_graph->mutable_node(i + 2);
+
+            if (node2->op_type() != "Transpose" || node3->op_type() != "Reshape")
+                continue;
+
+            if (node_reference[node2->output(0)] != 1)
+                continue;
+
+            if (node2->input(0) != node->output(0) || node3->input(0) != node2->output(0))
+                continue;
+
+            std::string direction = get_node_attr_s(*node, "direction");
+            if (direction != "bidirectional")
+                continue;
+
+            // 0 2 1 3
+            std::vector<int> perm = get_node_attr_ai(*node2, "perm");
+            if (perm.size() != 4)
+                continue;
+
+            if (perm[0] != 0 || perm[1] != 2 || perm[2] != 1 || perm[3] != 3)
+                continue;
+
+            std::vector<int> shape;
+            if (node3->input_size() == 1)
+            {
+                shape = get_node_attr_ai(*node3, "shape");
+            }
+            else
+            {
+                // skip weight reshape
+                if (weights.find(node3->input(1)) == weights.end())
+                    continue;
+
+                shape = get_node_attr_from_input_ai(weights[node3->input(1)]);
+            }
+
+            // 0 0 -1
+            if (shape.size() != 3)
+                continue;
+
+            if (shape[0] != 0 || shape[1] != 0 || shape[2] != -1)
+                continue;
+
+            // reduce
+            node2->set_op_type("noop_reducedncnn");
+            node3->set_op_type("noop_reducedncnn");
+
+            node_reference[node->output(0)] -= 1;
+            node_reference[node2->output(0)] -= 1;
+            if (node3->input_size() == 2)
+            {
+                node_reference[node3->input(1)] -= 1;
+            }
+
+            blob_names.erase(node->output(0));
+            if (node->output_size() > 1)
+            {
+                for (int j = 1; j < node->output_size(); j++)
+                {
+                    blob_names.erase(node->output(j));
+                }
+            }
+            blob_names.erase(node2->output(0));
+
+            node->clear_output();
+            node->add_output(node3->output(0));
+
+            reduced_node_count += 2;
+            i += 2;
+
+            if (i + 1 < node_count)
+            {
+                onnx::NodeProto* node4 = mutable_graph->mutable_node(i + 1);
+
+                if (node4->op_type() != "Transpose")
+                    continue;
+
+                if (node4->input(0) != node3->output(0))
+                    continue;
+
+                // 1 0 2
+                std::vector<int> perm4 = get_node_attr_ai(*node4, "perm");
+                if (perm4.size() != 3)
+                    continue;
+
+                if (perm4[0] != 1 || perm4[1] != 0 || perm4[2] != 2)
+                    continue;
+
+                // reduce
+                node4->set_op_type("noop_reducedncnn");
+
+                node_reference[node->output(0)] -= 1;
+
+                blob_names.erase(node->output(0));
+
+                node->clear_output();
+                node->add_output(node4->output(0));
+
+                reduced_node_count += 1;
+                i += 1;
+            }
+        }
+    }
+
+    for (int i = 0; i < node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // LSTM <= Transpose - LSTM
         if (node->op_type() == "Transpose")
         {
             if (node_reference[node->output(0)] != 1)
@@ -1845,104 +1964,28 @@ static void fuse_bilstm(onnx::GraphProto* mutable_graph, std::map<std::string, o
             if (perm[0] != 1 || perm[1] != 0 || perm[2] != 2)
                 continue;
 
-            if (i + 4 >= node_count)
+            if (i + 1 >= node_count)
                 continue;
 
             onnx::NodeProto* node2 = mutable_graph->mutable_node(i + 1);
-            onnx::NodeProto* node3 = mutable_graph->mutable_node(i + 2);
-            onnx::NodeProto* node4 = mutable_graph->mutable_node(i + 3);
-            onnx::NodeProto* node5 = mutable_graph->mutable_node(i + 4);
 
-            if (node2->op_type() != "LSTM" || node3->op_type() != "Transpose" || node4->op_type() != "Reshape" || node5->op_type() != "Transpose")
+            if (node2->op_type() != "LSTM")
                 continue;
 
-            if (node_reference[node2->output(0)] != 1)
-                continue;
-
-            if (node_reference[node3->output(0)] != 1)
-                continue;
-
-            if (node_reference[node4->output(0)] != 1)
-                continue;
-
-            if (node2->input(0) != node->output(0) || node3->input(0) != node2->output(0) || node4->input(0) != node3->output(0)
-                    || node5->input(0) != node4->output(0))
-                continue;
-
-            std::string direction = get_node_attr_s(*node2, "direction");
-            if (direction != "bidirectional")
-                continue;
-
-            // 0 2 1 3
-            std::vector<int> perm3 = get_node_attr_ai(*node3, "perm");
-            if (perm3.size() != 4)
-                continue;
-
-            if (perm3[0] != 0 || perm3[1] != 2 || perm3[2] != 1 || perm3[3] != 3)
-                continue;
-
-            std::vector<int> shape;
-            if (node4->input_size() == 1)
-            {
-                shape = get_node_attr_ai(*node4, "shape");
-            }
-            else
-            {
-                // skip weight reshape
-                if (weights.find(node4->input(1)) == weights.end())
-                    continue;
-
-                shape = get_node_attr_from_input_ai(weights[node4->input(1)]);
-            }
-
-            // 0 0 -1
-            if (shape.size() != 3)
-                continue;
-
-            if (shape[0] != 0 || shape[1] != 0 || shape[2] != -1)
-                continue;
-
-            // 1 0 2
-            std::vector<int> perm5 = get_node_attr_ai(*node5, "perm");
-            if (perm5.size() != 3)
-                continue;
-
-            if (perm5[0] != 1 || perm5[1] != 0 || perm5[2] != 2)
+            if (node2->input(0) != node->output(0))
                 continue;
 
             // reduce
             node->set_op_type("noop_reducedncnn");
-            node3->set_op_type("noop_reducedncnn");
-            node4->set_op_type("noop_reducedncnn");
-            node5->set_op_type("noop_reducedncnn");
 
             node_reference[node->output(0)] -= 1;
-            node_reference[node2->output(0)] -= 1;
-            node_reference[node3->output(0)] -= 1;
-            node_reference[node4->output(0)] -= 1;
-            if (node4->input_size() == 2)
-            {
-                node_reference[node4->input(1)] -= 1;
-            }
 
             blob_names.erase(node->output(0));
-            blob_names.erase(node2->output(0));
-            blob_names.erase(node3->output(0));
-            blob_names.erase(node4->output(0));
-            if (node2->output_size() > 1)
-            {
-                for (int j = 1; j < node2->output_size(); j++)
-                {
-                    blob_names.erase(node2->output(j));
-                }
-            }
 
             node2->set_input(0, node->input(0));
-            node2->clear_output();
-            node2->add_output(node5->output(0));
 
-            reduced_node_count += 4;
-            i += 4;
+            reduced_node_count += 1;
+            i += 1;
         }
     }
 }
