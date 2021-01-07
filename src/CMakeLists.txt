@@ -139,6 +139,7 @@ ncnn_add_layer(Gemm)
 ncnn_add_layer(GroupNorm)
 ncnn_add_layer(LayerNorm)
 ncnn_add_layer(Softplus)
+ncnn_add_layer(GRU)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
