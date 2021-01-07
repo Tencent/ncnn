@@ -2227,6 +2227,13 @@ int main(int argc, char** argv)
                 node_reference[node.input(1)] -= 1;
             }
         }
+        else if (op == "adaptive_avg_pool2d" || op == "adaptive_max_pool2d")
+        {
+            if (node.input_size() >= 2)
+            {
+                node_reference[node.input(1)] -= 1;
+            }
+        }
     }
 
     //         for (auto a: node_reference)
