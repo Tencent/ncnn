@@ -2429,6 +2429,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "Pooling");
         }
+        else if (op == "adaptive_avg_pool2d" || op == "adaptive_max_pool2d")
+        {
+            fprintf(pp, "%-16s", "Pooling");
+        }
         else if (op == "GroupNorm")
         {
             fprintf(pp, "%-16s", "GroupNorm");
@@ -3156,6 +3160,31 @@ int main(int argc, char** argv)
 
             fprintf(pp, " 0=%d", pool);
             fprintf(pp, " 4=%d", global_pool);
+        }
+        else if (op == "adaptive_avg_pool2d" || op == "adaptive_max_pool2d")
+        {
+            int pool = 0;
+            if (op == "adaptive_avg_pool2d")
+            {
+                pool = 1;
+            }
+            int adaptive_pooling = 1;
+            const onnx::TensorProto& out_shape_tp = weights[node.input(1)];
+            std::vector<int> out_shape = get_node_attr_from_input_ai(out_shape_tp);
+
+            fprintf(pp, " 0=%d", pool);
+            fprintf(pp, " 7=%d", adaptive_pooling);
+            if (out_shape.size() == 1)
+            {
+                fprintf(pp, " 8=%d", out_shape[0]);
+            }
+            else if (out_shape.size() == 2)
+            {
+                // out_w
+                fprintf(pp, " 8=%d", out_shape[1]);
+                // out_h
+                fprintf(pp, " 18=%d", out_shape[0]);
+            }
         }
         else if (op == "GroupNorm")
         {
