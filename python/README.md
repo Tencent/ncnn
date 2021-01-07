@@ -23,7 +23,7 @@ git submodule init && git submodule update
 ```bash
 mkdir build
 cd build
-cmake -DNCNN_BUILD_PYTHON=ON ..
+cmake -DNCNN_PYTHON=ON ..
 make
 ```
 
