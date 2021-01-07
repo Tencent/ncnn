@@ -41,6 +41,7 @@ Pooling_x86::Pooling_x86()
 
 int Pooling_x86::create_pipeline(const Option& _opt)
 {
+    (void)_opt;
     if (adaptive_pooling)
     {
         support_packing = false;
