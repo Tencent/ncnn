@@ -2484,7 +2484,8 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
     MutexLockGuard lock(d->queue_lock);
 
     std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index() ? d->compute_queues
-                                   : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queues : d->transfer_queues;
+                                   : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queues
+                                   : d->transfer_queues;
     for (int i = 0; i < (int)queues.size(); i++)
     {
         VkQueue queue = queues[i];
@@ -2512,7 +2513,8 @@ void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) con
     MutexLockGuard lock(d->queue_lock);
 
     std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index() ? d->compute_queues
-                                   : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queues : d->transfer_queues;
+                                   : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queues
+                                   : d->transfer_queues;
     for (int i = 0; i < (int)queues.size(); i++)
     {
         if (!queues[i])
