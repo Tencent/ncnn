@@ -1824,6 +1824,129 @@ static void fuse_expand_broadcast(onnx::GraphProto* mutable_graph, std::map<std:
     }
 }
 
+static void fuse_bilstm(onnx::GraphProto* mutable_graph, std::map<std::string, onnx::TensorProto>& weights, std::map<std::string, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
+{
+    int node_count = mutable_graph->node_size();
+    for (int i = 0; i < node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // LSTM <= Transpose - LSTM - Transpose - Reshape - Transpose
+        if (node->op_type() == "Transpose")
+        {
+            if (node_reference[node->output(0)] != 1)
+                continue;
+
+            // 1 0 2
+            std::vector<int> perm = get_node_attr_ai(*node, "perm");
+            if (perm.size() != 3)
+                continue;
+
+            if (perm[0] != 1 || perm[1] != 0 || perm[2] != 2)
+                continue;
+
+            if (i + 4 >= node_count)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i + 1);
+            onnx::NodeProto* node3 = mutable_graph->mutable_node(i + 2);
+            onnx::NodeProto* node4 = mutable_graph->mutable_node(i + 3);
+            onnx::NodeProto* node5 = mutable_graph->mutable_node(i + 4);
+
+            if (node2->op_type() != "LSTM" || node3->op_type() != "Transpose" || node4->op_type() != "Reshape" || node5->op_type() != "Transpose")
+                continue;
+
+            if (node_reference[node2->output(0)] != 1)
+                continue;
+
+            if (node_reference[node3->output(0)] != 1)
+                continue;
+
+            if (node_reference[node4->output(0)] != 1)
+                continue;
+
+            if (node2->input(0) != node->output(0) || node3->input(0) != node2->output(0) || node4->input(0) != node3->output(0)
+                    || node5->input(0) != node4->output(0))
+                continue;
+
+            std::string direction = get_node_attr_s(*node2, "direction");
+            if (direction != "bidirectional")
+                continue;
+
+            // 0 2 1 3
+            std::vector<int> perm3 = get_node_attr_ai(*node3, "perm");
+            if (perm3.size() != 4)
+                continue;
+
+            if (perm3[0] != 0 || perm3[1] != 2 || perm3[2] != 1 || perm3[3] != 3)
+                continue;
+
+            std::vector<int> shape;
+            if (node4->input_size() == 1)
+            {
+                shape = get_node_attr_ai(*node4, "shape");
+            }
+            else
+            {
+                // skip weight reshape
+                if (weights.find(node4->input(1)) == weights.end())
+                    continue;
+
+                shape = get_node_attr_from_input_ai(weights[node4->input(1)]);
+            }
+
+            // 0 0 -1
+            if (shape.size() != 3)
+                continue;
+
+            if (shape[0] != 0 || shape[1] != 0 || shape[2] != -1)
+                continue;
+
+            // 1 0 2
+            std::vector<int> perm5 = get_node_attr_ai(*node5, "perm");
+            if (perm5.size() != 3)
+                continue;
+
+            if (perm5[0] != 1 || perm5[1] != 0 || perm5[2] != 2)
+                continue;
+
+            // reduce
+            node->set_op_type("noop_reducedncnn");
+            node3->set_op_type("noop_reducedncnn");
+            node4->set_op_type("noop_reducedncnn");
+            node5->set_op_type("noop_reducedncnn");
+
+            node_reference[node->output(0)] -= 1;
+            node_reference[node2->output(0)] -= 1;
+            node_reference[node3->output(0)] -= 1;
+            node_reference[node4->output(0)] -= 1;
+            if (node4->input_size() == 2)
+            {
+                node_reference[node4->input(1)] -= 1;
+            }
+
+            blob_names.erase(node->output(0));
+            blob_names.erase(node2->output(0));
+            blob_names.erase(node3->output(0));
+            blob_names.erase(node4->output(0));
+            if (node2->output_size() > 1)
+            {
+                for (int j = 1; j < node2->output_size(); j++)
+                {
+                    blob_names.erase(node2->output(j));
+                }
+            }
+
+            node2->set_input(0, node->input(0));
+            node2->clear_output();
+            node2->add_output(node5->output(0));
+
+            reduced_node_count += 4;
+            i += 4;
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     const char* onnxpb = argv[1];
@@ -1901,23 +2024,9 @@ int main(int argc, char** argv)
             {
                 node_reference[input_name] = node_reference[input_name] + 1;
             }
-
-            if (op == "LSTM")
-            {
-                // ignore all optional input blobs
-                break;
-            }
         }
 
         if (op == "Dropout")
-        {
-            const std::string& output_name = node.output(0);
-            blob_names.insert(output_name);
-            node_reference[output_name] = 0;
-            continue;
-        }
-
-        if (op == "LSTM")
         {
             const std::string& output_name = node.output(0);
             blob_names.insert(output_name);
@@ -1972,6 +2081,7 @@ int main(int argc, char** argv)
     fuse_pixelshuffle(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_reorg(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_expand_broadcast(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
+    fuse_bilstm(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
 
     // reduce common const weight node_reference
     for (int i = 0; i < node_count; i++)
@@ -2049,9 +2159,10 @@ int main(int argc, char** argv)
         }
         else if (op == "LSTM")
         {
-            node_reference[node.input(1)] -= 1;
-            node_reference[node.input(2)] -= 1;
-            node_reference[node.input(3)] -= 1;
+            for (int j = 1; j < node.input_size(); j++)
+            {
+                node_reference[node.input(j)] -= 1;
+            }
         }
         else if (op == "MatMul")
         {
@@ -2118,10 +2229,10 @@ int main(int argc, char** argv)
         }
     }
 
-    //     for (auto a: node_reference)
-    //     {
-    //         fprintf(stderr, "b = %s %d\n", a.first.c_str(), a.second);
-    //     }
+    //         for (auto a: node_reference)
+    //         {
+    //             fprintf(stderr, "b = %s %d\n", a.first.c_str(), a.second);
+    //         }
 
     // count all weight node with zero reference
     int zero_reference_weight_node_count = 0;
@@ -2148,6 +2259,10 @@ int main(int argc, char** argv)
             constant_node_count_moved_to_weight++;
         }
     }
+
+    // some op may have anonymous input
+    // LSTM sequence_lens
+    blob_names.erase("");
 
     // remove node_reference entry with reference equals to one
     int split_layer_count = 0;
@@ -2289,6 +2404,11 @@ int main(int argc, char** argv)
 
             // check weight
             if (weights.find(input_name) != weights.end() && node_reference[input_name] == 0)
+            {
+                input_size--;
+            }
+
+            if (input_name.empty())
             {
                 input_size--;
             }
@@ -2468,9 +2588,6 @@ int main(int argc, char** argv)
         else if (op == "LSTM")
         {
             fprintf(pp, "%-16s", "LSTM");
-            // force no output hidden and cell blob
-            input_size = 1;
-            output_size = 1;
         }
         else if (op == "MatMul")
         {

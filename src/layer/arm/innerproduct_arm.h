@@ -16,6 +16,8 @@
 #define LAYER_INNERPRODUCT_ARM_H
 
 #include "innerproduct.h"
+#include <cmath>
+#include <cstdlib>
 
 namespace ncnn {
 
@@ -38,6 +40,9 @@ protected:
     int create_pipeline_bf16s(const Option& opt);
     int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+    int create_pipeline_int8(const Option& opt);
+    int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
 public:
     ncnn::Layer* flatten;
 
@@ -47,6 +52,10 @@ public:
 
     // bf16
     Mat weight_data_bf16;
+
+    // int8
+    Mat weight_data_int8;
+    Mat scales_in;
 };
 
 } // namespace ncnn
