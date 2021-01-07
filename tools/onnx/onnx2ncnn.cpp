@@ -2714,6 +2714,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "GroupNorm");
         }
+        else if (op == "GRU")
+        {
+            fprintf(pp, "%-16s", "GRU");
+        }
         else if (op == "HardSigmoid")
         {
             fprintf(pp, "%-16s", "HardSigmoid");
@@ -3605,9 +3609,9 @@ int main(int argc, char** argv)
 
                 if (direction_type == 2)
                 {
-                    uptr += weight_data_size_g * 4;
-                    rptr += weight_data_size_g * 4;
-                    nptr += weight_data_size_g * 4;
+                    uptr += weight_data_size_g * 3;
+                    rptr += weight_data_size_g * 3;
+                    nptr += weight_data_size_g * 3;
                     fwrite(rptr, sizeof(float), weight_data_size_g, bp);
                     fwrite(uptr, sizeof(float), weight_data_size_g, bp);
                     fwrite(nptr, sizeof(float), weight_data_size_g, bp);

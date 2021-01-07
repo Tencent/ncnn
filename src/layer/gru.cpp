@@ -63,6 +63,11 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
 
     int num_output = top_blob.w;
 
+    // 2 x num_output
+    Mat gates(2, num_output, 4u, opt.workspace_allocator);
+    if (gates.empty())
+        return -100;
+
     // unroll
     for (int t = 0; t < T; t++)
     {
@@ -71,6 +76,8 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
         const float* x = bottom_blob.row(ti);
         for (int q = 0; q < num_output; q++)
         {
+            float* gates_data = gates.row(q);
+
             // gate reset update
             const float* bias_c_R = bias_c.row(0);
             const float* bias_c_U = bias_c.row(1);
@@ -132,9 +139,23 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             // tanh(N)
             N = tanh(N);
 
-            // h_t := (1 - update) .* new + update .* h_{t-1}
+            gates_data[0] = U;
+            gates_data[1] = N;
+        }
+
+        // h_t := (1 - update) .* new + update .* h_{t-1}
+        float* output_data = top_blob.row(ti);
+        for (int q = 0; q < num_output; q++)
+        {
+            const float* gates_data = gates.row(q);
+
+            float U = gates_data[0];
+            float N = gates_data[1];
+
             float H = (1 - U) * N + U * hidden_state[q];
+
             hidden_state[q] = H;
+            output_data[q] = H;
         }
     }
 
