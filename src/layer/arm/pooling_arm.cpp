@@ -42,7 +42,7 @@ Pooling_arm::Pooling_arm()
     support_bf16_storage = true;
 }
 
-int Pooling_arm::create_pipeline(const Option& _opt)
+int Pooling_arm::create_pipeline(const Option& /*opt*/)
 {
     if (adaptive_pooling)
     {
