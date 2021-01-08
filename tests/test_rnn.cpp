@@ -60,7 +60,7 @@ int test_rnn_layer_with_hidden(const ncnn::Mat& a, int outch, int direction)
     as[0] = a;
     as[1] = hidden;
 
-    int ret = test_layer<ncnn::RNN>("RNN", pd, weights, as);
+    int ret = test_layer<ncnn::RNN>("RNN", pd, weights, as, 2);
     if (ret != 0)
     {
         fprintf(stderr, "test_rnn_layer_with_hidden failed a.dims=%d a=(%d %d %d) outch=%d, direction = %d \n", a.dims, a.w, a.h, a.c, outch, direction);
