@@ -40,8 +40,6 @@ int RNN::load_model(const ModelBin& mb)
 
     int size = weight_data_size / num_directions / num_output;
 
-    fprintf(stderr, "%d %d\n", num_output, size);
-
     // raw weight data
     weight_xc_data = mb.load(size, num_output, num_directions, 0);
     if (weight_xc_data.empty())
