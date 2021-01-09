@@ -8,11 +8,11 @@ $ git submodule update --init
 
 * [Build for Linux / NVIDIA Jetson / Raspberry Pi](#build-for-linux)
 * [Build for Windows x64 using VS2017](#build-for-windows-x64-using-visual-studio-community-2017)
-* [Build for MacOSX](#build-for-macosx)
+* [Build for macOS](#build-for-macos)
 * [Build for ARM Cortex-A family with cross-compiling](#build-for-arm-cortex-a-family-with-cross-compiling)
 * [Build for Hisilicon platform with cross-compiling](#build-for-hisilicon-platform-with-cross-compiling)
 * [Build for Android](#build-for-android)
-* [Build for iOS on MacOSX with xcode](#build-for-ios-on-macosx-with-xcode)
+* [Build for iOS on macOS with xcode](#build-for-ios-on-macos-with-xcode)
 * [Build for iOS on Linux with cctools-port](#build-for-ios-on-linux-with-cctools-port)
 
 ***
@@ -137,7 +137,7 @@ Note: To speed up compilation process on multi core machines, configuring `cmake
 
 ***
 
-### Build for MacOSX
+### Build for macOS
 Install xcode and protobuf
 
 **Because the compiler bundled with xcode do not support OpenMP feature, you cannot enable the multithreading inference feature of ncnn library, if you build with xcode.**
@@ -161,7 +161,7 @@ $ cd <ncnn-root-dir>
 $ mkdir -p build
 $ cd build
 $ cmake -DNCNN_VULKAN=ON ..
-$ make -j4
+$ make -j$(sysctl -n hw.ncpu)
 $ make install
 ```
 
@@ -291,7 +291,7 @@ Pick `build-android-aarch64/install` folder for further JNI usage.
 
 ***
 
-### Build for iOS on MacOSX with xcode
+### Build for iOS on macOS with xcode
 You can use the pre-build ncnn.framework and openmp.framework from https://github.com/Tencent/ncnn/releases
 
 Install xcode
@@ -319,7 +319,7 @@ $ cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=
 # vulkan is only available on arm64 devices
 $ cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS64 -DVulkan_INCLUDE_DIR=`pwd`/vulkansdk-macos-1.1.114.0/MoltenVK/include -DVulkan_LIBRARY=`pwd`/vulkansdk-macos-1.1.114.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib -DNCNN_VULKAN=ON ..
 
-$ make -j4
+$ make -j$(sysctl -n hw.ncpu)
 $ make install
 ```
 
@@ -330,7 +330,7 @@ $ cd <ncnn-root-dir>
 $ mkdir build-ios-sim
 $ cd build-ios-sim
 $ cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=SIMULATOR ..
-$ make -j4
+$ make -j$(sysctl -n hw.ncpu)
 $ make install
 ```
 
