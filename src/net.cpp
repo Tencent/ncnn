@@ -795,7 +795,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
 {
     // clang-format off
     // *INDENT-OFF*
-    #if NCNN_ARM82
+#if NCNN_ARM82
     if (opt.use_fp16_storage && cpu_support_arm_asimdhp())
     {
         if (bottom_blob.elembits() == 32 && layer->support_fp16_storage)
@@ -812,62 +812,62 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         }
     }
     else
-        #endif // NCNN_ARM82
-        if (opt.use_bf16_storage)
+#endif // NCNN_ARM82
+    if (opt.use_bf16_storage)
+    {
+        if (bottom_blob.elembits() == 32 && layer->support_bf16_storage)
         {
-            if (bottom_blob.elembits() == 32 && layer->support_bf16_storage)
-            {
-                Mat bottom_blob_bf16;
-                cast_float32_to_bfloat16(bottom_blob, bottom_blob_bf16, opt);
-                bottom_blob = bottom_blob_bf16;
-            }
-            if (bottom_blob.elembits() == 16 && !layer->support_bf16_storage)
-            {
-                Mat bottom_blob_fp32;
-                cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
-                bottom_blob = bottom_blob_fp32;
-            }
+            Mat bottom_blob_bf16;
+            cast_float32_to_bfloat16(bottom_blob, bottom_blob_bf16, opt);
+            bottom_blob = bottom_blob_bf16;
         }
-        // *INDENT-ON*
-        // clang-format on
-
-        if (opt.use_packing_layout)
+        if (bottom_blob.elembits() == 16 && !layer->support_bf16_storage)
         {
-            // resolve dst_elempack
-            int dims = bottom_blob.dims;
-            int elemcount = 0;
-            if (dims == 1) elemcount = bottom_blob.elempack * bottom_blob.w;
-            if (dims == 2) elemcount = bottom_blob.elempack * bottom_blob.h;
-            if (dims == 3) elemcount = bottom_blob.elempack * bottom_blob.c;
+            Mat bottom_blob_fp32;
+            cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            bottom_blob = bottom_blob_fp32;
+        }
+    }
+    // *INDENT-ON*
+    // clang-format on
 
-            int dst_elempack = 1;
-            if (layer->support_packing)
-            {
-                #if NCNN_AVX2
-                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
-                    dst_elempack = 8;
-                else if (elemcount % 4 == 0)
-                    dst_elempack = 4;
-                #elif NCNN_ARM82
-                if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && layer->support_fp16_storage)
-                    dst_elempack = 8;
-                else if (elemcount % 4 == 0)
-                    dst_elempack = 4;
-                #else
-                if (elemcount % 4 == 0)
-                    dst_elempack = 4;
-                #endif
-            }
+    if (opt.use_packing_layout)
+    {
+        // resolve dst_elempack
+        int dims = bottom_blob.dims;
+        int elemcount = 0;
+        if (dims == 1) elemcount = bottom_blob.elempack * bottom_blob.w;
+        if (dims == 2) elemcount = bottom_blob.elempack * bottom_blob.h;
+        if (dims == 3) elemcount = bottom_blob.elempack * bottom_blob.c;
 
-            if (bottom_blob.elempack != dst_elempack)
-            {
-                Mat bottom_blob_packed;
-                convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, opt);
-                bottom_blob = bottom_blob_packed;
-            }
+        int dst_elempack = 1;
+        if (layer->support_packing)
+        {
+#if NCNN_AVX2
+            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#elif NCNN_ARM82
+            if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && layer->support_fp16_storage)
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#else
+            if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#endif
         }
 
-        return 0;
+        if (bottom_blob.elempack != dst_elempack)
+        {
+            Mat bottom_blob_packed;
+            convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, opt);
+            bottom_blob = bottom_blob_packed;
+        }
+    }
+
+    return 0;
 }
 
 int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats, const Option& opt) const
