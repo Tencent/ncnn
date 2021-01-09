@@ -325,15 +325,20 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, cons
 
 #if NCNN_BENCHMARK
     double start = get_current_time();
+    Mat bottom_blob;
+    if (layer->one_blob_only)
+    {
+        int bottom_blob_index = layer->bottoms[0];
+        bottom_blob = blob_mats[bottom_blob_index];
+    }
 #endif
     int ret = do_forward_layer(layer, blob_mats, opt);
 #if NCNN_BENCHMARK
     double end = get_current_time();
     if (layer->one_blob_only)
     {
-        int bottom_blob_index = layer->bottoms[0];
         int top_blob_index = layer->tops[0];
-        benchmark(layer, blob_mats[bottom_blob_index], blob_mats[top_blob_index], start, end);
+        benchmark(layer, bottom_blob, blob_mats[top_blob_index], start, end);
     }
     else
     {
@@ -478,15 +483,20 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
     {
 #if NCNN_BENCHMARK
         double start = get_current_time();
+        Mat bottom_blob;
+        if (layer->one_blob_only)
+        {
+            int bottom_blob_index = layer->bottoms[0];
+            bottom_blob = blob_mats[bottom_blob_index];
+        }
 #endif
         ret = do_forward_layer(layer, blob_mats, opt);
 #if NCNN_BENCHMARK
         double end = get_current_time();
         if (layer->one_blob_only)
         {
-            int bottom_blob_index = layer->bottoms[0];
             int top_blob_index = layer->tops[0];
-            benchmark(layer, blob_mats[bottom_blob_index], blob_mats[top_blob_index], start, end);
+            benchmark(layer, bottom_blob, blob_mats[top_blob_index], start, end);
         }
         else
         {
@@ -766,15 +776,20 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
     {
 #if NCNN_BENCHMARK
         double start = get_current_time();
+        Mat bottom_blob;
+        if (layer->one_blob_only)
+        {
+            int bottom_blob_index = layer->bottoms[0];
+            bottom_blob = blob_mats[bottom_blob_index];
+        }
 #endif
         ret = do_forward_layer(layer, blob_mats, opt);
 #if NCNN_BENCHMARK
         double end = get_current_time();
         if (layer->one_blob_only)
         {
-            int bottom_blob_index = layer->bottoms[0];
             int top_blob_index = layer->tops[0];
-            benchmark(layer, blob_mats[bottom_blob_index], blob_mats[top_blob_index], start, end);
+            benchmark(layer, bottom_blob, blob_mats[top_blob_index], start, end);
         }
         else
         {
