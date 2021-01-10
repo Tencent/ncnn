@@ -169,7 +169,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack1
-    if (out_shape.dims == 0 || out_elempack == 1)
+    if (out_shape.dims == 0 || (elempack == 1 && out_elempack == 1))
     {
         pipeline_padding = new Pipeline(vkdev);
         pipeline_padding->set_optimal_local_size_xyz(local_size_xyz);
@@ -177,7 +177,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack4
-    if (out_shape.dims == 0 || out_elempack == 4)
+    if (out_shape.dims == 0 || (elempack == 4 && offset_elempack == 4 && out_elempack == 4))
     {
         pipeline_padding_pack4 = new Pipeline(vkdev);
         pipeline_padding_pack4->set_optimal_local_size_xyz(local_size_xyz);
@@ -185,7 +185,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack1to4
-    if (out_shape.dims == 0 || out_elempack == 4)
+    if (out_shape.dims == 0 || (elempack == 4 && offset_elempack == 1 && out_elempack == 4) || (elempack == 1 && out_elempack == 4))
     {
         pipeline_padding_pack1to4 = new Pipeline(vkdev);
         pipeline_padding_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
@@ -193,7 +193,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack4to1
-    if (out_shape.dims == 0 || out_elempack == 1)
+    if (out_shape.dims == 0 || (elempack == 4 && out_elempack == 1))
     {
         pipeline_padding_pack4to1 = new Pipeline(vkdev);
         pipeline_padding_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
@@ -201,7 +201,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack8
-    if ((opt.use_shader_pack8 && out_shape.dims == 0) || (elempack == 8 && out_elempack == 8))
+    if ((opt.use_shader_pack8 && out_shape.dims == 0) || (elempack == 8 && offset_elempack == 8 && out_elempack == 8))
     {
         pipeline_padding_pack8 = new Pipeline(vkdev);
         pipeline_padding_pack8->set_optimal_local_size_xyz(local_size_xyz);
@@ -209,7 +209,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack1to8
-    if ((opt.use_shader_pack8 && out_shape.dims == 0) || out_elempack == 8)
+    if ((opt.use_shader_pack8 && out_shape.dims == 0) || (elempack == 8 && offset_elempack == 1 && out_elempack == 8) || (elempack == 1 && out_elempack == 8))
     {
         pipeline_padding_pack1to8 = new Pipeline(vkdev);
         pipeline_padding_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
@@ -217,7 +217,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack4to8
-    if ((opt.use_shader_pack8 && out_shape.dims == 0) || out_elempack == 8)
+    if ((opt.use_shader_pack8 && out_shape.dims == 0) || (elempack == 8 && offset_elempack == 4 && out_elempack == 8) || (elempack == 4 && out_elempack == 8))
     {
         pipeline_padding_pack4to8 = new Pipeline(vkdev);
         pipeline_padding_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
