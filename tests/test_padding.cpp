@@ -92,9 +92,9 @@ static int test_padding_0()
            || test_padding(b, 2, 0, 1, 0, 4, 4, 1, 0.f, 0)
            || test_padding(c, 2, 0, 1, 0, 4, 4, 1, 0.f, 0)
 
-           || test_padding(a, 2, 0, 2, 0, 1, 2, 2, 0.f, 0)
-           || test_padding(b, 2, 0, 2, 0, 1, 2, 2, 0.f, 0)
-           || test_padding(c, 2, 0, 2, 0, 1, 2, 2, 0.f, 0)
+           || test_padding(a, 2, 0, 2, 0, 0, 2, 2, 0.f, 0)
+           || test_padding(b, 2, 0, 2, 0, 0, 2, 2, 0.f, 0)
+           || test_padding(c, 2, 0, 2, 0, 0, 2, 2, 0.f, 0)
 
            || test_padding(a, 4, 2, 1, 3, 3, 5, 2, 0.f, 0)
            || test_padding(b, 4, 2, 1, 3, 3, 5, 2, 0.f, 0)
