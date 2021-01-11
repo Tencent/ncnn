@@ -41,6 +41,7 @@ static int test_reorg_0()
            || test_reorg(RandomMat(4, 4, 4), 4, 0)
            || test_reorg(RandomMat(8, 8, 8), 2, 0)
            || test_reorg(RandomMat(10, 10, 12), 2, 0)
+           || test_reorg(RandomMat(9, 9, 4), 3, 0)
            || test_reorg(RandomMat(9, 9, 16), 3, 0);
 }
 
@@ -53,6 +54,7 @@ static int test_reorg_1()
            || test_reorg(RandomMat(4, 4, 4), 4, 1)
            || test_reorg(RandomMat(8, 8, 8), 2, 1)
            || test_reorg(RandomMat(10, 10, 12), 2, 1)
+           || test_reorg(RandomMat(9, 9, 4), 3, 1)
            || test_reorg(RandomMat(9, 9, 16), 3, 1);
 }
 

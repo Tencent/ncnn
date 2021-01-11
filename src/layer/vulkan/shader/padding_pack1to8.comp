@@ -25,9 +25,8 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 layout (constant_id = 0) const int type = 1;
 layout (constant_id = 1) const float value = 0;
 layout (constant_id = 2) const int per_channel_pad = 0;
-layout (constant_id = 3) const int bugihfa = 0;
 
-#define shape_constant_id_offset 4
+#define shape_constant_id_offset 3
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
@@ -105,17 +104,33 @@ void main()
             image3d_st8(top_blob, ivec3(gx, 0, 0), v);
 #else
             afpvec8 v;
-            v[0].r = buffer_ld1(bottom_blob_data, x4.r);
-            v[0].g = buffer_ld1(bottom_blob_data, x4.g);
-            v[0].b = buffer_ld1(bottom_blob_data, x4.b);
-            v[0].a = buffer_ld1(bottom_blob_data, x4.a);
-            v[1].r = buffer_ld1(bottom_blob_data, xx4.r);
-            v[1].g = buffer_ld1(bottom_blob_data, xx4.g);
-            v[1].b = buffer_ld1(bottom_blob_data, xx4.b);
-            v[1].a = buffer_ld1(bottom_blob_data, xx4.a);
+            // buffer_ld1 x4/xx4 index on vec returns zero on radv driver  :(
+            // this is an ineffiecnt workaround  --- nihui
+            if (x4.r < 0 && xx4.a >= 0)
+            {
+                v[0].r = x4.r >= 0 ? buffer_ld1(bottom_blob_data, x4.r) : afp(value);
+                v[0].g = x4.g >= 0 ? buffer_ld1(bottom_blob_data, x4.g) : afp(value);
+                v[0].b = x4.b >= 0 ? buffer_ld1(bottom_blob_data, x4.b) : afp(value);
+                v[0].a = x4.a >= 0 ? buffer_ld1(bottom_blob_data, x4.a) : afp(value);
+                v[1].r = xx4.r >= 0 ? buffer_ld1(bottom_blob_data, xx4.r) : afp(value);
+                v[1].g = xx4.g >= 0 ? buffer_ld1(bottom_blob_data, xx4.g) : afp(value);
+                v[1].b = xx4.b >= 0 ? buffer_ld1(bottom_blob_data, xx4.b) : afp(value);
+                v[1].a = xx4.a >= 0 ? buffer_ld1(bottom_blob_data, xx4.a) : afp(value);
+            }
+            else
+            {
+                v[0].r = buffer_ld1(bottom_blob_data, x4.r);
+                v[0].g = buffer_ld1(bottom_blob_data, x4.g);
+                v[0].b = buffer_ld1(bottom_blob_data, x4.b);
+                v[0].a = buffer_ld1(bottom_blob_data, x4.a);
+                v[1].r = buffer_ld1(bottom_blob_data, xx4.r);
+                v[1].g = buffer_ld1(bottom_blob_data, xx4.g);
+                v[1].b = buffer_ld1(bottom_blob_data, xx4.b);
+                v[1].a = buffer_ld1(bottom_blob_data, xx4.a);
 
-            v[0] = mix(afpvec4(value), v[0], mask);
-            v[1] = mix(afpvec4(value), v[1], mask2);
+                v[0] = mix(afpvec4(value), v[0], mask);
+                v[1] = mix(afpvec4(value), v[1], mask2);
+            }
 
             buffer_st8(top_blob_data, gx, v);
 #endif
