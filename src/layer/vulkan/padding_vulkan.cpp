@@ -132,21 +132,20 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
         opt.use_image_storage = false;
     }
 
-    std::vector<vk_specialization_type> specializations(4 + 10);
+    std::vector<vk_specialization_type> specializations(3 + 10);
     specializations[0].i = type;
     specializations[1].f = value;
     specializations[2].i = per_channel_pad_data_size ? 1 : 0;
-    specializations[3].i = vkdev->info.bug_implicit_fp16_arithmetic();
-    specializations[4 + 0].i = shape_unpacked.dims;
-    specializations[4 + 1].i = shape_unpacked.w;
-    specializations[4 + 2].i = shape_unpacked.h;
-    specializations[4 + 3].i = shape_unpacked.c;
-    specializations[4 + 4].i = shape_unpacked.cstep;
-    specializations[4 + 5].i = out_shape_packed.dims;
-    specializations[4 + 6].i = out_shape_packed.w;
-    specializations[4 + 7].i = out_shape_packed.h;
-    specializations[4 + 8].i = out_shape_packed.c;
-    specializations[4 + 9].i = out_shape_packed.cstep;
+    specializations[3 + 0].i = shape_unpacked.dims;
+    specializations[3 + 1].i = shape_unpacked.w;
+    specializations[3 + 2].i = shape_unpacked.h;
+    specializations[3 + 3].i = shape_unpacked.c;
+    specializations[3 + 4].i = shape_unpacked.cstep;
+    specializations[3 + 5].i = out_shape_packed.dims;
+    specializations[3 + 6].i = out_shape_packed.w;
+    specializations[3 + 7].i = out_shape_packed.h;
+    specializations[3 + 8].i = out_shape_packed.c;
+    specializations[3 + 9].i = out_shape_packed.cstep;
 
     Mat local_size_xyz;
     if (out_shape_packed.dims == 1)
