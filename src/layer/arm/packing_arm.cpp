@@ -689,7 +689,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #endif
                 }
 #endif
-                for (int j = 0; j < w; j++)
+                for (; j < w; j++)
                 {
                     *outptr0++ = r0[0];
                     *outptr1++ = r0[1];
@@ -752,7 +752,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #endif
                 }
 #endif
-                for (int j = 0; j < w; j++)
+                for (; j < w; j++)
                 {
                     outptr[0] = r0[0];
                     outptr[1] = r0[1];
@@ -817,7 +817,7 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #endif
                 }
 #endif
-                for (int j = 0; j < w; j++)
+                for (; j < w; j++)
                 {
                     outptr0[0] = r0[0];
                     outptr0[1] = r0[1];
