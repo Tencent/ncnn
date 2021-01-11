@@ -2062,7 +2062,7 @@ static void fuse_lstm_gru_rnn(onnx::GraphProto* mutable_graph, std::map<std::str
 
             onnx::NodeProto* node2 = mutable_graph->mutable_node(i + 1);
 
-            if (node2->op_type() != "LSTM" || node->op_type() == "GRU" || node->op_type() == "RNN")
+            if (node2->op_type() != "LSTM" && node->op_type() != "GRU" && node->op_type() != "RNN")
                 continue;
 
             if (node2->input(0) != node->output(0))
@@ -2714,6 +2714,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "GroupNorm");
         }
+        else if (op == "GRU")
+        {
+            fprintf(pp, "%-16s", "GRU");
+        }
         else if (op == "HardSigmoid")
         {
             fprintf(pp, "%-16s", "HardSigmoid");
@@ -2812,6 +2816,10 @@ int main(int argc, char** argv)
         else if (op == "Reshape")
         {
             fprintf(pp, "%-16s", "Reshape");
+        }
+        else if (op == "RNN")
+        {
+            fprintf(pp, "%-16s", "RNN");
         }
         else if (op == "ShuffleChannel")
         {
@@ -3480,6 +3488,140 @@ int main(int argc, char** argv)
                 fwrite_tensor_proto_data(B, bp);
             }
         }
+        else if (op == "GRU")
+        {
+            const onnx::TensorProto& W = weights[node.input(1)];
+            const onnx::TensorProto& R = weights[node.input(2)];
+            const onnx::TensorProto& B = weights[node.input(3)];
+
+            int hidden_size = get_node_attr_i(node, "hidden_size", 0);
+            std::string direction = get_node_attr_s(node, "direction");
+
+            int direction_type = 0;
+            if (direction == "forward")
+            {
+                direction_type = 0;
+            }
+            else if (direction == "reverse")
+            {
+                direction_type = 1;
+            }
+            else if (direction == "bidirectional")
+            {
+                direction_type = 2;
+            }
+
+            int weight_data_size = get_tensor_proto_data_size(W);
+
+            fprintf(pp, " 0=%d", hidden_size);
+            fprintf(pp, " 1=%d", weight_data_size);
+            fprintf(pp, " 2=%d", direction_type);
+
+            int num_directions = direction_type == 2 ? 2 : 1;
+
+            int quantize_tag = 0;
+
+            // reorder num_directions-URN-hidden-size to num_directions-RUN-hidden-size
+            {
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                int weight_data_size_g = get_tensor_proto_data_size(W) / 3 / num_directions;
+                const float* wptr = W.has_raw_data() ? (const float*)W.raw_data().data() : W.float_data().data();
+
+                const float* uptr = wptr;
+                const float* rptr = wptr + weight_data_size_g;
+                const float* nptr = wptr + weight_data_size_g * 2;
+                fwrite(rptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(uptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(nptr, sizeof(float), weight_data_size_g, bp);
+
+                if (direction_type == 2)
+                {
+                    uptr += weight_data_size_g * 3;
+                    rptr += weight_data_size_g * 3;
+                    nptr += weight_data_size_g * 3;
+                    fwrite(rptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(uptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(nptr, sizeof(float), weight_data_size_g, bp);
+                }
+            }
+
+            // reduce U and R bias except N
+            // reorder num_directions-URN-hidden to num_directions-RUN-hidden
+            {
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                int bias_data_size_g = get_tensor_proto_data_size(B) / 2 / 3 / num_directions;
+                const float* bptr = B.has_raw_data() ? (const float*)B.raw_data().data() : B.float_data().data();
+                const float* wuptr = bptr;
+                const float* wrptr = bptr + bias_data_size_g;
+                const float* wnptr = bptr + bias_data_size_g * 2;
+                const float* buptr = bptr + bias_data_size_g * 3;
+                const float* brptr = bptr + bias_data_size_g * 4;
+                const float* bnptr = bptr + bias_data_size_g * 5;
+
+                for (int j = 0; j < bias_data_size_g; j++)
+                {
+                    float vb = wrptr[j] + brptr[j];
+                    fwrite(&vb, sizeof(float), 1, bp);
+                }
+                for (int j = 0; j < bias_data_size_g; j++)
+                {
+                    float vb = wuptr[j] + buptr[j];
+                    fwrite(&vb, sizeof(float), 1, bp);
+                }
+                fwrite(wnptr, sizeof(float), bias_data_size_g, bp);
+                fwrite(bnptr, sizeof(float), bias_data_size_g, bp);
+
+                if (direction_type == 2)
+                {
+                    wuptr += bias_data_size_g * 6;
+                    wrptr += bias_data_size_g * 6;
+                    wnptr += bias_data_size_g * 6;
+                    buptr += bias_data_size_g * 6;
+                    brptr += bias_data_size_g * 6;
+                    bnptr += bias_data_size_g * 6;
+
+                    for (int j = 0; j < bias_data_size_g; j++)
+                    {
+                        float vb = wrptr[j] + brptr[j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                    for (int j = 0; j < bias_data_size_g; j++)
+                    {
+                        float vb = wuptr[j] + buptr[j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                    fwrite(wnptr, sizeof(float), bias_data_size_g, bp);
+                    fwrite(bnptr, sizeof(float), bias_data_size_g, bp);
+                }
+            }
+
+            // reorder num_directions-URN-hidden-hidden to num_directions-RUN-hidden-hidden
+            {
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                int weight_data_size_g = get_tensor_proto_data_size(R) / 3 / num_directions;
+                const float* Rptr = R.has_raw_data() ? (const float*)R.raw_data().data() : R.float_data().data();
+
+                const float* uptr = Rptr;
+                const float* rptr = Rptr + weight_data_size_g;
+                const float* nptr = Rptr + weight_data_size_g * 2;
+                fwrite(rptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(uptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(nptr, sizeof(float), weight_data_size_g, bp);
+
+                if (direction_type == 2)
+                {
+                    uptr += weight_data_size_g * 3;
+                    rptr += weight_data_size_g * 3;
+                    nptr += weight_data_size_g * 3;
+                    fwrite(rptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(uptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(nptr, sizeof(float), weight_data_size_g, bp);
+                }
+            }
+        }
         else if (op == "HardSigmoid")
         {
             float alpha = get_node_attr_f(node, "alpha", 0.2f);
@@ -4109,6 +4251,73 @@ int main(int argc, char** argv)
             fprintf(pp, " 3=%d", output_height);
             fprintf(pp, " 4=%d", output_width);
             fprintf(pp, " 6=%d", align_corner);
+        }
+        else if (op == "RNN")
+        {
+            const onnx::TensorProto& W = weights[node.input(1)];
+            const onnx::TensorProto& R = weights[node.input(2)];
+            const onnx::TensorProto& B = weights[node.input(3)];
+
+            int hidden_size = get_node_attr_i(node, "hidden_size", 0);
+            std::string direction = get_node_attr_s(node, "direction");
+
+            int direction_type = 0;
+            if (direction == "forward")
+            {
+                direction_type = 0;
+            }
+            else if (direction == "reverse")
+            {
+                direction_type = 1;
+            }
+            else if (direction == "bidirectional")
+            {
+                direction_type = 2;
+            }
+
+            int weight_data_size = get_tensor_proto_data_size(W);
+
+            fprintf(pp, " 0=%d", hidden_size);
+            fprintf(pp, " 1=%d", weight_data_size);
+            fprintf(pp, " 2=%d", direction_type);
+
+            int num_directions = direction_type == 2 ? 2 : 1;
+
+            int quantize_tag = 0;
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+            fwrite_tensor_proto_data(W, bp);
+
+            // reduce xc and hc bias
+            {
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                int bias_data_size_g = get_tensor_proto_data_size(B) / 2 / num_directions;
+                const float* bptr = B.has_raw_data() ? (const float*)B.raw_data().data() : B.float_data().data();
+                const float* xiptr = bptr;
+                const float* hiptr = bptr + bias_data_size_g;
+
+                for (int j = 0; j < bias_data_size_g; j++)
+                {
+                    float vb = xiptr[j] + hiptr[j];
+                    fwrite(&vb, sizeof(float), 1, bp);
+                }
+
+                if (direction_type == 2)
+                {
+                    xiptr += bias_data_size_g * 2;
+                    hiptr += bias_data_size_g * 2;
+
+                    for (int j = 0; j < bias_data_size_g; j++)
+                    {
+                        float vb = xiptr[j] + hiptr[j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                }
+            }
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+            fwrite_tensor_proto_data(R, bp);
         }
         else if (op == "ShuffleChannel")
         {
