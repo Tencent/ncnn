@@ -70,7 +70,7 @@ mat = ncnn.Mat(mat_np)
 # Model Zoo
 install requirements
 ```bash
-pip install -U requirements.txt
+pip install -r requirements.txt
 ```
 then you can import ncnn.model_zoo and get model list as follow:
 ```bash
