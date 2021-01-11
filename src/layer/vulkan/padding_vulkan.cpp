@@ -54,21 +54,21 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     if (shape.dims == 1)
     {
         if (left == 0)
-            offset_elempack = out_elempack;
+            offset_elempack = elempack;
         else
             offset_elempack = opt.use_shader_pack8 && left % 8 == 0 ? 8 : left % 4 == 0 ? 4 : 1;
     }
     else if (shape.dims == 2)
     {
         if (top == 0)
-            offset_elempack = out_elempack;
+            offset_elempack = elempack;
         else
             offset_elempack = opt.use_shader_pack8 && top % 8 == 0 ? 8 : top % 4 == 0 ? 4 : 1;
     }
     else // if (shape.dims == 3)
     {
         if (front == 0)
-            offset_elempack = out_elempack;
+            offset_elempack = elempack;
         else
             offset_elempack = opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
     }
@@ -322,7 +322,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         outw = w * elempack + left + right;
         out_elempack = opt.use_shader_pack8 && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
-        offset_elempack = left == 0 ? out_elempack : opt.use_shader_pack8 && left % 8 == 0 ? 8 : left % 4 == 0 ? 4 : 1;
+        offset_elempack = left == 0 ? elempack : opt.use_shader_pack8 && left % 8 == 0 ? 8 : left % 4 == 0 ? 4 : 1;
     }
     else if (dims == 2)
     {
@@ -335,7 +335,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         outw = w + left + right;
         outh = h * elempack + top + bottom;
         out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
-        offset_elempack = top == 0 ? out_elempack : opt.use_shader_pack8 && top % 8 == 0 ? 8 : top % 4 == 0 ? 4 : 1;
+        offset_elempack = top == 0 ? elempack : opt.use_shader_pack8 && top % 8 == 0 ? 8 : top % 4 == 0 ? 4 : 1;
     }
     else // if (dims == 3)
     {
@@ -349,7 +349,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         outh = h + top + bottom;
         outc = channels * elempack + front + behind;
         out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
-        offset_elempack = front == 0 ? out_elempack : opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
+        offset_elempack = front == 0 ? elempack : opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
     }
 
     offset_elempack = std::min(offset_elempack, elempack);
@@ -498,7 +498,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
         outw = w * elempack + _left + _right;
         out_elempack = opt.use_shader_pack8 && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
-        offset_elempack = _left == 0 ? out_elempack : opt.use_shader_pack8 && _left % 8 == 0 ? 8 : _left % 4 == 0 ? 4 : 1;
+        offset_elempack = _left == 0 ? elempack : opt.use_shader_pack8 && _left % 8 == 0 ? 8 : _left % 4 == 0 ? 4 : 1;
     }
     else if (dims == 2)
     {
@@ -511,7 +511,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         outw = w + _left + _right;
         outh = h * elempack + _top + _bottom;
         out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
-        offset_elempack = _top == 0 ? out_elempack : opt.use_shader_pack8 && _top % 8 == 0 ? 8 : _top % 4 == 0 ? 4 : 1;
+        offset_elempack = _top == 0 ? elempack : opt.use_shader_pack8 && _top % 8 == 0 ? 8 : _top % 4 == 0 ? 4 : 1;
     }
     else // if (dims == 3)
     {
@@ -525,7 +525,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         outh = h + _top + _bottom;
         outc = channels * elempack + _front + _behind;
         out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
-        offset_elempack = _front == 0 ? out_elempack : opt.use_shader_pack8 && _front % 8 == 0 ? 8 : _front % 4 == 0 ? 4 : 1;
+        offset_elempack = _front == 0 ? elempack : opt.use_shader_pack8 && _front % 8 == 0 ? 8 : _front % 4 == 0 ? 4 : 1;
     }
 
     offset_elempack = std::min(offset_elempack, elempack);
@@ -653,7 +653,7 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
 
         outw = w * elempack + left + right;
         out_elempack = opt.use_shader_pack8 && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
-        offset_elempack = left == 0 ? out_elempack : opt.use_shader_pack8 && left % 8 == 0 ? 8 : left % 4 == 0 ? 4 : 1;
+        offset_elempack = left == 0 ? elempack : opt.use_shader_pack8 && left % 8 == 0 ? 8 : left % 4 == 0 ? 4 : 1;
     }
     else if (dims == 2)
     {
@@ -666,7 +666,7 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         outw = w + left + right;
         outh = h * elempack + top + bottom;
         out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
-        offset_elempack = top == 0 ? out_elempack : opt.use_shader_pack8 && top % 8 == 0 ? 8 : top % 4 == 0 ? 4 : 1;
+        offset_elempack = top == 0 ? elempack : opt.use_shader_pack8 && top % 8 == 0 ? 8 : top % 4 == 0 ? 4 : 1;
     }
     else // if (dims == 3)
     {
@@ -680,7 +680,7 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         outh = h + top + bottom;
         outc = channels * elempack + front + behind;
         out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
-        offset_elempack = front == 0 ? out_elempack : opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
+        offset_elempack = front == 0 ? elempack : opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
     }
 
     offset_elempack = std::min(offset_elempack, elempack);
@@ -830,7 +830,7 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
 
         outw = w * elempack + _left + _right;
         out_elempack = opt.use_shader_pack8 && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
-        offset_elempack = _left == 0 ? out_elempack : opt.use_shader_pack8 && _left % 8 == 0 ? 8 : _left % 4 == 0 ? 4 : 1;
+        offset_elempack = _left == 0 ? elempack : opt.use_shader_pack8 && _left % 8 == 0 ? 8 : _left % 4 == 0 ? 4 : 1;
     }
     else if (dims == 2)
     {
@@ -843,7 +843,7 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
         outw = w + _left + _right;
         outh = h * elempack + _top + _bottom;
         out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
-        offset_elempack = _top == 0 ? out_elempack : opt.use_shader_pack8 && _top % 8 == 0 ? 8 : _top % 4 == 0 ? 4 : 1;
+        offset_elempack = _top == 0 ? elempack : opt.use_shader_pack8 && _top % 8 == 0 ? 8 : _top % 4 == 0 ? 4 : 1;
     }
     else // if (dims == 3)
     {
@@ -857,7 +857,7 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
         outh = h + _top + _bottom;
         outc = channels * elempack + _front + _behind;
         out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
-        offset_elempack = _front == 0 ? out_elempack : opt.use_shader_pack8 && _front % 8 == 0 ? 8 : _front % 4 == 0 ? 4 : 1;
+        offset_elempack = _front == 0 ? elempack : opt.use_shader_pack8 && _front % 8 == 0 ? 8 : _front % 4 == 0 ? 4 : 1;
     }
 
     offset_elempack = std::min(offset_elempack, elempack);
