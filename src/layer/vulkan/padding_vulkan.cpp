@@ -54,26 +54,26 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     if (shape.dims == 1)
     {
         if (left == 0)
-            offset_elempack = out_elempack;
+            offset_elempack = elempack;
         else
             offset_elempack = opt.use_shader_pack8 && left % 8 == 0 ? 8 : left % 4 == 0 ? 4 : 1;
     }
     else if (shape.dims == 2)
     {
         if (top == 0)
-            offset_elempack = out_elempack;
+            offset_elempack = elempack;
         else
             offset_elempack = opt.use_shader_pack8 && top % 8 == 0 ? 8 : top % 4 == 0 ? 4 : 1;
     }
     else // if (shape.dims == 3)
     {
         if (front == 0)
-            offset_elempack = out_elempack;
+            offset_elempack = elempack;
         else
             offset_elempack = opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
     }
 
-    offset_elempack = std::min(offset_elempack, out_elempack);
+    offset_elempack = std::min(offset_elempack, elempack);
 
     size_t elemsize;
     size_t out_elemsize;
@@ -104,7 +104,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     Mat shape_unpacked = shape_packed;
-    if (one_blob_only && shape.dims != 0 && elempack == out_elempack && elempack > offset_elempack)
+    if (one_blob_only && shape.dims != 0 && elempack > offset_elempack)
     {
         size_t offset_elemsize;
         if (opt.use_fp16_storage)
@@ -132,21 +132,20 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
         opt.use_image_storage = false;
     }
 
-    std::vector<vk_specialization_type> specializations(4 + 10);
+    std::vector<vk_specialization_type> specializations(3 + 10);
     specializations[0].i = type;
     specializations[1].f = value;
     specializations[2].i = per_channel_pad_data_size ? 1 : 0;
-    specializations[3].i = vkdev->info.bug_implicit_fp16_arithmetic();
-    specializations[4 + 0].i = shape_unpacked.dims;
-    specializations[4 + 1].i = shape_unpacked.w;
-    specializations[4 + 2].i = shape_unpacked.h;
-    specializations[4 + 3].i = shape_unpacked.c;
-    specializations[4 + 4].i = shape_unpacked.cstep;
-    specializations[4 + 5].i = out_shape_packed.dims;
-    specializations[4 + 6].i = out_shape_packed.w;
-    specializations[4 + 7].i = out_shape_packed.h;
-    specializations[4 + 8].i = out_shape_packed.c;
-    specializations[4 + 9].i = out_shape_packed.cstep;
+    specializations[3 + 0].i = shape_unpacked.dims;
+    specializations[3 + 1].i = shape_unpacked.w;
+    specializations[3 + 2].i = shape_unpacked.h;
+    specializations[3 + 3].i = shape_unpacked.c;
+    specializations[3 + 4].i = shape_unpacked.cstep;
+    specializations[3 + 5].i = out_shape_packed.dims;
+    specializations[3 + 6].i = out_shape_packed.w;
+    specializations[3 + 7].i = out_shape_packed.h;
+    specializations[3 + 8].i = out_shape_packed.c;
+    specializations[3 + 9].i = out_shape_packed.cstep;
 
     Mat local_size_xyz;
     if (out_shape_packed.dims == 1)
@@ -169,7 +168,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack1
-    if (out_shape.dims == 0 || out_elempack == 1)
+    if (out_shape.dims == 0 || (offset_elempack == 1 && out_elempack == 1))
     {
         pipeline_padding = new Pipeline(vkdev);
         pipeline_padding->set_optimal_local_size_xyz(local_size_xyz);
@@ -177,7 +176,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack4
-    if (out_shape.dims == 0 || out_elempack == 4)
+    if (out_shape.dims == 0 || (offset_elempack == 4 && out_elempack == 4))
     {
         pipeline_padding_pack4 = new Pipeline(vkdev);
         pipeline_padding_pack4->set_optimal_local_size_xyz(local_size_xyz);
@@ -185,7 +184,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack1to4
-    if (out_shape.dims == 0 || out_elempack == 4)
+    if (out_shape.dims == 0 || (offset_elempack == 1 && out_elempack == 4))
     {
         pipeline_padding_pack1to4 = new Pipeline(vkdev);
         pipeline_padding_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
@@ -193,7 +192,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack4to1
-    if (out_shape.dims == 0 || out_elempack == 1)
+    if (out_shape.dims == 0 || (offset_elempack == 4 && out_elempack == 1))
     {
         pipeline_padding_pack4to1 = new Pipeline(vkdev);
         pipeline_padding_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
@@ -201,7 +200,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack8
-    if ((opt.use_shader_pack8 && out_shape.dims == 0) || (elempack == 8 && out_elempack == 8))
+    if ((opt.use_shader_pack8 && out_shape.dims == 0) || (offset_elempack == 8 && out_elempack == 8))
     {
         pipeline_padding_pack8 = new Pipeline(vkdev);
         pipeline_padding_pack8->set_optimal_local_size_xyz(local_size_xyz);
@@ -209,7 +208,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack1to8
-    if ((opt.use_shader_pack8 && out_shape.dims == 0) || out_elempack == 8)
+    if ((opt.use_shader_pack8 && out_shape.dims == 0) || (offset_elempack == 1 && out_elempack == 8))
     {
         pipeline_padding_pack1to8 = new Pipeline(vkdev);
         pipeline_padding_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
@@ -217,7 +216,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack4to8
-    if ((opt.use_shader_pack8 && out_shape.dims == 0) || out_elempack == 8)
+    if ((opt.use_shader_pack8 && out_shape.dims == 0) || (offset_elempack == 4 && out_elempack == 8))
     {
         pipeline_padding_pack4to8 = new Pipeline(vkdev);
         pipeline_padding_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
@@ -225,7 +224,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack8to4
-    if ((opt.use_shader_pack8 && out_shape.dims == 0) || (elempack == 8 && out_elempack == 4))
+    if ((opt.use_shader_pack8 && out_shape.dims == 0) || (offset_elempack == 8 && out_elempack == 4))
     {
         pipeline_padding_pack8to4 = new Pipeline(vkdev);
         pipeline_padding_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
@@ -233,7 +232,7 @@ int Padding_vulkan::create_pipeline(const Option& _opt)
     }
 
     // pack8to1
-    if ((opt.use_shader_pack8 && out_shape.dims == 0) || (elempack == 8 && out_elempack == 1))
+    if ((opt.use_shader_pack8 && out_shape.dims == 0) || (offset_elempack == 8 && out_elempack == 1))
     {
         pipeline_padding_pack8to1 = new Pipeline(vkdev);
         pipeline_padding_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
@@ -323,7 +322,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         outw = w * elempack + left + right;
         out_elempack = opt.use_shader_pack8 && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
-        offset_elempack = left == 0 ? out_elempack : opt.use_shader_pack8 && left % 8 == 0 ? 8 : left % 4 == 0 ? 4 : 1;
+        offset_elempack = left == 0 ? elempack : opt.use_shader_pack8 && left % 8 == 0 ? 8 : left % 4 == 0 ? 4 : 1;
     }
     else if (dims == 2)
     {
@@ -336,7 +335,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         outw = w + left + right;
         outh = h * elempack + top + bottom;
         out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
-        offset_elempack = top == 0 ? out_elempack : opt.use_shader_pack8 && top % 8 == 0 ? 8 : top % 4 == 0 ? 4 : 1;
+        offset_elempack = top == 0 ? elempack : opt.use_shader_pack8 && top % 8 == 0 ? 8 : top % 4 == 0 ? 4 : 1;
     }
     else // if (dims == 3)
     {
@@ -350,10 +349,10 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         outh = h + top + bottom;
         outc = channels * elempack + front + behind;
         out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
-        offset_elempack = front == 0 ? out_elempack : opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
+        offset_elempack = front == 0 ? elempack : opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
     }
 
-    offset_elempack = std::min(offset_elempack, out_elempack);
+    offset_elempack = std::min(offset_elempack, elempack);
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -366,7 +365,7 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     // unpacking
     VkMat bottom_blob_unpacked = bottom_blob;
-    if (elempack == out_elempack && elempack > offset_elempack)
+    if (elempack > offset_elempack)
     {
         Option opt_pack1 = opt;
         opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
@@ -410,51 +409,39 @@ int Padding_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
     constants[12].i = front;
 
     const Pipeline* pipeline = 0;
-    if (elempack == 1 && out_elempack == 1)
+    if (offset_elempack == 1 && out_elempack == 1)
     {
         pipeline = pipeline_padding;
     }
-    else if (elempack == 4 && offset_elempack == 4 && out_elempack == 4)
+    else if (offset_elempack == 4 && out_elempack == 4)
     {
         pipeline = pipeline_padding_pack4;
     }
-    else if (elempack == 4 && offset_elempack == 1 && out_elempack == 4)
+    else if (offset_elempack == 1 && out_elempack == 4)
     {
         pipeline = pipeline_padding_pack1to4;
     }
-    else if (elempack == 1 && out_elempack == 4)
-    {
-        pipeline = pipeline_padding_pack1to4;
-    }
-    else if (elempack == 4 && out_elempack == 1)
+    else if (offset_elempack == 4 && out_elempack == 1)
     {
         pipeline = pipeline_padding_pack4to1;
     }
-    else if (elempack == 8 && offset_elempack == 8 && out_elempack == 8)
+    else if (offset_elempack == 8 && out_elempack == 8)
     {
         pipeline = pipeline_padding_pack8;
     }
-    else if (elempack == 8 && offset_elempack == 4 && out_elempack == 8)
-    {
-        pipeline = pipeline_padding_pack4to8;
-    }
-    else if (elempack == 8 && offset_elempack == 1 && out_elempack == 8)
+    else if (offset_elempack == 1 && out_elempack == 8)
     {
         pipeline = pipeline_padding_pack1to8;
     }
-    else if (elempack == 1 && out_elempack == 8)
-    {
-        pipeline = pipeline_padding_pack1to8;
-    }
-    else if (elempack == 4 && out_elempack == 8)
+    else if (offset_elempack == 4 && out_elempack == 8)
     {
         pipeline = pipeline_padding_pack4to8;
     }
-    else if (elempack == 8 && out_elempack == 4)
+    else if (offset_elempack == 8 && out_elempack == 4)
     {
         pipeline = pipeline_padding_pack8to4;
     }
-    else if (elempack == 8 && out_elempack == 1)
+    else if (offset_elempack == 8 && out_elempack == 1)
     {
         pipeline = pipeline_padding_pack8to1;
     }
@@ -511,7 +498,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
         outw = w * elempack + _left + _right;
         out_elempack = opt.use_shader_pack8 && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
-        offset_elempack = _left == 0 ? out_elempack : opt.use_shader_pack8 && _left % 8 == 0 ? 8 : _left % 4 == 0 ? 4 : 1;
+        offset_elempack = _left == 0 ? elempack : opt.use_shader_pack8 && _left % 8 == 0 ? 8 : _left % 4 == 0 ? 4 : 1;
     }
     else if (dims == 2)
     {
@@ -524,7 +511,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         outw = w + _left + _right;
         outh = h * elempack + _top + _bottom;
         out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
-        offset_elempack = _top == 0 ? out_elempack : opt.use_shader_pack8 && _top % 8 == 0 ? 8 : _top % 4 == 0 ? 4 : 1;
+        offset_elempack = _top == 0 ? elempack : opt.use_shader_pack8 && _top % 8 == 0 ? 8 : _top % 4 == 0 ? 4 : 1;
     }
     else // if (dims == 3)
     {
@@ -538,10 +525,10 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
         outh = h + _top + _bottom;
         outc = channels * elempack + _front + _behind;
         out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
-        offset_elempack = _front == 0 ? out_elempack : opt.use_shader_pack8 && _front % 8 == 0 ? 8 : _front % 4 == 0 ? 4 : 1;
+        offset_elempack = _front == 0 ? elempack : opt.use_shader_pack8 && _front % 8 == 0 ? 8 : _front % 4 == 0 ? 4 : 1;
     }
 
-    offset_elempack = std::min(offset_elempack, out_elempack);
+    offset_elempack = std::min(offset_elempack, elempack);
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -554,7 +541,7 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
 
     // unpacking
     VkMat bottom_blob_unpacked = bottom_blob;
-    if (elempack == out_elempack && elempack > offset_elempack)
+    if (elempack > offset_elempack)
     {
         Option opt_pack1 = opt;
         opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
@@ -598,51 +585,39 @@ int Padding_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     constants[12].i = _front;
 
     const Pipeline* pipeline = 0;
-    if (elempack == 1 && out_elempack == 1)
+    if (offset_elempack == 1 && out_elempack == 1)
     {
         pipeline = pipeline_padding;
     }
-    else if (elempack == 4 && offset_elempack == 4 && out_elempack == 4)
+    else if (offset_elempack == 4 && out_elempack == 4)
     {
         pipeline = pipeline_padding_pack4;
     }
-    else if (elempack == 4 && offset_elempack == 1 && out_elempack == 4)
+    else if (offset_elempack == 1 && out_elempack == 4)
     {
         pipeline = pipeline_padding_pack1to4;
     }
-    else if (elempack == 1 && out_elempack == 4)
-    {
-        pipeline = pipeline_padding_pack1to4;
-    }
-    else if (elempack == 4 && out_elempack == 1)
+    else if (offset_elempack == 4 && out_elempack == 1)
     {
         pipeline = pipeline_padding_pack4to1;
     }
-    else if (elempack == 8 && offset_elempack == 8 && out_elempack == 8)
+    else if (offset_elempack == 8 && out_elempack == 8)
     {
         pipeline = pipeline_padding_pack8;
     }
-    else if (elempack == 8 && offset_elempack == 4 && out_elempack == 8)
-    {
-        pipeline = pipeline_padding_pack4to8;
-    }
-    else if (elempack == 8 && offset_elempack == 1 && out_elempack == 8)
+    else if (offset_elempack == 1 && out_elempack == 8)
     {
         pipeline = pipeline_padding_pack1to8;
     }
-    else if (elempack == 1 && out_elempack == 8)
-    {
-        pipeline = pipeline_padding_pack1to8;
-    }
-    else if (elempack == 4 && out_elempack == 8)
+    else if (offset_elempack == 4 && out_elempack == 8)
     {
         pipeline = pipeline_padding_pack4to8;
     }
-    else if (elempack == 8 && out_elempack == 4)
+    else if (offset_elempack == 8 && out_elempack == 4)
     {
         pipeline = pipeline_padding_pack8to4;
     }
-    else if (elempack == 8 && out_elempack == 1)
+    else if (offset_elempack == 8 && out_elempack == 1)
     {
         pipeline = pipeline_padding_pack8to1;
     }
@@ -678,7 +653,7 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
 
         outw = w * elempack + left + right;
         out_elempack = opt.use_shader_pack8 && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
-        offset_elempack = left == 0 ? out_elempack : opt.use_shader_pack8 && left % 8 == 0 ? 8 : left % 4 == 0 ? 4 : 1;
+        offset_elempack = left == 0 ? elempack : opt.use_shader_pack8 && left % 8 == 0 ? 8 : left % 4 == 0 ? 4 : 1;
     }
     else if (dims == 2)
     {
@@ -691,7 +666,7 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         outw = w + left + right;
         outh = h * elempack + top + bottom;
         out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
-        offset_elempack = top == 0 ? out_elempack : opt.use_shader_pack8 && top % 8 == 0 ? 8 : top % 4 == 0 ? 4 : 1;
+        offset_elempack = top == 0 ? elempack : opt.use_shader_pack8 && top % 8 == 0 ? 8 : top % 4 == 0 ? 4 : 1;
     }
     else // if (dims == 3)
     {
@@ -705,10 +680,10 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         outh = h + top + bottom;
         outc = channels * elempack + front + behind;
         out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
-        offset_elempack = front == 0 ? out_elempack : opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
+        offset_elempack = front == 0 ? elempack : opt.use_shader_pack8 && front % 8 == 0 ? 8 : front % 4 == 0 ? 4 : 1;
     }
 
-    offset_elempack = std::min(offset_elempack, out_elempack);
+    offset_elempack = std::min(offset_elempack, elempack);
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -721,7 +696,7 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
 
     // unpacking
     VkImageMat bottom_blob_unpacked = bottom_blob;
-    if (elempack == out_elempack && elempack > offset_elempack)
+    if (elempack > offset_elempack)
     {
         Option opt_pack1 = opt;
         opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
@@ -765,51 +740,39 @@ int Padding_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
     constants[12].i = front;
 
     const Pipeline* pipeline = 0;
-    if (elempack == 1 && out_elempack == 1)
+    if (offset_elempack == 1 && out_elempack == 1)
     {
         pipeline = pipeline_padding;
     }
-    else if (elempack == 4 && offset_elempack == 4 && out_elempack == 4)
+    else if (offset_elempack == 4 && out_elempack == 4)
     {
         pipeline = pipeline_padding_pack4;
     }
-    else if (elempack == 4 && offset_elempack == 1 && out_elempack == 4)
+    else if (offset_elempack == 1 && out_elempack == 4)
     {
         pipeline = pipeline_padding_pack1to4;
     }
-    else if (elempack == 1 && out_elempack == 4)
-    {
-        pipeline = pipeline_padding_pack1to4;
-    }
-    else if (elempack == 4 && out_elempack == 1)
+    else if (offset_elempack == 4 && out_elempack == 1)
     {
         pipeline = pipeline_padding_pack4to1;
     }
-    else if (elempack == 8 && offset_elempack == 8 && out_elempack == 8)
+    else if (offset_elempack == 8 && out_elempack == 8)
     {
         pipeline = pipeline_padding_pack8;
     }
-    else if (elempack == 8 && offset_elempack == 4 && out_elempack == 8)
-    {
-        pipeline = pipeline_padding_pack4to8;
-    }
-    else if (elempack == 8 && offset_elempack == 1 && out_elempack == 8)
+    else if (offset_elempack == 1 && out_elempack == 8)
     {
         pipeline = pipeline_padding_pack1to8;
     }
-    else if (elempack == 1 && out_elempack == 8)
-    {
-        pipeline = pipeline_padding_pack1to8;
-    }
-    else if (elempack == 4 && out_elempack == 8)
+    else if (offset_elempack == 4 && out_elempack == 8)
     {
         pipeline = pipeline_padding_pack4to8;
     }
-    else if (elempack == 8 && out_elempack == 4)
+    else if (offset_elempack == 8 && out_elempack == 4)
     {
         pipeline = pipeline_padding_pack8to4;
     }
-    else if (elempack == 8 && out_elempack == 1)
+    else if (offset_elempack == 8 && out_elempack == 1)
     {
         pipeline = pipeline_padding_pack8to1;
     }
@@ -867,7 +830,7 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
 
         outw = w * elempack + _left + _right;
         out_elempack = opt.use_shader_pack8 && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
-        offset_elempack = _left == 0 ? out_elempack : opt.use_shader_pack8 && _left % 8 == 0 ? 8 : _left % 4 == 0 ? 4 : 1;
+        offset_elempack = _left == 0 ? elempack : opt.use_shader_pack8 && _left % 8 == 0 ? 8 : _left % 4 == 0 ? 4 : 1;
     }
     else if (dims == 2)
     {
@@ -880,7 +843,7 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
         outw = w + _left + _right;
         outh = h * elempack + _top + _bottom;
         out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
-        offset_elempack = _top == 0 ? out_elempack : opt.use_shader_pack8 && _top % 8 == 0 ? 8 : _top % 4 == 0 ? 4 : 1;
+        offset_elempack = _top == 0 ? elempack : opt.use_shader_pack8 && _top % 8 == 0 ? 8 : _top % 4 == 0 ? 4 : 1;
     }
     else // if (dims == 3)
     {
@@ -894,10 +857,10 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
         outh = h + _top + _bottom;
         outc = channels * elempack + _front + _behind;
         out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
-        offset_elempack = _front == 0 ? out_elempack : opt.use_shader_pack8 && _front % 8 == 0 ? 8 : _front % 4 == 0 ? 4 : 1;
+        offset_elempack = _front == 0 ? elempack : opt.use_shader_pack8 && _front % 8 == 0 ? 8 : _front % 4 == 0 ? 4 : 1;
     }
 
-    offset_elempack = std::min(offset_elempack, out_elempack);
+    offset_elempack = std::min(offset_elempack, elempack);
 
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -910,7 +873,7 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
 
     // unpacking
     VkImageMat bottom_blob_unpacked = bottom_blob;
-    if (elempack == out_elempack && elempack > offset_elempack)
+    if (elempack > offset_elempack)
     {
         Option opt_pack1 = opt;
         opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
@@ -954,51 +917,39 @@ int Padding_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     constants[12].i = _front;
 
     const Pipeline* pipeline = 0;
-    if (elempack == 1 && out_elempack == 1)
+    if (offset_elempack == 1 && out_elempack == 1)
     {
         pipeline = pipeline_padding;
     }
-    else if (elempack == 4 && offset_elempack == 4 && out_elempack == 4)
+    else if (offset_elempack == 4 && out_elempack == 4)
     {
         pipeline = pipeline_padding_pack4;
     }
-    else if (elempack == 4 && offset_elempack == 1 && out_elempack == 4)
+    else if (offset_elempack == 1 && out_elempack == 4)
     {
         pipeline = pipeline_padding_pack1to4;
     }
-    else if (elempack == 1 && out_elempack == 4)
-    {
-        pipeline = pipeline_padding_pack1to4;
-    }
-    else if (elempack == 4 && out_elempack == 1)
+    else if (offset_elempack == 4 && out_elempack == 1)
     {
         pipeline = pipeline_padding_pack4to1;
     }
-    else if (elempack == 8 && offset_elempack == 8 && out_elempack == 8)
+    else if (offset_elempack == 8 && out_elempack == 8)
     {
         pipeline = pipeline_padding_pack8;
     }
-    else if (elempack == 8 && offset_elempack == 4 && out_elempack == 8)
-    {
-        pipeline = pipeline_padding_pack4to8;
-    }
-    else if (elempack == 8 && offset_elempack == 1 && out_elempack == 8)
+    else if (offset_elempack == 1 && out_elempack == 8)
     {
         pipeline = pipeline_padding_pack1to8;
     }
-    else if (elempack == 1 && out_elempack == 8)
-    {
-        pipeline = pipeline_padding_pack1to8;
-    }
-    else if (elempack == 4 && out_elempack == 8)
+    else if (offset_elempack == 4 && out_elempack == 8)
     {
         pipeline = pipeline_padding_pack4to8;
     }
-    else if (elempack == 8 && out_elempack == 4)
+    else if (offset_elempack == 8 && out_elempack == 4)
     {
         pipeline = pipeline_padding_pack8to4;
     }
-    else if (elempack == 8 && out_elempack == 1)
+    else if (offset_elempack == 8 && out_elempack == 1)
     {
         pipeline = pipeline_padding_pack8to1;
     }

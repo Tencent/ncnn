@@ -24,9 +24,8 @@
 layout (constant_id = 0) const int type = 1;
 layout (constant_id = 1) const float value = 0;
 layout (constant_id = 2) const int per_channel_pad = 0;
-layout (constant_id = 3) const int bugihfa = 0;
 
-#define shape_constant_id_offset 4
+#define shape_constant_id_offset 3
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
@@ -97,12 +96,24 @@ void main()
             image3d_st4(top_blob, ivec3(gx, 0, 0), v);
 #else
             afpvec4 v;
-            v.r = buffer_ld1(bottom_blob_data, x4.r);
-            v.g = buffer_ld1(bottom_blob_data, x4.g);
-            v.b = buffer_ld1(bottom_blob_data, x4.b);
-            v.a = buffer_ld1(bottom_blob_data, x4.a);
+            // buffer_ld1 x4 index on vec returns zero on radv driver  :(
+            // this is an ineffiecnt workaround  --- nihui
+            if (x4.r < 0 && x4.a >= 0)
+            {
+                v.r = x4.r >= 0 ? buffer_ld1(bottom_blob_data, x4.r) : afp(value);
+                v.g = x4.g >= 0 ? buffer_ld1(bottom_blob_data, x4.g) : afp(value);
+                v.b = x4.b >= 0 ? buffer_ld1(bottom_blob_data, x4.b) : afp(value);
+                v.a = x4.a >= 0 ? buffer_ld1(bottom_blob_data, x4.a) : afp(value);
+            }
+            else
+            {
+                v.r = buffer_ld1(bottom_blob_data, x4.r);
+                v.g = buffer_ld1(bottom_blob_data, x4.g);
+                v.b = buffer_ld1(bottom_blob_data, x4.b);
+                v.a = buffer_ld1(bottom_blob_data, x4.a);
 
-            v = mix(afpvec4(value), v, mask);
+                v = mix(afpvec4(value), v, mask);
+            }
 
             buffer_st4(top_blob_data, gx, v);
 #endif
