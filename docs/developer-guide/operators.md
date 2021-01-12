@@ -13,6 +13,7 @@
 * [crop](#crop)
 * [dequantize](#dequantize)
 * [lstm](#lstm)
+* [pooling](#pooling)
 * [sigmoid](#sigmoid)
 * [softmax](#softmax)
 * [tanh](#tanh)
@@ -272,6 +273,27 @@ Apply a single-layer LSTM to a feature sequence of `T` timesteps. The input blob
 |weight_xc_data|float|`[w=input_size, h=num_output * 4, c=num_directions]`||
 |bias_c_data|float|`[w=num_output, h=4, c=num_directions]`||
 |weight_hc_data|float|`[w=num_output, h=num_output * 4, c=num_directions]`||
+
+# pooling
+
+```
+x2 = pad(x, pads)
+x3 = pooling(x2, kernel, stride)
+```
+
+| param id | name           | type | default  | description                                                                                                                         |
+| -------- | -------------- | ---- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 0        | pooling_type   | int  | 0        | 0: max 1: avg                                                                                                                       |
+| 1        | kernel_w       | int  | 0        |                                                                                                                                     |
+| 2        | stride_w       | int  | 1        |                                                                                                                                     |
+| 3        | pad_left       | int  | 0        |                                                                                                                                     |
+| 4        | global_pooling | int  | 0        |                                                                                                                                     |
+| 5        | pad_mode       | int  | 0        | 0: full padding <br/> 1: valid padding <br/> 2: tensorflow padding=SAME or onnx padding=SAME_UPPER <br/> 3: onnx padding=SAME_LOWER |
+| 11       | kernel_h       | int  | kernel_w |                                                                                                                                     |
+| 12       | stride_h       | int  | stride_w |                                                                                                                                     |
+| 13       | pad_top        | int  | pad_left |                                                                                                                                     |
+| 14       | pad_right      | int  | pad_left |                                                                                                                                     |
+| 15       | pad_bottom     | int  | pad_top  |                                                                                                                                     |
 
 # sigmoid
 ```
