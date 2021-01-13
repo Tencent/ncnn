@@ -4503,6 +4503,10 @@ int main(int argc, char** argv)
                     fprintf(pp, " 0=0"); // w h
                 else if (perm[1] == 2 && perm[2] == 1)
                     fprintf(pp, " 0=1"); // h w
+                else if (perm[0] == 1 && perm[1] == 0 && perm[2] == 2)
+                    fprintf(pp, " 0=0"); // w h
+                else if (perm[0] == 2 && perm[1] == 0 && perm[2] == 1)
+                    fprintf(pp, " 0=1"); // h w
             }
             else if (perm.size() == 4)
             {
