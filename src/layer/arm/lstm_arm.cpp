@@ -203,10 +203,10 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
                 float32x4_t _weight_xc_IFOG = vld1q_f32(weight_xc_IFOG);
                 _IFOG = vmlaq_f32(_IFOG, _weight_xc_IFOG, _xi);
 #else
-                I += weight_xc_I[i] * xi;
-                F += weight_xc_F[i] * xi;
-                O += weight_xc_O[i] * xi;
-                G += weight_xc_G[i] * xi;
+                I += weight_xc_IFOG[0] * xi;
+                F += weight_xc_IFOG[1] * xi;
+                O += weight_xc_IFOG[2] * xi;
+                G += weight_xc_IFOG[3] * xi;
 #endif // __ARM_NEON
 
                 weight_xc_IFOG += 4;
@@ -247,10 +247,10 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
                 float32x4_t _weight_hc_IFOG = vld1q_f32(weight_hc_IFOG);
                 _IFOG = vmlaq_f32(_IFOG, _weight_hc_IFOG, _h_cont);
 #else
-                I += weight_hc_I[i] * h_cont;
-                F += weight_hc_F[i] * h_cont;
-                O += weight_hc_O[i] * h_cont;
-                G += weight_hc_G[i] * h_cont;
+                I += weight_hc_IFOG[0] * h_cont;
+                F += weight_hc_IFOG[1] * h_cont;
+                O += weight_hc_IFOG[2] * h_cont;
+                G += weight_hc_IFOG[3] * h_cont;
 #endif // __ARM_NEON
 
                 weight_hc_IFOG += 4;
@@ -1122,10 +1122,10 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 #else
                 float xi = bfloat16_to_float32(x[i]);
 
-                I += bfloat16_to_float32(weight_xc_I[i]) * xi;
-                F += bfloat16_to_float32(weight_xc_F[i]) * xi;
-                O += bfloat16_to_float32(weight_xc_O[i]) * xi;
-                G += bfloat16_to_float32(weight_xc_G[i]) * xi;
+                I += bfloat16_to_float32(weight_xc_IFOG[0]) * xi;
+                F += bfloat16_to_float32(weight_xc_IFOG[1]) * xi;
+                O += bfloat16_to_float32(weight_xc_IFOG[2]) * xi;
+                G += bfloat16_to_float32(weight_xc_IFOG[3]) * xi;
 #endif // __ARM_NEON
 
                 weight_xc_IFOG += 4;
@@ -1166,10 +1166,10 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                 float32x4_t _weight_hc_IFOG = vcvt_f32_bf16(vld1_u16(weight_hc_IFOG));
                 _IFOG = vmlaq_f32(_IFOG, _weight_hc_IFOG, _h_cont);
 #else
-                I += bfloat16_to_float32(weight_hc_I[i]) * h_cont;
-                F += bfloat16_to_float32(weight_hc_F[i]) * h_cont;
-                O += bfloat16_to_float32(weight_hc_O[i]) * h_cont;
-                G += bfloat16_to_float32(weight_hc_G[i]) * h_cont;
+                I += bfloat16_to_float32(weight_hc_IFOG[0]) * h_cont;
+                F += bfloat16_to_float32(weight_hc_IFOG[1]) * h_cont;
+                O += bfloat16_to_float32(weight_hc_IFOG[2]) * h_cont;
+                G += bfloat16_to_float32(weight_hc_IFOG[3]) * h_cont;
 #endif // __ARM_NEON
 
                 weight_hc_IFOG += 4;
