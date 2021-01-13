@@ -1,0 +1,4 @@
+7767517
+2 2
+Input            data                             0 1 data
+CustomLayer      cl_fwd                           1 1 data output
