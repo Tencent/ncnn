@@ -17,13 +17,13 @@
 
 static int test_lstm(const ncnn::Mat& a, int outch, int direction)
 {
-    int input_size = a.w * a.h * a.c;
+    int input_size = a.w;
     int num_directions = direction == 2 ? 2 : 1;
 
     ncnn::ParamDict pd;
-    pd.set(0, outch); // num_output
+    pd.set(0, outch);
     pd.set(1, outch * input_size * 4 * num_directions);
-    pd.set(2, direction); // bias_term
+    pd.set(2, direction);
 
     std::vector<ncnn::Mat> weights(3);
     weights[0] = RandomMat(outch * input_size * 4 * num_directions);
@@ -41,7 +41,7 @@ static int test_lstm(const ncnn::Mat& a, int outch, int direction)
 
 int test_lstm_layer_with_hidden(const ncnn::Mat& a, int outch, int direction)
 {
-    int input_size = a.w * a.h * a.c;
+    int input_size = a.w;
 
     ncnn::ParamDict pd;
     pd.set(0, outch);
