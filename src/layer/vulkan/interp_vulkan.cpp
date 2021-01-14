@@ -87,18 +87,19 @@ int Interp_vulkan::create_pipeline(const Option& _opt)
 
     if (resize_type == 1 || resize_type == 2)
     {
-        std::vector<vk_specialization_type> specializations(1 + 10);
+        std::vector<vk_specialization_type> specializations(2 + 10);
         specializations[0].i = resize_type;
-        specializations[1 + 0].i = shape_packed.dims;
-        specializations[1 + 1].i = shape_packed.w;
-        specializations[1 + 2].i = shape_packed.h;
-        specializations[1 + 3].i = shape_packed.c;
-        specializations[1 + 4].i = shape_packed.cstep;
-        specializations[1 + 5].i = out_shape_packed.dims;
-        specializations[1 + 6].i = out_shape_packed.w;
-        specializations[1 + 7].i = out_shape_packed.h;
-        specializations[1 + 8].i = out_shape_packed.c;
-        specializations[1 + 9].i = out_shape_packed.cstep;
+        specializations[1].i = align_corner;
+        specializations[2 + 0].i = shape_packed.dims;
+        specializations[2 + 1].i = shape_packed.w;
+        specializations[2 + 2].i = shape_packed.h;
+        specializations[2 + 3].i = shape_packed.c;
+        specializations[2 + 4].i = shape_packed.cstep;
+        specializations[2 + 5].i = out_shape_packed.dims;
+        specializations[2 + 6].i = out_shape_packed.w;
+        specializations[2 + 7].i = out_shape_packed.h;
+        specializations[2 + 8].i = out_shape_packed.c;
+        specializations[2 + 9].i = out_shape_packed.cstep;
 
         Mat local_size_xyz;
         if (out_shape_packed.dims == 2)
@@ -227,11 +228,6 @@ int Interp_vulkan::create_pipeline(const Option& _opt)
         }
     }
 
-    // todo support align_corner in vulkan implementation
-    if (align_corner)
-    {
-        support_vulkan = false;
-    }
     return 0;
 }
 
@@ -412,6 +408,12 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         constants[10].f = w / (float)outw;
         constants[11].f = h / (float)outh;
 
+        if (resize_type == 2 && align_corner)
+        {
+            constants[10].f = (w - 1) / (float)(outw - 1);
+            constants[11].f = (h - 1) / (float)(outh - 1);
+        }
+
         const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
                                    : elempack == 4 ? pipeline_interp_pack4
                                    : pipeline_interp;
@@ -571,6 +573,12 @@ int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
         constants[9].i = 0; //top_blob.cstep;
         constants[10].f = w / (float)outw;
         constants[11].f = h / (float)outh;
+
+        if (resize_type == 2 && align_corner)
+        {
+            constants[10].f = (w - 1) / (float)(outw - 1);
+            constants[11].f = (h - 1) / (float)(outh - 1);
+        }
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
                                    : elempack == 4 ? pipeline_interp_pack4

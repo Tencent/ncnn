@@ -23,7 +23,7 @@ git submodule init && git submodule update
 ```bash
 mkdir build
 cd build
-cmake -DNCNN_BUILD_PYTHON=ON ..
+cmake -DNCNN_PYTHON=ON ..
 make
 ```
 
@@ -70,7 +70,7 @@ mat = ncnn.Mat(mat_np)
 # Model Zoo
 install requirements
 ```bash
-pip install -U requirements.txt
+pip install -r requirements.txt
 ```
 then you can import ncnn.model_zoo and get model list as follow:
 ```bash

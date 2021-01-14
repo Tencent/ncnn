@@ -1824,14 +1824,226 @@ static void fuse_expand_broadcast(onnx::GraphProto* mutable_graph, std::map<std:
     }
 }
 
-static void fuse_bilstm(onnx::GraphProto* mutable_graph, std::map<std::string, onnx::TensorProto>& weights, std::map<std::string, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
+static void fuse_lstm_gru_rnn(onnx::GraphProto* mutable_graph, std::map<std::string, onnx::TensorProto>& weights, std::map<std::string, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
 {
     int node_count = mutable_graph->node_size();
     for (int i = 0; i < node_count; i++)
     {
         onnx::NodeProto* node = mutable_graph->mutable_node(i);
 
-        // LSTM <= Transpose - LSTM - Transpose - Reshape - Transpose
+        // LSTM(bi) <= LSTM(bi) - Transpose - Reshape - Transpose
+        if (node->op_type() == "LSTM" || node->op_type() == "GRU" || node->op_type() == "RNN")
+        {
+            if (node_reference[node->output(0)] != 1)
+                continue;
+
+            if (i + 2 >= node_count)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i + 1);
+            onnx::NodeProto* node3 = mutable_graph->mutable_node(i + 2);
+
+            if (node2->op_type() != "Transpose" || node3->op_type() != "Reshape")
+                continue;
+
+            if (node_reference[node2->output(0)] != 1)
+                continue;
+
+            if (node2->input(0) != node->output(0) || node3->input(0) != node2->output(0))
+                continue;
+
+            std::string direction = get_node_attr_s(*node, "direction");
+            if (direction != "bidirectional")
+                continue;
+
+            // 0 2 1 3
+            std::vector<int> perm = get_node_attr_ai(*node2, "perm");
+            if (perm.size() != 4)
+                continue;
+
+            if (perm[0] != 0 || perm[1] != 2 || perm[2] != 1 || perm[3] != 3)
+                continue;
+
+            std::vector<int> shape;
+            if (node3->input_size() == 1)
+            {
+                shape = get_node_attr_ai(*node3, "shape");
+            }
+            else
+            {
+                // skip weight reshape
+                if (weights.find(node3->input(1)) == weights.end())
+                    continue;
+
+                shape = get_node_attr_from_input_ai(weights[node3->input(1)]);
+            }
+
+            // 0 0 -1
+            if (shape.size() != 3)
+                continue;
+
+            if (shape[0] != 0 || shape[1] != 0 || shape[2] != -1)
+                continue;
+
+            // reduce
+            node2->set_op_type("noop_reducedncnn");
+            node3->set_op_type("noop_reducedncnn");
+
+            node_reference[node->output(0)] -= 1;
+            node_reference[node2->output(0)] -= 1;
+            if (node3->input_size() == 2)
+            {
+                node_reference[node3->input(1)] -= 1;
+            }
+
+            blob_names.erase(node->output(0));
+            if (node->output_size() > 1)
+            {
+                for (int j = 1; j < node->output_size(); j++)
+                {
+                    blob_names.erase(node->output(j));
+                }
+            }
+            blob_names.erase(node2->output(0));
+
+            node->clear_output();
+            node->add_output(node3->output(0));
+
+            reduced_node_count += 2;
+            i += 2;
+
+            if (i + 1 < node_count)
+            {
+                if (node_reference[node3->output(0)] != 1)
+                    continue;
+
+                onnx::NodeProto* node4 = mutable_graph->mutable_node(i + 1);
+
+                if (node4->op_type() != "Transpose")
+                    continue;
+
+                if (node4->input(0) != node->output(0))
+                    continue;
+
+                // 1 0 2
+                std::vector<int> perm4 = get_node_attr_ai(*node4, "perm");
+                if (perm4.size() != 3)
+                    continue;
+
+                if (perm4[0] != 1 || perm4[1] != 0 || perm4[2] != 2)
+                    continue;
+
+                // reduce
+                node4->set_op_type("noop_reducedncnn");
+
+                node_reference[node->output(0)] -= 1;
+
+                blob_names.erase(node->output(0));
+
+                node->clear_output();
+                node->add_output(node4->output(0));
+
+                reduced_node_count += 1;
+                i += 1;
+            }
+        }
+    }
+
+    for (int i = 0; i < node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // LSTM(uni) <= LSTM(uni) - Squeeze - Transpose
+        if (node->op_type() == "LSTM" || node->op_type() == "GRU" || node->op_type() == "RNN")
+        {
+            if (node_reference[node->output(0)] != 1)
+                continue;
+
+            if (i + 1 >= node_count)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i + 1);
+
+            if (node2->op_type() != "Squeeze")
+                continue;
+
+            if (node2->input(0) != node->output(0))
+                continue;
+
+            std::string direction = get_node_attr_s(*node, "direction");
+            if (direction == "bidirectional")
+                continue;
+
+            // 1
+            std::vector<int> axes = get_node_attr_ai(*node2, "axes");
+            if (axes.size() != 1)
+                continue;
+
+            if (axes[0] != 1)
+                continue;
+
+            // reduce
+            node2->set_op_type("noop_reducedncnn");
+
+            node_reference[node->output(0)] -= 1;
+
+            blob_names.erase(node->output(0));
+            if (node->output_size() > 1)
+            {
+                for (int j = 1; j < node->output_size(); j++)
+                {
+                    blob_names.erase(node->output(j));
+                }
+            }
+
+            node->clear_output();
+            node->add_output(node2->output(0));
+
+            reduced_node_count += 1;
+            i += 1;
+
+            if (i + 1 < node_count)
+            {
+                if (node_reference[node2->output(0)] != 1)
+                    continue;
+
+                onnx::NodeProto* node3 = mutable_graph->mutable_node(i + 1);
+
+                if (node3->op_type() != "Transpose")
+                    continue;
+
+                if (node3->input(0) != node->output(0))
+                    continue;
+
+                // 1 0 2
+                std::vector<int> perm4 = get_node_attr_ai(*node3, "perm");
+                if (perm4.size() != 3)
+                    continue;
+
+                if (perm4[0] != 1 || perm4[1] != 0 || perm4[2] != 2)
+                    continue;
+
+                // reduce
+                node3->set_op_type("noop_reducedncnn");
+
+                node_reference[node->output(0)] -= 1;
+
+                blob_names.erase(node->output(0));
+
+                node->clear_output();
+                node->add_output(node3->output(0));
+
+                reduced_node_count += 1;
+                i += 1;
+            }
+        }
+    }
+
+    for (int i = 0; i < node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // LSTM <= Transpose - LSTM
         if (node->op_type() == "Transpose")
         {
             if (node_reference[node->output(0)] != 1)
@@ -1845,104 +2057,28 @@ static void fuse_bilstm(onnx::GraphProto* mutable_graph, std::map<std::string, o
             if (perm[0] != 1 || perm[1] != 0 || perm[2] != 2)
                 continue;
 
-            if (i + 4 >= node_count)
+            if (i + 1 >= node_count)
                 continue;
 
             onnx::NodeProto* node2 = mutable_graph->mutable_node(i + 1);
-            onnx::NodeProto* node3 = mutable_graph->mutable_node(i + 2);
-            onnx::NodeProto* node4 = mutable_graph->mutable_node(i + 3);
-            onnx::NodeProto* node5 = mutable_graph->mutable_node(i + 4);
 
-            if (node2->op_type() != "LSTM" || node3->op_type() != "Transpose" || node4->op_type() != "Reshape" || node5->op_type() != "Transpose")
+            if (node2->op_type() != "LSTM" && node->op_type() != "GRU" && node->op_type() != "RNN")
                 continue;
 
-            if (node_reference[node2->output(0)] != 1)
-                continue;
-
-            if (node_reference[node3->output(0)] != 1)
-                continue;
-
-            if (node_reference[node4->output(0)] != 1)
-                continue;
-
-            if (node2->input(0) != node->output(0) || node3->input(0) != node2->output(0) || node4->input(0) != node3->output(0)
-                    || node5->input(0) != node4->output(0))
-                continue;
-
-            std::string direction = get_node_attr_s(*node2, "direction");
-            if (direction != "bidirectional")
-                continue;
-
-            // 0 2 1 3
-            std::vector<int> perm3 = get_node_attr_ai(*node3, "perm");
-            if (perm3.size() != 4)
-                continue;
-
-            if (perm3[0] != 0 || perm3[1] != 2 || perm3[2] != 1 || perm3[3] != 3)
-                continue;
-
-            std::vector<int> shape;
-            if (node4->input_size() == 1)
-            {
-                shape = get_node_attr_ai(*node4, "shape");
-            }
-            else
-            {
-                // skip weight reshape
-                if (weights.find(node4->input(1)) == weights.end())
-                    continue;
-
-                shape = get_node_attr_from_input_ai(weights[node4->input(1)]);
-            }
-
-            // 0 0 -1
-            if (shape.size() != 3)
-                continue;
-
-            if (shape[0] != 0 || shape[1] != 0 || shape[2] != -1)
-                continue;
-
-            // 1 0 2
-            std::vector<int> perm5 = get_node_attr_ai(*node5, "perm");
-            if (perm5.size() != 3)
-                continue;
-
-            if (perm5[0] != 1 || perm5[1] != 0 || perm5[2] != 2)
+            if (node2->input(0) != node->output(0))
                 continue;
 
             // reduce
             node->set_op_type("noop_reducedncnn");
-            node3->set_op_type("noop_reducedncnn");
-            node4->set_op_type("noop_reducedncnn");
-            node5->set_op_type("noop_reducedncnn");
 
             node_reference[node->output(0)] -= 1;
-            node_reference[node2->output(0)] -= 1;
-            node_reference[node3->output(0)] -= 1;
-            node_reference[node4->output(0)] -= 1;
-            if (node4->input_size() == 2)
-            {
-                node_reference[node4->input(1)] -= 1;
-            }
 
             blob_names.erase(node->output(0));
-            blob_names.erase(node2->output(0));
-            blob_names.erase(node3->output(0));
-            blob_names.erase(node4->output(0));
-            if (node2->output_size() > 1)
-            {
-                for (int j = 1; j < node2->output_size(); j++)
-                {
-                    blob_names.erase(node2->output(j));
-                }
-            }
 
             node2->set_input(0, node->input(0));
-            node2->clear_output();
-            node2->add_output(node5->output(0));
 
-            reduced_node_count += 4;
-            i += 4;
+            reduced_node_count += 1;
+            i += 1;
         }
     }
 }
@@ -2081,7 +2217,7 @@ int main(int argc, char** argv)
     fuse_pixelshuffle(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_reorg(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_expand_broadcast(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
-    fuse_bilstm(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
+    fuse_lstm_gru_rnn(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
 
     // reduce common const weight node_reference
     for (int i = 0; i < node_count; i++)
@@ -2152,6 +2288,13 @@ int main(int argc, char** argv)
                 node_reference[node.input(2)] -= 1;
             }
         }
+        else if (op == "GRU")
+        {
+            for (int j = 1; j < node.input_size(); j++)
+            {
+                node_reference[node.input(j)] -= 1;
+            }
+        }
         else if (op == "InstanceNormalization")
         {
             node_reference[node.input(1)] -= 1;
@@ -2206,6 +2349,13 @@ int main(int argc, char** argv)
                 {
                     node_reference[node.input(3)] -= 1;
                 }
+            }
+        }
+        else if (op == "RNN")
+        {
+            for (int j = 1; j < node.input_size(); j++)
+            {
+                node_reference[node.input(j)] -= 1;
             }
         }
         else if (op == "Slice")
@@ -2564,6 +2714,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "GroupNorm");
         }
+        else if (op == "GRU")
+        {
+            fprintf(pp, "%-16s", "GRU");
+        }
         else if (op == "HardSigmoid")
         {
             fprintf(pp, "%-16s", "HardSigmoid");
@@ -2662,6 +2816,10 @@ int main(int argc, char** argv)
         else if (op == "Reshape")
         {
             fprintf(pp, "%-16s", "Reshape");
+        }
+        else if (op == "RNN")
+        {
+            fprintf(pp, "%-16s", "RNN");
         }
         else if (op == "ShuffleChannel")
         {
@@ -3330,6 +3488,140 @@ int main(int argc, char** argv)
                 fwrite_tensor_proto_data(B, bp);
             }
         }
+        else if (op == "GRU")
+        {
+            const onnx::TensorProto& W = weights[node.input(1)];
+            const onnx::TensorProto& R = weights[node.input(2)];
+            const onnx::TensorProto& B = weights[node.input(3)];
+
+            int hidden_size = get_node_attr_i(node, "hidden_size", 0);
+            std::string direction = get_node_attr_s(node, "direction");
+
+            int direction_type = 0;
+            if (direction == "forward")
+            {
+                direction_type = 0;
+            }
+            else if (direction == "reverse")
+            {
+                direction_type = 1;
+            }
+            else if (direction == "bidirectional")
+            {
+                direction_type = 2;
+            }
+
+            int weight_data_size = get_tensor_proto_data_size(W);
+
+            fprintf(pp, " 0=%d", hidden_size);
+            fprintf(pp, " 1=%d", weight_data_size);
+            fprintf(pp, " 2=%d", direction_type);
+
+            int num_directions = direction_type == 2 ? 2 : 1;
+
+            int quantize_tag = 0;
+
+            // reorder num_directions-URN-hidden-size to num_directions-RUN-hidden-size
+            {
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                int weight_data_size_g = get_tensor_proto_data_size(W) / 3 / num_directions;
+                const float* wptr = W.has_raw_data() ? (const float*)W.raw_data().data() : W.float_data().data();
+
+                const float* uptr = wptr;
+                const float* rptr = wptr + weight_data_size_g;
+                const float* nptr = wptr + weight_data_size_g * 2;
+                fwrite(rptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(uptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(nptr, sizeof(float), weight_data_size_g, bp);
+
+                if (direction_type == 2)
+                {
+                    uptr += weight_data_size_g * 3;
+                    rptr += weight_data_size_g * 3;
+                    nptr += weight_data_size_g * 3;
+                    fwrite(rptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(uptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(nptr, sizeof(float), weight_data_size_g, bp);
+                }
+            }
+
+            // reduce U and R bias except N
+            // reorder num_directions-URN-hidden to num_directions-RUN-hidden
+            {
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                int bias_data_size_g = get_tensor_proto_data_size(B) / 2 / 3 / num_directions;
+                const float* bptr = B.has_raw_data() ? (const float*)B.raw_data().data() : B.float_data().data();
+                const float* wuptr = bptr;
+                const float* wrptr = bptr + bias_data_size_g;
+                const float* wnptr = bptr + bias_data_size_g * 2;
+                const float* buptr = bptr + bias_data_size_g * 3;
+                const float* brptr = bptr + bias_data_size_g * 4;
+                const float* bnptr = bptr + bias_data_size_g * 5;
+
+                for (int j = 0; j < bias_data_size_g; j++)
+                {
+                    float vb = wrptr[j] + brptr[j];
+                    fwrite(&vb, sizeof(float), 1, bp);
+                }
+                for (int j = 0; j < bias_data_size_g; j++)
+                {
+                    float vb = wuptr[j] + buptr[j];
+                    fwrite(&vb, sizeof(float), 1, bp);
+                }
+                fwrite(wnptr, sizeof(float), bias_data_size_g, bp);
+                fwrite(bnptr, sizeof(float), bias_data_size_g, bp);
+
+                if (direction_type == 2)
+                {
+                    wuptr += bias_data_size_g * 6;
+                    wrptr += bias_data_size_g * 6;
+                    wnptr += bias_data_size_g * 6;
+                    buptr += bias_data_size_g * 6;
+                    brptr += bias_data_size_g * 6;
+                    bnptr += bias_data_size_g * 6;
+
+                    for (int j = 0; j < bias_data_size_g; j++)
+                    {
+                        float vb = wrptr[j] + brptr[j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                    for (int j = 0; j < bias_data_size_g; j++)
+                    {
+                        float vb = wuptr[j] + buptr[j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                    fwrite(wnptr, sizeof(float), bias_data_size_g, bp);
+                    fwrite(bnptr, sizeof(float), bias_data_size_g, bp);
+                }
+            }
+
+            // reorder num_directions-URN-hidden-hidden to num_directions-RUN-hidden-hidden
+            {
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                int weight_data_size_g = get_tensor_proto_data_size(R) / 3 / num_directions;
+                const float* Rptr = R.has_raw_data() ? (const float*)R.raw_data().data() : R.float_data().data();
+
+                const float* uptr = Rptr;
+                const float* rptr = Rptr + weight_data_size_g;
+                const float* nptr = Rptr + weight_data_size_g * 2;
+                fwrite(rptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(uptr, sizeof(float), weight_data_size_g, bp);
+                fwrite(nptr, sizeof(float), weight_data_size_g, bp);
+
+                if (direction_type == 2)
+                {
+                    uptr += weight_data_size_g * 3;
+                    rptr += weight_data_size_g * 3;
+                    nptr += weight_data_size_g * 3;
+                    fwrite(rptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(uptr, sizeof(float), weight_data_size_g, bp);
+                    fwrite(nptr, sizeof(float), weight_data_size_g, bp);
+                }
+            }
+        }
         else if (op == "HardSigmoid")
         {
             float alpha = get_node_attr_f(node, "alpha", 0.2f);
@@ -3960,6 +4252,73 @@ int main(int argc, char** argv)
             fprintf(pp, " 4=%d", output_width);
             fprintf(pp, " 6=%d", align_corner);
         }
+        else if (op == "RNN")
+        {
+            const onnx::TensorProto& W = weights[node.input(1)];
+            const onnx::TensorProto& R = weights[node.input(2)];
+            const onnx::TensorProto& B = weights[node.input(3)];
+
+            int hidden_size = get_node_attr_i(node, "hidden_size", 0);
+            std::string direction = get_node_attr_s(node, "direction");
+
+            int direction_type = 0;
+            if (direction == "forward")
+            {
+                direction_type = 0;
+            }
+            else if (direction == "reverse")
+            {
+                direction_type = 1;
+            }
+            else if (direction == "bidirectional")
+            {
+                direction_type = 2;
+            }
+
+            int weight_data_size = get_tensor_proto_data_size(W);
+
+            fprintf(pp, " 0=%d", hidden_size);
+            fprintf(pp, " 1=%d", weight_data_size);
+            fprintf(pp, " 2=%d", direction_type);
+
+            int num_directions = direction_type == 2 ? 2 : 1;
+
+            int quantize_tag = 0;
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+            fwrite_tensor_proto_data(W, bp);
+
+            // reduce xc and hc bias
+            {
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+                int bias_data_size_g = get_tensor_proto_data_size(B) / 2 / num_directions;
+                const float* bptr = B.has_raw_data() ? (const float*)B.raw_data().data() : B.float_data().data();
+                const float* xiptr = bptr;
+                const float* hiptr = bptr + bias_data_size_g;
+
+                for (int j = 0; j < bias_data_size_g; j++)
+                {
+                    float vb = xiptr[j] + hiptr[j];
+                    fwrite(&vb, sizeof(float), 1, bp);
+                }
+
+                if (direction_type == 2)
+                {
+                    xiptr += bias_data_size_g * 2;
+                    hiptr += bias_data_size_g * 2;
+
+                    for (int j = 0; j < bias_data_size_g; j++)
+                    {
+                        float vb = xiptr[j] + hiptr[j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                }
+            }
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+            fwrite_tensor_proto_data(R, bp);
+        }
         else if (op == "ShuffleChannel")
         {
             int group = get_node_attr_i(node, "group", 1);
@@ -4143,6 +4502,10 @@ int main(int argc, char** argv)
                 if (perm[1] == 1 && perm[2] == 2)
                     fprintf(pp, " 0=0"); // w h
                 else if (perm[1] == 2 && perm[2] == 1)
+                    fprintf(pp, " 0=1"); // h w
+                else if (perm[0] == 1 && perm[1] == 0 && perm[2] == 2)
+                    fprintf(pp, " 0=0"); // w h
+                else if (perm[0] == 2 && perm[1] == 0 && perm[2] == 1)
                     fprintf(pp, " 0=1"); // h w
             }
             else if (perm.size() == 4)

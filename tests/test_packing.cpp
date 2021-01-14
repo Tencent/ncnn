@@ -547,7 +547,7 @@ static int test_packing_0()
 
 static int test_packing_1()
 {
-    ncnn::Mat a = RandomMat(9, 16);
+    ncnn::Mat a = RandomMat(19, 16);
 
     return 0
            || test_packing_cpu(a, 1, 1)
@@ -602,7 +602,7 @@ static int test_packing_1()
 
 static int test_packing_2()
 {
-    ncnn::Mat a = RandomMat(40);
+    ncnn::Mat a = RandomMat(80);
 
     return 0
            || test_packing_cpu(a, 1, 1)
