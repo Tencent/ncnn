@@ -179,10 +179,17 @@ static int rnn(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
                 float32x4_t _weight_xc_1 = vld1q_f32(weight_xc_ptr + 4);
                 float32x4_t _weight_xc_2 = vld1q_f32(weight_xc_ptr + 8);
                 float32x4_t _weight_xc_3 = vld1q_f32(weight_xc_ptr + 12);
-                _H = vmlaq_laneq_f32(_H, _weight_xc, _x, 0);
-                _sum1 = vmlaq_laneq_f32(_sum1, _weight_xc_1, _x, 1);
-                _sum2 = vmlaq_laneq_f32(_sum2, _weight_xc_2, _x, 2);
-                _sum3 = vmlaq_laneq_f32(_sum3, _weight_xc_3, _x, 3);
+#if __aarch64__
+                _H = vfmaq_laneq_f32(_H, _weight_xc, _x, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _weight_xc_1, _x, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _weight_xc_2, _x, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _weight_xc_3, _x, 3);
+#else
+                _H = vmlaq_lane_f32(_H, _weight_xc, vget_low_f32(_x), 0);
+                _sum1 = vmlaq_lane_f32(_sum1, _weight_xc_1, vget_low_f32(_x), 1);
+                _sum2 = vmlaq_lane_f32(_sum2, _weight_xc_2, vget_high_f32(_x), 0);
+                _sum3 = vmlaq_lane_f32(_sum3, _weight_xc_3, vget_high_f32(_x), 1);
+#endif
 
                 weight_xc_ptr += 16;
             }
@@ -203,10 +210,17 @@ static int rnn(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
                 float32x4_t _weight_hc_1 = vld1q_f32(weight_hc_ptr + 4);
                 float32x4_t _weight_hc_2 = vld1q_f32(weight_hc_ptr + 8);
                 float32x4_t _weight_hc_3 = vld1q_f32(weight_hc_ptr + 12);
-                _H = vmlaq_laneq_f32(_H, _weight_hc, _hidden_state, 0);
-                _sum1 = vmlaq_laneq_f32(_sum1, _weight_hc_1, _hidden_state, 1);
-                _sum2 = vmlaq_laneq_f32(_sum2, _weight_hc_2, _hidden_state, 2);
-                _sum3 = vmlaq_laneq_f32(_sum3, _weight_hc_3, _hidden_state, 3);
+#if __aarch64__
+                _H = vfmaq_laneq_f32(_H, _weight_hc, _hidden_state, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _weight_hc_1, _hidden_state, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _weight_hc_2, _hidden_state, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _weight_hc_3, _hidden_state, 3);
+#else
+                _H = vmlaq_lane_f32(_H, _weight_hc, vget_low_f32(_hidden_state), 0);
+                _sum1 = vmlaq_lane_f32(_sum1, _weight_hc_1, vget_low_f32(_hidden_state), 1);
+                _sum2 = vmlaq_lane_f32(_sum2, _weight_hc_2, vget_high_f32(_hidden_state), 0);
+                _sum3 = vmlaq_lane_f32(_sum3, _weight_hc_3, vget_high_f32(_hidden_state), 1);
+#endif
 
                 weight_hc_ptr += 16;
             }
@@ -1095,10 +1109,17 @@ static int rnn_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
                 float32x4_t _weight_xc_1 = vcvt_f32_bf16(vld1_u16(weight_xc_ptr + 4));
                 float32x4_t _weight_xc_2 = vcvt_f32_bf16(vld1_u16(weight_xc_ptr + 8));
                 float32x4_t _weight_xc_3 = vcvt_f32_bf16(vld1_u16(weight_xc_ptr + 12));
-                _H = vmlaq_laneq_f32(_H, _weight_xc, _x, 0);
-                _sum1 = vmlaq_laneq_f32(_sum1, _weight_xc_1, _x, 1);
-                _sum2 = vmlaq_laneq_f32(_sum2, _weight_xc_2, _x, 2);
-                _sum3 = vmlaq_laneq_f32(_sum3, _weight_xc_3, _x, 3);
+#if __aarch64__
+                _H = vfmaq_laneq_f32(_H, _weight_xc, _x, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _weight_xc_1, _x, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _weight_xc_2, _x, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _weight_xc_3, _x, 3);
+#else
+                _H = vmlaq_lane_f32(_H, _weight_xc, vget_low_f32(_x), 0);
+                _sum1 = vmlaq_lane_f32(_sum1, _weight_xc_1, vget_low_f32(_x), 1);
+                _sum2 = vmlaq_lane_f32(_sum2, _weight_xc_2, vget_high_f32(_x), 0);
+                _sum3 = vmlaq_lane_f32(_sum3, _weight_xc_3, vget_high_f32(_x), 1);
+#endif
 
                 weight_xc_ptr += 16;
             }
@@ -1119,10 +1140,17 @@ static int rnn_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
                 float32x4_t _weight_hc_1 = vcvt_f32_bf16(vld1_u16(weight_hc_ptr + 4));
                 float32x4_t _weight_hc_2 = vcvt_f32_bf16(vld1_u16(weight_hc_ptr + 8));
                 float32x4_t _weight_hc_3 = vcvt_f32_bf16(vld1_u16(weight_hc_ptr + 12));
-                _H = vmlaq_laneq_f32(_H, _weight_hc, _hidden_state, 0);
-                _sum1 = vmlaq_laneq_f32(_sum1, _weight_hc_1, _hidden_state, 1);
-                _sum2 = vmlaq_laneq_f32(_sum2, _weight_hc_2, _hidden_state, 2);
-                _sum3 = vmlaq_laneq_f32(_sum3, _weight_hc_3, _hidden_state, 3);
+#if __aarch64__
+                _H = vfmaq_laneq_f32(_H, _weight_hc, _hidden_state, 0);
+                _sum1 = vfmaq_laneq_f32(_sum1, _weight_hc_1, _hidden_state, 1);
+                _sum2 = vfmaq_laneq_f32(_sum2, _weight_hc_2, _hidden_state, 2);
+                _sum3 = vfmaq_laneq_f32(_sum3, _weight_hc_3, _hidden_state, 3);
+#else
+                _H = vmlaq_lane_f32(_H, _weight_hc, vget_low_f32(_hidden_state), 0);
+                _sum1 = vmlaq_lane_f32(_sum1, _weight_hc_1, vget_low_f32(_hidden_state), 1);
+                _sum2 = vmlaq_lane_f32(_sum2, _weight_hc_2, vget_high_f32(_hidden_state), 0);
+                _sum3 = vmlaq_lane_f32(_sum3, _weight_hc_3, vget_high_f32(_hidden_state), 1);
+#endif
 
                 weight_hc_ptr += 16;
             }
