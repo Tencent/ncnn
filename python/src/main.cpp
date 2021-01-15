@@ -883,8 +883,8 @@ PYBIND11_MODULE(ncnn, m)
 
     .def("clear", &Net::clear)
     .def("create_extractor", &Net::create_extractor)
-    .def("blobs", &Net::blobs)
-    .def("layers", &Net::layers);
+    .def("blobs", &Net::blobs, py::return_value_policy::reference_internal)
+    .def("layers", &Net::layers, py::return_value_policy::reference_internal);
 
     py::enum_<ncnn::BorderType>(m, "BorderType")
     .value("BORDER_CONSTANT", ncnn::BorderType::BORDER_CONSTANT)
