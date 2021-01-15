@@ -3682,6 +3682,8 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 6=%d", per_channel_pad_data_size)
             fprintf_param_value(" 7=%d", front)
             fprintf_param_value(" 8=%d", behind)
+
+            fwrite_weight_data(op->per_channel_pad_data, bp);
         }
         else if (layer->type == "Permute")
         {
