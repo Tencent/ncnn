@@ -47,6 +47,7 @@
 #include "layer/flatten.h"
 #include "layer/gemm.h"
 #include "layer/groupnorm.h"
+#include "layer/gru.h"
 #include "layer/hardsigmoid.h"
 #include "layer/hardswish.h"
 #include "layer/innerproduct.h"
@@ -74,6 +75,7 @@
 #include "layer/reorg.h"
 #include "layer/requantize.h"
 #include "layer/reshape.h"
+#include "layer/rnn.h"
 #include "layer/roialign.h"
 #include "layer/roipooling.h"
 #include "layer/scale.h"
@@ -3512,6 +3514,19 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->gamma_data, bp);
             fwrite_weight_data(op->beta_data, bp);
         }
+        else if (layer->type == "GRU")
+        {
+            ncnn::GRU* op = (ncnn::GRU*)layer;
+            ncnn::GRU* op_default = (ncnn::GRU*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", weight_data_size)
+            fprintf_param_value(" 2=%d", direction)
+
+            fwrite_weight_tag_data(0, op->weight_xc_data, bp);
+            fwrite_weight_tag_data(0, op->bias_c_data, bp);
+            fwrite_weight_tag_data(0, op->weight_hc_data, bp);
+        }
         else if (layer->type == "HardSigmoid")
         {
             ncnn::HardSigmoid* op = (ncnn::HardSigmoid*)layer;
@@ -3837,6 +3852,19 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", h)
             fprintf_param_value(" 2=%d", c)
             fprintf_param_value(" 3=%d", permute)
+        }
+        else if (layer->type == "RNN")
+        {
+            ncnn::RNN* op = (ncnn::RNN*)layer;
+            ncnn::RNN* op_default = (ncnn::RNN*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", weight_data_size)
+            fprintf_param_value(" 2=%d", direction)
+
+            fwrite_weight_tag_data(0, op->weight_xc_data, bp);
+            fwrite_weight_tag_data(0, op->bias_c_data, bp);
+            fwrite_weight_tag_data(0, op->weight_hc_data, bp);
         }
         else if (layer->type == "ROIAlign")
         {
