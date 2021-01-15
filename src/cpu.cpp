@@ -28,7 +28,7 @@
 #endif
 #endif
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(_M_ARM64)
 #include <intrin.h>    // __cpuid()
 #include <immintrin.h> // _xgetbv()
 #endif
