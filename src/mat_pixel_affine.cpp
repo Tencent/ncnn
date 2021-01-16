@@ -222,6 +222,7 @@ static void resolve_boundary(int srcw, int srch, int w, int h, const float* tm, 
     }
 
     // resolve dst bounding box
+    float eps = 0.0001f;
     float dst_outer_x[4];
     float dst_outer_y[4];
     float dst_inner_x[4];
@@ -230,23 +231,23 @@ static void resolve_boundary(int srcw, int srch, int w, int h, const float* tm, 
         float tm_inv[6];
         invert_affine_transform(tm, tm_inv);
 
-        dst_outer_x[0] = tm_inv[0] * (-1) + tm_inv[1] * (-1) + tm_inv[2];
-        dst_outer_y[0] = tm_inv[3] * (-1) + tm_inv[4] * (-1) + tm_inv[5];
-        dst_outer_x[1] = tm_inv[0] * srcw + tm_inv[1] * (-1) + tm_inv[2];
-        dst_outer_y[1] = tm_inv[3] * srcw + tm_inv[4] * (-1) + tm_inv[5];
-        dst_outer_x[2] = tm_inv[0] * (-1) + tm_inv[1] * srch + tm_inv[2];
-        dst_outer_y[2] = tm_inv[3] * (-1) + tm_inv[4] * srch + tm_inv[5];
-        dst_outer_x[3] = tm_inv[0] * srcw + tm_inv[1] * srch + tm_inv[2];
-        dst_outer_y[3] = tm_inv[3] * srcw + tm_inv[4] * srch + tm_inv[5];
+        dst_outer_x[0] = tm_inv[0] * (-1 - eps) + tm_inv[1] * (-1 - eps) + tm_inv[2];
+        dst_outer_y[0] = tm_inv[3] * (-1 - eps) + tm_inv[4] * (-1 - eps) + tm_inv[5];
+        dst_outer_x[1] = tm_inv[0] * (srcw + eps) + tm_inv[1] * (-1 - eps) + tm_inv[2];
+        dst_outer_y[1] = tm_inv[3] * (srcw + eps) + tm_inv[4] * (-1 - eps) + tm_inv[5];
+        dst_outer_x[2] = tm_inv[0] * (-1 - eps) + tm_inv[1] * (srch + eps) + tm_inv[2];
+        dst_outer_y[2] = tm_inv[3] * (-1 - eps) + tm_inv[4] * (srch + eps) + tm_inv[5];
+        dst_outer_x[3] = tm_inv[0] * (srcw + eps) + tm_inv[1] * (srch + eps) + tm_inv[2];
+        dst_outer_y[3] = tm_inv[3] * (srcw + eps) + tm_inv[4] * (srch + eps) + tm_inv[5];
 
-        dst_inner_x[0] = tm_inv[2];
-        dst_inner_y[0] = tm_inv[5];
-        dst_inner_x[1] = tm_inv[0] * (srcw - 1) + tm_inv[2];
-        dst_inner_y[1] = tm_inv[3] * (srcw - 1) + tm_inv[5];
-        dst_inner_x[2] = tm_inv[1] * (srch - 1) + tm_inv[2];
-        dst_inner_y[2] = tm_inv[4] * (srch - 1) + tm_inv[5];
-        dst_inner_x[3] = tm_inv[0] * (srcw - 1) + tm_inv[1] * (srch - 1) + tm_inv[2];
-        dst_inner_y[3] = tm_inv[3] * (srcw - 1) + tm_inv[4] * (srch - 1) + tm_inv[5];
+        dst_inner_x[0] = tm_inv[0] * (0 + eps) + tm_inv[1] * (0 + eps) + tm_inv[2];
+        dst_inner_y[0] = tm_inv[3] * (0 + eps) + tm_inv[4] * (0 + eps) + tm_inv[5];
+        dst_inner_x[1] = tm_inv[0] * (srcw - 1 - eps) + tm_inv[1] * (0 + eps) + tm_inv[2];
+        dst_inner_y[1] = tm_inv[3] * (srcw - 1 - eps) + tm_inv[4] * (0 + eps) + tm_inv[5];
+        dst_inner_x[2] = tm_inv[0] * (0 + eps) + tm_inv[1] * (srch - 1 - eps) + tm_inv[2];
+        dst_inner_y[2] = tm_inv[3] * (0 + eps) + tm_inv[4] * (srch - 1 - eps) + tm_inv[5];
+        dst_inner_x[3] = tm_inv[0] * (srcw - 1 - eps) + tm_inv[1] * (srch - 1 - eps) + tm_inv[2];
+        dst_inner_y[3] = tm_inv[3] * (srcw - 1 - eps) + tm_inv[4] * (srch - 1 - eps) + tm_inv[5];
     }
 
     // sort by y
@@ -303,6 +304,16 @@ static void resolve_boundary(int srcw, int srch, int w, int h, const float* tm, 
     float dst_inner_right_x = dst_inner_x[3];
     float dst_inner_right_y = dst_inner_y[3];
 
+    //     fprintf(stderr, "To %f %f\n", dst_outer_top_x, dst_outer_top_y);
+    //     fprintf(stderr, "Bo %f %f\n", dst_outer_bottom_x, dst_outer_bottom_y);
+    //     fprintf(stderr, "Lo %f %f\n", dst_outer_left_x, dst_outer_left_y);
+    //     fprintf(stderr, "Ro %f %f\n", dst_outer_right_x, dst_outer_right_y);
+    //
+    //     fprintf(stderr, "Ti %f %f\n", dst_inner_top_x, dst_inner_top_y);
+    //     fprintf(stderr, "Bi %f %f\n", dst_inner_bottom_x, dst_inner_bottom_y);
+    //     fprintf(stderr, "Li %f %f\n", dst_inner_left_x, dst_inner_left_y);
+    //     fprintf(stderr, "Ri %f %f\n", dst_inner_right_x, dst_inner_right_y);
+
     // assign start end
     y_bound.start_outer = std::min(std::max((int)floor(dst_outer_top_y), 0), h);
     y_bound.start_inner = std::min(std::max((int)ceil(dst_inner_top_y), 0), h);
@@ -335,16 +346,28 @@ static void resolve_boundary(int srcw, int srch, int w, int h, const float* tm, 
             for (; y < std::min(dst_outer_left_y, (float)y_end); y++)
             {
                 int start_outer = floor((dst_outer_left_y - (y + 1)) / (dst_outer_left_y - dst_outer_top_y) * (dst_outer_top_x - dst_outer_left_x) + dst_outer_left_x);
-                int start_inner = ceil((dst_inner_left_y - y) / (dst_inner_left_y - dst_inner_top_y) * (dst_inner_top_x - dst_inner_left_x) + dst_inner_left_x);
                 x_bounds[y - y_start].start_outer = std::min(std::max(start_outer, 0), w);
-                x_bounds[y - y_start].start_inner = std::min(std::max(start_inner, 0), w);
             }
         }
         for (; y < y_end; y++)
         {
             int start_outer = floor((y - dst_outer_left_y) / (dst_outer_bottom_y - dst_outer_left_y) * (dst_outer_bottom_x - dst_outer_left_x) + dst_outer_left_x);
-            int start_inner = ceil(((y + 1) - dst_inner_left_y) / (dst_inner_bottom_y - dst_inner_left_y) * (dst_inner_bottom_x - dst_inner_left_x) + dst_inner_left_x);
             x_bounds[y - y_start].start_outer = std::min(std::max(start_outer, 0), w);
+        }
+    }
+    {
+        int y = y_start;
+        if (dst_inner_left_y > y_start)
+        {
+            for (; y < std::min(dst_inner_left_y, (float)y_end); y++)
+            {
+                int start_inner = ceil((dst_inner_left_y - y) / (dst_inner_left_y - dst_inner_top_y) * (dst_inner_top_x - dst_inner_left_x) + dst_inner_left_x);
+                x_bounds[y - y_start].start_inner = std::min(std::max(start_inner, 0), w);
+            }
+        }
+        for (; y < y_end; y++)
+        {
+            int start_inner = ceil(((y + 1) - dst_inner_left_y) / (dst_inner_bottom_y - dst_inner_left_y) * (dst_inner_bottom_x - dst_inner_left_x) + dst_inner_left_x);
             x_bounds[y - y_start].start_inner = std::min(std::max(start_inner, 0), w);
         }
     }
@@ -355,16 +378,28 @@ static void resolve_boundary(int srcw, int srch, int w, int h, const float* tm, 
             for (; y < std::min(dst_outer_right_y, (float)y_end); y++)
             {
                 int end_outer = ceil(dst_outer_right_x - (dst_outer_right_y - (y + 1)) / (dst_outer_right_y - dst_outer_top_y) * (dst_outer_right_x - dst_outer_top_x));
-                int end_inner = floor(dst_inner_right_x - (dst_inner_right_y - y) / (dst_inner_right_y - dst_inner_top_y) * (dst_inner_right_x - dst_inner_top_x));
                 x_bounds[y - y_start].end_outer = std::min(std::max(end_outer, 0), w);
-                x_bounds[y - y_start].end_inner = std::min(std::max(end_inner, 0), w);
             }
         }
         for (; y < y_end; y++)
         {
             int end_outer = ceil(dst_outer_right_x - (y - dst_outer_right_y) / (dst_outer_bottom_y - dst_outer_right_y) * (dst_outer_right_x - dst_outer_bottom_x));
-            int end_inner = floor(dst_inner_right_x - ((y + 1) - dst_inner_right_y) / (dst_inner_bottom_y - dst_inner_right_y) * (dst_inner_right_x - dst_inner_bottom_x));
             x_bounds[y - y_start].end_outer = std::min(std::max(end_outer, 0), w);
+        }
+    }
+    {
+        int y = y_start;
+        if (dst_inner_right_y > y_start)
+        {
+            for (; y < std::min(dst_inner_right_y, (float)y_end); y++)
+            {
+                int end_inner = floor(dst_inner_right_x - (dst_inner_right_y - y) / (dst_inner_right_y - dst_inner_top_y) * (dst_inner_right_x - dst_inner_top_x));
+                x_bounds[y - y_start].end_inner = std::min(std::max(end_inner, 0), w);
+            }
+        }
+        for (; y < y_end; y++)
+        {
+            int end_inner = floor(dst_inner_right_x - ((y + 1) - dst_inner_right_y) / (dst_inner_bottom_y - dst_inner_right_y) * (dst_inner_right_x - dst_inner_bottom_x));
             x_bounds[y - y_start].end_inner = std::min(std::max(end_inner, 0), w);
         }
     }
