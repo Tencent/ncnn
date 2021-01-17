@@ -405,9 +405,6 @@ static void resolve_boundary(int srcw, int srch, int w, int h, const float* tm, 
     }
 }
 
-#define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X), SHRT_MIN), SHRT_MAX)
-#define SATURATE_CAST_INT(X)   (int)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), INT_MIN), INT_MAX)
-
 void warpaffine_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int type, unsigned int v)
 {
     const unsigned char* border_color = (const unsigned char*)&v;
@@ -415,6 +412,9 @@ void warpaffine_bilinear_c1(const unsigned char* src, int srcw, int srch, int sr
 
     const unsigned char* src0 = src;
     unsigned char* dst0 = dst;
+
+#define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X), SHRT_MIN), SHRT_MAX)
+#define SATURATE_CAST_INT(X)   (int)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), INT_MIN), INT_MAX)
 
     std::vector<int> adelta(w);
     std::vector<int> bdelta(w);
@@ -1024,6 +1024,9 @@ void warpaffine_bilinear_c1(const unsigned char* src, int srcw, int srch, int sr
 
         dst0 += wgap;
     }
+
+#undef SATURATE_CAST_SHORT
+#undef SATURATE_CAST_INT
 }
 
 void warpaffine_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int type, unsigned int v)
@@ -1033,6 +1036,9 @@ void warpaffine_bilinear_c2(const unsigned char* src, int srcw, int srch, int sr
 
     const unsigned char* src0 = src;
     unsigned char* dst0 = dst;
+
+#define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X), SHRT_MIN), SHRT_MAX)
+#define SATURATE_CAST_INT(X)   (int)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), INT_MIN), INT_MAX)
 
     std::vector<int> adelta(w);
     std::vector<int> bdelta(w);
@@ -1671,6 +1677,9 @@ void warpaffine_bilinear_c2(const unsigned char* src, int srcw, int srch, int sr
 
         dst0 += wgap;
     }
+
+#undef SATURATE_CAST_SHORT
+#undef SATURATE_CAST_INT
 }
 
 void warpaffine_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int type, unsigned int v)
@@ -1680,6 +1689,9 @@ void warpaffine_bilinear_c3(const unsigned char* src, int srcw, int srch, int sr
 
     const unsigned char* src0 = src;
     unsigned char* dst0 = dst;
+
+#define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X), SHRT_MIN), SHRT_MAX)
+#define SATURATE_CAST_INT(X)   (int)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), INT_MIN), INT_MAX)
 
     std::vector<int> adelta(w);
     std::vector<int> bdelta(w);
@@ -2346,6 +2358,9 @@ void warpaffine_bilinear_c3(const unsigned char* src, int srcw, int srch, int sr
 
         dst0 += wgap;
     }
+
+#undef SATURATE_CAST_SHORT
+#undef SATURATE_CAST_INT
 }
 
 void warpaffine_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int type, unsigned int v)
@@ -2355,6 +2370,9 @@ void warpaffine_bilinear_c4(const unsigned char* src, int srcw, int srch, int sr
 
     const unsigned char* src0 = src;
     unsigned char* dst0 = dst;
+
+#define SATURATE_CAST_SHORT(X) (short)::std::min(::std::max((int)(X), SHRT_MIN), SHRT_MAX)
+#define SATURATE_CAST_INT(X)   (int)::std::min(::std::max((int)(X + (X >= 0.f ? 0.5f : -0.5f)), INT_MIN), INT_MAX)
 
     std::vector<int> adelta(w);
     std::vector<int> bdelta(w);
@@ -3049,6 +3067,9 @@ void warpaffine_bilinear_c4(const unsigned char* src, int srcw, int srch, int sr
 
         dst0 += wgap;
     }
+
+#undef SATURATE_CAST_SHORT
+#undef SATURATE_CAST_INT
 }
 
 void warpaffine_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int type, unsigned int v)
@@ -3058,13 +3079,23 @@ void warpaffine_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, 
     // assert w % 2 == 0
     // assert h % 2 == 0
 
+    const unsigned char* border_color = (const unsigned char*)&v;
+
+    unsigned int v_y;
+    unsigned int v_uv;
+    unsigned char* border_color_y = (unsigned char*)&v_y;
+    unsigned char* border_color_uv = (unsigned char*)&v_uv;
+    border_color_y[0] = border_color[0];
+    border_color_uv[0] = border_color[1];
+    border_color_uv[1] = border_color[2];
+
     const unsigned char* srcY = src;
     unsigned char* dstY = dst;
-    warpaffine_bilinear_c1(srcY, srcw, srch, dstY, w, h, tm, type, v);
+    warpaffine_bilinear_c1(srcY, srcw, srch, dstY, w, h, tm, type, v_y);
 
     const unsigned char* srcUV = src + srcw * srch;
     unsigned char* dstUV = dst + w * h;
-    warpaffine_bilinear_c2(srcUV, srcw / 2, srch / 2, dstUV, w / 2, h / 2, tm, type, v);
+    warpaffine_bilinear_c2(srcUV, srcw / 2, srch / 2, dstUV, w / 2, h / 2, tm, type, v_uv);
 }
 #endif // NCNN_PIXEL_AFFINE
 
