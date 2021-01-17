@@ -1139,7 +1139,7 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
                 continue;
 
             if (node2->input(0) != node->output(0) || node3->input(0) != node2->output(0)
-                    || node4->input(0) != node->input(0) || node4->input(1) != node3->output(0))
+                || node4->input(0) != node->input(0) || node4->input(1) != node3->output(0))
                 continue;
 
             if (has_shape_node)
@@ -1258,7 +1258,7 @@ static void fuse_groupnorm(onnx::GraphProto* mutable_graph, std::map<std::string
                 continue;
 
             if (node2->input(0) != node->output(0) || node3->input(0) != node2->output(0)
-                    || node4->input(0) != node3->output(0) || node5->input(0) != node4->output(0))
+                || node4->input(0) != node3->output(0) || node5->input(0) != node4->output(0))
                 continue;
 
             // +eps
@@ -1416,7 +1416,7 @@ static void fuse_flatten(onnx::GraphProto* mutable_graph, std::map<std::string, 
             onnx::NodeProto* node7 = mutable_graph->mutable_node(i + 6);
 
             if (node2->op_type() != "Gather" || node3->op_type() != "Constant" || node4->op_type() != "Unsqueeze" || node5->op_type() != "Unsqueeze"
-                    || node6->op_type() != "Concat" || node7->op_type() != "Reshape")
+                || node6->op_type() != "Concat" || node7->op_type() != "Reshape")
                 continue;
 
             if (node_reference[node2->output(0)] != 1)
@@ -1435,8 +1435,8 @@ static void fuse_flatten(onnx::GraphProto* mutable_graph, std::map<std::string, 
                 continue;
 
             if (node2->input(0) != node->output(0) || node4->input(0) != node2->output(0) || node5->input(0) != node3->output(0)
-                    || node6->input(0) != node4->output(0) || node6->input(1) != node5->output(0)
-                    || node7->input(0) != node->input(0) || node7->input(1) != node6->output(0))
+                || node6->input(0) != node4->output(0) || node6->input(1) != node5->output(0)
+                || node7->input(0) != node->input(0) || node7->input(1) != node6->output(0))
                 continue;
 
             // axis = 0
@@ -2054,7 +2054,8 @@ static void fuse_lstm_gru_rnn(onnx::GraphProto* mutable_graph, std::map<std::str
     }
 }
 
-void convert(onnx::ModelProto model, FILE* pp, FILE* bp) {
+void convert(onnx::ModelProto model, FILE* pp, FILE* bp)
+{
     // magic
     fprintf(pp, "7767517\n");
 

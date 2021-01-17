@@ -352,7 +352,6 @@ static void parse_input_list(const char* s, std::vector<int>& inputs, std::vecto
 
 static bool read_mxnet_json(FILE* fp, std::vector<MXNetNode>& nodes)
 {
-
     int internal_unknown = 0;
     int internal_underscore = 0;
 
@@ -954,7 +953,8 @@ static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vecto
     }
 }
 
-void convert(FILE* mxnet_json, FILE* mxnet_param, FILE* pp, FILE* bp) {
+void convert(FILE* mxnet_json, FILE* mxnet_param, FILE* pp, FILE* bp)
+{
     std::vector<MXNetNode> nodes;
     std::vector<MXNetParam> params;
 
