@@ -350,14 +350,8 @@ static void parse_input_list(const char* s, std::vector<int>& inputs, std::vecto
     }
 }
 
-static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
+static bool read_mxnet_json(FILE* fp, std::vector<MXNetNode>& nodes)
 {
-    FILE* fp = fopen(jsonpath, "rb");
-    if (!fp)
-    {
-        fprintf(stderr, "fopen %s failed\n", jsonpath);
-        return false;
-    }
 
     int internal_unknown = 0;
     int internal_underscore = 0;
@@ -368,7 +362,7 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
     char* s = fgets(line, 1024, fp);
     if (!s)
     {
-        fprintf(stderr, "fgets %s failed\n", jsonpath);
+        fprintf(stderr, "fgets mxnet json failed\n");
         return false;
     }
 
@@ -593,15 +587,8 @@ static bool read_mxnet_json(const char* jsonpath, std::vector<MXNetNode>& nodes)
     return true;
 }
 
-static bool read_mxnet_param(const char* parampath, std::vector<MXNetParam>& params)
+static bool read_mxnet_param(FILE* fp, std::vector<MXNetParam>& params)
 {
-    FILE* fp = fopen(parampath, "rb");
-    if (!fp)
-    {
-        fprintf(stderr, "fopen %s failed\n", parampath);
-        return false;
-    }
-
     size_t nread;
     uint64_t header;
     uint64_t reserved;
@@ -967,21 +954,12 @@ static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vecto
     }
 }
 
-int main(int argc, char** argv)
-{
-    const char* jsonpath = argv[1];
-    const char* parampath = argv[2];
-    const char* ncnn_prototxt = argc >= 5 ? argv[3] : "ncnn.param";
-    const char* ncnn_modelbin = argc >= 5 ? argv[4] : "ncnn.bin";
-
+void convert(FILE* mxnet_json, FILE* mxnet_param, FILE* pp, FILE* bp) {
     std::vector<MXNetNode> nodes;
     std::vector<MXNetParam> params;
 
-    read_mxnet_json(jsonpath, nodes);
-    read_mxnet_param(parampath, params);
-
-    FILE* pp = fopen(ncnn_prototxt, "wb");
-    FILE* bp = fopen(ncnn_modelbin, "wb");
+    read_mxnet_json(mxnet_json, nodes);
+    read_mxnet_param(mxnet_param, params);
 
     // magic
     fprintf(pp, "7767517\n");
@@ -2744,9 +2722,4 @@ int main(int argc, char** argv)
             }
         }
     }
-
-    fclose(pp);
-    fclose(bp);
-
-    return 0;
 }
