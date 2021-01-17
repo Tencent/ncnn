@@ -12,22 +12,26 @@
 # CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
 
-import time
+import pytest
+
 import ncnn
 
-dr = ncnn.DataReaderFromEmpty()
 
-net = ncnn.Net()
-net.load_param("test.param")
-net.load_model(dr)
+def test_pool_allocator():
+    pa = ncnn.PoolAllocator()
+    assert pa is not None
+    pa.set_size_compare_ratio(0.5)
+    buf = pa.fastMalloc(10 * 1024)
+    assert buf is not None
+    pa.fastFree(buf)
+    pa.clear()
 
-in_mat = ncnn.Mat((227, 227, 3))
 
-start = time.time()
-
-ex = net.create_extractor()
-ex.input("data", in_mat)
-ret, out_mat = ex.extract("output")
-
-end = time.time()
-print("timespan = ", end - start)
+def test_unlocked_pool_allocator():
+    upa = ncnn.UnlockedPoolAllocator()
+    assert upa is not None
+    upa.set_size_compare_ratio(0.5)
+    buf = upa.fastMalloc(10 * 1024)
+    assert buf is not None
+    upa.fastFree(buf)
+    upa.clear()

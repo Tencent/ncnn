@@ -108,100 +108,319 @@ static int CompareNearlyEqual(const ncnn::Mat& a, const ncnn::Mat& b)
     return 0;
 }
 
-static int test_mat_pixel_affine_c1(int w, int h)
+static int test_mat_pixel_affine_a(int w, int h)
 {
-    ncnn::Mat a0 = RandomMat(w, h, 1);
-
-    float tm[6];
-    float tm_inv[6];
-    ncnn::get_rotation_matrix(10.f, 0.15f, w / 2, h / 2, tm);
-    ncnn::invert_affine_transform(tm, tm_inv);
-
-    ncnn::Mat a1(w / 2, h / 2, 1u, 1);
-    ncnn::Mat a2 = a0.clone();
-
-    ncnn::warpaffine_bilinear_c1(a0, w, h, a1, w / 2, h / 2, tm, 0);
-    ncnn::warpaffine_bilinear_c1(a1, w / 2, h / 2, a2, w, h, tm_inv, -233);
-
-    if (CompareNearlyEqual(a0, a2) != 0)
+    for (int c = 1; c <= 4; c++)
     {
-        fprintf(stderr, "test_mat_pixel_affine_c1 failed w=%d h=%d\n", w, h);
-        return -1;
+        ncnn::Mat a0 = RandomMat(w, h, c);
+
+        float tm[6];
+        float tm_inv[6];
+        ncnn::get_rotation_matrix(10.f, 0.15f, w / 2, h / 2, tm);
+        ncnn::invert_affine_transform(tm, tm_inv);
+
+        ncnn::Mat a1(w / 2, h / 2, (size_t)c, c);
+        ncnn::Mat a2 = a0.clone();
+
+        if (c == 1)
+        {
+            ncnn::warpaffine_bilinear_c1(a0, w, h, a1, w / 2, h / 2, tm, 0);
+            ncnn::warpaffine_bilinear_c1(a1, w / 2, h / 2, a2, w, h, tm_inv, -233);
+        }
+        if (c == 2)
+        {
+            ncnn::warpaffine_bilinear_c2(a0, w, h, a1, w / 2, h / 2, tm, 0);
+            ncnn::warpaffine_bilinear_c2(a1, w / 2, h / 2, a2, w, h, tm_inv, -233);
+        }
+        if (c == 3)
+        {
+            ncnn::warpaffine_bilinear_c3(a0, w, h, a1, w / 2, h / 2, tm, 0);
+            ncnn::warpaffine_bilinear_c3(a1, w / 2, h / 2, a2, w, h, tm_inv, -233);
+        }
+        if (c == 4)
+        {
+            ncnn::warpaffine_bilinear_c4(a0, w, h, a1, w / 2, h / 2, tm, 0);
+            ncnn::warpaffine_bilinear_c4(a1, w / 2, h / 2, a2, w, h, tm_inv, -233);
+        }
+
+        if (CompareNearlyEqual(a0, a2) != 0)
+        {
+            fprintf(stderr, "test_mat_pixel_affine_a failed w=%d h=%d c=%d\n", w, h, c);
+            return -1;
+        }
     }
 
     return 0;
 }
 
-static int test_mat_pixel_affine_c2(int w, int h)
+static int test_mat_pixel_affine_b(int w, int h)
 {
-    ncnn::Mat a0 = RandomMat(w, h, 2);
-
-    float tm[6];
-    float tm_inv[6];
-    ncnn::get_rotation_matrix(20.f, 0.25f, w / 4, h / 4, tm);
-    ncnn::invert_affine_transform(tm, tm_inv);
-
-    ncnn::Mat a1(w / 4, h / 4, 2u, 2);
-    ncnn::Mat a2 = a0.clone();
-
-    ncnn::warpaffine_bilinear_c2(a0, w, h, a1, w / 4, h / 4, tm, 0);
-    ncnn::warpaffine_bilinear_c2(a1, w / 4, h / 4, a2, w, h, tm_inv, -233);
-
-    if (CompareNearlyEqual(a0, a2) != 0)
+    for (int c = 1; c <= 4; c++)
     {
-        fprintf(stderr, "test_mat_pixel_affine_c2 failed w=%d h=%d\n", w, h);
-        return -1;
+        ncnn::Mat a0 = RandomMat(w, h, c);
+
+        float tm[6];
+        float tm_inv[6];
+        ncnn::get_rotation_matrix(20.f, 0.25f, w / 4, h / 4, tm);
+        ncnn::invert_affine_transform(tm, tm_inv);
+
+        ncnn::Mat a1(w / 4, h / 4, (size_t)c, c);
+        ncnn::Mat a2 = a0.clone();
+
+        if (c == 1)
+        {
+            ncnn::warpaffine_bilinear_c1(a0, w, h, a1, w / 4, h / 4, tm, 0);
+            ncnn::warpaffine_bilinear_c1(a1, w / 4, h / 4, a2, w, h, tm_inv, -233);
+        }
+        if (c == 2)
+        {
+            ncnn::warpaffine_bilinear_c2(a0, w, h, a1, w / 4, h / 4, tm, 0);
+            ncnn::warpaffine_bilinear_c2(a1, w / 4, h / 4, a2, w, h, tm_inv, -233);
+        }
+        if (c == 3)
+        {
+            ncnn::warpaffine_bilinear_c3(a0, w, h, a1, w / 4, h / 4, tm, 0);
+            ncnn::warpaffine_bilinear_c3(a1, w / 4, h / 4, a2, w, h, tm_inv, -233);
+        }
+        if (c == 4)
+        {
+            ncnn::warpaffine_bilinear_c4(a0, w, h, a1, w / 4, h / 4, tm, 0);
+            ncnn::warpaffine_bilinear_c4(a1, w / 4, h / 4, a2, w, h, tm_inv, -233);
+        }
+
+        if (CompareNearlyEqual(a0, a2) != 0)
+        {
+            fprintf(stderr, "test_mat_pixel_affine_b failed w=%d h=%d c=%d\n", w, h, c);
+            return -1;
+        }
     }
 
     return 0;
 }
 
-static int test_mat_pixel_affine_c3(int w, int h)
+static int test_mat_pixel_affine_c(int w, int h)
 {
-    ncnn::Mat a0 = RandomMat(w, h, 3);
-
-    float tm[6];
-    float tm_inv[6];
-    ncnn::get_rotation_matrix(-30.f, 0.6f, w / 2, h / 2, tm);
-    ncnn::invert_affine_transform(tm, tm_inv);
-
-    ncnn::Mat a1(w / 2, h / 2, 3u, 3);
-    ncnn::Mat a2 = a0.clone();
-
-    ncnn::warpaffine_bilinear_c3(a0, w, h, a1, w / 2, h / 2, tm, 0);
-    ncnn::warpaffine_bilinear_c3(a1, w / 2, h / 2, a2, w, h, tm_inv, -233);
-
-    if (CompareNearlyEqual(a0, a2) != 0)
+    for (int c = 1; c <= 4; c++)
     {
-        fprintf(stderr, "test_mat_pixel_affine_c3 failed w=%d h=%d\n", w, h);
-        return -1;
+        ncnn::Mat a0 = RandomMat(w, h, c);
+
+        float tm[6];
+        float tm_inv[6];
+        ncnn::get_rotation_matrix(-30.f, 0.6f, w / 2, h / 2, tm);
+        ncnn::invert_affine_transform(tm, tm_inv);
+
+        ncnn::Mat a1(w / 2, h / 2, (size_t)c, c);
+        ncnn::Mat a2 = a0.clone();
+
+        if (c == 1)
+        {
+            ncnn::warpaffine_bilinear_c1(a0, w, h, a1, w / 2, h / 2, tm, 0);
+            ncnn::warpaffine_bilinear_c1(a1, w / 2, h / 2, a2, w, h, tm_inv, -233);
+        }
+        if (c == 2)
+        {
+            ncnn::warpaffine_bilinear_c2(a0, w, h, a1, w / 2, h / 2, tm, 0);
+            ncnn::warpaffine_bilinear_c2(a1, w / 2, h / 2, a2, w, h, tm_inv, -233);
+        }
+        if (c == 3)
+        {
+            ncnn::warpaffine_bilinear_c3(a0, w, h, a1, w / 2, h / 2, tm, 0);
+            ncnn::warpaffine_bilinear_c3(a1, w / 2, h / 2, a2, w, h, tm_inv, -233);
+        }
+        if (c == 4)
+        {
+            ncnn::warpaffine_bilinear_c4(a0, w, h, a1, w / 2, h / 2, tm, 0);
+            ncnn::warpaffine_bilinear_c4(a1, w / 2, h / 2, a2, w, h, tm_inv, -233);
+        }
+
+        if (CompareNearlyEqual(a0, a2) != 0)
+        {
+            fprintf(stderr, "test_mat_pixel_affine_c failed w=%d h=%d c=%d\n", w, h, c);
+            return -1;
+        }
     }
 
     return 0;
 }
 
-static int test_mat_pixel_affine_c4(int w, int h)
+static int test_mat_pixel_affine_d(int w, int h)
 {
-    ncnn::Mat a0 = RandomMat(w, h, 4);
-
-    const float points_from[4] = {w / 8.f, h / 8.f, w / 8.f + 1.f, h / 8.f + 3.f};
-    const float points_to[4] = {w / 2.f, h / 2.f, w / 2.f + 2.f, h / 2.f};
-
-    float tm[6];
-    float tm_inv[6];
-    ncnn::get_affine_transform(points_from, points_to, 2, tm);
-    ncnn::invert_affine_transform(tm, tm_inv);
-
-    ncnn::Mat a1(w / 4, h / 4, 4u, 4);
-    ncnn::Mat a2 = a0.clone();
-
-    ncnn::warpaffine_bilinear_c4(a0, w, h, a1, w / 4, h / 4, tm, 0);
-    ncnn::warpaffine_bilinear_c4(a1, w / 4, h / 4, a2, w, h, tm_inv, -233);
-
-    if (CompareNearlyEqual(a0, a2) != 0)
+    for (int c = 1; c <= 4; c++)
     {
-        fprintf(stderr, "test_mat_pixel_affine_c4 failed w=%d h=%d\n", w, h);
-        return -1;
+        ncnn::Mat a0 = RandomMat(w, h, c);
+
+        const float points_from[4] = {w / 8.f, h / 8.f, w / 8.f + 1.f, h / 8.f + 3.f};
+        const float points_to[4] = {w / 2.f, h / 2.f, w / 2.f + 2.f, h / 2.f};
+
+        float tm[6];
+        float tm_inv[6];
+        ncnn::get_affine_transform(points_from, points_to, 2, tm);
+        ncnn::invert_affine_transform(tm, tm_inv);
+
+        ncnn::Mat a1(w / 4, h / 4, (size_t)c, c);
+        ncnn::Mat a2 = a0.clone();
+
+        if (c == 1)
+        {
+            ncnn::warpaffine_bilinear_c1(a0, w, h, a1, w / 4, h / 4, tm, 0);
+            ncnn::warpaffine_bilinear_c1(a1, w / 4, h / 4, a2, w, h, tm_inv, -233);
+        }
+        if (c == 2)
+        {
+            ncnn::warpaffine_bilinear_c2(a0, w, h, a1, w / 4, h / 4, tm, 0);
+            ncnn::warpaffine_bilinear_c2(a1, w / 4, h / 4, a2, w, h, tm_inv, -233);
+        }
+        if (c == 3)
+        {
+            ncnn::warpaffine_bilinear_c3(a0, w, h, a1, w / 4, h / 4, tm, 0);
+            ncnn::warpaffine_bilinear_c3(a1, w / 4, h / 4, a2, w, h, tm_inv, -233);
+        }
+        if (c == 4)
+        {
+            ncnn::warpaffine_bilinear_c4(a0, w, h, a1, w / 4, h / 4, tm, 0);
+            ncnn::warpaffine_bilinear_c4(a1, w / 4, h / 4, a2, w, h, tm_inv, -233);
+        }
+
+        if (CompareNearlyEqual(a0, a2) != 0)
+        {
+            fprintf(stderr, "test_mat_pixel_affine_d failed w=%d h=%d c=%d\n", w, h, c);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_mat_pixel_affine_e(int w, int h)
+{
+    for (int c = 1; c <= 4; c++)
+    {
+        ncnn::Mat a0 = RandomMat(w, h, c);
+
+        float tm[6];
+        float tm_inv[6];
+        ncnn::get_rotation_matrix(-180.f, 0.5f, w / 2, h / 2, tm);
+        ncnn::invert_affine_transform(tm, tm_inv);
+
+        ncnn::Mat a1(w, h, (size_t)c, c);
+        ncnn::Mat a2 = a0.clone();
+
+        if (c == 1)
+        {
+            ncnn::warpaffine_bilinear_c1(a0, w, h, a1, w, h, tm, 0);
+            ncnn::warpaffine_bilinear_c1(a1, w, h, a2, w, h, tm_inv, -233);
+        }
+        if (c == 2)
+        {
+            ncnn::warpaffine_bilinear_c2(a0, w, h, a1, w, h, tm, 0);
+            ncnn::warpaffine_bilinear_c2(a1, w, h, a2, w, h, tm_inv, -233);
+        }
+        if (c == 3)
+        {
+            ncnn::warpaffine_bilinear_c3(a0, w, h, a1, w, h, tm, 0);
+            ncnn::warpaffine_bilinear_c3(a1, w, h, a2, w, h, tm_inv, -233);
+        }
+        if (c == 4)
+        {
+            ncnn::warpaffine_bilinear_c4(a0, w, h, a1, w, h, tm, 0);
+            ncnn::warpaffine_bilinear_c4(a1, w, h, a2, w, h, tm_inv, -233);
+        }
+
+        if (CompareNearlyEqual(a0, a2) != 0)
+        {
+            fprintf(stderr, "test_mat_pixel_affine_e failed w=%d h=%d c=%d\n", w, h, c);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_mat_pixel_affine_f(int w, int h)
+{
+    for (int c = 1; c <= 4; c++)
+    {
+        ncnn::Mat a0 = RandomMat(w, h, c);
+
+        float tm[6];
+        float tm_inv[6];
+        ncnn::get_rotation_matrix(0.002f, 1.0f, w / 2, h / 2, tm);
+        ncnn::invert_affine_transform(tm, tm_inv);
+
+        ncnn::Mat a1(w * 2, h * 2, (size_t)c, c);
+        ncnn::Mat a2 = a0.clone();
+
+        if (c == 1)
+        {
+            ncnn::warpaffine_bilinear_c1(a0, w, h, a1, w * 2, h * 2, tm, 0);
+            ncnn::warpaffine_bilinear_c1(a1, w * 2, h * 2, a2, w, h, tm_inv, -233);
+        }
+        if (c == 2)
+        {
+            ncnn::warpaffine_bilinear_c2(a0, w, h, a1, w * 2, h * 2, tm, 0);
+            ncnn::warpaffine_bilinear_c2(a1, w * 2, h * 2, a2, w, h, tm_inv, -233);
+        }
+        if (c == 3)
+        {
+            ncnn::warpaffine_bilinear_c3(a0, w, h, a1, w * 2, h * 2, tm, 0);
+            ncnn::warpaffine_bilinear_c3(a1, w * 2, h * 2, a2, w, h, tm_inv, -233);
+        }
+        if (c == 4)
+        {
+            ncnn::warpaffine_bilinear_c4(a0, w, h, a1, w * 2, h * 2, tm, 0);
+            ncnn::warpaffine_bilinear_c4(a1, w * 2, h * 2, a2, w, h, tm_inv, -233);
+        }
+
+        if (CompareNearlyEqual(a0, a2) != 0)
+        {
+            fprintf(stderr, "test_mat_pixel_affine_f failed w=%d h=%d c=%d\n", w, h, c);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_mat_pixel_affine_g(int w, int h)
+{
+    for (int c = 1; c <= 4; c++)
+    {
+        ncnn::Mat a0 = RandomMat(w, h, c);
+
+        float tm[6];
+        float tm_inv[6];
+        ncnn::get_rotation_matrix(0.f, 0.5f, w / 2 + 4, h / 2 - 3, tm);
+        ncnn::invert_affine_transform(tm, tm_inv);
+
+        ncnn::Mat a1(w, h, (size_t)c, c);
+        ncnn::Mat a2 = a0.clone();
+
+        if (c == 1)
+        {
+            ncnn::warpaffine_bilinear_c1(a0, w, h, a1, w, h, tm, 0);
+            ncnn::warpaffine_bilinear_c1(a1, w, h, a2, w, h, tm_inv, -233);
+        }
+        if (c == 2)
+        {
+            ncnn::warpaffine_bilinear_c2(a0, w, h, a1, w, h, tm, 0);
+            ncnn::warpaffine_bilinear_c2(a1, w, h, a2, w, h, tm_inv, -233);
+        }
+        if (c == 3)
+        {
+            ncnn::warpaffine_bilinear_c3(a0, w, h, a1, w, h, tm, 0);
+            ncnn::warpaffine_bilinear_c3(a1, w, h, a2, w, h, tm_inv, -233);
+        }
+        if (c == 4)
+        {
+            ncnn::warpaffine_bilinear_c4(a0, w, h, a1, w, h, tm, 0);
+            ncnn::warpaffine_bilinear_c4(a1, w, h, a2, w, h, tm_inv, -233);
+        }
+
+        if (CompareNearlyEqual(a0, a2) != 0)
+        {
+            fprintf(stderr, "test_mat_pixel_affine_g failed w=%d h=%d c=%d\n", w, h, c);
+            return -1;
+        }
     }
 
     return 0;
@@ -210,18 +429,29 @@ static int test_mat_pixel_affine_c4(int w, int h)
 static int test_mat_pixel_affine_0()
 {
     return 0
-           || test_mat_pixel_affine_c1(60, 70)
-           || test_mat_pixel_affine_c2(60, 70)
-           || test_mat_pixel_affine_c3(60, 70)
-           || test_mat_pixel_affine_c4(60, 70)
-           || test_mat_pixel_affine_c1(120, 160)
-           || test_mat_pixel_affine_c2(120, 160)
-           || test_mat_pixel_affine_c3(120, 160)
-           || test_mat_pixel_affine_c4(120, 160)
-           || test_mat_pixel_affine_c1(220, 330)
-           || test_mat_pixel_affine_c2(220, 330)
-           || test_mat_pixel_affine_c3(220, 330)
-           || test_mat_pixel_affine_c4(220, 330);
+           || test_mat_pixel_affine_a(60, 70)
+           || test_mat_pixel_affine_b(60, 70)
+           || test_mat_pixel_affine_c(60, 70)
+           || test_mat_pixel_affine_d(60, 70)
+           || test_mat_pixel_affine_e(60, 70)
+           || test_mat_pixel_affine_f(60, 70)
+           || test_mat_pixel_affine_g(60, 70)
+
+           || test_mat_pixel_affine_a(120, 160)
+           || test_mat_pixel_affine_b(120, 160)
+           || test_mat_pixel_affine_c(120, 160)
+           || test_mat_pixel_affine_d(120, 160)
+           || test_mat_pixel_affine_e(120, 160)
+           || test_mat_pixel_affine_f(120, 160)
+           || test_mat_pixel_affine_g(120, 160)
+
+           || test_mat_pixel_affine_a(220, 330)
+           || test_mat_pixel_affine_b(220, 330)
+           || test_mat_pixel_affine_c(220, 330)
+           || test_mat_pixel_affine_d(220, 330)
+           || test_mat_pixel_affine_e(220, 330)
+           || test_mat_pixel_affine_f(220, 330)
+           || test_mat_pixel_affine_g(220, 330);
 }
 
 static int test_mat_pixel_affine_yuv420sp(int w, int h)
