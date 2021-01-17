@@ -521,6 +521,13 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
     bool cmd_submit_and_wait = false;
     bool image_allocation_failed = false;
 
+IMAGE_ALLOCATION_FAILED:
+
+    if (image_allocation_failed)
+    {
+        NCNN_LOGE("forward_layer %d %s image allocation failed, fallback to buffer", layer_index, layer->name.c_str());
+    }
+
     if (layer->one_blob_only)
     {
         // load bottom blob
@@ -535,7 +542,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
 
         if (layer->support_vulkan)
         {
-            if (layer->support_image_storage)
+            if (layer->support_image_storage && !image_allocation_failed)
             {
                 if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
                 {
@@ -559,10 +566,11 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
                     if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
                     {
                         image_allocation_failed = true;
+                        goto IMAGE_ALLOCATION_FAILED;
                     }
                 }
             }
-            else if (!layer->support_image_storage || image_allocation_failed)
+            else
             {
                 if (blob_mats_gpu[bottom_blob_index].dims == 0)
                 {
@@ -659,13 +667,11 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
                         if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
                         {
                             image_allocation_failed = true;
-
-                            // re-prepare for buffer allocations
-                            i = 0;
+                            goto IMAGE_ALLOCATION_FAILED;
                         }
                     }
                 }
-                else if (!layer->support_image_storage || image_allocation_failed)
+                else
                 {
                     if (blob_mats_gpu[bottom_blob_index].dims == 0)
                     {
@@ -745,11 +751,6 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
         cmd.reset();
     }
 
-    if (image_allocation_failed)
-    {
-        NCNN_LOGE("forward_layer %d %s image allocation failed, fallback to buffer", layer_index, layer->name.c_str());
-    }
-
     int ret;
     if (layer->support_vulkan)
     {
@@ -762,9 +763,10 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
             if (ret == -100)
             {
                 image_allocation_failed = true;
+                goto IMAGE_ALLOCATION_FAILED;
             }
         }
-        else if (!layer->support_image_storage || image_allocation_failed)
+        else
         {
             ret = do_forward_layer(layer, blob_mats_gpu, cmd, opt);
         }
