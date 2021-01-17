@@ -187,19 +187,22 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
 
     std::vector<ncnn::Mat> weights(bias ? 4 : 3);
     weights[0] = RandomMat(outch * c * kernel * kernel);
+
+    ncnn::Mat weight_scales = scales_mat(weights[0], outch, c * kernel * kernel, c * kernel * kernel);
+    ncnn::Mat input_scales = scales_mat(a, 1, w * h * c, a.cstep);
     if (bias)
     {
         weights[1] = RandomMat(outch);
-        weights[2] = RandomMat(outch);
-        weights[3] = RandomMat(1);
+        weights[2] = weight_scales;
+        weights[3] = input_scales;
     }
     else
     {
-        weights[1] = RandomMat(outch);
-        weights[2] = RandomMat(1);
+        weights[1] = weight_scales;
+        weights[2] = input_scales;
     }
 
-    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a, 0.001f, requant ? set_param : 0);
+    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a, 1.0f, requant ? set_param : 0);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant);

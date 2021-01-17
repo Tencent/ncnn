@@ -192,7 +192,7 @@
 ||8|behind|0|
 |Permute|0|order_type|0|
 |PixelShuffle|0|upscale_factor|1|
-|Pooling|0|pooling_type|0|
+|Pooling|0|pooling_type(0: max 1: avg)|0|
 ||1|kernel_w|0|
 ||11|kernel_h|kernel_w|
 ||2|stride_w|1|

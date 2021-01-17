@@ -64,7 +64,7 @@ _model_sha1 = {
     ]
 }
 
-github_repo_url = "https://github.com/caishanli/pyncnn-assets/raw/master/models/"
+github_repo_url = "https://github.com/nihui/ncnn-assets/raw/master/models/"
 _url_format = "{repo_url}{file_name}"
 
 

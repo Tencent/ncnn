@@ -12,22 +12,22 @@
 # CONDITIONS OF ANY KIND, either express or implied. See the License for the
 # specific language governing permissions and limitations under the License.
 
-import time
+import pytest
+
 import ncnn
 
-dr = ncnn.DataReaderFromEmpty()
 
-net = ncnn.Net()
-net.load_param("test.param")
-net.load_model(dr)
+def test_blob():
+    blob = ncnn.Blob()
 
-in_mat = ncnn.Mat((227, 227, 3))
+    blob.name = "myblob"
+    assert blob.name == "myblob"
 
-start = time.time()
+    blob.producer = 0
+    assert blob.producer == 0
 
-ex = net.create_extractor()
-ex.input("data", in_mat)
-ret, out_mat = ex.extract("output")
+    blob.consumer = 0
+    assert blob.consumer == 0
 
-end = time.time()
-print("timespan = ", end - start)
+    blob.shape = ncnn.Mat(1)
+    assert blob.shape.dims == 1 and blob.shape.w == 1
