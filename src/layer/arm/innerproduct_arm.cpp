@@ -2000,10 +2000,10 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 
                     if (bias_term)
                     {
-                        _sum0 = vdupq_n_f32(bias_data[p * 4 + 1]);
+                        _sum0 = vdupq_n_f32(bias_data[p * 4 + 0]);
                         _sum1 = vdupq_n_f32(bias_data[p * 4 + 1]);
-                        _sum2 = vdupq_n_f32(bias_data[p * 4 + 1]);
-                        _sum3 = vdupq_n_f32(bias_data[p * 4 + 1]);
+                        _sum2 = vdupq_n_f32(bias_data[p * 4 + 2]);
+                        _sum3 = vdupq_n_f32(bias_data[p * 4 + 3]);
                     }
 
                     for (int i = 0; i < num_input; i++)

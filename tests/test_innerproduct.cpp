@@ -175,7 +175,7 @@ static int test_innerproduct_4()
            || test_innerproduct_gemm(RandomMat(13, 12), 8, 1)
            || test_innerproduct_gemm(RandomMat(16, 12), 16, 0)
            || test_innerproduct_gemm(RandomMat(4, 15), 8, 1)
-           || test_innerproduct_gemm(RandomMat(6, 16), 16, 0)
+           || test_innerproduct_gemm(RandomMat(9, 16), 16, 0)
            || test_innerproduct_gemm(RandomMat(12, 16), 7, 1);
 }
 
