@@ -133,6 +133,148 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         return InnerProduct::forward(bottom_blob, top_blob, opt);
     }
 
+    const int num_input = weight_data_size / num_output;
+
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
+    {
+        // gemm
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        size_t elemsize = bottom_blob.elemsize;
+        int elempack = bottom_blob.elempack;
+
+        top_blob.create(num_output, h, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int j = 0; j < h; j++)
+        {
+#if __SSE2__
+#if __AVX__
+            if (elempack == 8)
+            {
+                float* outptr = top_blob.row(j);
+
+                for (int p = 0; p < num_output; p++)
+                {
+                    const float* kptr = (const float*)weight_data + w * p;
+                    const float* m = bottom_blob.row(j);
+
+                    __m256 _sum = _mm256_set1_ps(0.f);
+
+                    if (bias_term)
+                    {
+                        _sum = _mm256_set1_ps(bias_data[p]);
+                    }
+
+                    for (int i = 0; i < w; i++)
+                    {
+                        __m256 _val = _mm256_loadu_ps(m);
+                        __m256 _k = _mm256_set1_ps(kptr[0]);
+                        _sum = _mm256_fmadd_ps(_val, _k, _sum);
+
+                        m += 8;
+                        kptr += 1;
+                    }
+
+                    _sum = activation_avx(_sum, activation_type, activation_params);
+
+                    _mm256_storeu_ps(outptr, _sum);
+                    outptr += 8;
+                }
+            }
+#endif // __AVX__
+
+            if (elempack == 4)
+            {
+                float* outptr = top_blob.row(j);
+
+                for (int p = 0; p < num_output; p++)
+                {
+                    const float* kptr = (const float*)weight_data + w * p;
+                    const float* m = bottom_blob.row(j);
+
+                    __m128 _sum = _mm_set1_ps(0.f);
+
+                    if (bias_term)
+                    {
+                        _sum = _mm_set1_ps(bias_data[p]);
+                    }
+
+                    for (int i = 0; i < w; i++)
+                    {
+                        __m128 _val = _mm_loadu_ps(m);
+                        __m128 _k = _mm_set1_ps(kptr[0]);
+                        _sum = _mm_add_ps(_mm_mul_ps(_val, _k), _sum);
+
+                        m += 4;
+                        kptr += 1;
+                    }
+
+                    _sum = activation_sse(_sum, activation_type, activation_params);
+
+                    _mm_storeu_ps(outptr, _sum);
+                    outptr += 4;
+                }
+            }
+#endif // __SSE2__
+
+            if (elempack == 1)
+            {
+                float* outptr = top_blob.row(j);
+
+                for (int p = 0; p < num_output; p++)
+                {
+                    const float* kptr = (const float*)weight_data + w * p;
+                    const float* m = bottom_blob.row(j);
+
+                    float sum = 0.f;
+
+                    if (bias_term)
+                    {
+                        sum = bias_data[p];
+                    }
+
+                    for (int i = 0; i < w; i++)
+                    {
+                        sum += m[i] * kptr[i];
+                    }
+
+                    if (activation_type == 1)
+                    {
+                        sum = std::max(sum, 0.f);
+                    }
+                    else if (activation_type == 2)
+                    {
+                        float slope = activation_params[0];
+                        sum = sum > 0.f ? sum : sum * slope;
+                    }
+                    else if (activation_type == 3)
+                    {
+                        float min = activation_params[0];
+                        float max = activation_params[1];
+                        if (sum < min) sum = min;
+                        if (sum > max) sum = max;
+                    }
+                    else if (activation_type == 4)
+                    {
+                        sum = static_cast<float>(1.f / (1.f + exp(-sum)));
+                    }
+                    else if (activation_type == 5)
+                    {
+                        sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
+                    }
+
+                    outptr[0] = sum;
+                    outptr += 1;
+                }
+            }
+        }
+
+        return 0;
+    }
+
 #if __AVX__
     if (opt.use_weight_fp16_storage)
     {
