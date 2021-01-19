@@ -1813,6 +1813,10 @@ static void fuse_expand_broadcast(onnx::GraphProto* mutable_graph, std::map<std:
             node->set_op_type("noop_reducedncnn");
 
             node_reference[node->output(0)] -= 1;
+            if (node->input_size() == 2)
+            {
+                node_reference[node->input(1)] -= 1;
+            }
 
             blob_names.erase(node->output(0));
 
