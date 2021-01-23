@@ -30,6 +30,8 @@
 #include "mat.h"
 #include "pipelinecache.h"
 
+// There is known issue that vkDestroyDebugUtilsMessengerEXT crash on exit when vulkan validation layer enabled
+// upstream fix https://github.com/KhronosGroup/Vulkan-Loader/pull/539
 #define ENABLE_VALIDATION_LAYER 0
 
 namespace ncnn {
@@ -43,6 +45,9 @@ public:
     __ncnn_vulkan_instance_holder()
     {
         instance = 0;
+#if ENABLE_VALIDATION_LAYER
+        callback = 0;
+#endif
     }
 
     ~__ncnn_vulkan_instance_holder()
@@ -56,6 +61,9 @@ public:
     }
 
     VkInstance instance;
+#if ENABLE_VALIDATION_LAYER
+    VkDebugUtilsMessengerEXT callback;
+#endif
 };
 static __ncnn_vulkan_instance_holder g_instance;
 
@@ -639,8 +647,6 @@ static int init_instance_extension()
 }
 
 #if ENABLE_VALIDATION_LAYER
-static VkDebugUtilsMessengerEXT callback;
-
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT /*messageSeverity*/,
     VkDebugUtilsMessageTypeFlagsEXT /*messageType*/,
@@ -652,7 +658,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     return VK_FALSE;
 }
 
-VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pCallback)
+static VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pCallback)
 {
     PFN_vkCreateDebugUtilsMessengerEXT func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     if (func)
@@ -661,7 +667,7 @@ VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMes
     return VK_ERROR_EXTENSION_NOT_PRESENT;
 }
 
-void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT callback, const VkAllocationCallbacks* pAllocator)
+static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT callback, const VkAllocationCallbacks* pAllocator)
 {
     PFN_vkDestroyDebugUtilsMessengerEXT func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if (func)
@@ -862,6 +868,10 @@ int create_gpu_instance()
         {
             enabledLayers.push_back("VK_LAYER_LUNARG_parameter_validation");
         }
+        if (strcmp(lp.layerName, "VK_LAYER_KHRONOS_validation") == 0)
+        {
+            enabledLayers.push_back("VK_LAYER_KHRONOS_validation");
+        }
     }
 #endif // ENABLE_VALIDATION_LAYER
 
@@ -981,7 +991,7 @@ int create_gpu_instance()
         createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
         createInfo.pfnUserCallback = debugCallback;
         createInfo.pUserData = 0;
-        ret = CreateDebugUtilsMessengerEXT(g_instance, &createInfo, NULL, &callback);
+        ret = CreateDebugUtilsMessengerEXT(g_instance, &createInfo, NULL, &g_instance.callback);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("CreateDebugUtilsMessengerEXT failed %d", ret);
@@ -1476,7 +1486,8 @@ void destroy_gpu_instance()
 #if ENABLE_VALIDATION_LAYER
     if (support_VK_EXT_debug_utils)
     {
-        DestroyDebugUtilsMessengerEXT(g_instance, callback, NULL);
+        DestroyDebugUtilsMessengerEXT(g_instance, g_instance.callback, NULL);
+        g_instance.callback = 0;
     }
 #endif // ENABLE_VALIDATION_LAYER
 
