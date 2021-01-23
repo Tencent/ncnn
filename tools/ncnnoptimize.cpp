@@ -2942,7 +2942,7 @@ int NetOptimize::estimate_memory_footprint()
     {
         const ncnn::Blob& blob = blobs[i];
 
-        if (blob.consumer != -1)
+        if (blob.producer == -1 || blob.consumer != -1)
             continue;
 
         // treat blob without any consumers as output
