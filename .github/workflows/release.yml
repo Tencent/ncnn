@@ -103,7 +103,7 @@ jobs:
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -r build/install/* ${{ env.PACKAGENAME }}
+        cp -r -P build/install/* ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}/bin
         cp build/tools/caffe/caffe2ncnn ${{ env.PACKAGENAME }}/bin
         cp build/tools/mxnet/mxnet2ncnn ${{ env.PACKAGENAME }}/bin
@@ -185,7 +185,7 @@ jobs:
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -r build/install/* ${{ env.PACKAGENAME }}
+        cp -r -P build/install/* ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}/bin
         cp build/tools/caffe/caffe2ncnn ${{ env.PACKAGENAME }}/bin
         cp build/tools/mxnet/mxnet2ncnn ${{ env.PACKAGENAME }}/bin
@@ -267,7 +267,7 @@ jobs:
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -r build/install/* ${{ env.PACKAGENAME }}
+        cp -r -P build/install/* ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}/bin
         cp build/tools/caffe/caffe2ncnn ${{ env.PACKAGENAME }}/bin
         cp build/tools/mxnet/mxnet2ncnn ${{ env.PACKAGENAME }}/bin
