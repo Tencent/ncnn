@@ -52,15 +52,7 @@ public:
     Pipeline* pipeline_innerproduct_pack8to4;
     Pipeline* pipeline_innerproduct_pack8to1;
 
-    VkMat weight_data_gemm_gpu;
-    VkMat bias_data_gemm_gpu;
-
-    VkImageMat weight_data_gemm_gpu_image;
-    VkImageMat bias_data_gemm_gpu_image;
-
     Pipeline* pipeline_innerproduct_gemm;
-    Pipeline* pipeline_innerproduct_gemm_pack4;
-    Pipeline* pipeline_innerproduct_gemm_pack8;
 };
 
 } // namespace ncnn
