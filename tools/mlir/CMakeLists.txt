@@ -23,11 +23,6 @@ mlir_tablegen(tf_all_ops.h.inc -gen-op-decls)
 mlir_tablegen(tf_all_ops.cc.inc -gen-op-defs)
 add_public_tablegen_target(tf_opsIncGen)
 
-set(LLVM_TARGET_DEFINITIONS tf_op_interfaces.td)
-mlir_tablegen(tf_op_interfaces.h.inc -gen-op-interface-decls)
-mlir_tablegen(tf_op_interfaces.cc.inc -gen-op-interface-defs)
-add_public_tablegen_target(tf_op_interfacesIncGen)
-
 set(LLVM_TARGET_DEFINITIONS ncnn_ops.td)
 mlir_tablegen(ncnn_ops.h.inc -gen-op-decls)
 mlir_tablegen(ncnn_ops.cc.inc -gen-op-defs)
@@ -48,7 +43,6 @@ add_executable(mlir2ncnn
 
 add_dependencies(mlir2ncnn
     tf_opsIncGen
-    tf_op_interfacesIncGen
     ncnn_opsIncGen
     ncnn_rewriterIncGen
 )

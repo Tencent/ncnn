@@ -30,8 +30,9 @@ limitations under the License.
 include "tf_generated_ops.td"
 include "tf_op_base.td"
 include "mlir/Interfaces/CallInterfaces.td"
-include "mlir/Interfaces/InferTypeOpInterface.td"
+include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/LoopLikeInterface.td"
+include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpBase.td"
 
 class TF_TensorListInitOp<string mnemonic> : TF_Op<mnemonic, [NoSideEffect]> {
@@ -183,8 +184,7 @@ An n-way switch statement, implementing the following:
 
 // In MLIR, the TensorFlow tensor value is represented as an ElementsAttr, with
 // its type encoding the tensor's shape and data type.
-def TF_ConstOp : TF_Op<"Const", [ConstantLike, NoSideEffect,
-    DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+def TF_ConstOp : TF_Op<"Const", [ConstantLike, NoSideEffect]> {
   let summary = "Constant tensor op";
 
   let arguments = (ins
@@ -201,13 +201,6 @@ def TF_ConstOp : TF_Op<"Const", [ConstantLike, NoSideEffect,
     OpBuilderDAG<(ins "Attribute":$value)>,
     OpBuilderDAG<(ins "Type":$type, "Attribute":$value)>,
   ];
-
-
-  let extraClassDeclaration = [{
-    static bool isCompatibleReturnTypes(ArrayRef<Type> l, ArrayRef<Type> r) {
-      return BroadcastCompatible(l, r);
-    }
-  }];
 }
 
 def TF_CollectivePermuteOp : TF_Op<"CollectivePermute", []> {
@@ -348,7 +341,8 @@ else_branch: A function that takes 'inputs' and returns a list of
 }
 
 def TF_YieldOp : TF_Op<"Yield",
-      [Terminator, ParentOneOf<["CaseRegionOp", "IfRegionOp", "WhileRegionOp"]>]> {
+      [NoSideEffect, ReturnLike, Terminator,
+       ParentOneOf<["CaseRegionOp", "IfRegionOp", "WhileRegionOp"]>]> {
   let summary = "Yield operation";
 
   let description = [{
@@ -683,7 +677,19 @@ body: A function that takes a list of tensors and returns another
 
     // Used to map StatelessWhile and While op defined in TensorFlow to a common
     // op.
-    BoolAttr:$is_stateless
+    BoolAttr:$is_stateless,
+
+    // In TensorFlow, While has a special behavior where if `output_shapes`
+    // attribute is not empty, those shapes are used in its shape function
+    // as result shapes instead of propagating operand shapes as result shapes.
+    // This allows for different result shapes from operand shapes. While these
+    // shapes are imported and set as a part of the result type, there is no
+    // indicator differentiating between having no output shapes compared to
+    // having all unranked shapes. Thus this attribute is set to determine
+    // which shape function behavior to use for this op, specifically
+    // propagating operand shapes as result shapes when this attribute is not
+    // set, or preserving result shapes as is when this attribute is set.
+    UnitAttr:$shape_invariant
   );
 
   let results = (outs
@@ -747,10 +753,23 @@ def TF_WhileRegionOp : TF_Op<"WhileRegion",
   let arguments = (ins
     Variadic<AnyTensor>:$input,
 
+    DefaultValuedAttr<I64Attr, "10">:$parallel_iterations,
+
     // Used to map StatelessWhile and While op defined in TensorFlow to a common
     // op.
-    DefaultValuedAttr<BoolAttr, "false">:$is_stateless,
-    DefaultValuedAttr<I64Attr, "10">:$parallel_iterations
+    BoolAttr:$is_stateless,
+
+    // In TensorFlow, While has a special behavior where if `output_shapes`
+    // attribute is not empty, those shapes are used in its shape function
+    // as result shapes instead of propagating operand shapes as result shapes.
+    // This allows for different result shapes from operand shapes. While these
+    // shapes are imported and set as a part of the result type, there is no
+    // indicator differentiating between having no output shapes compared to
+    // having all unranked shapes. Thus this attribute is set to determine
+    // which shape function behavior to use for this op, specifically
+    // propagating operand shapes as result shapes when this attribute is not
+    // set, or preserving result shapes as is when this attribute is set.
+    UnitAttr:$shape_invariant
   );
   let results = (outs Variadic<AnyTensor>:$output);
 
@@ -806,7 +825,7 @@ This operation holds the metadata common to operations of a `tpu.replicate()` co
   let results = (outs);
 }
 
-def TF_VarHandleOp : TF_Op<"VarHandleOp", [TF_ResourceHandleAllocatorInterface]> {
+def TF_VarHandleOp : TF_Op<"VarHandleOp"> {
   let summary = "Creates a handle to a Variable resource from its name.";
 
   let description = [{
@@ -830,23 +849,29 @@ Example:
   let results = (outs
     Res<TF_ResourceTensor, "", [TF_VariableAlloc]>:$resource
   );
+}
 
-  TF_DerivedOperandOrResultHandleTypeAttr dtype =
-    TF_DerivedOperandOrResultHandleTypeAttr<"resource">;
-  TF_DerivedOperandOrResultHandleShapeAttr shape =
-    TF_DerivedOperandOrResultHandleShapeAttr<"resource">;
-
-  let extraClassDeclaration = [{
-    // TF_ResourceHandleAllocatorInterface:
-//     ResourceHandleValueAndId GetResourceHandleValueAndId(
-//       llvm::SmallDenseMap<ResourceHandle, int64_t> &resource_handle_id_map,
-//       int64_t &next_id);
+def TF_EnqueueTPUEmbeddingBatchOp : TF_Op<"EnqueueTPUEmbeddingBatch", [TF_TPUEmbeddingSideEffect]> {
+  let summary = [{
+An op that enqueues a list of input batch tensors to TPUEmbedding.
   }];
+
+  let arguments = (ins
+    Variadic<TF_StrTensor>:$batch,
+    TF_StrTensor:$mode_override,
+
+    DefaultValuedAttr<I64Attr, "-1">:$device_ordinal,
+    DefaultValuedAttr<StrArrayAttr, "{}">:$combiners
+  );
+
+  let results = (outs);
+
+  TF_DerivedOperandSizeAttr N = TF_DerivedOperandSizeAttr<0>;
 }
 
 // Multiple variadic operands with different sizes are not supported by the
 // dialect generator, so we manually added the op.
-def TF_SendTPUEmbeddingGradientsOp : TF_Op<"SendTPUEmbeddingGradients", [AttrSizedOperandSegments]> {
+def TF_SendTPUEmbeddingGradientsOp : TF_Op<"SendTPUEmbeddingGradients", [AttrSizedOperandSegments, TF_TPUEmbeddingSideEffect]> {
   let summary = "Performs gradient updates of embedding tables.";
 
   let description = [{
@@ -877,7 +902,7 @@ config: Serialized TPUEmbeddingConfiguration proto.
 
 // Multiple variadic operands with different sizes are not supported by the
 // dialect generator, so we manually added the op.
-def TF__SendTPUEmbeddingGradientsOp : TF_Op<"_SendTPUEmbeddingGradients", [AttrSizedOperandSegments]> {
+def TF__SendTPUEmbeddingGradientsOp : TF_Op<"_SendTPUEmbeddingGradients", [AttrSizedOperandSegments, TF_TPUEmbeddingSideEffect]> {
   let summary = "Performs gradient updates of embedding tables.";
 
   let description = [{
@@ -1640,7 +1665,7 @@ event: A string containing a binary-encoded tf.Event proto.
   let results = (outs);
 }
 
-def TF_SummaryWriterOp : TF_Op<"SummaryWriter", [TF_ResourceHandleAllocatorInterface]> {
+def TF_SummaryWriterOp : TF_Op<"SummaryWriter"> {
   let summary = "Returns a handle to be used to access a summary writer.";
 
   let description = [{
@@ -1658,13 +1683,6 @@ writer: the summary writer resource. Scalar handle.
   let results = (outs
     Res<TF_ResourceTensor, "", [TF_SummaryAlloc]>:$writer
   );
-
-  let extraClassDeclaration = [{
-    // TF_ResourceHandleAllocatorInterface:
-//     ResourceHandleValueAndId GetResourceHandleValueAndId(
-//       llvm::SmallDenseMap<ResourceHandle, int64_t> &resource_handle_id_map,
-//       int64_t &next_id);
-  }];
 }
 
 def TF_WriteAudioSummaryOp : TF_Op<"WriteAudioSummary", []> {
@@ -1956,6 +1974,76 @@ operations inside a TPU host.
   let results = (outs
     TF_Int64Tensor:$device_ordinal
   );
+}
+
+def TF_AssignOp : TF_Op<"Assign", []> {
+  let summary = "Update 'ref' by assigning 'value' to it.";
+
+  let description = [{
+This operation outputs "ref" after the assignment is done.
+This makes it easier to chain operations that need to use the reset value.
+
+This is a side-effecting operation because it will change the value of its
+argument "ref" in addition to returning the results.
+  }];
+
+  let arguments = (ins
+    TF_Tensor:$ref,
+    TF_Tensor:$value,
+
+    DefaultValuedAttr<BoolAttr, "true">:$validate_shape,
+    DefaultValuedAttr<BoolAttr, "true">:$use_locking
+  );
+
+  let results = (outs
+    TF_Tensor:$output_ref
+  );
+
+  TF_DerivedOperandTypeAttr T = TF_DerivedOperandTypeAttr<0>;
+}
+
+def TF_TPUPartitionedInputOp : TF_Op<"TPUPartitionedInput", [NoSideEffect]> {
+  let summary = [{
+An op that groups a list of partitioned inputs together. This op
+  }];
+
+  let arguments = (ins
+    Variadic<TF_Tensor>:$inputs,
+
+    DefaultValuedAttr<I64Attr, "0">:$partition_dim,
+    OptionalAttr<StrAttr>:$_XlaSharding
+  );
+
+  let results = (outs
+    TF_Tensor:$output
+  );
+
+  TF_DerivedOperandTypeAttr T = TF_DerivedOperandTypeAttr<0>;
+  TF_DerivedOperandSizeAttr N = TF_DerivedOperandSizeAttr<0>;
+}
+
+def TF_TPUPartitionedOutputOp : TF_Op<"TPUPartitionedOutput", [NoSideEffect]> {
+  let summary = [{
+An op that demultiplexes a tensor to be sharded by XLA to a list of partitioned
+  }];
+
+  let description = [{
+outputs outside the XLA computation.
+  }];
+
+  let arguments = (ins
+    TF_Tensor:$inputs,
+
+    DefaultValuedAttr<I64Attr, "0">:$partition_dim,
+    OptionalAttr<StrAttr>:$_XlaSharding
+  );
+
+  let results = (outs
+    Variadic<TF_Tensor>:$output
+  );
+
+  TF_DerivedOperandTypeAttr T = TF_DerivedOperandTypeAttr<0>;
+  TF_DerivedResultSizeAttr num_splits = TF_DerivedResultSizeAttr<0>;
 }
 
 #endif // TF_OPS
