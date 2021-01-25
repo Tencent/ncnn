@@ -227,8 +227,19 @@ if (NOT DEFINED IOS_DEPLOYMENT_TARGET)
             CACHE STRING "Minimum iOS version to build for." )
   else()
     # Unless specified, SDK version 8.0 is used by default as minimum target version (iOS, tvOS).
-    set(IOS_DEPLOYMENT_TARGET "8.0"
-            CACHE STRING "Minimum iOS version to build for." )
+    if (NOT DEFINED Vulkan_INCLUDE_DIR) 
+        set(IOS_DEPLOYMENT_TARGET "8.0"
+              CACHE STRING "Minimum iOS version to build for." )
+    else()
+      # if vulkan version biger than 1.2, SDK version 9.0 is used by minimum target version (iOS, tvOS)
+      if ( Vulkan_INCLUDE_DIR MATCHES ".*1.2..*")
+          set(IOS_DEPLOYMENT_TARGET "9.0"
+              CACHE STRING "Minimum iOS version to build for." )
+      else()
+          set(IOS_DEPLOYMENT_TARGET "8.0"
+              CACHE STRING "Minimum iOS version to build for." )
+      endif()
+    endif()
   endif()
   message(STATUS "Using the default min-version since IOS_DEPLOYMENT_TARGET not provided!")
 endif()
