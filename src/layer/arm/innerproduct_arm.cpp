@@ -625,34 +625,29 @@ int InnerProduct_arm::create_pipeline_fp16s(const Option& opt)
 {
     const int num_input = weight_data_size / num_output;
 
-    int elempack = 1;
     int out_elempack = 1;
 
     if (opt.use_packing_layout)
     {
-        elempack = opt.use_fp16_arithmetic && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
         out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     }
 
     // src = inch-outch
-    // dst = pb-pa-inch/pa-outch/pb
+    // dst = pb-inch-outch/pb
     {
         Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-        weight_data_fp16.create(num_input / elempack, num_output / out_elempack, (size_t)2u * elempack * out_elempack, elempack * out_elempack);
+        weight_data_fp16.create(num_input, num_output / out_elempack, (size_t)2u * out_elempack, out_elempack);
 
         for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
             __fp16* g0 = weight_data_fp16.row<__fp16>(q / out_elempack);
 
-            for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+            for (int p = 0; p < num_input; p++)
             {
-                for (int i = 0; i < elempack; i++)
+                for (int j = 0; j < out_elempack; j++)
                 {
-                    for (int j = 0; j < out_elempack; j++)
-                    {
-                        *g0++ = (__fp16)(weight_data_r2.row(q + j)[p + i]);
-                    }
+                    *g0++ = (__fp16)(weight_data_r2.row(q + j)[p]);
                 }
             }
         }
@@ -866,7 +861,6 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
     }
 
-    int size = bottom_blob_flattened.w;
     size_t elemsize = bottom_blob_flattened.elemsize;
     int elempack = bottom_blob_flattened.elempack;
 
@@ -877,7 +871,7 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
     if (top_blob.empty())
         return -100;
 
-    if (elempack == 4 && out_elempack == 4)
+    if (out_elempack == 4)
     {
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -894,7 +888,8 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
 
             const __fp16* sptr = bottom_blob_flattened;
 
-            for (int i = 0; i < size; i++)
+            int i = 0;
+            for (; i + 3 < num_input; i += 4)
             {
                 float32x4_t _val = vcvt_f32_f16(vld1_f16(sptr));
 
@@ -911,32 +906,7 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
                 sptr += 4;
                 kptr += 16;
             }
-
-            _sum = activation_ps(_sum, activation_type, activation_params);
-
-            __fp16* outptr = (__fp16*)top_blob;
-            vst1_f16(outptr + p * 4, vcvt_f16_f32(_sum));
-        }
-    }
-
-    if (elempack == 1 && out_elempack == 4)
-    {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < num_output / out_elempack; p++)
-        {
-            float32x4_t _sum = vdupq_n_f32(0.f);
-
-            if (bias_term)
-            {
-                _sum = vld1q_f32(((const float*)bias_data) + p * 4);
-            }
-
-            const __fp16* kptr = weight_data_fp16.row<const __fp16>(p);
-
-            const __fp16* sptr = bottom_blob_flattened;
-
-            for (int i = 0; i < size; i++)
+            for (; i < num_input; i++)
             {
                 float32x4_t _val = vdupq_n_f32((float)sptr[0]);
 
@@ -955,47 +925,7 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
         }
     }
 
-    if (elempack == 4 && out_elempack == 1)
-    {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < num_output / out_elempack; p++)
-        {
-            float sum = 0.f;
-
-            if (bias_term)
-            {
-                sum = bias_data[p];
-            }
-
-            const __fp16* kptr = weight_data_fp16.row<const __fp16>(p);
-
-            const __fp16* sptr = bottom_blob_flattened;
-
-            float32x4_t _sum = vdupq_n_f32(0.f);
-
-            for (int i = 0; i < size; i++)
-            {
-                float32x4_t _val = vcvt_f32_f16(vld1_f16(sptr));
-
-                float32x4_t _w = vcvt_f32_f16(vld1_f16(kptr));
-
-                _sum = vfmaq_f32(_sum, _val, _w);
-
-                sptr += 4;
-                kptr += 4;
-            }
-
-            sum += vaddvq_f32(_sum); // dot
-
-            sum = activation_ss(sum, activation_type, activation_params);
-
-            __fp16* outptr = (__fp16*)top_blob;
-            outptr[p] = (__fp16)sum;
-        }
-    }
-
-    if (elempack == 1 && out_elempack == 1)
+    if (out_elempack == 1)
     {
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -1012,7 +942,7 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
 
             float32x4_t _sum = vdupq_n_f32(0.f);
             int i = 0;
-            for (; i + 3 < size; i += 4)
+            for (; i + 3 < num_input; i += 4)
             {
                 float32x4_t _m = vcvt_f32_f16(vld1_f16(sptr));
                 float32x4_t _w = vcvt_f32_f16(vld1_f16(kptr));
@@ -1022,7 +952,7 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
                 sptr += 4;
                 kptr += 4;
             }
-            for (; i < size; i++)
+            for (; i < num_input; i++)
             {
                 float v = (float)(*sptr);
                 float k = (float)(*kptr);
@@ -1498,7 +1428,6 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
     }
 
-    int size = bottom_blob_flattened.w;
     size_t elemsize = bottom_blob_flattened.elemsize;
     int elempack = bottom_blob_flattened.elempack;
 
@@ -1513,365 +1442,253 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
     if (top_blob.empty())
         return -100;
 
-    if (elempack == 8 && out_elempack == 8)
+    if (out_elempack == 8)
     {
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
-            float16x8_t _sum = vdupq_n_f16(0.f);
+            float16x8_t _sum0 = vdupq_n_f16(0.f);
+            float16x8_t _sum1 = vdupq_n_f16(0.f);
+            float16x8_t _sum2 = vdupq_n_f16(0.f);
+            float16x8_t _sum3 = vdupq_n_f16(0.f);
+            float16x8_t _sum4 = vdupq_n_f16(0.f);
+            float16x8_t _sum5 = vdupq_n_f16(0.f);
+            float16x8_t _sum6 = vdupq_n_f16(0.f);
+            float16x8_t _sum7 = vdupq_n_f16(0.f);
 
             if (bias_term)
             {
-                _sum = vld1q_f16((const __fp16*)bias_data_fp16 + p * 8);
+                _sum0 = vld1q_f16((const __fp16*)bias_data_fp16 + p * 8);
             }
 
             const __fp16* kptr = weight_data_fp16.row<const __fp16>(p);
 
             const __fp16* sptr = bottom_blob_flattened;
 
-            int nn = size; // size always > 0
-
-            asm volatile(
-                "eor    v1.16b, v1.16b, v1.16b      \n"
-                "eor    v2.16b, v2.16b, v2.16b      \n"
-                "eor    v3.16b, v3.16b, v3.16b      \n"
-
-                "0:                                 \n"
-
-                "prfm   pldl1keep, [%2, #128]       \n"
-                "ld1    {v0.8h}, [%2], #16          \n" // _val
-
-                "prfm   pldl1keep, [%3, #512]       \n"
-                "ld1    {v8.8h, v9.8h, v10.8h, v11.8h}, [%3], #64 \n" // w0123
-
-                "fmla   %1.8h, v8.8h, v0.h[0]       \n"
-                "fmla   v1.8h, v9.8h, v0.h[1]       \n"
-
-                "prfm   pldl1keep, [%3, #512]       \n"
-                "ld1    {v12.8h, v13.8h, v14.8h, v15.8h}, [%3], #64 \n" // w4567
-
-                "fmla   v2.8h, v10.8h, v0.h[2]      \n"
-                "fmla   v3.8h, v11.8h, v0.h[3]      \n"
-                "fmla   %1.8h, v12.8h, v0.h[4]      \n"
-                "fmla   v1.8h, v13.8h, v0.h[5]      \n"
-
-                "subs   %w0, %w0, #1                \n"
-
-                "fmla   v2.8h, v14.8h, v0.h[6]      \n"
-                "fmla   v3.8h, v15.8h, v0.h[7]      \n"
-
-                "bne    0b                          \n"
-
-                "fadd   %1.8h, %1.8h, v1.8h         \n"
-                "fadd   v2.8h, v2.8h, v3.8h         \n"
-                "fadd   %1.8h, %1.8h, v2.8h         \n"
-
-                : "=r"(nn),   // %0
-                "=w"(_sum), // %1
-                "=r"(sptr), // %2
-                "=r"(kptr)  // %3
-                : "0"(nn),
-                "1"(_sum),
-                "2"(sptr),
-                "3"(kptr)
-                : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16");
-
-            _sum = activation_ps(_sum, activation_type, activation_params);
-
-            __fp16* outptr = (__fp16*)top_blob;
-            vst1q_f16(outptr + p * 8, _sum);
-        }
-    }
-
-    if (elempack == 1 && out_elempack == 8)
-    {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < num_output / out_elempack; p++)
-        {
-            float16x8_t _sum = vdupq_n_f16(0.f);
-
-            if (bias_term)
+            int i = 0;
+            for (; i + 7 < num_input; i += 8)
             {
-                _sum = vld1q_f16((const __fp16*)bias_data_fp16 + p * 8);
+                asm volatile(
+                    "prfm   pldl1keep, [%8, #128]       \n"
+                    "ld1    {v0.8h}, [%8], #16          \n" // _val
+
+                    "prfm   pldl1keep, [%9, #512]       \n"
+                    "ld1    {v8.8h, v9.8h, v10.8h, v11.8h}, [%9], #64 \n" // w0123
+
+                    "prfm   pldl1keep, [%9, #512]       \n"
+                    "ld1    {v12.8h, v13.8h, v14.8h, v15.8h}, [%9], #64 \n" // w4567
+
+                    "fmla   %0.8h, v8.8h, v0.h[0]       \n"
+                    "fmla   %1.8h, v9.8h, v0.h[1]       \n"
+                    "fmla   %2.8h, v10.8h, v0.h[2]      \n"
+                    "fmla   %3.8h, v11.8h, v0.h[3]      \n"
+                    "fmla   %4.8h, v12.8h, v0.h[4]      \n"
+                    "fmla   %5.8h, v13.8h, v0.h[5]      \n"
+                    "fmla   %6.8h, v14.8h, v0.h[6]      \n"
+                    "fmla   %7.8h, v15.8h, v0.h[7]      \n"
+
+                    : "=w"(_sum0), // %0
+                    "=w"(_sum1), // %1
+                    "=w"(_sum2), // %2
+                    "=w"(_sum3), // %3
+                    "=w"(_sum4), // %4
+                    "=w"(_sum5), // %5
+                    "=w"(_sum6), // %6
+                    "=w"(_sum7), // %7
+                    "=r"(sptr),  // %8
+                    "=r"(kptr)   // %9
+                    : "0"(_sum0),
+                    "1"(_sum1),
+                    "2"(_sum2),
+                    "3"(_sum3),
+                    "4"(_sum4),
+                    "5"(_sum5),
+                    "6"(_sum6),
+                    "7"(_sum7),
+                    "8"(sptr),
+                    "9"(kptr)
+                    : "cc", "memory", "v0", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
             }
+            for (; i + 3 < num_input; i += 4)
+            {
+                asm volatile(
+                    "prfm   pldl1keep, [%4, #128]       \n"
+                    "ld1    {v0.4h}, [%4], #8           \n" // _val
 
-            const __fp16* kptr = weight_data_fp16.row<const __fp16>(p);
+                    "prfm   pldl1keep, [%5, #512]       \n"
+                    "ld1    {v8.8h, v9.8h, v10.8h, v11.8h}, [%5], #64 \n" // w0123
 
-            const __fp16* sptr = bottom_blob_flattened;
+                    "fmla   %0.8h, v8.8h, v0.h[0]       \n"
+                    "fmla   %1.8h, v9.8h, v0.h[1]       \n"
+                    "fmla   %2.8h, v10.8h, v0.h[2]      \n"
+                    "fmla   %3.8h, v11.8h, v0.h[3]      \n"
 
-            for (int i = 0; i < size; i++)
+                    : "=w"(_sum0), // %0
+                    "=w"(_sum1), // %1
+                    "=w"(_sum2), // %2
+                    "=w"(_sum3), // %3
+                    "=r"(sptr),  // %4
+                    "=r"(kptr)   // %5
+                    : "0"(_sum0),
+                    "1"(_sum1),
+                    "2"(_sum2),
+                    "3"(_sum3),
+                    "4"(sptr),
+                    "5"(kptr)
+                    : "cc", "memory", "v0", "v8", "v9", "v10", "v11");
+            }
+            for (; i < num_input; i++)
             {
                 float16x8_t _val = vdupq_n_f16(sptr[0]);
 
                 float16x8_t _w = vld1q_f16(kptr);
 
-                _sum = vfmaq_f16(_sum, _val, _w);
+                _sum0 = vfmaq_f16(_sum0, _val, _w);
 
                 sptr += 1;
                 kptr += 8;
             }
 
-            _sum = activation_ps(_sum, activation_type, activation_params);
+            _sum0 = vaddq_f16(_sum0, _sum1);
+            _sum2 = vaddq_f16(_sum2, _sum3);
+            _sum4 = vaddq_f16(_sum4, _sum5);
+            _sum6 = vaddq_f16(_sum6, _sum7);
+            _sum0 = vaddq_f16(_sum0, _sum2);
+            _sum4 = vaddq_f16(_sum4, _sum6);
+            _sum0 = vaddq_f16(_sum0, _sum4);
+
+            _sum0 = activation_ps(_sum0, activation_type, activation_params);
 
             __fp16* outptr = (__fp16*)top_blob;
-            vst1q_f16(outptr + p * 8, _sum);
+            vst1q_f16(outptr + p * 8, _sum0);
         }
     }
 
-    if (elempack == 4 && out_elempack == 8)
+    if (out_elempack == 4)
     {
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
-            float16x8_t _sum = vdupq_n_f16(0.f);
+            float16x4_t _sum0 = vdup_n_f16(0.f);
+            float16x4_t _sum1 = vdup_n_f16(0.f);
+            float16x4_t _sum2 = vdup_n_f16(0.f);
+            float16x4_t _sum3 = vdup_n_f16(0.f);
+            float16x4_t _sum4 = vdup_n_f16(0.f);
+            float16x4_t _sum5 = vdup_n_f16(0.f);
+            float16x4_t _sum6 = vdup_n_f16(0.f);
+            float16x4_t _sum7 = vdup_n_f16(0.f);
 
             if (bias_term)
             {
-                _sum = vld1q_f16((const __fp16*)bias_data_fp16 + p * 8);
+                _sum0 = vld1_f16((const __fp16*)bias_data_fp16 + p * 4);
             }
 
             const __fp16* kptr = weight_data_fp16.row<const __fp16>(p);
 
             const __fp16* sptr = bottom_blob_flattened;
 
-            for (int i = 0; i < size; i++)
+            int i = 0;
+            for (; i + 7 < num_input; i += 8)
             {
-                float16x4_t _val = vld1_f16(sptr);
+                asm volatile(
+                    "prfm   pldl1keep, [%8, #128]       \n"
+                    "ld1    {v0.8h}, [%8], #16          \n" // _val
 
-                float16x8_t _w0 = vld1q_f16(kptr);
-                float16x8_t _w1 = vld1q_f16(kptr + 8);
-                float16x8_t _w2 = vld1q_f16(kptr + 16);
-                float16x8_t _w3 = vld1q_f16(kptr + 24);
+                    "prfm   pldl1keep, [%9, #256]       \n"
+                    "ld1    {v8.4h, v9.4h, v10.4h, v11.4h}, [%9], #32 \n" // w0123
 
-                _sum = vfmaq_lane_f16(_sum, _w0, _val, 0);
-                _sum = vfmaq_lane_f16(_sum, _w1, _val, 1);
-                _sum = vfmaq_lane_f16(_sum, _w2, _val, 2);
-                _sum = vfmaq_lane_f16(_sum, _w3, _val, 3);
+                    "prfm   pldl1keep, [%9, #256]       \n"
+                    "ld1    {v12.4h, v13.4h, v14.4h, v15.4h}, [%9], #32 \n" // w4567
 
-                sptr += 4;
-                kptr += 32;
+                    "fmla   %0.4h, v8.4h, v0.h[0]       \n"
+                    "fmla   %1.4h, v9.4h, v0.h[1]       \n"
+                    "fmla   %2.4h, v10.4h, v0.h[2]      \n"
+                    "fmla   %3.4h, v11.4h, v0.h[3]      \n"
+                    "fmla   %4.4h, v12.4h, v0.h[4]      \n"
+                    "fmla   %5.4h, v13.4h, v0.h[5]      \n"
+                    "fmla   %6.4h, v14.4h, v0.h[6]      \n"
+                    "fmla   %7.4h, v15.4h, v0.h[7]      \n"
+
+                    : "=w"(_sum0), // %0
+                    "=w"(_sum1), // %1
+                    "=w"(_sum2), // %2
+                    "=w"(_sum3), // %3
+                    "=w"(_sum4), // %4
+                    "=w"(_sum5), // %5
+                    "=w"(_sum6), // %6
+                    "=w"(_sum7), // %7
+                    "=r"(sptr),  // %8
+                    "=r"(kptr)   // %9
+                    : "0"(_sum0),
+                    "1"(_sum1),
+                    "2"(_sum2),
+                    "3"(_sum3),
+                    "4"(_sum4),
+                    "5"(_sum5),
+                    "6"(_sum6),
+                    "7"(_sum7),
+                    "8"(sptr),
+                    "9"(kptr)
+                    : "cc", "memory", "v0", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
             }
-
-            _sum = activation_ps(_sum, activation_type, activation_params);
-
-            __fp16* outptr = (__fp16*)top_blob;
-            vst1q_f16(outptr + p * 8, _sum);
-        }
-    }
-
-    if (elempack == 8 && out_elempack == 1)
-    {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < num_output / out_elempack; p++)
-        {
-            float sum = 0.f;
-
-            if (bias_term)
+            for (; i + 3 < num_input; i += 4)
             {
-                sum = bias_data[p];
+                asm volatile(
+                    "prfm   pldl1keep, [%4, #128]       \n"
+                    "ld1    {v0.4h}, [%4], #8           \n" // _val
+
+                    "prfm   pldl1keep, [%5, #256]       \n"
+                    "ld1    {v8.4h, v9.4h, v10.4h, v11.4h}, [%5], #32 \n" // w0123
+
+                    "fmla   %0.4h, v8.4h, v0.h[0]       \n"
+                    "fmla   %1.4h, v9.4h, v0.h[1]       \n"
+                    "fmla   %2.4h, v10.4h, v0.h[2]      \n"
+                    "fmla   %3.4h, v11.4h, v0.h[3]      \n"
+
+                    : "=w"(_sum0), // %0
+                    "=w"(_sum1), // %1
+                    "=w"(_sum2), // %2
+                    "=w"(_sum3), // %3
+                    "=r"(sptr),  // %4
+                    "=r"(kptr)   // %5
+                    : "0"(_sum0),
+                    "1"(_sum1),
+                    "2"(_sum2),
+                    "3"(_sum3),
+                    "4"(sptr),
+                    "5"(kptr)
+                    : "cc", "memory", "v0", "v8", "v9", "v10", "v11");
             }
-
-            const __fp16* kptr = weight_data_fp16.row<const __fp16>(p);
-
-            const __fp16* sptr = bottom_blob_flattened;
-
-            float16x8_t _sum = vdupq_n_f16(0.f);
-
-            for (int i = 0; i < size; i++)
-            {
-                float16x8_t _val = vld1q_f16(sptr);
-
-                float16x8_t _w = vld1q_f16(kptr);
-
-                _sum = vfmaq_f16(_sum, _val, _w);
-
-                sptr += 8;
-                kptr += 8;
-            }
-
-            float16x4_t _s4 = vadd_f16(vget_low_f16(_sum), vget_high_f16(_sum));
-            sum += vaddvq_f32(vcvt_f32_f16(_s4)); // dot
-
-            sum = activation_ss(sum, activation_type, activation_params);
-
-            __fp16* outptr = (__fp16*)top_blob;
-            outptr[p] = sum;
-        }
-    }
-
-    if (elempack == 8 && out_elempack == 4)
-    {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < num_output / out_elempack; p++)
-        {
-            float16x4_t _sum = vdup_n_f16(0.f);
-
-            if (bias_term)
-            {
-                _sum = vld1_f16((const __fp16*)bias_data_fp16 + p * 4);
-            }
-
-            const __fp16* kptr = weight_data_fp16.row<const __fp16>(p);
-
-            const __fp16* sptr = bottom_blob_flattened;
-
-            for (int i = 0; i < size; i++)
-            {
-                float16x8_t _val = vld1q_f16(sptr);
-
-                float16x4_t _w0 = vld1_f16(kptr);
-                float16x4_t _w1 = vld1_f16(kptr + 4);
-                float16x4_t _w2 = vld1_f16(kptr + 8);
-                float16x4_t _w3 = vld1_f16(kptr + 12);
-                float16x4_t _w4 = vld1_f16(kptr + 16);
-                float16x4_t _w5 = vld1_f16(kptr + 20);
-                float16x4_t _w6 = vld1_f16(kptr + 24);
-                float16x4_t _w7 = vld1_f16(kptr + 28);
-
-                _sum = vfma_laneq_f16(_sum, _w0, _val, 0);
-                _sum = vfma_laneq_f16(_sum, _w1, _val, 1);
-                _sum = vfma_laneq_f16(_sum, _w2, _val, 2);
-                _sum = vfma_laneq_f16(_sum, _w3, _val, 3);
-                _sum = vfma_laneq_f16(_sum, _w4, _val, 4);
-                _sum = vfma_laneq_f16(_sum, _w5, _val, 5);
-                _sum = vfma_laneq_f16(_sum, _w6, _val, 6);
-                _sum = vfma_laneq_f16(_sum, _w7, _val, 7);
-
-                sptr += 8;
-                kptr += 32;
-            }
-
-            _sum = activation_ps(_sum, activation_type, activation_params);
-
-            __fp16* outptr = (__fp16*)top_blob;
-            vst1_f16(outptr + p * 4, _sum);
-        }
-    }
-
-    if (elempack == 4 && out_elempack == 4)
-    {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < num_output / out_elempack; p++)
-        {
-            float16x4_t _sum = vdup_n_f16(0.f);
-
-            if (bias_term)
-            {
-                _sum = vld1_f16((const __fp16*)bias_data_fp16 + p * 4);
-            }
-
-            const __fp16* kptr = weight_data_fp16.row<const __fp16>(p);
-
-            const __fp16* sptr = bottom_blob_flattened;
-
-            for (int i = 0; i < size; i++)
-            {
-                float16x4_t _val = vld1_f16(sptr);
-
-                float16x4_t _w0 = vld1_f16(kptr);
-                float16x4_t _w1 = vld1_f16(kptr + 4);
-                float16x4_t _w2 = vld1_f16(kptr + 8);
-                float16x4_t _w3 = vld1_f16(kptr + 12);
-
-                _sum = vfma_lane_f16(_sum, _w0, _val, 0);
-                _sum = vfma_lane_f16(_sum, _w1, _val, 1);
-                _sum = vfma_lane_f16(_sum, _w2, _val, 2);
-                _sum = vfma_lane_f16(_sum, _w3, _val, 3);
-
-                sptr += 4;
-                kptr += 16;
-            }
-
-            _sum = activation_ps(_sum, activation_type, activation_params);
-
-            __fp16* outptr = (__fp16*)top_blob;
-            vst1_f16(outptr + p * 4, _sum);
-        }
-    }
-
-    if (elempack == 1 && out_elempack == 4)
-    {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < num_output / out_elempack; p++)
-        {
-            float16x4_t _sum = vdup_n_f16(0.f);
-
-            if (bias_term)
-            {
-                _sum = vld1_f16((const __fp16*)bias_data_fp16 + p * 4);
-            }
-
-            const __fp16* kptr = weight_data_fp16.row<const __fp16>(p);
-
-            const __fp16* sptr = bottom_blob_flattened;
-
-            for (int i = 0; i < size; i++)
+            for (; i < num_input; i++)
             {
                 float16x4_t _val = vdup_n_f16(sptr[0]);
 
                 float16x4_t _w = vld1_f16(kptr);
 
-                _sum = vfma_f16(_sum, _val, _w);
+                _sum0 = vfma_f16(_sum0, _val, _w);
 
                 sptr += 1;
                 kptr += 4;
             }
 
-            _sum = activation_ps(_sum, activation_type, activation_params);
+            _sum0 = vadd_f16(_sum0, _sum1);
+            _sum2 = vadd_f16(_sum2, _sum3);
+            _sum4 = vadd_f16(_sum4, _sum5);
+            _sum6 = vadd_f16(_sum6, _sum7);
+            _sum0 = vadd_f16(_sum0, _sum2);
+            _sum4 = vadd_f16(_sum4, _sum6);
+            _sum0 = vadd_f16(_sum0, _sum4);
+
+            _sum0 = activation_ps(_sum0, activation_type, activation_params);
 
             __fp16* outptr = (__fp16*)top_blob;
-            vst1_f16(outptr + p * 4, _sum);
+            vst1_f16(outptr + p * 4, _sum0);
         }
     }
 
-    if (elempack == 4 && out_elempack == 1)
-    {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < num_output / out_elempack; p++)
-        {
-            float sum = 0.f;
-
-            if (bias_term)
-            {
-                sum = bias_data[p];
-            }
-
-            const __fp16* kptr = weight_data_fp16.row<const __fp16>(p);
-
-            const __fp16* sptr = bottom_blob_flattened;
-
-            float16x4_t _sum = vdup_n_f16(0.f);
-
-            for (int i = 0; i < size; i++)
-            {
-                float16x4_t _val = vld1_f16(sptr);
-
-                float16x4_t _w = vld1_f16(kptr);
-
-                _sum = vfma_f16(_sum, _val, _w);
-
-                sptr += 4;
-                kptr += 4;
-            }
-
-            sum += vaddvq_f32(vcvt_f32_f16(_sum)); // dot
-
-            sum = activation_ss(sum, activation_type, activation_params);
-
-            __fp16* outptr = (__fp16*)top_blob;
-            outptr[p] = (__fp16)sum;
-        }
-    }
-
-    if (elempack == 1 && out_elempack == 1)
+    if (out_elempack == 1)
     {
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -1888,7 +1705,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
 
             float16x8_t _sum = vdupq_n_f16(0.f);
             int i = 0;
-            for (; i + 7 < size; i += 8)
+            for (; i + 7 < num_input; i += 8)
             {
                 float16x8_t _m = vld1q_f16(sptr);
                 float16x8_t _w = vld1q_f16(kptr);
@@ -1898,7 +1715,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                 sptr += 8;
                 kptr += 8;
             }
-            for (; i < size; i++)
+            for (; i < num_input; i++)
             {
                 __fp16 v = *sptr;
                 __fp16 k = *kptr;
@@ -1927,28 +1744,24 @@ int InnerProduct_arm::create_pipeline_bf16s(const Option& opt)
 {
     const int num_input = weight_data_size / num_output;
 
-    int elempack = opt.use_packing_layout && num_input % 4 == 0 ? 4 : 1;
     int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
 
     // src = inch-outch
-    // dst = pb-pa-inch/pa-outch/pb
+    // dst = pb-inch-outch/pb
     {
         Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-        weight_data_bf16.create(num_input / elempack, num_output / out_elempack, (size_t)2u * elempack * out_elempack, elempack * out_elempack);
+        weight_data_bf16.create(num_input, num_output / out_elempack, (size_t)2u * out_elempack, out_elempack);
 
         for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
             unsigned short* g0 = weight_data_bf16.row<unsigned short>(q / out_elempack);
 
-            for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+            for (int p = 0; p < num_input; p++)
             {
-                for (int i = 0; i < elempack; i++)
+                for (int j = 0; j < out_elempack; j++)
                 {
-                    for (int j = 0; j < out_elempack; j++)
-                    {
-                        *g0++ = float32_to_bfloat16(weight_data_r2.row(q + j)[p + i]);
-                    }
+                    *g0++ = float32_to_bfloat16(weight_data_r2.row(q + j)[p]);
                 }
             }
         }
@@ -2171,7 +1984,6 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
         flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
     }
 
-    int size = bottom_blob_flattened.w;
     size_t elemsize = bottom_blob_flattened.elemsize;
     int elempack = bottom_blob_flattened.elempack;
 
@@ -2183,24 +1995,28 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
         return -100;
 
 #if __ARM_NEON
-    if (elempack == 4 && out_elempack == 4)
+    if (out_elempack == 4)
     {
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
-            float32x4_t _sum = vdupq_n_f32(0.f);
+            float32x4_t _sum0 = vdupq_n_f32(0.f);
+            float32x4_t _sum1 = vdupq_n_f32(0.f);
+            float32x4_t _sum2 = vdupq_n_f32(0.f);
+            float32x4_t _sum3 = vdupq_n_f32(0.f);
 
             if (bias_term)
             {
-                _sum = vld1q_f32(((const float*)bias_data) + p * 4);
+                _sum0 = vld1q_f32(((const float*)bias_data) + p * 4);
             }
 
             const unsigned short* kptr = weight_data_bf16.row<const unsigned short>(p);
 
             const unsigned short* sptr = bottom_blob_flattened;
 
-            for (int i = 0; i < size; i++)
+            int i = 0;
+            for (; i + 3 < num_input; i += 4)
             {
                 float32x4_t _val = vcvt_f32_bf16(vld1_u16(sptr));
 
@@ -2210,112 +2026,45 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                 float32x4_t _w3 = vcvt_f32_bf16(vld1_u16(kptr + 12));
 
 #if __aarch64__
-                _sum = vmlaq_laneq_f32(_sum, _w0, _val, 0);
-                _sum = vmlaq_laneq_f32(_sum, _w1, _val, 1);
-                _sum = vmlaq_laneq_f32(_sum, _w2, _val, 2);
-                _sum = vmlaq_laneq_f32(_sum, _w3, _val, 3);
+                _sum0 = vmlaq_laneq_f32(_sum0, _w0, _val, 0);
+                _sum1 = vmlaq_laneq_f32(_sum1, _w1, _val, 1);
+                _sum2 = vmlaq_laneq_f32(_sum2, _w2, _val, 2);
+                _sum3 = vmlaq_laneq_f32(_sum3, _w3, _val, 3);
 #else
-                _sum = vmlaq_lane_f32(_sum, _w0, vget_low_f32(_val), 0);
-                _sum = vmlaq_lane_f32(_sum, _w1, vget_low_f32(_val), 1);
-                _sum = vmlaq_lane_f32(_sum, _w2, vget_high_f32(_val), 0);
-                _sum = vmlaq_lane_f32(_sum, _w3, vget_high_f32(_val), 1);
+                _sum0 = vmlaq_lane_f32(_sum0, _w0, vget_low_f32(_val), 0);
+                _sum1 = vmlaq_lane_f32(_sum1, _w1, vget_low_f32(_val), 1);
+                _sum2 = vmlaq_lane_f32(_sum2, _w2, vget_high_f32(_val), 0);
+                _sum3 = vmlaq_lane_f32(_sum3, _w3, vget_high_f32(_val), 1);
 #endif
 
                 sptr += 4;
                 kptr += 16;
             }
-
-            _sum = activation_ps(_sum, activation_type, activation_params);
-
-            unsigned short* outptr = (unsigned short*)top_blob;
-            vst1_u16(outptr + p * 4, vcvt_bf16_f32(_sum));
-        }
-    }
-
-    if (elempack == 1 && out_elempack == 4)
-    {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < num_output / out_elempack; p++)
-        {
-            float32x4_t _sum = vdupq_n_f32(0.f);
-
-            if (bias_term)
-            {
-                _sum = vld1q_f32(((const float*)bias_data) + p * 4);
-            }
-
-            const unsigned short* kptr = weight_data_bf16.row<const unsigned short>(p);
-
-            const unsigned short* sptr = bottom_blob_flattened;
-
-            for (int i = 0; i < size; i++)
+            for (; i < num_input; i++)
             {
                 float32x4_t _val = vdupq_n_f32(bfloat16_to_float32(sptr[0]));
 
                 float32x4_t _w = vcvt_f32_bf16(vld1_u16(kptr));
 
-                _sum = vmlaq_f32(_sum, _val, _w);
+                _sum0 = vmlaq_f32(_sum0, _val, _w);
 
                 sptr += 1;
                 kptr += 4;
             }
 
-            _sum = activation_ps(_sum, activation_type, activation_params);
+            _sum0 = vaddq_f32(_sum0, _sum1);
+            _sum2 = vaddq_f32(_sum2, _sum3);
+            _sum0 = vaddq_f32(_sum0, _sum2);
+
+            _sum0 = activation_ps(_sum0, activation_type, activation_params);
 
             unsigned short* outptr = (unsigned short*)top_blob;
-            vst1_u16(outptr + p * 4, vcvt_bf16_f32(_sum));
-        }
-    }
-
-    if (elempack == 4 && out_elempack == 1)
-    {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < num_output / out_elempack; p++)
-        {
-            float sum = 0.f;
-
-            if (bias_term)
-            {
-                sum = bias_data[p];
-            }
-
-            const unsigned short* kptr = weight_data_bf16.row<const unsigned short>(p);
-
-            const unsigned short* sptr = bottom_blob_flattened;
-
-            float32x4_t _sum = vdupq_n_f32(0.f);
-
-            for (int i = 0; i < size; i++)
-            {
-                float32x4_t _val = vcvt_f32_bf16(vld1_u16(sptr));
-
-                float32x4_t _w = vcvt_f32_bf16(vld1_u16(kptr));
-
-                _sum = vmlaq_f32(_sum, _val, _w);
-
-                sptr += 4;
-                kptr += 4;
-            }
-
-#if __aarch64__
-            sum += vaddvq_f32(_sum); // dot
-#else
-            float32x2_t _ss = vadd_f32(vget_low_f32(_sum), vget_high_f32(_sum));
-            _ss = vpadd_f32(_ss, _ss);
-            sum += vget_lane_f32(_ss, 0);
-#endif
-
-            sum = activation_ss(sum, activation_type, activation_params);
-
-            unsigned short* outptr = (unsigned short*)top_blob;
-            outptr[p] = float32_to_bfloat16(sum);
+            vst1_u16(outptr + p * 4, vcvt_bf16_f32(_sum0));
         }
     }
 #endif // __ARM_NEON
 
-    if (elempack == 1 && out_elempack == 1)
+    if (out_elempack == 1)
     {
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -2333,7 +2082,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
             int i = 0;
 #if __ARM_NEON
             float32x4_t _sum = vdupq_n_f32(0.f);
-            for (; i + 3 < size; i += 4)
+            for (; i + 3 < num_input; i += 4)
             {
                 float32x4_t _m = vcvt_f32_bf16(vld1_u16(sptr));
                 float32x4_t _w = vcvt_f32_bf16(vld1_u16(kptr));
@@ -2344,7 +2093,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                 kptr += 4;
             }
 #endif // __ARM_NEON
-            for (; i < size; i++)
+            for (; i < num_input; i++)
             {
                 float v = bfloat16_to_float32(*sptr);
                 float k = bfloat16_to_float32(*kptr);
