@@ -3,15 +3,17 @@ project(mlir2ncnn)
 cmake_minimum_required(VERSION 3.10)
 set(CMAKE_CXX_STANDARD 14)
 
-set(LLVM_DIR "/home/nihui/osd/llvm-project/build/install/lib/cmake/llvm")
+set(LLVM_PROJECT_INSTALL_DIR "/home/nihui/osd/llvm-project/build/install" CACHE STRING "")
+
+set(LLVM_DIR "${LLVM_PROJECT_INSTALL_DIR}/lib/cmake/llvm")
 find_package(LLVM REQUIRED)
 
-set(MLIR_DIR "/home/nihui/osd/llvm-project/build/install/lib/cmake/mlir")
+set(MLIR_DIR "${LLVM_PROJECT_INSTALL_DIR}/lib/cmake/mlir")
 find_package(MLIR REQUIRED)
 
 add_definitions(-fno-rtti -fno-exceptions)
 
-include_directories("/home/nihui/osd/llvm-project/build/install/include")
+include_directories("${LLVM_PROJECT_INSTALL_DIR}/include")
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
