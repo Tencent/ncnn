@@ -185,7 +185,7 @@ int NetQuantize::quantize_convolution()
     const int layer_count = static_cast<int>(layers.size());
     for (int i = 0; i < layer_count; i++)
     {
-        // find convoultion layer
+        // find convolution layer
         if (layers[i]->type != "Convolution")
             continue;
 
