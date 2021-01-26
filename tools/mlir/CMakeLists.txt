@@ -3,10 +3,9 @@ project(mlir2ncnn)
 cmake_minimum_required(VERSION 3.10)
 set(CMAKE_CXX_STANDARD 14)
 
-set(LLVM_PROJECT_INSTALL_DIR "/home/nihui/osd/llvm-project/build/install/lib/cmake/llvm" CACHE STRING "")
+set(LLVM_PROJECT_INSTALL_DIR "/home/nihui/osd/llvm-project/build/install" CACHE STRING "")
 
 set(LLVM_DIR "${LLVM_PROJECT_INSTALL_DIR}/lib/cmake/llvm")
-message(STATUS ${LLVM_DIR})
 find_package(LLVM REQUIRED)
 
 set(MLIR_DIR "${LLVM_PROJECT_INSTALL_DIR}/lib/cmake/mlir")
