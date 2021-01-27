@@ -6,6 +6,10 @@ jobs:
   ios-iphone-os:
     runs-on: macos-latest
     steps:
+    - name: cancel-previous-runs
+      uses: styfle/cancel-workflow-action@0.7.0
+      with:
+        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: cache-openmp
       id: cache-openmp
