@@ -67,8 +67,8 @@ static void deconv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                     float32x4_t _v = vld1q_f32(r0);
 
 #if 0
-/* bad compiler generate slow instructions :(
- 0 */
+                    /* bad compiler generate slow instructions :(
+                    0 */
                     float32x4_t _out00 = vld1q_f32(outptr0 + 0);
                     _out00 = vmlaq_lane_f32(_out00, _v, vget_low_f32(_k0), 0);
 

@@ -256,8 +256,8 @@ static void conv7x7s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v9");
                 }
 #else
-/* __ARM_NEON && __aarch64__ defined, but __clang__ not defined
-When compiled with gcc, gcc does not accept over 30 operands */
+                /* __ARM_NEON && __aarch64__ defined, but __clang__ not defined
+                When compiled with gcc, gcc does not accept over 30 operands */
                 for (; nn > 0; nn--)
                 {
                     float32x4_t _sum = vld1q_f32(outptr);
@@ -950,8 +950,8 @@ static void conv7x7s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v9");
                 }
 #else
-/* __ARM_NEON && __aarch64__ defined, but __clang__ not defined
- When compiled with gcc, gcc does not accept over 30 operands */
+                /* __ARM_NEON && __aarch64__ defined, but __clang__ not defined
+                When compiled with gcc, gcc does not accept over 30 operands */
                 for (; nn > 0; nn--)
                 {
                     float32x4_t _sum = vld1q_f32(outptr);
