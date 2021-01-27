@@ -35,6 +35,10 @@ jobs:
   android-aarch64-gpu-ndk-r16b:
     runs-on: ubuntu-latest
     steps:
+    - name: cancel-previous-runs
+      uses: styfle/cancel-workflow-action@0.7.0
+      with:
+        access_token: ${{ secrets.GH_ACCESS_TOKEN }}
     - uses: actions/checkout@v2
       with:
         submodules: true
