@@ -7,7 +7,7 @@ jobs:
     - name: cancel-previous-runs
       uses: styfle/cancel-workflow-action@0.7.0
       with:
-        access_token: ${{ secrets.GH_ACCESS_TOKEN }}
+        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
       with:
         submodules: true
@@ -79,7 +79,7 @@ jobs:
     - name: cancel-previous-runs
       uses: styfle/cancel-workflow-action@0.7.0
       with:
-        access_token: ${{ secrets.GH_ACCESS_TOKEN }}
+        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: lcov
       run: sudo apt-get install lcov
@@ -107,7 +107,7 @@ jobs:
     - name: cancel-previous-runs
       uses: styfle/cancel-workflow-action@0.7.0
       with:
-        access_token: ${{ secrets.GH_ACCESS_TOKEN }}
+        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: lcov
       run: sudo apt-get install lcov
@@ -135,7 +135,7 @@ jobs:
     - name: cancel-previous-runs
       uses: styfle/cancel-workflow-action@0.7.0
       with:
-        access_token: ${{ secrets.GH_ACCESS_TOKEN }}
+        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: lcov
       run: sudo apt-get install lcov
@@ -196,7 +196,7 @@ jobs:
     - name: cancel-previous-runs
       uses: styfle/cancel-workflow-action@0.7.0
       with:
-        access_token: ${{ secrets.GH_ACCESS_TOKEN }}
+        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: lcov
       run: sudo apt-get install lcov
@@ -257,7 +257,7 @@ jobs:
     - name: cancel-previous-runs
       uses: styfle/cancel-workflow-action@0.7.0
       with:
-        access_token: ${{ secrets.GH_ACCESS_TOKEN }}
+        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
 
     - name: lcov
@@ -318,7 +318,7 @@ jobs:
     - name: cancel-previous-runs
       uses: styfle/cancel-workflow-action@0.7.0
       with:
-        access_token: ${{ secrets.GH_ACCESS_TOKEN }}
+        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
 
     - name: lcov
@@ -379,7 +379,7 @@ jobs:
     - name: cancel-previous-runs
       uses: styfle/cancel-workflow-action@0.7.0
       with:
-        access_token: ${{ secrets.GH_ACCESS_TOKEN }}
+        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
 
     - name: lcov
@@ -440,7 +440,7 @@ jobs:
     - name: cancel-previous-runs
       uses: styfle/cancel-workflow-action@0.7.0
       with:
-        access_token: ${{ secrets.GH_ACCESS_TOKEN }}
+        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
 
     - name: lcov
