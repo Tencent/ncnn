@@ -5,7 +5,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        python-version: [3.5, 3.6, 3.7, 3.8]
+        python-version: [3.5, 3.6, 3.7, 3.8, 3.9]
     steps:
     - uses: actions/checkout@v2
       with:
@@ -42,3 +42,12 @@ jobs:
       run: cd python && pip install .
     - name: test
       run: cd python && pytest tests
+    - name: build wheel
+      run: cd python && python setup.py bdist_wheel
+    - name: publish distribution to Test PyPI
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        user: __token__
+        password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        repository_url: https://test.pypi.org/legacy/
+        packages_dir: python/dist/
