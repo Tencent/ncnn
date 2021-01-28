@@ -208,7 +208,7 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant);
     }
 
-    return 0;
+    return ret;
 }
 
 static int test_convolution_1()

@@ -119,7 +119,7 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
         fprintf(stderr, "test_innerproduct_int8 failed a.dims=%d a=(%d %d %d) outch=%d bias=%d\n", a.dims, a.w, a.h, a.c, outch, bias);
     }
 
-    return 0;
+    return ret;
 }
 
 static int test_innerproduct_3()

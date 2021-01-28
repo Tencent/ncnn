@@ -1392,12 +1392,12 @@ int create_gpu_instance()
 
             if (gpu_info.support_VK_KHR_8bit_storage)
             {
-                gpu_info.support_int8_storage = query8BitStorageFeatures.storageBuffer8BitAccess && query8BitStorageFeatures.uniformAndStorageBuffer8BitAccess;
+                gpu_info.support_int8_storage = query8BitStorageFeatures.storageBuffer8BitAccess;
             }
             if (gpu_info.support_VK_KHR_16bit_storage && queryFeatures.features.shaderStorageImageExtendedFormats)
             {
                 // shaderStorageImageExtendedFormats enables r16f format in storage image
-                gpu_info.support_fp16_storage = query16BitStorageFeatures.storageBuffer16BitAccess && query16BitStorageFeatures.uniformAndStorageBuffer16BitAccess;
+                gpu_info.support_fp16_storage = query16BitStorageFeatures.storageBuffer16BitAccess;
             }
             if (gpu_info.support_VK_KHR_shader_float16_int8)
             {
@@ -1416,7 +1416,7 @@ int create_gpu_instance()
             //             vkGetPhysicalDeviceFeatures(physicalDevice, &features);
         }
 
-        if (physicalDeviceProperties.vendorID == 0x13b5)
+        if (physicalDeviceProperties.vendorID == 0x13b5 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 82))
         {
             // the 16bit_storage implementation of arm mali driver is buggy :[
             gpu_info.support_fp16_storage = false;
@@ -1830,7 +1830,7 @@ VulkanDevice::VulkanDevice(int device_index)
     enabled8BitStorageFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR;
     enabled8BitStorageFeatures.pNext = 0;
     enabled8BitStorageFeatures.storageBuffer8BitAccess = info.support_int8_storage();
-    enabled8BitStorageFeatures.uniformAndStorageBuffer8BitAccess = info.support_int8_storage();
+    enabled8BitStorageFeatures.uniformAndStorageBuffer8BitAccess = VK_FALSE;
     enabled8BitStorageFeatures.storagePushConstant8 = VK_FALSE;
     if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_8bit_storage())
     {
@@ -1843,7 +1843,7 @@ VulkanDevice::VulkanDevice(int device_index)
     enabled16BitStorageFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES_KHR;
     enabled16BitStorageFeatures.pNext = 0;
     enabled16BitStorageFeatures.storageBuffer16BitAccess = info.support_fp16_storage();
-    enabled16BitStorageFeatures.uniformAndStorageBuffer16BitAccess = info.support_fp16_storage();
+    enabled16BitStorageFeatures.uniformAndStorageBuffer16BitAccess = VK_FALSE;
     enabled16BitStorageFeatures.storagePushConstant16 = VK_FALSE;
     enabled16BitStorageFeatures.storageInputOutput16 = VK_FALSE;
     if (support_VK_KHR_get_physical_device_properties2 && info.support_VK_KHR_16bit_storage())
