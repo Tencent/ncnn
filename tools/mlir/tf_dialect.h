@@ -31,8 +31,6 @@ namespace mlir {
 
 namespace TF {
 
-#include "tf_op_interfaces.h.inc"
-
 class TensorFlowDialect : public mlir::Dialect
 {
 public:

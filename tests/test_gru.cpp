@@ -17,7 +17,7 @@
 
 static int test_gru(const ncnn::Mat& a, int outch, int direction)
 {
-    int input_size = a.w * a.h * a.c;
+    int input_size = a.w;
     int num_directions = direction == 2 ? 2 : 1;
 
     ncnn::ParamDict pd;
@@ -41,7 +41,7 @@ static int test_gru(const ncnn::Mat& a, int outch, int direction)
 
 int test_gru_layer_with_hidden(const ncnn::Mat& a, int outch, int direction)
 {
-    int input_size = a.w * a.h * a.c;
+    int input_size = a.w;
 
     ncnn::ParamDict pd;
     pd.set(0, outch);

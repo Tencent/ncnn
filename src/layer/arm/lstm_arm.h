@@ -41,9 +41,9 @@ protected:
     int forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 public:
-    Mat weight_hc_data_packed;
-    Mat bias_c_data_packed;
     Mat weight_xc_data_packed;
+    Mat bias_c_data_packed;
+    Mat weight_hc_data_packed;
 };
 
 } // namespace ncnn

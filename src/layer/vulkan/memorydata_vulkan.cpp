@@ -26,7 +26,7 @@ MemoryData_vulkan::MemoryData_vulkan()
 
 int MemoryData_vulkan::create_pipeline(const Option& opt)
 {
-    const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
+    const Mat& out_shape = top_shapes.empty() ? data.shape() : top_shapes[0];
 
     int out_elempack = 1;
     if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
@@ -63,13 +63,23 @@ int MemoryData_vulkan::create_pipeline(const Option& opt)
 
 int MemoryData_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
+    const Mat& shape = data.shape();
+
+    int elempack = 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+
+    Mat data_packed;
+    convert_packing(data, data_packed, elempack);
+
     if (support_image_storage && opt.use_image_storage)
     {
-        cmd.record_upload(data, data_gpu_image, opt);
+        cmd.record_upload(data_packed, data_gpu_image, opt);
     }
     else
     {
-        cmd.record_upload(data, data_gpu, opt, /*bool flatten*/ false);
+        cmd.record_upload(data_packed, data_gpu, opt, /*bool flatten*/ false);
     }
 
     return 0;

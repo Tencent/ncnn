@@ -1813,6 +1813,10 @@ static void fuse_expand_broadcast(onnx::GraphProto* mutable_graph, std::map<std:
             node->set_op_type("noop_reducedncnn");
 
             node_reference[node->output(0)] -= 1;
+            if (node->input_size() == 2)
+            {
+                node_reference[node->input(1)] -= 1;
+            }
 
             blob_names.erase(node->output(0));
 
@@ -2420,6 +2424,7 @@ int main(int argc, char** argv)
     // some op may have anonymous input
     // LSTM sequence_lens
     blob_names.erase("");
+    node_reference.erase("");
 
     // remove node_reference entry with reference equals to one
     int split_layer_count = 0;
@@ -2898,12 +2903,17 @@ int main(int argc, char** argv)
 
         fprintf(pp, " %-24s %d %d", name.c_str(), input_size, output_size);
 
-        for (int j = 0; j < input_size; j++)
+        for (int j = 0; j < (int)node.input_size(); j++)
         {
             std::string input_name = node.input(j);
 
             // check weight
             if (weights.find(input_name) != weights.end() && node_reference[input_name] == 0)
+            {
+                continue;
+            }
+
+            if (input_name.empty())
             {
                 continue;
             }

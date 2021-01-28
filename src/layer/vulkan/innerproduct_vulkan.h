@@ -51,6 +51,8 @@ public:
     Pipeline* pipeline_innerproduct_pack4to8;
     Pipeline* pipeline_innerproduct_pack8to4;
     Pipeline* pipeline_innerproduct_pack8to1;
+
+    Pipeline* pipeline_innerproduct_gemm;
 };
 
 } // namespace ncnn
