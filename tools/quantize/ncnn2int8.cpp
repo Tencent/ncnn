@@ -1029,6 +1029,12 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             }
             fprintf_param_value(" 4=%d", global_pooling)
             fprintf_param_value(" 5=%d", pad_mode)
+            fprintf_param_value(" 6=%d", avgpool_count_include_pad)
+            fprintf_param_value(" 7=%d", adaptive_pooling)
+            fprintf_param_value(" 8=%d", out_w)
+            {
+                if (op->out_h != op->out_w) fprintf(pp, " 18=%d", op->out_h);
+            }
         }
         else if (layer->type == "Power")
         {
