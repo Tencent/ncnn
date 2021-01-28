@@ -252,6 +252,12 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
         }
     }
 
+    // todo support adaptive_pooling in vulkan implementation
+    if (adaptive_pooling)
+    {
+        support_vulkan = false;
+    }
+
     return 0;
 }
 

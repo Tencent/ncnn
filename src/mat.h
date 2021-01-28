@@ -49,7 +49,7 @@ class VkImageMat;
 #endif // NCNN_VULKAN
 
 // the three dimension matrix
-class Mat
+class NCNN_EXPORT Mat
 {
 public:
     // empty
@@ -103,6 +103,8 @@ public:
     void fill(T v);
     // deep copy
     Mat clone(Allocator* allocator = 0) const;
+    // deep copy from other mat, inplace
+    void clone_from(const ncnn::Mat& mat, Allocator* allocator = 0);
     // reshape vec
     Mat reshape(int w, Allocator* allocator = 0) const;
     // reshape image
@@ -254,7 +256,7 @@ public:
     // substract channel-wise mean values, then multiply by normalize values, pass 0 to skip
     void substract_mean_normalize(const float* mean_vals, const float* norm_vals);
 
-    // convenient construct from half precisoin floating point data
+    // convenient construct from half precision floating point data
     static Mat from_float16(const unsigned short* data, int size);
 
     // pointer to the data
@@ -293,7 +295,7 @@ public:
 #if NCNN_VULKAN
 
 // the three dimension matrix, vulkan version
-class VkMat
+class NCNN_EXPORT VkMat
 {
 public:
     // empty
@@ -403,7 +405,7 @@ public:
     size_t cstep;
 };
 
-class VkImageMat
+class NCNN_EXPORT VkImageMat
 {
 public:
     // empty
@@ -534,23 +536,23 @@ union vk_constant_type
 // misc function
 #if NCNN_PIXEL
 // convert yuv420sp(nv21) to rgb, the fast approximate version
-void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
+NCNN_EXPORT void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
 // convert yuv420sp(nv12) to rgb, the fast approximate version
-void yuv420sp2rgb_nv12(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
+NCNN_EXPORT void yuv420sp2rgb_nv12(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
 // convert yuv420sp(nv21) to rgb with half resize, the faster approximate version
-void yuv420sp2rgb_half(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
+NCNN_EXPORT void yuv420sp2rgb_half(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
 // image pixel bilinear resize
-void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
-void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
-void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
-void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+NCNN_EXPORT void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+NCNN_EXPORT void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+NCNN_EXPORT void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+NCNN_EXPORT void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 // image pixel bilinear resize with stride(bytes-per-row) parameter
-void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
-void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
-void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
-void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
+NCNN_EXPORT void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
+NCNN_EXPORT void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
+NCNN_EXPORT void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
+NCNN_EXPORT void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
 // image pixel bilinear resize, convenient wrapper for yuv420sp(nv21/nv12)
-void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+NCNN_EXPORT void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 #endif // NCNN_PIXEL
 #if NCNN_PIXEL_ROTATE
 // type is the from type, 6 means rotating from 6 to 1
@@ -565,46 +567,46 @@ void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsi
 //
 // ref http://sylvana.net/jpegcrop/exif_orientation.html
 // image pixel kanna rotate
-void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
-void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
-void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
-void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+NCNN_EXPORT void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+NCNN_EXPORT void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+NCNN_EXPORT void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+NCNN_EXPORT void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
 // image pixel kanna rotate with stride(bytes-per-row) parameter
-void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
-void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
-void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
-void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+NCNN_EXPORT void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+NCNN_EXPORT void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+NCNN_EXPORT void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+NCNN_EXPORT void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
 // image pixel kanna rotate, convenient wrapper for yuv420sp(nv21/nv12)
-void kanna_rotate_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+NCNN_EXPORT void kanna_rotate_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
 #endif // NCNN_PIXEL_ROTATE
 #if NCNN_PIXEL_AFFINE
 // resolve affine transform matrix from rotation angle, scale factor and x y offset
-void get_rotation_matrix(float angle, float scale, float dx, float dy, float* tm);
+NCNN_EXPORT void get_rotation_matrix(float angle, float scale, float dx, float dy, float* tm);
 // resolve affine transform matrix from two set of points, num_point must be >= 2
-void get_affine_transform(const float* points_from, const float* points_to, int num_point, float* tm);
+NCNN_EXPORT void get_affine_transform(const float* points_from, const float* points_to, int num_point, float* tm);
 // resolve the inversion affine transform matrix
-void invert_affine_transform(const float* tm, float* tm_inv);
-// image pixel bilinear warpaffine, set -233 for transparent border color
-void warpaffine_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int v = 0);
-void warpaffine_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int v = 0);
-void warpaffine_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int v = 0);
-void warpaffine_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int v = 0);
-// image pixel bilinear warpaffine with stride(bytes-per-row) parameter, set -233 for transparent border color
-void warpaffine_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int v = 0);
-void warpaffine_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int v = 0);
-void warpaffine_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int v = 0);
-void warpaffine_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int v = 0);
-// image pixel bilinear warpaffine, convenient wrapper for yuv420sp(nv21/nv12), set -233 for transparent border color
-void warpaffine_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int v = 0);
+NCNN_EXPORT void invert_affine_transform(const float* tm, float* tm_inv);
+// image pixel bilinear warpaffine inverse transform, set -233 for transparent border color, the color RGBA is little-endian encoded
+NCNN_EXPORT void warpaffine_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int type = 0, unsigned int v = 0);
+NCNN_EXPORT void warpaffine_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int type = 0, unsigned int v = 0);
+NCNN_EXPORT void warpaffine_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int type = 0, unsigned int v = 0);
+NCNN_EXPORT void warpaffine_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int type = 0, unsigned int v = 0);
+// image pixel bilinear warpaffine inverse transform with stride(bytes-per-row) parameter, set -233 for transparent border color, the color RGBA is little-endian encoded
+NCNN_EXPORT void warpaffine_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int type = 0, unsigned int v = 0);
+NCNN_EXPORT void warpaffine_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int type = 0, unsigned int v = 0);
+NCNN_EXPORT void warpaffine_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int type = 0, unsigned int v = 0);
+NCNN_EXPORT void warpaffine_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int type = 0, unsigned int v = 0);
+// image pixel bilinear warpaffine, convenient wrapper for yuv420sp(nv21/nv12), set -233 for transparent border color, the color YUV_ is little-endian encoded
+NCNN_EXPORT void warpaffine_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int type = 0, unsigned int v = 0);
 #endif // NCNN_PIXEL_AFFINE
 
 // type conversion
 // convert float to half precision floating point
-unsigned short float32_to_float16(float value);
+NCNN_EXPORT unsigned short float32_to_float16(float value);
 // convert half precision floating point to float
-float float16_to_float32(unsigned short value);
+NCNN_EXPORT float float16_to_float32(unsigned short value);
 // convert float to brain half
-inline unsigned short float32_to_bfloat16(float value)
+NCNN_EXPORT inline unsigned short float32_to_bfloat16(float value)
 {
     // 16 : 16
     union
@@ -616,7 +618,7 @@ inline unsigned short float32_to_bfloat16(float value)
     return tmp.u >> 16;
 }
 // convert brain half to float
-inline float bfloat16_to_float32(unsigned short value)
+NCNN_EXPORT inline float bfloat16_to_float32(unsigned short value)
 {
     // 16 : 16
     union
@@ -628,11 +630,11 @@ inline float bfloat16_to_float32(unsigned short value)
     return tmp.f;
 }
 #if __ARM_NEON
-inline uint16x4_t vcvt_bf16_f32(float32x4_t _v)
+NCNN_EXPORT inline uint16x4_t vcvt_bf16_f32(float32x4_t _v)
 {
     return vshrn_n_u32(vreinterpretq_u32_f32(_v), 16);
 }
-inline float32x4_t vcvt_f32_bf16(uint16x4_t _v)
+NCNN_EXPORT inline float32x4_t vcvt_f32_bf16(uint16x4_t _v)
 {
     return vreinterpretq_f32_u32(vshll_n_u16(_v, 16));
 }
@@ -643,22 +645,23 @@ enum BorderType
 {
     BORDER_CONSTANT = 0,
     BORDER_REPLICATE = 1,
+    BORDER_TRANSPARENT = -233,
 };
-void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, const Option& opt = Option());
-void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, const Option& opt = Option());
-void resize_nearest(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
-void resize_bilinear(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
-void resize_bicubic(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
-void convert_packing(const Mat& src, Mat& dst, int elempack, const Option& opt = Option());
-void flatten(const Mat& src, Mat& dst, const Option& opt = Option());
-void cast_float32_to_float16(const Mat& src, Mat& dst, const Option& opt = Option());
-void cast_float16_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
-void cast_int8_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
-void cast_float32_to_bfloat16(const Mat& src, Mat& dst, const Option& opt = Option());
-void cast_bfloat16_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
-void quantize_float32_to_int8(const Mat& src, Mat& dst, float scale, const Option& opt = Option());
-void dequantize_int32_to_float32(Mat& m, float scale, const float* bias, int bias_data_size, const Option& opt = Option());
-void requantize_int8_to_int8(const Mat& src, Mat& dst, float scale_in, float scale_out, const float* bias, int bias_data_size, int fusion_relu, const Option& opt = Option());
+NCNN_EXPORT void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, const Option& opt = Option());
+NCNN_EXPORT void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, const Option& opt = Option());
+NCNN_EXPORT void resize_nearest(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
+NCNN_EXPORT void resize_bilinear(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
+NCNN_EXPORT void resize_bicubic(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
+NCNN_EXPORT void convert_packing(const Mat& src, Mat& dst, int elempack, const Option& opt = Option());
+NCNN_EXPORT void flatten(const Mat& src, Mat& dst, const Option& opt = Option());
+NCNN_EXPORT void cast_float32_to_float16(const Mat& src, Mat& dst, const Option& opt = Option());
+NCNN_EXPORT void cast_float16_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
+NCNN_EXPORT void cast_int8_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
+NCNN_EXPORT void cast_float32_to_bfloat16(const Mat& src, Mat& dst, const Option& opt = Option());
+NCNN_EXPORT void cast_bfloat16_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
+NCNN_EXPORT void quantize_float32_to_int8(const Mat& src, Mat& dst, float scale, const Option& opt = Option());
+NCNN_EXPORT void dequantize_int32_to_float32(Mat& m, float scale, const float* bias, int bias_data_size, const Option& opt = Option());
+NCNN_EXPORT void requantize_int8_to_int8(const Mat& src, Mat& dst, float scale_in, float scale_out, const float* bias, int bias_data_size, int fusion_relu, const Option& opt = Option());
 
 inline Mat::Mat()
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
@@ -977,6 +980,11 @@ inline Mat Mat::clone(Allocator* _allocator) const
     }
 
     return m;
+}
+
+inline void Mat::clone_from(const ncnn::Mat& mat, Allocator* allocator)
+{
+    *this = mat.clone(allocator);
 }
 
 inline Mat Mat::reshape(int _w, Allocator* _allocator) const

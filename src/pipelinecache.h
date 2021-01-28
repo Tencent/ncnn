@@ -29,13 +29,13 @@ namespace ncnn {
 #if NCNN_VULKAN
 
 class VulkanDevice;
-
-class PipelineCache
+class PipelineCachePrivate;
+class NCNN_EXPORT PipelineCache
 {
 public:
-    PipelineCache(const VulkanDevice* _vkdev);
+    explicit PipelineCache(const VulkanDevice* _vkdev);
 
-    ~PipelineCache();
+    virtual ~PipelineCache();
 
     void clear();
 
@@ -67,67 +67,15 @@ protected:
                      VkPipeline* pipeline,
                      VkDescriptorUpdateTemplateKHR* descriptor_update_template) const;
 
-public:
+protected:
     const VulkanDevice* vkdev;
 
-    // digest -> artifact
-    struct pipeline_cache_digest
-    {
-        pipeline_cache_digest(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
-                              uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z);
-        pipeline_cache_digest(int shader_type_index, const Option& opt, const std::vector<vk_specialization_type>& specializations,
-                              uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z);
+private:
+    PipelineCache(const PipelineCache&);
+    PipelineCache& operator=(const PipelineCache&);
 
-        bool operator==(const pipeline_cache_digest& rhs) const
-        {
-            return d0 == rhs.d0 && d1 == rhs.d1;
-        }
-
-        bool operator!=(const pipeline_cache_digest& rhs) const
-        {
-            return d0 != rhs.d0 || d1 != rhs.d1;
-        }
-
-        union
-        {
-            struct
-            {
-                union
-                {
-                    uint32_t spv_data_murmur3;
-                    int shader_type_index;
-                };
-                unsigned char opt_local_size_bits[4];
-            };
-
-            uint64_t d0;
-        };
-
-        union
-        {
-            struct
-            {
-                uint32_t specializations_murmur3;
-                uint32_t specializations_fnv1a;
-            };
-
-            uint64_t d1;
-        };
-    };
-
-    struct pipeline_cache_artifact
-    {
-        VkShaderModule shader_module;
-        VkDescriptorSetLayout descriptorset_layout;
-        VkPipelineLayout pipeline_layout;
-        VkPipeline pipeline;
-        VkDescriptorUpdateTemplateKHR descriptor_update_template;
-        ShaderInfo shader_info; // TODO use pointer ?
-    };
-
-    mutable std::vector<pipeline_cache_digest> cache_digests;
-    mutable std::vector<pipeline_cache_artifact> cache_artifacts;
-    mutable Mutex cache_lock;
+private:
+    PipelineCachePrivate* const d;
 };
 
 #endif // NCNN_VULKAN

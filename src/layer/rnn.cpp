@@ -28,49 +28,94 @@ int RNN::load_param(const ParamDict& pd)
 {
     num_output = pd.get(0, 0);
     weight_data_size = pd.get(1, 0);
-
+    direction = pd.get(2, 0);
+    if (direction == 2)
+        one_blob_only = true;
     return 0;
 }
 
 int RNN::load_model(const ModelBin& mb)
 {
-    int size = (weight_data_size - num_output * num_output) / 2 / num_output;
+    int num_directions = direction == 2 ? 2 : 1;
+
+    int size = weight_data_size / num_directions / num_output;
 
     // raw weight data
-    weight_hh_data = mb.load(size, num_output, 1);
-    if (weight_hh_data.empty())
+    weight_xc_data = mb.load(size, num_output, num_directions, 0);
+    if (weight_xc_data.empty())
         return -100;
 
-    weight_xh_data = mb.load(size, num_output, 1);
-    if (weight_xh_data.empty())
+    bias_c_data = mb.load(num_output, 1, num_directions, 0);
+    if (bias_c_data.empty())
         return -100;
 
-    weight_ho_data = mb.load(num_output, num_output, 1);
-    if (weight_ho_data.empty())
-        return -100;
-
-    bias_h_data = mb.load(num_output, 1);
-    if (bias_h_data.empty())
-        return -100;
-
-    bias_o_data = mb.load(num_output, 1);
-    if (bias_o_data.empty())
+    weight_hc_data = mb.load(num_output, num_output, num_directions, 0);
+    if (weight_hc_data.empty())
         return -100;
 
     return 0;
 }
 
-int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+static int rnn(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, const Option& opt)
 {
-    // size x 1 x T
-    const Mat& input_blob = bottom_blobs[0];
-    size_t elemsize = input_blob.elemsize;
+    int size = bottom_blob.w;
+    int T = bottom_blob.h;
 
-    // T, 0 or 1 each
-    const Mat& cont_blob = bottom_blobs[1];
+    int num_output = top_blob.w;
 
-    int T = input_blob.c;
-    int size = input_blob.w;
+    // num_output
+    Mat gates(num_output, 4u, opt.workspace_allocator);
+    if (gates.empty())
+        return -100;
+
+    // unroll
+    for (int t = 0; t < T; t++)
+    {
+        int ti = reverse ? T - 1 - t : t;
+
+        const float* x = bottom_blob.row(ti);
+
+        for (int q = 0; q < num_output; q++)
+        {
+            const float* weight_xc_ptr = weight_xc.row(q);
+
+            const float* weight_hc_ptr = weight_hc.row(q);
+
+            float H = bias_c[q];
+
+            for (int i = 0; i < size; i++)
+            {
+                H += weight_xc_ptr[i] * x[i];
+            }
+
+            for (int i = 0; i < num_output; i++)
+            {
+                H += weight_hc_ptr[i] * hidden_state[i];
+            }
+
+            H = tanh(H);
+
+            gates[q] = H;
+        }
+
+        float* output_data = top_blob.row(ti);
+        for (int q = 0; q < num_output; q++)
+        {
+            float H = gates[q];
+
+            hidden_state[q] = H;
+            output_data[q] = H;
+        }
+    }
+
+    return 0;
+}
+
+int RNN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int T = bottom_blob.h;
+
+    int num_directions = direction == 2 ? 2 : 1;
 
     // initial hidden state
     Mat hidden(num_output, 4u, opt.workspace_allocator);
@@ -78,58 +123,77 @@ int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
         return -100;
     hidden.fill(0.f);
 
-    Mat& top_blob = top_blobs[0];
-    top_blob.create(num_output, 1, T, elemsize, opt.blob_allocator);
+    top_blob.create(num_output * num_directions, T, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-    // unroll
-    for (int t = 0; t < T; t++)
+    // Uni directional
+    if (direction == 0 || direction == 1)
     {
-        // clip hidden by continuation indicator
-        // h_cont_{t-1} = cont_t * h_{t-1}
-        // h_cont_{t-1} = h_{t-1} if cont_t == 1
-        //                0       otherwise
-        // calculate hidden
-        // h_t = tanh( W_hh * h_cont_{t-1} + W_xh * x_t + b_h )
-        const float cont = cont_blob[t];
-        const Mat x = input_blob.channel(t);
-        float* hidden_data = hidden;
-        for (int q = 0; q < num_output; q++)
+        int ret = rnn(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, opt);
+        if (ret != 0)
+            return ret;
+    }
+
+    if (direction == 2)
+    {
+        Mat top_blob_forward(num_output, T, 4u, opt.workspace_allocator);
+        if (top_blob_forward.empty())
+            return -100;
+
+        Mat top_blob_reverse(num_output, T, 4u, opt.workspace_allocator);
+        if (top_blob_reverse.empty())
+            return -100;
+
+        int ret0 = rnn(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, opt);
+        if (ret0 != 0)
+            return ret0;
+
+        hidden.fill(0.0f);
+
+        int ret1 = rnn(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1), hidden, opt);
+        if (ret1 != 0)
+            return ret1;
+
+        // concat w
+        for (int i = 0; i < T; i++)
         {
-            float h_cont = cont ? hidden_data[q] : 0.f;
+            const float* pf = top_blob_forward.row(i);
+            const float* pr = top_blob_reverse.row(i);
+            float* ptr = top_blob.row(i);
 
-            const float* weight_hh_data_ptr = (const float*)weight_hh_data + weight_hh_data.w * q;
-            const float* weight_xh_data_ptr = (const float*)weight_xh_data + weight_xh_data.w * q;
-            const float* x_data = x;
-
-            float s0 = bias_h_data[q];
-            for (int i = 0; i < size; i++)
-            {
-                s0 += weight_hh_data_ptr[i] * h_cont + weight_xh_data_ptr[i] * x_data[i];
-            }
-
-            hidden_data[q] = tanh(s0);
+            memcpy(ptr, pf, num_output * sizeof(float));
+            memcpy(ptr + num_output, pr, num_output * sizeof(float));
         }
+    }
 
-        // calculate output
-        // o_t = tanh( W_ho * h_t + b_o )
-        Mat output = top_blob.channel(t);
-        float* output_data = output;
-        for (int q = 0; q < num_output; q++)
-        {
-            const float* weight_ho_data_ptr = (const float*)weight_ho_data + weight_ho_data.w * q;
+    return 0;
+}
 
-            float s0 = bias_o_data[q];
-            for (int i = 0; i < size; i++)
-            {
-                s0 += weight_ho_data_ptr[i] * hidden_data[i];
-            }
+int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    if (bottom_blobs.size() != 2 || top_blobs.size() != 2)
+    {
+        return forward(bottom_blobs[0], top_blobs[0], opt);
+    }
+    const Mat& bottom_blob = bottom_blobs[0];
+    int T = bottom_blob.h;
+    Mat& top_blob = top_blobs[0];
+    Mat& hidden_state = top_blobs[1];
 
-            output_data[q] = tanh(s0);
-        }
+    //Copy previous states
+    hidden_state = bottom_blobs[1].clone(opt.blob_allocator);
 
-        // no hidden output here
+    top_blob.create(num_output, T, 4u, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    // Uni directional
+    if (direction == 0 || direction == 1)
+    {
+        int ret = rnn(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden_state, opt);
+        if (ret != 0)
+            return ret;
     }
 
     return 0;

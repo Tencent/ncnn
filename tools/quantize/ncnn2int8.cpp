@@ -150,6 +150,11 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
 class NetQuantize : public ncnn::Net
 {
 public:
+    NetQuantize();
+
+    std::vector<ncnn::Blob>& blobs;
+    std::vector<ncnn::Layer*>& layers;
+
     // 0=fp32 1=fp16 2=int8
     int storage_type;
     std::map<std::string, std::vector<float> > blob_int8scale_table;
@@ -170,12 +175,17 @@ public:
     int save(const char* parampath, const char* binpath);
 };
 
+NetQuantize::NetQuantize()
+    : blobs(mutable_blobs()), layers(mutable_layers())
+{
+}
+
 int NetQuantize::quantize_convolution()
 {
     const int layer_count = static_cast<int>(layers.size());
     for (int i = 0; i < layer_count; i++)
     {
-        // find convoultion layer
+        // find convolution layer
         if (layers[i]->type != "Convolution")
             continue;
 
@@ -1019,6 +1029,12 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             }
             fprintf_param_value(" 4=%d", global_pooling)
             fprintf_param_value(" 5=%d", pad_mode)
+            fprintf_param_value(" 6=%d", avgpool_count_include_pad)
+            fprintf_param_value(" 7=%d", adaptive_pooling)
+            fprintf_param_value(" 8=%d", out_w)
+            {
+                if (op->out_h != op->out_w) fprintf(pp, " 18=%d", op->out_h);
+            }
         }
         else if (layer->type == "Power")
         {

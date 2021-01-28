@@ -47,6 +47,7 @@
 #include "layer/flatten.h"
 #include "layer/gemm.h"
 #include "layer/groupnorm.h"
+#include "layer/gru.h"
 #include "layer/hardsigmoid.h"
 #include "layer/hardswish.h"
 #include "layer/innerproduct.h"
@@ -74,6 +75,7 @@
 #include "layer/reorg.h"
 #include "layer/requantize.h"
 #include "layer/reshape.h"
+#include "layer/rnn.h"
 #include "layer/roialign.h"
 #include "layer/roipooling.h"
 #include "layer/scale.h"
@@ -194,6 +196,9 @@ class NetOptimize : public ncnn::Net
 public:
     NetOptimize();
 
+    std::vector<ncnn::Blob>& blobs;
+    std::vector<ncnn::Layer*>& layers;
+
     virtual int custom_layer_to_index(const char* type);
     virtual ncnn::Layer* create_custom_layer(const char* type);
     virtual ncnn::Layer* create_custom_layer(int index);
@@ -255,6 +260,7 @@ public:
 };
 
 NetOptimize::NetOptimize()
+    : blobs(mutable_blobs()), layers(mutable_layers())
 {
     custom_layer_index = 0;
 }
@@ -2936,7 +2942,7 @@ int NetOptimize::estimate_memory_footprint()
     {
         const ncnn::Blob& blob = blobs[i];
 
-        if (blob.consumer != -1)
+        if (blob.producer == -1 || blob.consumer != -1)
             continue;
 
         // treat blob without any consumers as output
@@ -3508,6 +3514,19 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->gamma_data, bp);
             fwrite_weight_data(op->beta_data, bp);
         }
+        else if (layer->type == "GRU")
+        {
+            ncnn::GRU* op = (ncnn::GRU*)layer;
+            ncnn::GRU* op_default = (ncnn::GRU*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", weight_data_size)
+            fprintf_param_value(" 2=%d", direction)
+
+            fwrite_weight_tag_data(0, op->weight_xc_data, bp);
+            fwrite_weight_tag_data(0, op->bias_c_data, bp);
+            fwrite_weight_tag_data(0, op->weight_hc_data, bp);
+        }
         else if (layer->type == "HardSigmoid")
         {
             ncnn::HardSigmoid* op = (ncnn::HardSigmoid*)layer;
@@ -3663,6 +3682,8 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 6=%d", per_channel_pad_data_size)
             fprintf_param_value(" 7=%d", front)
             fprintf_param_value(" 8=%d", behind)
+
+            fwrite_weight_data(op->per_channel_pad_data, bp);
         }
         else if (layer->type == "Permute")
         {
@@ -3677,6 +3698,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::PixelShuffle* op_default = (ncnn::PixelShuffle*)layer_default;
 
             fprintf_param_value(" 0=%d", upscale_factor)
+            fprintf_param_value(" 1=%d", mode)
         }
         else if (layer->type == "Pooling")
         {
@@ -3704,6 +3726,12 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             }
             fprintf_param_value(" 4=%d", global_pooling)
             fprintf_param_value(" 5=%d", pad_mode)
+            fprintf_param_value(" 6=%d", avgpool_count_include_pad)
+            fprintf_param_value(" 7=%d", adaptive_pooling)
+            fprintf_param_value(" 8=%d", out_w)
+            {
+                if (op->out_h != op->out_w) fprintf(pp, " 18=%d", op->out_h);
+            }
         }
         else if (layer->type == "Power")
         {
@@ -3804,6 +3832,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Reorg* op_default = (ncnn::Reorg*)layer_default;
 
             fprintf_param_value(" 0=%d", stride)
+            fprintf_param_value(" 1=%d", mode)
         }
         else if (layer->type == "Requantize")
         {
@@ -3825,6 +3854,19 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", h)
             fprintf_param_value(" 2=%d", c)
             fprintf_param_value(" 3=%d", permute)
+        }
+        else if (layer->type == "RNN")
+        {
+            ncnn::RNN* op = (ncnn::RNN*)layer;
+            ncnn::RNN* op_default = (ncnn::RNN*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", weight_data_size)
+            fprintf_param_value(" 2=%d", direction)
+
+            fwrite_weight_tag_data(0, op->weight_xc_data, bp);
+            fwrite_weight_tag_data(0, op->bias_c_data, bp);
+            fwrite_weight_tag_data(0, op->weight_hc_data, bp);
         }
         else if (layer->type == "ROIAlign")
         {

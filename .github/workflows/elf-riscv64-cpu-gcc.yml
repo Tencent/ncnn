@@ -4,6 +4,10 @@ jobs:
   newlib-rv64gcv-gcc:
     runs-on: ubuntu-20.04
     steps:
+    - name: cancel-previous-runs
+      uses: styfle/cancel-workflow-action@0.7.0
+      with:
+        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
       with:
         submodules: true
@@ -101,6 +105,10 @@ jobs:
   newlib-rv64gc-gcc:
     runs-on: ubuntu-20.04
     steps:
+    - name: cancel-previous-runs
+      uses: styfle/cancel-workflow-action@0.7.0
+      with:
+        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
       with:
         submodules: true

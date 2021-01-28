@@ -24,9 +24,8 @@
 layout (constant_id = 0) const int type = 1;
 layout (constant_id = 1) const float value = 0;
 layout (constant_id = 2) const int per_channel_pad = 0;
-layout (constant_id = 3) const int bugihfa = 0;
 
-#define shape_constant_id_offset 4
+#define shape_constant_id_offset 3
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
