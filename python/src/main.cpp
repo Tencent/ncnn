@@ -36,7 +36,7 @@ namespace py = pybind11;
 
 struct LayerFactory
 {
-    std::string name;
+   std::string name;
     int index;
     std::function<Layer*()> creator;
     std::function<void(Layer*)> destroyer;
