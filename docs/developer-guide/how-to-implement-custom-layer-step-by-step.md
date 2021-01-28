@@ -33,7 +33,7 @@ private:
 DEFINE_LAYER_CREATOR(MyLayer)
 ```
 
-# step3 implment load functions for parameters and weights
+# step3 implement load functions for parameters and weights
 ```cpp
 // mylayer.h
 #include "layer.h"

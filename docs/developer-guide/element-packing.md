@@ -29,7 +29,7 @@ Though the real count of values doubles when elempack is two, the wide-sized val
 
 ### packing style convention
 
-In practise, elempack 1, 4, 8 are the most common cases. It is possible to use any other packing style in theory.
+In practice, elempack 1, 4, 8 are the most common cases. It is possible to use any other packing style in theory.
 
 The following table show the packing axis used in ncnn for different dimension.
 
