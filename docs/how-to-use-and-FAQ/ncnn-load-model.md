@@ -7,7 +7,7 @@
 |file memory|load_param_mem(const char*)|load_param(const unsigned char*)|load_model(const unsigned char*)|
 |android asset|load_param(AAsset*)|load_param_bin(AAsset*)|load_model(AAsset*)|
 |android asset path|load_param(AAssetManager*, const char*)|load_param_bin(AAssetManager*, const char*)|load_model(AAssetManager*, const char*)|
-|custom IO reader|load_param(const DataReader&)|load_param_bin(const DataReader&)|load_mocel(const DataReader&)|
+|custom IO reader|load_param(const DataReader&)|load_param_bin(const DataReader&)|load_model(const DataReader&)|
 
 ### points to note
 
