@@ -52,5 +52,6 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
         TWINE_REPOSITORY_URL: "https://test.pypi.org/legacy/"
       run: |
+        cd python
         python setup.py bdist_wheel
         twine upload python/dist/*
