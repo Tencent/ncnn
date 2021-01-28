@@ -40,7 +40,7 @@ jobs:
     - name: build
       run: |
         mkdir build; cd build
-        cmake -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_PYTHON=ON ..
+        cmake -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_PYTHON=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=OFF ..
         cmake --build . --config Release -j 2
     - name: install python
       run: cd python && pip install .
@@ -54,4 +54,4 @@ jobs:
       run: |
         cd python
         python setup.py bdist_wheel
-        twine upload python/dist/*
+        twine upload dist/*
