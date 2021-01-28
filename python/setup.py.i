@@ -32,7 +32,7 @@ setup(
   url               = "https://github.com/Tencent/ncnn",
   classifiers       = [
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
   ],
   python_requires   = ">=3.5",
