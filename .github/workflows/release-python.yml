@@ -1,5 +1,8 @@
 name: release-python
-on: [push, pull_request]
+on:
+  push:
+    tags:
+      - '*'
 
 jobs:
   build_sdist:
@@ -42,7 +45,7 @@ jobs:
     - uses: actions/setup-python@v2
 
     - name: Install cibuildwheel
-      run: python -m pip install cibuildwheel==1.6.3
+      run: python -m pip install cibuildwheel
 
     - name: Build wheel
       run: python -m cibuildwheel --output-dir wheelhouse
@@ -78,7 +81,7 @@ jobs:
     - uses: actions/setup-python@v2
 
     - name: Install cibuildwheel
-      run: python -m pip install cibuildwheel==1.6.3
+      run: python -m pip install cibuildwheel
 
     - uses: ilammy/msvc-dev-cmd@v1
 

@@ -1,9 +1,5 @@
 from setuptools import setup, find_packages
 
-import sys
-if sys.version_info < (3,0):
-  sys.exit("Sorry, Python < 3.0 is not supported")
-
 try:
     from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
     class bdist_wheel(_bdist_wheel):
@@ -31,12 +27,12 @@ setup(
   description       = "ncnn is a high-performance neural network inference framework optimized for the mobile platform",
   url               = "https://github.com/Tencent/ncnn",
   classifiers       = [
-        "Programming Language :: Python :: 3",
+        "Programming Language :: C++",
+        "Programming Language :: Python",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
   ],
-  license="BSD-3",
-  python_requires   = ">=3.5",
+  license           = "BSD-3",
   packages          = find_packages(),
   package_dir       = {"": "."},
   package_data      = {"ncnn": ["ncnn${PYTHON_MODULE_PREFIX}${PYTHON_MODULE_EXTENSION}"]},
