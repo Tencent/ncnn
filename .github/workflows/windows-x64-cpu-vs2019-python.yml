@@ -47,6 +47,7 @@ jobs:
     - name: test
       run: cd python && pytest tests
     - name: build and publish
+      if: startsWith(github.ref, 'refs/tags')
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
