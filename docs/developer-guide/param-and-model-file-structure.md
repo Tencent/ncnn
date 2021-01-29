@@ -25,9 +25,9 @@ Softmax       softmax  1 1 fc prob 0=0
 * layer name : name of this layer, must be unique among all layer names
 * input count : count of the blobs this layer needs as input
 * output count : count of the blobs this layer produces as output
-* input blobs : name list of all the input blob names, seperated by space, must be unique among input blob names of all layers
-* output blobs : name list of all the output blob names, seperated by space, must be unique among output blob names of all layers
-* layer specific params : key=value pair list, seperated by space
+* input blobs : name list of all the input blob names, separated by space, must be unique among input blob names of all layers
+* output blobs : name list of all the output blob names, separated by space, must be unique among output blob names of all layers
+* layer specific params : key=value pair list, separated by space
 ### layer param
 ```
 0=1 1=2.5 -23303=2,2.0,3.0
