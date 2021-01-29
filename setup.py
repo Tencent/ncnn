@@ -144,6 +144,7 @@ setup(
     maintainer_email="caishanli25@gmail.com",
     description="ncnn is a high-performance neural network inference framework optimized for the mobile platform",
     long_description=long_description,
+    long_description_content_type="text/markdown",
     url="https://github.com/Tencent/ncnn",
     classifiers=[
         "Programming Language :: Python :: 3",
