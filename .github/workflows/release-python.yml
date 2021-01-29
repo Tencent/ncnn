@@ -42,7 +42,7 @@ jobs:
     - uses: actions/setup-python@v2
 
     - name: Install cibuildwheel
-      run: python -m pip install cibuildwheel
+      run: python -m pip install cibuildwheel==1.6.3
 
     - name: Build wheel
       run: python -m cibuildwheel --output-dir wheelhouse
@@ -78,7 +78,7 @@ jobs:
     - uses: actions/setup-python@v2
 
     - name: Install cibuildwheel
-      run: python -m pip install cibuildwheel
+      run: python -m pip install cibuildwheel==1.6.3
 
     - uses: ilammy/msvc-dev-cmd@v1
 
