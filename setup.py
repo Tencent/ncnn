@@ -8,6 +8,7 @@ import subprocess
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
 
+
 def find_version():
     with io.open("CMakeLists.txt", encoding="utf8") as f:
         version_file = f.read()
@@ -23,6 +24,7 @@ def find_version():
 
         return version_major[0] + "." + version_minor[0] + "." + ncnn_version
     raise RuntimeError("Unable to find version string.")
+
 
 # Convert distutils Windows platform specifiers to CMake -A arguments
 PLAT_TO_CMAKE = {
@@ -119,18 +121,12 @@ class CMakeBuild(build_ext):
         )
 
 
-# if sys.version_info < (3, 0):
-#     sys.exit("Sorry, Python < 3.0 is not supported")
+if sys.version_info < (3, 0):
+    sys.exit("Sorry, Python < 3.0 is not supported")
 
-requirements = [
-    "numpy",
-    # "tqdm",
-    # "requests",
-    # "portalocker",
-    # "opencv-python"
-]
+requirements = ["numpy", "tqdm", "requests", "portalocker", "opencv-python"]
 
-with io.open('README.md', encoding="utf-8") as h:
+with io.open("README.md", encoding="utf-8") as h:
     long_description = h.read()
 
 setup(
@@ -146,11 +142,12 @@ setup(
     url="https://github.com/Tencent/ncnn",
     classifiers=[
         "Programming Language :: C++",
-        "Programming Language :: Python",
+        "Programming Language :: Python 3",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
-    license='BSD-3',
+    license="BSD-3",
+    python_requires=">=3.5",
     packages=find_packages("python"),
     package_dir={"": "python"},
     install_requires=requirements,
