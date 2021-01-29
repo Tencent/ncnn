@@ -35,6 +35,7 @@ setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
   ],
+  license="BSD-3",
   python_requires   = ">=3.5",
   packages          = find_packages(),
   package_dir       = {"": "."},

@@ -1,0 +1,133 @@
+name: release-python
+on: [push, pull_request]
+
+jobs:
+  build_sdist:
+    name: Build SDist
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v2
+
+    - name: Install deps
+      run: python -m pip install twine build
+
+    - name: Build SDist
+      run: python -m build -s
+
+    - name: Check metadata
+      run: twine check dist/*
+
+    - uses: actions/upload-artifact@v2
+      with:
+        path: dist/*.tar.gz
+
+
+  build_wheels:
+    name: Wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v2
+
+    - name: Install cibuildwheel
+      run: python -m pip install cibuildwheel
+
+    - name: Build wheel
+      run: python -m cibuildwheel --output-dir wheelhouse
+      env:
+        # Python 2.7 on Windows requires a workaround for C++11 support,
+        # built separately below
+        CIBW_SKIP: cp27-win*
+
+    - name: Show files
+      run: ls -lh wheelhouse
+      shell: bash
+
+    - name: Verify clean directory
+      run: git diff --exit-code
+      shell: bash
+
+    - name: Upload wheels
+      uses: actions/upload-artifact@v2
+      with:
+        path: wheelhouse/*.whl
+
+
+  # Windows 2.7 (requires workaround for MSVC 2008 replacement)
+  build_win27_wheels:
+    name: Py 2.7 wheels on Windows
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v2
+
+    - name: Install cibuildwheel
+      run: python -m pip install cibuildwheel
+
+    - uses: ilammy/msvc-dev-cmd@v1
+
+    - name: Build 64-bit wheel
+      run: python -m cibuildwheel --output-dir wheelhouse
+      env:
+        CIBW_BUILD: cp27-win_amd64
+        DISTUTILS_USE_SDK: 1
+        MSSdk: 1
+
+    - uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x86
+
+    - name: Build 32-bit wheel
+      run: python -m cibuildwheel --output-dir wheelhouse
+      env:
+        CIBW_BUILD: cp27-win32
+        DISTUTILS_USE_SDK: 1
+        MSSdk: 1
+
+    - name: Show files
+      run: ls -lh wheelhouse
+      shell: bash
+
+    - name: Verify clean directory
+      run: git diff --exit-code
+      shell: bash
+
+    - uses: actions/upload-artifact@v2
+      with:
+        path: wheelhouse/*.whl
+
+
+  upload_all:
+    name: Upload if release
+    needs: [build_wheels, build_win27_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+
+    steps:
+    - uses: actions/setup-python@v2
+
+    - uses: actions/download-artifact@v2
+      with:
+        name: artifact
+        path: dist
+
+    - uses: pypa/gh-action-pypi-publish@v1.4.1
+      with:
+        user: __token__
+        password: ${{ secrets.PYPI_API_TOKEN }}
