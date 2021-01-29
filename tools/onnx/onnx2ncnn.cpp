@@ -2129,6 +2129,86 @@ int main(int argc, char** argv)
         weights[initializer.name()] = initializer;
     }
 
+    // topological sort
+    {
+        // name -> producer node index
+        std::set<std::string> producers;
+        for (int j = 0; j < graph.input_size(); j++)
+        {
+            const std::string& input_name = graph.input(j).name();
+            producers.insert(input_name);
+        }
+
+        for (int i = 0; i < node_count;)
+        {
+            onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+            bool swapnode = false;
+            std::string missing_input_name;
+            for (int j = 0; j < (int)node->input_size(); j++)
+            {
+                const std::string& input_name = node->input(j);
+                if (input_name.empty())
+                    continue;
+
+                if (producers.find(input_name) == producers.end() && weights.find(input_name) == weights.end())
+                {
+                    swapnode = true;
+                    missing_input_name = input_name;
+                    break;
+                }
+            }
+
+            if (!swapnode)
+            {
+                for (int j = 0; j < (int)node->output_size(); j++)
+                {
+                    const std::string& output_name = node->output(j);
+                    if (output_name.empty())
+                        continue;
+
+                    producers.insert(output_name);
+                }
+
+                i++;
+                continue;
+            }
+
+            // find node that produce missing_input_name
+            int q = i + 1;
+            for (; q < node_count; q++)
+            {
+                onnx::NodeProto* nodeq = mutable_graph->mutable_node(q);
+                bool found = false;
+                for (int j = 0; j < (int)nodeq->output_size(); j++)
+                {
+                    const std::string& output_name = nodeq->output(j);
+                    if (output_name == missing_input_name)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (found)
+                    break;
+            }
+
+            if (q == node_count)
+            {
+                fprintf(stderr, "cannot find node produces %s but node %d requires it\n", missing_input_name.c_str(), i);
+                return -1;
+            }
+
+            // fprintf(stderr, "swap %d %d\n", i, q);
+            // swap this node with q
+            onnx::NodeProto* nodeq = mutable_graph->mutable_node(q);
+            onnx::NodeProto tmp = *node;
+            *node = *nodeq;
+            *nodeq = tmp;
+        }
+    }
+
     // global definition line
     // [layer count] [blob count]
     std::set<std::string> blob_names;
@@ -2238,12 +2318,22 @@ int main(int argc, char** argv)
                 node_reference[node.input(1)] -= 1;
             }
         }
+        else if (op == "Attention")
+        {
+            node_reference[node.input(1)] -= 1;
+            node_reference[node.input(2)] -= 1;
+            node_reference[node.input(3)] -= 1;
+        }
         else if (op == "BatchNormalization")
         {
             node_reference[node.input(1)] -= 1;
             node_reference[node.input(2)] -= 1;
             node_reference[node.input(3)] -= 1;
             node_reference[node.input(4)] -= 1;
+        }
+        else if (op == "BiasGelu")
+        {
+            node_reference[node.input(1)] -= 1;
         }
         else if (op == "Clip")
         {
@@ -2268,6 +2358,15 @@ int main(int argc, char** argv)
             {
                 node_reference[node.input(2)] -= 1;
             }
+        }
+        else if (op == "EmbedLayerNormalization")
+        {
+            node_reference[node.input(1)] -= 1;
+            node_reference[node.input(2)] -= 1;
+            node_reference[node.input(3)] -= 1;
+            node_reference[node.input(4)] -= 1;
+            node_reference[node.input(5)] -= 1;
+            node_reference[node.input(6)] -= 1;
         }
         else if (op == "Gemm")
         {
@@ -2361,6 +2460,12 @@ int main(int argc, char** argv)
             {
                 node_reference[node.input(j)] -= 1;
             }
+        }
+        else if (op == "SkipLayerNormalization")
+        {
+            node_reference[node.input(2)] -= 1;
+            node_reference[node.input(3)] -= 1;
+            node_reference[node.input(4)] -= 1;
         }
         else if (op == "Slice")
         {
@@ -2605,6 +2710,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "Attention")
+        {
+            fprintf(pp, "%-16s", "Attention");
+        }
         else if (op == "AveragePool" || op == "MaxPool")
         {
             fprintf(pp, "%-16s", "Pooling");
@@ -2612,6 +2721,10 @@ int main(int argc, char** argv)
         else if (op == "BatchNormalization")
         {
             fprintf(pp, "%-16s", "BatchNorm");
+        }
+        else if (op == "BiasGelu")
+        {
+            fprintf(pp, "%-16s", "BiasGelu");
         }
         else if (op == "Ceil")
         {
@@ -2673,6 +2786,10 @@ int main(int argc, char** argv)
         else if (op == "Elu")
         {
             fprintf(pp, "%-16s", "ELU");
+        }
+        else if (op == "EmbedLayerNormalization")
+        {
+            fprintf(pp, "%-16s", "EmbedLayerNormalization");
         }
         else if (op == "Exp")
         {
@@ -2838,6 +2955,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
+        else if (op == "SkipLayerNormalization")
+        {
+            fprintf(pp, "%-16s", "SkipLayerNormalization");
+        }
         else if (op == "Slice")
         {
             fprintf(pp, "%-16s", "Crop");
@@ -2970,6 +3091,26 @@ int main(int argc, char** argv)
             int op_type = 14;
             fprintf(pp, " 0=%d", op_type);
         }
+        else if (op == "Attention")
+        {
+            int num_heads = get_node_attr_i(node, "num_heads", 1);
+
+            const onnx::TensorProto& W = weights[node.input(1)];
+            const onnx::TensorProto& B = weights[node.input(2)];
+
+            fprintf(pp, " 0=%d", get_tensor_proto_data_size(B));
+            fprintf(pp, " 1=%d", num_heads);
+            fprintf(pp, " 2=%d", get_tensor_proto_data_size(W));
+
+            int quantize_tag = 0;
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(W, bp);
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(B, bp);
+        }
         else if (op == "AveragePool" || op == "MaxPool")
         {
             std::string auto_pad = get_node_attr_s(node, "auto_pad");
@@ -3067,6 +3208,17 @@ int main(int argc, char** argv)
                     fwrite(&ve, sizeof(float), 1, bp);
                 }
             }
+            fwrite_tensor_proto_data(B, bp);
+        }
+        else if (op == "BiasGelu")
+        {
+            const onnx::TensorProto& B = weights[node.input(1)];
+
+            fprintf(pp, " 0=%d", get_tensor_proto_data_size(B));
+
+            int quantize_tag = 0;
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
             fwrite_tensor_proto_data(B, bp);
         }
         else if (op == "Ceil")
@@ -3386,6 +3538,34 @@ int main(int argc, char** argv)
         {
             float alpha = get_node_attr_f(node, "alpha", 1.f);
             fprintf(pp, " 0=%e", alpha);
+        }
+        else if (op == "EmbedLayerNormalization")
+        {
+            const onnx::TensorProto& words = weights[node.input(2)];
+            const onnx::TensorProto& positions = weights[node.input(3)];
+            const onnx::TensorProto& W = weights[node.input(5)];
+            const onnx::TensorProto& B = weights[node.input(6)];
+
+            fprintf(pp, " 0=%d", get_tensor_proto_data_size(B));
+            fprintf(pp, " 1=%d", get_tensor_proto_data_size(words));
+            fprintf(pp, " 2=%d", get_tensor_proto_data_size(positions));
+
+            int quantize_tag = 0;
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(words, bp);
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(positions, bp);
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(W, bp);
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(B, bp);
         }
         else if (op == "Exp")
         {
@@ -4343,6 +4523,27 @@ int main(int argc, char** argv)
         {
             int op_type = 9;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "SkipLayerNormalization")
+        {
+            const onnx::TensorProto& W = weights[node.input(2)];
+            const onnx::TensorProto& B = weights[node.input(3)];
+            const onnx::TensorProto& B2 = weights[node.input(4)];
+
+            fprintf(pp, " 0=%d", get_tensor_proto_data_size(B));
+
+            int quantize_tag = 0;
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(W, bp);
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(B, bp);
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(B2, bp);
         }
         else if (op == "Slice")
         {
