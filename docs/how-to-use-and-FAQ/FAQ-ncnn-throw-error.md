@@ -18,7 +18,7 @@ For models loaded from binary param file or external memory, you shall call Extr
 
 This error usually happens when the input layer is not properly converted.
 
-You shall upgrade caffe prototxt/caffemodel before converting it to ncnn. Following snnipet type shall be ok. 
+You shall upgrade caffe prototxt/caffemodel before converting it to ncnn. Following snippet type shall be ok. 
 
 ```
 layer {
