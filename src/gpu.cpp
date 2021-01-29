@@ -1390,8 +1390,9 @@ int create_gpu_instance()
 
             vkGetPhysicalDeviceFeatures2KHR(physicalDevice, &queryFeatures);
 
-            if (gpu_info.support_VK_KHR_8bit_storage)
+            if (gpu_info.support_VK_KHR_8bit_storage && queryFeatures.features.shaderStorageImageExtendedFormats)
             {
+                // shaderStorageImageExtendedFormats enables r8s format in storage image
                 gpu_info.support_int8_storage = query8BitStorageFeatures.storageBuffer8BitAccess;
             }
             if (gpu_info.support_VK_KHR_16bit_storage && queryFeatures.features.shaderStorageImageExtendedFormats)
@@ -3219,6 +3220,77 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.push_back(std::make_pair("afp2sfpmat4(v)", "v"));
     }
 
+    if (opt.use_int8_storage)
+    {
+        custom_defines.push_back(std::make_pair("sint", "int8_t"));
+        custom_defines.push_back(std::make_pair("sintvec2", "i8vec2"));
+        custom_defines.push_back(std::make_pair("sintvec4", "i8vec4"));
+    }
+    else if (opt.use_int8_packed)
+    {
+        custom_defines.push_back(std::make_pair("sint", "int"));
+        custom_defines.push_back(std::make_pair("sintvec2", "ivec2"));
+        custom_defines.push_back(std::make_pair("sintvec4", "uint"));
+        custom_defines.push_back(std::make_pair("sintvec8", "uvec2"));
+    }
+    else
+    {
+        custom_defines.push_back(std::make_pair("sint", "int"));
+        custom_defines.push_back(std::make_pair("sintvec2", "ivec2"));
+        custom_defines.push_back(std::make_pair("sintvec4", "ivec4"));
+    }
+
+    if (1) // opt.use_int8_arithmetic
+    {
+        // i8 extended to i32 for all integer arithmetic
+        custom_defines.push_back(std::make_pair("aint", "int"));
+        custom_defines.push_back(std::make_pair("aintvec2", "ivec2"));
+        custom_defines.push_back(std::make_pair("aintvec4", "ivec4"));
+    }
+
+    if (opt.use_int8_storage)
+    {
+        custom_defines.push_back(std::make_pair("ibuffer_ld1(buf,i)", "int(buf[i])"));
+        custom_defines.push_back(std::make_pair("ibuffer_st1(buf,i,v)", "{buf[i]=int8_t(v);}"));
+        custom_defines.push_back(std::make_pair("ibuffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}"));
+        custom_defines.push_back(std::make_pair("ibuffer_cp1to4(buf,i,sbuf,si4)", "{buf[i].r=sbuf[si4.r];buf[i].g=sbuf[si4.g];buf[i].b=sbuf[si4.b];buf[i].a=sbuf[si4.a];}"));
+        custom_defines.push_back(std::make_pair("ibuffer_ld2(buf,i)", "ivec2(buf[i])"));
+        custom_defines.push_back(std::make_pair("ibuffer_st2(buf,i,v)", "{buf[i]=i8vec2(v);}"));
+        custom_defines.push_back(std::make_pair("ibuffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}"));
+        custom_defines.push_back(std::make_pair("ibuffer_ld4(buf,i)", "ivec4(buf[i])"));
+        custom_defines.push_back(std::make_pair("ibuffer_st4(buf,i,v)", "{buf[i]=i8vec4(v);}"));
+        custom_defines.push_back(std::make_pair("ibuffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}"));
+        custom_defines.push_back(std::make_pair("ibuffer_cp4to1(buf,i4,sbuf,si)", "{buf[i4.r]=sbuf[si].r;buf[i4.g]=sbuf[si].g;buf[i4.b]=sbuf[si].b;buf[i4.a]=sbuf[si].a;}"));
+    }
+    else if (opt.use_int8_packed)
+    {
+        custom_defines.push_back(std::make_pair("ibuffer_ld1(buf,i)", "buf[i]"));
+        custom_defines.push_back(std::make_pair("ibuffer_st1(buf,i,v)", "{buf[i]=v;}"));
+        custom_defines.push_back(std::make_pair("ibuffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}"));
+        custom_defines.push_back(std::make_pair("ibuffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=uint(packSnorm4x8(i8vec4(sbuf[si4.r],sbuf[si4.g],sbuf[si4.b],sbuf[si4.a])));}"));
+        custom_defines.push_back(std::make_pair("ibuffer_ld2(buf,i)", "buf[i]"));
+        custom_defines.push_back(std::make_pair("ibuffer_st2(buf,i,v)", "{buf[i]=v;}"));
+        custom_defines.push_back(std::make_pair("ibuffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}"));
+        custom_defines.push_back(std::make_pair("ibuffer_ld4(buf,i)", "ivec4(unpackSnorm4x8(buf[i]))"));
+        custom_defines.push_back(std::make_pair("ibuffer_st4(buf,i,v)", "{buf[i]=uint(packSnorm4x8(v));}"));
+        custom_defines.push_back(std::make_pair("ibuffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}"));
+        custom_defines.push_back(std::make_pair("ibuffer_cp4to1(buf,i4,sbuf,si)", "{vec4 _v=unpackSnorm4x8(sbuf[si]); buf[i4.r]=_v.r;buf[i4.g]=_v.g;buf[i4.b]=_v.b;buf[i4.a]=_v.a;}"));
+    }
+    else
+    {
+        custom_defines.push_back(std::make_pair("ibuffer_ld1(buf,i)", "buf[i]"));
+        custom_defines.push_back(std::make_pair("ibuffer_st1(buf,i,v)", "{buf[i]=v;}"));
+        custom_defines.push_back(std::make_pair("ibuffer_cp1(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}"));
+        custom_defines.push_back(std::make_pair("ibuffer_cp1to4(buf,i,sbuf,si4)", "{buf[i]=vec4(sbuf[si4.r],sbuf[si4.g],sbuf[si4.b],sbuf[si4.a]);}"));
+        custom_defines.push_back(std::make_pair("ibuffer_ld2(buf,i)", "buf[i]"));
+        custom_defines.push_back(std::make_pair("ibuffer_st2(buf,i,v)", "{buf[i]=v;}"));
+        custom_defines.push_back(std::make_pair("ibuffer_cp2(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}"));
+        custom_defines.push_back(std::make_pair("ibuffer_ld4(buf,i)", "buf[i]"));
+        custom_defines.push_back(std::make_pair("ibuffer_st4(buf,i,v)", "{buf[i]=v;}"));
+        custom_defines.push_back(std::make_pair("ibuffer_cp4(buf,i,sbuf,si)", "{buf[i]=sbuf[si];}"));
+        custom_defines.push_back(std::make_pair("ibuffer_cp4to1(buf,i4,sbuf,si)", "{vec4 _v=sbuf[si]; buf[i4.r]=_v.r;buf[i4.g]=_v.g;buf[i4.b]=_v.b;buf[i4.a]=_v.a;}"));
+    }
+
     if (opt.use_image_storage)
     {
         if (opt.use_fp16_storage)
@@ -3389,6 +3461,89 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             custom_defines.push_back(std::make_pair("image1d_cp8(img,p,tex,sp)", "{imageStore(img,(p)*2,texelFetch(tex,sp*2,0));imageStore(img,(p)*2+1,texelFetch(tex,sp*2+1,0));}"));
             custom_defines.push_back(std::make_pair("image2d_cp8(img,p,tex,sp)", "{imageStore(img,ivec2(p.x*2,p.y),texelFetch(tex,ivec2(sp.x*2,sp.y),0));imageStore(img,ivec2(p.x*2+1,p.y),texelFetch(tex,ivec2(sp.x*2+1,sp.y),0));}"));
             custom_defines.push_back(std::make_pair("image3d_cp8(img,p,tex,sp)", "{imageStore(img,ivec3(p.x*2,p.y,p.z),texelFetch(tex,ivec3(sp.x*2,sp.y,sp.z),0));imageStore(img,ivec3(p.x*2+1,p.y,p.z),texelFetch(tex,ivec3(sp.x*2+1,sp.y,sp.z),0));}"));
+        }
+
+        if (opt.use_int8_storage)
+        {
+            custom_defines.push_back(std::make_pair("iimfmtc1", "r8i"));
+            custom_defines.push_back(std::make_pair("iimfmtc4", "rgba8i"));
+            custom_defines.push_back(std::make_pair("iunfp", "mediump"));
+        }
+        else if (opt.use_int8_packed)
+        {
+            custom_defines.push_back(std::make_pair("iimfmtc1", "rg32i"));
+            custom_defines.push_back(std::make_pair("iimfmtc4", "rgba8i"));
+            custom_defines.push_back(std::make_pair("iunfp", "mediump"));
+        }
+        else
+        {
+            custom_defines.push_back(std::make_pair("iimfmtc1", "r32f"));
+            custom_defines.push_back(std::make_pair("iimfmtc4", "rgba32f"));
+            custom_defines.push_back(std::make_pair("iunfp", "highp"));
+        }
+
+        if (opt.use_int8_storage)
+        {
+            custom_defines.push_back(std::make_pair("iimage1d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
+            custom_defines.push_back(std::make_pair("iimage2d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
+            custom_defines.push_back(std::make_pair("iimage3d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
+            custom_defines.push_back(std::make_pair("iimage1d_st1(img,p,v)", "{ivec4 _v;_v.r=v;imageStore(img,p,_v);}"));
+            custom_defines.push_back(std::make_pair("iimage2d_st1(img,p,v)", "{ivec4 _v;_v.r=v;imageStore(img,p,_v);}"));
+            custom_defines.push_back(std::make_pair("iimage3d_st1(img,p,v)", "{ivec4 _v;_v.r=v;imageStore(img,p,_v);}"));
+            custom_defines.push_back(std::make_pair("iimage1d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+            custom_defines.push_back(std::make_pair("iimage2d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+            custom_defines.push_back(std::make_pair("iimage3d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+            custom_defines.push_back(std::make_pair("iimage1d_ld4(tex,p)", "texelFetch(tex,p,0)"));
+            custom_defines.push_back(std::make_pair("iimage2d_ld4(tex,p)", "texelFetch(tex,p,0)"));
+            custom_defines.push_back(std::make_pair("iimage3d_ld4(tex,p)", "texelFetch(tex,p,0)"));
+            custom_defines.push_back(std::make_pair("iimage1d_st4(img,p,v)", "{imageStore(img,p,v);}"));
+            custom_defines.push_back(std::make_pair("iimage2d_st4(img,p,v)", "{imageStore(img,p,v);}"));
+            custom_defines.push_back(std::make_pair("iimage3d_st4(img,p,v)", "{imageStore(img,p,v);}"));
+            custom_defines.push_back(std::make_pair("iimage1d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+            custom_defines.push_back(std::make_pair("iimage2d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+            custom_defines.push_back(std::make_pair("iimage3d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+        }
+        else if (opt.use_int8_packed)
+        {
+            custom_defines.push_back(std::make_pair("iimage1d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
+            custom_defines.push_back(std::make_pair("iimage2d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
+            custom_defines.push_back(std::make_pair("iimage3d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
+            custom_defines.push_back(std::make_pair("iimage1d_st1(img,p,v)", "{ivec4 _v;_v.r=v;imageStore(img,p,_v);}"));
+            custom_defines.push_back(std::make_pair("iimage2d_st1(img,p,v)", "{ivec4 _v;_v.r=v;imageStore(img,p,_v);}"));
+            custom_defines.push_back(std::make_pair("iimage3d_st1(img,p,v)", "{ivec4 _v;_v.r=v;imageStore(img,p,_v);}"));
+            custom_defines.push_back(std::make_pair("iimage1d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+            custom_defines.push_back(std::make_pair("iimage2d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+            custom_defines.push_back(std::make_pair("iimage3d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+            custom_defines.push_back(std::make_pair("iimage1d_ld4(tex,p)", "texelFetch(tex,p,0)"));
+            custom_defines.push_back(std::make_pair("iimage2d_ld4(tex,p)", "texelFetch(tex,p,0)"));
+            custom_defines.push_back(std::make_pair("iimage3d_ld4(tex,p)", "texelFetch(tex,p,0)"));
+            custom_defines.push_back(std::make_pair("iimage1d_st4(img,p,v)", "{imageStore(img,p,v);}"));
+            custom_defines.push_back(std::make_pair("iimage2d_st4(img,p,v)", "{imageStore(img,p,v);}"));
+            custom_defines.push_back(std::make_pair("iimage3d_st4(img,p,v)", "{imageStore(img,p,v);}"));
+            custom_defines.push_back(std::make_pair("iimage1d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+            custom_defines.push_back(std::make_pair("iimage2d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+            custom_defines.push_back(std::make_pair("iimage3d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+        }
+        else
+        {
+            custom_defines.push_back(std::make_pair("iimage1d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
+            custom_defines.push_back(std::make_pair("iimage2d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
+            custom_defines.push_back(std::make_pair("iimage3d_ld1(tex,p)", "texelFetch(tex,p,0).r"));
+            custom_defines.push_back(std::make_pair("iimage1d_st1(img,p,v)", "{ivec4 _v;_v.r=v;imageStore(img,p,_v);}"));
+            custom_defines.push_back(std::make_pair("iimage2d_st1(img,p,v)", "{ivec4 _v;_v.r=v;imageStore(img,p,_v);}"));
+            custom_defines.push_back(std::make_pair("iimage3d_st1(img,p,v)", "{ivec4 _v;_v.r=v;imageStore(img,p,_v);}"));
+            custom_defines.push_back(std::make_pair("iimage1d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+            custom_defines.push_back(std::make_pair("iimage2d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+            custom_defines.push_back(std::make_pair("iimage3d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+            custom_defines.push_back(std::make_pair("iimage1d_ld4(tex,p)", "texelFetch(tex,p,0)"));
+            custom_defines.push_back(std::make_pair("iimage2d_ld4(tex,p)", "texelFetch(tex,p,0)"));
+            custom_defines.push_back(std::make_pair("iimage3d_ld4(tex,p)", "texelFetch(tex,p,0)"));
+            custom_defines.push_back(std::make_pair("iimage1d_st4(img,p,v)", "{imageStore(img,p,v);}"));
+            custom_defines.push_back(std::make_pair("iimage2d_st4(img,p,v)", "{imageStore(img,p,v);}"));
+            custom_defines.push_back(std::make_pair("iimage3d_st4(img,p,v)", "{imageStore(img,p,v);}"));
+            custom_defines.push_back(std::make_pair("iimage1d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+            custom_defines.push_back(std::make_pair("iimage2d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
+            custom_defines.push_back(std::make_pair("iimage3d_cp4(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
         }
     }
 
