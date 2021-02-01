@@ -2865,41 +2865,41 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat& bottom_blob, Mat& top_b
                 kptr += 4;
             }
 
-            outptr0[0] = sum0_0;
-            outptr0[1] = sum0_1;
-            outptr0[2] = sum0_2;
-            outptr0[3] = sum0_3;
-            outptr0[4] = sum0_4;
-            outptr0[5] = sum0_5;
-            outptr0[6] = sum0_6;
-            outptr0[7] = sum0_7;
+            outptr0[0] = float2int8(((float)sum0_0 * scale_requant_in0 + bias0) * scale_requant_out0);
+            outptr0[1] = float2int8(((float)sum0_1 * scale_requant_in0 + bias0) * scale_requant_out0);
+            outptr0[2] = float2int8(((float)sum0_2 * scale_requant_in0 + bias0) * scale_requant_out0);
+            outptr0[3] = float2int8(((float)sum0_3 * scale_requant_in0 + bias0) * scale_requant_out0);
+            outptr0[4] = float2int8(((float)sum0_4 * scale_requant_in0 + bias0) * scale_requant_out0);
+            outptr0[5] = float2int8(((float)sum0_5 * scale_requant_in0 + bias0) * scale_requant_out0);
+            outptr0[6] = float2int8(((float)sum0_6 * scale_requant_in0 + bias0) * scale_requant_out0);
+            outptr0[7] = float2int8(((float)sum0_7 * scale_requant_in0 + bias0) * scale_requant_out0);
 
-            outptr1[0] = sum1_0;
-            outptr1[1] = sum1_1;
-            outptr1[2] = sum1_2;
-            outptr1[3] = sum1_3;
-            outptr1[4] = sum1_4;
-            outptr1[5] = sum1_5;
-            outptr1[6] = sum1_6;
-            outptr1[7] = sum1_7;
+            outptr1[0] = float2int8(((float)sum1_0 * scale_requant_in1 + bias1) * scale_requant_out1);
+            outptr1[1] = float2int8(((float)sum1_1 * scale_requant_in1 + bias1) * scale_requant_out1);
+            outptr1[2] = float2int8(((float)sum1_2 * scale_requant_in1 + bias1) * scale_requant_out1);
+            outptr1[3] = float2int8(((float)sum1_3 * scale_requant_in1 + bias1) * scale_requant_out1);
+            outptr1[4] = float2int8(((float)sum1_4 * scale_requant_in1 + bias1) * scale_requant_out1);
+            outptr1[5] = float2int8(((float)sum1_5 * scale_requant_in1 + bias1) * scale_requant_out1);
+            outptr1[6] = float2int8(((float)sum1_6 * scale_requant_in1 + bias1) * scale_requant_out1);
+            outptr1[7] = float2int8(((float)sum1_7 * scale_requant_in1 + bias1) * scale_requant_out1);
 
-            outptr2[0] = sum2_0;
-            outptr2[1] = sum2_1;
-            outptr2[2] = sum2_2;
-            outptr2[3] = sum2_3;
-            outptr2[4] = sum2_4;
-            outptr2[5] = sum2_5;
-            outptr2[6] = sum2_6;
-            outptr2[7] = sum2_7;
+            outptr2[0] = float2int8(((float)sum2_0 * scale_requant_in2 + bias2) * scale_requant_out2);
+            outptr2[1] = float2int8(((float)sum2_1 * scale_requant_in2 + bias2) * scale_requant_out2);
+            outptr2[2] = float2int8(((float)sum2_2 * scale_requant_in2 + bias2) * scale_requant_out2);
+            outptr2[3] = float2int8(((float)sum2_3 * scale_requant_in2 + bias2) * scale_requant_out2);
+            outptr2[4] = float2int8(((float)sum2_4 * scale_requant_in2 + bias2) * scale_requant_out2);
+            outptr2[5] = float2int8(((float)sum2_5 * scale_requant_in2 + bias2) * scale_requant_out2);
+            outptr2[6] = float2int8(((float)sum2_6 * scale_requant_in2 + bias2) * scale_requant_out2);
+            outptr2[7] = float2int8(((float)sum2_7 * scale_requant_in2 + bias2) * scale_requant_out2);
 
-            outptr3[0] = sum3_0;
-            outptr3[1] = sum3_1;
-            outptr3[2] = sum3_2;
-            outptr3[3] = sum3_3;
-            outptr3[4] = sum3_4;
-            outptr3[5] = sum3_5;
-            outptr3[6] = sum3_6;
-            outptr3[7] = sum3_7;
+            outptr3[0] = float2int8(((float)sum3_0 * scale_requant_in3 + bias3) * scale_requant_out3);
+            outptr3[1] = float2int8(((float)sum3_1 * scale_requant_in3 + bias3) * scale_requant_out3);
+            outptr3[2] = float2int8(((float)sum3_2 * scale_requant_in3 + bias3) * scale_requant_out3);
+            outptr3[3] = float2int8(((float)sum3_3 * scale_requant_in3 + bias3) * scale_requant_out3);
+            outptr3[4] = float2int8(((float)sum3_4 * scale_requant_in3 + bias3) * scale_requant_out3);
+            outptr3[5] = float2int8(((float)sum3_5 * scale_requant_in3 + bias3) * scale_requant_out3);
+            outptr3[6] = float2int8(((float)sum3_6 * scale_requant_in3 + bias3) * scale_requant_out3);
+            outptr3[7] = float2int8(((float)sum3_7 * scale_requant_in3 + bias3) * scale_requant_out3);
 
             outptr0 += 8;
             outptr1 += 8;
@@ -3114,25 +3114,25 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat& bottom_blob, Mat& top_b
                 kptr += 4;
             }
 
-            outptr0[0] = sum0_0;
-            outptr0[1] = sum0_1;
-            outptr0[2] = sum0_2;
-            outptr0[3] = sum0_3;
+            outptr0[0] = float2int8(((float)sum0_0 * scale_requant_in0 + bias0) * scale_requant_out0);
+            outptr0[1] = float2int8(((float)sum0_1 * scale_requant_in0 + bias0) * scale_requant_out0);
+            outptr0[2] = float2int8(((float)sum0_2 * scale_requant_in0 + bias0) * scale_requant_out0);
+            outptr0[3] = float2int8(((float)sum0_3 * scale_requant_in0 + bias0) * scale_requant_out0);
 
-            outptr1[0] = sum1_0;
-            outptr1[1] = sum1_1;
-            outptr1[2] = sum1_2;
-            outptr1[3] = sum1_3;
+            outptr1[0] = float2int8(((float)sum1_0 * scale_requant_in1 + bias1) * scale_requant_out1);
+            outptr1[1] = float2int8(((float)sum1_1 * scale_requant_in1 + bias1) * scale_requant_out1);
+            outptr1[2] = float2int8(((float)sum1_2 * scale_requant_in1 + bias1) * scale_requant_out1);
+            outptr1[3] = float2int8(((float)sum1_3 * scale_requant_in1 + bias1) * scale_requant_out1);
 
-            outptr2[0] = sum2_0;
-            outptr2[1] = sum2_1;
-            outptr2[2] = sum2_2;
-            outptr2[3] = sum2_3;
+            outptr2[0] = float2int8(((float)sum2_0 * scale_requant_in2 + bias2) * scale_requant_out2);
+            outptr2[1] = float2int8(((float)sum2_1 * scale_requant_in2 + bias2) * scale_requant_out2);
+            outptr2[2] = float2int8(((float)sum2_2 * scale_requant_in2 + bias2) * scale_requant_out2);
+            outptr2[3] = float2int8(((float)sum2_3 * scale_requant_in2 + bias2) * scale_requant_out2);
 
-            outptr3[0] = sum3_0;
-            outptr3[1] = sum3_1;
-            outptr3[2] = sum3_2;
-            outptr3[3] = sum3_3;
+            outptr3[0] = float2int8(((float)sum3_0 * scale_requant_in3 + bias3) * scale_requant_out3);
+            outptr3[1] = float2int8(((float)sum3_1 * scale_requant_in3 + bias3) * scale_requant_out3);
+            outptr3[2] = float2int8(((float)sum3_2 * scale_requant_in3 + bias3) * scale_requant_out3);
+            outptr3[3] = float2int8(((float)sum3_3 * scale_requant_in3 + bias3) * scale_requant_out3);
 
             outptr0 += 4;
             outptr1 += 4;
@@ -3259,10 +3259,10 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat& bottom_blob, Mat& top_b
                 kptr += 4;
             }
 
-            outptr0[0] = sum0;
-            outptr1[0] = sum1;
-            outptr2[0] = sum2;
-            outptr3[0] = sum3;
+            outptr0[0] = float2int8(((float)sum0 * scale_requant_in0 + bias0) * scale_requant_out0);
+            outptr1[0] = float2int8(((float)sum1 * scale_requant_in1 + bias1) * scale_requant_out1);
+            outptr2[0] = float2int8(((float)sum2 * scale_requant_in2 + bias2) * scale_requant_out2);
+            outptr3[0] = float2int8(((float)sum3 * scale_requant_in3 + bias3) * scale_requant_out3);
 
             outptr0++;
             outptr1++;
@@ -3417,14 +3417,14 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat& bottom_blob, Mat& top_b
                 kptr++;
             }
 
-            outptr0[0] = sum0;
-            outptr0[1] = sum1;
-            outptr0[2] = sum2;
-            outptr0[3] = sum3;
-            outptr0[4] = sum4;
-            outptr0[5] = sum5;
-            outptr0[6] = sum6;
-            outptr0[7] = sum7;
+            outptr0[0] = float2int8(((float)sum0 * scale_requant_in + bias0) * scale_requant_out);
+            outptr0[1] = float2int8(((float)sum1 * scale_requant_in + bias0) * scale_requant_out);
+            outptr0[2] = float2int8(((float)sum2 * scale_requant_in + bias0) * scale_requant_out);
+            outptr0[3] = float2int8(((float)sum3 * scale_requant_in + bias0) * scale_requant_out);
+            outptr0[4] = float2int8(((float)sum4 * scale_requant_in + bias0) * scale_requant_out);
+            outptr0[5] = float2int8(((float)sum5 * scale_requant_in + bias0) * scale_requant_out);
+            outptr0[6] = float2int8(((float)sum6 * scale_requant_in + bias0) * scale_requant_out);
+            outptr0[7] = float2int8(((float)sum7 * scale_requant_in + bias0) * scale_requant_out);
 
             outptr0 += 8;
 #endif // __ARM_NEON
@@ -3531,10 +3531,10 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat& bottom_blob, Mat& top_b
                 kptr++;
             }
 
-            outptr0[0] = sum0;
-            outptr0[1] = sum1;
-            outptr0[2] = sum2;
-            outptr0[3] = sum3;
+            outptr0[0] = float2int8(((float)sum0 * scale_requant_in + bias0) * scale_requant_out);
+            outptr0[1] = float2int8(((float)sum1 * scale_requant_in + bias0) * scale_requant_out);
+            outptr0[2] = float2int8(((float)sum2 * scale_requant_in + bias0) * scale_requant_out);
+            outptr0[3] = float2int8(((float)sum3 * scale_requant_in + bias0) * scale_requant_out);
 
             outptr0 += 4;
 #endif // __ARM_NEON
@@ -3555,7 +3555,7 @@ static void conv1x1s1_sgemm_int8_requant_neon(const Mat& bottom_blob, Mat& top_b
                 kptr++;
             }
 
-            outptr0[0] = sum0;
+            outptr0[0] = float2int8(((float)sum0 * scale_requant_in + bias0) * scale_requant_out);
 
             outptr0++;
         }
