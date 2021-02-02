@@ -525,7 +525,7 @@ IMAGE_ALLOCATION_FAILED:
 
     if (image_allocation_failed)
     {
-        NCNN_LOGE("forward_layer %d %s image allocation failed, fallback to buffer", layer_index, layer->name.c_str());
+        NCNN_LOGE("forward_layer %d %s image allocation failed, fallback to cpu", layer_index, layer->name.c_str());
     }
 
     if (layer->one_blob_only)
@@ -540,9 +540,9 @@ IMAGE_ALLOCATION_FAILED:
                 return ret;
         }
 
-        if (layer->support_vulkan)
+        if (layer->support_vulkan && !image_allocation_failed)
         {
-            if (layer->support_image_storage && !image_allocation_failed)
+            if (layer->support_image_storage)
             {
                 if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
                 {
@@ -641,9 +641,9 @@ IMAGE_ALLOCATION_FAILED:
                     return ret;
             }
 
-            if (layer->support_vulkan)
+            if (layer->support_vulkan && !image_allocation_failed)
             {
-                if (layer->support_image_storage && !image_allocation_failed)
+                if (layer->support_image_storage)
                 {
                     if (blob_mats_gpu_image[bottom_blob_index].dims == 0)
                     {
@@ -752,12 +752,12 @@ IMAGE_ALLOCATION_FAILED:
     }
 
     int ret;
-    if (layer->support_vulkan)
+    if (layer->support_vulkan && !image_allocation_failed)
     {
 #if NCNN_BENCHMARK
         cmd.record_write_timestamp(layer_index * 2);
 #endif
-        if (layer->support_image_storage && !image_allocation_failed)
+        if (layer->support_image_storage)
         {
             ret = do_forward_layer(layer, blob_mats_gpu_image, cmd, opt);
             if (ret == -100)
