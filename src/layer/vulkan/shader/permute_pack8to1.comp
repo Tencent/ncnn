@@ -23,8 +23,9 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #endif
 
 layout (constant_id = 0) const int order_type = 0;
+layout (constant_id = 1) const int bugihfa = 0;
 
-#define shape_constant_id_offset 1
+#define shape_constant_id_offset 2
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
