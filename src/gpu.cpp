@@ -1216,6 +1216,12 @@ int create_gpu_instance()
                     gpu_info.support_subgroup_ballot = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_BALLOT_BIT;
                     gpu_info.support_subgroup_shuffle = physicalDeviceSubgroupProperties.supportedOperations & VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
                 }
+
+                if (physicalDeviceProperties.vendorID == 0x5143)
+                {
+                    // double subgroup size for fp16
+                    gpu_info.subgroup_size *= 2;
+                }
             }
             else
             {

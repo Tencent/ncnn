@@ -118,7 +118,7 @@ void Pipeline::set_local_size_xyz(int w, int h, int c)
     int local_size = w * h * c;
 
     // be multiple of subgroup size
-    int subgroup_size = vkdev->info.subgroup_size;
+    int subgroup_size = vkdev->info.subgroup_size();
     int local_size2 = std::max(1, local_size / subgroup_size) * subgroup_size;
     for (; local_size > local_size2; local_size = w * h * c)
     {
