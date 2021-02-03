@@ -2606,11 +2606,19 @@ int main(int argc, char** argv)
         else if (M.dims_size() == 2)
         {
             fprintf(pp, " 0=%d", (int)M.dims(1));
+            if (M.dims(0) != 1)
+            {
+                fprintf(pp, " 1=%d", (int)M.dims(0));
+            }
         }
         else if (M.dims_size() == 3)
         {
             fprintf(pp, " 0=%d", (int)M.dims(2));
             fprintf(pp, " 1=%d", (int)M.dims(1));
+            if (M.dims(0) != 1)
+            {
+                fprintf(pp, " 2=%d", (int)M.dims(0));
+            }
         }
         else if (M.dims_size() == 4)
         {
