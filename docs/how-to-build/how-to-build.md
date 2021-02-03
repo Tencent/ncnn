@@ -176,7 +176,7 @@ $ export PATH="<your-toolchain-compiler-path>:${PATH}"
 
 Alternatively install a cross-compiler provided by the distribution (i.e. on Debian / Ubuntu, you can do `sudo apt install g++-arm-linux-gnueabi g++-arm-linux-gnueabihf g++-aarch64-linux-gnu`).
 
-Depending on your needs build one ore more of the below targets.
+Depending on your needs build one or more of the below targets.
 
 AArch32 target with soft float (arm-linux-gnueabi)
 ```
