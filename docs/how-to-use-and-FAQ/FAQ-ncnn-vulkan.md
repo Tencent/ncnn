@@ -1,4 +1,4 @@
-### how to enable ncnn vulkan capablity
+### how to enable ncnn vulkan capability
 
 follow [the build and install instruction](how-to-build)
 

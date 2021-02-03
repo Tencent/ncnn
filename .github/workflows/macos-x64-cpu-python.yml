@@ -7,7 +7,7 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        python-version: [3.5, 3.6, 3.7, 3.8]
+        python-version: [3.5, 3.6, 3.7, 3.8, 3.9]
     steps:
     - name: cancel-previous-runs
       uses: styfle/cancel-workflow-action@0.7.0
@@ -23,7 +23,7 @@ jobs:
     - name: install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest
+        pip install pytest setuptools wheel twine
     - name: protobuf
       run: brew install protobuf opencv3
     - name: cache-openmp
@@ -64,3 +64,13 @@ jobs:
       run: cd python && pip install .
     - name: test
       run: cd python && pytest tests
+    - name: build and publish
+      if: startsWith(github.ref, 'refs/tags')
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        TWINE_REPOSITORY_URL: "https://test.pypi.org/legacy/"
+      run: |
+        cd python
+        python setup.py bdist_wheel
+        twine upload dist/*
