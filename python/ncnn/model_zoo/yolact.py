@@ -48,7 +48,7 @@ class Yolact:
 
         # original model converted from https://github.com/dbolya/yolact
         # yolact_resnet50_54_800000.pth
-        # the ncnn model https://github.com/caishanli/pyncnn-assets/tree/master/models
+        # the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
         self.net.load_param(get_model_file("yolact.param"))
         self.net.load_model(get_model_file("yolact.bin"))
 
