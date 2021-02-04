@@ -3245,9 +3245,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             custom_defines.push_back(std::make_pair("image1d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)"));
             custom_defines.push_back(std::make_pair("image2d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)"));
             custom_defines.push_back(std::make_pair("image3d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)"));
-            custom_defines.push_back(std::make_pair("image1d_st1(img,p,v)", "{f16vec4 _v;_v.r=float16_t(v);imageStore(img,p,_v);}"));
-            custom_defines.push_back(std::make_pair("image2d_st1(img,p,v)", "{f16vec4 _v;_v.r=float16_t(v);imageStore(img,p,_v);}"));
-            custom_defines.push_back(std::make_pair("image3d_st1(img,p,v)", "{f16vec4 _v;_v.r=float16_t(v);imageStore(img,p,_v);}"));
+            custom_defines.push_back(std::make_pair("image1d_st1(img,p,v)", "{vec4 _v;_v.r=float(v);imageStore(img,p,_v);}"));
+            custom_defines.push_back(std::make_pair("image2d_st1(img,p,v)", "{vec4 _v;_v.r=float(v);imageStore(img,p,_v);}"));
+            custom_defines.push_back(std::make_pair("image3d_st1(img,p,v)", "{vec4 _v;_v.r=float(v);imageStore(img,p,_v);}"));
             custom_defines.push_back(std::make_pair("image1d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
             custom_defines.push_back(std::make_pair("image2d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
             custom_defines.push_back(std::make_pair("image3d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
