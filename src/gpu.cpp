@@ -192,6 +192,7 @@ public:
     // bug is not feature
     bool bug_storage_buffer_no_l1;
     bool bug_corrupted_online_pipeline_cache;
+    bool bug_buffer_image_load_zero;
 
     // but sometimes bug is a feature
     bool bug_implicit_fp16_arithmetic;
@@ -449,6 +450,11 @@ bool GpuInfo::bug_storage_buffer_no_l1() const
 bool GpuInfo::bug_corrupted_online_pipeline_cache() const
 {
     return d->bug_corrupted_online_pipeline_cache;
+}
+
+bool GpuInfo::bug_buffer_image_load_zero() const
+{
+    return d->bug_buffer_image_load_zero;
 }
 
 bool GpuInfo::bug_implicit_fp16_arithmetic() const
@@ -1086,6 +1092,15 @@ int create_gpu_instance()
             // even promised with full image memory barrier on old adreno driver
             // TODO figure out a proper workaround without hurt speed too much
             //             gpu_info.bug_storage_buffer_no_l1 = true;
+        }
+
+        if (physicalDeviceProperties.vendorID == 0x5143)
+        {
+            // HACK buffer2image before image-read dependency does not work properly
+            // even promised with full image memory barrier on old adreno driver
+            // TODO figure out a proper workaround without hurt speed too much
+            // TODO only for old drivers
+            gpu_info.bug_buffer_image_load_zero = true;
         }
 
         if (physicalDeviceProperties.vendorID == 0x13b5
