@@ -40,7 +40,7 @@ class MobileNetV2_SSDLite:
 
         # original pretrained model from https://github.com/chuanqi305/MobileNetv2-SSDLite
         # https://github.com/chuanqi305/MobileNetv2-SSDLite/blob/master/ssdlite/voc/deploy.prototxt
-        # the ncnn model https://github.com/caishanli/pyncnn-assets/tree/master/models
+        # the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
         self.net.load_param(get_model_file("mobilenetv2_ssdlite_voc.param"))
         self.net.load_model(get_model_file("mobilenetv2_ssdlite_voc.bin"))
 
