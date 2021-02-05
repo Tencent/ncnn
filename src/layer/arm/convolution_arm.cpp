@@ -587,7 +587,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             // we need more proper conditions
-            if (w == h && (w == 6 || w == 9 || w == 10 || w == 15 || w == 16 || w == 17 || w == 18))
+            if ((w == 6 || w == 9 || w == 10 || w == 15 || w == 16 || w == 17 || w == 18) && (h == 6 || h == 9 || h == 10 || h == 15 || h == 16 || h == 17 || h == 18))
             {
                 conv3x3s1_winograd42_pack4_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data_pack4, bias_data, opt);
             }
@@ -1557,7 +1557,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             // we need more proper conditions
-            if (w == h && (w == 6 || w == 9 || w == 10 || w == 15 || w == 16 || w == 17 || w == 18))
+            if ((w == 6 || w == 9 || w == 10 || w == 15 || w == 16 || w == 17 || w == 18) && (h == 6 || h == 9 || h == 10 || h == 15 || h == 16 || h == 17 || h == 18))
             {
                 conv3x3s1_winograd42_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data_pack4, bias_data_fp16, opt);
             }
@@ -2531,7 +2531,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             // we need more proper conditions
-            if (w == h && (w == 6 || w == 9 || w == 10 || w == 15 || w == 16 || w == 17 || w == 18))
+            if ((w == 6 || w == 9 || w == 10 || w == 15 || w == 16 || w == 17 || w == 18) && (h == 6 || h == 9 || h == 10 || h == 15 || h == 16 || h == 17 || h == 18))
             {
                 conv3x3s1_winograd42_pack4_bf16s_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data_pack4, bias_data, opt);
             }
