@@ -15,6 +15,7 @@
 #ifndef NCNN_DIALECT_H
 #define NCNN_DIALECT_H
 
+#include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
 

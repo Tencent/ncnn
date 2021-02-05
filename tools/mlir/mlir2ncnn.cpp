@@ -507,6 +507,8 @@ int main(int argc, char** argv)
             fprintf(pp, " 2=%d", (int)shape[2]);
         }
 
+        fprintf(pp, "\n");
+
         std::vector<float> v = get_attr_af(M);
 
         if (shape.size() != 3)

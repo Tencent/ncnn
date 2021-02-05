@@ -31,7 +31,7 @@ class MobileNet_SSD:
 
         # model is converted from https://github.com/chuanqi305/MobileNet-SSD
         # and can be downloaded from https://drive.google.com/open?id=0ByaKLD9QaPtucWk0Y0dha1VVY0U
-        # the ncnn model https://github.com/caishanli/pyncnn-assets/tree/master/models
+        # the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
         self.net.load_param(get_model_file("mobilenet_ssd_voc_ncnn.param"))
         self.net.load_model(get_model_file("mobilenet_ssd_voc_ncnn.bin"))
 

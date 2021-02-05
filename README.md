@@ -79,7 +79,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 **[use netron for ncnn model visualization](https://netron.app)**
 
-**[out-of-the-box online model conversion](https://convertmodel.com/)**
+**[out-of-the-box web model conversion](https://convertmodel.com/#outputFormat=ncnn)**
 
 [ncnn low-level operation api](https://github.com/Tencent/ncnn/wiki/low-level-operation-api)
 
