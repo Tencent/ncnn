@@ -113,7 +113,11 @@ static int test_convolution_0()
             return -1;
     }
 
-    return 0;
+    return 0
+           || test_convolution(13, 16, 16, 24, 3, 1, 1, 1, 1)
+           || test_convolution(8, 8, 16, 24, 3, 1, 1, 1, 0)
+           || test_convolution(4, 8, 16, 24, 3, 1, 1, 1, 1)
+           || test_convolution(4, 20, 16, 24, 3, 1, 1, 1, 0);
 }
 
 static int test_convolution_vec(int w, int outch, int kernel, int dilation, int stride, int pad, int bias)
