@@ -67,7 +67,8 @@ _model_sha1 = {
 
 _split_model_bins = {
     "ZF_faster_rcnn_final.bin" : 3,
-    "rfcn_end2end.bin" : 2
+    "rfcn_end2end.bin" : 2,
+    "yolov4-opt.bin" : 7
 }
 
 
