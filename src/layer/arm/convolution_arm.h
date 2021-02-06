@@ -58,6 +58,8 @@ public:
     Mat weight_data_pack1to4;
     Mat weight_data_pack4to1;
 
+    Mat weight_3x3_winograd42_data_pack4;
+
     // fp16
     Mat weight_data_fp16;
     Mat bias_data_fp16;
