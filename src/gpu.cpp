@@ -1090,7 +1090,7 @@ int create_gpu_instance()
             gpu_info.bug_storage_buffer_no_l1 = true;
         }
 
-        if (physicalDeviceProperties.vendorID == 0x5143)
+        if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 1, 87))
         {
             // HACK buffer2image before image-read dependency does not work properly
             // even promised with full image memory barrier on old adreno driver
