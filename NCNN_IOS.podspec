@@ -23,6 +23,8 @@ Pod::Spec.new do |spec|
 
   spec.preserve_paths = "**/openmp.framework", "**/ncnn.framework","**/glslang.framework"
 
+  spec.vendored_libraries = ['**/openmp.framework/openmp',"**/ncnn.framework/ncnn","**/glslang.framework/glslang"]
+
   spec.xcconfig = { 'HEADER_SEARCH_PATHS' => '${PODS_ROOT}/NCNN_IOS/openmp.framework/Headers/;${PODS_ROOT}/NCNN_IOS/ncnn.framework/Headers/;${PODS_ROOT}/NCNN_IOS/glslang.framework/Headers/'
   }
 

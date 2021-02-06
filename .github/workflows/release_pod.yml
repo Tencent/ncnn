@@ -1,0 +1,148 @@
+name: release_pod
+on:
+  push:
+    tags:
+      - '*'
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
+  EMSCRIPTEN_VERSION: 2.0.8
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      VERSION: ${{ steps.get_version.outputs.VERSION }}
+    steps:
+    - name: get-version
+      id: get_version
+      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+
+  openmp-ios-bitcode:
+    runs-on: macos-latest
+    steps:
+    - name: cache-openmp
+      id: cache-openmp
+      uses: actions/cache@v1
+      with:
+        path: openmp-install
+        key: openmp-ios-bitcode-release-11.0.0
+    - name: checkout
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+    - name: openmp
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
+        tar -xf openmp-11.0.0.src.tar.xz
+        cd openmp-11.0.0.src
+        sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
+        sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
+    - name: build
+      if: steps.cache-openmp.outputs.cache-hit != 'true'
+      run: |
+        cd openmp-11.0.0.src
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="arm64" \
+            -DPERL_EXECUTABLE=/usr/local/bin/perl \
+            -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+    - name: upload
+      uses: actions/upload-artifact@v2
+      with:
+        name: openmp-ios-bitcode
+        path: openmp-install
+  ios-gpu-bitcode:
+    needs: [setup, openmp-ios-bitcode]
+    runs-on: macos-latest
+    env:
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode-pod
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: download-openmp-ios-bitcode
+      uses: actions/download-artifact@v2
+      with:
+        name: openmp-ios-bitcode
+        path: openmp-ios-bitcode
+    - name: install-openmp
+      run: |
+        sudo cp openmp-ios-bitcode/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
+        sudo cp openmp-ios-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
+        sudo cp openmp-ios-bitcode/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
+        sudo cp openmp-ios-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v1
+      with:
+        path: "vulkansdk-macos-1.2.135.0"
+        key: vulkansdk-macos-1.2.135.0
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.2.135.0/mac/vulkansdk-macos-1.2.135.0.tar.gz?Human=true -O vulkansdk-macos-1.2.135.0.tar.gz
+        tar -xf vulkansdk-macos-1.2.135.0.tar.gz
+        rm -rf vulkansdk-macos-1.2.135.0/Applications
+        find vulkansdk-macos-1.2.135.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
+    - name: build
+      run: |
+        export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.135.0/macOS
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+            -DIOS_PLATFORM=OS64 -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="arm64" \
+            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
+            -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.135.0/MoltenVK/include \
+            -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.135.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+    - name: package-openmp
+      run: |
+        rm -rf openmp.framework
+        mkdir -p openmp.framework/Versions/A/Headers
+        mkdir -p openmp.framework/Versions/A/Resources
+        ln -s A openmp.framework/Versions/Current
+        ln -s Versions/Current/Headers openmp.framework/Headers
+        ln -s Versions/Current/Resources openmp.framework/Resources
+        ln -s Versions/Current/openmp openmp.framework/openmp
+        cp openmp-ios-bitcode/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -r openmp-ios-bitcode/include/* openmp.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
+    - name: package-glslang
+      run: |
+        rm -rf glslang.framework
+        mkdir -p glslang.framework/Versions/A/Headers
+        mkdir -p glslang.framework/Versions/A/Resources
+        ln -s A glslang.framework/Versions/Current
+        ln -s Versions/Current/Headers glslang.framework/Headers
+        ln -s Versions/Current/Resources glslang.framework/Resources
+        ln -s Versions/Current/glslang glslang.framework/glslang
+        libtool -static build/install/lib/libglslang.a build/install/lib/libSPIRV.a build/install/lib/libOGLCompiler.a build/install/lib/libOSDependent.a -o build/install/lib/libglslang_combined.a
+        libtool -static build-simulator/install/lib/libglslang.a build-simulator/install/lib/libSPIRV.a build-simulator/install/lib/libOGLCompiler.a build-simulator/install/lib/libOSDependent.a -o build-simulator/install/lib/libglslang_combined.a
+        lipo -create build/install/lib/libglslang_combined.a build-simulator/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
+        cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
+    - name: package
+      run: |
+        rm -rf ncnn.framework
+        mkdir -p ncnn.framework/Versions/A/Headers
+        mkdir -p ncnn.framework/Versions/A/Resources
+        ln -s A ncnn.framework/Versions/Current
+        ln -s Versions/Current/Headers ncnn.framework/Headers
+        ln -s Versions/Current/Resources ncnn.framework/Resources
+        ln -s Versions/Current/ncnn ncnn.framework/ncnn
+        cp -r build/install/lib/libncnn.a ncnn.framework/Versions/A/ncnn
+        cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
+        sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
+    - name: upload-zip
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
