@@ -88,8 +88,6 @@ static int test_convolution_0()
                   || test_convolution(9, 7, 12, 16, k, d, s, p, 0)
                   || test_convolution(9, 7, 15, 15, k, d, s, p, 0)
                   || test_convolution(9, 7, 16, 16, k, d, s, p, 0)
-                  || test_convolution(13, 16, 16, 24, k, d, s, p, 1)
-                  || test_convolution(4, 12, 16, 24, k, d, s, p, 1)
                   || test_convolution(18, 17, 1, 1, k, d, s, p, 1)
                   || test_convolution(18, 17, 4, 13, k, d, s, p, 0)
                   || test_convolution(18, 17, 13, 4, k, d, s, p, 1)
@@ -115,7 +113,11 @@ static int test_convolution_0()
             return -1;
     }
 
-    return 0;
+    return 0
+           || test_convolution(13, 16, 16, 24, 3, 1, 1, 1, 1)
+           || test_convolution(8, 8, 16, 24, 3, 1, 1, 1, 0)
+           || test_convolution(4, 8, 16, 24, 3, 1, 1, 1, 1)
+           || test_convolution(4, 4, 16, 24, 3, 1, 1, 1, 0);
 }
 
 static int test_convolution_vec(int w, int outch, int kernel, int dilation, int stride, int pad, int bias)
