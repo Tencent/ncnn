@@ -125,10 +125,11 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 #endif // __ARM_NEON
 
 #if __ARM_NEON
+    int nn_outch = 0;
     int remain_outch_start = 0;
 
 #if __aarch64__
-    int nn_outch = outch >> 3;
+    nn_outch = outch >> 3;
     remain_outch_start = nn_outch << 3;
 
     #pragma omp parallel for num_threads(opt.num_threads)
