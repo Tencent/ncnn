@@ -123,8 +123,7 @@ static void conv_im2col_sgemm_transform_kernel_neon(const Mat& _kernel, Mat& ker
     }
 }
 
-static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias,
-                                   const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Option& opt)
+static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, int kernel_w, int kernel_h, int stride_w, int stride_h, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
