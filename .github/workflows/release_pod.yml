@@ -50,10 +50,10 @@ jobs:
         cmake --build . -j 2
         cmake --build . --target install
     - name: upload
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v2.2.2
       with:
         name: openmp-ios-bitcode
-        path: openmp-ios-bitcode
+        path: install
 
   ios-gpu-bitcode:
     needs: [setup, openmp-ios-bitcode]
@@ -65,16 +65,16 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-ios-bitcode
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v2.0.8
       with:
         name: openmp-ios-bitcode
-        path: openmp-ios-bitcode
+        path: install
     - name: install-openmp
       run: |
-        sudo cp openmp-ios-bitcode/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
-        sudo cp openmp-ios-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
-        sudo cp openmp-ios-bitcode/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
-        sudo cp openmp-ios-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
+        sudo cp install/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
+        sudo cp install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
+        sudo cp install/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
+        sudo cp install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
@@ -142,7 +142,7 @@ jobs:
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
     - name: upload-zip
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v2.2.2
       with:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
