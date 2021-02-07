@@ -141,7 +141,7 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
         const int stride = kernel_h * kernel_w * outw * outh;
         float* ret = (float*)bottom_im2col;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < inch; p++)
         {
             const float* input = bottom_blob.channel(p);
@@ -175,7 +175,7 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
         int nn_size = out_size >> 3;
         int remain_size_start = nn_size << 3;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = ii * 8;
@@ -194,9 +194,9 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     "ld1     {v0.4s, v1.4s}, [%0]    \n"
                     "st1     {v0.4s, v1.4s}, [%1]    \n"
                     : "=r"(img0),  // %0
-                    "=r"(tmpptr) // %1
+                      "=r"(tmpptr) // %1
                     : "0"(img0),
-                    "1"(tmpptr)
+                      "1"(tmpptr)
                     : "cc", "memory", "v0", "v1");
 #else
                 asm volatile(
@@ -204,9 +204,9 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     "vld1.f32   {d0-d3}, [%0]       \n"
                     "vst1.f32   {d0-d3}, [%1]       \n"
                     : "=r"(img0),  // %0
-                    "=r"(tmpptr) // %1
+                      "=r"(tmpptr) // %1
                     : "0"(img0),
-                    "1"(tmpptr)
+                      "1"(tmpptr)
                     : "memory", "q0", "q1");
 #endif // __aarch64__
 #else
@@ -224,7 +224,7 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
             }
         }
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < out_size; i++)
         {
             const float* img0 = bottom_im2col.channel(0);
@@ -255,7 +255,7 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
         nn_outch = outch >> 3;
         remain_outch_start = nn_outch << 3;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < nn_outch; pp++)
         {
             int i = pp * 8;
@@ -431,27 +431,27 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     "st1    {v30.4s, v31.4s}, [%7]       \n"
 
                     : "=r"(output0), // %0
-                    "=r"(output1), // %1
-                    "=r"(output2), // %2
-                    "=r"(output3), // %3
-                    "=r"(output4), // %4
-                    "=r"(output5), // %5
-                    "=r"(output6), // %6
-                    "=r"(output7), // %7
-                    "=r"(vb),      // %8
-                    "=r"(va)       // %9
+                      "=r"(output1), // %1
+                      "=r"(output2), // %2
+                      "=r"(output3), // %3
+                      "=r"(output4), // %4
+                      "=r"(output5), // %5
+                      "=r"(output6), // %6
+                      "=r"(output7), // %7
+                      "=r"(vb),      // %8
+                      "=r"(va)       // %9
                     : "0"(output0),
-                    "1"(output1),
-                    "2"(output2),
-                    "3"(output3),
-                    "4"(output4),
-                    "5"(output5),
-                    "6"(output6),
-                    "7"(output7),
-                    "8"(vb),
-                    "9"(va),
-                    "r"(L),      // %20
-                    "r"(biasptr) // %21
+                      "1"(output1),
+                      "2"(output2),
+                      "3"(output3),
+                      "4"(output4),
+                      "5"(output5),
+                      "6"(output6),
+                      "7"(output7),
+                      "8"(vb),
+                      "9"(va),
+                      "r"(L),      // %20
+                      "r"(biasptr) // %21
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
 #else
                 float sum0[8] = {0};
@@ -679,27 +679,27 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     "st1    {v15.s}[3], [%7]             \n"
 
                     : "=r"(output0), // %0
-                    "=r"(output1), // %1
-                    "=r"(output2), // %2
-                    "=r"(output3), // %3
-                    "=r"(output4), // %4
-                    "=r"(output5), // %5
-                    "=r"(output6), // %6
-                    "=r"(output7), // %7
-                    "=r"(vb),      // %8
-                    "=r"(va)       // %9
+                      "=r"(output1), // %1
+                      "=r"(output2), // %2
+                      "=r"(output3), // %3
+                      "=r"(output4), // %4
+                      "=r"(output5), // %5
+                      "=r"(output6), // %6
+                      "=r"(output7), // %7
+                      "=r"(vb),      // %8
+                      "=r"(va)       // %9
                     : "0"(output0),
-                    "1"(output1),
-                    "2"(output2),
-                    "3"(output3),
-                    "4"(output4),
-                    "5"(output5),
-                    "6"(output6),
-                    "7"(output7),
-                    "8"(vb),
-                    "9"(va),
-                    "r"(L),      // %20
-                    "r"(biasptr) // %21
+                      "1"(output1),
+                      "2"(output2),
+                      "3"(output3),
+                      "4"(output4),
+                      "5"(output5),
+                      "6"(output6),
+                      "7"(output7),
+                      "8"(vb),
+                      "9"(va),
+                      "r"(L),      // %20
+                      "r"(biasptr) // %21
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
 #else
                 float sum0 = biasptr[0];
@@ -749,7 +749,7 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
 
         nn_outch = (outch - remain_outch_start) >> 2;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < nn_outch; pp++)
         {
             int i = remain_outch_start + pp * 4;
@@ -873,19 +873,19 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     "st1    {v22.4s, v23.4s}, [%3]       \n"
 
                     : "=r"(output0), // %0
-                    "=r"(output1), // %1
-                    "=r"(output2), // %2
-                    "=r"(output3), // %3
-                    "=r"(vb),      // %4
-                    "=r"(va)       // %5
+                      "=r"(output1), // %1
+                      "=r"(output2), // %2
+                      "=r"(output3), // %3
+                      "=r"(vb),      // %4
+                      "=r"(va)       // %5
                     : "0"(output0),
-                    "1"(output1),
-                    "2"(output2),
-                    "3"(output3),
-                    "4"(vb),
-                    "5"(va),
-                    "r"(L),      // %12
-                    "r"(biasptr) // %13
+                      "1"(output1),
+                      "2"(output2),
+                      "3"(output3),
+                      "4"(vb),
+                      "5"(va),
+                      "r"(L),      // %12
+                      "r"(biasptr) // %13
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
 #else
                 asm volatile(
@@ -983,19 +983,19 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     "vst1.f32    {d28-d31}, [%3]    \n"
 
                     : "=r"(output0), // %0
-                    "=r"(output1), // %1
-                    "=r"(output2), // %2
-                    "=r"(output3), // %3
-                    "=r"(vb),      // %4
-                    "=r"(va)       // %5
+                      "=r"(output1), // %1
+                      "=r"(output2), // %2
+                      "=r"(output3), // %3
+                      "=r"(vb),      // %4
+                      "=r"(va)       // %5
                     : "0"(output0),
-                    "1"(output1),
-                    "2"(output2),
-                    "3"(output3),
-                    "4"(vb),
-                    "5"(va),
-                    "r"(L),      // %12
-                    "r"(biasptr) // %13
+                      "1"(output1),
+                      "2"(output2),
+                      "3"(output3),
+                      "4"(vb),
+                      "5"(va),
+                      "r"(L),      // %12
+                      "r"(biasptr) // %13
                     : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
 #else
@@ -1161,19 +1161,19 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     "st1    {v14.s}[3], [%3]             \n"
 
                     : "=r"(output0), // %0
-                    "=r"(output1), // %1
-                    "=r"(output2), // %2
-                    "=r"(output3), // %3
-                    "=r"(vb),      // %4
-                    "=r"(va)       // %5
+                      "=r"(output1), // %1
+                      "=r"(output2), // %2
+                      "=r"(output3), // %3
+                      "=r"(vb),      // %4
+                      "=r"(va)       // %5
                     : "0"(output0),
-                    "1"(output1),
-                    "2"(output2),
-                    "3"(output3),
-                    "4"(vb),
-                    "5"(va),
-                    "r"(L),      // %12
-                    "r"(biasptr) // %13
+                      "1"(output1),
+                      "2"(output2),
+                      "3"(output3),
+                      "4"(vb),
+                      "5"(va),
+                      "r"(L),      // %12
+                      "r"(biasptr) // %13
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19");
 #else
                 asm volatile(
@@ -1232,19 +1232,19 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     "vst1.f32    {d25[1]}, [%3]     \n"
 
                     : "=r"(output0), // %0
-                    "=r"(output1), // %1
-                    "=r"(output2), // %2
-                    "=r"(output3), // %3
-                    "=r"(vb),      // %4
-                    "=r"(va)       // %5
+                      "=r"(output1), // %1
+                      "=r"(output2), // %2
+                      "=r"(output3), // %3
+                      "=r"(vb),      // %4
+                      "=r"(va)       // %5
                     : "0"(output0),
-                    "1"(output1),
-                    "2"(output2),
-                    "3"(output3),
-                    "4"(vb),
-                    "5"(va),
-                    "r"(L),      // %12
-                    "r"(biasptr) // %13
+                      "1"(output1),
+                      "2"(output2),
+                      "3"(output3),
+                      "4"(vb),
+                      "5"(va),
+                      "r"(L),      // %12
+                      "r"(biasptr) // %13
                     : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
 #endif // __aarch64__
 #else
@@ -1278,7 +1278,7 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
 
         remain_outch_start += nn_outch << 2;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_outch_start; i < outch; i++)
         {
             float* output = top_blob.channel(i);
@@ -1354,13 +1354,13 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     "st1    {v16.4s, v17.4s}, [%0]       \n"
 
                     : "=r"(output), // %0
-                    "=r"(vb),     // %1
-                    "=r"(va)      // %2
+                      "=r"(vb),     // %1
+                      "=r"(va)      // %2
                     : "0"(output),
-                    "1"(vb),
-                    "2"(va),
-                    "r"(L),    // %6
-                    "r"(bias0) // %7
+                      "1"(vb),
+                      "2"(va),
+                      "r"(L),    // %6
+                      "r"(bias0) // %7
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17");
 #else
                 asm volatile(
@@ -1418,13 +1418,13 @@ static void conv_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const 
                     "vst1.f32   {d16-d19}, [%0]     \n"
 
                     : "=r"(output), // %0
-                    "=r"(vb),     // %1
-                    "=r"(va)      // %2
+                      "=r"(vb),     // %1
+                      "=r"(va)      // %2
                     : "0"(output),
-                    "1"(vb),
-                    "2"(va),
-                    "r"(L),    // %6
-                    "r"(bias0) // %7
+                      "1"(vb),
+                      "2"(va),
+                      "r"(L),    // %6
+                      "r"(bias0) // %7
                     : "cc", "memory", "r4", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
 #else
