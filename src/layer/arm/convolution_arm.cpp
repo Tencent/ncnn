@@ -45,6 +45,7 @@ namespace ncnn {
 
 #if __ARM_NEON
 #include "convolution_sgemm_pack4.h"
+#include "convolution_sgemm_pack4_bf16s.h"
 #include "convolution_1x1_pack4.h"
 #include "convolution_1x1_pack4_bf16s.h"
 #include "convolution_1x1_pack4to1.h"
@@ -60,6 +61,7 @@ namespace ncnn {
 #include "convolution_7x7_pack1to4.h"
 #include "convolution_7x7_pack1to4_bf16s.h"
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "convolution_sgemm_pack8_fp16s.h"
 #include "convolution_1x1_fp16s.h"
 #include "convolution_1x1_pack4_fp16s.h"
 #include "convolution_1x1_pack8_fp16s.h"
@@ -227,7 +229,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
         }
         else
         {
-//             convolution_im2col_sgemm_transform_kernel_pack4_neon(weight_data, weight_sgemm_data_pack4, num_input, num_output, kernel_w, kernel_h);
+            //             convolution_im2col_sgemm_transform_kernel_pack4_neon(weight_data, weight_sgemm_data_pack4, num_input, num_output, kernel_w, kernel_h);
 
             // src = kw-kh-inch-outch
             // dst = 4b-4a-kw-kh-inch/4a-outch/4b
@@ -654,7 +656,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 //
 //         if (0)
 //         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
