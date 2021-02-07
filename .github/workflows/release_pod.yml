@@ -5,7 +5,7 @@ on:
       - '*'
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
   EMSCRIPTEN_VERSION: 2.0.8
 
 jobs:
@@ -54,7 +54,7 @@ jobs:
       with:
         name: openmp-ios-bitcode
         path: openmp-install
-        
+
   ios-gpu-bitcode:
     needs: [setup, openmp-ios-bitcode]
     runs-on: macos-latest
