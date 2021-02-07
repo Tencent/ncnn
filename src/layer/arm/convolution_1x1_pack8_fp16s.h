@@ -12,55 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv1x1s1_sgemm_transform_kernel_pack8_fp16sa_neon(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch)
-{
-    // interleave
-    // src = inch-outch
-    // dst = 8b-8a-inch/8a-outch/8b
-    kernel_tm_pack8.create(1, inch / 8, outch / 8, (size_t)2u * 64, 64);
-
-    int q = 0;
-    for (; q + 7 < outch; q += 8)
-    {
-        const float* k0 = (const float*)kernel + (q + 0) * inch;
-        const float* k1 = (const float*)kernel + (q + 1) * inch;
-        const float* k2 = (const float*)kernel + (q + 2) * inch;
-        const float* k3 = (const float*)kernel + (q + 3) * inch;
-        const float* k4 = (const float*)kernel + (q + 4) * inch;
-        const float* k5 = (const float*)kernel + (q + 5) * inch;
-        const float* k6 = (const float*)kernel + (q + 6) * inch;
-        const float* k7 = (const float*)kernel + (q + 7) * inch;
-
-        __fp16* g0 = kernel_tm_pack8.channel(q / 8);
-
-        for (int p = 0; p + 7 < inch; p += 8)
-        {
-            for (int i = 0; i < 8; i++)
-            {
-                g0[0] = (__fp16)k0[i];
-                g0[1] = (__fp16)k1[i];
-                g0[2] = (__fp16)k2[i];
-                g0[3] = (__fp16)k3[i];
-                g0[4] = (__fp16)k4[i];
-                g0[5] = (__fp16)k5[i];
-                g0[6] = (__fp16)k6[i];
-                g0[7] = (__fp16)k7[i];
-
-                g0 += 8;
-            }
-
-            k0 += 8;
-            k1 += 8;
-            k2 += 8;
-            k3 += 8;
-            k4 += 8;
-            k5 += 8;
-            k6 += 8;
-            k7 += 8;
-        }
-    }
-}
-
 static void conv1x1s1_sgemm_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
