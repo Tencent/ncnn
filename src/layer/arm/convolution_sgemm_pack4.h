@@ -54,7 +54,7 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
         int nn_size = outsize / 12;
         int remain_size_start = 0;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 12;
@@ -88,9 +88,9 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                         "st1    {v7.4s}, [%1], #16          \n"
                         "st1    {v11.4s}, [%1], #16         \n"
                         : "=r"(img0),  // %0
-                        "=r"(tmpptr) // %1
+                          "=r"(tmpptr) // %1
                         : "0"(img0),
-                        "1"(tmpptr)
+                          "1"(tmpptr)
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
                     img0 += outsize * 4;
                 }
@@ -104,7 +104,7 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
         int remain_size_start = 0;
 #endif
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 8;
@@ -131,9 +131,9 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                         "sub    %0, %0, #64                 \n"
                         "st1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64 \n"
                         : "=r"(img0),  // %0
-                        "=r"(tmpptr) // %1
+                          "=r"(tmpptr) // %1
                         : "0"(img0),
-                        "1"(tmpptr)
+                          "1"(tmpptr)
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
 #else
                     asm volatile(
@@ -160,9 +160,9 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                         "vst1.f32   {d4-d7}, [%1 :128]! \n"
                         "vst1.f32   {d20-d23}, [%1 :128]! \n"
                         : "=r"(img0),  // %0
-                        "=r"(tmpptr) // %1
+                          "=r"(tmpptr) // %1
                         : "0"(img0),
-                        "1"(tmpptr)
+                          "1"(tmpptr)
                         : "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
 #endif // __aarch64__
                     img0 += outsize * 4;
@@ -173,7 +173,7 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
         remain_size_start += nn_size << 3;
         nn_size = (outsize - remain_size_start) >> 2;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 4;
@@ -196,9 +196,9 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                         "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
                         "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
                         : "=r"(img0),  // %0
-                        "=r"(tmpptr) // %1
+                          "=r"(tmpptr) // %1
                         : "0"(img0),
-                        "1"(tmpptr)
+                          "1"(tmpptr)
                         : "memory", "v0", "v1", "v2", "v3");
 #else
                     asm volatile(
@@ -206,9 +206,9 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                         "vldm       %0, {d0-d7}         \n"
                         "vstm       %1!, {d0-d7}        \n"
                         : "=r"(img0),  // %0
-                        "=r"(tmpptr) // %1
+                          "=r"(tmpptr) // %1
                         : "0"(img0),
-                        "1"(tmpptr)
+                          "1"(tmpptr)
                         : "memory", "q0", "q1", "q2", "q3");
 #endif // __aarch64__
                     img0 += outsize * 4;
@@ -219,7 +219,7 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
         remain_size_start += nn_size << 2;
         nn_size = (outsize - remain_size_start) >> 1;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 2;
@@ -242,9 +242,9 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                         "ld1    {v0.4s, v1.4s}, [%0]        \n"
                         "st1    {v0.4s, v1.4s}, [%1], #32   \n"
                         : "=r"(img0),  // %0
-                        "=r"(tmpptr) // %1
+                          "=r"(tmpptr) // %1
                         : "0"(img0),
-                        "1"(tmpptr)
+                          "1"(tmpptr)
                         : "memory", "v0", "v1");
 #else
                     asm volatile(
@@ -252,9 +252,9 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                         "vld1.f32   {d0-d3}, [%0 :128]  \n"
                         "vst1.f32   {d0-d3}, [%1 :128]! \n"
                         : "=r"(img0),  // %0
-                        "=r"(tmpptr) // %1
+                          "=r"(tmpptr) // %1
                         : "0"(img0),
-                        "1"(tmpptr)
+                          "1"(tmpptr)
                         : "memory", "q0", "q1");
 #endif // __aarch64__
                     img0 += outsize * 4;
@@ -264,7 +264,7 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
 
         remain_size_start += nn_size << 1;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < outsize; i++)
         {
 #if __aarch64__
@@ -285,9 +285,9 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                         "ld1    {v0.4s}, [%0]               \n"
                         "st1    {v0.4s}, [%1], #16          \n"
                         : "=r"(img0),  // %0
-                        "=r"(tmpptr) // %1
+                          "=r"(tmpptr) // %1
                         : "0"(img0),
-                        "1"(tmpptr)
+                          "1"(tmpptr)
                         : "memory", "v0");
 #else
                     asm volatile(
@@ -295,9 +295,9 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                         "vld1.f32   {d0-d1}, [%0 :128]  \n"
                         "vst1.f32   {d0-d1}, [%1 :128]! \n"
                         : "=r"(img0),  // %0
-                        "=r"(tmpptr) // %1
+                          "=r"(tmpptr) // %1
                         : "0"(img0),
-                        "1"(tmpptr)
+                          "1"(tmpptr)
                         : "memory", "q0");
 #endif // __aarch64__
                     img0 += outsize * 4;
@@ -312,7 +312,7 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
     int nn_outch = outch >> 1;
     remain_outch_start = nn_outch << 1;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
         int p = pp * 2;
@@ -495,16 +495,16 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%2], #64 \n"
 
                 : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(outptr1), // %2
-                "=r"(tmpptr),  // %3
-                "=r"(kptr0)    // %4
+                  "=r"(outptr0), // %1
+                  "=r"(outptr1), // %2
+                  "=r"(tmpptr),  // %3
+                  "=r"(kptr0)    // %4
                 : "0"(nn),
-                "1"(outptr0),
-                "2"(outptr1),
-                "3"(tmpptr),
-                "4"(kptr0),
-                "r"(biasptr) // %10
+                  "1"(outptr0),
+                  "2"(outptr1),
+                  "3"(tmpptr),
+                  "4"(kptr0),
+                  "r"(biasptr) // %10
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
         }
         for (; i + 7 < outsize; i += 8)
@@ -630,16 +630,16 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%2], #64 \n"
 
                 : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(outptr1), // %2
-                "=r"(tmpptr),  // %3
-                "=r"(kptr0)    // %4
+                  "=r"(outptr0), // %1
+                  "=r"(outptr1), // %2
+                  "=r"(tmpptr),  // %3
+                  "=r"(kptr0)    // %4
                 : "0"(nn),
-                "1"(outptr0),
-                "2"(outptr1),
-                "3"(tmpptr),
-                "4"(kptr0),
-                "r"(biasptr) // %10
+                  "1"(outptr0),
+                  "2"(outptr1),
+                  "3"(tmpptr),
+                  "4"(kptr0),
+                  "r"(biasptr) // %10
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
         }
         for (; i + 3 < outsize; i += 4)
@@ -719,16 +719,16 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%2], #64 \n"
 
                 : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(outptr1), // %2
-                "=r"(tmpptr),  // %3
-                "=r"(kptr0)    // %4
+                  "=r"(outptr0), // %1
+                  "=r"(outptr1), // %2
+                  "=r"(tmpptr),  // %3
+                  "=r"(kptr0)    // %4
                 : "0"(nn),
-                "1"(outptr0),
-                "2"(outptr1),
-                "3"(tmpptr),
-                "4"(kptr0),
-                "r"(biasptr) // %10
+                  "1"(outptr0),
+                  "2"(outptr1),
+                  "3"(tmpptr),
+                  "4"(kptr0),
+                  "r"(biasptr) // %10
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
         }
         for (; i + 1 < outsize; i += 2)
@@ -784,16 +784,16 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "st1    {v18.4s, v19.4s}, [%2], #32 \n"
 
                 : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(outptr1), // %2
-                "=r"(tmpptr),  // %3
-                "=r"(kptr0)    // %4
+                  "=r"(outptr0), // %1
+                  "=r"(outptr1), // %2
+                  "=r"(tmpptr),  // %3
+                  "=r"(kptr0)    // %4
                 : "0"(nn),
-                "1"(outptr0),
-                "2"(outptr1),
-                "3"(tmpptr),
-                "4"(kptr0),
-                "r"(biasptr) // %10
+                  "1"(outptr0),
+                  "2"(outptr1),
+                  "3"(tmpptr),
+                  "4"(kptr0),
+                  "r"(biasptr) // %10
                 : "cc", "memory", "v0", "v1", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19");
         }
         for (; i < outsize; i++)
@@ -837,22 +837,22 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "st1    {v17.4s}, [%2], #16         \n"
 
                 : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(outptr1), // %2
-                "=r"(tmpptr),  // %3
-                "=r"(kptr0)    // %4
+                  "=r"(outptr0), // %1
+                  "=r"(outptr1), // %2
+                  "=r"(tmpptr),  // %3
+                  "=r"(kptr0)    // %4
                 : "0"(nn),
-                "1"(outptr0),
-                "2"(outptr1),
-                "3"(tmpptr),
-                "4"(kptr0),
-                "r"(biasptr) // %10
+                  "1"(outptr0),
+                  "2"(outptr1),
+                  "3"(tmpptr),
+                  "4"(kptr0),
+                  "r"(biasptr) // %10
                 : "cc", "memory", "v0", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17");
         }
     }
 #endif // __aarch64__
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
     {
         float* outptr0 = top_blob.channel(p);
@@ -959,14 +959,14 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
 
                 : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(tmpptr),  // %2
-                "=r"(kptr0)    // %3
+                  "=r"(outptr0), // %1
+                  "=r"(tmpptr),  // %2
+                  "=r"(kptr0)    // %3
                 : "0"(nn),
-                "1"(outptr0),
-                "2"(tmpptr),
-                "3"(kptr0),
-                "r"(biasptr) // %8
+                  "1"(outptr0),
+                  "2"(tmpptr),
+                  "3"(kptr0),
+                  "r"(biasptr) // %8
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27");
         }
 #endif // __aarch64__
@@ -1050,14 +1050,14 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%1], #64 \n"
 
                 : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(tmpptr),  // %2
-                "=r"(kptr0)    // %3
+                  "=r"(outptr0), // %1
+                  "=r"(tmpptr),  // %2
+                  "=r"(kptr0)    // %3
                 : "0"(nn),
-                "1"(outptr0),
-                "2"(tmpptr),
-                "3"(kptr0),
-                "r"(biasptr) // %8
+                  "1"(outptr0),
+                  "2"(tmpptr),
+                  "3"(kptr0),
+                  "r"(biasptr) // %8
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
 #else
             asm volatile(
@@ -1126,14 +1126,14 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "vstm       %1!, {d24-d31}  \n"
 
                 : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(tmpptr),  // %2
-                "=r"(kptr0)    // %3
+                  "=r"(outptr0), // %1
+                  "=r"(tmpptr),  // %2
+                  "=r"(kptr0)    // %3
                 : "0"(nn),
-                "1"(outptr0),
-                "2"(tmpptr),
-                "3"(kptr0),
-                "r"(biasptr) // %8
+                  "1"(outptr0),
+                  "2"(tmpptr),
+                  "3"(kptr0),
+                  "r"(biasptr) // %8
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif
         }
@@ -1192,14 +1192,14 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
 
                 : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(tmpptr),  // %2
-                "=r"(kptr0)    // %3
+                  "=r"(outptr0), // %1
+                  "=r"(tmpptr),  // %2
+                  "=r"(kptr0)    // %3
                 : "0"(nn),
-                "1"(outptr0),
-                "2"(tmpptr),
-                "3"(kptr0),
-                "r"(biasptr) // %8
+                  "1"(outptr0),
+                  "2"(tmpptr),
+                  "3"(kptr0),
+                  "r"(biasptr) // %8
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19");
 #else
             asm volatile(
@@ -1244,14 +1244,14 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "vstm       %1!, {d16-d23}  \n"
 
                 : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(tmpptr),  // %2
-                "=r"(kptr0)    // %3
+                  "=r"(outptr0), // %1
+                  "=r"(tmpptr),  // %2
+                  "=r"(kptr0)    // %3
                 : "0"(nn),
-                "1"(outptr0),
-                "2"(tmpptr),
-                "3"(kptr0),
-                "r"(biasptr) // %8
+                  "1"(outptr0),
+                  "2"(tmpptr),
+                  "3"(kptr0),
+                  "r"(biasptr) // %8
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11");
 #endif
         }
@@ -1300,14 +1300,14 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "st1    {v16.4s, v17.4s}, [%1], #32 \n"
 
                 : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(tmpptr),  // %2
-                "=r"(kptr0)    // %3
+                  "=r"(outptr0), // %1
+                  "=r"(tmpptr),  // %2
+                  "=r"(kptr0)    // %3
                 : "0"(nn),
-                "1"(outptr0),
-                "2"(tmpptr),
-                "3"(kptr0),
-                "r"(biasptr) // %8
+                  "1"(outptr0),
+                  "2"(tmpptr),
+                  "3"(kptr0),
+                  "r"(biasptr) // %8
                 : "cc", "memory", "v0", "v1", "v8", "v9", "v10", "v11", "v16", "v17");
 #else
             asm volatile(
@@ -1342,14 +1342,14 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "vst1.f32   {d16-d19}, [%1 :128]! \n"
 
                 : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(tmpptr),  // %2
-                "=r"(kptr0)    // %3
+                  "=r"(outptr0), // %1
+                  "=r"(tmpptr),  // %2
+                  "=r"(kptr0)    // %3
                 : "0"(nn),
-                "1"(outptr0),
-                "2"(tmpptr),
-                "3"(kptr0),
-                "r"(biasptr) // %8
+                  "1"(outptr0),
+                  "2"(tmpptr),
+                  "3"(kptr0),
+                  "r"(biasptr) // %8
                 : "cc", "memory", "q0", "q1", "q4", "q5", "q6", "q7", "q8", "q9");
 #endif
         }
@@ -1390,14 +1390,14 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "st1    {v16.4s}, [%1], #16         \n"
 
                 : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(tmpptr),  // %2
-                "=r"(kptr0)    // %3
+                  "=r"(outptr0), // %1
+                  "=r"(tmpptr),  // %2
+                  "=r"(kptr0)    // %3
                 : "0"(nn),
-                "1"(outptr0),
-                "2"(tmpptr),
-                "3"(kptr0),
-                "r"(biasptr) // %8
+                  "1"(outptr0),
+                  "2"(tmpptr),
+                  "3"(kptr0),
+                  "r"(biasptr) // %8
                 : "cc", "memory", "v0", "v8", "v9", "v10", "v11", "v16");
 #else
             asm volatile(
@@ -1424,14 +1424,14 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "vst1.f32   {d16-d17}, [%1 :128]! \n"
 
                 : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(tmpptr),  // %2
-                "=r"(kptr0)    // %3
+                  "=r"(outptr0), // %1
+                  "=r"(tmpptr),  // %2
+                  "=r"(kptr0)    // %3
                 : "0"(nn),
-                "1"(outptr0),
-                "2"(tmpptr),
-                "3"(kptr0),
-                "r"(biasptr) // %8
+                  "1"(outptr0),
+                  "2"(tmpptr),
+                  "3"(kptr0),
+                  "r"(biasptr) // %8
                 : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8");
 #endif
         }
@@ -1633,7 +1633,7 @@ static void convolution_im2col_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top
     {
         const int gap = w * stride_h - outw * stride_w;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < inch; p++)
         {
             const Mat img = bottom_blob.channel(p);
