@@ -49,11 +49,16 @@ jobs:
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
+        rm -rf $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install
+        cp -r openmp-11.0.0.src/build/install/include $GITHUB_WORKSPACE/openmp-install
+        mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
+        cp openmp-11.0.0.src/build/install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
       uses: actions/upload-artifact@v2.2.2
       with:
         name: openmp-ios-bitcode
-        path: install
+        path: openmp-install
 
   ios-gpu-bitcode:
     needs: [setup, openmp-ios-bitcode]
@@ -68,13 +73,11 @@ jobs:
       uses: actions/download-artifact@v2.0.8
       with:
         name: openmp-ios-bitcode
-        path: install
+        path: openmp-install
     - name: install-openmp
       run: |
-        sudo cp install/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
-        sudo cp install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
-        sudo cp install/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
-        sudo cp install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
+        sudo cp openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
+        sudo cp openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
