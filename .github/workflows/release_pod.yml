@@ -114,8 +114,8 @@ jobs:
         ln -s Versions/Current/Headers openmp.framework/Headers
         ln -s Versions/Current/Resources openmp.framework/Resources
         ln -s Versions/Current/openmp openmp.framework/openmp
-        cp openmp-ios-bitcode/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r openmp-ios-bitcode/include/* openmp.framework/Versions/A/Headers/
+        cp openmp-install/lib/libomp.a openmp.framework/Versions/A/openmp
+        cp -r openmp-install/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
       run: |
