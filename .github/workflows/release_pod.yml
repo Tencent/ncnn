@@ -51,9 +51,9 @@ jobs:
         cmake --build . --target install
         rm -rf $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -r openmp-11.0.0.src/build/install/include $GITHUB_WORKSPACE/openmp-install
+        cp -r ./install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
-        cp openmp-11.0.0.src/build/install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
+        cp ./install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
       uses: actions/upload-artifact@v2.2.2
       with:
