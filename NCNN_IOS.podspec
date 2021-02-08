@@ -28,6 +28,4 @@ Pod::Spec.new do |spec|
   spec.xcconfig = { 'HEADER_SEARCH_PATHS' => '${PODS_ROOT}/NCNN_IOS/openmp.framework/Headers/;${PODS_ROOT}/NCNN_IOS/ncnn.framework/Headers/;${PODS_ROOT}/NCNN_IOS/glslang.framework/Headers/'
   }
 
-  spec.dependency 'OpenCV2'
-
 end
