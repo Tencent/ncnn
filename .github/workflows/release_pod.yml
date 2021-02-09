@@ -143,7 +143,7 @@ jobs:
         cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework $GITHUB_WORKSPACE/ncnn/LICENSE.txt
     - name: upload-zip
       uses: actions/upload-artifact@v2.2.2
       with:
