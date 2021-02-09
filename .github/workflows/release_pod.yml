@@ -49,11 +49,11 @@ jobs:
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
-        rm -rf $GITHUB_WORKSPACE/openmp-install
-        mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -r ./install/include $GITHUB_WORKSPACE/openmp-install
-        mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
-        cp ./install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
+        rm -rf $GITHUB_WORKSPACE/openmp-install-pod
+        mkdir -p $GITHUB_WORKSPACE/openmp-install-pod
+        cp -r ./install/include $GITHUB_WORKSPACE/openmp-install-pod
+        mkdir -p $GITHUB_WORKSPACE/openmp-install-pod/lib
+        cp ./install/lib/libomp.a $GITHUB_WORKSPACE/openmp-install-pod/lib/libomp.a
     - name: upload
       uses: actions/upload-artifact@v2.2.2
       with:
@@ -73,11 +73,11 @@ jobs:
       uses: actions/download-artifact@v2.0.8
       with:
         name: openmp-ios-bitcode
-        path: openmp-install
+        path: openmp-install-pod
     - name: install-openmp
       run: |
-        sudo cp openmp-install/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
-        sudo cp openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
+        sudo cp openmp-install-pod/include/* $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/include
+        sudo cp openmp-install-pod/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v1
