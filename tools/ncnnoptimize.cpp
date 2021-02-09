@@ -3906,6 +3906,7 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::ShuffleChannel* op_default = (ncnn::ShuffleChannel*)layer_default;
 
             fprintf_param_value(" 0=%d", group)
+            fprintf_param_value(" 1=%d", reverse)
         }
         else if (layer->type == "Slice")
         {
