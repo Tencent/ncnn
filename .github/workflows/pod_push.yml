@@ -3,7 +3,7 @@ name: pod_push
 on:
   workflow_dispatch:
 jobs:
-  build:
+  cocoapods:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
@@ -12,7 +12,7 @@ jobs:
         run: gem install cocoapods
         
       - name: Deploy to Cocoapods
-        run:
+        run: |
           pod spec lint --allow-warnings NCNN_IOS.podspec
           pod trunk push --allow-warnings NCNN_IOS.podspec
           pod spec lint --allow-warnings NCNN_MAC.podspec
