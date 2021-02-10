@@ -10,12 +10,10 @@ Pod::Spec.new do |spec|
 
   spec.homepage     = "https://github.com/Tencent/ncnn"
 
-  spec.license      = "BSD 3-Clause"
   spec.license      = { :type => "BSD 3-Clause", :file => "https://github.com/Tencent/ncnn/LICENSE.txt" }
 
   spec.author             = { "DCTech" => "412200533@qq.com" }
 
-  spec.platform     = :osx
   spec.platform     = :osx, "10.12"
 
   spec.source       = { :http => "https://github.com/Tencent/ncnn/releases/download/20210124/ncnn-20210124-macos-vulkan.zip"}
