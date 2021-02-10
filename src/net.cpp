@@ -563,6 +563,12 @@ IMAGE_ALLOCATION_FAILED:
                         // host to image
                         cmd.record_upload(blob_mats[bottom_blob_index], blob_mats_gpu_image[bottom_blob_index], opt);
 
+                        if (blob_mats_gpu_image[bottom_blob_index].empty())
+                        {
+                            image_allocation_failed = true;
+                            goto IMAGE_ALLOCATION_FAILED;
+                        }
+
                         if (opt.lightmode)
                         {
                             // delete after taken in light mode
@@ -574,17 +580,17 @@ IMAGE_ALLOCATION_FAILED:
                         // buffer to image
                         cmd.record_buffer_to_image(blob_mats_gpu[bottom_blob_index], blob_mats_gpu_image[bottom_blob_index], opt);
 
+                        if (blob_mats_gpu_image[bottom_blob_index].empty())
+                        {
+                            image_allocation_failed = true;
+                            goto IMAGE_ALLOCATION_FAILED;
+                        }
+
                         if (opt.lightmode)
                         {
                             // delete after taken in light mode
                             blob_mats_gpu[bottom_blob_index].release();
                         }
-                    }
-
-                    if (blob_mats_gpu_image[bottom_blob_index].empty())
-                    {
-                        image_allocation_failed = true;
-                        goto IMAGE_ALLOCATION_FAILED;
                     }
                 }
             }
@@ -676,6 +682,12 @@ IMAGE_ALLOCATION_FAILED:
                             // host to image
                             cmd.record_upload(blob_mats[bottom_blob_index], blob_mats_gpu_image[bottom_blob_index], opt);
 
+                            if (blob_mats_gpu_image[bottom_blob_index].empty())
+                            {
+                                image_allocation_failed = true;
+                                goto IMAGE_ALLOCATION_FAILED;
+                            }
+
                             if (opt.lightmode)
                             {
                                 // delete after taken in light mode
@@ -687,17 +699,17 @@ IMAGE_ALLOCATION_FAILED:
                             // buffer to image
                             cmd.record_buffer_to_image(blob_mats_gpu[bottom_blob_index], blob_mats_gpu_image[bottom_blob_index], opt);
 
+                            if (blob_mats_gpu_image[bottom_blob_index].empty())
+                            {
+                                image_allocation_failed = true;
+                                goto IMAGE_ALLOCATION_FAILED;
+                            }
+
                             if (opt.lightmode)
                             {
                                 // delete after taken in light mode
                                 blob_mats_gpu[bottom_blob_index].release();
                             }
-                        }
-
-                        if (blob_mats_gpu_image[bottom_blob_index].empty())
-                        {
-                            image_allocation_failed = true;
-                            goto IMAGE_ALLOCATION_FAILED;
                         }
                     }
                 }
@@ -1413,8 +1425,7 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
 
-        // TODO give user a choice
-        if (d->vkdev->info.bug_storage_buffer_no_l1()) opt.use_image_storage = true;
+        if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
 
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
@@ -1627,8 +1638,7 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
 
-        // TODO give user a choice
-        if (d->vkdev->info.bug_storage_buffer_no_l1()) opt.use_image_storage = true;
+        if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
 
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
