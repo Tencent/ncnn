@@ -1425,8 +1425,7 @@ int Net::load_param(const DataReader& dr)
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
 
-        // TODO give user a choice
-        if (d->vkdev->info.bug_storage_buffer_no_l1() && !d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = true;
+        if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
 
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
@@ -1639,8 +1638,7 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
 
-        // TODO give user a choice
-        if (d->vkdev->info.bug_storage_buffer_no_l1() && !d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = true;
+        if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
 
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
