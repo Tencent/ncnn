@@ -851,11 +851,15 @@ void set_kmp_blocktime(int time_ms)
 #endif
 }
 
-static int g_flush_denormals = 0;
+static ncnn::ThreadLocalStorage tls_flush_denormals;
 
 int get_flush_denormals()
 {
-    return g_flush_denormals;
+#if defined(__SSE3__)
+    return (int)reinterpret_cast<size_t>(tls_flush_denormals.get());
+#else
+    return 0;
+#endif
 }
 
 int set_flush_denormals(int flush_denormals)
@@ -887,13 +891,11 @@ int set_flush_denormals(int flush_denormals)
         _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
     }
 
-    g_flush_denormals = flush_denormals;
-
+    tls_flush_denormals.set(reinterpret_cast<void*>((size_t)flush_denormals));
     return 0;
 #else
     return 0;
 #endif
-
 }
 
 } // namespace ncnn
