@@ -227,6 +227,14 @@ if(NCNN_OPENMP)
     endif()
 endif()
 
+if(NCNN_THREADS)
+    set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+    set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+    find_package(Threads REQUIRED)
+
+    target_link_libraries(ncnn PUBLIC Threads::Threads)
+endif()
+
 if(NCNN_VULKAN)
     find_package(Vulkan QUIET)
     if(NOT Vulkan_FOUND)
