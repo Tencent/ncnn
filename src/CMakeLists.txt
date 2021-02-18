@@ -215,7 +215,6 @@ if(NCNN_OPENMP)
             else()
                 target_compile_options(ncnn PRIVATE -fopenmp)
             endif()
-            target_link_libraries(ncnn PUBLIC pthread)
         elseif(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
             target_compile_options(ncnn PRIVATE -fopenmp)
             target_link_libraries(ncnn PUBLIC -fopenmp -static-openmp)
@@ -233,6 +232,10 @@ if(NCNN_THREADS)
     find_package(Threads REQUIRED)
 
     target_link_libraries(ncnn PUBLIC Threads::Threads)
+
+    if(NCNN_SIMPLEOMP OR NCNN_SIMPLESTL)
+        target_link_libraries(ncnn PUBLIC pthread)
+    endif()
 endif()
 
 if(NCNN_VULKAN)
