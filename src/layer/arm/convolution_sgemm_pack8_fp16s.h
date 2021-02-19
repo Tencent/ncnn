@@ -40,7 +40,7 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
         int nn_size = size / 12;
         int remain_size_start = 0;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 12;
@@ -79,9 +79,9 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
                         "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%1], #64 \n"
                         "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%1], #64 \n"
                         : "=r"(img0),  // %0
-                          "=r"(tmpptr) // %1
+                        "=r"(tmpptr) // %1
                         : "0"(img0),
-                          "1"(tmpptr)
+                        "1"(tmpptr)
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                     img0 += size * 8;
                 }
@@ -91,7 +91,7 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
         remain_size_start += nn_size * 12;
         nn_size = (size - remain_size_start) >> 3;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 8;
@@ -123,9 +123,9 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
                         "st1    {v16.8h, v17.8h, v18.8h, v19.8h}, [%1], #64 \n"
                         "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%1], #64 \n"
                         : "=r"(img0),  // %0
-                          "=r"(tmpptr) // %1
+                        "=r"(tmpptr) // %1
                         : "0"(img0),
-                          "1"(tmpptr)
+                        "1"(tmpptr)
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
                     img0 += size * 8;
                 }
@@ -135,7 +135,7 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
         remain_size_start += nn_size << 3;
         nn_size = (size - remain_size_start) >> 2;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 4;
@@ -153,9 +153,9 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
                         "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
                         "st1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
                         : "=r"(img0),  // %0
-                          "=r"(tmpptr) // %1
+                        "=r"(tmpptr) // %1
                         : "0"(img0),
-                          "1"(tmpptr)
+                        "1"(tmpptr)
                         : "memory", "v0", "v1", "v2", "v3");
                     img0 += size * 8;
                 }
@@ -165,7 +165,7 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
         remain_size_start += nn_size << 2;
         nn_size = (size - remain_size_start) >> 1;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 2;
@@ -183,9 +183,9 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
                         "ld1    {v0.8h, v1.8h}, [%0]    \n"
                         "st1    {v0.8h, v1.8h}, [%1], #32 \n"
                         : "=r"(img0),  // %0
-                          "=r"(tmpptr) // %1
+                        "=r"(tmpptr) // %1
                         : "0"(img0),
-                          "1"(tmpptr)
+                        "1"(tmpptr)
                         : "memory", "v0", "v1");
                     img0 += size * 8;
                 }
@@ -194,7 +194,7 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
 
         remain_size_start += nn_size << 1;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < size; i++)
         {
             __fp16* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
@@ -210,9 +210,9 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
                         "ld1    {v0.8h}, [%0]           \n"
                         "st1    {v0.8h}, [%1], #16      \n"
                         : "=r"(img0),  // %0
-                          "=r"(tmpptr) // %1
+                        "=r"(tmpptr) // %1
                         : "0"(img0),
-                          "1"(tmpptr)
+                        "1"(tmpptr)
                         : "memory", "v0");
                     img0 += size * 8;
                 }
@@ -220,7 +220,7 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
         }
     }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         __fp16* outptr0 = top_blob.channel(p);
@@ -380,14 +380,14 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
                 "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%1], #64 \n"
 
                 : "=r"(nn),      // %0
-                  "=r"(outptr0), // %1
-                  "=r"(tmpptr),  // %2
-                  "=r"(kptr0)    // %3
+                "=r"(outptr0), // %1
+                "=r"(tmpptr),  // %2
+                "=r"(kptr0)    // %3
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(tmpptr),
-                  "3"(kptr0),
-                  "r"(biasptr) // %8
+                "1"(outptr0),
+                "2"(tmpptr),
+                "3"(kptr0),
+                "r"(biasptr) // %8
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
         }
         for (; i + 7 < size; i += 8)
@@ -501,14 +501,14 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
                 "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%1], #64 \n"
 
                 : "=r"(nn),      // %0
-                  "=r"(outptr0), // %1
-                  "=r"(tmpptr),  // %2
-                  "=r"(kptr0)    // %3
+                "=r"(outptr0), // %1
+                "=r"(tmpptr),  // %2
+                "=r"(kptr0)    // %3
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(tmpptr),
-                  "3"(kptr0),
-                  "r"(biasptr) // %8
+                "1"(outptr0),
+                "2"(tmpptr),
+                "3"(kptr0),
+                "r"(biasptr) // %8
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
         }
         for (; i + 3 < size; i += 4)
@@ -582,14 +582,14 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
                 "st1    {v16.8h, v17.8h, v18.8h, v19.8h}, [%1], #64 \n"
 
                 : "=r"(nn),      // %0
-                  "=r"(outptr0), // %1
-                  "=r"(tmpptr),  // %2
-                  "=r"(kptr0)    // %3
+                "=r"(outptr0), // %1
+                "=r"(tmpptr),  // %2
+                "=r"(kptr0)    // %3
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(tmpptr),
-                  "3"(kptr0),
-                  "r"(biasptr) // %8
+                "1"(outptr0),
+                "2"(tmpptr),
+                "3"(kptr0),
+                "r"(biasptr) // %8
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19");
         }
         for (; i + 1 < size; i += 2)
@@ -645,14 +645,14 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
                 "st1    {v16.8h, v17.8h}, [%1], #32 \n"
 
                 : "=r"(nn),      // %0
-                  "=r"(outptr0), // %1
-                  "=r"(tmpptr),  // %2
-                  "=r"(kptr0)    // %3
+                "=r"(outptr0), // %1
+                "=r"(tmpptr),  // %2
+                "=r"(kptr0)    // %3
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(tmpptr),
-                  "3"(kptr0),
-                  "r"(biasptr) // %8
+                "1"(outptr0),
+                "2"(tmpptr),
+                "3"(kptr0),
+                "r"(biasptr) // %8
                 : "cc", "memory", "v0", "v1", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17");
         }
         for (; i < size; i++)
@@ -695,14 +695,14 @@ static void im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_im2col, Mat& top_bl
                 "st1    {v16.8h}, [%1], #16         \n"
 
                 : "=r"(nn),      // %0
-                  "=r"(outptr0), // %1
-                  "=r"(tmpptr),  // %2
-                  "=r"(kptr0)    // %3
+                "=r"(outptr0), // %1
+                "=r"(tmpptr),  // %2
+                "=r"(kptr0)    // %3
                 : "0"(nn),
-                  "1"(outptr0),
-                  "2"(tmpptr),
-                  "3"(kptr0),
-                  "r"(biasptr) // %8
+                "1"(outptr0),
+                "2"(tmpptr),
+                "3"(kptr0),
+                "r"(biasptr) // %8
                 : "cc", "memory", "v0", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16");
         }
     }
@@ -760,7 +760,7 @@ static void convolution_im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_blob, M
     {
         const int gap = (w * stride_h - outw * stride_w) * 8;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < inch; p++)
         {
             const Mat img = bottom_blob.channel(p);

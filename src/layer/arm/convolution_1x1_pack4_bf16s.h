@@ -40,7 +40,7 @@ static void conv1x1s2_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, co
     Mat bottom_blob_shrinked;
     bottom_blob_shrinked.create(outw, outh, channels, elemsize, elempack, opt.workspace_allocator);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < channels; p++)
     {
         const unsigned short* r0 = bottom_blob.channel(p);
