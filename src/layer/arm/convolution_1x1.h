@@ -44,7 +44,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     nn_outch = outch >> 3;
     remain_outch_start = nn_outch << 3;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
         int p = pp * 8;
@@ -325,55 +325,55 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "bne    0b                          \n"
                     "sub    %9, %9, #16                 \n"
                     : "=r"(nn),      // %0
-                      "=r"(outptr0), // %1
-                      "=r"(outptr1), // %2
-                      "=r"(outptr2), // %3
-                      "=r"(outptr3), // %4
-                      "=r"(outptr4), // %5
-                      "=r"(outptr5), // %6
-                      "=r"(outptr6), // %7
-                      "=r"(outptr7), // %8
-                      "=r"(r0),      // %9
-                      "=r"(r1),      // %10
-                      "=r"(r2),      // %11
-                      "=r"(r3),      // %12
-                      "=r"(r4),      // %13
-                      "=r"(r5),      // %14
-                      "=r"(r6),      // %15
-                      "=r"(r7)       // %16
+                    "=r"(outptr0), // %1
+                    "=r"(outptr1), // %2
+                    "=r"(outptr2), // %3
+                    "=r"(outptr3), // %4
+                    "=r"(outptr4), // %5
+                    "=r"(outptr5), // %6
+                    "=r"(outptr6), // %7
+                    "=r"(outptr7), // %8
+                    "=r"(r0),      // %9
+                    "=r"(r1),      // %10
+                    "=r"(r2),      // %11
+                    "=r"(r3),      // %12
+                    "=r"(r4),      // %13
+                    "=r"(r5),      // %14
+                    "=r"(r6),      // %15
+                    "=r"(r7)       // %16
                     : "0"(nn),
-                      "1"(outptr0),
-                      "2"(outptr1),
-                      "3"(outptr2),
-                      "4"(outptr3),
-                      "5"(outptr4),
-                      "6"(outptr5),
-                      "7"(outptr6),
-                      "8"(outptr7),
-                      "9"(r0),
-                      "10"(r1),
-                      "11"(r2),
-                      "12"(r3),
-                      "13"(r4),
-                      "14"(r5),
-                      "15"(r6),
-                      "16"(r7),
-                      "w"(_k0),                                                                            // %34
-                      "w"(_k1),                                                                            // %35
-                      "w"(_k2),                                                                            // %36
-                      "w"(_k3),                                                                            // %37
-                      "w"(_k4),                                                                            // %38
-                      "w"(_k5),                                                                            // %39
-                      "w"(_k6),                                                                            // %40
-                      "w"(_k7),                                                                            // %41
-                      "w"(_k0n),                                                                           // %42
-                      "w"(_k1n),                                                                           // %43
-                      "w"(_k2n),                                                                           // %44
-                      "w"(_k3n),                                                                           // %45
-                      "w"(_k4n),                                                                           // %46
-                      "w"(_k5n),                                                                           // %47
-                      "w"(_k6n),                                                                           // %48
-                      "w"(_k7n)                                                                            // %49
+                    "1"(outptr0),
+                    "2"(outptr1),
+                    "3"(outptr2),
+                    "4"(outptr3),
+                    "5"(outptr4),
+                    "6"(outptr5),
+                    "7"(outptr6),
+                    "8"(outptr7),
+                    "9"(r0),
+                    "10"(r1),
+                    "11"(r2),
+                    "12"(r3),
+                    "13"(r4),
+                    "14"(r5),
+                    "15"(r6),
+                    "16"(r7),
+                    "w"(_k0),                                                                            // %34
+                    "w"(_k1),                                                                            // %35
+                    "w"(_k2),                                                                            // %36
+                    "w"(_k3),                                                                            // %37
+                    "w"(_k4),                                                                            // %38
+                    "w"(_k5),                                                                            // %39
+                    "w"(_k6),                                                                            // %40
+                    "w"(_k7),                                                                            // %41
+                    "w"(_k0n),                                                                           // %42
+                    "w"(_k1n),                                                                           // %43
+                    "w"(_k2n),                                                                           // %44
+                    "w"(_k3n),                                                                           // %45
+                    "w"(_k4n),                                                                           // %46
+                    "w"(_k5n),                                                                           // %47
+                    "w"(_k6n),                                                                           // %48
+                    "w"(_k7n)                                                                            // %49
                     : "cc", "memory", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25" //, "v26", "v27", "v28", "v29", "v30", "v31"
                 );
             }
@@ -671,7 +671,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     nn_outch = outch / 6;
     remain_outch_start = nn_outch * 6;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
         int p = pp * 6;
@@ -840,33 +840,33 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "sub        %7, #16                 \n"
 
                     : "=r"(nn),      // %0
-                      "=r"(outptr0), // %1
-                      "=r"(outptr1), // %2
-                      "=r"(outptr2), // %3
-                      "=r"(outptr3), // %4
-                      "=r"(outptr4), // %5
-                      "=r"(outptr5), // %6
-                      "=r"(r0),      // %7
-                      "=r"(r1),      // %8
-                      "=r"(r2),      // %9
-                      "=r"(r3)       // %10
+                    "=r"(outptr0), // %1
+                    "=r"(outptr1), // %2
+                    "=r"(outptr2), // %3
+                    "=r"(outptr3), // %4
+                    "=r"(outptr4), // %5
+                    "=r"(outptr5), // %6
+                    "=r"(r0),      // %7
+                    "=r"(r1),      // %8
+                    "=r"(r2),      // %9
+                    "=r"(r3)       // %10
                     : "0"(nn),
-                      "1"(outptr0),
-                      "2"(outptr1),
-                      "3"(outptr2),
-                      "4"(outptr3),
-                      "5"(outptr4),
-                      "6"(outptr5),
-                      "7"(r0),
-                      "8"(r1),
-                      "9"(r2),
-                      "10"(r3),
-                      "w"(_k0), // %22
-                      "w"(_k1), // %23
-                      "w"(_k2), // %24
-                      "w"(_k3), // %25
-                      "w"(_k4), // %26
-                      "w"(_k5)  // %27
+                    "1"(outptr0),
+                    "2"(outptr1),
+                    "3"(outptr2),
+                    "4"(outptr3),
+                    "5"(outptr4),
+                    "6"(outptr5),
+                    "7"(r0),
+                    "8"(r1),
+                    "9"(r2),
+                    "10"(r3),
+                    "w"(_k0), // %22
+                    "w"(_k1), // %23
+                    "w"(_k2), // %24
+                    "w"(_k3), // %25
+                    "w"(_k4), // %26
+                    "w"(_k5)  // %27
                     : "cc", "memory", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
             }
 #endif // __ARM_NEON
@@ -1004,27 +1004,27 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "sub        %7, #16                 \n"
 
                     : "=r"(nn),      // %0
-                      "=r"(outptr0), // %1
-                      "=r"(outptr1), // %2
-                      "=r"(outptr2), // %3
-                      "=r"(outptr3), // %4
-                      "=r"(outptr4), // %5
-                      "=r"(outptr5), // %6
-                      "=r"(r0)       // %7
+                    "=r"(outptr0), // %1
+                    "=r"(outptr1), // %2
+                    "=r"(outptr2), // %3
+                    "=r"(outptr3), // %4
+                    "=r"(outptr4), // %5
+                    "=r"(outptr5), // %6
+                    "=r"(r0)       // %7
                     : "0"(nn),
-                      "1"(outptr0),
-                      "2"(outptr1),
-                      "3"(outptr2),
-                      "4"(outptr3),
-                      "5"(outptr4),
-                      "6"(outptr5),
-                      "7"(r0),
-                      "w"(_k0), // %16
-                      "w"(_k1), // %17
-                      "w"(_k2), // %18
-                      "w"(_k3), // %19
-                      "w"(_k4), // %20
-                      "w"(_k5)  // %21
+                    "1"(outptr0),
+                    "2"(outptr1),
+                    "3"(outptr2),
+                    "4"(outptr3),
+                    "5"(outptr4),
+                    "6"(outptr5),
+                    "7"(r0),
+                    "w"(_k0), // %16
+                    "w"(_k1), // %17
+                    "w"(_k2), // %18
+                    "w"(_k3), // %19
+                    "w"(_k4), // %20
+                    "w"(_k5)  // %21
                     : "cc", "memory", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
             }
 #endif // __ARM_NEON
@@ -1060,7 +1060,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
     nn_outch = (outch - remain_outch_start) >> 2;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
         int p = remain_outch_start + pp * 4;
@@ -1219,27 +1219,27 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "bne    0b                          \n"
                     "sub    %5, %5, #32                 \n"
                     : "=r"(nn),      // %0
-                      "=r"(outptr0), // %1
-                      "=r"(outptr1), // %2
-                      "=r"(outptr2), // %3
-                      "=r"(outptr3), // %4
-                      "=r"(r0),      // %5
-                      "=r"(r1),      // %6
-                      "=r"(r2),      // %7
-                      "=r"(r3)       // %8
+                    "=r"(outptr0), // %1
+                    "=r"(outptr1), // %2
+                    "=r"(outptr2), // %3
+                    "=r"(outptr3), // %4
+                    "=r"(r0),      // %5
+                    "=r"(r1),      // %6
+                    "=r"(r2),      // %7
+                    "=r"(r3)       // %8
                     : "0"(nn),
-                      "1"(outptr0),
-                      "2"(outptr1),
-                      "3"(outptr2),
-                      "4"(outptr3),
-                      "5"(r0),
-                      "6"(r1),
-                      "7"(r2),
-                      "8"(r3),
-                      "w"(_k0), // %18
-                      "w"(_k1), // %19
-                      "w"(_k2), // %20
-                      "w"(_k3)  // %21
+                    "1"(outptr0),
+                    "2"(outptr1),
+                    "3"(outptr2),
+                    "4"(outptr3),
+                    "5"(r0),
+                    "6"(r1),
+                    "7"(r2),
+                    "8"(r3),
+                    "w"(_k0), // %18
+                    "w"(_k1), // %19
+                    "w"(_k2), // %20
+                    "w"(_k3)  // %21
                     : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
             }
 #else
@@ -1336,27 +1336,27 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "bne        0b                      \n"
                     "sub        %5, #32                 \n"
                     : "=r"(nn),      // %0
-                      "=r"(outptr0), // %1
-                      "=r"(outptr1), // %2
-                      "=r"(outptr2), // %3
-                      "=r"(outptr3), // %4
-                      "=r"(r0),      // %5
-                      "=r"(r1),      // %6
-                      "=r"(r2),      // %7
-                      "=r"(r3)       // %8
+                    "=r"(outptr0), // %1
+                    "=r"(outptr1), // %2
+                    "=r"(outptr2), // %3
+                    "=r"(outptr3), // %4
+                    "=r"(r0),      // %5
+                    "=r"(r1),      // %6
+                    "=r"(r2),      // %7
+                    "=r"(r3)       // %8
                     : "0"(nn),
-                      "1"(outptr0),
-                      "2"(outptr1),
-                      "3"(outptr2),
-                      "4"(outptr3),
-                      "5"(r0),
-                      "6"(r1),
-                      "7"(r2),
-                      "8"(r3),
-                      "w"(_k0), // %18
-                      "w"(_k1), // %19
-                      "w"(_k2), // %20
-                      "w"(_k3)  // %21
+                    "1"(outptr0),
+                    "2"(outptr1),
+                    "3"(outptr2),
+                    "4"(outptr3),
+                    "5"(r0),
+                    "6"(r1),
+                    "7"(r2),
+                    "8"(r3),
+                    "w"(_k0), // %18
+                    "w"(_k1), // %19
+                    "w"(_k2), // %20
+                    "w"(_k3)  // %21
                     : "cc", "memory", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
             }
 #endif // __aarch64__
@@ -1460,21 +1460,21 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "bne        0b                             \n"
                     "sub        %5, %5, #32                    \n"
                     : "=r"(nn),      // %0
-                      "=r"(outptr0), // %1
-                      "=r"(outptr1), // %2
-                      "=r"(outptr2), // %3
-                      "=r"(outptr3), // %4
-                      "=r"(r0)       // %5
+                    "=r"(outptr0), // %1
+                    "=r"(outptr1), // %2
+                    "=r"(outptr2), // %3
+                    "=r"(outptr3), // %4
+                    "=r"(r0)       // %5
                     : "0"(nn),
-                      "1"(outptr0),
-                      "2"(outptr1),
-                      "3"(outptr2),
-                      "4"(outptr3),
-                      "5"(r0),
-                      "w"(_k0), // %12
-                      "w"(_k1), // %13
-                      "w"(_k2), // %14
-                      "w"(_k3)  // %15
+                    "1"(outptr0),
+                    "2"(outptr1),
+                    "3"(outptr2),
+                    "4"(outptr3),
+                    "5"(r0),
+                    "w"(_k0), // %12
+                    "w"(_k1), // %13
+                    "w"(_k2), // %14
+                    "w"(_k3)  // %15
                     : "cc", "memory", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
             }
 #else
@@ -1517,21 +1517,21 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "bne        0b                      \n"
                     "sub        %5, #32                 \n"
                     : "=r"(nn),      // %0
-                      "=r"(outptr0), // %1
-                      "=r"(outptr1), // %2
-                      "=r"(outptr2), // %3
-                      "=r"(outptr3), // %4
-                      "=r"(r0)       // %5
+                    "=r"(outptr0), // %1
+                    "=r"(outptr1), // %2
+                    "=r"(outptr2), // %3
+                    "=r"(outptr3), // %4
+                    "=r"(r0)       // %5
                     : "0"(nn),
-                      "1"(outptr0),
-                      "2"(outptr1),
-                      "3"(outptr2),
-                      "4"(outptr3),
-                      "5"(r0),
-                      "w"(_k0), // %12
-                      "w"(_k1), // %13
-                      "w"(_k2), // %14
-                      "w"(_k3)  // %15
+                    "1"(outptr0),
+                    "2"(outptr1),
+                    "3"(outptr2),
+                    "4"(outptr3),
+                    "5"(r0),
+                    "w"(_k0), // %12
+                    "w"(_k1), // %13
+                    "w"(_k2), // %14
+                    "w"(_k3)  // %15
                     : "cc", "memory", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
             }
 #endif // __aarch64__
@@ -1560,7 +1560,7 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
     remain_outch_start += nn_outch << 2;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
     {
         Mat out = top_blob.channel(p);
@@ -1639,21 +1639,21 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "bne        0b                             \n"
                     "sub        %2, %2, #32                    \n"
                     : "=r"(nn),     // %0
-                      "=r"(outptr), // %1
-                      "=r"(r0),     // %2
-                      "=r"(r1),     // %3
-                      "=r"(r2),     // %4
-                      "=r"(r3)      // %5
+                    "=r"(outptr), // %1
+                    "=r"(r0),     // %2
+                    "=r"(r1),     // %3
+                    "=r"(r2),     // %4
+                    "=r"(r3)      // %5
                     : "0"(nn),
-                      "1"(outptr),
-                      "2"(r0),
-                      "3"(r1),
-                      "4"(r2),
-                      "5"(r3),
-                      "w"(_k0), // %12
-                      "w"(_k1), // %13
-                      "w"(_k2), // %14
-                      "w"(_k3)  // %15
+                    "1"(outptr),
+                    "2"(r0),
+                    "3"(r1),
+                    "4"(r2),
+                    "5"(r3),
+                    "w"(_k0), // %12
+                    "w"(_k1), // %13
+                    "w"(_k2), // %14
+                    "w"(_k3)  // %15
                     : "cc", "memory", "v0", "v1", "v2", "v3");
             }
 #else
@@ -1686,21 +1686,21 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "bne        0b                  \n"
                     "sub        %2, #32             \n"
                     : "=r"(nn),     // %0
-                      "=r"(outptr), // %1
-                      "=r"(r0),     // %2
-                      "=r"(r1),     // %3
-                      "=r"(r2),     // %4
-                      "=r"(r3)      // %5
+                    "=r"(outptr), // %1
+                    "=r"(r0),     // %2
+                    "=r"(r1),     // %3
+                    "=r"(r2),     // %4
+                    "=r"(r3)      // %5
                     : "0"(nn),
-                      "1"(outptr),
-                      "2"(r0),
-                      "3"(r1),
-                      "4"(r2),
-                      "5"(r3),
-                      "w"(_k0), // %12
-                      "w"(_k1), // %13
-                      "w"(_k2), // %14
-                      "w"(_k3)  // %15
+                    "1"(outptr),
+                    "2"(r0),
+                    "3"(r1),
+                    "4"(r2),
+                    "5"(r3),
+                    "w"(_k0), // %12
+                    "w"(_k1), // %13
+                    "w"(_k2), // %14
+                    "w"(_k3)  // %15
                     : "cc", "memory", "q0", "q1", "q2", "q3");
             }
 #endif // __aarch64__
@@ -1762,12 +1762,12 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "bne        0b                             \n"
                     "sub        %2, %2, #32                    \n"
                     : "=r"(nn),     // %0
-                      "=r"(outptr), // %1
-                      "=r"(r0)      // %2
+                    "=r"(outptr), // %1
+                    "=r"(r0)      // %2
                     : "0"(nn),
-                      "1"(outptr),
-                      "2"(r0),
-                      "w"(_k0) // %6
+                    "1"(outptr),
+                    "2"(r0),
+                    "w"(_k0) // %6
                     : "cc", "memory", "v0", "v1", "v2", "v3");
             }
 #else
@@ -1788,12 +1788,12 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "bne        0b                  \n"
                     "sub        %2, #32             \n"
                     : "=r"(nn),     // %0
-                      "=r"(outptr), // %1
-                      "=r"(r0)      // %2
+                    "=r"(outptr), // %1
+                    "=r"(r0)      // %2
                     : "0"(nn),
-                      "1"(outptr),
-                      "2"(r0),
-                      "w"(_k0) // %6
+                    "1"(outptr),
+                    "2"(r0),
+                    "w"(_k0) // %6
                     : "cc", "memory", "q0", "q1", "q2", "q3");
             }
 #endif // __aarch64__
@@ -1828,7 +1828,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     int nn_outch = outch >> 2;
     int remain_outch_start = nn_outch << 2;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
         int p = pp * 4;
@@ -1988,27 +1988,27 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                         "bne        0b                             \n"
                         : "=r"(nn),      // %0
-                          "=r"(outptr0), // %1
-                          "=r"(outptr1), // %2
-                          "=r"(outptr2), // %3
-                          "=r"(outptr3), // %4
-                          "=r"(r0),      // %5
-                          "=r"(r1),      // %6
-                          "=r"(r2),      // %7
-                          "=r"(r3)       // %8
+                        "=r"(outptr0), // %1
+                        "=r"(outptr1), // %2
+                        "=r"(outptr2), // %3
+                        "=r"(outptr3), // %4
+                        "=r"(r0),      // %5
+                        "=r"(r1),      // %6
+                        "=r"(r2),      // %7
+                        "=r"(r3)       // %8
                         : "0"(nn),
-                          "1"(outptr0),
-                          "2"(outptr1),
-                          "3"(outptr2),
-                          "4"(outptr3),
-                          "5"(r0),
-                          "6"(r1),
-                          "7"(r2),
-                          "8"(r3),
-                          "w"(_k0), // %18
-                          "w"(_k1), // %19
-                          "w"(_k2), // %20
-                          "w"(_k3)  // %21
+                        "1"(outptr0),
+                        "2"(outptr1),
+                        "3"(outptr2),
+                        "4"(outptr3),
+                        "5"(r0),
+                        "6"(r1),
+                        "7"(r2),
+                        "8"(r3),
+                        "w"(_k0), // %18
+                        "w"(_k1), // %19
+                        "w"(_k2), // %20
+                        "w"(_k3)  // %21
                         : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 }
 #else
@@ -2111,27 +2111,27 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
 
                         "bne        0b                  \n"
                         : "=r"(nn),      // %0
-                          "=r"(outptr0), // %1
-                          "=r"(outptr1), // %2
-                          "=r"(outptr2), // %3
-                          "=r"(outptr3), // %4
-                          "=r"(r0),      // %5
-                          "=r"(r1),      // %6
-                          "=r"(r2),      // %7
-                          "=r"(r3)       // %8
+                        "=r"(outptr0), // %1
+                        "=r"(outptr1), // %2
+                        "=r"(outptr2), // %3
+                        "=r"(outptr3), // %4
+                        "=r"(r0),      // %5
+                        "=r"(r1),      // %6
+                        "=r"(r2),      // %7
+                        "=r"(r3)       // %8
                         : "0"(nn),
-                          "1"(outptr0),
-                          "2"(outptr1),
-                          "3"(outptr2),
-                          "4"(outptr3),
-                          "5"(r0),
-                          "6"(r1),
-                          "7"(r2),
-                          "8"(r3),
-                          "w"(_k0), // %18
-                          "w"(_k1), // %19
-                          "w"(_k2), // %20
-                          "w"(_k3)  // %21
+                        "1"(outptr0),
+                        "2"(outptr1),
+                        "3"(outptr2),
+                        "4"(outptr3),
+                        "5"(r0),
+                        "6"(r1),
+                        "7"(r2),
+                        "8"(r3),
+                        "w"(_k0), // %18
+                        "w"(_k1), // %19
+                        "w"(_k2), // %20
+                        "w"(_k3)  // %21
                         : "cc", "memory", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
                 }
 #endif // __aarch64__
@@ -2248,21 +2248,21 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "st1        {v14.4s, v15.4s}, [%4], #32    \n"
                         "bne        0b                             \n"
                         : "=r"(nn),      // %0
-                          "=r"(outptr0), // %1
-                          "=r"(outptr1), // %2
-                          "=r"(outptr2), // %3
-                          "=r"(outptr3), // %4
-                          "=r"(r0)       // %5
+                        "=r"(outptr0), // %1
+                        "=r"(outptr1), // %2
+                        "=r"(outptr2), // %3
+                        "=r"(outptr3), // %4
+                        "=r"(r0)       // %5
                         : "0"(nn),
-                          "1"(outptr0),
-                          "2"(outptr1),
-                          "3"(outptr2),
-                          "4"(outptr3),
-                          "5"(r0),
-                          "w"(_k0), // %12
-                          "w"(_k1), // %13
-                          "w"(_k2), // %14
-                          "w"(_k3)  // %15
+                        "1"(outptr0),
+                        "2"(outptr1),
+                        "3"(outptr2),
+                        "4"(outptr3),
+                        "5"(r0),
+                        "w"(_k0), // %12
+                        "w"(_k1), // %13
+                        "w"(_k2), // %14
+                        "w"(_k3)  // %15
                         : "cc", "memory", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 }
 #else
@@ -2309,21 +2309,21 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "vst1.f32   {d28-d31}, [%4]!    \n"
                         "bne        0b                  \n"
                         : "=r"(nn),      // %0
-                          "=r"(outptr0), // %1
-                          "=r"(outptr1), // %2
-                          "=r"(outptr2), // %3
-                          "=r"(outptr3), // %4
-                          "=r"(r0)       // %5
+                        "=r"(outptr0), // %1
+                        "=r"(outptr1), // %2
+                        "=r"(outptr2), // %3
+                        "=r"(outptr3), // %4
+                        "=r"(r0)       // %5
                         : "0"(nn),
-                          "1"(outptr0),
-                          "2"(outptr1),
-                          "3"(outptr2),
-                          "4"(outptr3),
-                          "5"(r0),
-                          "w"(_k0), // %12
-                          "w"(_k1), // %13
-                          "w"(_k2), // %14
-                          "w"(_k3)  // %15
+                        "1"(outptr0),
+                        "2"(outptr1),
+                        "3"(outptr2),
+                        "4"(outptr3),
+                        "5"(r0),
+                        "w"(_k0), // %12
+                        "w"(_k1), // %13
+                        "w"(_k2), // %14
+                        "w"(_k3)  // %15
                         : "cc", "memory", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
                 }
 #endif // __aarch64__
@@ -2353,7 +2353,7 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
         }
     }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
     {
         Mat out = top_blob.channel(p);
@@ -2439,21 +2439,21 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "bne        0b                             \n"
                         "sub        %2, %2, #64                    \n"
                         : "=r"(nn),     // %0
-                          "=r"(outptr), // %1
-                          "=r"(r0),     // %2
-                          "=r"(r1),     // %3
-                          "=r"(r2),     // %4
-                          "=r"(r3)      // %5
+                        "=r"(outptr), // %1
+                        "=r"(r0),     // %2
+                        "=r"(r1),     // %3
+                        "=r"(r2),     // %4
+                        "=r"(r3)      // %5
                         : "0"(nn),
-                          "1"(outptr),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "5"(r3),
-                          "w"(_k0), // %12
-                          "w"(_k1), // %13
-                          "w"(_k2), // %14
-                          "w"(_k3)  // %15
+                        "1"(outptr),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "5"(r3),
+                        "w"(_k0), // %12
+                        "w"(_k1), // %13
+                        "w"(_k2), // %14
+                        "w"(_k3)  // %15
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9");
                 }
 #else
@@ -2491,21 +2491,21 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "bne        0b                  \n"
                         "sub        %2, #64             \n"
                         : "=r"(nn),     // %0
-                          "=r"(outptr), // %1
-                          "=r"(r0),     // %2
-                          "=r"(r1),     // %3
-                          "=r"(r2),     // %4
-                          "=r"(r3)      // %5
+                        "=r"(outptr), // %1
+                        "=r"(r0),     // %2
+                        "=r"(r1),     // %3
+                        "=r"(r2),     // %4
+                        "=r"(r3)      // %5
                         : "0"(nn),
-                          "1"(outptr),
-                          "2"(r0),
-                          "3"(r1),
-                          "4"(r2),
-                          "5"(r3),
-                          "w"(_k0), // %12
-                          "w"(_k1), // %13
-                          "w"(_k2), // %14
-                          "w"(_k3)  // %15
+                        "1"(outptr),
+                        "2"(r0),
+                        "3"(r1),
+                        "4"(r2),
+                        "5"(r3),
+                        "w"(_k0), // %12
+                        "w"(_k1), // %13
+                        "w"(_k2), // %14
+                        "w"(_k3)  // %15
                         : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9");
                 }
 #endif // __aarch64__
@@ -2579,12 +2579,12 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "bne        0b                             \n"
                         "sub        %2, %2, #64                    \n"
                         : "=r"(nn),     // %0
-                          "=r"(outptr), // %1
-                          "=r"(r0)      // %2
+                        "=r"(outptr), // %1
+                        "=r"(r0)      // %2
                         : "0"(nn),
-                          "1"(outptr),
-                          "2"(r0),
-                          "w"(_k0) // %6
+                        "1"(outptr),
+                        "2"(r0),
+                        "w"(_k0) // %6
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9");
                 }
 #else
@@ -2607,12 +2607,12 @@ static void conv1x1s2_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                         "bne        0b                  \n"
                         "sub        %2, #64             \n"
                         : "=r"(nn),     // %0
-                          "=r"(outptr), // %1
-                          "=r"(r0)      // %2
+                        "=r"(outptr), // %1
+                        "=r"(r0)      // %2
                         : "0"(nn),
-                          "1"(outptr),
-                          "2"(r0),
-                          "w"(_k0) // %6
+                        "1"(outptr),
+                        "2"(r0),
+                        "w"(_k0) // %6
                         : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9");
                 }
 #endif // __aarch64__
