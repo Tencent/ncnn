@@ -2385,6 +2385,9 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     int old_blocktime = get_kmp_blocktime();
     set_kmp_blocktime(d->opt.openmp_blocktime);
 
+    int old_flush_denormals = get_flush_denormals();
+    set_flush_denormals(d->opt.flush_denormals);
+
     int ret = 0;
 
     if (d->blob_mats[blob_index].dims == 0)
@@ -2516,6 +2519,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     // clang-format on
 
     set_kmp_blocktime(old_blocktime);
+    set_flush_denormals(old_flush_denormals);
 
     return ret;
 }
