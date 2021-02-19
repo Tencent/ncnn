@@ -661,12 +661,9 @@ static void fuse_shufflechannel_split(onnx::GraphProto* mutable_graph, std::map<
             // reduce
             node2->set_op_type("noop_reducedncnn");
 
-            node_reference[node->output(0)] -= 1;
+            node_reference[node->output(0)] -= 2;
             node_reference[node2->input(1)] -= 1;
-            node_reference[node2->output(0)] -= 1;
             node_reference[node3->input(1)] -= 1;
-
-            blob_names.erase(node2->output(0));
 
             node3->set_op_type("Split");
             node3->clear_input();

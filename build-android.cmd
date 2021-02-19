@@ -4,10 +4,14 @@
 @SET ANDROID_NDK=<your-ndk-root_path, such as"E:\android-ndk-r18b">
 @SET VULKAN_SDK=<your-vulkan-toolkit_path, such as"D:\VulkanSDK\1.1.106.0\Bin">
 
+:: Set ninja.exe
+:: @SET NINJA_EXE=<your-ninja-exe_path, such as"D:\android\sdk\cmake\3.10.2.4988404\bin\ninja.exe">
+
 :: android armv7
 mkdir build-android-armv7
 pushd build-android-armv7
 cmake -G "Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=%ANDROID_NDK%/build/cmake/android.toolchain.cmake -DCMAKE_MAKE_PROGRAM="%ANDROID_NDK%/prebuilt/windows-x86_64/bin/make.exe" -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-21 ..
+:: cmake -G Ninja -DCMAKE_TOOLCHAIN_FILE="%ANDROID_NDK%/build/cmake/android.toolchain.cmake"  -DCMAKE_MAKE_PROGRAM=%NINJA_EXE%  -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON  -DANDROID_PLATFORM=android-21 .. 
 cmake --build . --parallel %NUMBER_OF_PROCESSORS%
 cmake --build . --target install
 popd
