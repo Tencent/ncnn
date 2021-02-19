@@ -30,6 +30,7 @@
 
 namespace ncnn {
 
+#include "convolution_bf16s.h"
 #include "convolution_sgemm.h"
 #include "convolution_sgemm_int8.h"
 
@@ -45,8 +46,11 @@ namespace ncnn {
 
 #if __ARM_NEON
 #include "convolution_pack4.h"
+#include "convolution_pack4_bf16s.h"
 #include "convolution_pack1to4.h"
+#include "convolution_pack1to4_bf16s.h"
 #include "convolution_pack4to1.h"
+#include "convolution_pack4to1_bf16s.h"
 #include "convolution_sgemm_pack4.h"
 #include "convolution_sgemm_pack4_bf16s.h"
 #include "convolution_1x1_pack4.h"
@@ -64,6 +68,15 @@ namespace ncnn {
 #include "convolution_7x7_pack1to4.h"
 #include "convolution_7x7_pack1to4_bf16s.h"
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "convolution_fp16s.h"
+#include "convolution_pack8_fp16s.h"
+#include "convolution_pack1to8_fp16s.h"
+#include "convolution_pack4to8_fp16s.h"
+#include "convolution_pack8to1_fp16s.h"
+#include "convolution_pack8to4_fp16s.h"
+#include "convolution_pack4_fp16s.h"
+#include "convolution_pack1to4_fp16s.h"
+#include "convolution_pack4to1_fp16s.h"
 #include "convolution_sgemm_pack8_fp16s.h"
 #include "convolution_1x1_fp16s.h"
 #include "convolution_1x1_pack4_fp16s.h"
@@ -454,27 +467,6 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
     }
 
-    const int maxk = kernel_w * kernel_h;
-
-    // kernel offsets
-    std::vector<int> _space_ofs(maxk);
-    int* space_ofs = &_space_ofs[0];
-    {
-        int p1 = 0;
-        int p2 = 0;
-        int gap = w * dilation_h - kernel_w * dilation_w;
-        for (int i = 0; i < kernel_h; i++)
-        {
-            for (int j = 0; j < kernel_w; j++)
-            {
-                space_ofs[p1] = p2;
-                p1++;
-                p2 += dilation_w;
-            }
-            p2 += gap;
-        }
-    }
-
     const int num_input = channels * elempack;
 
 #if __ARM_NEON
@@ -810,6 +802,27 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
+            const int maxk = kernel_w * kernel_h;
+
+            // kernel offsets
+            std::vector<int> _space_ofs(maxk);
+            int* space_ofs = &_space_ofs[0];
+            {
+                int p1 = 0;
+                int p2 = 0;
+                int gap = w * dilation_h - kernel_w * dilation_w;
+                for (int i = 0; i < kernel_h; i++)
+                {
+                    for (int j = 0; j < kernel_w; j++)
+                    {
+                        space_ofs[p1] = p2;
+                        p1++;
+                        p2 += dilation_w;
+                    }
+                    p2 += gap;
+                }
+            }
+
             // num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
@@ -1096,231 +1109,24 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
     //         return forwardDilation_arm(bottom_blob_bordered, top_blob, opt);
     //     }
 
-    const int maxk = kernel_w * kernel_h;
-
-    // kernel offsets
-    std::vector<int> _space_ofs(maxk);
-    int* space_ofs = &_space_ofs[0];
-    {
-        int p1 = 0;
-        int p2 = 0;
-        int gap = w * dilation_h - kernel_w * dilation_w;
-        for (int i = 0; i < kernel_h; i++)
-        {
-            for (int j = 0; j < kernel_w; j++)
-            {
-                space_ofs[p1] = p2;
-                p1++;
-                p2 += dilation_w;
-            }
-            p2 += gap;
-        }
-    }
-
     if (elempack == 4 && out_elempack == 4)
     {
-        {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
-            {
-                __fp16* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float32x4_t _sum = vdupq_n_f32(0.f);
-
-                        if (bias_term)
-                        {
-                            _sum = vld1q_f32((const float*)bias_data + p * 4);
-                        }
-
-                        const __fp16* kptr = weight_data_fp16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * 4;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float32x4_t _val = vcvt_f32_f16(vld1_f16(sptr + space_ofs[k] * 4));
-
-                                float32x4_t _w0 = vcvt_f32_f16(vld1_f16(kptr));
-                                float32x4_t _w1 = vcvt_f32_f16(vld1_f16(kptr + 4));
-                                float32x4_t _w2 = vcvt_f32_f16(vld1_f16(kptr + 8));
-                                float32x4_t _w3 = vcvt_f32_f16(vld1_f16(kptr + 12));
-
-                                _sum = vfmaq_laneq_f32(_sum, _w0, _val, 0);
-                                _sum = vfmaq_laneq_f32(_sum, _w1, _val, 1);
-                                _sum = vfmaq_laneq_f32(_sum, _w2, _val, 2);
-                                _sum = vfmaq_laneq_f32(_sum, _w3, _val, 3);
-
-                                kptr += 16;
-                            }
-                        }
-
-                        _sum = activation_ps(_sum, activation_type, activation_params);
-
-                        vst1_f16(outptr + j * 4, vcvt_f16_f32(_sum));
-                    }
-
-                    outptr += outw * 4;
-                }
-            }
-        }
+        convolution_pack4_fp16s_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
     }
 
     if (elempack == 1 && out_elempack == 4)
     {
-        {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
-            {
-                __fp16* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float32x4_t _sum = vdupq_n_f32(0.f);
-
-                        if (bias_term)
-                        {
-                            _sum = vld1q_f32((const float*)bias_data + p * 4);
-                        }
-
-                        const __fp16* kptr = weight_data_fp16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float32x4_t _val = vcvt_f32_f16(vdup_n_f16(sptr[space_ofs[k]]));
-                                float32x4_t _w = vcvt_f32_f16(vld1_f16(kptr));
-                                _sum = vfmaq_f32(_sum, _val, _w);
-
-                                kptr += 4;
-                            }
-                        }
-
-                        _sum = activation_ps(_sum, activation_type, activation_params);
-
-                        vst1_f16(outptr + j * 4, vcvt_f16_f32(_sum));
-                    }
-
-                    outptr += outw * 4;
-                }
-            }
-        }
+        convolution_pack1to4_fp16s_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
     }
 
     if (elempack == 4 && out_elempack == 1)
     {
-        {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
-            {
-                __fp16* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float sum = 0.f;
-
-                        if (bias_term)
-                        {
-                            sum = bias_data[p];
-                        }
-
-                        const __fp16* kptr = weight_data_fp16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * 4;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float32x4_t _val = vcvt_f32_f16(vld1_f16(sptr + space_ofs[k] * 4));
-                                float32x4_t _w = vcvt_f32_f16(vld1_f16(kptr));
-                                float32x4_t _s4 = vmulq_f32(_val, _w);
-
-                                sum += vaddvq_f32(_s4); // dot
-
-                                kptr += 4;
-                            }
-                        }
-
-                        sum = activation_ss(sum, activation_type, activation_params);
-
-                        outptr[j] = (__fp16)sum;
-                    }
-
-                    outptr += outw;
-                }
-            }
-        }
+        convolution_pack4to1_fp16s_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
     }
 
     if (elempack == 1 && out_elempack == 1)
     {
-        {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
-            {
-                __fp16* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float sum = 0.f;
-
-                        if (bias_term)
-                        {
-                            sum = bias_data[p];
-                        }
-
-                        const __fp16* kptr = weight_data_fp16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const __fp16* sptr = m.row<__fp16>(i * stride_h) + j * stride_w;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float val = (float)sptr[space_ofs[k]];
-                                float w = (float)kptr[k];
-                                sum += val * w;
-                            }
-
-                            kptr += maxk;
-                        }
-
-                        sum = activation_ss(sum, activation_type, activation_params);
-
-                        outptr[j] = (__fp16)sum;
-                    }
-
-                    outptr += outw;
-                }
-            }
-        }
+        convolution_fp16s(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
     }
 
     return 0;
@@ -1365,27 +1171,6 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
     //     {
     //         return forwardDilation_arm(bottom_blob_bordered, top_blob, opt);
     //     }
-
-    const int maxk = kernel_w * kernel_h;
-
-    // kernel offsets
-    std::vector<int> _space_ofs(maxk);
-    int* space_ofs = &_space_ofs[0];
-    {
-        int p1 = 0;
-        int p2 = 0;
-        int gap = w * dilation_h - kernel_w * dilation_w;
-        for (int i = 0; i < kernel_h; i++)
-        {
-            for (int j = 0; j < kernel_w; j++)
-            {
-                space_ofs[p1] = p2;
-                p1++;
-                p2 += dilation_w;
-            }
-            p2 += gap;
-        }
-    }
 
     const int num_input = channels * elempack;
 
@@ -1508,65 +1293,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
-            {
-                __fp16* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float16x8_t _sum = vdupq_n_f16((__fp16)0.f);
-
-                        if (bias_term)
-                        {
-                            _sum = vld1q_f16(((const __fp16*)bias_data_fp16) + p * 8);
-                        }
-
-                        const __fp16* kptr = weight_data_fp16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * 8;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float16x8_t _val = vld1q_f16(sptr + space_ofs[k] * 8);
-
-                                float16x8_t _w0 = vld1q_f16(kptr);
-                                float16x8_t _w1 = vld1q_f16(kptr + 8);
-                                float16x8_t _w2 = vld1q_f16(kptr + 16);
-                                float16x8_t _w3 = vld1q_f16(kptr + 24);
-                                float16x8_t _w4 = vld1q_f16(kptr + 32);
-                                float16x8_t _w5 = vld1q_f16(kptr + 40);
-                                float16x8_t _w6 = vld1q_f16(kptr + 48);
-                                float16x8_t _w7 = vld1q_f16(kptr + 56);
-
-                                _sum = vfmaq_laneq_f16(_sum, _w0, _val, 0);
-                                _sum = vfmaq_laneq_f16(_sum, _w1, _val, 1);
-                                _sum = vfmaq_laneq_f16(_sum, _w2, _val, 2);
-                                _sum = vfmaq_laneq_f16(_sum, _w3, _val, 3);
-                                _sum = vfmaq_laneq_f16(_sum, _w4, _val, 4);
-                                _sum = vfmaq_laneq_f16(_sum, _w5, _val, 5);
-                                _sum = vfmaq_laneq_f16(_sum, _w6, _val, 6);
-                                _sum = vfmaq_laneq_f16(_sum, _w7, _val, 7);
-
-                                kptr += 64;
-                            }
-                        }
-
-                        _sum = activation_ps(_sum, activation_type, activation_params);
-
-                        vst1q_f16(outptr + j * 8, _sum);
-                    }
-
-                    outptr += outw * 8;
-                }
-            }
+            convolution_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
@@ -1601,49 +1328,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
-            {
-                __fp16* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float16x8_t _sum = vdupq_n_f16((__fp16)0.f);
-
-                        if (bias_term)
-                        {
-                            _sum = vld1q_f16(((const __fp16*)bias_data_fp16) + p * 8);
-                        }
-
-                        const __fp16* kptr = weight_data_fp16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float16x8_t _val = vdupq_n_f16(sptr[space_ofs[k]]);
-                                float16x8_t _w = vld1q_f16(kptr);
-                                _sum = vfmaq_f16(_sum, _val, _w);
-
-                                kptr += 8;
-                            }
-                        }
-
-                        _sum = activation_ps(_sum, activation_type, activation_params);
-
-                        vst1q_f16(outptr + j * 8, _sum);
-                    }
-
-                    outptr += outw * 8;
-                }
-            }
+            convolution_pack1to8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
@@ -1669,57 +1354,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
-            {
-                __fp16* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float16x8_t _sum = vdupq_n_f16((__fp16)0.f);
-
-                        if (bias_term)
-                        {
-                            _sum = vld1q_f16(((const __fp16*)bias_data_fp16) + p * 8);
-                        }
-
-                        const __fp16* kptr = weight_data_fp16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * 4;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float16x4_t _val = vld1_f16(sptr + space_ofs[k] * 4);
-
-                                float16x8_t _w0 = vld1q_f16(kptr);
-                                float16x8_t _w1 = vld1q_f16(kptr + 8);
-                                float16x8_t _w2 = vld1q_f16(kptr + 16);
-                                float16x8_t _w3 = vld1q_f16(kptr + 24);
-
-                                _sum = vfmaq_lane_f16(_sum, _w0, _val, 0);
-                                _sum = vfmaq_lane_f16(_sum, _w1, _val, 1);
-                                _sum = vfmaq_lane_f16(_sum, _w2, _val, 2);
-                                _sum = vfmaq_lane_f16(_sum, _w3, _val, 3);
-
-                                kptr += 32;
-                            }
-                        }
-
-                        _sum = activation_ps(_sum, activation_type, activation_params);
-
-                        vst1q_f16(outptr + j * 8, _sum);
-                    }
-
-                    outptr += outw * 8;
-                }
-            }
+            convolution_pack4to8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
@@ -1757,52 +1392,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
-            {
-                __fp16* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float sum = 0.f;
-
-                        if (bias_term)
-                        {
-                            sum = bias_data[p];
-                        }
-
-                        const __fp16* kptr = weight_data_fp16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * 8;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float16x8_t _val = vld1q_f16(sptr + space_ofs[k] * 8);
-                                float16x8_t _w = vld1q_f16(kptr);
-                                float16x8_t _s8 = vmulq_f16(_val, _w);
-
-                                float16x4_t _s4 = vadd_f16(vget_low_f16(_s8), vget_high_f16(_s8));
-                                sum += vaddvq_f32(vcvt_f32_f16(_s4)); // dot
-
-                                kptr += 8;
-                            }
-                        }
-
-                        sum = activation_ss(sum, activation_type, activation_params);
-
-                        outptr[j] = sum;
-                    }
-
-                    outptr += outw;
-                }
-            }
+            convolution_pack8to1_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
@@ -1840,65 +1430,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
-            {
-                __fp16* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float16x4_t _sum = vdup_n_f16((__fp16)0.f);
-
-                        if (bias_term)
-                        {
-                            _sum = vld1_f16(((const __fp16*)bias_data_fp16) + p * 4);
-                        }
-
-                        const __fp16* kptr = weight_data_fp16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * 8;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float16x8_t _val = vld1q_f16(sptr + space_ofs[k] * 8);
-
-                                float16x4_t _w0 = vld1_f16(kptr);
-                                float16x4_t _w1 = vld1_f16(kptr + 4);
-                                float16x4_t _w2 = vld1_f16(kptr + 8);
-                                float16x4_t _w3 = vld1_f16(kptr + 12);
-                                float16x4_t _w4 = vld1_f16(kptr + 16);
-                                float16x4_t _w5 = vld1_f16(kptr + 20);
-                                float16x4_t _w6 = vld1_f16(kptr + 24);
-                                float16x4_t _w7 = vld1_f16(kptr + 28);
-
-                                _sum = vfma_laneq_f16(_sum, _w0, _val, 0);
-                                _sum = vfma_laneq_f16(_sum, _w1, _val, 1);
-                                _sum = vfma_laneq_f16(_sum, _w2, _val, 2);
-                                _sum = vfma_laneq_f16(_sum, _w3, _val, 3);
-                                _sum = vfma_laneq_f16(_sum, _w4, _val, 4);
-                                _sum = vfma_laneq_f16(_sum, _w5, _val, 5);
-                                _sum = vfma_laneq_f16(_sum, _w6, _val, 6);
-                                _sum = vfma_laneq_f16(_sum, _w7, _val, 7);
-
-                                kptr += 32;
-                            }
-                        }
-
-                        _sum = activation_ps(_sum, activation_type, activation_params);
-
-                        vst1_f16(outptr + j * 4, _sum);
-                    }
-
-                    outptr += outw * 4;
-                }
-            }
+            convolution_pack8to4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
@@ -1936,158 +1468,18 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
-            {
-                __fp16* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float16x4_t _sum = vdup_n_f16((__fp16)0.f);
-
-                        if (bias_term)
-                        {
-                            _sum = vld1_f16(((const __fp16*)bias_data_fp16) + p * 4);
-                        }
-
-                        const __fp16* kptr = weight_data_fp16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * 4;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float16x4_t _val = vld1_f16(sptr + space_ofs[k] * 4);
-
-                                float16x4_t _w0 = vld1_f16(kptr);
-                                float16x4_t _w1 = vld1_f16(kptr + 4);
-                                float16x4_t _w2 = vld1_f16(kptr + 8);
-                                float16x4_t _w3 = vld1_f16(kptr + 12);
-
-                                _sum = vfma_lane_f16(_sum, _w0, _val, 0);
-                                _sum = vfma_lane_f16(_sum, _w1, _val, 1);
-                                _sum = vfma_lane_f16(_sum, _w2, _val, 2);
-                                _sum = vfma_lane_f16(_sum, _w3, _val, 3);
-
-                                kptr += 16;
-                            }
-                        }
-
-                        _sum = activation_ps(_sum, activation_type, activation_params);
-
-                        vst1_f16(outptr + j * 4, _sum);
-                    }
-
-                    outptr += outw * 4;
-                }
-            }
+            convolution_pack4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 1 && out_elempack == 4)
     {
-        {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
-            {
-                __fp16* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float16x4_t _sum = vdup_n_f16((__fp16)0.f);
-
-                        if (bias_term)
-                        {
-                            _sum = vld1_f16(((const __fp16*)bias_data_fp16) + p * 4);
-                        }
-
-                        const __fp16* kptr = weight_data_fp16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float16x4_t _val = vdup_n_f16(sptr[space_ofs[k]]);
-                                float16x4_t _w = vld1_f16(kptr);
-                                _sum = vfma_f16(_sum, _val, _w);
-
-                                kptr += 4;
-                            }
-                        }
-
-                        _sum = activation_ps(_sum, activation_type, activation_params);
-
-                        vst1_f16(outptr + j * 4, _sum);
-                    }
-
-                    outptr += outw * 4;
-                }
-            }
-        }
+        convolution_pack1to4_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
     }
 
     if (elempack == 4 && out_elempack == 1)
     {
-        {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
-            {
-                __fp16* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float sum = 0.f;
-
-                        if (bias_term)
-                        {
-                            sum = bias_data[p];
-                        }
-
-                        const __fp16* kptr = weight_data_fp16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const __fp16* sptr = m.row<const __fp16>(i * stride_h) + j * stride_w * 4;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float16x4_t _val = vld1_f16(sptr + space_ofs[k] * 4);
-                                float16x4_t _w = vld1_f16(kptr);
-                                float16x4_t _s4 = vmul_f16(_val, _w);
-
-                                sum += vaddvq_f32(vcvt_f32_f16(_s4)); // dot
-
-                                kptr += 4;
-                            }
-                        }
-
-                        sum = activation_ss(sum, activation_type, activation_params);
-
-                        outptr[j] = sum;
-                    }
-
-                    outptr += outw;
-                }
-            }
-        }
+        convolution_pack4to1_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
     }
 
     if (elempack == 1 && out_elempack == 1)
@@ -2103,49 +1495,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
-            {
-                __fp16* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float sum = 0.f;
-
-                        if (bias_term)
-                        {
-                            sum = bias_data[p];
-                        }
-
-                        const __fp16* kptr = weight_data_fp16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const __fp16* sptr = m.row<__fp16>(i * stride_h) + j * stride_w;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                __fp16 val = sptr[space_ofs[k]];
-                                __fp16 w = kptr[k];
-                                sum += val * w;
-                            }
-
-                            kptr += maxk;
-                        }
-
-                        sum = activation_ss(sum, activation_type, activation_params);
-
-                        outptr[j] = sum;
-                    }
-
-                    outptr += outw;
-                }
-            }
+            convolution_fp16s(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
@@ -2180,114 +1530,14 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
         }
         else
         {
-            // src = kw-kh-inch-outch
-            // dst = 4b-4a-kw-kh-inch/4a-outch/4b
-            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-            weight_data_pack4_bf16.create(maxk, num_input / 4, num_output / 4, (size_t)2 * 16, 16);
-
-            for (int q = 0; q + 3 < num_output; q += 4)
-            {
-                const Mat k0 = weight_data_r2.channel(q);
-                const Mat k1 = weight_data_r2.channel(q + 1);
-                const Mat k2 = weight_data_r2.channel(q + 2);
-                const Mat k3 = weight_data_r2.channel(q + 3);
-
-                Mat g0 = weight_data_pack4_bf16.channel(q / 4);
-
-                for (int p = 0; p + 3 < num_input; p += 4)
-                {
-                    const float* k00 = k0.row(p);
-                    const float* k01 = k0.row(p + 1);
-                    const float* k02 = k0.row(p + 2);
-                    const float* k03 = k0.row(p + 3);
-
-                    const float* k10 = k1.row(p);
-                    const float* k11 = k1.row(p + 1);
-                    const float* k12 = k1.row(p + 2);
-                    const float* k13 = k1.row(p + 3);
-
-                    const float* k20 = k2.row(p);
-                    const float* k21 = k2.row(p + 1);
-                    const float* k22 = k2.row(p + 2);
-                    const float* k23 = k2.row(p + 3);
-
-                    const float* k30 = k3.row(p);
-                    const float* k31 = k3.row(p + 1);
-                    const float* k32 = k3.row(p + 2);
-                    const float* k33 = k3.row(p + 3);
-
-                    unsigned short* g00 = g0.row<unsigned short>(p / 4);
-
-                    for (int k = 0; k < maxk; k++)
-                    {
-                        g00[0] = float32_to_bfloat16(k00[k]);
-                        g00[1] = float32_to_bfloat16(k10[k]);
-                        g00[2] = float32_to_bfloat16(k20[k]);
-                        g00[3] = float32_to_bfloat16(k30[k]);
-
-                        g00[4] = float32_to_bfloat16(k01[k]);
-                        g00[5] = float32_to_bfloat16(k11[k]);
-                        g00[6] = float32_to_bfloat16(k21[k]);
-                        g00[7] = float32_to_bfloat16(k31[k]);
-
-                        g00[8] = float32_to_bfloat16(k02[k]);
-                        g00[9] = float32_to_bfloat16(k12[k]);
-                        g00[10] = float32_to_bfloat16(k22[k]);
-                        g00[11] = float32_to_bfloat16(k32[k]);
-
-                        g00[12] = float32_to_bfloat16(k03[k]);
-                        g00[13] = float32_to_bfloat16(k13[k]);
-                        g00[14] = float32_to_bfloat16(k23[k]);
-                        g00[15] = float32_to_bfloat16(k33[k]);
-
-                        g00 += 16;
-                    }
-                }
-            }
+            convolution_transform_kernel_pack4_bf16s_neon(weight_data, weight_data_pack4_bf16, num_input, num_output, kernel_w, kernel_h);
         }
     }
 
     // pack1to4
     if (elempack == 1 && out_elempack == 4)
     {
-        // src = kw-kh-inch-outch
-        // dst = 4b-kw-kh-inch-outch/4b
-        {
-            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-            weight_data_pack1to4_bf16.create(maxk, num_input, num_output / 4, (size_t)2 * 4, 4);
-
-            for (int q = 0; q + 3 < num_output; q += 4)
-            {
-                const Mat k0 = weight_data_r2.channel(q);
-                const Mat k1 = weight_data_r2.channel(q + 1);
-                const Mat k2 = weight_data_r2.channel(q + 2);
-                const Mat k3 = weight_data_r2.channel(q + 3);
-
-                Mat g0 = weight_data_pack1to4_bf16.channel(q / 4);
-
-                for (int p = 0; p < num_input; p++)
-                {
-                    const float* k00 = k0.row(p);
-                    const float* k10 = k1.row(p);
-                    const float* k20 = k2.row(p);
-                    const float* k30 = k3.row(p);
-
-                    unsigned short* g00 = g0.row<unsigned short>(p);
-
-                    for (int k = 0; k < maxk; k++)
-                    {
-                        g00[0] = float32_to_bfloat16(k00[k]);
-                        g00[1] = float32_to_bfloat16(k10[k]);
-                        g00[2] = float32_to_bfloat16(k20[k]);
-                        g00[3] = float32_to_bfloat16(k30[k]);
-
-                        g00 += 4;
-                    }
-                }
-            }
-        }
+        convolution_transform_kernel_pack1to4_bf16s_neon(weight_data, weight_data_pack1to4_bf16, num_input, num_output, kernel_w, kernel_h);
     }
 
     // pack4to1
@@ -2307,37 +1557,7 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
         }
         else
         {
-            // src = kw-kh-inch-outch
-            // dst = 4a-kw-kh-inch/4a-outch
-            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-            weight_data_pack4to1_bf16.create(maxk, num_input / 4, num_output, (size_t)2 * 4, 4);
-
-            for (int q = 0; q < num_output; q++)
-            {
-                const Mat k0 = weight_data_r2.channel(q);
-                Mat g0 = weight_data_pack4to1_bf16.channel(q);
-
-                for (int p = 0; p + 3 < num_input; p += 4)
-                {
-                    const float* k00 = k0.row(p);
-                    const float* k01 = k0.row(p + 1);
-                    const float* k02 = k0.row(p + 2);
-                    const float* k03 = k0.row(p + 3);
-
-                    unsigned short* g00 = g0.row<unsigned short>(p / 4);
-
-                    for (int k = 0; k < maxk; k++)
-                    {
-                        g00[0] = float32_to_bfloat16(k00[k]);
-                        g00[1] = float32_to_bfloat16(k01[k]);
-                        g00[2] = float32_to_bfloat16(k02[k]);
-                        g00[3] = float32_to_bfloat16(k03[k]);
-
-                        g00 += 4;
-                    }
-                }
-            }
+            convolution_transform_kernel_pack4to1_bf16s_neon(weight_data, weight_data_pack4to1_bf16, num_input, num_output, kernel_w, kernel_h);
         }
     }
 #endif // __ARM_NEON
@@ -2393,27 +1613,6 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
     //     {
     //         return forwardDilation_arm(bottom_blob_bordered, top_blob, opt);
     //     }
-
-    const int maxk = kernel_w * kernel_h;
-
-    // kernel offsets
-    std::vector<int> _space_ofs(maxk);
-    int* space_ofs = &_space_ofs[0];
-    {
-        int p1 = 0;
-        int p2 = 0;
-        int gap = w * dilation_h - kernel_w * dilation_w;
-        for (int i = 0; i < kernel_h; i++)
-        {
-            for (int j = 0; j < kernel_w; j++)
-            {
-                space_ofs[p1] = p2;
-                p1++;
-                p2 += dilation_w;
-            }
-            p2 += gap;
-        }
-    }
 
 #if __ARM_NEON
     if (elempack == 4 && out_elempack == 4)
@@ -2482,64 +1681,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
-            {
-                unsigned short* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float32x4_t _sum = vdupq_n_f32(0.f);
-
-                        if (bias_term)
-                        {
-                            _sum = vld1q_f32(((const float*)bias_data) + p * 4);
-                        }
-
-                        const unsigned short* kptr = weight_data_pack4_bf16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 4;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float32x4_t _val = vcvt_f32_bf16(vld1_u16(sptr + space_ofs[k] * 4));
-
-                                float32x4_t _w0 = vcvt_f32_bf16(vld1_u16(kptr));
-                                float32x4_t _w1 = vcvt_f32_bf16(vld1_u16(kptr + 4));
-                                float32x4_t _w2 = vcvt_f32_bf16(vld1_u16(kptr + 8));
-                                float32x4_t _w3 = vcvt_f32_bf16(vld1_u16(kptr + 12));
-
-#if __aarch64__
-                                _sum = vmlaq_laneq_f32(_sum, _w0, _val, 0);
-                                _sum = vmlaq_laneq_f32(_sum, _w1, _val, 1);
-                                _sum = vmlaq_laneq_f32(_sum, _w2, _val, 2);
-                                _sum = vmlaq_laneq_f32(_sum, _w3, _val, 3);
-#else
-                                _sum = vmlaq_lane_f32(_sum, _w0, vget_low_f32(_val), 0);
-                                _sum = vmlaq_lane_f32(_sum, _w1, vget_low_f32(_val), 1);
-                                _sum = vmlaq_lane_f32(_sum, _w2, vget_high_f32(_val), 0);
-                                _sum = vmlaq_lane_f32(_sum, _w3, vget_high_f32(_val), 1);
-#endif
-
-                                kptr += 16;
-                            }
-                        }
-
-                        _sum = activation_ps(_sum, activation_type, activation_params);
-
-                        vst1_u16(outptr + j * 4, vcvt_bf16_f32(_sum));
-                    }
-
-                    outptr += outw * 4;
-                }
-            }
+            convolution_pack4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4_bf16, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
@@ -2574,49 +1716,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
-            {
-                unsigned short* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float32x4_t _sum = vdupq_n_f32(0.f);
-
-                        if (bias_term)
-                        {
-                            _sum = vld1q_f32(((const float*)bias_data) + p * 4);
-                        }
-
-                        const unsigned short* kptr = weight_data_pack1to4_bf16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float32x4_t _val = vdupq_n_f32(bfloat16_to_float32(sptr[space_ofs[k]]));
-                                float32x4_t _w = vcvt_f32_bf16(vld1_u16(kptr));
-                                _sum = vmlaq_f32(_sum, _val, _w);
-
-                                kptr += 4;
-                            }
-                        }
-
-                        _sum = activation_ps(_sum, activation_type, activation_params);
-
-                        vst1_u16(outptr + j * 4, vcvt_bf16_f32(_sum));
-                    }
-
-                    outptr += outw * 4;
-                }
-            }
+            convolution_pack1to4_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack1to4_bf16, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
@@ -2654,56 +1754,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
-            {
-                unsigned short* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float sum = 0.f;
-
-                        if (bias_term)
-                        {
-                            sum = bias_data[p];
-                        }
-
-                        const unsigned short* kptr = weight_data_pack4to1_bf16.channel(p);
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const unsigned short* sptr = m.row<const unsigned short>(i * stride_h) + j * stride_w * 4;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float32x4_t _val = vcvt_f32_bf16(vld1_u16(sptr + space_ofs[k] * 4));
-                                float32x4_t _w = vcvt_f32_bf16(vld1_u16(kptr));
-                                float32x4_t _s4 = vmulq_f32(_val, _w);
-#if __aarch64__
-                                sum += vaddvq_f32(_s4); // dot
-#else
-                                float32x2_t _ss = vadd_f32(vget_low_f32(_s4), vget_high_f32(_s4));
-                                _ss = vpadd_f32(_ss, _ss);
-                                sum += vget_lane_f32(_ss, 0);
-#endif
-
-                                kptr += 4;
-                            }
-                        }
-
-                        sum = activation_ss(sum, activation_type, activation_params);
-
-                        outptr[j] = float32_to_bfloat16(sum);
-                    }
-
-                    outptr += outw;
-                }
-            }
+            convolution_pack4to1_bf16s_neon(bottom_blob_bordered, top_blob, weight_data_pack4to1_bf16, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 #endif // __ARM_NEON
@@ -2721,74 +1772,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
-            {
-                unsigned short* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float sum = 0.f;
-
-                        if (bias_term)
-                        {
-                            sum = bias_data[p];
-                        }
-
-                        const unsigned short* kptr = (const unsigned short*)weight_data_bf16 + maxk * channels * p;
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const unsigned short* sptr = m.row<unsigned short>(i * stride_h) + j * stride_w;
-
-                            for (int k = 0; k < maxk; k++)
-                            {
-                                float val = bfloat16_to_float32(sptr[space_ofs[k]]);
-                                float wt = bfloat16_to_float32(kptr[k]);
-                                sum += val * wt;
-                            }
-
-                            kptr += maxk;
-                        }
-
-                        if (activation_type == 1)
-                        {
-                            sum = std::max(sum, 0.f);
-                        }
-                        else if (activation_type == 2)
-                        {
-                            float slope = activation_params[0];
-                            sum = sum > 0.f ? sum : sum * slope;
-                        }
-                        else if (activation_type == 3)
-                        {
-                            float min = activation_params[0];
-                            float max = activation_params[1];
-                            if (sum < min)
-                                sum = min;
-                            if (sum > max)
-                                sum = max;
-                        }
-                        else if (activation_type == 4)
-                        {
-                            sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                        }
-                        else if (activation_type == 5)
-                        {
-                            sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                        }
-
-                        outptr[j] = float32_to_bfloat16(sum);
-                    }
-
-                    outptr += outw;
-                }
-            }
+            convolution_bf16s(bottom_blob_bordered, top_blob, weight_data_bf16, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
