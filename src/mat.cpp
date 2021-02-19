@@ -235,21 +235,12 @@ unsigned short float32_to_float16(float value)
         }
         else if (newexp <= 0)
         {
-            // underflow
-            if (newexp >= -10)
-            {
-                // denormal half-precision
-                unsigned short sig = (significand | 0x800000) >> (14 - newexp);
-                fp16 = (sign << 15) | (0x00 << 10) | sig;
-            }
-            else
-            {
-                // underflow
-                fp16 = (sign << 15) | (0x00 << 10) | 0x00;
-            }
+            // Some normal fp32 cannot be expressed as normal fp16
+            fp16 = (sign << 15) | (0x00 << 10) | 0x00;
         }
         else
         {
+            // normal fp16
             fp16 = (sign << 15) | (newexp << 10) | (significand >> 13);
         }
     }
