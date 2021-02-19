@@ -398,10 +398,7 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
     if (adaptive_pooling)
     {
-        int outw = 1;
-        int outh = 1;
-
-        top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator);
+        top_blob.create(out_w, out_h, channels, elemsize, elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 
@@ -608,10 +605,7 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
 
     if (adaptive_pooling)
     {
-        int outw = 1;
-        int outh = 1;
-
-        top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_vkallocator);
+        top_blob.create(out_w, out_h, channels, elemsize, elempack, opt.blob_vkallocator);
         if (top_blob.empty())
             return -100;
 

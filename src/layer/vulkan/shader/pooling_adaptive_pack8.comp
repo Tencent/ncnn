@@ -73,17 +73,23 @@ void main()
 
     afpvec8 res;
 
+    // calculate adaptive kernel size
+    int sx = int(floor(afp(gx * psc(w)) / afp(psc(outw))));
+    int ex = int(ceil(afp((gx + 1) * psc(w)) / afp(psc(outw))));
+    int kernel_w = ex - sx;
+    int sy = int(floor(afp(gy * psc(h)) / afp(psc(outh))));
+    int ey = int(ceil(afp((gy + 1) * psc(h)) / afp(psc(outh))));
+    int kernel_h = ey - sy;
+
     if (pooling_type == 0)
     {
         res = afpvec8(afpvec4(-FLT_MAX), afpvec4(-FLT_MAX));
 
 #if NCNN_image_shader
-        int sx = gx * 1;
-        int sy = gy * 1;
 
-        for (int y = 0; y < psc(h); y++)
+        for (int y = 0; y < kernel_h; y++)
         {
-            for (int x = 0; x < psc(w); x++)
+            for (int x = 0; x < kernel_w; x++)
             {
                 afpvec8 v = image3d_ld8(bottom_blob, ivec3(sx + x, sy + y, gz));
                 res[0] = max(res[0], v[0]);
@@ -91,11 +97,11 @@ void main()
             }
         }
 #else
-        int v_offset = gz * psc(cstep) + gy * 1 * psc(w) + gx * 1;
+        int v_offset = gz * psc(cstep) + sy * psc(w) + sx;
 
-        for (int y = 0; y < psc(h); y++)
+        for (int y = 0; y < kernel_h; y++)
         {
-            for (int x = 0; x < psc(w); x++)
+            for (int x = 0; x < kernel_w; x++)
             {
                 afpvec8 v = buffer_ld8(bottom_blob_data, v_offset + x);
                 res[0] = max(res[0], v[0]);
@@ -110,14 +116,11 @@ void main()
     {
         res = afpvec8(afpvec4(0.f), afpvec4(0.f));
         int area = 0;
-
-        int sx = gx * 1;
-        int sy = gy * 1;
-
+        
 #if NCNN_image_shader
-        for (int y = 0; y < psc(h); y++)
+        for (int y = 0; y < kernel_h; y++)
         {
-            for (int x = 0; x < psc(w); x++)
+            for (int x = 0; x < kernel_w; x++)
             {
                 afpvec8 v = image3d_ld8(bottom_blob, ivec3(sx + x, sy + y, gz));
                 res[0] += v[0];
@@ -128,9 +131,9 @@ void main()
 #else
         int v_offset = gz * psc(cstep) + sy * psc(w) + sx;
 
-        for (int y = 0; y < psc(h); y++)
+        for (int y = 0; y < kernel_h; y++)
         {
-            for (int x = 0; x < psc(w); x++)
+            for (int x = 0; x < kernel_w; x++)
             {
                 afpvec8 v = buffer_ld8(bottom_blob_data, v_offset + x);
                 res[0] += v[0];

@@ -72,28 +72,34 @@ void main()
 
     afp res;
 
+    // calculate adaptive kernel size
+    int sx = int(floor(afp(gx * psc(w)) / afp(psc(outw))));
+    int ex = int(ceil(afp((gx + 1) * psc(w)) / afp(psc(outw))));
+    int kernel_w = ex - sx;
+    int sy = int(floor(afp(gy * psc(h)) / afp(psc(outh))));
+    int ey = int(ceil(afp((gy + 1) * psc(h)) / afp(psc(outh))));
+    int kernel_h = ey - sy;
+
     if (pooling_type == 0)
     {
         res = afp(-FLT_MAX);
 
 #if NCNN_image_shader
-        int sx = gx * 1;
-        int sy = gy * 1;
 
-        for (int y = 0; y < psc(h); y++)
+        for (int y = 0; y < kernel_h; y++)
         {
-            for (int x = 0; x < psc(w); x++)
+            for (int x = 0; x < kernel_w; x++)
             {
                 afp v = image3d_ld1(bottom_blob, ivec3(sx + x, sy + y, gz));
                 res = max(res, v);
             }
         }
 #else
-        int v_offset = gz * psc(cstep) + gy * 1 * psc(w) + gx * 1;
+        int v_offset = gz * psc(cstep) + sy * psc(w) + sx;
 
-        for (int y = 0; y < psc(h); y++)
+        for (int y = 0; y < kernel_h; y++)
         {
-            for (int x = 0; x < psc(w); x++)
+            for (int x = 0; x < kernel_w; x++)
             {
                 afp v = buffer_ld1(bottom_blob_data, v_offset + x);
                 res = max(res, v);
@@ -108,13 +114,10 @@ void main()
         res = afp(0.f);
         int area = 0;
 
-        int sx = gx * 1;
-        int sy = gy * 1;
-
 #if NCNN_image_shader
-        for (int y = 0; y < psc(h); y++)
+        for (int y = 0; y < kernel_h; y++)
         {
-            for (int x = 0; x < psc(w); x++)
+            for (int x = 0; x < kernel_w; x++)
             {
                 res += image3d_ld1(bottom_blob, ivec3(sx + x, sy + y, gz));
                 area += 1;
@@ -123,9 +126,9 @@ void main()
 #else
         int v_offset = gz * psc(cstep) + sy * psc(w) + sx;
 
-        for (int y = 0; y < psc(h); y++)
+        for (int y = 0; y < kernel_h; y++)
         {
-            for (int x = 0; x < psc(w); x++)
+            for (int x = 0; x < kernel_w; x++)
             {
                 res += buffer_ld1(bottom_blob_data, v_offset + x);
                 area += 1;
