@@ -228,10 +228,6 @@ if(NCNN_VULKAN)
     endif()
 endif()
 
-if(UNIX)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-endif()
-
 add_subdirectory(src)
 if(NCNN_BUILD_BENCHMARK)
     add_subdirectory(benchmark)
