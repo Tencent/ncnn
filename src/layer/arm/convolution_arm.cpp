@@ -702,7 +702,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -793,8 +793,8 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -873,8 +873,8 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -1060,8 +1060,8 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -1370,8 +1370,8 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
     if (elempack == 4 && out_elempack == 4)
     {
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 __fp16* outptr = top_blob.channel(p);
@@ -1427,8 +1427,8 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
     if (elempack == 1 && out_elempack == 4)
     {
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 __fp16* outptr = top_blob.channel(p);
@@ -1476,8 +1476,8 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
     if (elempack == 4 && out_elempack == 1)
     {
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 __fp16* outptr = top_blob.channel(p);
@@ -1527,8 +1527,8 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
     if (elempack == 1 && out_elempack == 1)
     {
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 __fp16* outptr = top_blob.channel(p);
@@ -1742,8 +1742,8 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 __fp16* outptr = top_blob.channel(p);
@@ -1835,8 +1835,8 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 __fp16* outptr = top_blob.channel(p);
@@ -1903,8 +1903,8 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 __fp16* outptr = top_blob.channel(p);
@@ -1991,8 +1991,8 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 __fp16* outptr = top_blob.channel(p);
@@ -2074,8 +2074,8 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 __fp16* outptr = top_blob.channel(p);
@@ -2170,8 +2170,8 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 __fp16* outptr = top_blob.channel(p);
@@ -2227,8 +2227,8 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
     if (elempack == 1 && out_elempack == 4)
     {
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 __fp16* outptr = top_blob.channel(p);
@@ -2276,8 +2276,8 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
     if (elempack == 4 && out_elempack == 1)
     {
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 __fp16* outptr = top_blob.channel(p);
@@ -2337,8 +2337,8 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         }
         else
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 __fp16* outptr = top_blob.channel(p);
@@ -2716,8 +2716,8 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         }
         else
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 unsigned short* outptr = top_blob.channel(p);
@@ -2808,8 +2808,8 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         }
         else
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 unsigned short* outptr = top_blob.channel(p);
@@ -2888,8 +2888,8 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         }
         else
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 unsigned short* outptr = top_blob.channel(p);
@@ -2955,8 +2955,8 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
         }
         else
         {
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 unsigned short* outptr = top_blob.channel(p);
@@ -3153,8 +3153,8 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
             conv_im2col_sgemm_int8_neon(bottom_blob_bordered, top_blob_tm, weight_sgemm_data_int8, kernel_w, kernel_h, stride_w, stride_h, opt);
         }
 
-// requantize, reverse scale inplace
-        #pragma omp parallel for num_threads(opt.num_threads)
+        // requantize, reverse scale inplace
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output; p++)
         {
             Option opt_g = opt;
@@ -3196,8 +3196,8 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
             conv_im2col_sgemm_int8_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_int8, kernel_w, kernel_h, stride_w, stride_h, opt);
         }
 
-// dequantize, reverse scale inplace
-        #pragma omp parallel for num_threads(opt.num_threads)
+        // dequantize, reverse scale inplace
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output; p++)
         {
             Option opt_g = opt;
@@ -3264,7 +3264,7 @@ int Convolution_arm::forwardDilation_arm(const Mat& bottom_blob, Mat& top_blob, 
             if (inner_top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < bottom_blob.c; c++)
             {
                 float* outptr = inner_bottom_blob.channel(c);
@@ -3284,7 +3284,7 @@ int Convolution_arm::forwardDilation_arm(const Mat& bottom_blob, Mat& top_blob, 
             opt_g.blob_allocator = inner_top_blob.allocator;
             convolution_dilation1->forward(inner_bottom_blob, inner_top_blob, opt_g);
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < num_output; c++)
             {
                 float* outptr = (float*)top_blob.channel(c) + x * outw + y;
