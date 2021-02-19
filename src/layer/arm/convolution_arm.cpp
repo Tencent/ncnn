@@ -211,8 +211,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
     if (elempack == 4 && out_elempack == 4)
     {
         bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 12 && num_output >= 12)
-            || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 16 && num_output >= 16)
-            || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 16 && num_output >= 16);
+                            || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 16 && num_output >= 16)
+                            || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 16 && num_output >= 16);
 
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
@@ -602,8 +602,8 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (elempack == 4 && out_elempack == 4)
     {
         bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 12 && num_output >= 12)
-            || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 16 && num_output >= 16)
-            || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 16 && num_output >= 16);
+                            || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 16 && num_output >= 16)
+                            || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 16 && num_output >= 16);
 
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
@@ -643,11 +643,12 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             // we need more proper conditions
-            if (opt.use_sgemm_convolution && ((w >= 44 && h >= 44 && num_input >= 48 && num_output >= 48)
-                || (w >= 28 && h >= 28 && num_input >= 56 && num_output >= 56)
-                || (w >= 19 && h >= 19 && num_input >= 64 && num_output >= 64)
-                || (w >= 17 && h >= 17 && num_input >= 96 && num_output >= 96)
-                || (w >= 5 && h >= 5 && num_input >= 24 && num_output >= 24)))
+            prefer_sgemm = (w >= 44 && h >= 44 && num_input >= 48 && num_output >= 48)
+                           || (w >= 28 && h >= 28 && num_input >= 56 && num_output >= 56)
+                           || (w >= 19 && h >= 19 && num_input >= 64 && num_output >= 64)
+                           || (w >= 17 && h >= 17 && num_input >= 96 && num_output >= 96)
+                           || (w >= 5 && h >= 5 && num_input >= 24 && num_output >= 24);
+            if (opt.use_sgemm_convolution && prefer_sgemm)
             {
                 convolution_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
             }
@@ -664,15 +665,16 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             // we need more proper conditions
-            if (opt.use_sgemm_convolution && ((w >= 16 && h >= 16 && w <= 17 && h <= 17 && num_input >= 200 && num_output >= 200)
-                || (w >= 15 && h >= 15 && num_input >= 128 && num_output >= 128)
-                || (w >= 13 && h >= 13 && num_input >= 160 && num_output >= 160)
-                || (w >= 12 && h >= 12 && num_input >= 184 && num_output >= 184)
-                || (w >= 11 && h >= 11 && num_input >= 88 && num_output >= 88)
-                || (w >= 10 && h >= 10 && num_input >= 128 && num_output >= 128)
-                || (w >= 9 && h >= 9 && num_input >= 120 && num_output >= 120)
-                || (w >= 8 && h >= 8 && num_input >= 192 && num_output >= 192)
-                || (w >= 6 && h >= 6 && num_input >= 48 && num_output >= 48)))
+            prefer_sgemm = (w >= 16 && h >= 16 && w <= 17 && h <= 17 && num_input >= 200 && num_output >= 200)
+                           || (w >= 15 && h >= 15 && num_input >= 128 && num_output >= 128)
+                           || (w >= 13 && h >= 13 && num_input >= 160 && num_output >= 160)
+                           || (w >= 12 && h >= 12 && num_input >= 184 && num_output >= 184)
+                           || (w >= 11 && h >= 11 && num_input >= 88 && num_output >= 88)
+                           || (w >= 10 && h >= 10 && num_input >= 128 && num_output >= 128)
+                           || (w >= 9 && h >= 9 && num_input >= 120 && num_output >= 120)
+                           || (w >= 8 && h >= 8 && num_input >= 192 && num_output >= 192)
+                           || (w >= 6 && h >= 6 && num_input >= 48 && num_output >= 48);
+            if (opt.use_sgemm_convolution && prefer_sgemm)
             {
                 convolution_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
             }
@@ -689,9 +691,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             // we need more proper conditions
-            if (opt.use_sgemm_convolution && ((w >= 28 && h >= 28 && num_input >= 144 && num_output >= 144)
-                || (w >= 12 && h >= 12 && num_input >= 128 && num_output >= 128)
-                || (w >= 7 && h >= 7 && num_input >= 72 && num_output >= 72)))
+            prefer_sgemm = (w >= 28 && h >= 28 && num_input >= 144 && num_output >= 144)
+                           || (w >= 12 && h >= 12 && num_input >= 128 && num_output >= 128)
+                           || (w >= 7 && h >= 7 && num_input >= 72 && num_output >= 72);
+            if (opt.use_sgemm_convolution && prefer_sgemm)
             {
                 convolution_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
             }
@@ -1200,8 +1203,8 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
     if (elempack == 8 && out_elempack == 8)
     {
         bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 64 && num_output >= 64)
-            || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 32 && num_output >= 32)
-            || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 32 && num_output >= 32);
+                            || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 32 && num_output >= 32)
+                            || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 32 && num_output >= 32);
 
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
@@ -1656,8 +1659,8 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
     if (elempack == 8 && out_elempack == 8)
     {
         bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 64 && num_output >= 64)
-            || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 32 && num_output >= 32)
-            || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 32 && num_output >= 32);
+                            || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 32 && num_output >= 32)
+                            || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 32 && num_output >= 32);
 
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
@@ -1697,15 +1700,16 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             // we need more proper conditions
-            if (opt.use_sgemm_convolution && ((w >= 44 && h >= 44 && num_input >= 192 && num_output >= 192)
-                || (w >= 28 && h >= 28 && num_input >= 144 && num_output >= 144)
-                || (w >= 19 && h >= 19 && num_input >= 160 && num_output >= 160)
-                || (w >= 17 && h >= 17 && num_input >= 192 && num_output >= 192)
-                || (w >= 15 && h >= 15 && num_input >= 112 && num_output >= 112)
-                || (w >= 13 && h >= 13 && num_input >= 48 && num_output >= 48)
-                || (w >= 11 && h >= 11 && num_input >= 56 && num_output >= 56)
-                || (w >= 9 && h >= 9 && num_input >= 80 && num_output >= 80)
-                || (w >= 5 && h >= 5 && num_input >= 64 && num_output >= 64)))
+            prefer_sgemm = (w >= 44 && h >= 44 && num_input >= 192 && num_output >= 192)
+                           || (w >= 28 && h >= 28 && num_input >= 144 && num_output >= 144)
+                           || (w >= 19 && h >= 19 && num_input >= 160 && num_output >= 160)
+                           || (w >= 17 && h >= 17 && num_input >= 192 && num_output >= 192)
+                           || (w >= 15 && h >= 15 && num_input >= 112 && num_output >= 112)
+                           || (w >= 13 && h >= 13 && num_input >= 48 && num_output >= 48)
+                           || (w >= 11 && h >= 11 && num_input >= 56 && num_output >= 56)
+                           || (w >= 9 && h >= 9 && num_input >= 80 && num_output >= 80)
+                           || (w >= 5 && h >= 5 && num_input >= 64 && num_output >= 64);
+            if (opt.use_sgemm_convolution && prefer_sgemm)
             {
                 convolution_im2col_sgemm_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
             }
@@ -1722,10 +1726,11 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             // we need more proper conditions
-            if (opt.use_sgemm_convolution && ((w >= 12 && h >= 12 && w <= 15 && h <= 15 && num_input >= 256 && num_output >= 256)
-                || (w >= 10 && h >= 10 && num_input >= 152 && num_output >= 152)
-                || (w >= 8 && h >= 8 && num_input >= 232 && num_output >= 232)
-                || (w >= 6 && h >= 6 && num_input >= 56 && num_output >= 56)))
+            prefer_sgemm = (w >= 12 && h >= 12 && w <= 15 && h <= 15 && num_input >= 256 && num_output >= 256)
+                           || (w >= 10 && h >= 10 && num_input >= 152 && num_output >= 152)
+                           || (w >= 8 && h >= 8 && num_input >= 232 && num_output >= 232)
+                           || (w >= 6 && h >= 6 && num_input >= 56 && num_output >= 56);
+            if (opt.use_sgemm_convolution && prefer_sgemm)
             {
                 convolution_im2col_sgemm_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
             }
@@ -1742,9 +1747,10 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             // we need more proper conditions
-            if (opt.use_sgemm_convolution && ((w >= 48 && h >= 48 && num_input >= 160 && num_output >= 160)
-                || (w >= 11 && h >= 11 && num_input >= 96 && num_output >= 96)
-                || (w >= 7 && h >= 7 && num_input >= 64 && num_output >= 64)))
+            prefer_sgemm = (w >= 48 && h >= 48 && num_input >= 160 && num_output >= 160)
+                           || (w >= 11 && h >= 11 && num_input >= 96 && num_output >= 96)
+                           || (w >= 7 && h >= 7 && num_input >= 64 && num_output >= 64);
+            if (opt.use_sgemm_convolution && prefer_sgemm)
             {
                 convolution_im2col_sgemm_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
             }
