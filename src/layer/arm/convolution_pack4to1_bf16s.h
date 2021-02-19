@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void convolution_transform_kernel_pack4to1_bf16s_neon(const Mat& weight_data, Mat& weight_data_pack4to1_bf16, int num_input, int num_output, int kernel_w, int kernel_h)
+static void convolution_transform_kernel_pack4to1_bf16s_neon(const Mat& weight_data, Mat& weight_data_bf16, int num_input, int num_output, int kernel_w, int kernel_h)
 {
     const int maxk = kernel_w * kernel_h;
 
@@ -20,12 +20,12 @@ static void convolution_transform_kernel_pack4to1_bf16s_neon(const Mat& weight_d
     // dst = 4a-kw-kh-inch/4a-outch
     Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
 
-    weight_data_pack4to1_bf16.create(maxk, num_input / 4, num_output, (size_t)2 * 4, 4);
+    weight_data_bf16.create(maxk, num_input / 4, num_output, (size_t)2 * 4, 4);
 
     for (int q = 0; q < num_output; q++)
     {
         const Mat k0 = weight_data_r2.channel(q);
-        Mat g0 = weight_data_pack4to1_bf16.channel(q);
+        Mat g0 = weight_data_bf16.channel(q);
 
         for (int p = 0; p + 3 < num_input; p += 4)
         {
@@ -49,7 +49,7 @@ static void convolution_transform_kernel_pack4to1_bf16s_neon(const Mat& weight_d
     }
 }
 
-static void convolution_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_pack4to1_bf16, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
+static void convolution_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_bf16, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
@@ -98,7 +98,7 @@ static void convolution_pack4to1_bf16s_neon(const Mat& bottom_blob, Mat& top_blo
                     sum = bias_data_ptr[p];
                 }
 
-                const unsigned short* kptr = weight_data_pack4to1_bf16.channel(p);
+                const unsigned short* kptr = weight_data_bf16.channel(p);
 
                 // channels
                 for (int q = 0; q < channels; q++)

@@ -65,9 +65,6 @@ public:
     Mat bias_data_fp16;
 
     // bf16
-    Mat weight_data_pack4_bf16;
-    Mat weight_data_pack1to4_bf16;
-    Mat weight_data_pack4to1_bf16;
     Mat weight_data_bf16;
 
     // int8
