@@ -44,6 +44,9 @@ namespace ncnn {
 #include "convolution_7x7.h"
 
 #if __ARM_NEON
+#include "convolution_pack4.h"
+#include "convolution_pack1to4.h"
+#include "convolution_pack4to1.h"
 #include "convolution_sgemm_pack4.h"
 #include "convolution_sgemm_pack4_bf16s.h"
 #include "convolution_1x1_pack4.h"
@@ -234,6 +237,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
             {
                 convolution_im2col_sgemm_transform_kernel_pack4_neon(weight_data, weight_sgemm_data_pack4, num_input, num_output, kernel_w, kernel_h);
             }
+
+            convolution_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output, kernel_w, kernel_h);
         }
         else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
@@ -242,6 +247,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
             {
                 convolution_im2col_sgemm_transform_kernel_pack4_neon(weight_data, weight_sgemm_data_pack4, num_input, num_output, kernel_w, kernel_h);
             }
+
+            convolution_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output, kernel_w, kernel_h);
         }
         else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
@@ -250,6 +257,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
             {
                 convolution_im2col_sgemm_transform_kernel_pack4_neon(weight_data, weight_sgemm_data_pack4, num_input, num_output, kernel_w, kernel_h);
             }
+
+            convolution_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output, kernel_w, kernel_h);
         }
         else if (opt.use_sgemm_convolution && prefer_sgemm)
         {
@@ -257,114 +266,14 @@ int Convolution_arm::create_pipeline(const Option& opt)
         }
         else
         {
-            // src = kw-kh-inch-outch
-            // dst = 4b-4a-kw-kh-inch/4a-outch/4b
-            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-            weight_data_pack4.create(maxk, num_input / 4, num_output / 4, (size_t)4 * 16, 16);
-
-            for (int q = 0; q + 3 < num_output; q += 4)
-            {
-                const Mat k0 = weight_data_r2.channel(q);
-                const Mat k1 = weight_data_r2.channel(q + 1);
-                const Mat k2 = weight_data_r2.channel(q + 2);
-                const Mat k3 = weight_data_r2.channel(q + 3);
-
-                Mat g0 = weight_data_pack4.channel(q / 4);
-
-                for (int p = 0; p + 3 < num_input; p += 4)
-                {
-                    const float* k00 = k0.row(p);
-                    const float* k01 = k0.row(p + 1);
-                    const float* k02 = k0.row(p + 2);
-                    const float* k03 = k0.row(p + 3);
-
-                    const float* k10 = k1.row(p);
-                    const float* k11 = k1.row(p + 1);
-                    const float* k12 = k1.row(p + 2);
-                    const float* k13 = k1.row(p + 3);
-
-                    const float* k20 = k2.row(p);
-                    const float* k21 = k2.row(p + 1);
-                    const float* k22 = k2.row(p + 2);
-                    const float* k23 = k2.row(p + 3);
-
-                    const float* k30 = k3.row(p);
-                    const float* k31 = k3.row(p + 1);
-                    const float* k32 = k3.row(p + 2);
-                    const float* k33 = k3.row(p + 3);
-
-                    float* g00 = g0.row(p / 4);
-
-                    for (int k = 0; k < maxk; k++)
-                    {
-                        g00[0] = k00[k];
-                        g00[1] = k10[k];
-                        g00[2] = k20[k];
-                        g00[3] = k30[k];
-
-                        g00[4] = k01[k];
-                        g00[5] = k11[k];
-                        g00[6] = k21[k];
-                        g00[7] = k31[k];
-
-                        g00[8] = k02[k];
-                        g00[9] = k12[k];
-                        g00[10] = k22[k];
-                        g00[11] = k32[k];
-
-                        g00[12] = k03[k];
-                        g00[13] = k13[k];
-                        g00[14] = k23[k];
-                        g00[15] = k33[k];
-
-                        g00 += 16;
-                    }
-                }
-            }
+            convolution_transform_kernel_pack4_neon(weight_data, weight_data_pack4, num_input, num_output, kernel_w, kernel_h);
         }
     }
 
     // pack1to4
     if (elempack == 1 && out_elempack == 4)
     {
-        // src = kw-kh-inch-outch
-        // dst = 4b-kw-kh-inch-outch/4b
-        {
-            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-            weight_data_pack1to4.create(maxk, num_input, num_output / 4, (size_t)4 * 4, 4);
-
-            for (int q = 0; q + 3 < num_output; q += 4)
-            {
-                const Mat k0 = weight_data_r2.channel(q);
-                const Mat k1 = weight_data_r2.channel(q + 1);
-                const Mat k2 = weight_data_r2.channel(q + 2);
-                const Mat k3 = weight_data_r2.channel(q + 3);
-
-                Mat g0 = weight_data_pack1to4.channel(q / 4);
-
-                for (int p = 0; p < num_input; p++)
-                {
-                    const float* k00 = k0.row(p);
-                    const float* k10 = k1.row(p);
-                    const float* k20 = k2.row(p);
-                    const float* k30 = k3.row(p);
-
-                    float* g00 = g0.row(p);
-
-                    for (int k = 0; k < maxk; k++)
-                    {
-                        g00[0] = k00[k];
-                        g00[1] = k10[k];
-                        g00[2] = k20[k];
-                        g00[3] = k30[k];
-
-                        g00 += 4;
-                    }
-                }
-            }
-        }
+        convolution_transform_kernel_pack1to4_neon(weight_data, weight_data_pack1to4, num_input, num_output, kernel_w, kernel_h);
     }
 
     // pack4to1
@@ -384,37 +293,7 @@ int Convolution_arm::create_pipeline(const Option& opt)
         }
         else
         {
-            // src = kw-kh-inch-outch
-            // dst = 4a-kw-kh-inch/4a-outch
-            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
-
-            weight_data_pack4to1.create(maxk, num_input / 4, num_output, (size_t)4 * 4, 4);
-
-            for (int q = 0; q < num_output; q++)
-            {
-                const Mat k0 = weight_data_r2.channel(q);
-                Mat g0 = weight_data_pack4to1.channel(q);
-
-                for (int p = 0; p + 3 < num_input; p += 4)
-                {
-                    const float* k00 = k0.row(p);
-                    const float* k01 = k0.row(p + 1);
-                    const float* k02 = k0.row(p + 2);
-                    const float* k03 = k0.row(p + 3);
-
-                    float* g00 = g0.row(p / 4);
-
-                    for (int k = 0; k < maxk; k++)
-                    {
-                        g00[0] = k00[k];
-                        g00[1] = k01[k];
-                        g00[2] = k02[k];
-                        g00[3] = k03[k];
-
-                        g00 += 4;
-                    }
-                }
-            }
+            convolution_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output, kernel_w, kernel_h);
         }
     }
 #endif // __ARM_NEON
@@ -650,6 +529,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                            || (w >= 5 && h >= 5 && num_input >= 24 && num_output >= 24);
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
+                NCNN_LOGE("conv3x3s2 pack4 convolution_im2col_sgemm_pack4_neon");
                 convolution_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
             }
             else
@@ -719,63 +599,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
-            {
-                float* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float32x4_t _sum = vdupq_n_f32(0.f);
-
-                        if (bias_term)
-                        {
-                            _sum = vld1q_f32(((const float*)bias_data) + p * 4);
-                        }
-
-                        const float* kptr = (const float*)weight_data_pack4 + maxk * channels * p * 16;
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const float* sptr = m.row(i * stride_h) + j * stride_w * 4;
-
-                            for (int k = 0; k < maxk; k++) // 29.23
-                            {
-                                float32x4_t _val = vld1q_f32(sptr + space_ofs[k] * 4);
-
-                                float32x4_t _w0 = vld1q_f32(kptr);
-                                float32x4_t _w1 = vld1q_f32(kptr + 4);
-                                float32x4_t _w2 = vld1q_f32(kptr + 8);
-                                float32x4_t _w3 = vld1q_f32(kptr + 12);
-
-#if __aarch64__
-                                _sum = vmlaq_laneq_f32(_sum, _w0, _val, 0);
-                                _sum = vmlaq_laneq_f32(_sum, _w1, _val, 1);
-                                _sum = vmlaq_laneq_f32(_sum, _w2, _val, 2);
-                                _sum = vmlaq_laneq_f32(_sum, _w3, _val, 3);
-#else
-                                _sum = vmlaq_lane_f32(_sum, _w0, vget_low_f32(_val), 0);
-                                _sum = vmlaq_lane_f32(_sum, _w1, vget_low_f32(_val), 1);
-                                _sum = vmlaq_lane_f32(_sum, _w2, vget_high_f32(_val), 0);
-                                _sum = vmlaq_lane_f32(_sum, _w3, vget_high_f32(_val), 1);
-#endif
-
-                                kptr += 16;
-                            }
-                        }
-
-                        _sum = activation_ps(_sum, activation_type, activation_params);
-
-                        vst1q_f32(outptr + j * 4, _sum);
-                    }
-
-                    outptr += outw * 4;
-                }
-            }
+            convolution_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
@@ -810,49 +634,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
-            {
-                float* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float32x4_t _sum = vdupq_n_f32(0.f);
-
-                        if (bias_term)
-                        {
-                            _sum = vld1q_f32(((const float*)bias_data) + p * 4);
-                        }
-
-                        const float* kptr = (const float*)weight_data_pack1to4 + maxk * channels * p * 4;
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const float* sptr = m.row(i * stride_h) + j * stride_w;
-
-                            for (int k = 0; k < maxk; k++) // 29.23
-                            {
-                                float32x4_t _val = vdupq_n_f32(sptr[space_ofs[k]]);
-                                float32x4_t _w = vld1q_f32(kptr);
-                                _sum = vmlaq_f32(_sum, _val, _w);
-
-                                kptr += 4;
-                            }
-                        }
-
-                        _sum = activation_ps(_sum, activation_type, activation_params);
-
-                        vst1q_f32(outptr + j * 4, _sum);
-                    }
-
-                    outptr += outw * 4;
-                }
-            }
+            convolution_pack1to4_neon(bottom_blob_bordered, top_blob, weight_data_pack1to4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
@@ -890,56 +672,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
-            {
-                float* outptr = top_blob.channel(p);
-
-                for (int i = 0; i < outh; i++)
-                {
-                    for (int j = 0; j < outw; j++)
-                    {
-                        float sum = 0.f;
-
-                        if (bias_term)
-                        {
-                            sum = bias_data[p];
-                        }
-
-                        const float* kptr = (const float*)weight_data_pack4to1 + maxk * channels * p * 4;
-
-                        // channels
-                        for (int q = 0; q < channels; q++)
-                        {
-                            const Mat m = bottom_blob_bordered.channel(q);
-                            const float* sptr = m.row(i * stride_h) + j * stride_w * 4;
-
-                            for (int k = 0; k < maxk; k++) // 29.23
-                            {
-                                float32x4_t _val = vld1q_f32(sptr + space_ofs[k] * 4);
-                                float32x4_t _w = vld1q_f32(kptr);
-                                float32x4_t _s4 = vmulq_f32(_val, _w);
-#if __aarch64__
-                                sum += vaddvq_f32(_s4); // dot
-#else
-                                float32x2_t _ss = vadd_f32(vget_low_f32(_s4), vget_high_f32(_s4));
-                                _ss = vpadd_f32(_ss, _ss);
-                                sum += vget_lane_f32(_ss, 0);
-#endif
-
-                                kptr += 4;
-                            }
-                        }
-
-                        sum = activation_ss(sum, activation_type, activation_params);
-
-                        outptr[j] = sum;
-                    }
-
-                    outptr += outw;
-                }
-            }
+            convolution_pack4to1_neon(bottom_blob_bordered, top_blob, weight_data_pack4to1, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 #endif // __ARM_NEON
