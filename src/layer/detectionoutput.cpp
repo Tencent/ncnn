@@ -166,7 +166,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     const float* priorbox_ptr = priorbox.row(0);
     const float* variance_ptr = mxnet_ssd_style ? 0 : priorbox.row(1);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_prior; i++)
     {
         // if score of background class is larger than confidence threshold
@@ -205,7 +205,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     all_class_bbox_scores.resize(num_class_copy);
 
     // start from 1 to ignore background class
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 1; i < num_class_copy; i++)
     {
         // filter by confidence_threshold
