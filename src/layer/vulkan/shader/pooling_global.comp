@@ -98,24 +98,25 @@ void main()
     }
     if (pooling_type == 1)
     {
-        res = afp(0.f);
+        float res_fp32 = 0.f;  // force accumulation in fp32
 
 #if NCNN_image_shader
         for (int y = 0; y < psc(h); y++)
         {
             for (int x = 0; x < psc(w); x++)
             {
-                res += image3d_ld1(bottom_blob, ivec3(x, y, gx));
+                res_fp32 += texelFetch(bottom_blob, ivec3(x, y, gx), 0).r;
             }
         }
 #else
         for (int i = 0; i < size; i++)
         {
-            res += buffer_ld1(bottom_blob_data, v_offset + i);
+            res_fp32 += bottom_blob_data[v_offset + i];
         }
 #endif
 
-        res /= afp(size);
+        res_fp32 /= float(size);
+        res = afp(res_fp32);  // cast to fp16 if possible
     }
 
 #if NCNN_image_shader

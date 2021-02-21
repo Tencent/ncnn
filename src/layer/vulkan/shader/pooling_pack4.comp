@@ -119,7 +119,7 @@ void main()
     }
     else if (pooling_type == 1 && avgpool_count_include_pad == 0)
     {
-        res = afpvec4(0.f);
+        vec4 res_fp32 = vec4(0.f);  // force accumulation in fp32
         int area = 0;
 
         int sx = gx * stride_w;
@@ -142,7 +142,7 @@ void main()
                 if (sx + x >= psc(w) - pad_right - p.wtailpad)
                     break;
 
-                res += image3d_ld4(bottom_blob, ivec3(sx + x, sy + y, gz));
+                res_fp32 += texelFetch(bottom_blob, ivec3(sx + x, sy + y, gz), 0);
                 area += 1;
             }
         }
@@ -170,7 +170,7 @@ void main()
                 if (sx + x >= psc(w) - pad_right - p.wtailpad)
                     break;
 
-                res += buffer_ld4(bottom_blob_data, v_offset + x);
+                res_fp32 += bottom_blob_data[v_offset + x];
                 area += 1;
             }
 
@@ -178,11 +178,12 @@ void main()
         }
 #endif
 
-        res /= afp(area);
+        res_fp32 /= float(area);
+        res = afpvec4(res_fp32);  // cast to fp16 if possible
     }
     else if (pooling_type == 1 && avgpool_count_include_pad == 1)
     {
-        res = afpvec4(0.f);
+        vec4 res_fp32 = vec4(0.f);  // force accumulation in fp32
 
 #if NCNN_image_shader
         int sx = gx * stride_w;
@@ -192,7 +193,7 @@ void main()
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                res += image3d_ld4(bottom_blob, ivec3(sx + x, sy + y, gz));
+                res_fp32 += texelFetch(bottom_blob, ivec3(sx + x, sy + y, gz), 0);
             }
         }
 #else
@@ -202,14 +203,15 @@ void main()
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                res += buffer_ld4(bottom_blob_data, v_offset + x);
+                res_fp32 += bottom_blob_data[v_offset + x];
             }
 
             v_offset += psc(w);
         }
 #endif
 
-        res /= afp(kernel_w * kernel_h);
+        res_fp32 /= float(kernel_w * kernel_h);
+        res = afpvec4(res_fp32);  // cast to fp16 if possible
     }
 
 #if NCNN_image_shader
