@@ -114,7 +114,7 @@ void main()
     }
     else if (pooling_type == 1)
     {
-        res = afpvec8(afpvec4(0.f), afpvec4(0.f));
+        mat2x4 res_fp32 = mat2x4(vec4(0.f), vec4(0.f));  // force accumulation in fp32
         int area = 0;
         
 #if NCNN_image_shader
@@ -123,8 +123,8 @@ void main()
             for (int x = 0; x < kernel_w; x++)
             {
                 afpvec8 v = image3d_ld8(bottom_blob, ivec3(sx + x, sy + y, gz));
-                res[0] += v[0];
-                res[1] += v[1];
+                res_fp32[0] += v[0];
+                res_fp32[1] += v[1];
                 area += 1;
             }
         }
@@ -136,8 +136,8 @@ void main()
             for (int x = 0; x < kernel_w; x++)
             {
                 afpvec8 v = buffer_ld8(bottom_blob_data, v_offset + x);
-                res[0] += v[0];
-                res[1] += v[1];
+                res_fp32[0] += v[0];
+                res_fp32[1] += v[1];
                 area += 1;
             }
 
@@ -145,8 +145,9 @@ void main()
         }
 #endif
 
-        res[0] /= afp(area);
-        res[1] /= afp(area);
+        res_fp32[0] /= float(area);
+        res_fp32[1] /= float(area);
+        res = afpvec8(res_fp32);  // cast to fp16 if possible
     }
 
 #if NCNN_image_shader
