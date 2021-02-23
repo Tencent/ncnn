@@ -140,6 +140,7 @@ public:
     // bug is not feature
     bool bug_storage_buffer_no_l1() const;
     bool bug_corrupted_online_pipeline_cache() const;
+    bool bug_buffer_image_load_zero() const;
 
     // but sometimes bug is a feature
     bool bug_implicit_fp16_arithmetic() const;

@@ -38,7 +38,7 @@ class SimplePose:
         #      pose_net.hybridize()
         #      pose_net.export('pose')
         # then mxnet2ncnn
-        # the ncnn model https://github.com/caishanli/pyncnn-assets/tree/master/models
+        # the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
         self.net.load_param(get_model_file("pose.param"))
         self.net.load_model(get_model_file("pose.bin"))
 

@@ -122,7 +122,7 @@ for (int i=0; i<1000; i++)
 
 ## control storage and arithmetic precision
 
-disable all lower-precision optimzations, get full fp32 precision
+disable all lower-precision optimizations, get full fp32 precision
 
 ```cpp
 ncnn::Net net;

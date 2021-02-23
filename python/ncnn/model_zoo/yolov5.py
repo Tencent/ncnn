@@ -176,7 +176,7 @@ class YoloV5s:
         )
 
         # original pretrained model from https://github.com/ultralytics/yolov5
-        # the ncnn model https://github.com/caishanli/pyncnn-assets/tree/master/models
+        # the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
         self.net.load_param(get_model_file("yolov5s.param"))
         self.net.load_model(get_model_file("yolov5s.bin"))
 

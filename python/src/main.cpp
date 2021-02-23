@@ -445,6 +445,9 @@ PYBIND11_MODULE(ncnn, m)
         m[i] = v;
     },
     py::arg("i"), py::arg("v"))
+    .def("__len__", [](Mat& m) {
+        return m.w;
+    })
 
     //convenient construct from pixel data
     .def_static(

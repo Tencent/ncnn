@@ -32,7 +32,7 @@ class MobileNet_YoloV2:
         # original pretrained model from https://github.com/eric612/MobileNet-YOLO
         # https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy.prototxt
         # https://github.com/eric612/MobileNet-YOLO/blob/master/models/yolov2/mobilenet_yolo_deploy_iter_80000.caffemodel
-        # the ncnn model https://github.com/caishanli/pyncnn-assets/tree/master/models
+        # the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
         self.net.load_param(get_model_file("mobilenet_yolo.param"))
         self.net.load_model(get_model_file("mobilenet_yolo.bin"))
 
