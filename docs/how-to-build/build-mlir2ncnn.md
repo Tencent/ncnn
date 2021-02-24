@@ -7,7 +7,18 @@
 https://github.com/llvm/llvm-project.git
 git checkout -b mlir <a_working_commit_id>
 ```
-Current working commit id is 7c15e0f64ccc79a53ed2db258f1cb58ec452a957.
+Current working commit id is 7c15e0f64ccc79a53ed2db258f1cb58ec452a957:
+```
+$ git log
+
+commit 7c15e0f64ccc79a53ed2db258f1cb58ec452a957 (HEAD -> 01-26)
+Author: MaheshRavishankar <ravishankarm@google.com>
+Date:   Tue Jan 26 23:21:33 2021 -0800
+
+    [mlir][Linalg] Add canonicalization for init_tensor -> subtensor op.
+    
+    Differential Revision: https://reviews.llvm.org/D95305
+```
 
 It is determined by query lastest git commit date of `tools/mlir` directory.
 
