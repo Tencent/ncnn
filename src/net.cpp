@@ -942,15 +942,20 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
         int bottom_blob_index = layer->bottoms[0];
         int top_blob_index = layer->tops[0];
 
-        Mat bottom_blob = blob_mats[bottom_blob_index];
+        Mat& bottom_blob_ref = blob_mats[bottom_blob_index];
+        Mat bottom_blob;
 
         if (opt.lightmode)
         {
             // deep copy for inplace forward if data is shared
-            if (layer->support_inplace && *bottom_blob.refcount != 1)
+            if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
             {
-                bottom_blob = bottom_blob.clone();
+                bottom_blob = bottom_blob_ref.clone();
             }
+        }
+        if (bottom_blob.dims == 0)
+        {
+            bottom_blob = bottom_blob_ref;
         }
 
         convert_layout(bottom_blob, layer, opt);
@@ -990,15 +995,20 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
         {
             int bottom_blob_index = layer->bottoms[i];
 
-            bottom_blobs[i] = blob_mats[bottom_blob_index];
+            Mat& bottom_blob_ref = blob_mats[bottom_blob_index];
+            bottom_blobs[i].release();
 
             if (opt.lightmode)
             {
                 // deep copy for inplace forward if data is shared
-                if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
+                if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
                 {
-                    bottom_blobs[i] = bottom_blobs[i].clone();
+                    bottom_blobs[i] = bottom_blob_ref.clone();
                 }
+            }
+            if (bottom_blobs[i].dims == 0)
+            {
+                bottom_blobs[i] = bottom_blob_ref;
             }
 
             convert_layout(bottom_blobs[i], layer, opt);
@@ -1060,18 +1070,21 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
         int bottom_blob_index = layer->bottoms[0];
         int top_blob_index = layer->tops[0];
 
-        VkMat bottom_blob = blob_mats_gpu[bottom_blob_index];
+        VkMat& bottom_blob_ref = blob_mats_gpu[bottom_blob_index];
+        VkMat bottom_blob;
 
         if (opt.lightmode)
         {
             // deep copy for inplace forward if data is shared
-            if (layer->support_inplace && *bottom_blob.refcount != 1)
+            if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
             {
-                VkMat bottom_blob_copy;
-                cmd.record_clone(bottom_blob, bottom_blob_copy, opt);
-                //                     NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blob.buffer(), bottom_blob.buffer_offset(), bottom_blob_copy.buffer(), bottom_blob_copy.buffer_offset());
-                bottom_blob = bottom_blob_copy;
+                cmd.record_clone(bottom_blob_ref, bottom_blob, opt);
+                //                     NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blob_ref.buffer(), bottom_blob_ref.buffer_offset(), bottom_blob.buffer(), bottom_blob.buffer_offset());
             }
+        }
+        if (bottom_blob.dims == 0)
+        {
+            bottom_blob = bottom_blob_ref;
         }
 
         // forward
@@ -1110,18 +1123,21 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
         {
             int bottom_blob_index = layer->bottoms[i];
 
-            bottom_blobs[i] = blob_mats_gpu[bottom_blob_index];
+            VkMat& bottom_blob_ref = blob_mats_gpu[bottom_blob_index];
+            bottom_blobs[i].release();
 
             if (opt.lightmode)
             {
                 // deep copy for inplace forward if data is shared
-                if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
+                if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
                 {
-                    VkMat bottom_blob_copy;
-                    cmd.record_clone(bottom_blobs[i], bottom_blob_copy, opt);
-                    //                         NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blobs[i].buffer(), bottom_blobs[i].buffer_offset(), bottom_blob_copy.buffer(), bottom_blob_copy.buffer_offset());
-                    bottom_blobs[i] = bottom_blob_copy;
+                    cmd.record_clone(bottom_blob_ref, bottom_blobs[i], opt);
+                    //                         NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blob_ref.buffer(), bottom_blob_ref.buffer_offset(), bottom_blobs[i].buffer(), bottom_blobs[i].buffer_offset());
                 }
+            }
+            if (bottom_blobs[i].dims == 0)
+            {
+                bottom_blobs[i] = bottom_blob_ref;
             }
         }
 
@@ -1180,18 +1196,21 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkImageMat>& bl
         int bottom_blob_index = layer->bottoms[0];
         int top_blob_index = layer->tops[0];
 
-        VkImageMat bottom_blob = blob_mats_gpu_image[bottom_blob_index];
+        VkImageMat& bottom_blob_ref = blob_mats_gpu_image[bottom_blob_index];
+        VkImageMat bottom_blob;
 
         if (opt.lightmode)
         {
             // deep copy for inplace forward if data is shared
-            if (layer->support_inplace && *bottom_blob.refcount != 1)
+            if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
             {
-                VkImageMat bottom_blob_copy;
-                cmd.record_clone(bottom_blob, bottom_blob_copy, opt);
-                //                         NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blob.buffer(), bottom_blob.buffer_offset(), bottom_blob_copy.buffer(), bottom_blob_copy.buffer_offset());
-                bottom_blob = bottom_blob_copy;
+                cmd.record_clone(bottom_blob_ref, bottom_blob, opt);
+                //                         NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blob_ref.buffer(), bottom_blob_ref.buffer_offset(), bottom_blob.buffer(), bottom_blob.buffer_offset());
             }
+        }
+        if (bottom_blob.dims == 0)
+        {
+            bottom_blob = bottom_blob_ref;
         }
 
         // forward
@@ -1230,18 +1249,20 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkImageMat>& bl
         {
             int bottom_blob_index = layer->bottoms[i];
 
-            bottom_blobs[i] = blob_mats_gpu_image[bottom_blob_index];
+            VkImageMat& bottom_blob_ref = blob_mats_gpu_image[bottom_blob_index];
 
             if (opt.lightmode)
             {
                 // deep copy for inplace forward if data is shared
-                if (layer->support_inplace && *bottom_blobs[i].refcount != 1)
+                if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
                 {
-                    VkImageMat bottom_blob_copy;
-                    cmd.record_clone(bottom_blobs[i], bottom_blob_copy, opt);
-                    //                             NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blobs[i].buffer(), bottom_blobs[i].buffer_offset(), bottom_blob_copy.buffer(), bottom_blob_copy.buffer_offset());
-                    bottom_blobs[i] = bottom_blob_copy;
+                    cmd.record_clone(bottom_blob_ref, bottom_blobs[i], opt);
+                    //                             NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blob_ref.buffer(), bottom_blob_ref.buffer_offset(), bottom_blobs[i].buffer(), bottom_blobs[i].buffer_offset());
                 }
+            }
+            if (bottom_blobs[i].dims == 0)
+            {
+                bottom_blobs[i] = bottom_blob_ref;
             }
         }
 
