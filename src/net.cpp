@@ -953,7 +953,8 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                 bottom_blob = bottom_blob_ref.clone();
             }
         }
-        if (bottom_blob.dims == 0) {
+        if (bottom_blob.dims == 0)
+        {
             bottom_blob = bottom_blob_ref;
         }
 
@@ -1005,7 +1006,8 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                     bottom_blobs[i] = bottom_blob_ref.clone();
                 }
             }
-            if (bottom_blobs[i].dims == 0) {
+            if (bottom_blobs[i].dims == 0)
+            {
                 bottom_blobs[i] = bottom_blob_ref;
             }
 
@@ -1080,7 +1082,8 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
                 //                     NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blob_ref.buffer(), bottom_blob_ref.buffer_offset(), bottom_blob.buffer(), bottom_blob.buffer_offset());
             }
         }
-        if (bottom_blob.dims == 0) {
+        if (bottom_blob.dims == 0)
+        {
             bottom_blob = bottom_blob_ref;
         }
 
@@ -1132,7 +1135,8 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
                     //                         NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blob_ref.buffer(), bottom_blob_ref.buffer_offset(), bottom_blobs[i].buffer(), bottom_blobs[i].buffer_offset());
                 }
             }
-            if (bottom_blobs[i].dims == 0) {
+            if (bottom_blobs[i].dims == 0)
+            {
                 bottom_blobs[i] = bottom_blob_ref;
             }
         }
@@ -1204,7 +1208,8 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkImageMat>& bl
                 //                         NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blob_ref.buffer(), bottom_blob_ref.buffer_offset(), bottom_blob.buffer(), bottom_blob.buffer_offset());
             }
         }
-        if (bottom_blobs[i].dims == 0) {
+        if (bottom_blobs[i].dims == 0)
+        {
             bottom_blobs[i] = bottom_blob_ref;
         }
 
@@ -1255,7 +1260,8 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkImageMat>& bl
                     //                             NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blob_ref.buffer(), bottom_blob_ref.buffer_offset(), bottom_blobs[i].buffer(), bottom_blobs[i].buffer_offset());
                 }
             }
-            if (bottom_blobs[i].dims == 0) {
+            if (bottom_blobs[i].dims == 0)
+            {
                 bottom_blobs[i] = bottom_blob_ref;
             }
         }
