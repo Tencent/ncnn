@@ -329,7 +329,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, cons
     if (layer->one_blob_only)
     {
         int bottom_blob_index = layer->bottoms[0];
-        bottom_blob = blob_mats[bottom_blob_index];
+        bottom_blob = blob_mats[bottom_blob_index].shape();
     }
 #endif
     int ret = do_forward_layer(layer, blob_mats, opt);
@@ -499,7 +499,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
         if (layer->one_blob_only)
         {
             int bottom_blob_index = layer->bottoms[0];
-            bottom_blob = blob_mats[bottom_blob_index];
+            bottom_blob = blob_mats[bottom_blob_index].shape();
         }
 #endif
         ret = do_forward_layer(layer, blob_mats, opt);
@@ -830,7 +830,7 @@ IMAGE_ALLOCATION_FAILED:
         if (layer->one_blob_only)
         {
             int bottom_blob_index = layer->bottoms[0];
-            bottom_blob = blob_mats[bottom_blob_index];
+            bottom_blob = blob_mats[bottom_blob_index].shape();
         }
 #endif
         ret = do_forward_layer(layer, blob_mats, opt);
