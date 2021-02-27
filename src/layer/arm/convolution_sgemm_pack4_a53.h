@@ -26,7 +26,6 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
 
     // permute
     Mat tmp;
-#if __aarch64__
     if (size >= 12)
         tmp.create(12 * maxk, inch, size / 12 + (size % 12) / 8 + (size % 12 % 8) / 4 + (size % 12 % 4) / 2 + size % 12 % 2, 16u, 4, opt.workspace_allocator);
     else if (size >= 8)
@@ -37,18 +36,7 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
         tmp.create(2 * maxk, inch, size / 2 + size % 2, 16u, 4, opt.workspace_allocator);
     else
         tmp.create(maxk, inch, size, 16u, 4, opt.workspace_allocator);
-#else
-    if (size >= 8)
-        tmp.create(8 * maxk, inch, size / 8 + (size % 8) / 4 + (size % 4) / 2 + size % 2, 16u, 4, opt.workspace_allocator);
-    else if (size >= 4)
-        tmp.create(4 * maxk, inch, size / 4 + (size % 4) / 2 + size % 2, 16u, 4, opt.workspace_allocator);
-    else if (size >= 2)
-        tmp.create(2 * maxk, inch, size / 2 + size % 2, 16u, 4, opt.workspace_allocator);
-    else
-        tmp.create(maxk, inch, size, 16u, 4, opt.workspace_allocator);
-#endif
     {
-#if __aarch64__
         int nn_size = size / 12;
         int remain_size_start = 0;
 
@@ -97,21 +85,13 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
 
         remain_size_start += nn_size * 12;
         nn_size = (size - remain_size_start) >> 3;
-#else
-        int nn_size = size >> 3;
-        int remain_size_start = 0;
-#endif
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 8;
 
-#if __aarch64__
             float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8);
-#else
-            float* tmpptr = tmp.channel(i / 8);
-#endif
 
             for (int q = 0; q < inch; q++)
             {
@@ -119,7 +99,6 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
@@ -133,36 +112,7 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                         : "0"(img0),
                         "1"(tmpptr)
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
-#else
-                    asm volatile(
-                        "pld        [%0, #512]          \n"
-                        "vldm       %0!, {d0-d7}        \n"
-                        "pld        [%0, #512]          \n"
-                        "vldm       %0, {d16-d23}       \n"
 
-                        // transpose 8x4
-                        "vtrn.32    q0, q1              \n"
-                        "vtrn.32    q2, q3              \n"
-                        "vtrn.32    q8, q9              \n"
-                        "vtrn.32    q10, q11            \n"
-                        "vswp       d1, d4              \n"
-                        "vswp       d3, d6              \n"
-                        "vswp       d17, d20            \n"
-                        "vswp       d19, d22            \n"
-                        "vswp       q1, q8              \n"
-                        "vswp       q3, q10             \n"
-
-                        "vst1.f32   {d0-d3}, [%1 :128]! \n"
-                        "vst1.f32   {d16-d19}, [%1 :128]! \n"
-                        "sub        %0, %0, #64         \n"
-                        "vst1.f32   {d4-d7}, [%1 :128]! \n"
-                        "vst1.f32   {d20-d23}, [%1 :128]! \n"
-                        : "=r"(img0),  // %0
-                        "=r"(tmpptr) // %1
-                        : "0"(img0),
-                        "1"(tmpptr)
-                        : "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
-#endif // __aarch64__
                     img0 += size * 4;
                 }
             }
@@ -176,11 +126,7 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
         {
             int i = remain_size_start + ii * 4;
 
-#if __aarch64__
             float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
-#else
-            float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
-#endif
 
             for (int q = 0; q < inch; q++)
             {
@@ -188,7 +134,6 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
@@ -198,17 +143,7 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                         : "0"(img0),
                         "1"(tmpptr)
                         : "memory", "v0", "v1", "v2", "v3");
-#else
-                    asm volatile(
-                        "pld        [%0, #512]          \n"
-                        "vldm       %0, {d0-d7}         \n"
-                        "vstm       %1!, {d0-d7}        \n"
-                        : "=r"(img0),  // %0
-                        "=r"(tmpptr) // %1
-                        : "0"(img0),
-                        "1"(tmpptr)
-                        : "memory", "q0", "q1", "q2", "q3");
-#endif // __aarch64__
+
                     img0 += size * 4;
                 }
             }
@@ -222,11 +157,7 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
         {
             int i = remain_size_start + ii * 2;
 
-#if __aarch64__
             float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
-#else
-            float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2);
-#endif
 
             for (int q = 0; q < inch; q++)
             {
@@ -234,7 +165,6 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #256]       \n"
                         "ld1    {v0.4s, v1.4s}, [%0]        \n"
@@ -244,17 +174,7 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                         : "0"(img0),
                         "1"(tmpptr)
                         : "memory", "v0", "v1");
-#else
-                    asm volatile(
-                        "pld        [%0, #256]          \n"
-                        "vld1.f32   {d0-d3}, [%0 :128]  \n"
-                        "vst1.f32   {d0-d3}, [%1 :128]! \n"
-                        : "=r"(img0),  // %0
-                        "=r"(tmpptr) // %1
-                        : "0"(img0),
-                        "1"(tmpptr)
-                        : "memory", "q0", "q1");
-#endif // __aarch64__
+
                     img0 += size * 4;
                 }
             }
@@ -265,11 +185,7 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < size; i++)
         {
-#if __aarch64__
             float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
-#else
-            float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2 + i % 2);
-#endif
 
             for (int q = 0; q < inch; q++)
             {
@@ -277,7 +193,6 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #128]       \n"
                         "ld1    {v0.4s}, [%0]               \n"
@@ -287,17 +202,7 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                         : "0"(img0),
                         "1"(tmpptr)
                         : "memory", "v0");
-#else
-                    asm volatile(
-                        "pld        [%0, #128]          \n"
-                        "vld1.f32   {d0-d1}, [%0 :128]  \n"
-                        "vst1.f32   {d0-d1}, [%1 :128]! \n"
-                        : "=r"(img0),  // %0
-                        "=r"(tmpptr) // %1
-                        : "0"(img0),
-                        "1"(tmpptr)
-                        : "memory", "q0");
-#endif // __aarch64__
+
                     img0 += size * 4;
                 }
             }
@@ -306,7 +211,6 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
 
     int remain_outch_start = 0;
 
-#if __aarch64__
     int nn_outch = outch >> 1;
     remain_outch_start = nn_outch << 1;
 
@@ -1050,7 +954,6 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                 : "cc", "memory", "v0", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17");
         }
     }
-#endif // __aarch64__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
@@ -1061,7 +964,6 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
         const float* biasptr = bias ? bias + p * 4 : zeros;
 
         int i = 0;
-#if __aarch64__
         for (; i + 11 < size; i += 12)
         {
             const float* tmpptr = tmp.channel(i / 12);
@@ -1169,20 +1071,13 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                 "r"(biasptr) // %8
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27");
         }
-#endif // __aarch64__
         for (; i + 7 < size; i += 8)
         {
-#if __aarch64__
             const float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8);
             const float* kptr0 = kernel.channel(p / 2 + p % 2);
-#else
-            const float* tmpptr = tmp.channel(i / 8);
-            const float* kptr0 = kernel.channel(p);
-#endif
 
             int nn = inch * maxk; // inch always > 0
 
-#if __aarch64__
             asm volatile(
                 "ld1    {v0.4s}, [%8]               \n"
                 "mov    v16.16b, v0.16b             \n"
@@ -1259,97 +1154,14 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                 "3"(kptr0),
                 "r"(biasptr) // %8
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
-#else
-            asm volatile(
-                "vld1.f32   {d0-d1}, [%8]   \n"
-                "vmov       q8, q0          \n"
-                "vmov       q9, q0          \n"
-                "vmov       q10, q0         \n"
-                "vmov       q11, q0         \n"
-                "vmov       q12, q0         \n"
-                "vmov       q13, q0         \n"
-                "vmov       q14, q0         \n"
-                "vmov       q15, q0         \n"
-
-                "0:                         \n"
-
-                "pld        [%2, #512]      \n"
-                "vldm       %2!, {d0-d7}    \n"
-
-                "pld        [%3, #512]      \n"
-                "vldm       %3!, {d8-d15}   \n"
-
-                "vmla.f32   q8, q4, d0[0]   \n"
-                "vmla.f32   q9, q4, d0[1]   \n"
-                "vmla.f32   q10, q4, d1[0]  \n"
-                "vmla.f32   q11, q4, d1[1]  \n"
-                "vmla.f32   q12, q4, d2[0]  \n"
-                "vmla.f32   q13, q4, d2[1]  \n"
-                "vmla.f32   q14, q4, d3[0]  \n"
-                "vmla.f32   q15, q4, d3[1]  \n"
-
-                "vmla.f32   q8, q5, d4[0]   \n"
-                "vmla.f32   q9, q5, d4[1]   \n"
-                "vmla.f32   q10, q5, d5[0]  \n"
-                "vmla.f32   q11, q5, d5[1]  \n"
-                "vmla.f32   q12, q5, d6[0]  \n"
-                "vmla.f32   q13, q5, d6[1]  \n"
-                "vmla.f32   q14, q5, d7[0]  \n"
-                "vmla.f32   q15, q5, d7[1]  \n"
-
-                "pld        [%2, #512]      \n"
-                "vldm       %2!, {d0-d7}    \n"
-
-                "vmla.f32   q8, q6, d0[0]   \n"
-                "vmla.f32   q9, q6, d0[1]   \n"
-                "vmla.f32   q10, q6, d1[0]  \n"
-                "vmla.f32   q11, q6, d1[1]  \n"
-                "vmla.f32   q12, q6, d2[0]  \n"
-                "vmla.f32   q13, q6, d2[1]  \n"
-                "vmla.f32   q14, q6, d3[0]  \n"
-                "vmla.f32   q15, q6, d3[1]  \n"
-
-                "subs       %0, %0, #1      \n"
-
-                "vmla.f32   q8, q7, d4[0]   \n"
-                "vmla.f32   q9, q7, d4[1]   \n"
-                "vmla.f32   q10, q7, d5[0]  \n"
-                "vmla.f32   q11, q7, d5[1]  \n"
-                "vmla.f32   q12, q7, d6[0]  \n"
-                "vmla.f32   q13, q7, d6[1]  \n"
-                "vmla.f32   q14, q7, d7[0]  \n"
-                "vmla.f32   q15, q7, d7[1]  \n"
-
-                "bne        0b              \n"
-
-                "vstm       %1!, {d16-d23}  \n"
-                "vstm       %1!, {d24-d31}  \n"
-
-                : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(tmpptr),  // %2
-                "=r"(kptr0)    // %3
-                : "0"(nn),
-                "1"(outptr0),
-                "2"(tmpptr),
-                "3"(kptr0),
-                "r"(biasptr) // %8
-                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
-#endif
         }
         for (; i + 3 < size; i += 4)
         {
-#if __aarch64__
             const float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
             const float* kptr0 = kernel.channel(p / 2 + p % 2);
-#else
-            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
-            const float* kptr0 = kernel.channel(p);
-#endif
 
             int nn = inch * maxk; // inch always > 0
 
-#if __aarch64__
             asm volatile(
                 "ld1    {v0.4s}, [%8]               \n"
                 "mov    v16.16b, v0.16b             \n"
@@ -1401,73 +1213,14 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                 "3"(kptr0),
                 "r"(biasptr) // %8
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19");
-#else
-            asm volatile(
-                "vld1.f32   {d0-d1}, [%8]   \n"
-                "vmov       q8, q0          \n"
-                "vmov       q9, q0          \n"
-                "vmov       q10, q0         \n"
-                "vmov       q11, q0         \n"
-
-                "0:                         \n"
-
-                "pld        [%2, #512]      \n"
-                "vldm       %2!, {d0-d7}    \n"
-
-                "pld        [%3, #512]      \n"
-                "vldm       %3!, {d8-d15}   \n"
-
-                "vmla.f32   q8, q4, d0[0]   \n"
-                "vmla.f32   q9, q4, d2[0]   \n"
-                "vmla.f32   q10, q4, d4[0]  \n"
-                "vmla.f32   q11, q4, d6[0]  \n"
-
-                "vmla.f32   q8, q5, d0[1]   \n"
-                "vmla.f32   q9, q5, d2[1]   \n"
-                "vmla.f32   q10, q5, d4[1]  \n"
-                "vmla.f32   q11, q5, d6[1]  \n"
-
-                "vmla.f32   q8, q6, d1[0]   \n"
-                "vmla.f32   q9, q6, d3[0]   \n"
-                "vmla.f32   q10, q6, d5[0]  \n"
-                "vmla.f32   q11, q6, d7[0]  \n"
-
-                "subs       %0, %0, #1      \n"
-
-                "vmla.f32   q8, q7, d1[1]   \n"
-                "vmla.f32   q9, q7, d3[1]   \n"
-                "vmla.f32   q10, q7, d5[1]  \n"
-                "vmla.f32   q11, q7, d7[1]  \n"
-
-                "bne        0b              \n"
-
-                "vstm       %1!, {d16-d23}  \n"
-
-                : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(tmpptr),  // %2
-                "=r"(kptr0)    // %3
-                : "0"(nn),
-                "1"(outptr0),
-                "2"(tmpptr),
-                "3"(kptr0),
-                "r"(biasptr) // %8
-                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11");
-#endif
         }
         for (; i + 1 < size; i += 2)
         {
-#if __aarch64__
             const float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
             const float* kptr0 = kernel.channel(p / 2 + p % 2);
-#else
-            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2);
-            const float* kptr0 = kernel.channel(p);
-#endif
 
             int nn = inch * maxk; // inch always > 0
 
-#if __aarch64__
             asm volatile(
                 "ld1    {v0.4s}, [%8]               \n"
                 "mov    v16.16b, v0.16b             \n"
@@ -1509,63 +1262,14 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                 "3"(kptr0),
                 "r"(biasptr) // %8
                 : "cc", "memory", "v0", "v1", "v8", "v9", "v10", "v11", "v16", "v17");
-#else
-            asm volatile(
-                "vld1.f32   {d0-d1}, [%8]   \n"
-                "vmov       q8, q0          \n"
-                "vmov       q9, q0          \n"
-
-                "0:                         \n"
-
-                "pld        [%2, #256]      \n"
-                "vld1.f32   {d0-d3}, [%2 :128]! \n"
-
-                "pld        [%3, #512]      \n"
-                "vldm       %3!, {d8-d15}   \n"
-
-                "vmla.f32   q8, q4, d0[0]   \n"
-                "vmla.f32   q9, q4, d2[0]   \n"
-
-                "vmla.f32   q8, q5, d0[1]   \n"
-                "vmla.f32   q9, q5, d2[1]   \n"
-
-                "vmla.f32   q8, q6, d1[0]   \n"
-                "vmla.f32   q9, q6, d3[0]   \n"
-
-                "subs       %0, %0, #1      \n"
-
-                "vmla.f32   q8, q7, d1[1]   \n"
-                "vmla.f32   q9, q7, d3[1]   \n"
-
-                "bne        0b              \n"
-
-                "vst1.f32   {d16-d19}, [%1 :128]! \n"
-
-                : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(tmpptr),  // %2
-                "=r"(kptr0)    // %3
-                : "0"(nn),
-                "1"(outptr0),
-                "2"(tmpptr),
-                "3"(kptr0),
-                "r"(biasptr) // %8
-                : "cc", "memory", "q0", "q1", "q4", "q5", "q6", "q7", "q8", "q9");
-#endif
         }
         for (; i < size; i++)
         {
-#if __aarch64__
             const float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
             const float* kptr0 = kernel.channel(p / 2 + p % 2);
-#else
-            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2 + i % 2);
-            const float* kptr0 = kernel.channel(p);
-#endif
 
             int nn = inch * maxk; // inch always > 0
 
-#if __aarch64__
             asm volatile(
                 "ld1    {v16.4s}, [%8]              \n"
 
@@ -1599,41 +1303,6 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                 "3"(kptr0),
                 "r"(biasptr) // %8
                 : "cc", "memory", "v0", "v8", "v9", "v10", "v11", "v16");
-#else
-            asm volatile(
-                "vld1.f32   {d16-d17}, [%8] \n"
-
-                "0:                         \n"
-
-                "pld        [%2, #128]      \n"
-                "vld1.f32   {d0-d1}, [%2 :128]! \n"
-
-                "pld        [%3, #512]      \n"
-                "vldm       %3!, {d8-d15}   \n"
-
-                "vmla.f32   q8, q4, d0[0]   \n"
-                "vmla.f32   q8, q5, d0[1]   \n"
-
-                "subs       %0, %0, #1      \n"
-
-                "vmla.f32   q8, q6, d1[0]   \n"
-                "vmla.f32   q8, q7, d1[1]   \n"
-
-                "bne        0b              \n"
-
-                "vst1.f32   {d16-d17}, [%1 :128]! \n"
-
-                : "=r"(nn),      // %0
-                "=r"(outptr0), // %1
-                "=r"(tmpptr),  // %2
-                "=r"(kptr0)    // %3
-                : "0"(nn),
-                "1"(outptr0),
-                "2"(tmpptr),
-                "3"(kptr0),
-                "r"(biasptr) // %8
-                : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8");
-#endif
         }
     }
 }
