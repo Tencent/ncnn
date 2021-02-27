@@ -129,7 +129,9 @@ public:
     // 3 = DAZ ON,  FTZ ON
     int flush_denormals;
 
-    bool use_reserved_0;
+    // turn on for cortex-A53
+    bool use_a53_optimzed_kernel;
+
     bool use_reserved_1;
     bool use_reserved_2;
     bool use_reserved_3;

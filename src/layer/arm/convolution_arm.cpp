@@ -53,6 +53,7 @@ namespace ncnn {
 #include "convolution_pack4to1_bf16s.h"
 #include "convolution_sgemm_pack4.h"
 #include "convolution_sgemm_pack4_bf16s.h"
+#include "convolution_winograd_pack4.h"
 #include "convolution_1x1_pack4.h"
 #include "convolution_1x1_pack4_bf16s.h"
 #include "convolution_1x1_pack4to1.h"
@@ -67,6 +68,11 @@ namespace ncnn {
 #include "convolution_5x5_pack4_bf16s.h"
 #include "convolution_7x7_pack1to4.h"
 #include "convolution_7x7_pack1to4_bf16s.h"
+#if __aarch64__
+#include "convolution_sgemm_pack4_a53.h"
+#include "convolution_1x1_pack4_a53.h"
+#include "convolution_3x3_pack4_a53.h"
+#endif
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "convolution_fp16s.h"
 #include "convolution_pack8_fp16s.h"
@@ -479,7 +485,16 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            conv1x1s1_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
+#if __aarch64__
+            if (opt.use_a53_optimzed_kernel)
+            {
+                conv1x1s1_sgemm_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
+            }
+            else
+#endif
+            {
+                conv1x1s1_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
+            }
 
             if (activation)
             {
@@ -488,7 +503,16 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-            conv1x1s2_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
+#if __aarch64__
+            if (opt.use_a53_optimzed_kernel)
+            {
+                conv1x1s2_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
+            }
+            else
+#endif
+            {
+                conv1x1s2_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
+            }
 
             if (activation)
             {
@@ -500,11 +524,29 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             // we need more proper conditions
             if ((w <= 10 || (w >= 15 && w <= 18) || w == 21 || w == 22) && (h <= 10 || (h >= 15 && h <= 18) || h == 21 || h == 22))
             {
-                conv3x3s1_winograd42_pack4_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data_pack4, bias_data, opt);
+#if __aarch64__
+                if (opt.use_a53_optimzed_kernel)
+                {
+                    conv3x3s1_winograd42_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data_pack4, bias_data, opt);
+                }
+                else
+#endif
+                {
+                    conv3x3s1_winograd42_pack4_neon(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data_pack4, bias_data, opt);
+                }
             }
             else
             {
-                conv3x3s1_winograd64_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
+#if __aarch64__
+                if (opt.use_a53_optimzed_kernel)
+                {
+                    conv3x3s1_winograd64_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
+                }
+                else
+#endif
+                {
+                    conv3x3s1_winograd64_pack4_neon(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
+                }
             }
 
             if (activation)
@@ -522,7 +564,16 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                            || (size >= 5 * 5 && size < 17 * 17 && num_input >= 24 && num_output >= 24);
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
-                conv3x3s2_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, opt);
+#if __aarch64__
+                if (opt.use_a53_optimzed_kernel)
+                {
+                    conv3x3s2_im2col_sgemm_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, opt);
+                }
+                else
+#endif
+                {
+                    conv3x3s2_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, opt);
+                }
             }
             else
             {
@@ -548,7 +599,16 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                            || (size >= 6 * 6 && size < 8 * 8 && num_input >= 48 && num_output >= 48);
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
-                convolution_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+#if __aarch64__
+                if (opt.use_a53_optimzed_kernel)
+                {
+                    convolution_im2col_sgemm_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+                }
+                else
+#endif
+                {
+                    convolution_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+                }
             }
             else
             {
@@ -568,7 +628,16 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                            || (size >= 7 * 7 && size < 12 * 12 && num_input >= 72 && num_output >= 72);
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
-                convolution_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+#if __aarch64__
+                if (opt.use_a53_optimzed_kernel)
+                {
+                    convolution_im2col_sgemm_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+                }
+                else
+#endif
+                {
+                    convolution_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+                }
             }
             else
             {
@@ -582,7 +651,16 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else if (opt.use_sgemm_convolution && prefer_sgemm)
         {
-            convolution_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+#if __aarch64__
+            if (opt.use_a53_optimzed_kernel)
+            {
+                convolution_im2col_sgemm_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+            }
+            else
+#endif
+            {
+                convolution_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+            }
 
             if (activation)
             {
