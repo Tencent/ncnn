@@ -702,6 +702,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                         }
 
                         const float* kptr = (const float*)weight_data_packed + maxk * channels * p * 8;
+                        __m256 _sum8 = _mm256_set1_ps(0);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -709,16 +710,16 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             const Mat m = bottom_blob_bordered.channel(q);
                             const float* sptr = m.row(i * stride_h) + j * stride_w * 8;
 
-                            for (int k = 0; k < maxk; k++) // 29.23
+                             for (int k = 0; k < maxk; k++) // 29.23
                             {
                                 __m256 _val = _mm256_loadu_ps(sptr + (space_ofs[k] * 8));
                                 __m256 _w = _mm256_loadu_ps(kptr);
                                 __m256 _s8 = _mm256_mul_ps(_val, _w);
-                                sum += _mm256_reduce_add_ps(_s8); // dot
+                                _sum8 = _mm256_add_ps(_sum8, _s8);
                                 kptr += 8;
                             }
                         }
-
+                        sum += _mm256_reduce_add_ps(_sum8); // dot
                         sum = activation_ss(sum, activation_type, activation_params);
 
                         outptr[j] = sum;
