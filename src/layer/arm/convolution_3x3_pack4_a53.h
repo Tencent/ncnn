@@ -1363,11 +1363,11 @@ static void conv3x3s1_winograd42_pack4_neon_a53(const Mat& bottom_blob, Mat& top
     // BEGIN transform input
     Mat bottom_blob_tm;
     {
-        const int tiles = (outw / 6) * (outh / 6);
+        const int tiles = (outw / 4) * (outh / 4);
 
-        bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
+        bottom_blob_tm.create(tiles, 36, inch, elemsize, elempack, opt.workspace_allocator);
 
-        convolution_winograd_f63_transform_input_pack4_neon(bottom_blob_bordered, bottom_blob_tm, opt);
+        convolution_winograd_f43_transform_input_pack4_neon(bottom_blob_bordered, bottom_blob_tm, opt);
     }
     bottom_blob_bordered = Mat();
     // END transform input
@@ -2655,7 +2655,7 @@ static void conv3x3s1_winograd42_pack4_neon_a53(const Mat& bottom_blob, Mat& top
             top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
         }
 
-        convolution_winograd_f63_transform_output_pack4_neon(top_blob_tm, top_blob_bordered, bias, opt);
+        convolution_winograd_f43_transform_output_pack4_neon(top_blob_tm, top_blob_bordered, bias, opt);
     }
     // END transform output
 
