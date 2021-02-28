@@ -486,7 +486,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
 #if __aarch64__
-            if (opt.use_a53_optimzed_kernel)
+            if (opt.use_a53_optimized_kernel)
             {
                 conv1x1s1_sgemm_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
             }
@@ -504,7 +504,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
 #if __aarch64__
-            if (opt.use_a53_optimzed_kernel)
+            if (opt.use_a53_optimized_kernel)
             {
                 conv1x1s2_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
             }
@@ -525,7 +525,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             if ((w <= 10 || (w >= 15 && w <= 18) || w == 21 || w == 22) && (h <= 10 || (h >= 15 && h <= 18) || h == 21 || h == 22))
             {
 #if __aarch64__
-                if (opt.use_a53_optimzed_kernel)
+                if (opt.use_a53_optimized_kernel)
                 {
                     conv3x3s1_winograd42_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data_pack4, bias_data, opt);
                 }
@@ -538,7 +538,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             else
             {
 #if __aarch64__
-                if (opt.use_a53_optimzed_kernel)
+                if (opt.use_a53_optimized_kernel)
                 {
                     conv3x3s1_winograd64_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_data_pack4, bias_data, opt);
                 }
@@ -565,7 +565,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
 #if __aarch64__
-                if (opt.use_a53_optimzed_kernel)
+                if (opt.use_a53_optimized_kernel)
                 {
                     conv3x3s2_im2col_sgemm_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, opt);
                 }
@@ -600,7 +600,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
 #if __aarch64__
-                if (opt.use_a53_optimzed_kernel)
+                if (opt.use_a53_optimized_kernel)
                 {
                     convolution_im2col_sgemm_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
                 }
@@ -629,7 +629,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
 #if __aarch64__
-                if (opt.use_a53_optimzed_kernel)
+                if (opt.use_a53_optimized_kernel)
                 {
                     convolution_im2col_sgemm_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
                 }
@@ -652,7 +652,7 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         else if (opt.use_sgemm_convolution && prefer_sgemm)
         {
 #if __aarch64__
-            if (opt.use_a53_optimzed_kernel)
+            if (opt.use_a53_optimized_kernel)
             {
                 convolution_im2col_sgemm_pack4_neon_a53(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
             }

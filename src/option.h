@@ -130,7 +130,7 @@ public:
     int flush_denormals;
 
     // turn on for cortex-A53
-    bool use_a53_optimzed_kernel;
+    bool use_a53_optimized_kernel;
 
     bool use_reserved_1;
     bool use_reserved_2;

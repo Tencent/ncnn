@@ -64,7 +64,7 @@ Option::Option()
 
     flush_denormals = 3;
 
-    use_a53_optimzed_kernel = false;
+    use_a53_optimized_kernel = false;
 }
 
 } // namespace ncnn

@@ -262,15 +262,15 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
 
                 // preload
 
-                "prfm   pldl1keep, [%4, #128]             \n"
-                "prfm   pldl1keep, [%3, #128]             \n"
+                "prfm   pldl1keep, [%4, #128]       \n"
+                "prfm   pldl1keep, [%3, #128]       \n"
 
                 "ld1    {v6.4s}, [%4], #16          \n"
 
                 "ld1    {v0.4s, v1.4s, v2.4s}, [%3], #48 \n"
 
-                "prfm   pldl1keep, [%4, #256]             \n"
-                "prfm   pldl1keep, [%3, #256]             \n"
+                "prfm   pldl1keep, [%4, #256]       \n"
+                "prfm   pldl1keep, [%3, #256]       \n"
 
                 "0:                                 \n"
 
@@ -328,9 +328,9 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                 "nop                                \n"
 
                 "fmla   v23.4s, v7.4s, v0.s[3]      \n"
-                "prfm   pldl1keep, [%4, #128]             \n"
+                "prfm   pldl1keep, [%4, #128]       \n"
                 "fmla   v24.4s, v7.4s, v1.s[0]      \n"
-                "prfm   pldl1keep, [%3, #128]             \n"
+                "prfm   pldl1keep, [%3, #128]       \n"
                 "fmla   v25.4s, v7.4s, v1.s[1]      \n"
 
                 //v
@@ -338,9 +338,9 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                 "nop                                \n"
 
                 "fmla   v26.4s, v7.4s, v1.s[2]      \n"
-                "prfm   pldl1keep, [%4, #256]             \n"
+                "prfm   pldl1keep, [%4, #256]       \n"
                 "fmla   v27.4s, v7.4s, v1.s[3]      \n"
-                "prfm   pldl1keep, [%3, #256]             \n"
+                "prfm   pldl1keep, [%3, #256]       \n"
                 "fmla   v28.4s, v7.4s, v2.s[0]      \n"
 
                 //v
@@ -405,9 +405,9 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                 "nop                                \n"
 
                 "fmla   v23.4s, v7.4s, v3.s[3]      \n"
-                "prfm   pldl1keep, [%4, #128]             \n"
+                "prfm   pldl1keep, [%4, #128]       \n"
                 "fmla   v24.4s, v7.4s, v4.s[0]      \n"
-                "prfm   pldl1keep, [%3, #128]             \n"
+                "prfm   pldl1keep, [%3, #128]       \n"
                 "fmla   v25.4s, v7.4s, v4.s[1]      \n"
 
                 //v
@@ -415,9 +415,9 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                 "nop                                \n"
 
                 "fmla   v26.4s, v7.4s, v4.s[2]      \n"
-                "prfm   pldl1keep, [%4, #256]             \n"
+                "prfm   pldl1keep, [%4, #256]       \n"
                 "fmla   v27.4s, v7.4s, v4.s[3]      \n"
-                "prfm   pldl1keep, [%3, #256]             \n"
+                "prfm   pldl1keep, [%3, #256]       \n"
                 "fmla   v28.4s, v7.4s, v5.s[0]      \n"
 
                 //v
@@ -482,9 +482,9 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                 "nop                                \n"
 
                 "fmla   v23.4s, v7.4s, v0.s[3]      \n"
-                "prfm   pldl1keep, [%4, #128]             \n"
+                "prfm   pldl1keep, [%4, #128]       \n"
                 "fmla   v24.4s, v7.4s, v1.s[0]      \n"
-                "prfm   pldl1keep, [%3, #128]             \n"
+                "prfm   pldl1keep, [%3, #128]       \n"
                 "fmla   v25.4s, v7.4s, v1.s[1]      \n"
 
                 //v
@@ -492,9 +492,9 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                 "nop                                \n"
 
                 "fmla   v26.4s, v7.4s, v1.s[2]      \n"
-                "prfm   pldl1keep, [%4, #256]             \n"
+                "prfm   pldl1keep, [%4, #256]       \n"
                 "fmla   v27.4s, v7.4s, v1.s[3]      \n"
-                "prfm   pldl1keep, [%3, #256]             \n"
+                "prfm   pldl1keep, [%3, #256]       \n"
                 "fmla   v28.4s, v7.4s, v2.s[0]      \n"
 
                 //v
@@ -559,9 +559,9 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                 "nop                                \n"
 
                 "fmla   v23.4s, v7.4s, v3.s[3]      \n"
-                "prfm   pldl1keep, [%4, #128]             \n"
+                "prfm   pldl1keep, [%4, #128]       \n"
                 "fmla   v24.4s, v7.4s, v4.s[0]      \n"
-                "prfm   pldl1keep, [%3, #128]             \n"
+                "prfm   pldl1keep, [%3, #128]       \n"
                 "fmla   v25.4s, v7.4s, v4.s[1]      \n"
 
                 //v
@@ -569,9 +569,9 @@ static void im2col_sgemm_pack4_neon_a53(const Mat& bottom_im2col, Mat& top_blob,
                 "nop                                \n"
 
                 "fmla   v26.4s, v7.4s, v4.s[2]      \n"
-                "prfm   pldl1keep, [%4, #256]             \n"
+                "prfm   pldl1keep, [%4, #256]       \n"
                 "fmla   v27.4s, v7.4s, v4.s[3]      \n"
-                "prfm   pldl1keep, [%3, #256]             \n"
+                "prfm   pldl1keep, [%3, #256]       \n"
                 "fmla   v28.4s, v7.4s, v5.s[0]      \n"
 
                 //v
