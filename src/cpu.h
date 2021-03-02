@@ -89,6 +89,15 @@ NCNN_EXPORT int get_omp_thread_num();
 NCNN_EXPORT int get_kmp_blocktime();
 NCNN_EXPORT void set_kmp_blocktime(int time_ms);
 
+// need to flush denormals on Intel Chipset.
+// Other architectures such as ARM can be added as needed.
+// 0 = DAZ OFF, FTZ OFF
+// 1 = DAZ ON , FTZ OFF
+// 2 = DAZ OFF, FTZ ON
+// 3 = DAZ ON,  FTZ ON
+NCNN_EXPORT int get_flush_denormals();
+NCNN_EXPORT int set_flush_denormals(int flush_denormals);
+
 } // namespace ncnn
 
 #endif // NCNN_CPU_H

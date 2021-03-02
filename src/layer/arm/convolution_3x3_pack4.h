@@ -4985,3 +4985,144 @@ static void conv3x3s2_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const Ma
         }
     }
 }
+
+static void conv3x3s2_im2col_sgemm_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
+{
+    int w = bottom_blob.w;
+    int inch = bottom_blob.c;
+
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+    const int size = outw * outh;
+
+    // im2col
+    Mat bottom_im2col(size, 9, inch, 16u, 4, opt.workspace_allocator);
+    {
+        const int gap = (w * 2 - outw * 2) * 4;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = 0; p < inch; p++)
+        {
+            const Mat img = bottom_blob.channel(p);
+            Mat out = bottom_im2col.channel(p);
+
+            float* ptr0 = out.row(0);
+            float* ptr1 = out.row(1);
+            float* ptr2 = out.row(2);
+            float* ptr3 = out.row(3);
+            float* ptr4 = out.row(4);
+            float* ptr5 = out.row(5);
+            float* ptr6 = out.row(6);
+            float* ptr7 = out.row(7);
+            float* ptr8 = out.row(8);
+
+            const float* r0 = img.row(0);
+            const float* r1 = img.row(1);
+            const float* r2 = img.row(2);
+
+            for (int i = 0; i < outh; i++)
+            {
+                int j = 0;
+                for (; j + 1 < outw; j += 2)
+                {
+                    float32x4_t _r00 = vld1q_f32(r0);
+                    float32x4_t _r01 = vld1q_f32(r0 + 4);
+                    float32x4_t _r02 = vld1q_f32(r0 + 8);
+                    float32x4_t _r03 = vld1q_f32(r0 + 12);
+                    float32x4_t _r04 = vld1q_f32(r0 + 16);
+
+                    float32x4_t _r10 = vld1q_f32(r1);
+                    float32x4_t _r11 = vld1q_f32(r1 + 4);
+                    float32x4_t _r12 = vld1q_f32(r1 + 8);
+                    float32x4_t _r13 = vld1q_f32(r1 + 12);
+                    float32x4_t _r14 = vld1q_f32(r1 + 16);
+
+                    float32x4_t _r20 = vld1q_f32(r2);
+                    float32x4_t _r21 = vld1q_f32(r2 + 4);
+                    float32x4_t _r22 = vld1q_f32(r2 + 8);
+                    float32x4_t _r23 = vld1q_f32(r2 + 12);
+                    float32x4_t _r24 = vld1q_f32(r2 + 16);
+
+                    vst1q_f32(ptr0, _r00);
+                    vst1q_f32(ptr0 + 4, _r02);
+                    vst1q_f32(ptr1, _r01);
+                    vst1q_f32(ptr1 + 4, _r03);
+                    vst1q_f32(ptr2, _r02);
+                    vst1q_f32(ptr2 + 4, _r04);
+
+                    vst1q_f32(ptr3, _r10);
+                    vst1q_f32(ptr3 + 4, _r12);
+                    vst1q_f32(ptr4, _r11);
+                    vst1q_f32(ptr4 + 4, _r13);
+                    vst1q_f32(ptr5, _r12);
+                    vst1q_f32(ptr5 + 4, _r14);
+
+                    vst1q_f32(ptr6, _r20);
+                    vst1q_f32(ptr6 + 4, _r22);
+                    vst1q_f32(ptr7, _r21);
+                    vst1q_f32(ptr7 + 4, _r23);
+                    vst1q_f32(ptr8, _r22);
+                    vst1q_f32(ptr8 + 4, _r24);
+
+                    r0 += 16;
+                    r1 += 16;
+                    r2 += 16;
+
+                    ptr0 += 8;
+                    ptr1 += 8;
+                    ptr2 += 8;
+                    ptr3 += 8;
+                    ptr4 += 8;
+                    ptr5 += 8;
+                    ptr6 += 8;
+                    ptr7 += 8;
+                    ptr8 += 8;
+                }
+                for (; j < outw; j++)
+                {
+                    float32x4_t _r00 = vld1q_f32(r0);
+                    float32x4_t _r01 = vld1q_f32(r0 + 4);
+                    float32x4_t _r02 = vld1q_f32(r0 + 8);
+
+                    float32x4_t _r10 = vld1q_f32(r1);
+                    float32x4_t _r11 = vld1q_f32(r1 + 4);
+                    float32x4_t _r12 = vld1q_f32(r1 + 8);
+
+                    float32x4_t _r20 = vld1q_f32(r2);
+                    float32x4_t _r21 = vld1q_f32(r2 + 4);
+                    float32x4_t _r22 = vld1q_f32(r2 + 8);
+
+                    vst1q_f32(ptr0, _r00);
+                    vst1q_f32(ptr1, _r01);
+                    vst1q_f32(ptr2, _r02);
+                    vst1q_f32(ptr3, _r10);
+                    vst1q_f32(ptr4, _r11);
+                    vst1q_f32(ptr5, _r12);
+                    vst1q_f32(ptr6, _r20);
+                    vst1q_f32(ptr7, _r21);
+                    vst1q_f32(ptr8, _r22);
+
+                    r0 += 8;
+                    r1 += 8;
+                    r2 += 8;
+
+                    ptr0 += 4;
+                    ptr1 += 4;
+                    ptr2 += 4;
+                    ptr3 += 4;
+                    ptr4 += 4;
+                    ptr5 += 4;
+                    ptr6 += 4;
+                    ptr7 += 4;
+                    ptr8 += 4;
+                }
+
+                r0 += gap;
+                r1 += gap;
+                r2 += gap;
+            }
+        }
+    }
+
+    im2col_sgemm_pack4_neon(bottom_im2col, top_blob, kernel, _bias, opt);
+}

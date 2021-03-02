@@ -192,6 +192,7 @@ public:
     // bug is not feature
     bool bug_storage_buffer_no_l1;
     bool bug_corrupted_online_pipeline_cache;
+    bool bug_buffer_image_load_zero;
 
     // but sometimes bug is a feature
     bool bug_implicit_fp16_arithmetic;
@@ -449,6 +450,11 @@ bool GpuInfo::bug_storage_buffer_no_l1() const
 bool GpuInfo::bug_corrupted_online_pipeline_cache() const
 {
     return d->bug_corrupted_online_pipeline_cache;
+}
+
+bool GpuInfo::bug_buffer_image_load_zero() const
+{
+    return d->bug_buffer_image_load_zero;
 }
 
 bool GpuInfo::bug_implicit_fp16_arithmetic() const
@@ -1081,11 +1087,16 @@ int create_gpu_instance()
         {
             // NOTE but qcom855/qcom855plus/qcom865 are known exceptions
             // qcom adreno storage buffer without L1 cache
+            gpu_info.bug_storage_buffer_no_l1 = true;
+        }
 
+        if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 1, 87))
+        {
             // HACK buffer2image before image-read dependency does not work properly
             // even promised with full image memory barrier on old adreno driver
             // TODO figure out a proper workaround without hurt speed too much
-            //             gpu_info.bug_storage_buffer_no_l1 = true;
+            // TODO only for old drivers
+            gpu_info.bug_buffer_image_load_zero = true;
         }
 
         if (physicalDeviceProperties.vendorID == 0x13b5
@@ -1439,8 +1450,8 @@ int create_gpu_instance()
                   gpu_info.graphics_queue_family_index, gpu_info.graphics_queue_count,
                   gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count);
 
-        NCNN_LOGE("[%u %s]  bugsbn1=%d  bugcopc=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
-                  gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_corrupted_online_pipeline_cache, gpu_info.bug_implicit_fp16_arithmetic);
+        NCNN_LOGE("[%u %s]  bugsbn1=%d  bugbilz=%d  bugcopc=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
+                  gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_buffer_image_load_zero, gpu_info.bug_corrupted_online_pipeline_cache, gpu_info.bug_implicit_fp16_arithmetic);
 
         NCNN_LOGE("[%u %s]  fp16-p/s/a=%d/%d/%d  int8-p/s/a=%d/%d/%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,

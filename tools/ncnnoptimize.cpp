@@ -191,6 +191,8 @@ public:
     ncnn::ParamDict mpd;
 };
 
+DEFINE_LAYER_CREATOR(CustomLayer)
+
 class NetOptimize : public ncnn::Net
 {
 public:
@@ -199,11 +201,9 @@ public:
     std::vector<ncnn::Blob>& blobs;
     std::vector<ncnn::Layer*>& layers;
 
-    virtual int custom_layer_to_index(const char* type);
     virtual ncnn::Layer* create_custom_layer(const char* type);
-    virtual ncnn::Layer* create_custom_layer(int index);
 
-    int custom_layer_index;
+    bool has_custom_layer;
 
 public:
     // 0=fp32 1=fp16
@@ -262,20 +262,7 @@ public:
 NetOptimize::NetOptimize()
     : blobs(mutable_blobs()), layers(mutable_layers())
 {
-    custom_layer_index = 0;
-}
-
-int NetOptimize::custom_layer_to_index(const char* type)
-{
-    int index = Net::custom_layer_to_index(type);
-    if (index != -1)
-        return index;
-
-    fprintf(stderr, "custom_layer_to_index %s\n", type);
-
-    index = ncnn::LayerType::CustomBit | custom_layer_index;
-    custom_layer_index++;
-    return index;
+    has_custom_layer = false;
 }
 
 ncnn::Layer* NetOptimize::create_custom_layer(const char* type)
@@ -286,23 +273,11 @@ ncnn::Layer* NetOptimize::create_custom_layer(const char* type)
 
     fprintf(stderr, "create_custom_layer %s\n", type);
 
-    layer = new CustomLayer;
-    layer->type = type;
-    layer->typeindex = custom_layer_to_index(type);
-    return layer;
-}
+    register_custom_layer(type, CustomLayer_layer_creator);
 
-ncnn::Layer* NetOptimize::create_custom_layer(int index)
-{
-    ncnn::Layer* layer = Net::create_custom_layer(index);
-    if (layer)
-        return layer;
+    has_custom_layer = true;
 
-    fprintf(stderr, "create_custom_layer %d\n", index);
-
-    layer = new CustomLayer;
-    layer->typeindex = index;
-    return layer;
+    return Net::create_custom_layer(type);
 }
 
 int NetOptimize::fuse_batchnorm_scale()
@@ -2763,9 +2738,9 @@ int NetOptimize::replace_convolution_with_innerproduct_after_innerproduct()
 
 int NetOptimize::shape_inference()
 {
-    if (custom_layer_index)
+    if (has_custom_layer)
     {
-        fprintf(stderr, "model has %d custom layer, shape_inference skipped\n", custom_layer_index);
+        fprintf(stderr, "model has custom layer, shape_inference skipped\n");
         return -1;
     }
 
@@ -2882,9 +2857,9 @@ int NetOptimize::shape_inference()
 
 int NetOptimize::estimate_memory_footprint()
 {
-    if (custom_layer_index)
+    if (has_custom_layer)
     {
-        fprintf(stderr, "model has %d custom layer, estimate_memory_footprint skipped\n", custom_layer_index);
+        fprintf(stderr, "model has custom layer, estimate_memory_footprint skipped\n");
         return -1;
     }
 
