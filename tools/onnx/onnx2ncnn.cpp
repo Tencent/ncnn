@@ -1418,6 +1418,214 @@ static void fuse_groupnorm(onnx::GraphProto* mutable_graph, std::map<std::string
     }
 }
 
+static void fuse_layernorm(onnx::GraphProto* mutable_graph, std::map<std::string, onnx::TensorProto>& weights, std::map<std::string, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
+{
+    int node_count = mutable_graph->node_size();
+    for (int i = 0; i < node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // LayerNorm <= X - ReduceMean - Sub - Pow - ReduceMean - Add - Sqrt - Div
+        // LayerNorm <= X - ReduceMean - Sub - Pow - ReduceMean - Add - Sqrt - Div - Mul - Add
+        if (node->op_type() == "ReduceMean")
+        {
+            if (node_reference[node->output(0)] != 1)
+                continue;
+
+            std::vector<int> axes = get_node_attr_ai(*node, "axes");
+
+            // -1
+            // -2 -1
+            if (axes.size() != 1 && axes.size() != 2)
+                continue;
+
+            int normed_axes = (int)axes.size();
+            if (normed_axes == 1 && axes[0] != -1)
+                continue;
+            if (normed_axes == 2 && (axes[0] != -2 || axes[1] != -1))
+                continue;
+
+            if (i + 6 >= node_count)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i + 1);
+            onnx::NodeProto* node3 = mutable_graph->mutable_node(i + 2);
+            onnx::NodeProto* node4 = mutable_graph->mutable_node(i + 3);
+            onnx::NodeProto* node5 = mutable_graph->mutable_node(i + 4);
+            onnx::NodeProto* node6 = mutable_graph->mutable_node(i + 5);
+            onnx::NodeProto* node7 = mutable_graph->mutable_node(i + 6);
+
+            if (node2->op_type() != "Sub" || node3->op_type() != "Pow" || node4->op_type() != "ReduceMean" || node5->op_type() != "Add" || node6->op_type() != "Sqrt" || node7->op_type() != "Div")
+                continue;
+
+            if (node_reference[node2->output(0)] != 2)
+                continue;
+
+            if (node_reference[node3->output(0)] != 1)
+                continue;
+
+            if (node_reference[node4->output(0)] != 1)
+                continue;
+
+            if (node_reference[node5->output(0)] != 1)
+                continue;
+
+            if (node_reference[node6->output(0)] != 1)
+                continue;
+
+            if (node2->input(0) != node->input(0) || node2->input(1) != node->output(0)
+                    || node3->input(0) != node2->output(0) || node4->input(0) != node3->output(0)
+                    || node5->input(0) != node4->output(0) || node6->input(0) != node5->output(0)
+                    || node7->input(0) != node2->output(0) || node7->input(1) != node6->output(0))
+                continue;
+
+            if (weights.find(node3->input(1)) == weights.end())
+                continue;
+
+            const onnx::TensorProto& pow_two = weights[node3->input(1)];
+            if (pow_two.dims_size() != 0 || get_tensor_proto_data_size(pow_two) != 1)
+                continue;
+
+            float constant_pow_two = get_node_attr_from_input_f(pow_two);
+            if (constant_pow_two != 2.f)
+                continue;
+
+            std::vector<int> axes4 = get_node_attr_ai(*node4, "axes");
+
+            // -1
+            // -2 -1
+            if ((int)axes4.size() != normed_axes)
+                continue;
+
+            if (normed_axes == 1 && axes4[0] != -1)
+                continue;
+            if (normed_axes == 2 && (axes4[0] != -2 || axes4[1] != -1))
+                continue;
+
+            if (weights.find(node5->input(1)) == weights.end())
+                continue;
+
+            const onnx::TensorProto& add_eps = weights[node5->input(1)];
+            if (add_eps.dims_size() != 0 || get_tensor_proto_data_size(add_eps) != 1)
+                continue;
+
+            float eps = get_node_attr_from_input_f(add_eps);
+
+            int affine = 0;
+            while (i + 8 < node_count)
+            {
+                onnx::NodeProto* node8 = mutable_graph->mutable_node(i + 7);
+                onnx::NodeProto* node9 = mutable_graph->mutable_node(i + 8);
+
+                if (node8->op_type() != "Mul" || node9->op_type() != "Add")
+                    break;
+
+                if (node_reference[node7->output(0)] != 1)
+                    break;
+
+                if (node_reference[node8->output(0)] != 1)
+                    break;
+
+                if (node8->input(0) != node7->output(0) || node9->input(0) != node8->output(0))
+                    break;
+
+                // affine
+                std::vector<float> affine_S = get_node_attr_from_input_af(weights[node8->input(1)]);
+                std::vector<float> affine_B = get_node_attr_from_input_af(weights[node9->input(1)]);
+                if (affine_S.size() != affine_B.size())
+                    break;
+
+                affine = 1;
+                break;
+            }
+
+            // reduce
+            node->set_op_type("noop_reducedncnn");
+            node2->set_op_type("noop_reducedncnn");
+            node3->set_op_type("noop_reducedncnn");
+            node4->set_op_type("noop_reducedncnn");
+            node5->set_op_type("noop_reducedncnn");
+            node6->set_op_type("noop_reducedncnn");
+
+            node_reference[node->input(0)] -= 1;
+            node_reference[node2->input(0)] -= 1;
+            node_reference[node2->input(1)] -= 1;
+            node_reference[node3->input(0)] -= 1;
+            node_reference[node3->input(1)] -= 1;
+            node_reference[node4->input(0)] -= 1;
+            node_reference[node5->input(0)] -= 1;
+            node_reference[node5->input(1)] -= 1;
+            node_reference[node6->input(0)] -= 1;
+            node_reference[node7->input(0)] -= 1;
+            node_reference[node7->input(1)] -= 1;
+
+            blob_names.erase(node->output(0));
+            blob_names.erase(node2->output(0));
+            blob_names.erase(node3->output(0));
+            blob_names.erase(node4->output(0));
+            blob_names.erase(node5->output(0));
+            blob_names.erase(node6->output(0));
+
+            node_reference[node->input(0)] += 1;
+
+            if (affine == 0)
+            {
+                node7->set_op_type("LayerNorm");
+                node7->clear_input();
+                node7->add_input(node->input(0));
+
+                onnx::AttributeProto* attr_eps = node7->add_attribute();
+                attr_eps->set_name("epsilon");
+                attr_eps->set_f(eps);
+
+                onnx::AttributeProto* attr_affine = node7->add_attribute();
+                attr_affine->set_name("affine");
+                attr_affine->set_i(affine);
+
+                reduced_node_count += 6;
+                i += 6;
+            }
+            else // if (affine == 1)
+            {
+                onnx::NodeProto* node8 = mutable_graph->mutable_node(i + 7);
+                onnx::NodeProto* node9 = mutable_graph->mutable_node(i + 8);
+
+                node7->set_op_type("noop_reducedncnn");
+                node8->set_op_type("noop_reducedncnn");
+
+                node_reference[node8->input(0)] -= 1;
+                node_reference[node9->input(0)] -= 1;
+
+                std::string affine_scale = node8->input(1);
+                std::string affine_bias = node9->input(1);
+
+                node_reference[affine_scale] -= 1;
+                node_reference[affine_bias] -= 1;
+
+                blob_names.erase(node7->output(0));
+                blob_names.erase(node8->output(0));
+
+                node9->set_op_type("LayerNorm");
+                node9->clear_input();
+                node9->add_input(node->input(0));
+                node9->add_input(affine_scale);
+                node9->add_input(affine_bias);
+
+                onnx::AttributeProto* attr_eps = node9->add_attribute();
+                attr_eps->set_name("epsilon");
+                attr_eps->set_f(eps);
+
+                onnx::AttributeProto* attr_affine = node9->add_attribute();
+                attr_affine->set_name("affine");
+                attr_affine->set_i(affine);
+
+                reduced_node_count += 8;
+                i += 8;
+            }
+        }
+    }
+}
+
 static void fuse_flatten(onnx::GraphProto* mutable_graph, std::map<std::string, onnx::TensorProto>& weights, std::map<std::string, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
 {
     int node_count = mutable_graph->node_size();
@@ -2294,6 +2502,7 @@ int main(int argc, char** argv)
     fuse_unsqueeze_prelu(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_normalize(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_groupnorm(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
+    fuse_layernorm(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_flatten(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_pixelshuffle(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_reorg(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
@@ -2860,6 +3069,10 @@ int main(int argc, char** argv)
         else if (op == "InstanceNormalization")
         {
             fprintf(pp, "%-16s", "InstanceNorm");
+        }
+        else if (op == "LayerNorm")
+        {
+            fprintf(pp, "%-16s", "LayerNorm");
         }
         else if (op == "LeakyRelu")
         {
@@ -3872,6 +4085,47 @@ int main(int argc, char** argv)
             fprintf(pp, " 0=%d", channels);
             fprintf(pp, " 1=%e", eps);
             fprintf(pp, " 2=%d", affine);
+            if (affine)
+            {
+                const onnx::TensorProto& scale = weights[node.input(1)];
+                const onnx::TensorProto& B = weights[node.input(2)];
+
+                fwrite_tensor_proto_data(scale, bp);
+                fwrite_tensor_proto_data(B, bp);
+            }
+        }
+        else if (op == "LayerNorm")
+        {
+            float eps = get_node_attr_f(node, "epsilon", 1e-5f);
+            int affine = get_node_attr_i(node, "affine", 1);
+
+            if (affine)
+            {
+                // discard affine-less S=1 B=0
+                std::vector<float> affine_S = get_node_attr_from_input_af(weights[node.input(1)]);
+                std::vector<float> affine_B = get_node_attr_from_input_af(weights[node.input(2)]);
+                int affine_size = (int)affine_S.size();
+                affine = 0;
+                {
+                    for (int j = 0; j < affine_size; j++)
+                    {
+                        if (affine_S[j] != 1.f || affine_B[j] != 0.f)
+                        {
+                            affine = 1;
+                            break;
+                        }
+                    }
+                }
+
+                if (affine)
+                {
+                    fprintf(pp, " 0=%d", affine_size);
+                }
+            }
+
+            fprintf(pp, " 1=%e", eps);
+            fprintf(pp, " 2=%d", affine);
+
             if (affine)
             {
                 const onnx::TensorProto& scale = weights[node.input(1)];
