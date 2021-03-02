@@ -1590,6 +1590,20 @@ static void fuse_layernorm(onnx::GraphProto* mutable_graph, std::map<std::string
                 onnx::NodeProto* node8 = mutable_graph->mutable_node(i + 7);
                 onnx::NodeProto* node9 = mutable_graph->mutable_node(i + 8);
 
+                // affine
+                affine = 0;
+                std::vector<float> affine_S = get_node_attr_from_input_af(weights[node8->input(1)]);
+                std::vector<float> affine_B = get_node_attr_from_input_af(weights[node9->input(1)]);
+                int affine_size = (int)affine_S.size();
+                for (int j = 0; j < affine_size; j++)
+                {
+                    if (affine_S[j] != 1.f || affine_B[j] != 0.f)
+                    {
+                        affine = 1;
+                        break;
+                    }
+                }
+
                 node7->set_op_type("noop_reducedncnn");
                 node8->set_op_type("noop_reducedncnn");
 
@@ -1608,8 +1622,11 @@ static void fuse_layernorm(onnx::GraphProto* mutable_graph, std::map<std::string
                 node9->set_op_type("LayerNorm");
                 node9->clear_input();
                 node9->add_input(node->input(0));
-                node9->add_input(affine_scale);
-                node9->add_input(affine_bias);
+                if (affine)
+                {
+                    node9->add_input(affine_scale);
+                    node9->add_input(affine_bias);
+                }
 
                 onnx::AttributeProto* attr_eps = node9->add_attribute();
                 attr_eps->set_name("epsilon");
