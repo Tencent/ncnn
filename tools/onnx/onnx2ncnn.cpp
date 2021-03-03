@@ -1204,6 +1204,10 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
                 node_reference[node_shape->output(0)] -= 1;
             }
             node_reference[node3->output(0)] -= 1;
+            if (node3->input_size() == 2)
+            {
+                node_reference[node3->input(1)] -= 1;
+            }
 
             blob_names.erase(node->output(0));
             blob_names.erase(node2->output(0));
