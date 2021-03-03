@@ -28,6 +28,7 @@ from .retinaface import RetinaFace
 from .rfcn import RFCN
 from .shufflenetv2 import ShuffleNetV2
 from .simplepose import SimplePose
+from .nanodet import NanoDet
 
 __all__ = ["get_model", "get_model_list"]
 
@@ -49,6 +50,7 @@ _models = {
     "rfcn": RFCN,
     "shufflenetv2": ShuffleNetV2,
     "simplepose": SimplePose,
+    "nanodet": NanoDet,
 }
 
 
