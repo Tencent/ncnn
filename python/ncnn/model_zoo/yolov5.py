@@ -14,7 +14,6 @@
 
 import time
 import numpy as np
-from nms import nms
 import ncnn
 from .model_store import get_model_file
 from ..utils.objects import Detect_Object
@@ -57,96 +56,6 @@ def YoloV5Focus_layer_destroyer(layer):
         if YoloV5Focus.yolov5FocusLayers[i] == layer:
             del YoloV5Focus.yolov5FocusLayers[i]
             break
-
-
-def non_max_suppression(
-    prediction, conf_thres=0.1, iou_thres=0.6, merge=False, classes=None, agnostic=False
-):
-    """Performs Non-Maximum Suppression (NMS) on inference results
-
-    Returns:
-        detections with shape: nx6 (x1, y1, x2, y2, conf, cls)
-    """
-    nc = prediction[0].shape[1] - 5  # number of classes
-    xc = prediction[..., 4] > conf_thres  # candidates
-
-    # Settings
-    min_wh, max_wh = 2, 4096  # (pixels) minimum and maximum box width and height
-    max_det = 300  # maximum number of detections per image
-    time_limit = 10.0  # seconds to quit after
-    redundant = True  # require redundant detections
-    multi_label = nc > 1  # multiple labels per box (adds 0.5ms/img)
-
-    t = time.time()
-    output = [None] * prediction.shape[0]
-    for xi, x in enumerate(prediction):  # image index, image inference
-        # Apply constraints
-        # x[((x[..., 2:4] < min_wh) | (x[..., 2:4] > max_wh)).any(1), 4] = 0  # width-height
-        x = x[xc[xi]]  # confidence
-
-        # If none remain process next image
-        if not x.shape[0]:
-            continue
-
-        # Compute conf
-        x[:, 5:] *= x[:, 4:5]  # conf = obj_conf * cls_conf
-
-        # Box (center x, center y, width, height) to (x1, y1, x2, y2)
-        box = xywh2xyxy(x[:, :4])
-
-        # Detections matrix nx6 (xyxy, conf, cls)
-        if multi_label:
-            i, j = (x[:, 5:] > conf_thres).nonzero()
-            x = np.concatenate(
-                (box[i], x[i, j + 5, None], j[:, None].astype(np.float32)), axis=1
-            )
-        else:  # best class only
-            conf, j = x[:, 5:].max(1, keepdim=True)
-            x = np.concatenate((box, conf, j.float()), axis=1)[
-                conf.view(-1) > conf_thres
-            ]
-
-        # Filter by class
-        if classes:
-            x = x[(x[:, 5:6] == np.array(classes)).any(1)]
-
-        # Apply finite constraint
-        # if not torch.isfinite(x).all():
-        #     x = x[torch.isfinite(x).all(1)]
-
-        # If none remain process next image
-        n = x.shape[0]  # number of boxes
-        if not n:
-            continue
-
-        # Sort by confidence
-        # x = x[x[:, 4].argsort(descending=True)]
-
-        # Batched NMS
-        c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
-        boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
-        boxes = xyxy2xywh(boxes)
-        i = nms.boxes(boxes, scores, nms_threshold=iou_thres)
-        if len(i) > max_det:  # limit detections
-            i = i[:max_det]
-        if merge and (1 < n < 3e3):  # Merge NMS (boxes merged using weighted mean)
-            try:  # update boxes as boxes(i,4) = weights(i,n) * boxes(n,4)
-                iou = box_iou(boxes[i], boxes) > iou_thres  # iou matrix
-                weights = iou * scores[None]  # box weights
-                x[i, :4] = torch.mm(weights, x[:, :4]).float() / weights.sum(
-                    1, keepdim=True
-                )  # merged boxes
-                if redundant:
-                    i = i[iou.sum(1) > 1]  # require redundancy
-            except:  # possible CUDA error https://github.com/ultralytics/yolov3/issues/1139
-                print(x, i, x.shape, i.shape)
-                pass
-
-        output[xi] = x[i]
-        if (time.time() - t) > time_limit:
-            break  # time limit exceeded
-
-    return output
 
 
 class YoloV5s:
@@ -344,7 +253,9 @@ class YoloV5s:
             z.append(y.reshape(1, -1, y.shape[-1]))
         pred = np.concatenate(z, 1)
 
-        result = non_max_suppression(pred, self.prob_threshold, self.nms_threshold)[0]
+        result = self.non_max_suppression(
+            pred, self.prob_threshold, self.nms_threshold
+        )[0]
 
         objects = [
             Detect_Object(
@@ -359,3 +270,97 @@ class YoloV5s:
         ]
 
         return objects
+
+    def non_max_suppression(
+        self,
+        prediction,
+        conf_thres=0.1,
+        iou_thres=0.6,
+        merge=False,
+        classes=None,
+        agnostic=False,
+    ):
+        """Performs Non-Maximum Suppression (NMS) on inference results
+
+        Returns:
+            detections with shape: nx6 (x1, y1, x2, y2, conf, cls)
+        """
+        nc = prediction[0].shape[1] - 5  # number of classes
+        xc = prediction[..., 4] > conf_thres  # candidates
+
+        # Settings
+        min_wh, max_wh = 2, 4096  # (pixels) minimum and maximum box width and height
+        max_det = 300  # maximum number of detections per image
+        time_limit = 10.0  # seconds to quit after
+        redundant = True  # require redundant detections
+        multi_label = nc > 1  # multiple labels per box (adds 0.5ms/img)
+
+        t = time.time()
+        output = [None] * prediction.shape[0]
+        for xi, x in enumerate(prediction):  # image index, image inference
+            # Apply constraints
+            # x[((x[..., 2:4] < min_wh) | (x[..., 2:4] > max_wh)).any(1), 4] = 0  # width-height
+            x = x[xc[xi]]  # confidence
+
+            # If none remain process next image
+            if not x.shape[0]:
+                continue
+
+            # Compute conf
+            x[:, 5:] *= x[:, 4:5]  # conf = obj_conf * cls_conf
+
+            # Box (center x, center y, width, height) to (x1, y1, x2, y2)
+            box = xywh2xyxy(x[:, :4])
+
+            # Detections matrix nx6 (xyxy, conf, cls)
+            if multi_label:
+                i, j = (x[:, 5:] > conf_thres).nonzero()
+                x = np.concatenate(
+                    (box[i], x[i, j + 5, None], j[:, None].astype(np.float32)), axis=1
+                )
+            else:  # best class only
+                conf, j = x[:, 5:].max(1, keepdim=True)
+                x = np.concatenate((box, conf, j.float()), axis=1)[
+                    conf.view(-1) > conf_thres
+                ]
+
+            # Filter by class
+            if classes:
+                x = x[(x[:, 5:6] == np.array(classes)).any(1)]
+
+            # Apply finite constraint
+            # if not torch.isfinite(x).all():
+            #     x = x[torch.isfinite(x).all(1)]
+
+            # If none remain process next image
+            n = x.shape[0]  # number of boxes
+            if not n:
+                continue
+
+            # Sort by confidence
+            # x = x[x[:, 4].argsort(descending=True)]
+
+            # Batched NMS
+            c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
+            boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
+            i = nms(boxes, scores, iou_threshold=iou_thres)
+            if len(i) > max_det:  # limit detections
+                i = i[:max_det]
+            if merge and (1 < n < 3e3):  # Merge NMS (boxes merged using weighted mean)
+                try:  # update boxes as boxes(i,4) = weights(i,n) * boxes(n,4)
+                    iou = box_iou(boxes[i], boxes) > iou_thres  # iou matrix
+                    weights = iou * scores[None]  # box weights
+                    x[i, :4] = torch.mm(weights, x[:, :4]).float() / weights.sum(
+                        1, keepdim=True
+                    )  # merged boxes
+                    if redundant:
+                        i = i[iou.sum(1) > 1]  # require redundancy
+                except:  # possible CUDA error https://github.com/ultralytics/yolov3/issues/1139
+                    print(x, i, x.shape, i.shape)
+                    pass
+
+            output[xi] = x[i]
+            if (time.time() - t) > time_limit:
+                break  # time limit exceeded
+
+        return output
