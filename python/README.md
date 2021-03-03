@@ -118,6 +118,7 @@ retinaface
 rfcn
 shufflenetv2
 simplepose
+nanodet
 ```
 all model in model zoo has example in ncnn/python/examples folder
 
