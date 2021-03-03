@@ -253,15 +253,15 @@ class NanoDet:
         picked_box = np.concatenate(picked_box)
         picked_probs = np.concatenate(picked_probs)
 
-        # result
+        # result with clip
         objects = [
             Detect_Object(
                 label,
                 score,
-                (bbox[0] - wpad / 2) / scale,
-                (bbox[1] - hpad / 2) / scale,
-                (bbox[2] - bbox[0]) / scale,
-                (bbox[3] - bbox[1]) / scale,
+                (bbox[0] - wpad / 2) / scale if bbox[0] > 0 else 0,
+                (bbox[1] - hpad / 2) / scale if bbox[1] > 0 else 0,
+                (bbox[2] - bbox[0]) / scale if bbox[2] < mat_in_pad.w else mat_in_pad.w,
+                (bbox[3] - bbox[1]) / scale if bbox[3] < mat_in.h else mat_in_pad.h,
             )
             for label, score, bbox in zip(picked_labels, picked_probs, picked_box)
         ]
