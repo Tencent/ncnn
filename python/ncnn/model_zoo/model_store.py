@@ -61,14 +61,16 @@ _model_sha1 = {
         ("2ccd631d04a1b7e05483cd8a8def76bca7d330a8", "shufflenet_v2_x0.5.bin"),
         ("7c8f8d72c60aab6802985423686b36c61be2f68c", "pose.param"),
         ("7f691540972715298c611a3e595b20c59c2147ce", "pose.bin"),
+        ("979d09942881cf1207a93cbfa9853005a434469b", "nanodet_m.param"),
+        ("51d868905361e4ba9c45bd12e8a5608e7aadd1bd", "nanodet_m.bin"),
     ]
 }
 
 
 _split_model_bins = {
-    "ZF_faster_rcnn_final.bin" : 3,
-    "rfcn_end2end.bin" : 2,
-    "yolov4-opt.bin" : 7
+    "ZF_faster_rcnn_final.bin": 3,
+    "rfcn_end2end.bin": 2,
+    "yolov4-opt.bin": 7,
 }
 
 
@@ -149,7 +151,10 @@ def get_model_file(name, tag=None, root=os.path.join("~", ".ncnn", "models")):
 
         zip_file_path = os.path.join(root, file_name)
         if file_name in _split_model_bins:
-            file_name_parts = ["%s.part%02d"%(file_name, i + 1) for i in range(_split_model_bins[file_name])]
+            file_name_parts = [
+                "%s.part%02d" % (file_name, i + 1)
+                for i in range(_split_model_bins[file_name])
+            ]
             for file_name_part in file_name_parts:
                 file_path = os.path.join(root, file_name_part)
                 repo_url = os.environ.get("NCNN_REPO", github_repo_url)
@@ -160,7 +165,7 @@ def get_model_file(name, tag=None, root=os.path.join("~", ".ncnn", "models")):
                     path=file_path,
                     overwrite=True,
                 )
-            
+
             merge_file(root, file_name_parts, zip_file_path)
         else:
             repo_url = os.environ.get("NCNN_REPO", github_repo_url)
