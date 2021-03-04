@@ -36,6 +36,6 @@ if __name__ == "__main__":
     faceobjects = net(m)
 
     draw_faceobjects(m, faceobjects)
-    
+
     # release reference of global resource like vulkan before exit
     net = None
