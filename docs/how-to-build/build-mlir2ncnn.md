@@ -29,8 +29,8 @@ cd llvm-project
 mkdir build
 cd build
 cmake -G Ninja -DCMAKE_INSTALL_PREFIX=install -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DLLVM_ENABLE_PROJECTS="mlir" -DLLVM_TARGETS_TO_BUILD="" -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF ../llvm/
-make -j8
-make install
+ninja -j8
+ninja install
 ```
 
 **Compile mlir2ncnn**
