@@ -36,3 +36,6 @@ if __name__ == "__main__":
     cls_scores = net(m)
 
     print_topk(cls_scores, 5)
+
+    # release reference of global resource like vulkan before exit
+    net = None

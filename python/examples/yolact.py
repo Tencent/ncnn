@@ -182,3 +182,6 @@ if __name__ == "__main__":
     boxes, masks, classes, scores = net(m)
 
     draw_result(m, net.class_names, boxes, masks, classes, scores)
+
+    # release reference of global resource like vulkan before exit
+    net = None

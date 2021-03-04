@@ -119,3 +119,6 @@ if __name__ == "__main__":
     objects, seg_out = net(m)
 
     draw_detection_objects_seg(m, net.class_names, objects, seg_out)
+
+    # release reference of global resource like vulkan before exit
+    net = None

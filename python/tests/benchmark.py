@@ -189,3 +189,8 @@ if __name__ == "__main__":
     benchmark("mobilenet_yolo", ncnn.Mat((416, 416, 3)), opt)
     benchmark("mobilenetv2_yolov3", ncnn.Mat((352, 352, 3)), opt)
     benchmark("yolov4-tiny", ncnn.Mat((416, 416, 3)), opt)
+
+    if use_vulkan_compute:
+        g_blob_vkallocator = None
+        g_staging_vkallocator = None
+        g_vkdev = None

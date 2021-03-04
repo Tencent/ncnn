@@ -36,3 +36,6 @@ if __name__ == "__main__":
     objects = net(m)
 
     draw_detection_objects(m, net.class_names, objects, 0.6)
+
+    # release reference of global resource like vulkan before exit
+    net = None

@@ -36,3 +36,6 @@ if __name__ == "__main__":
     keypoints = net(m)
 
     draw_pose(m, keypoints)
+
+    # release reference of global resource like vulkan before exit
+    net = None
