@@ -7,17 +7,15 @@
 https://github.com/llvm/llvm-project.git
 git checkout -b mlir <a_working_commit_id>
 ```
-Current working commit id is 7c15e0f64ccc79a53ed2db258f1cb58ec452a957:
+Current working commit id is 74e6030bcbcc8e628f9a99a424342a0c656456f9:
 ```
 $ git log
 
-commit 7c15e0f64ccc79a53ed2db258f1cb58ec452a957 (HEAD -> 01-26)
-Author: MaheshRavishankar <ravishankarm@google.com>
-Date:   Tue Jan 26 23:21:33 2021 -0800
+commit 74e6030bcbcc8e628f9a99a424342a0c656456f9 (HEAD -> main, origin/main, origin/HEAD)
+Author: Craig Topper <craig.topper@sifive.com>
+Date:   Thu Mar 4 22:30:38 2021 -0800
 
-    [mlir][Linalg] Add canonicalization for init_tensor -> subtensor op.
-    
-    Differential Revision: https://reviews.llvm.org/D95305
+    [TargetLowering] Use HandleSDNodes to prevent nodes from being deleted by recursive calls in getNegatedExpression.
 ```
 
 It is determined by query lastest git commit date of `tools/mlir` directory.

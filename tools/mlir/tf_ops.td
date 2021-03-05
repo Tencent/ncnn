@@ -34,6 +34,7 @@ include "mlir/Interfaces/ControlFlowInterfaces.td"
 include "mlir/Interfaces/LoopLikeInterface.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/IR/OpBase.td"
+include "mlir/IR/SymbolInterfaces.td"
 
 class TF_TensorListInitOp<string mnemonic> : TF_Op<mnemonic, [NoSideEffect]> {
   let results = (outs
@@ -112,7 +113,6 @@ An n-way switch statement, implementing the following:
   TF_DerivedResultTypeListAttr Tout = TF_DerivedResultTypeListAttr<0>;
   TF_DerivedResultShapeListAttr output_shapes = TF_DerivedResultShapeListAttr<0>;
 
-
   let verifier = [{
     return Verify(*this);
   }];
@@ -179,7 +179,6 @@ An n-way switch statement, implementing the following:
     return Verify(*this);
   }];
 
-
 }
 
 // In MLIR, the TensorFlow tensor value is represented as an ElementsAttr, with
@@ -198,8 +197,8 @@ def TF_ConstOp : TF_Op<"Const", [ConstantLike, NoSideEffect]> {
   TF_DerivedResultTypeAttr dtype = TF_DerivedResultTypeAttr<0>;
 
   let builders = [
-    OpBuilderDAG<(ins "Attribute":$value)>,
-    OpBuilderDAG<(ins "Type":$type, "Attribute":$value)>,
+    OpBuilder<(ins "Attribute":$value)>,
+    OpBuilder<(ins "Type":$type, "Attribute":$value)>,
   ];
 }
 
@@ -322,11 +321,6 @@ else_branch: A function that takes 'inputs' and returns a list of
   TF_DerivedResultTypeListAttr Tout = TF_DerivedResultTypeListAttr<0>;
   TF_DerivedResultShapeListAttr output_shapes = TF_DerivedResultShapeListAttr<0>;
 
-  let verifier = [{
-    return Verify(*this);
-  }];
-
-
   let extraClassDeclaration = [{
     // Get the then branch function.
     FuncOp then_function() {
@@ -381,7 +375,12 @@ else_branch: A region that computes the outputs of the op if cond = false.
     0DTensorOf<[I1]>:$cond,
 
     // Used to map StatelessIf and If op defined in TensorFlow to a common op.
-    BoolAttr:$is_stateless
+    BoolAttr:$is_stateless,
+    // Used to maintain function name when round-tripping
+    // between functional and regional control flow.  This can be removed if
+    // the runtime does not require globally unique then/else branch function names.
+    OptionalAttr<StrAttr>:$_then_func_name,
+    OptionalAttr<StrAttr>:$_else_func_name
   );
 
   let results = (outs
@@ -395,14 +394,13 @@ else_branch: A region that computes the outputs of the op if cond = false.
   }];
 
   let builders = [
-    OpBuilderDAG<(ins "TypeRange":$resultTypes, "ValueRange":$operands,
+    OpBuilder<(ins "TypeRange":$resultTypes, "ValueRange":$operands,
       "llvm::ArrayRef<::mlir::NamedAttribute>":$attributes,
       "unsigned":$numRegions),
     [{
       assert(numRegions == 2u && "mismatched number of regions");
       build($_builder, $_state, resultTypes, operands, attributes);
     }]>];
-
 }
 
 def TF_LegacyCallOp : TF_Op<"LegacyCall",
@@ -699,10 +697,6 @@ body: A function that takes a list of tensors and returns another
   TF_DerivedOperandTypeListAttr T = TF_DerivedOperandTypeListAttr<0>;
   TF_DerivedResultShapeListAttr output_shapes = TF_DerivedResultShapeListAttr<0>;
 
-  let verifier = [{
-    return Verify(*this);
-  }];
-
   let extraClassDeclaration = [{
     // Get the condition function.
     FuncOp cond_function() {
@@ -776,7 +770,6 @@ def TF_WhileRegionOp : TF_Op<"WhileRegion",
   let regions = (region SizedRegion<1>:$cond, SizedRegion<1>:$body);
 
   let verifier = [{ return Verify(*this); }];
-
 }
 
 def TF_TensorListReserveOp : TF_TensorListInitOp<"TensorListReserve"> {
@@ -825,7 +818,7 @@ This operation holds the metadata common to operations of a `tpu.replicate()` co
   let results = (outs);
 }
 
-def TF_VarHandleOp : TF_Op<"VarHandleOp"> {
+def TF_VarHandleOp : TF_Op<"VarHandleOp", []> {
   let summary = "Creates a handle to a Variable resource from its name.";
 
   let description = [{
@@ -967,6 +960,7 @@ An op which shards the input based on the given sharding attribute.
   let arguments = (ins
     TF_Tensor:$input,
 
+    DefaultValuedAttr<StrAttr, "">:$sharding,
     OptionalAttr<StrAttr>:$_XlaSharding
   );
 
@@ -1168,12 +1162,11 @@ as true/false for a branch condition.
   TF_DerivedOperandTypeAttr T = TF_DerivedOperandTypeAttr<0>;
 
   let builders = [
-    OpBuilderDAG<(ins "Value":$value),
+    OpBuilder<(ins "Value":$value),
     [{
       build($_builder, $_state, RankedTensorType::get({}, $_builder.getI1Type()),
             value);
     }]>];
-
 }
 
 def TF_BesselI0eOp : TF_Op<"BesselI0e", [NoSideEffect, SameOperandsAndResultType]> {
@@ -1333,17 +1326,15 @@ def TF_AddV2Op : TF_Op<"AddV2", [Commutative, NoSideEffect, ResultsBroadcastable
   }];
 
   let arguments = (ins
-    TensorOf<[TF_Float, TF_SInt, TF_Complex, TF_Uint8, TF_Uint32]>:$x,
-    TensorOf<[TF_Float, TF_SInt, TF_Complex, TF_Uint8, TF_Uint32]>:$y
+    TensorOf<[TF_Float, TF_SInt, TF_Complex, TF_Uint8, TF_Uint16, TF_Uint32, TF_Uint64]>:$x,
+    TensorOf<[TF_Float, TF_SInt, TF_Complex, TF_Uint8, TF_Uint16, TF_Uint32, TF_Uint64]>:$y
   );
 
   let results = (outs
-    TensorOf<[TF_Float, TF_SInt, TF_Complex, TF_Uint8, TF_Uint32]>:$z
+    TensorOf<[TF_Float, TF_SInt, TF_Complex, TF_Uint8, TF_Uint16, TF_Uint32, TF_Uint64]>:$z
   );
 
   TF_DerivedOperandTypeAttr T = TF_DerivedOperandTypeAttr<0>;
-
-
 }
 
 def TF_DivNoNanOp : TF_Op<"DivNoNan", [NoSideEffect, ResultsBroadcastableShape, TF_SameOperandsAndResultElementTypeResolveRef]>,
@@ -1409,8 +1400,6 @@ If `x` and `y` are reals, this will return the floating-point division.
   );
 
   TF_DerivedOperandTypeAttr T = TF_DerivedOperandTypeAttr<0>;
-
-
 }
 
 def TF_AddOp : TF_Op<"Add", [NoSideEffect, ResultsBroadcastableShape, TF_LayoutAgnostic, TF_SameOperandsAndResultElementTypeResolveRef]>,
@@ -1436,7 +1425,6 @@ Both input and output have a range `(-inf, inf)`.
   );
 
   TF_DerivedOperandTypeAttr T = TF_DerivedOperandTypeAttr<0>;
-
 }
 
 def TF_StatefulStandardNormalV2Op : TF_Op<"StatefulStandardNormalV2", []> {
@@ -1665,7 +1653,7 @@ event: A string containing a binary-encoded tf.Event proto.
   let results = (outs);
 }
 
-def TF_SummaryWriterOp : TF_Op<"SummaryWriter"> {
+def TF_SummaryWriterOp : TF_Op<"SummaryWriter", []> {
   let summary = "Returns a handle to be used to access a summary writer.";
 
   let description = [{
