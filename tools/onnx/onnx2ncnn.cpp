@@ -4739,19 +4739,67 @@ int main(int argc, char** argv)
             int quantize_tag = 0;
 
             fwrite(&quantize_tag, sizeof(int), 1, bp);
-            fwrite_tensor_proto_data(qw, bp);
+            // transpose qw
+            {
+                const float* wptr = qw.has_raw_data() ? (const float*)qw.raw_data().data() : qw.float_data().data();
+
+                for (int j = 0; j < embed_dim; j++)
+                {
+                    for (int k = 0; k < embed_dim; k++)
+                    {
+                        float vb = wptr[k * embed_dim + j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                }
+            }
             fwrite_tensor_proto_data(qb, bp);
 
             fwrite(&quantize_tag, sizeof(int), 1, bp);
-            fwrite_tensor_proto_data(kw, bp);
+            // transpose kw
+            {
+                const float* wptr = kw.has_raw_data() ? (const float*)kw.raw_data().data() : kw.float_data().data();
+
+                for (int j = 0; j < embed_dim; j++)
+                {
+                    for (int k = 0; k < embed_dim; k++)
+                    {
+                        float vb = wptr[k * embed_dim + j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                }
+            }
             fwrite_tensor_proto_data(kb, bp);
 
             fwrite(&quantize_tag, sizeof(int), 1, bp);
-            fwrite_tensor_proto_data(vw, bp);
+            // transpose vw
+            {
+                const float* wptr = vw.has_raw_data() ? (const float*)vw.raw_data().data() : vw.float_data().data();
+
+                for (int j = 0; j < embed_dim; j++)
+                {
+                    for (int k = 0; k < embed_dim; k++)
+                    {
+                        float vb = wptr[k * embed_dim + j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                }
+            }
             fwrite_tensor_proto_data(vb, bp);
 
             fwrite(&quantize_tag, sizeof(int), 1, bp);
-            fwrite_tensor_proto_data(ow, bp);
+            // transpose ow
+            {
+                const float* wptr = ow.has_raw_data() ? (const float*)ow.raw_data().data() : ow.float_data().data();
+
+                for (int j = 0; j < embed_dim; j++)
+                {
+                    for (int k = 0; k < embed_dim; k++)
+                    {
+                        float vb = wptr[k * embed_dim + j];
+                        fwrite(&vb, sizeof(float), 1, bp);
+                    }
+                }
+            }
             fwrite_tensor_proto_data(ob, bp);
         }
         else if (op == "Neg")
