@@ -3,4 +3,3 @@ tqdm
 requests
 portalocker
 opencv-python
-nms

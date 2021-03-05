@@ -441,19 +441,22 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
             }
             else
             {
-                Option opt_download = opt;
-                opt_download.use_packing_layout = layer->support_packing;
-
-                // buffer to host
-                cmd.record_download(blob_mats_gpu[bottom_blob_index], blob_mats[bottom_blob_index], opt_download);
-
-                if (opt.lightmode)
+                if (blob_mats[bottom_blob_index].dims == 0)
                 {
-                    // delete after taken in light mode
-                    blob_mats_gpu[bottom_blob_index].release();
-                }
+                    Option opt_download = opt;
+                    opt_download.use_packing_layout = layer->support_packing;
 
-                cmd_submit_and_wait = true;
+                    // buffer to host
+                    cmd.record_download(blob_mats_gpu[bottom_blob_index], blob_mats[bottom_blob_index], opt_download);
+
+                    if (opt.lightmode)
+                    {
+                        // delete after taken in light mode
+                        blob_mats_gpu[bottom_blob_index].release();
+                    }
+
+                    cmd_submit_and_wait = true;
+                }
             }
         }
     }
