@@ -317,9 +317,6 @@ void warpaffine_bilinear_c1(const unsigned char* src, int srcw, int srch, int sr
                     short beta0 = (1 << 10) - fy;
                     short beta1 = fy;
 
-                    short sx1 = sx + 1;
-                    short sy1 = sy + 1;
-
                     const unsigned char* a0 = src0 + srcstride * sy + sx;
                     const unsigned char* a1 = src0 + srcstride * sy + sx + 1;
                     const unsigned char* b0 = src0 + srcstride * (sy + 1) + sx;
@@ -336,8 +333,15 @@ void warpaffine_bilinear_c1(const unsigned char* src, int srcw, int srch, int sr
                 // all outside
                 if (type != -233)
                 {
+#if __ARM_NEON
                     uint8x8_t _border_color = vdup_n_u8(border_color[0]);
                     vst1_u8(dst0, _border_color);
+#else
+                    for (int xi = 0; xi < 8; xi++)
+                    {
+                        dst0[xi] = border_color[0];
+                    }
+#endif // __ARM_NEON
                 }
                 else
                 {
@@ -631,9 +635,6 @@ void warpaffine_bilinear_c2(const unsigned char* src, int srcw, int srch, int sr
                     short beta0 = (1 << 10) - fy;
                     short beta1 = fy;
 
-                    short sx1 = sx + 1;
-                    short sy1 = sy + 1;
-
                     const unsigned char* a0 = src0 + srcstride * sy + sx * 2;
                     const unsigned char* a1 = src0 + srcstride * sy + sx * 2 + 2;
                     const unsigned char* b0 = src0 + srcstride * (sy + 1) + sx * 2;
@@ -651,11 +652,19 @@ void warpaffine_bilinear_c2(const unsigned char* src, int srcw, int srch, int sr
                 // all outside
                 if (type != -233)
                 {
+#if __ARM_NEON
                     uint8x8x2_t _border_color;
                     _border_color.val[0] = vdup_n_u8(border_color[0]);
                     _border_color.val[1] = vdup_n_u8(border_color[1]);
 
                     vst2_u8(dst0, _border_color);
+#else
+                    for (int xi = 0; xi < 8; xi++)
+                    {
+                        dst0[xi * 2] = border_color[0];
+                        dst0[xi * 2 + 1] = border_color[1];
+                    }
+#endif
                 }
                 else
                 {
@@ -986,9 +995,6 @@ void warpaffine_bilinear_c3(const unsigned char* src, int srcw, int srch, int sr
                     short beta0 = (1 << 10) - fy;
                     short beta1 = fy;
 
-                    short sx1 = sx + 1;
-                    short sy1 = sy + 1;
-
                     const unsigned char* a0 = src0 + srcstride * sy + sx * 3;
                     const unsigned char* a1 = src0 + srcstride * sy + sx * 3 + 3;
                     const unsigned char* b0 = src0 + srcstride * (sy + 1) + sx * 3;
@@ -1007,12 +1013,21 @@ void warpaffine_bilinear_c3(const unsigned char* src, int srcw, int srch, int sr
                 // all outside
                 if (type != -233)
                 {
+#if __ARM_NEON
                     uint8x8x3_t _border_color;
                     _border_color.val[0] = vdup_n_u8(border_color[0]);
                     _border_color.val[1] = vdup_n_u8(border_color[1]);
                     _border_color.val[2] = vdup_n_u8(border_color[2]);
 
                     vst3_u8(dst0, _border_color);
+#else
+                    for (int xi = 0; xi < 8; xi++)
+                    {
+                        dst0[xi * 3] = border_color[0];
+                        dst0[xi * 3 + 1] = border_color[1];
+                        dst0[xi * 3 + 2] = border_color[2];
+                    }
+#endif // __ARM_NEON
                 }
                 else
                 {
@@ -1382,9 +1397,6 @@ void warpaffine_bilinear_c4(const unsigned char* src, int srcw, int srch, int sr
                     short beta0 = (1 << 10) - fy;
                     short beta1 = fy;
 
-                    short sx1 = sx + 1;
-                    short sy1 = sy + 1;
-
                     const unsigned char* a0 = src0 + srcstride * sy + sx * 4;
                     const unsigned char* a1 = src0 + srcstride * sy + sx * 4 + 4;
                     const unsigned char* b0 = src0 + srcstride * (sy + 1) + sx * 4;
@@ -1404,6 +1416,7 @@ void warpaffine_bilinear_c4(const unsigned char* src, int srcw, int srch, int sr
                 // all outside
                 if (type != -233)
                 {
+#if __ARM_NEON
                     uint8x8x4_t _border_color;
                     _border_color.val[0] = vdup_n_u8(border_color[0]);
                     _border_color.val[1] = vdup_n_u8(border_color[1]);
@@ -1411,6 +1424,15 @@ void warpaffine_bilinear_c4(const unsigned char* src, int srcw, int srch, int sr
                     _border_color.val[3] = vdup_n_u8(border_color[3]);
 
                     vst4_u8(dst0, _border_color);
+#else
+                    for (int xi = 0; xi < 8; xi++)
+                    {
+                        dst0[xi * 4] = border_color[0];
+                        dst0[xi * 4 + 1] = border_color[1];
+                        dst0[xi * 4 + 2] = border_color[2];
+                        dst0[xi * 4 + 3] = border_color[3];
+                    }
+#endif // __ARM_NEON
                 }
                 else
                 {
