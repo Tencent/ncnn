@@ -2196,7 +2196,8 @@ public:
     ExtractorPrivate(const Net* _net)
         : net(_net)
 #if NCNN_VULKAN
-        , vkdev(0)
+        ,
+          vkdev(0)
 #endif // NCNN_VULKAN
     {
 #if NCNN_VULKAN
