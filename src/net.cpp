@@ -2194,12 +2194,17 @@ class ExtractorPrivate
 {
 public:
     ExtractorPrivate(const Net* _net)
-        : net(_net), vkdev(0)
+        : net(_net)
+#if NCNN_VULKAN
+        , vkdev(0)
+#endif // NCNN_VULKAN
     {
+#if NCNN_VULKAN
         if (net)
         {
             vkdev = net->vulkan_device();
         }
+#endif // NCNN_VULKAN
     }
     const Net* net;
     std::vector<Mat> blob_mats;
