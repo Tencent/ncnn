@@ -2194,14 +2194,19 @@ class ExtractorPrivate
 {
 public:
     ExtractorPrivate(const Net* _net)
-        : net(_net)
+        : net(_net), vkdev(0)
     {
+        if (net)
+        {
+            vkdev = net->vulkan_device();
+        }
     }
     const Net* net;
     std::vector<Mat> blob_mats;
     Option opt;
 
 #if NCNN_VULKAN
+    const VulkanDevice* vkdev;
     VkAllocator* local_blob_vkallocator;
     VkAllocator* local_staging_vkallocator;
 
@@ -2233,18 +2238,18 @@ Extractor::~Extractor()
     d->blob_mats.clear();
 
 #if NCNN_VULKAN
-    if (d->net->opt.use_vulkan_compute)
+    if (d->opt.use_vulkan_compute)
     {
         d->blob_mats_gpu.clear();
         d->blob_mats_gpu_image.clear();
 
         if (d->local_blob_vkallocator)
         {
-            d->net->vulkan_device()->reclaim_blob_allocator(d->local_blob_vkallocator);
+            d->vkdev->reclaim_blob_allocator(d->local_blob_vkallocator);
         }
         if (d->local_staging_vkallocator)
         {
-            d->net->vulkan_device()->reclaim_staging_allocator(d->local_staging_vkallocator);
+            d->vkdev->reclaim_staging_allocator(d->local_staging_vkallocator);
         }
     }
 #endif // NCNN_VULKAN
@@ -2260,6 +2265,7 @@ Extractor::Extractor(const Extractor& rhs)
     d->opt = rhs.d->opt;
 
 #if NCNN_VULKAN
+    d->vkdev = rhs.d->vkdev;
     d->local_blob_vkallocator = 0;
     d->local_staging_vkallocator = 0;
 
@@ -2278,6 +2284,7 @@ Extractor& Extractor::operator=(const Extractor& rhs)
     d->opt = rhs.d->opt;
 
 #if NCNN_VULKAN
+    d->vkdev = rhs.d->vkdev;
     d->local_blob_vkallocator = 0;
     d->local_staging_vkallocator = 0;
 
