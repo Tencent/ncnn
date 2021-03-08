@@ -63,6 +63,8 @@ Option::Option()
     use_weight_fp16_storage = false;
 
     flush_denormals = 3;
+
+    use_local_pool_allocator = true;
 }
 
 } // namespace ncnn
