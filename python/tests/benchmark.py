@@ -79,10 +79,6 @@ def benchmark(comment, _in, opt):
         time_max = timespan if timespan > time_max else time_max
         time_avg += timespan
 
-    # extractor need relese manually when build ncnn with vuklan,
-    # due to python relese ex after net, but in extractor.destruction use net
-    ex = None
-
     time_avg /= g_loop_count
 
     print(

@@ -1114,8 +1114,8 @@ PYBIND11_MODULE(ncnn, m)
     m.def("destroy_gpu_instance", &destroy_gpu_instance);
     m.def("get_gpu_count", &get_gpu_count);
     m.def("get_default_gpu_index", &get_default_gpu_index);
-    m.def("get_gpu_info", &get_gpu_info, py::arg("device_index") = 0);
-    m.def("get_gpu_device", &get_gpu_device, py::arg("device_index") = 0);
+    m.def("get_gpu_info", &get_gpu_info, py::arg("device_index") = 0, py::return_value_policy::reference_internal);
+    m.def("get_gpu_device", &get_gpu_device, py::arg("device_index") = 0, py::return_value_policy::reference_internal);
 
     py::class_<VkAllocator, PyVkAllocator<> >(m, "VkAllocator")
     .def_readwrite("vkdev", &VkAllocator::vkdev)
