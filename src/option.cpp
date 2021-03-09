@@ -61,6 +61,8 @@ Option::Option()
     use_tensor_storage = false;
 
     use_weight_fp16_storage = false;
+
+    flush_denormals = 3;
 }
 
 } // namespace ncnn

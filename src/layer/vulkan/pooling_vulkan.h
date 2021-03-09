@@ -42,6 +42,9 @@ public:
     Pipeline* pipeline_pooling_global;
     Pipeline* pipeline_pooling_global_pack4;
     Pipeline* pipeline_pooling_global_pack8;
+    Pipeline* pipeline_pooling_adaptive;
+    Pipeline* pipeline_pooling_adaptive_pack4;
+    Pipeline* pipeline_pooling_adaptive_pack8;
 };
 
 } // namespace ncnn
