@@ -2253,6 +2253,7 @@ Extractor::Extractor(const Net* _net, size_t blob_count)
 #if NCNN_VULKAN
     if (d->net->opt.use_vulkan_compute)
     {
+        d->vkdev = d->net->vulkan_device();
         d->local_blob_vkallocator = 0;
         d->local_staging_vkallocator = 0;
 
