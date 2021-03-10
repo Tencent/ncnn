@@ -47,10 +47,19 @@ jobs:
     - name: Install cibuildwheel
       run: python -m pip install cibuildwheel
 
+    - name: Set up QEMU
+      if: runner.os == 'Linux'
+      uses: docker/setup-qemu-action@v1
+      with:
+        platforms: all
+
     - name: Build wheel
       run: python -m cibuildwheel --output-dir wheelhouse
       env:
         CIBW_SKIP: "cp27-* pp27-*"  # skip Python 2.7 wheels
+        # configure cibuildwheel to build native archs ('auto'), and some
+        # emulated ones
+        CIBW_ARCHS_LINUX: auto aarch64 ppc64le s390x
 
     - name: Show files
       run: ls -lh wheelhouse

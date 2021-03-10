@@ -169,6 +169,12 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < num_prior; i++)
     {
+        // if score of background class is larger than confidence threshold
+        float score = mxnet_ssd_style ? confidence[i] : confidence[i * num_class_copy];
+        if (score >= (1.0 - confidence_threshold))
+        {
+            continue;
+        }
         const float* loc = location_ptr + i * 4;
         const float* pb = priorbox_ptr + i * 4;
         const float* var = variance_ptr ? variance_ptr + i * 4 : variances;
