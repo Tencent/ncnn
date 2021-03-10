@@ -56,9 +56,9 @@ def benchmark(comment, _in, opt):
 
     # warm up
     for i in range(g_warmup_loop_count):
-        ex = net.create_extractor()
-        ex.input("data", _in)
-        ex.extract("output")
+        with net.create_extractor() as ex:
+            ex.input("data", _in)
+            ex.extract("output")
 
     time_min = sys.float_info.max
     time_max = -sys.float_info.max
@@ -67,9 +67,9 @@ def benchmark(comment, _in, opt):
     for i in range(g_loop_count):
         start = time.time()
 
-        ex = net.create_extractor()
-        ex.input("data", _in)
-        ex.extract("output")
+        with net.create_extractor() as ex:
+            ex.input("data", _in)
+            ex.extract("output")
 
         end = time.time()
 
@@ -78,10 +78,6 @@ def benchmark(comment, _in, opt):
         time_min = timespan if timespan < time_min else time_min
         time_max = timespan if timespan > time_max else time_max
         time_avg += timespan
-
-    # extractor need relese manually when build ncnn with vuklan,
-    # due to python relese ex after net, but in extractor.destruction use net
-    ex = None
 
     time_avg /= g_loop_count
 

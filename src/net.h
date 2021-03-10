@@ -164,6 +164,9 @@ public:
     // assign
     Extractor& operator=(const Extractor&);
 
+    // clear blob mats and alloctors
+    void clear();
+
     // enable light mode
     // intermediate blob will be recycled when enabled
     // enabled by default
