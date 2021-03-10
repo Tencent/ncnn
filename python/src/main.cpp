@@ -761,7 +761,9 @@ PYBIND11_MODULE(ncnn, m)
 
     py::class_<Extractor>(m, "Extractor")
     .def("__enter__", [](Extractor& ex) -> Extractor& { return ex; })
-    .def("__exit__", [](Extractor& ex, pybind11::args) { ex.clear(); })
+    .def("__exit__", [](Extractor& ex, pybind11::args) {
+        ex.clear();
+    })
     .def("clear", &Extractor::clear)
     .def("set_light_mode", &Extractor::set_light_mode, py::arg("enable"))
     .def("set_num_threads", &Extractor::set_num_threads, py::arg("num_threads"))
@@ -829,7 +831,9 @@ PYBIND11_MODULE(ncnn, m)
     .def(py::init<>())
     .def_readwrite("opt", &Net::opt)
     .def("__enter__", [](Net& net) -> Net& { return net; })
-    .def("__exit__", [](Net& net, pybind11::args) { net.clear(); })
+    .def("__exit__", [](Net& net, pybind11::args) {
+        net.clear();
+    })
 
 #if NCNN_VULKAN
     .def("set_vulkan_device", (void (Net::*)(int)) & Net::set_vulkan_device, py::arg("device_index"))
