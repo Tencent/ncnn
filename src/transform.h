@@ -31,7 +31,7 @@ Mat combine(const Mat& m1, const Mat& m2, const Args&... mats)
 
 Mat rotation(const float degree, const float* center = nullptr);
 
-Mat shear(const float degree,  float* center = nullptr);
+Mat shear(const float degree, float* center = nullptr);
 
 Mat shear(const float* degrees, const float* center = nullptr);
 
