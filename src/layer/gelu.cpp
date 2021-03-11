@@ -26,7 +26,7 @@ GELU::GELU()
 
 int GELU::load_param(const ParamDict& pd)
 {
-	fast_gelu = pd.get(0, 0) != 0;
+    fast_gelu = pd.get(0, 0) != 0;
 
     return 0;
 }
@@ -40,7 +40,7 @@ int GELU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (fast_gelu)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -54,7 +54,7 @@ int GELU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
     else
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
