@@ -2264,24 +2264,7 @@ Extractor::Extractor(const Net* _net, size_t blob_count)
 
 Extractor::~Extractor()
 {
-    d->blob_mats.clear();
-
-#if NCNN_VULKAN
-    if (d->net->opt.use_vulkan_compute)
-    {
-        d->blob_mats_gpu.clear();
-        d->blob_mats_gpu_image.clear();
-
-        if (d->local_blob_vkallocator)
-        {
-            d->net->vulkan_device()->reclaim_blob_allocator(d->local_blob_vkallocator);
-        }
-        if (d->local_staging_vkallocator)
-        {
-            d->net->vulkan_device()->reclaim_staging_allocator(d->local_staging_vkallocator);
-        }
-    }
-#endif // NCNN_VULKAN
+    clear();
 
     delete d;
 }
@@ -2320,6 +2303,28 @@ Extractor& Extractor::operator=(const Extractor& rhs)
 #endif // NCNN_VULKAN
 
     return *this;
+}
+
+void Extractor::clear()
+{
+    d->blob_mats.clear();
+
+#if NCNN_VULKAN
+    if (d->opt.use_vulkan_compute)
+    {
+        d->blob_mats_gpu.clear();
+        d->blob_mats_gpu_image.clear();
+
+        if (d->local_blob_vkallocator)
+        {
+            d->net->vulkan_device()->reclaim_blob_allocator(d->local_blob_vkallocator);
+        }
+        if (d->local_staging_vkallocator)
+        {
+            d->net->vulkan_device()->reclaim_staging_allocator(d->local_staging_vkallocator);
+        }
+    }
+#endif // NCNN_VULKAN
 }
 
 void Extractor::set_light_mode(bool enable)

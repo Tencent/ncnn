@@ -760,17 +760,20 @@ PYBIND11_MODULE(ncnn, m)
     .value("PIXEL_BGRA2RGBA", ncnn::Mat::PixelType::PIXEL_BGRA2RGBA);
 
     py::class_<Extractor>(m, "Extractor")
+    .def("__enter__", [](Extractor& ex) -> Extractor& { return ex; })
+    .def("__exit__", [](Extractor& ex, pybind11::args) {
+        ex.clear();
+    })
+    .def("clear", &Extractor::clear)
     .def("set_light_mode", &Extractor::set_light_mode, py::arg("enable"))
     .def("set_num_threads", &Extractor::set_num_threads, py::arg("num_threads"))
     .def("set_blob_allocator", &Extractor::set_blob_allocator, py::arg("allocator"))
     .def("set_workspace_allocator", &Extractor::set_workspace_allocator, py::arg("allocator"))
 #if NCNN_STRING
     .def("input", (int (Extractor::*)(const char*, const Mat&)) & Extractor::input, py::arg("blob_name"), py::arg("in"))
-    .def("extract", (int (Extractor::*)(const char*, Mat&, int)) & Extractor::extract,
-         py::arg("blob_name"), py::arg("feat"), py::arg("type") = 0)
+    .def("extract", (int (Extractor::*)(const char*, Mat&, int)) & Extractor::extract, py::arg("blob_name"), py::arg("feat"), py::arg("type") = 0)
     .def(
-        "extract",
-    [](Extractor& ex, const char* blob_name, int type) {
+    "extract", [](Extractor& ex, const char* blob_name, int type) {
         ncnn::Mat feat;
         int ret = ex.extract(blob_name, feat, type);
         return py::make_tuple(ret, feat);
@@ -778,11 +781,9 @@ PYBIND11_MODULE(ncnn, m)
     py::arg("blob_name"), py::arg("type") = 0)
 #endif
     .def("input", (int (Extractor::*)(int, const Mat&)) & Extractor::input)
-    .def("extract", (int (Extractor::*)(int, Mat&, int)) & Extractor::extract,
-         py::arg("blob_index"), py::arg("feat"), py::arg("type") = 0)
+    .def("extract", (int (Extractor::*)(int, Mat&, int)) & Extractor::extract, py::arg("blob_index"), py::arg("feat"), py::arg("type") = 0)
     .def(
-        "extract",
-    [](Extractor& ex, int blob_index, int type) {
+    "extract", [](Extractor& ex, int blob_index, int type) {
         ncnn::Mat feat;
         int ret = ex.extract(blob_index, feat, type);
         return py::make_tuple(ret, feat);
@@ -825,6 +826,10 @@ PYBIND11_MODULE(ncnn, m)
     py::class_<Net>(m, "Net")
     .def(py::init<>())
     .def_readwrite("opt", &Net::opt)
+    .def("__enter__", [](Net& net) -> Net& { return net; })
+    .def("__exit__", [](Net& net, pybind11::args) {
+        net.clear();
+    })
 
 #if NCNN_VULKAN
     .def("set_vulkan_device", (void (Net::*)(int)) & Net::set_vulkan_device, py::arg("device_index"))
@@ -834,10 +839,7 @@ PYBIND11_MODULE(ncnn, m)
 
 #if NCNN_STRING
     .def(
-        "register_custom_layer",
-        [](Net& net, const char* type,
-           const std::function<ncnn::Layer*()>& creator,
-    const std::function<void(ncnn::Layer*)>& destroyer) {
+    "register_custom_layer", [](Net& net, const char* type, const std::function<ncnn::Layer*()>& creator, const std::function<void(ncnn::Layer*)>& destroyer) {
         if (g_layer_factroy_index == g_layer_factroys.size())
         {
             std::stringstream ss;
@@ -853,10 +855,7 @@ PYBIND11_MODULE(ncnn, m)
     py::arg("type"), py::arg("creator"), py::arg("destroyer"))
 #endif //NCNN_STRING
     .def(
-        "register_custom_layer",
-        [](Net& net, int index,
-           const std::function<ncnn::Layer*()>& creator,
-    const std::function<void(ncnn::Layer*)>& destroyer) {
+    "register_custom_layer", [](Net& net, int index, const std::function<ncnn::Layer*()>& creator, const std::function<void(ncnn::Layer*)>& destroyer) {
         if (g_layer_factroy_index == g_layer_factroys.size())
         {
             std::stringstream ss;
@@ -1114,8 +1113,8 @@ PYBIND11_MODULE(ncnn, m)
     m.def("destroy_gpu_instance", &destroy_gpu_instance);
     m.def("get_gpu_count", &get_gpu_count);
     m.def("get_default_gpu_index", &get_default_gpu_index);
-    m.def("get_gpu_info", &get_gpu_info, py::arg("device_index") = 0);
-    m.def("get_gpu_device", &get_gpu_device, py::arg("device_index") = 0);
+    m.def("get_gpu_info", &get_gpu_info, py::arg("device_index") = 0, py::return_value_policy::reference_internal);
+    m.def("get_gpu_device", &get_gpu_device, py::arg("device_index") = 0, py::return_value_policy::reference_internal);
 
     py::class_<VkAllocator, PyVkAllocator<> >(m, "VkAllocator")
     .def_readwrite("vkdev", &VkAllocator::vkdev)

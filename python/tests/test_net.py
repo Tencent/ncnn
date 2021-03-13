@@ -21,21 +21,21 @@ import ncnn
 def test_net():
     dr = ncnn.DataReaderFromEmpty()
 
-    net = ncnn.Net()
-    ret = net.load_param("tests/test.param")
-    net.load_model(dr)
-    assert ret == 0 and len(net.blobs()) == 3 and len(net.layers()) == 3
+    with ncnn.Net() as net:
+        ret = net.load_param("tests/test.param")
+        net.load_model(dr)
+        assert ret == 0 and len(net.blobs()) == 3 and len(net.layers()) == 3
 
-    in_mat = ncnn.Mat((227, 227, 3))
+        in_mat = ncnn.Mat((227, 227, 3))
 
-    ex = net.create_extractor()
-    ex.input("data", in_mat)
-    ret, out_mat = ex.extract("output")
+        with net.create_extractor() as ex:
+            ex.input("data", in_mat)
+            ret, out_mat = ex.extract("output")
 
-    assert ret == 0 and out_mat.dims == 1 and out_mat.w == 1
+        assert ret == 0 and out_mat.dims == 1 and out_mat.w == 1
 
-    net.clear()
-    assert len(net.blobs()) == 0 and len(net.layers()) == 0
+        net.clear()
+        assert len(net.blobs()) == 0 and len(net.layers()) == 0
 
 
 def test_custom_layer():
@@ -84,6 +84,8 @@ def test_custom_layer():
     ex.input("data", in_mat)
     ret, out_mat = ex.extract("output")
     assert ret == 0 and out_mat.dims == 1 and out_mat.w == 1 and out_mat[0] == 2.0
+
+    ex.clear()
 
     net.clear()
     assert len(net.blobs()) == 0 and len(net.layers()) == 0
