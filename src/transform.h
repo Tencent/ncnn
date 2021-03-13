@@ -29,13 +29,13 @@ Mat combine(const Mat& m1, const Mat& m2, const Args&... mats)
     return combine(combine(m1, m2), mats...);
 }
 
-Mat rotation(const float degree, const float* center = nullptr);
+Mat rotation(const float degree, const float* center = NULL);
 
-Mat shear(const float degree,  float* center = nullptr);
+Mat shear(const float degree, float* center = NULL);
 
-Mat shear(const float* degrees, const float* center = nullptr);
+Mat shear(const float* degrees, const float* center = NULL);
 
-Mat scale(const float* scale, const float* center = nullptr);
+Mat scale(const float* scale, const float* center = NULL);
 
 Mat translation(const float* offsets);
 

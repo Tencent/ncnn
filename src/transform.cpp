@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include <cmath>
+#include <math.h>
 
 #include "transform.h"
 
@@ -31,9 +31,7 @@ Mat combine(const Mat& m1, const Mat& m2)
     {
         for (int col = 0; col < 3; ++col)
         {
-            p[row * 3 + col] = p1[row * 3 + 0] * p2[0 * 3 + col] +
-                                p1[row * 3 + 1] * p2[1 * 3 + col] +
-                                p1[row * 3 + 2] * row3[col];
+            p[row * 3 + col] = p1[row * 3 + 0] * p2[0 * 3 + col] + p1[row * 3 + 1] * p2[1 * 3 + col] + p1[row * 3 + 2] * row3[col];
         }
     }
     return M;
@@ -43,10 +41,10 @@ Mat rotation(const float degree, const float* center)
 {
     int ndim = 2;
     Mat M(3, 2, sizeof(float));
-    float *mat = M;
+    float* mat = M;
     float rad = degree * 3.14159265358979323846 / 180.0;
-    float c = std::cos(rad);
-    float s = std::sin(rad);
+    float c = cos(rad);
+    float s = sin(rad);
 
     M.fill(0);
     mat[0] = c;
@@ -58,20 +56,20 @@ Mat rotation(const float degree, const float* center)
     {
         for (int d = 0; d < ndim; d++)
         {
-            mat[d*3+ndim] = center[d] - center[0] * mat[d*3+0] - center[1] * mat[d*3+1];
+            mat[d * 3 + ndim] = center[d] - center[0] * mat[d * 3 + 0] - center[1] * mat[d * 3 + 1];
         }
     }
 
     return M;
 }
 
-Mat shear(const float degree,  float* center)
+Mat shear(const float degree, float* center)
 {
     int ndim = 2;
     Mat M(3, 2, sizeof(float));
-    float *mat = M;
+    float* mat = M;
     float rad = degree * 3.14159265358979323846 / 180.0;
-    float s = std::tan(rad);
+    float s = tan(rad);
 
     M.fill(0);
     mat[0] = 1;
@@ -83,7 +81,7 @@ Mat shear(const float degree,  float* center)
     {
         for (int d = 0; d < ndim; d++)
         {
-            mat[d*3+ndim] = center[d] - center[0] * mat[d*3+0] - center[1] * mat[d*3+1];
+            mat[d * 3 + ndim] = center[d] - center[0] * mat[d * 3 + 0] - center[1] * mat[d * 3 + 1];
         }
     }
 
@@ -94,11 +92,11 @@ Mat shear(const float* degrees, const float* center)
 {
     int ndim = 2;
     Mat M(3, 2, sizeof(float));
-    float *mat = M;
+    float* mat = M;
     float rad1 = degrees[0] * 3.14159265358979323846 / 180.0;
-    float s1 = std::tan(rad1);
+    float s1 = tan(rad1);
     float rad2 = degrees[1] * 3.14159265358979323846 / 180.0;
-    float s2 = std::tan(rad2);
+    float s2 = tan(rad2);
 
     M.fill(0);
     mat[0] = 1;
@@ -110,7 +108,7 @@ Mat shear(const float* degrees, const float* center)
     {
         for (int d = 0; d < ndim; d++)
         {
-            mat[d*3+ndim] = center[d] - center[0] * mat[d*3+0] - center[1] * mat[d*3+1];
+            mat[d * 3 + ndim] = center[d] - center[0] * mat[d * 3 + 0] - center[1] * mat[d * 3 + 1];
         }
     }
 
@@ -122,7 +120,7 @@ Mat scale(const float* scale, const float* center)
     int ndim = 2;
     Mat M(3, 2, sizeof(float));
     M.fill(0);
-    float *mat = M;
+    float* mat = M;
 
     for (int d = 0; d < ndim; d++)
     {
@@ -132,7 +130,7 @@ Mat scale(const float* scale, const float* center)
     {
         for (int d = 0; d < ndim; d++)
         {
-            mat[d*3+ndim] = center[d] * (1 - scale[d]);
+            mat[d * 3 + ndim] = center[d] * (1 - scale[d]);
         }
     }
 
@@ -143,12 +141,13 @@ Mat translation(const float* offsets)
 {
     int ndim = 2;
     Mat M(3, 2, sizeof(float));
-    float *mat = M;
+    float* mat = M;
 
     M.fill(0);
     mat[0] = 1;
     mat[4] = 1;
-    for (int d = 0; d < ndim; d++) {
+    for (int d = 0; d < ndim; d++)
+    {
         mat[d * 3 + ndim] = offsets[d];
     }
 
