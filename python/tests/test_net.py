@@ -38,6 +38,34 @@ def test_net():
         assert len(net.blobs()) == 0 and len(net.layers()) == 0
 
 
+def test_net_vulkan():
+    if not hasattr(ncnn, "get_gpu_count"):
+        return
+
+    dr = ncnn.DataReaderFromEmpty()
+
+    net = ncnn.Net()
+    net.opt.use_vulkan_compute = True
+    ret = net.load_param("tests/test.param")
+    net.load_model(dr)
+    assert ret == 0 and len(net.blobs()) == 3 and len(net.layers()) == 3
+
+    in_mat = ncnn.Mat((227, 227, 3))
+
+    ex = net.create_extractor()
+    ex.input("data", in_mat)
+    ret, out_mat = ex.extract("output")
+
+    assert ret == 0 and out_mat.dims == 1 and out_mat.w == 1
+
+    net.clear()
+    assert len(net.blobs()) == 0 and len(net.layers()) == 0
+
+    # ensure ex release before net when use vulkan
+    ex = None
+    net = None
+
+
 def test_custom_layer():
     class CustomLayer(ncnn.Layer):
         customLayers = []
@@ -89,3 +117,26 @@ def test_custom_layer():
 
     net.clear()
     assert len(net.blobs()) == 0 and len(net.layers()) == 0
+
+
+def test_vulkan_device_index():
+    if not hasattr(ncnn, "get_gpu_count"):
+        return
+
+    net = ncnn.Net()
+    assert net.vulkan_device() is None
+
+    net.set_vulkan_device(0)
+    assert net.vulkan_device() is not None
+
+
+def test_vulkan_device_vkdev():
+    if not hasattr(ncnn, "get_gpu_count"):
+        return
+
+    net = ncnn.Net()
+    assert net.vulkan_device() is None
+
+    vkdev = ncnn.get_gpu_device(0)
+    net.set_vulkan_device(vkdev)
+    assert net.vulkan_device() is not None
