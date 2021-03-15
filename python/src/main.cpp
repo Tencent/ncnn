@@ -834,7 +834,7 @@ PYBIND11_MODULE(ncnn, m)
 #if NCNN_VULKAN
     .def("set_vulkan_device", (void (Net::*)(int)) & Net::set_vulkan_device, py::arg("device_index"))
     .def("set_vulkan_device", (void (Net::*)(const VulkanDevice*)) & Net::set_vulkan_device, py::arg("vkdev"))
-    .def("vulkan_device", &Net::vulkan_device)
+    .def("vulkan_device", &Net::vulkan_device, py::return_value_policy::reference_internal)
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING
@@ -1116,8 +1116,19 @@ PYBIND11_MODULE(ncnn, m)
     m.def("get_gpu_info", &get_gpu_info, py::arg("device_index") = 0, py::return_value_policy::reference_internal);
     m.def("get_gpu_device", &get_gpu_device, py::arg("device_index") = 0, py::return_value_policy::reference_internal);
 
+    py::class_<VkBufferMemory>(m, "VkBufferMemory")
+    .def_readwrite("offset", &VkBufferMemory::offset)
+    .def_readwrite("capacity", &VkBufferMemory::capacity)
+    .def_readwrite("refcount", &VkBufferMemory::refcount);
+
+    py::class_<VkImageMemory>(m, "VkImageMemory")
+    .def_readwrite("width", &VkImageMemory::width)
+    .def_readwrite("height", &VkImageMemory::height)
+    .def_readwrite("depth", &VkImageMemory::depth)
+    .def_readwrite("refcount", &VkImageMemory::refcount);
+
     py::class_<VkAllocator, PyVkAllocator<> >(m, "VkAllocator")
-    .def_readwrite("vkdev", &VkAllocator::vkdev)
+    .def_readonly("vkdev", &VkAllocator::vkdev)
     .def_readwrite("buffer_memory_type_index", &VkAllocator::buffer_memory_type_index)
     .def_readwrite("image_memory_type_index", &VkAllocator::image_memory_type_index)
     .def_readwrite("mappable", &VkAllocator::mappable)
@@ -1126,37 +1137,53 @@ PYBIND11_MODULE(ncnn, m)
     py::class_<VkBlobAllocator, VkAllocator, PyVkAllocatorOther<VkBlobAllocator> >(m, "VkBlobAllocator")
     .def(py::init<const VulkanDevice*>())
     .def("clear", &VkBlobAllocator::clear)
-    .def("fastMalloc", (VkBufferMemory * (VkBlobAllocator::*)(size_t size)) & VkBlobAllocator::fastMalloc)
+    .def("fastMalloc", (VkBufferMemory * (VkBlobAllocator::*)(size_t size)) & VkBlobAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkBlobAllocator::*)(VkBufferMemory * ptr)) & VkBlobAllocator::fastFree)
-    .def("fastMalloc", (VkImageMemory * (VkBlobAllocator::*)(int, int, int, size_t, int)) & VkBlobAllocator::fastMalloc)
+    .def("fastMalloc", (VkImageMemory * (VkBlobAllocator::*)(int, int, int, size_t, int)) & VkBlobAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkBlobAllocator::*)(VkImageMemory * ptr)) & VkBlobAllocator::fastFree);
 
     py::class_<VkWeightAllocator, VkAllocator, PyVkAllocatorOther<VkWeightAllocator> >(m, "VkWeightAllocator")
     .def(py::init<const VulkanDevice*>())
     .def("clear", &VkWeightAllocator::clear)
-    .def("fastMalloc", (VkBufferMemory * (VkWeightAllocator::*)(size_t size)) & VkWeightAllocator::fastMalloc)
+    .def("fastMalloc", (VkBufferMemory * (VkWeightAllocator::*)(size_t size)) & VkWeightAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkWeightAllocator::*)(VkBufferMemory * ptr)) & VkWeightAllocator::fastFree)
-    .def("fastMalloc", (VkImageMemory * (VkWeightAllocator::*)(int, int, int, size_t, int)) & VkWeightAllocator::fastMalloc)
+    .def("fastMalloc", (VkImageMemory * (VkWeightAllocator::*)(int, int, int, size_t, int)) & VkWeightAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkWeightAllocator::*)(VkImageMemory * ptr)) & VkWeightAllocator::fastFree);
 
     py::class_<VkStagingAllocator, VkAllocator, PyVkAllocatorOther<VkStagingAllocator> >(m, "VkStagingAllocator")
     .def(py::init<const VulkanDevice*>())
     .def("set_size_compare_ratio", &VkStagingAllocator::set_size_compare_ratio)
     .def("clear", &VkStagingAllocator::clear)
-    .def("fastMalloc", (VkBufferMemory * (VkStagingAllocator::*)(size_t size)) & VkStagingAllocator::fastMalloc)
+    .def("fastMalloc", (VkBufferMemory * (VkStagingAllocator::*)(size_t size)) & VkStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkStagingAllocator::*)(VkBufferMemory * ptr)) & VkStagingAllocator::fastFree)
-    .def("fastMalloc", (VkImageMemory * (VkStagingAllocator::*)(int, int, int, size_t, int)) & VkStagingAllocator::fastMalloc)
+    .def("fastMalloc", (VkImageMemory * (VkStagingAllocator::*)(int, int, int, size_t, int)) & VkStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkStagingAllocator::*)(VkImageMemory * ptr)) & VkStagingAllocator::fastFree);
 
     py::class_<VkWeightStagingAllocator, VkAllocator, PyVkAllocatorOther<VkWeightStagingAllocator> >(m, "VkWeightStagingAllocator")
     .def(py::init<const VulkanDevice*>())
-    .def("fastMalloc", (VkBufferMemory * (VkWeightStagingAllocator::*)(size_t size)) & VkWeightStagingAllocator::fastMalloc)
+    .def("fastMalloc", (VkBufferMemory * (VkWeightStagingAllocator::*)(size_t size)) & VkWeightStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkWeightStagingAllocator::*)(VkBufferMemory * ptr)) & VkWeightStagingAllocator::fastFree)
-    .def("fastMalloc", (VkImageMemory * (VkWeightStagingAllocator::*)(int, int, int, size_t, int)) & VkWeightStagingAllocator::fastMalloc)
+    .def("fastMalloc", (VkImageMemory * (VkWeightStagingAllocator::*)(int, int, int, size_t, int)) & VkWeightStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkWeightStagingAllocator::*)(VkImageMemory * ptr)) & VkWeightStagingAllocator::fastFree);
 
+    py::class_<GpuInfo>(m, "GpuInfo")
+    .def(py::init<>())
+    .def("api_version", &GpuInfo::api_version)
+    .def("driver_version", &GpuInfo::driver_version)
+    .def("vendor_id", &GpuInfo::vendor_id)
+    .def("device_id", &GpuInfo::device_id)
+    .def("pipeline_cache_uuid", [](GpuInfo& gpuinfo) {
+        return py::memoryview::from_buffer(gpuinfo.pipeline_cache_uuid(), {VK_UUID_SIZE}, {sizeof(uint8_t) * VK_UUID_SIZE});
+    })
+    .def("type", &GpuInfo::type);
+
     py::class_<VulkanDevice>(m, "VulkanDevice")
-    .def(py::init<int>(), py::arg("device_index") = 0);
+    .def(py::init<int>(), py::arg("device_index") = 0)
+    .def(
+    "info", [](VulkanDevice& dev) {
+        return &dev.info;
+    },
+    py::return_value_policy::reference_internal);
 #endif // NCNN_VULKAN
 
     m.doc() = R"pbdoc(
