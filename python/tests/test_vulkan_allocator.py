@@ -22,6 +22,7 @@ def test_vk_blob_allocator():
         return
 
     vkdev = ncnn.get_gpu_device(0)
+    assert vkdev is not None
     allocator = ncnn.VkBlobAllocator(vkdev)
     assert allocator.buffer_memory_type_index >= 0
     assert allocator.image_memory_type_index >= 0
@@ -48,6 +49,7 @@ def test_vk_weight_allocator():
         return
 
     vkdev = ncnn.get_gpu_device(0)
+    assert vkdev is not None
     allocator = ncnn.VkWeightAllocator(vkdev)
     assert allocator.buffer_memory_type_index >= 0
     assert allocator.image_memory_type_index >= 0
@@ -74,6 +76,7 @@ def test_vk_staging_allocator():
         return
 
     vkdev = ncnn.get_gpu_device(0)
+    assert vkdev is not None
     allocator = ncnn.VkStagingAllocator(vkdev)
     assert allocator.buffer_memory_type_index >= 0
     assert allocator.image_memory_type_index >= 0
@@ -100,6 +103,7 @@ def test_vk_weight_staging_allocator():
         return
 
     vkdev = ncnn.get_gpu_device(0)
+    assert vkdev is not None
     allocator = ncnn.VkWeightStagingAllocator(vkdev)
     assert allocator.buffer_memory_type_index >= 0
     assert allocator.image_memory_type_index >= 0

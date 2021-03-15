@@ -38,6 +38,7 @@ def test_gpu_api():
     check_gpuinfo(gpuinfo)
 
     vkdev = ncnn.get_gpu_device(0)
+    assert vkdev is not None
     gpuinfo = vkdev.info()
     check_gpuinfo(gpuinfo)
 
@@ -49,5 +50,6 @@ def test_vulkan_device():
         return
 
     vkdev = ncnn.VulkanDevice(0)
+    assert vkdev is not None
     gpuinfo = vkdev.info()
     check_gpuinfo(gpuinfo)
