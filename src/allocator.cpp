@@ -40,7 +40,7 @@ public:
 PoolAllocator::PoolAllocator()
     : Allocator(), d(new PoolAllocatorPrivate)
 {
-    d->size_compare_ratio = 192; // 0.75f * 256
+    d->size_compare_ratio = 128; // 0.5f * 256
 }
 
 PoolAllocator::~PoolAllocator()
@@ -185,7 +185,7 @@ public:
 UnlockedPoolAllocator::UnlockedPoolAllocator()
     : Allocator(), d(new UnlockedPoolAllocatorPrivate)
 {
-    d->size_compare_ratio = 192; // 0.75f * 256
+    d->size_compare_ratio = 0; // 0.0f * 256
 }
 
 UnlockedPoolAllocator::~UnlockedPoolAllocator()

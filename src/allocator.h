@@ -64,6 +64,10 @@ static inline size_t alignSize(size_t sz, int n)
 
 static inline void* fastMalloc(size_t size)
 {
+    // some kernel code may over-preload data in loops
+    // allocate more space to keep safe  --- nihui
+    size += 64;
+
 #if _MSC_VER
     return _aligned_malloc(size, MALLOC_ALIGN);
 #elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
@@ -164,7 +168,7 @@ public:
     ~PoolAllocator();
 
     // ratio range 0 ~ 1
-    // default cr = 0.75
+    // default cr = 0.5
     void set_size_compare_ratio(float scr);
 
     // release all budgets immediately
@@ -189,7 +193,7 @@ public:
     ~UnlockedPoolAllocator();
 
     // ratio range 0 ~ 1
-    // default cr = 0.75
+    // default cr = 0.0
     void set_size_compare_ratio(float scr);
 
     // release all budgets immediately
