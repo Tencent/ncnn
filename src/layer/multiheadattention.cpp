@@ -71,8 +71,8 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
 int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& q_blob = bottom_blobs[0];
-    const Mat& k_blob = bottom_blobs[1];
-    const Mat& v_blob = bottom_blobs[2];
+    const Mat& k_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[1];
+    const Mat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[2];
 
     const int seqlen = q_blob.h;
     const int embed_dim_per_head = embed_dim / num_head;
