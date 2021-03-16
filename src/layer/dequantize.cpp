@@ -19,7 +19,6 @@ namespace ncnn {
 Dequantize::Dequantize()
 {
     one_blob_only = true;
-    support_inplace = true;
 }
 
 int Dequantize::load_param(const ParamDict& pd)
@@ -43,16 +42,20 @@ int Dequantize::load_model(const ModelBin& mb)
     return 0;
 }
 
-int Dequantize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+int Dequantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    int dims = bottom_top_blob.dims;
+    int dims = bottom_blob.dims;
 
     if (dims == 1)
     {
-        int w = bottom_top_blob.w;
+        int w = bottom_blob.w;
 
-        const int* intptr = bottom_top_blob;
-        float* ptr = bottom_top_blob;
+        top_blob.create(w, (size_t)4u, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        const int* intptr = bottom_blob;
+        float* ptr = top_blob;
 
         if (bias_term)
         {
@@ -87,16 +90,20 @@ int Dequantize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (dims == 2)
     {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+
+        top_blob.create(w, h, (size_t)4u, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
 
         if (bias_term)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
-                const int* intptr = bottom_top_blob.row<const int>(i);
-                float* ptr = bottom_top_blob.row(i);
+                const int* intptr = bottom_blob.row<const int>(i);
+                float* ptr = top_blob.row(i);
 
                 float bias = bias_data_size > 1 ? bias_data[i] : bias_data[0];
 
@@ -111,8 +118,8 @@ int Dequantize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
-                const int* intptr = bottom_top_blob.row<const int>(i);
-                float* ptr = bottom_top_blob.row(i);
+                const int* intptr = bottom_blob.row<const int>(i);
+                float* ptr = top_blob.row(i);
 
                 for (int j = 0; j < w; j++)
                 {
@@ -124,18 +131,22 @@ int Dequantize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (dims == 3)
     {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
-        int channels = bottom_top_blob.c;
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int channels = bottom_blob.c;
         int size = w * h;
+
+        top_blob.create(w, h, channels, (size_t)4u, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
 
         if (bias_term)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const int* intptr = bottom_top_blob.channel(q);
-                float* ptr = bottom_top_blob.channel(q);
+                const int* intptr = bottom_blob.channel(q);
+                float* ptr = top_blob.channel(q);
 
                 float bias = bias_data_size > 1 ? bias_data[q] : bias_data[0];
 
@@ -150,8 +161,8 @@ int Dequantize::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const int* intptr = bottom_top_blob.channel(q);
-                float* ptr = bottom_top_blob.channel(q);
+                const int* intptr = bottom_blob.channel(q);
+                float* ptr = top_blob.channel(q);
 
                 for (int i = 0; i < size; i++)
                 {
