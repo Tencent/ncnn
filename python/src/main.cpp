@@ -884,7 +884,7 @@ PYBIND11_MODULE(ncnn, m)
 #endif // NCNN_STDIO
 
     .def("clear", &Net::clear)
-    .def("create_extractor", &Net::create_extractor)
+    .def("create_extractor", &Net::create_extractor, py::keep_alive<0, 1>()) //net should be kept alive until retuned ex is freed by gc
     .def("blobs", &Net::blobs, py::return_value_policy::reference_internal)
     .def("layers", &Net::layers, py::return_value_policy::reference_internal);
 
@@ -1113,8 +1113,8 @@ PYBIND11_MODULE(ncnn, m)
     m.def("destroy_gpu_instance", &destroy_gpu_instance);
     m.def("get_gpu_count", &get_gpu_count);
     m.def("get_default_gpu_index", &get_default_gpu_index);
-    m.def("get_gpu_info", &get_gpu_info, py::arg("device_index") = 0, py::return_value_policy::reference_internal);
-    m.def("get_gpu_device", &get_gpu_device, py::arg("device_index") = 0, py::return_value_policy::reference_internal);
+    m.def("get_gpu_info", &get_gpu_info, py::arg("device_index") = 0, py::return_value_policy::reference);
+    m.def("get_gpu_device", &get_gpu_device, py::arg("device_index") = 0, py::return_value_policy::reference);
 
     py::class_<VkBufferMemory>(m, "VkBufferMemory")
     .def_readwrite("offset", &VkBufferMemory::offset)
