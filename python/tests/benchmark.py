@@ -56,6 +56,7 @@ def benchmark(comment, _in, opt):
 
     # warm up
     for i in range(g_warmup_loop_count):
+        # test with statement
         with net.create_extractor() as ex:
             ex.input("data", _in)
             ex.extract("output")
@@ -67,9 +68,10 @@ def benchmark(comment, _in, opt):
     for i in range(g_loop_count):
         start = time.time()
 
-        with net.create_extractor() as ex:
-            ex.input("data", _in)
-            ex.extract("output")
+        # test net keep alive until ex freed
+        ex = net.create_extractor()
+        ex.input("data", _in)
+        ex.extract("output")
 
         end = time.time()
 

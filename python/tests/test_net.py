@@ -61,10 +61,6 @@ def test_net_vulkan():
     net.clear()
     assert len(net.blobs()) == 0 and len(net.layers()) == 0
 
-    # ensure ex release before net when use vulkan
-    ex = None
-    net = None
-
 
 def test_custom_layer():
     class CustomLayer(ncnn.Layer):
