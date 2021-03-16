@@ -58,12 +58,10 @@ def test_net_vulkan():
 
     assert ret == 0 and out_mat.dims == 1 and out_mat.w == 1
 
+    ex.clear()
+
     net.clear()
     assert len(net.blobs()) == 0 and len(net.layers()) == 0
-
-    # ensure ex release before net when use vulkan
-    ex = None
-    net = None
 
 
 def test_custom_layer():
