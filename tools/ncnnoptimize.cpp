@@ -253,6 +253,8 @@ public:
     int shape_inference();
     int estimate_memory_footprint();
 
+    int set_cutparam(const char* cutstartname, const char *cutendname);
+
 public:
     int fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp);
     int fprintf_param_float_array(int id, const ncnn::Mat& m, FILE* pp);
@@ -2937,6 +2939,42 @@ int NetOptimize::estimate_memory_footprint()
     return 0;
 }
 
+int NetOptimize::set_cutparam(const char* cutstartname, const char * cutendname)
+{
+    if (cutstartname != nullptr)
+    {
+        int layindex = find_layer_index_by_name(cutstartname);
+        if (layindex >= 0)
+        {
+            cutstart = layindex;
+            fprintf(stderr, "cutstart layer %d:%s\n", layindex, cutstartname);
+        }
+        else
+        {
+            fprintf(stderr, "not find target cutstart layer %s\n", cutstartname);
+            return -1;
+        }
+    }
+    
+    if (cutendname != nullptr)
+    {
+        int layindex = find_layer_index_by_name(cutendname);
+        if (layindex >= 0)
+        {
+            cutend = layindex;
+            fprintf(stderr, "cutend layer %d:%s\n", layindex, cutendname);
+        }
+        else
+        {
+            fprintf(stderr, "not find target cutend layer %s\n", cutendname);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+
 int NetOptimize::fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp)
 {
     const int count = m.w;
@@ -4007,17 +4045,17 @@ int main(int argc, char** argv)
     const char* outparam = argv[3];
     const char* outbin = argv[4];
     int flag = atoi(argv[5]);
-    int cutstart = -1;
-    int cutend = -1;
+    const char* cutstartname = nullptr;
+    const char* cutendname = nullptr;
 
     if (argc > 6)
     {
-        cutstart = atoi(argv[6]);
+        cutstartname = argv[6];
     }
 
     if (argc > 7)
     {
-        cutend = atoi(argv[7]);
+        cutendname = argv[7];
     }
     
     NetOptimize optimizer;
@@ -4030,11 +4068,9 @@ int main(int argc, char** argv)
     {
         optimizer.storage_type = 0;
     }
-
-    optimizer.cutstart = cutstart;
-    optimizer.cutend = cutend;
-
+    
     optimizer.load_param(inparam);
+    
     if (strcmp(inbin, "null") == 0)
     {
         DataReaderFromEmpty dr;
@@ -4042,6 +4078,11 @@ int main(int argc, char** argv)
     }
     else
         optimizer.load_model(inbin);
+
+    if (optimizer.set_cutparam(cutstartname, cutendname) < 0)
+    {
+        return -1;
+    }
 
     optimizer.fuse_batchnorm_scale();
     optimizer.fuse_convolution_batchnorm();
