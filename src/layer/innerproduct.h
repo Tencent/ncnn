@@ -31,6 +31,8 @@ public:
     virtual int create_pipeline(const Option& opt);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
+protected:
     virtual int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:

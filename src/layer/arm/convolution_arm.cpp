@@ -1798,11 +1798,12 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
         conv3x3s1_winograd43_transform_kernel_int8_neon(weight_data, weight_3x3_winograd23_data_int8, num_input, num_output);
     }
 
-    if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+    /*    if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
     {
         conv3x3s2_transform_kernel_int8_neon(weight_data, weight_3x3s2_data_int8, num_input, num_output);
     }
-    else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    else */
+    if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
     {
         //         use_sgemm1x1_int8 = true;
         conv1x1s1_sgemm_transform_kernel_int8_neon(weight_data, weight_1x1s1_sgemm_data_int8, num_input, num_output);
@@ -1830,10 +1831,10 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     Mat bottom_blob_unbordered = bottom_blob;
     if (elembits != 8)
     {
-        Option opt_g = opt;
-        opt_g.blob_allocator = opt.workspace_allocator;
-
-        quantize_to_int8(bottom_blob, bottom_blob_unbordered, bottom_blob_int8_scales, opt_g);
+        Option opt_q = opt;
+        opt_q.blob_allocator = opt.workspace_allocator;
+        opt_q.use_packing_layout = false;
+        quantize_to_int8(bottom_blob, bottom_blob_unbordered, bottom_blob_int8_scales, opt_q);
     }
 
     //     NCNN_LOGE("Convolution_arm input %d x %d  ksize=%d %d  stride=%d %d", w, h, kernel_w, kernel_h, stride_w, stride_h);
@@ -2017,10 +2018,10 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
                 //             conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd23_data_int8, opt);
                 conv3x3s1_winograd43_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd23_data_int8, opt);
             }
-            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-            {
-                conv3x3s2_packed_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3s2_data_int8, opt);
-            }
+            //             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            //             {
+            //                 conv3x3s2_packed_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3s2_data_int8, opt);
+            //             }
             else
             {
                 conv_im2col_sgemm_int8_neon(bottom_blob_bordered, top_blob_int32, weight_sgemm_data_int8, kernel_w, kernel_h, stride_w, stride_h, opt);

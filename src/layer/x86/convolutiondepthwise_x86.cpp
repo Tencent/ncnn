@@ -688,11 +688,13 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
             Option opt_g = opt;
             opt_g.num_threads = 1;
             opt_g.blob_allocator = bottom_blob_unbordered.allocator;
+            opt_g.use_packing_layout = false;
 
             const Mat bottom_blob_g = bottom_blob.channel_range(channels_g * g, channels_g);
             Mat bottom_blob_int8_g = bottom_blob_unbordered.channel_range(channels_g * g, channels_g);
+            const Mat bottom_blob_int8_scales_g = bottom_blob_int8_scales.range(g, 1);
 
-            quantize_float32_to_int8(bottom_blob_g, bottom_blob_int8_g, bottom_blob_int8_scales[g], opt_g);
+            quantize_to_int8(bottom_blob_g, bottom_blob_int8_g, bottom_blob_int8_scales_g, opt_g);
         }
     }
 
@@ -806,6 +808,7 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
 
         Option opt_g = opt;
         opt_g.blob_allocator = top_blob.allocator;
+        opt_g.use_packing_layout = false;
 
         // forward
         op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);

@@ -132,14 +132,17 @@ int InnerProduct_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const 
 
     if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h > 1)
     {
-        return InnerProduct::forward(bottom_blob, top_blob, opt);
+        return InnerProduct::forward_int8(bottom_blob, top_blob, opt);
     }
 
 #if __aarch64__
     Mat bottom_blob_tm = bottom_blob;
     if (bottom_blob.elemsize != 1)
     {
-        quantize_to_int8(bottom_blob, bottom_blob_tm, bottom_blob_int8_scales, opt);
+        Option opt_q = opt;
+        opt_q.blob_allocator = opt.workspace_allocator;
+        opt_q.use_packing_layout = false;
+        quantize_to_int8(bottom_blob, bottom_blob_tm, bottom_blob_int8_scales, opt_q);
     }
 
     Mat bottom_blob_tm_flattened = bottom_blob_tm;
@@ -191,7 +194,7 @@ int InnerProduct_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const 
     }
     return 0;
 #else
-    return InnerProduct::forward(bottom_blob, top_blob, opt);
+    return InnerProduct::forward_int8(bottom_blob, top_blob, opt);
 #endif
 }
 

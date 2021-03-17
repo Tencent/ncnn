@@ -41,7 +41,7 @@ protected:
     int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
     int create_pipeline_int8(const Option& opt);
-    int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    virtual int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     ncnn::Layer* flatten;

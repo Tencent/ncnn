@@ -1127,8 +1127,9 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
     {
         Option opt_g = opt;
         opt_g.blob_allocator = opt.workspace_allocator;
+        opt_g.use_packing_layout = false;
 
-        quantize_float32_to_int8(bottom_blob, bottom_blob_unbordered, bottom_blob_int8_scale, opt_g);
+        quantize_to_int8(bottom_blob, bottom_blob_unbordered, bottom_blob_int8_scales, opt_g);
     }
 
     Mat bottom_blob_bordered;
@@ -1149,18 +1150,18 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
     if (top_blob.empty())
         return -100;
 
+    Mat top_blob_int32;
+    top_blob_int32.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
+    if (top_blob_int32.empty())
+        return -100;
+
     // int8
     if (use_int8_requantize)
     {
-        Mat top_blob_tm;
-        top_blob_tm.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
-        if (top_blob_tm.empty())
-            return -100;
-
         if (use_winograd3x3_int8)
         {
-            conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data_int8, opt);
-            //             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob_tm, weight_3x3_winograd23_data_int8, opt);
+            conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd23_data_int8, opt);
+            //             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd23_data_int8, opt);
 
             // requantize, reverse scale inplace
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -1170,7 +1171,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
                 opt_g.num_threads = 1;
                 opt_g.blob_allocator = top_blob.allocator;
 
-                Mat top_blob_tm_g = top_blob_tm.channel_range(p, 1);
+                Mat top_blob_tm_g = top_blob_int32.channel_range(p, 1);
                 Mat top_blob_g = top_blob.channel_range(p, 1);
 
                 // requantize and relu
@@ -1178,7 +1179,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
                 if (weight_data_int8_scales[p] == 0)
                     scale_in = 0;
                 else
-                    scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
+                    scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
 
                 float scale_out = top_blob_int8_scale; //FIXME load param
 
@@ -1194,7 +1195,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
                 if (weight_data_int8_scales[p] == 0)
                     scale_in = 0;
                 else
-                    scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
+                    scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
 
                 float scale_out = top_blob_int8_scale;
 
@@ -1209,28 +1210,23 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
     {
         if (use_winograd3x3_int8)
         {
-            conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data_int8, opt);
-            //             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd23_data_int8, opt);
+            conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd23_data_int8, opt);
+            //             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd23_data_int8, opt);
 
-            // dequantize, reverse scale inplace
-            #pragma omp parallel for num_threads(opt.num_threads)
+            Mat scale_data(num_output);
             for (int p = 0; p < num_output; p++)
             {
-                Option opt_g = opt;
-                opt_g.num_threads = 1;
-                opt_g.blob_allocator = top_blob.allocator;
-
-                Mat top_blob_g = top_blob.channel_range(p, 1);
-
                 // dequantize
                 float scale_in;
                 if (weight_data_int8_scales[p] == 0)
                     scale_in = 0;
                 else
-                    scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
+                    scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
 
-                dequantize_int32_to_float32(top_blob_g, scale_in, bias_term ? (const float*)bias_data + p : 0, bias_term ? 1 : 0, opt_g);
+                scale_data[p] = scale_in;
             }
+
+            dequantize_from_int32(top_blob_int32, top_blob, scale_data, bias_data, opt);
         }
         else
         {
@@ -1241,7 +1237,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
                 if (weight_data_int8_scales[p] == 0)
                     scale_in = 0;
                 else
-                    scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
+                    scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
 
                 dequantize_scales.push_back(scale_in);
             }

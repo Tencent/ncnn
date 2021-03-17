@@ -1512,10 +1512,27 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
     Mat bottom_blob_unbordered = bottom_blob;
     if (elemsize != 1)
     {
-        Option opt_g = opt;
-        opt_g.blob_allocator = opt.workspace_allocator;
+        bottom_blob_unbordered.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
+        if (bottom_blob_unbordered.empty())
+            return -100;
 
-        quantize_to_int8(bottom_blob, bottom_blob_unbordered, bottom_blob_int8_scales, opt_g);
+        const int channels_g = channels / group;
+
+        // quantize, scale and round to nearest
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int g = 0; g < group; g++)
+        {
+            Option opt_g = opt;
+            opt_g.num_threads = 1;
+            opt_g.blob_allocator = bottom_blob_unbordered.allocator;
+            opt_g.use_packing_layout = false;
+
+            const Mat bottom_blob_g = bottom_blob.channel_range(channels_g * g, channels_g);
+            Mat bottom_blob_int8_g = bottom_blob_unbordered.channel_range(channels_g * g, channels_g);
+            const Mat bottom_blob_int8_scales_g = bottom_blob_int8_scales.range(g, 1);
+
+            quantize_to_int8(bottom_blob_g, bottom_blob_int8_g, bottom_blob_int8_scales_g, opt_g);
+        }
     }
 
     Mat bottom_blob_bordered;
@@ -1548,7 +1565,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                 if (weight_data_int8_scales[g] == 0)
                     scale_in = 0;
                 else
-                    scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[g]);
+                    scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
 
                 float scale_out = top_blob_int8_scale;
 
@@ -1584,7 +1601,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
             //             std::vector<float> dequantize_scales;
             //             for (int g=0; g<group; g++)
             //             {
-            //                 float top_rescale = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[g]);
+            //                 float top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
             //
             //                 dequantize_scales.push_back(top_rescale);
             //             }
@@ -1607,7 +1624,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                     if (weight_data_int8_scales[g] == 0)
                         scale_in = 0;
                     else
-                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[g]);
+                        scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
 
                     scale_data[g] = scale_in;
                 }
@@ -1639,7 +1656,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                     if (weight_data_int8_scales[g] == 0)
                         scale_in = 0;
                     else
-                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[g]);
+                        scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
 
                     scale_data[g] = scale_in;
                 }
@@ -1670,6 +1687,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
 
         Option opt_g = opt;
         opt_g.blob_allocator = top_blob.allocator;
+        opt_g.use_packing_layout = false;
 
         // forward
         op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);

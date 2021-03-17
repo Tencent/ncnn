@@ -91,9 +91,8 @@ int InnerProduct::create_pipeline(const Option& opt)
         Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
         Mat weight_data_int8;
-
         Option opt_q = opt;
-        opt_q.blob_allocator = weight_data.allocator;
+        opt_q.use_packing_layout = false;
         quantize_to_int8(weight_data_r2, weight_data_int8, weight_data_int8_scales, opt_q);
         if (weight_data_int8.empty())
             return -100;
@@ -108,7 +107,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 {
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
-        return InnerProduct::forward_int8(bottom_blob, top_blob, opt);
+        return forward_int8(bottom_blob, top_blob, opt);
     }
 
     const int num_input = weight_data_size / num_output;
@@ -247,13 +246,14 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
     size_t elemsize = bottom_blob.elemsize;
     int size = w * h;
 
-    Mat bottom_blob_tm = bottom_blob;
+    Mat bottom_blob_int8 = bottom_blob;
     if (elemsize != 1)
     {
         Option opt_g = opt;
         opt_g.blob_allocator = opt.workspace_allocator;
+        opt_g.use_packing_layout = false;
 
-        quantize_to_int8(bottom_blob, bottom_blob_tm, bottom_blob_int8_scales, opt_g);
+        quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_g);
     }
 
     if (bottom_blob.dims == 2 && w == num_input && h > 1)
@@ -266,7 +266,7 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int j = 0; j < h; j++)
         {
-            const signed char* m = bottom_blob_tm.row<signed char>(j);
+            const signed char* m = bottom_blob_int8.row<signed char>(j);
             const signed char* kptr = weight_data;
             float* outptr = top_blob.row(j);
 
@@ -320,7 +320,7 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         for (int q = 0; q < channels; q++)
         {
             const signed char* w = (const signed char*)weight_data + offset + size * q;
-            const signed char* m = bottom_blob_tm.channel(q);
+            const signed char* m = bottom_blob_int8.channel(q);
 
             for (int i = 0; i < size; i++)
             {

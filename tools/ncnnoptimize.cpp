@@ -2652,7 +2652,7 @@ int NetOptimize::replace_convolution_with_innerproduct_after_global_pooling()
         innerproduct->weight_data = convolution->weight_data;
         innerproduct->bias_data = convolution->bias_data;
         innerproduct->weight_data_int8_scales = convolution->weight_data_int8_scales;
-        innerproduct->bottom_blob_int8_scale = convolution->bottom_blob_int8_scale;
+        innerproduct->bottom_blob_int8_scales = convolution->bottom_blob_int8_scales;
 
         innerproduct->activation_type = convolution->activation_type;
         innerproduct->activation_params = convolution->activation_params;
@@ -2718,7 +2718,7 @@ int NetOptimize::replace_convolution_with_innerproduct_after_innerproduct()
             innerproduct2->weight_data = convolution->weight_data;
             innerproduct2->bias_data = convolution->bias_data;
             innerproduct->weight_data_int8_scales = convolution->weight_data_int8_scales;
-            innerproduct->bottom_blob_int8_scale = convolution->bottom_blob_int8_scale;
+            innerproduct->bottom_blob_int8_scales = convolution->bottom_blob_int8_scales;
 
             innerproduct2->activation_type = convolution->activation_type;
             innerproduct2->activation_params = convolution->activation_params;
@@ -3779,7 +3779,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Quantize* op = (ncnn::Quantize*)layer;
             ncnn::Quantize* op_default = (ncnn::Quantize*)layer_default;
 
-            fprintf_param_value(" 0=%e", scale)
+            fprintf_param_value(" 0=%d", scale_data_size)
+
+            fwrite_weight_data(op->scale_data, bp);
         }
         else if (layer->type == "Reduction")
         {

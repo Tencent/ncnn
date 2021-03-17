@@ -1107,7 +1107,9 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             ncnn::Quantize* op = (ncnn::Quantize*)layer;
             ncnn::Quantize* op_default = (ncnn::Quantize*)layer_default;
 
-            fprintf_param_value(" 0=%f", scale)
+            fprintf_param_value(" 0=%d", scale_data_size)
+
+            fwrite_weight_data(op->scale_data, bp);
         }
         else if (layer->type == "Reduction")
         {
