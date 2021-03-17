@@ -119,7 +119,7 @@ int InnerProduct_arm::create_pipeline_int8(const Option& opt)
         }
         else
         {
-            scales_in[i] = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[i]);
+            scales_in[i] = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[i]);
         }
     }
 #endif
@@ -139,7 +139,7 @@ int InnerProduct_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const 
     Mat bottom_blob_tm = bottom_blob;
     if (bottom_blob.elemsize != 1)
     {
-        quantize_float32_to_int8(bottom_blob, bottom_blob_tm, bottom_blob_int8_scale, opt);
+        quantize_to_int8(bottom_blob, bottom_blob_tm, bottom_blob_int8_scales, opt);
     }
 
     Mat bottom_blob_tm_flattened = bottom_blob_tm;

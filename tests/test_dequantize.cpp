@@ -15,26 +15,21 @@
 #include "layer/dequantize.h"
 #include "testutil.h"
 
-static int test_dequantize(const ncnn::Mat& a, float scale, int bias)
+static int test_dequantize(const ncnn::Mat& a, int scale_data_size, int bias_data_size)
 {
-    int bias_data_size;
-    if (a.dims == 1) bias_data_size = a.w;
-    if (a.dims == 2) bias_data_size = a.h;
-    if (a.dims == 3) bias_data_size = a.c;
-
     ncnn::ParamDict pd;
-    pd.set(0, scale);
-    pd.set(1, bias);
-    pd.set(2, bias_data_size);
+    pd.set(0, scale_data_size);
+    pd.set(1, bias_data_size);
 
-    std::vector<ncnn::Mat> weights(bias ? 1 : 0);
-    if (bias)
-        weights[0] = RandomMat(bias_data_size);
+    std::vector<ncnn::Mat> weights(bias_data_size ? 2 : 1);
+    weights[0] = RandomMat(scale_data_size);
+    if (bias_data_size)
+        weights[1] = RandomMat(bias_data_size);
 
     int ret = test_layer<ncnn::Dequantize>("Dequantize", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_dequantize failed a.dims=%d a=(%d %d %d) scale=%f bias=%d\n", a.dims, a.w, a.h, a.c, scale, bias);
+        fprintf(stderr, "test_dequantize failed a.dims=%d a=(%d %d %d) scale_data_size=%d bias_data_size=%d\n", a.dims, a.w, a.h, a.c, scale_data_size, bias_data_size);
     }
 
     return ret;
@@ -43,34 +38,70 @@ static int test_dequantize(const ncnn::Mat& a, float scale, int bias)
 static int test_dequantize_0()
 {
     return 0
-           || test_dequantize(RandomMat(5, 7, 24), 1.0f, 1)
-           || test_dequantize(RandomMat(5, 7, 24), 2.4f, 0)
-           || test_dequantize(RandomMat(7, 9, 12), 1.0f, 1)
-           || test_dequantize(RandomMat(7, 9, 12), 2.4f, 0)
-           || test_dequantize(RandomMat(3, 5, 13), 1.0f, 1)
-           || test_dequantize(RandomMat(3, 5, 13), 2.4f, 0);
+           || test_dequantize(RandomMat(5, 7, 24), 1, 24)
+           || test_dequantize(RandomMat(5, 7, 24), 1, 1)
+           || test_dequantize(RandomMat(5, 7, 24), 1, 0)
+           || test_dequantize(RandomMat(5, 7, 24), 24, 24)
+           || test_dequantize(RandomMat(5, 7, 24), 24, 1)
+           || test_dequantize(RandomMat(5, 7, 24), 24, 0)
+           || test_dequantize(RandomMat(7, 9, 12), 1, 12)
+           || test_dequantize(RandomMat(7, 9, 12), 1, 1)
+           || test_dequantize(RandomMat(7, 9, 12), 1, 0)
+           || test_dequantize(RandomMat(7, 9, 12), 12, 12)
+           || test_dequantize(RandomMat(7, 9, 12), 12, 1)
+           || test_dequantize(RandomMat(7, 9, 12), 12, 0)
+           || test_dequantize(RandomMat(3, 5, 13), 1, 13)
+           || test_dequantize(RandomMat(3, 5, 13), 1, 1)
+           || test_dequantize(RandomMat(3, 5, 13), 1, 0)
+           || test_dequantize(RandomMat(3, 5, 13), 13, 13)
+           || test_dequantize(RandomMat(3, 5, 13), 13, 1)
+           || test_dequantize(RandomMat(3, 5, 13), 13, 0);
 }
 
 static int test_dequantize_1()
 {
     return 0
-           || test_dequantize(RandomMat(15, 24), 1.0f, 1)
-           || test_dequantize(RandomMat(15, 24), 2.4f, 0)
-           || test_dequantize(RandomMat(17, 12), 1.0f, 1)
-           || test_dequantize(RandomMat(17, 12), 2.4f, 0)
-           || test_dequantize(RandomMat(19, 15), 1.0f, 1)
-           || test_dequantize(RandomMat(19, 15), 2.4f, 0);
+           || test_dequantize(RandomMat(15, 24), 1, 24)
+           || test_dequantize(RandomMat(15, 24), 1, 1)
+           || test_dequantize(RandomMat(15, 24), 1, 0)
+           || test_dequantize(RandomMat(15, 24), 24, 24)
+           || test_dequantize(RandomMat(15, 24), 24, 1)
+           || test_dequantize(RandomMat(15, 24), 24, 0)
+           || test_dequantize(RandomMat(17, 12), 1, 12)
+           || test_dequantize(RandomMat(17, 12), 1, 1)
+           || test_dequantize(RandomMat(17, 12), 1, 0)
+           || test_dequantize(RandomMat(17, 12), 12, 12)
+           || test_dequantize(RandomMat(17, 12), 12, 1)
+           || test_dequantize(RandomMat(17, 12), 12, 0)
+           || test_dequantize(RandomMat(19, 15), 1, 15)
+           || test_dequantize(RandomMat(19, 15), 1, 1)
+           || test_dequantize(RandomMat(19, 15), 1, 0)
+           || test_dequantize(RandomMat(19, 15), 15, 15)
+           || test_dequantize(RandomMat(19, 15), 15, 1)
+           || test_dequantize(RandomMat(19, 15), 15, 0);
 }
 
 static int test_dequantize_2()
 {
     return 0
-           || test_dequantize(RandomMat(128), 1.0f, 1)
-           || test_dequantize(RandomMat(128), 2.4f, 0)
-           || test_dequantize(RandomMat(124), 1.0f, 1)
-           || test_dequantize(RandomMat(124), 2.4f, 0)
-           || test_dequantize(RandomMat(127), 1.0f, 1)
-           || test_dequantize(RandomMat(127), 2.4f, 0);
+           || test_dequantize(RandomMat(128), 1, 128)
+           || test_dequantize(RandomMat(128), 1, 1)
+           || test_dequantize(RandomMat(128), 1, 0)
+           || test_dequantize(RandomMat(128), 128, 128)
+           || test_dequantize(RandomMat(128), 128, 1)
+           || test_dequantize(RandomMat(128), 128, 0)
+           || test_dequantize(RandomMat(124), 1, 124)
+           || test_dequantize(RandomMat(124), 1, 1)
+           || test_dequantize(RandomMat(124), 1, 0)
+           || test_dequantize(RandomMat(124), 124, 124)
+           || test_dequantize(RandomMat(124), 124, 1)
+           || test_dequantize(RandomMat(124), 124, 0)
+           || test_dequantize(RandomMat(127), 1, 127)
+           || test_dequantize(RandomMat(127), 1, 1)
+           || test_dequantize(RandomMat(127), 1, 0)
+           || test_dequantize(RandomMat(127), 127, 127)
+           || test_dequantize(RandomMat(127), 127, 1)
+           || test_dequantize(RandomMat(127), 127, 0);
 }
 
 int main()

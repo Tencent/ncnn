@@ -66,7 +66,7 @@ public:
     Mat bias_data;
 
     Mat weight_data_int8_scales;
-    float bottom_blob_int8_scale;
+    Mat bottom_blob_int8_scales;
     float top_blob_int8_scale; // TODO load param
 
     bool use_int8_requantize;

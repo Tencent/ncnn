@@ -71,7 +71,7 @@ int Convolution::load_model(const ModelBin& mb)
     if (int8_scale_term)
     {
         weight_data_int8_scales = mb.load(num_output, 1);
-        bottom_blob_int8_scale = mb.load(1, 1)[0];
+        bottom_blob_int8_scales = mb.load(1, 1);
     }
 
     return 0;
@@ -82,23 +82,36 @@ int Convolution::create_pipeline(const Option& opt)
     // runtime quantize the weight data
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)4u && int8_scale_term)
     {
-        Mat int8_weight_data(weight_data_size, (size_t)1u);
-        if (int8_weight_data.empty())
+        //         Mat int8_weight_data(weight_data_size, (size_t)1u);
+        //         if (int8_weight_data.empty())
+        //             return -100;
+
+        //         const int weight_data_size_output = weight_data_size / num_output;
+        //
+        //         for (int p = 0; p < num_output; p++)
+        //         {
+        //             Option opt_q = opt;
+        //             opt_q.blob_allocator = int8_weight_data.allocator;
+        //
+        //             const Mat weight_data_n = weight_data.range(weight_data_size_output * p, weight_data_size_output);
+        //             Mat int8_weight_data_n = int8_weight_data.range(weight_data_size_output * p, weight_data_size_output);
+        //             quantize_float32_to_int8(weight_data_n, int8_weight_data_n, weight_data_int8_scales[p], opt_q);
+        //         }
+
+        const int maxk = kernel_w * kernel_h;
+        const int num_input = weight_data_size / num_output / maxk;
+
+        Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+
+        Mat weight_data_int8;
+
+        Option opt_q = opt;
+        opt_q.blob_allocator = weight_data.allocator;
+        quantize_to_int8(weight_data_r2, weight_data_int8, weight_data_int8_scales, opt_q);
+        if (weight_data_int8.empty())
             return -100;
 
-        const int weight_data_size_output = weight_data_size / num_output;
-
-        for (int p = 0; p < num_output; p++)
-        {
-            Option opt_q = opt;
-            opt_q.blob_allocator = int8_weight_data.allocator;
-
-            const Mat weight_data_n = weight_data.range(weight_data_size_output * p, weight_data_size_output);
-            Mat int8_weight_data_n = int8_weight_data.range(weight_data_size_output * p, weight_data_size_output);
-            quantize_float32_to_int8(weight_data_n, int8_weight_data_n, weight_data_int8_scales[p], opt_q);
-        }
-
-        weight_data = int8_weight_data;
+        weight_data = weight_data_int8.reshape(weight_data_size);
     }
 
     return 0;
@@ -142,7 +155,7 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (int8_scale_term)
             {
                 weights[2] = weight_data_int8_scales;
-                weights[3] = Mat(1, (size_t)4u, (void*)&bottom_blob_int8_scale);
+                weights[3] = bottom_blob_int8_scales;
             }
 
             op->load_model(ModelBinFromMatArray(weights));
@@ -352,7 +365,7 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         Option opt_g = opt;
         opt_g.blob_allocator = opt.workspace_allocator;
 
-        quantize_float32_to_int8(bottom_blob, bottom_blob_unbordered, bottom_blob_int8_scale, opt_g);
+        quantize_to_int8(bottom_blob, bottom_blob_unbordered, bottom_blob_int8_scales, opt_g);
     }
 
     Mat bottom_blob_bordered;
@@ -431,7 +444,7 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                     if (weight_data_int8_scales[p] == 0)
                         scale_in = 0;
                     else
-                        scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
+                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
 
                     float sumfp32 = sum * scale_in;
 
@@ -457,7 +470,7 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                     if (weight_data_int8_scales[p] == 0)
                         scale_in = 0;
                     else
-                        scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
+                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
 
                     float sumfp32 = sum * scale_in;
                     if (bias_term)

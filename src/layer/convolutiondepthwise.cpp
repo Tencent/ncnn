@@ -78,10 +78,6 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
     {
         weight_data_int8_scales = mb.load(group, 1);
         bottom_blob_int8_scales = mb.load(1, 1);
-
-        float bottom_blob_int8_scale = bottom_blob_int8_scales[0];
-        bottom_blob_int8_scales = Mat(group);
-        bottom_blob_int8_scales.fill(bottom_blob_int8_scale);
     }
     else if (int8_scale_term == 2)
     {
@@ -92,10 +88,6 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
         float weight_data_int8_scale = weight_data_int8_scales[0];
         weight_data_int8_scales = Mat(group);
         weight_data_int8_scales.fill(weight_data_int8_scale);
-
-        float bottom_blob_int8_scale = bottom_blob_int8_scales[0];
-        bottom_blob_int8_scales = Mat(group);
-        bottom_blob_int8_scales.fill(bottom_blob_int8_scale);
     }
 
     return 0;
@@ -119,7 +111,8 @@ int ConvolutionDepthWise::create_pipeline(const Option& opt)
 
             const Mat weight_data_g = weight_data.range(weight_data_size_g * g, weight_data_size_g);
             Mat int8_weight_data_g = int8_weight_data.range(weight_data_size_g * g, weight_data_size_g);
-            quantize_float32_to_int8(weight_data_g, int8_weight_data_g, weight_data_int8_scales[g], opt_q);
+            const Mat weight_data_int8_scales_g = weight_data_int8_scales.range(g, 1);
+            quantize_to_int8(weight_data_g, int8_weight_data_g, weight_data_int8_scales_g, opt_q);
         }
 
         weight_data = int8_weight_data;
@@ -426,25 +419,10 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
     Mat bottom_blob_unbordered = bottom_blob;
     if (elemsize != 1)
     {
-        bottom_blob_unbordered.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
-        if (bottom_blob_unbordered.empty())
-            return -100;
+        Option opt_g = opt;
+        opt_g.blob_allocator = opt.workspace_allocator;
 
-        const int channels_g = channels / group;
-
-        // quantize, scale and round to nearest
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int g = 0; g < group; g++)
-        {
-            Option opt_g = opt;
-            opt_g.num_threads = 1;
-            opt_g.blob_allocator = bottom_blob_unbordered.allocator;
-
-            const Mat bottom_blob_g = bottom_blob.channel_range(channels_g * g, channels_g);
-            Mat bottom_blob_int8_g = bottom_blob_unbordered.channel_range(channels_g * g, channels_g);
-
-            quantize_float32_to_int8(bottom_blob_g, bottom_blob_int8_g, bottom_blob_int8_scales[g], opt_g);
-        }
+        quantize_to_int8(bottom_blob, bottom_blob_unbordered, bottom_blob_int8_scales, opt_g);
     }
 
     Mat bottom_blob_bordered;
@@ -518,7 +496,7 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
                         if (weight_data_int8_scales[g] == 0)
                             scale_in = 0;
                         else
-                            scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+                            scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[g]);
 
                         float sumfp32 = sum * scale_in;
 
@@ -544,7 +522,7 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
                         if (weight_data_int8_scales[g] == 0)
                             scale_in = 0;
                         else
-                            scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+                            scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[g]);
 
                         float sumfp32 = sum * scale_in;
 
@@ -612,7 +590,7 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
                             if (weight_data_int8_scales[g] == 0)
                                 scale_in = 0;
                             else
-                                scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+                                scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[g]);
 
                             float sumfp32 = sum * scale_in;
 
@@ -638,7 +616,7 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
                             if (weight_data_int8_scales[g] == 0)
                                 scale_in = 0;
                             else
-                                scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+                                scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[g]);
 
                             float sumfp32 = sum * scale_in;
 

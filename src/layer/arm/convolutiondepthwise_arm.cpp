@@ -1512,24 +1512,10 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
     Mat bottom_blob_unbordered = bottom_blob;
     if (elemsize != 1)
     {
-        bottom_blob_unbordered.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
-        if (bottom_blob_unbordered.empty())
-            return -100;
+        Option opt_g = opt;
+        opt_g.blob_allocator = opt.workspace_allocator;
 
-        const int channels_g = channels / group;
-
-        // quantize, scale and round to nearest
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int g = 0; g < group; g++)
-        {
-            Option opt_g = opt;
-            opt_g.num_threads = 1;
-            opt_g.blob_allocator = bottom_blob_unbordered.allocator;
-
-            const Mat bottom_blob_g = bottom_blob.channel_range(channels_g * g, channels_g);
-            Mat bottom_blob_int8_g = bottom_blob_unbordered.channel_range(channels_g * g, channels_g);
-            quantize_float32_to_int8(bottom_blob_g, bottom_blob_int8_g, bottom_blob_int8_scales[g], opt_g);
-        }
+        quantize_to_int8(bottom_blob, bottom_blob_unbordered, bottom_blob_int8_scales, opt_g);
     }
 
     Mat bottom_blob_bordered;
@@ -1562,7 +1548,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                 if (weight_data_int8_scales[g] == 0)
                     scale_in = 0;
                 else
-                    scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+                    scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[g]);
 
                 float scale_out = top_blob_int8_scale;
 
@@ -1598,34 +1584,35 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
             //             std::vector<float> dequantize_scales;
             //             for (int g=0; g<group; g++)
             //             {
-            //                 float top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+            //                 float top_rescale = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[g]);
             //
             //                 dequantize_scales.push_back(top_rescale);
             //             }
 
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
-                convdw3x3s1_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
-                //                 convdw3x3s1_int8_dequant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);
+                Mat top_blob_int32;
+                top_blob_int32.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
+                if (top_blob_int32.empty())
+                    return -100;
 
-                // dequantize, reverse scale inplace
-                #pragma omp parallel for num_threads(opt.num_threads)
+                convdw3x3s1_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data, opt);
+                //                 convdw3x3s1_int8_dequant_neon(bottom_blob_bordered, top_blob_int32, weight_data, bias_data, dequantize_scales, opt);
+
+                Mat scale_data(group);
                 for (int g = 0; g < group; g++)
                 {
-                    // dequantize and relu
+                    // dequantize
                     float scale_in;
                     if (weight_data_int8_scales[g] == 0)
                         scale_in = 0;
                     else
-                        scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[g]);
 
-                    Option opt_g = opt;
-                    opt_g.num_threads = 1;
-                    opt_g.blob_allocator = top_blob.allocator;
-
-                    Mat top_blob_g = top_blob.channel(g);
-                    dequantize_int32_to_float32(top_blob_g, scale_in, bias_term ? (const float*)bias_data + g : 0, bias_term ? 0 : 1, opt_g);
+                    scale_data[g] = scale_in;
                 }
+
+                dequantize_from_int32(top_blob_int32, top_blob, scale_data, bias_data, opt);
 
                 if (activation)
                 {
@@ -1636,27 +1623,28 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
             }
             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
-                convdw3x3s2_int8_neon(bottom_blob_bordered, top_blob, weight_data, opt);
-                //                 convdw3x3s2_int8_dequant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);
+                Mat top_blob_int32;
+                top_blob_int32.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
+                if (top_blob_int32.empty())
+                    return -100;
 
-                // dequantize, reverse scale inplace
-                #pragma omp parallel for num_threads(opt.num_threads)
+                convdw3x3s2_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data, opt);
+                //                 convdw3x3s2_int8_dequant_neon(bottom_blob_bordered, top_blob_int32, weight_data, bias_data, dequantize_scales, opt);
+
+                Mat scale_data(group);
                 for (int g = 0; g < group; g++)
                 {
-                    // dequantize and relu
+                    // dequantize
                     float scale_in;
                     if (weight_data_int8_scales[g] == 0)
                         scale_in = 0;
                     else
-                        scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[g]);
 
-                    Option opt_g = opt;
-                    opt_g.num_threads = 1;
-                    opt_g.blob_allocator = top_blob.allocator;
-
-                    Mat top_blob_g = top_blob.channel(g);
-                    dequantize_int32_to_float32(top_blob_g, scale_in, bias_term ? (const float*)bias_data + g : 0, bias_term ? 0 : 1, opt_g);
+                    scale_data[g] = scale_in;
                 }
+
+                dequantize_from_int32(top_blob_int32, top_blob, scale_data, bias_data, opt);
 
                 if (activation)
                 {

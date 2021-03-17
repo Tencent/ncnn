@@ -72,16 +72,35 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             if (top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < w; i++)
+            if (scale_data_size == 1)
             {
-                const float* ptr0 = (const float*)bottom_blob + i * 4;
-                signed char* outptr = (signed char*)top_blob + i * 4;
+                const float scale = scale_data[0];
 
-                outptr[0] = float2int8(ptr0[0] * scale);
-                outptr[1] = float2int8(ptr0[1] * scale);
-                outptr[2] = float2int8(ptr0[2] * scale);
-                outptr[3] = float2int8(ptr0[3] * scale);
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int i = 0; i < w; i++)
+                {
+                    const float* ptr0 = (const float*)bottom_blob + i * 4;
+                    signed char* outptr = (signed char*)top_blob + i * 4;
+
+                    outptr[0] = float2int8(ptr0[0] * scale);
+                    outptr[1] = float2int8(ptr0[1] * scale);
+                    outptr[2] = float2int8(ptr0[2] * scale);
+                    outptr[3] = float2int8(ptr0[3] * scale);
+                }
+            }
+            else
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int i = 0; i < w; i++)
+                {
+                    const float* ptr0 = (const float*)bottom_blob + i * 4;
+                    signed char* outptr = (signed char*)top_blob + i * 4;
+
+                    outptr[0] = float2int8(ptr0[0] * scale_data[i * 4]);
+                    outptr[1] = float2int8(ptr0[1] * scale_data[i * 4 + 1]);
+                    outptr[2] = float2int8(ptr0[2] * scale_data[i * 4 + 2]);
+                    outptr[3] = float2int8(ptr0[3] * scale_data[i * 4 + 3]);
+                }
             }
         }
 
@@ -98,53 +117,129 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
             if (out_elempack == 8)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < outh; i++)
+                if (scale_data_size == 1)
                 {
-                    const float* ptr0 = bottom_blob.row(i * 2);
-                    const float* ptr1 = bottom_blob.row(i * 2 + 1);
-                    signed char* outptr = top_blob.row<signed char>(i);
+                    const float scale = scale_data[0];
 
-                    for (int j = 0; j < w; j++)
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int i = 0; i < outh; i++)
                     {
-                        outptr[0] = float2int8(ptr0[0] * scale);
-                        outptr[1] = float2int8(ptr0[1] * scale);
-                        outptr[2] = float2int8(ptr0[2] * scale);
-                        outptr[3] = float2int8(ptr0[3] * scale);
-                        outptr[4] = float2int8(ptr1[0] * scale);
-                        outptr[5] = float2int8(ptr1[1] * scale);
-                        outptr[6] = float2int8(ptr1[2] * scale);
-                        outptr[7] = float2int8(ptr1[3] * scale);
+                        const float* ptr0 = bottom_blob.row(i * 2);
+                        const float* ptr1 = bottom_blob.row(i * 2 + 1);
+                        signed char* outptr = top_blob.row<signed char>(i);
 
-                        ptr0 += 4;
-                        ptr1 += 4;
-                        outptr += 8;
+                        for (int j = 0; j < w; j++)
+                        {
+                            outptr[0] = float2int8(ptr0[0] * scale);
+                            outptr[1] = float2int8(ptr0[1] * scale);
+                            outptr[2] = float2int8(ptr0[2] * scale);
+                            outptr[3] = float2int8(ptr0[3] * scale);
+                            outptr[4] = float2int8(ptr1[0] * scale);
+                            outptr[5] = float2int8(ptr1[1] * scale);
+                            outptr[6] = float2int8(ptr1[2] * scale);
+                            outptr[7] = float2int8(ptr1[3] * scale);
+
+                            ptr0 += 4;
+                            ptr1 += 4;
+                            outptr += 8;
+                        }
+                    }
+                }
+                else
+                {
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int i = 0; i < outh; i++)
+                    {
+                        const float* ptr0 = bottom_blob.row(i * 2);
+                        const float* ptr1 = bottom_blob.row(i * 2 + 1);
+                        signed char* outptr = top_blob.row<signed char>(i);
+
+                        const float s0 = scale_data[i * 8];
+                        const float s1 = scale_data[i * 8 + 1];
+                        const float s2 = scale_data[i * 8 + 2];
+                        const float s3 = scale_data[i * 8 + 3];
+                        const float s4 = scale_data[i * 8 + 4];
+                        const float s5 = scale_data[i * 8 + 5];
+                        const float s6 = scale_data[i * 8 + 6];
+                        const float s7 = scale_data[i * 8 + 7];
+
+                        for (int j = 0; j < w; j++)
+                        {
+                            outptr[0] = float2int8(ptr0[0] * s0);
+                            outptr[1] = float2int8(ptr0[1] * s1);
+                            outptr[2] = float2int8(ptr0[2] * s2);
+                            outptr[3] = float2int8(ptr0[3] * s3);
+                            outptr[4] = float2int8(ptr1[0] * s4);
+                            outptr[5] = float2int8(ptr1[1] * s5);
+                            outptr[6] = float2int8(ptr1[2] * s6);
+                            outptr[7] = float2int8(ptr1[3] * s7);
+
+                            ptr0 += 4;
+                            ptr1 += 4;
+                            outptr += 8;
+                        }
                     }
                 }
             }
             if (out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < h; i++)
+                if (scale_data_size == 1)
                 {
-                    const float* ptr0 = bottom_blob.row(i);
-                    signed char* outptr0 = top_blob.row<signed char>(i * 4);
-                    signed char* outptr1 = top_blob.row<signed char>(i * 4 + 1);
-                    signed char* outptr2 = top_blob.row<signed char>(i * 4 + 2);
-                    signed char* outptr3 = top_blob.row<signed char>(i * 4 + 3);
+                    const float scale = scale_data[0];
 
-                    for (int j = 0; j < w; j++)
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int i = 0; i < h; i++)
                     {
-                        outptr0[0] = float2int8(ptr0[0] * scale);
-                        outptr1[0] = float2int8(ptr0[1] * scale);
-                        outptr2[0] = float2int8(ptr0[2] * scale);
-                        outptr3[0] = float2int8(ptr0[3] * scale);
+                        const float* ptr0 = bottom_blob.row(i);
+                        signed char* outptr0 = top_blob.row<signed char>(i * 4);
+                        signed char* outptr1 = top_blob.row<signed char>(i * 4 + 1);
+                        signed char* outptr2 = top_blob.row<signed char>(i * 4 + 2);
+                        signed char* outptr3 = top_blob.row<signed char>(i * 4 + 3);
 
-                        ptr0 += 4;
-                        outptr0 += 1;
-                        outptr1 += 1;
-                        outptr2 += 1;
-                        outptr3 += 1;
+                        for (int j = 0; j < w; j++)
+                        {
+                            outptr0[0] = float2int8(ptr0[0] * scale);
+                            outptr1[0] = float2int8(ptr0[1] * scale);
+                            outptr2[0] = float2int8(ptr0[2] * scale);
+                            outptr3[0] = float2int8(ptr0[3] * scale);
+
+                            ptr0 += 4;
+                            outptr0 += 1;
+                            outptr1 += 1;
+                            outptr2 += 1;
+                            outptr3 += 1;
+                        }
+                    }
+                }
+                else
+                {
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int i = 0; i < h; i++)
+                    {
+                        const float* ptr0 = bottom_blob.row(i);
+                        signed char* outptr0 = top_blob.row<signed char>(i * 4);
+                        signed char* outptr1 = top_blob.row<signed char>(i * 4 + 1);
+                        signed char* outptr2 = top_blob.row<signed char>(i * 4 + 2);
+                        signed char* outptr3 = top_blob.row<signed char>(i * 4 + 3);
+
+                        const float s0 = scale_data[i * 4];
+                        const float s1 = scale_data[i * 4 + 1];
+                        const float s2 = scale_data[i * 4 + 2];
+                        const float s3 = scale_data[i * 4 + 3];
+
+                        for (int j = 0; j < w; j++)
+                        {
+                            outptr0[0] = float2int8(ptr0[0] * s0);
+                            outptr1[0] = float2int8(ptr0[1] * s1);
+                            outptr2[0] = float2int8(ptr0[2] * s2);
+                            outptr3[0] = float2int8(ptr0[3] * s3);
+
+                            ptr0 += 4;
+                            outptr0 += 1;
+                            outptr1 += 1;
+                            outptr2 += 1;
+                            outptr3 += 1;
+                        }
                     }
                 }
             }
@@ -165,53 +260,129 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
             if (out_elempack == 8)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < outc; q++)
+                if (scale_data_size == 1)
                 {
-                    const float* ptr0 = bottom_blob.channel(q * 2);
-                    const float* ptr1 = bottom_blob.channel(q * 2 + 1);
-                    signed char* outptr = top_blob.channel(q);
+                    const float scale = scale_data[0];
 
-                    for (int i = 0; i < size; i++)
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q = 0; q < outc; q++)
                     {
-                        outptr[0] = float2int8(ptr0[0] * scale);
-                        outptr[1] = float2int8(ptr0[1] * scale);
-                        outptr[2] = float2int8(ptr0[2] * scale);
-                        outptr[3] = float2int8(ptr0[3] * scale);
-                        outptr[4] = float2int8(ptr1[0] * scale);
-                        outptr[5] = float2int8(ptr1[1] * scale);
-                        outptr[6] = float2int8(ptr1[2] * scale);
-                        outptr[7] = float2int8(ptr1[3] * scale);
+                        const float* ptr0 = bottom_blob.channel(q * 2);
+                        const float* ptr1 = bottom_blob.channel(q * 2 + 1);
+                        signed char* outptr = top_blob.channel(q);
 
-                        ptr0 += 4;
-                        ptr1 += 4;
-                        outptr += 8;
+                        for (int i = 0; i < size; i++)
+                        {
+                            outptr[0] = float2int8(ptr0[0] * scale);
+                            outptr[1] = float2int8(ptr0[1] * scale);
+                            outptr[2] = float2int8(ptr0[2] * scale);
+                            outptr[3] = float2int8(ptr0[3] * scale);
+                            outptr[4] = float2int8(ptr1[0] * scale);
+                            outptr[5] = float2int8(ptr1[1] * scale);
+                            outptr[6] = float2int8(ptr1[2] * scale);
+                            outptr[7] = float2int8(ptr1[3] * scale);
+
+                            ptr0 += 4;
+                            ptr1 += 4;
+                            outptr += 8;
+                        }
+                    }
+                }
+                else
+                {
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q = 0; q < outc; q++)
+                    {
+                        const float* ptr0 = bottom_blob.channel(q * 2);
+                        const float* ptr1 = bottom_blob.channel(q * 2 + 1);
+                        signed char* outptr = top_blob.channel(q);
+
+                        const float s0 = scale_data[q * 8];
+                        const float s1 = scale_data[q * 8 + 1];
+                        const float s2 = scale_data[q * 8 + 2];
+                        const float s3 = scale_data[q * 8 + 3];
+                        const float s4 = scale_data[q * 8 + 4];
+                        const float s5 = scale_data[q * 8 + 5];
+                        const float s6 = scale_data[q * 8 + 6];
+                        const float s7 = scale_data[q * 8 + 7];
+
+                        for (int i = 0; i < size; i++)
+                        {
+                            outptr[0] = float2int8(ptr0[0] * s0);
+                            outptr[1] = float2int8(ptr0[1] * s1);
+                            outptr[2] = float2int8(ptr0[2] * s2);
+                            outptr[3] = float2int8(ptr0[3] * s3);
+                            outptr[4] = float2int8(ptr1[0] * s4);
+                            outptr[5] = float2int8(ptr1[1] * s5);
+                            outptr[6] = float2int8(ptr1[2] * s6);
+                            outptr[7] = float2int8(ptr1[3] * s7);
+
+                            ptr0 += 4;
+                            ptr1 += 4;
+                            outptr += 8;
+                        }
                     }
                 }
             }
             if (out_elempack == 1)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                if (scale_data_size == 1)
                 {
-                    const float* ptr0 = bottom_blob.channel(q);
-                    signed char* outptr0 = top_blob.channel(q * 4);
-                    signed char* outptr1 = top_blob.channel(q * 4 + 1);
-                    signed char* outptr2 = top_blob.channel(q * 4 + 2);
-                    signed char* outptr3 = top_blob.channel(q * 4 + 3);
+                    const float scale = scale_data[0];
 
-                    for (int i = 0; i < size; i++)
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q = 0; q < channels; q++)
                     {
-                        outptr0[0] = float2int8(ptr0[0] * scale);
-                        outptr1[0] = float2int8(ptr0[1] * scale);
-                        outptr2[0] = float2int8(ptr0[2] * scale);
-                        outptr3[0] = float2int8(ptr0[3] * scale);
+                        const float* ptr0 = bottom_blob.channel(q);
+                        signed char* outptr0 = top_blob.channel(q * 4);
+                        signed char* outptr1 = top_blob.channel(q * 4 + 1);
+                        signed char* outptr2 = top_blob.channel(q * 4 + 2);
+                        signed char* outptr3 = top_blob.channel(q * 4 + 3);
 
-                        ptr0 += 4;
-                        outptr0 += 1;
-                        outptr1 += 1;
-                        outptr2 += 1;
-                        outptr3 += 1;
+                        for (int i = 0; i < size; i++)
+                        {
+                            outptr0[0] = float2int8(ptr0[0] * scale);
+                            outptr1[0] = float2int8(ptr0[1] * scale);
+                            outptr2[0] = float2int8(ptr0[2] * scale);
+                            outptr3[0] = float2int8(ptr0[3] * scale);
+
+                            ptr0 += 4;
+                            outptr0 += 1;
+                            outptr1 += 1;
+                            outptr2 += 1;
+                            outptr3 += 1;
+                        }
+                    }
+                }
+                else
+                {
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q = 0; q < channels; q++)
+                    {
+                        const float* ptr0 = bottom_blob.channel(q);
+                        signed char* outptr0 = top_blob.channel(q * 4);
+                        signed char* outptr1 = top_blob.channel(q * 4 + 1);
+                        signed char* outptr2 = top_blob.channel(q * 4 + 2);
+                        signed char* outptr3 = top_blob.channel(q * 4 + 3);
+
+                        const float s0 = scale_data[q * 4];
+                        const float s1 = scale_data[q * 4 + 1];
+                        const float s2 = scale_data[q * 4 + 2];
+                        const float s3 = scale_data[q * 4 + 3];
+
+                        for (int i = 0; i < size; i++)
+                        {
+                            outptr0[0] = float2int8(ptr0[0] * s0);
+                            outptr1[0] = float2int8(ptr0[1] * s1);
+                            outptr2[0] = float2int8(ptr0[2] * s2);
+                            outptr3[0] = float2int8(ptr0[3] * s3);
+
+                            ptr0 += 4;
+                            outptr0 += 1;
+                            outptr1 += 1;
+                            outptr2 += 1;
+                            outptr3 += 1;
+                        }
                     }
                 }
             }
@@ -224,8 +395,8 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     if (dims == 1)
     {
         int w = bottom_blob.w;
-        int out_elempack = opt.use_packing_layout && w * elempack % 8 == 0 ? 8 : 1;
-        int outw = w * elempack / out_elempack;
+        int out_elempack = opt.use_packing_layout && w % 8 == 0 ? 8 : 1;
+        int outw = w / out_elempack;
 
         top_blob.create(outw, (size_t)out_elempack, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
@@ -234,10 +405,23 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         const float* ptr = bottom_blob;
         signed char* outptr = top_blob;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < w; i++)
+        if (scale_data_size == 1)
         {
-            outptr[i] = float2int8(ptr[i] * scale);
+            const float scale = scale_data[0];
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < w; i++)
+            {
+                outptr[i] = float2int8(ptr[i] * scale);
+            }
+        }
+        else
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < w; i++)
+            {
+                outptr[i] = float2int8(ptr[i] * scale_data[i]);
+            }
         }
     }
 
@@ -245,8 +429,8 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
-        int out_elempack = opt.use_packing_layout && h * elempack % 8 == 0 ? 8 : 1;
-        int outh = h * elempack / out_elempack;
+        int out_elempack = opt.use_packing_layout && h % 8 == 0 ? 8 : 1;
+        int outh = h / out_elempack;
 
         top_blob.create(w, outh, (size_t)out_elempack, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
@@ -254,53 +438,108 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
         if (out_elempack == 8)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < outh; i++)
+            if (scale_data_size == 1)
             {
-                const float* ptr0 = bottom_blob.row(i * 8);
-                const float* ptr1 = bottom_blob.row(i * 8 + 1);
-                const float* ptr2 = bottom_blob.row(i * 8 + 2);
-                const float* ptr3 = bottom_blob.row(i * 8 + 3);
-                const float* ptr4 = bottom_blob.row(i * 8 + 4);
-                const float* ptr5 = bottom_blob.row(i * 8 + 5);
-                const float* ptr6 = bottom_blob.row(i * 8 + 6);
-                const float* ptr7 = bottom_blob.row(i * 8 + 7);
-                signed char* outptr = top_blob.row<signed char>(i);
+                const float scale = scale_data[0];
 
-                for (int j = 0; j < w; j++)
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int i = 0; i < outh; i++)
                 {
-                    outptr[0] = float2int8(ptr0[0] * scale);
-                    outptr[1] = float2int8(ptr1[0] * scale);
-                    outptr[2] = float2int8(ptr2[0] * scale);
-                    outptr[3] = float2int8(ptr3[0] * scale);
-                    outptr[4] = float2int8(ptr4[0] * scale);
-                    outptr[5] = float2int8(ptr5[0] * scale);
-                    outptr[6] = float2int8(ptr6[0] * scale);
-                    outptr[7] = float2int8(ptr7[0] * scale);
+                    const float* ptr0 = bottom_blob.row(i * 8);
+                    const float* ptr1 = bottom_blob.row(i * 8 + 1);
+                    const float* ptr2 = bottom_blob.row(i * 8 + 2);
+                    const float* ptr3 = bottom_blob.row(i * 8 + 3);
+                    const float* ptr4 = bottom_blob.row(i * 8 + 4);
+                    const float* ptr5 = bottom_blob.row(i * 8 + 5);
+                    const float* ptr6 = bottom_blob.row(i * 8 + 6);
+                    const float* ptr7 = bottom_blob.row(i * 8 + 7);
+                    signed char* outptr = top_blob.row<signed char>(i);
 
-                    ptr0 += 1;
-                    ptr1 += 1;
-                    ptr2 += 1;
-                    ptr3 += 1;
-                    ptr4 += 1;
-                    ptr5 += 1;
-                    ptr6 += 1;
-                    ptr7 += 1;
-                    outptr += 8;
+                    for (int j = 0; j < w; j++)
+                    {
+                        outptr[0] = float2int8(ptr0[0] * scale);
+                        outptr[1] = float2int8(ptr1[0] * scale);
+                        outptr[2] = float2int8(ptr2[0] * scale);
+                        outptr[3] = float2int8(ptr3[0] * scale);
+                        outptr[4] = float2int8(ptr4[0] * scale);
+                        outptr[5] = float2int8(ptr5[0] * scale);
+                        outptr[6] = float2int8(ptr6[0] * scale);
+                        outptr[7] = float2int8(ptr7[0] * scale);
+
+                        ptr0 += 1;
+                        ptr1 += 1;
+                        ptr2 += 1;
+                        ptr3 += 1;
+                        ptr4 += 1;
+                        ptr5 += 1;
+                        ptr6 += 1;
+                        ptr7 += 1;
+                        outptr += 8;
+                    }
+                }
+            }
+            else
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int i = 0; i < outh; i++)
+                {
+                    const float* ptr0 = bottom_blob.row(i * 8);
+                    const float* ptr1 = bottom_blob.row(i * 8 + 1);
+                    const float* ptr2 = bottom_blob.row(i * 8 + 2);
+                    const float* ptr3 = bottom_blob.row(i * 8 + 3);
+                    const float* ptr4 = bottom_blob.row(i * 8 + 4);
+                    const float* ptr5 = bottom_blob.row(i * 8 + 5);
+                    const float* ptr6 = bottom_blob.row(i * 8 + 6);
+                    const float* ptr7 = bottom_blob.row(i * 8 + 7);
+                    signed char* outptr = top_blob.row<signed char>(i);
+
+                    const float s0 = scale_data[i * 8];
+                    const float s1 = scale_data[i * 8 + 1];
+                    const float s2 = scale_data[i * 8 + 2];
+                    const float s3 = scale_data[i * 8 + 3];
+                    const float s4 = scale_data[i * 8 + 4];
+                    const float s5 = scale_data[i * 8 + 5];
+                    const float s6 = scale_data[i * 8 + 6];
+                    const float s7 = scale_data[i * 8 + 7];
+
+                    for (int j = 0; j < w; j++)
+                    {
+                        outptr[0] = float2int8(ptr0[0] * s0);
+                        outptr[1] = float2int8(ptr1[0] * s1);
+                        outptr[2] = float2int8(ptr2[0] * s2);
+                        outptr[3] = float2int8(ptr3[0] * s3);
+                        outptr[4] = float2int8(ptr4[0] * s4);
+                        outptr[5] = float2int8(ptr5[0] * s5);
+                        outptr[6] = float2int8(ptr6[0] * s6);
+                        outptr[7] = float2int8(ptr7[0] * s7);
+
+                        ptr0 += 1;
+                        ptr1 += 1;
+                        ptr2 += 1;
+                        ptr3 += 1;
+                        ptr4 += 1;
+                        ptr5 += 1;
+                        ptr6 += 1;
+                        ptr7 += 1;
+                        outptr += 8;
+                    }
                 }
             }
         }
         else
         {
-            int size = w * h;
-
-            const float* ptr = bottom_blob;
-            signed char* outptr = top_blob;
-
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < size; i++)
+            for (int i = 0; i < h; i++)
             {
-                outptr[i] = float2int8(ptr[i] * scale);
+                const float* ptr0 = bottom_blob.row(i);
+                signed char* outptr0 = top_blob.row<signed char>(i);
+
+                const float scale = scale_data_size == 1 ? scale_data[0] : scale_data[i];
+
+                for (int j = 0; j < w; j++)
+                {
+                    *outptr0++ = float2int8(*ptr0++ * scale);
+                }
             }
         }
     }
@@ -311,8 +550,8 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         int h = bottom_blob.h;
         int channels = bottom_blob.c;
         int size = w * h;
-        int out_elempack = opt.use_packing_layout && channels * elempack % 8 == 0 ? 8 : 1;
-        int outc = channels * elempack / out_elempack;
+        int out_elempack = opt.use_packing_layout && channels % 8 == 0 ? 8 : 1;
+        int outc = channels / out_elempack;
 
         top_blob.create(w, h, outc, (size_t)out_elempack, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
@@ -320,39 +559,91 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
         if (out_elempack == 8)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < outc; q++)
+            if (scale_data_size == 1)
             {
-                const float* ptr0 = bottom_blob.channel(q * 8);
-                const float* ptr1 = bottom_blob.channel(q * 8 + 1);
-                const float* ptr2 = bottom_blob.channel(q * 8 + 2);
-                const float* ptr3 = bottom_blob.channel(q * 8 + 3);
-                const float* ptr4 = bottom_blob.channel(q * 8 + 4);
-                const float* ptr5 = bottom_blob.channel(q * 8 + 5);
-                const float* ptr6 = bottom_blob.channel(q * 8 + 6);
-                const float* ptr7 = bottom_blob.channel(q * 8 + 7);
-                signed char* outptr = top_blob.channel(q);
+                const float scale = scale_data[0];
 
-                for (int i = 0; i < size; i++)
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < outc; q++)
                 {
-                    outptr[0] = float2int8(ptr0[0] * scale);
-                    outptr[1] = float2int8(ptr1[0] * scale);
-                    outptr[2] = float2int8(ptr2[0] * scale);
-                    outptr[3] = float2int8(ptr3[0] * scale);
-                    outptr[4] = float2int8(ptr4[0] * scale);
-                    outptr[5] = float2int8(ptr5[0] * scale);
-                    outptr[6] = float2int8(ptr6[0] * scale);
-                    outptr[7] = float2int8(ptr7[0] * scale);
+                    const float* ptr0 = bottom_blob.channel(q * 8);
+                    const float* ptr1 = bottom_blob.channel(q * 8 + 1);
+                    const float* ptr2 = bottom_blob.channel(q * 8 + 2);
+                    const float* ptr3 = bottom_blob.channel(q * 8 + 3);
+                    const float* ptr4 = bottom_blob.channel(q * 8 + 4);
+                    const float* ptr5 = bottom_blob.channel(q * 8 + 5);
+                    const float* ptr6 = bottom_blob.channel(q * 8 + 6);
+                    const float* ptr7 = bottom_blob.channel(q * 8 + 7);
+                    signed char* outptr = top_blob.channel(q);
 
-                    ptr0 += 1;
-                    ptr1 += 1;
-                    ptr2 += 1;
-                    ptr3 += 1;
-                    ptr4 += 1;
-                    ptr5 += 1;
-                    ptr6 += 1;
-                    ptr7 += 1;
-                    outptr += 8;
+                    for (int i = 0; i < size; i++)
+                    {
+                        outptr[0] = float2int8(ptr0[0] * scale);
+                        outptr[1] = float2int8(ptr1[0] * scale);
+                        outptr[2] = float2int8(ptr2[0] * scale);
+                        outptr[3] = float2int8(ptr3[0] * scale);
+                        outptr[4] = float2int8(ptr4[0] * scale);
+                        outptr[5] = float2int8(ptr5[0] * scale);
+                        outptr[6] = float2int8(ptr6[0] * scale);
+                        outptr[7] = float2int8(ptr7[0] * scale);
+
+                        ptr0 += 1;
+                        ptr1 += 1;
+                        ptr2 += 1;
+                        ptr3 += 1;
+                        ptr4 += 1;
+                        ptr5 += 1;
+                        ptr6 += 1;
+                        ptr7 += 1;
+                        outptr += 8;
+                    }
+                }
+            }
+            else
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < outc; q++)
+                {
+                    const float* ptr0 = bottom_blob.channel(q * 8);
+                    const float* ptr1 = bottom_blob.channel(q * 8 + 1);
+                    const float* ptr2 = bottom_blob.channel(q * 8 + 2);
+                    const float* ptr3 = bottom_blob.channel(q * 8 + 3);
+                    const float* ptr4 = bottom_blob.channel(q * 8 + 4);
+                    const float* ptr5 = bottom_blob.channel(q * 8 + 5);
+                    const float* ptr6 = bottom_blob.channel(q * 8 + 6);
+                    const float* ptr7 = bottom_blob.channel(q * 8 + 7);
+                    signed char* outptr = top_blob.channel(q);
+
+                    const float s0 = scale_data[q * 8];
+                    const float s1 = scale_data[q * 8 + 1];
+                    const float s2 = scale_data[q * 8 + 2];
+                    const float s3 = scale_data[q * 8 + 3];
+                    const float s4 = scale_data[q * 8 + 4];
+                    const float s5 = scale_data[q * 8 + 5];
+                    const float s6 = scale_data[q * 8 + 6];
+                    const float s7 = scale_data[q * 8 + 7];
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        outptr[0] = float2int8(ptr0[0] * s0);
+                        outptr[1] = float2int8(ptr1[0] * s1);
+                        outptr[2] = float2int8(ptr2[0] * s2);
+                        outptr[3] = float2int8(ptr3[0] * s3);
+                        outptr[4] = float2int8(ptr4[0] * s4);
+                        outptr[5] = float2int8(ptr5[0] * s5);
+                        outptr[6] = float2int8(ptr6[0] * s6);
+                        outptr[7] = float2int8(ptr7[0] * s7);
+
+                        ptr0 += 1;
+                        ptr1 += 1;
+                        ptr2 += 1;
+                        ptr3 += 1;
+                        ptr4 += 1;
+                        ptr5 += 1;
+                        ptr6 += 1;
+                        ptr7 += 1;
+                        outptr += 8;
+                    }
                 }
             }
         }
@@ -364,13 +655,13 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 const float* ptr = bottom_blob.channel(q);
                 signed char* outptr = top_blob.channel(q);
 
+                const float scale = scale_data_size == 1 ? scale_data[0] : scale_data[q];
+
                 for (int i = 0; i < size; i++)
                 {
-                    *outptr = float2int8(*ptr * scale);
-
-                    ptr++;
-                    outptr++;
+                    *outptr++ = float2int8(*ptr++ * scale);
                 }
+
                 // #if __ARM_NEON
                 //                 int nn = size >> 3;
                 //                 int remain = size & 7;

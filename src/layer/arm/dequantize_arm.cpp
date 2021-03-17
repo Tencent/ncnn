@@ -15,6 +15,10 @@
 
 #include "dequantize_arm.h"
 
+#if __ARM_NEON
+#include <arm_neon.h>
+#endif // __ARM_NEON
+
 namespace ncnn {
 
 Dequantize_arm::Dequantize_arm()
@@ -60,9 +64,11 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             if (top_blob.empty())
                 return -100;
 
-            if (bias_term)
+            if (scale_data_size == 1)
             {
-                if (bias_data_size > 1)
+                float32x4_t _scale = vdupq_n_f32(scale_data[0]);
+
+                if (bias_data_size == 0)
                 {
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -70,41 +76,87 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         float* ptr = (float*)top_blob + i * 4;
 
-                        ptr[0] = intptr[0] * scale + bias_data[0];
-                        ptr[1] = intptr[1] * scale + bias_data[1];
-                        ptr[2] = intptr[2] * scale + bias_data[2];
-                        ptr[3] = intptr[3] * scale + bias_data[3];
+                        float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+                        _v = vmulq_f32(_v, _scale);
+                        vst1q_f32(ptr, _v);
+                    }
+                }
+                else if (bias_data_size == 1)
+                {
+                    float32x4_t _bias = vdupq_n_f32(bias_data[0]);
+
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int i = 0; i < w; i++)
+                    {
+                        const int* intptr = (const int*)bottom_blob + i * 4;
+                        float* ptr = (float*)top_blob + i * 4;
+
+                        float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+                        _v = vmlaq_f32(_bias, _v, _scale);
+                        vst1q_f32(ptr, _v);
                     }
                 }
                 else
                 {
-                    float bias = bias_data[0];
-
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         float* ptr = (float*)top_blob + i * 4;
 
-                        ptr[0] = intptr[0] * scale + bias;
-                        ptr[1] = intptr[1] * scale + bias;
-                        ptr[2] = intptr[2] * scale + bias;
-                        ptr[3] = intptr[3] * scale + bias;
+                        float32x4_t _bias = vld1q_f32((const float*)bias_data + i * 4);
+                        float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+                        _v = vmlaq_f32(_bias, _v, _scale);
+                        vst1q_f32(ptr, _v);
                     }
                 }
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < w; i++)
+                if (bias_data_size == 0)
                 {
-                    const int* intptr = (const int*)bottom_blob + i * 4;
-                    float* ptr = (float*)top_blob + i * 4;
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int i = 0; i < w; i++)
+                    {
+                        const int* intptr = (const int*)bottom_blob + i * 4;
+                        float* ptr = (float*)top_blob + i * 4;
 
-                    ptr[0] = intptr[0] * scale;
-                    ptr[1] = intptr[1] * scale;
-                    ptr[2] = intptr[2] * scale;
-                    ptr[3] = intptr[3] * scale;
+                        float32x4_t _scale = vld1q_f32((const float*)scale_data + i * 4);
+                        float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+                        _v = vmulq_f32(_v, _scale);
+                        vst1q_f32(ptr, _v);
+                    }
+                }
+                else if (bias_data_size == 1)
+                {
+                    float32x4_t _bias = vdupq_n_f32(bias_data[0]);
+
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int i = 0; i < w; i++)
+                    {
+                        const int* intptr = (const int*)bottom_blob + i * 4;
+                        float* ptr = (float*)top_blob + i * 4;
+
+                        float32x4_t _scale = vld1q_f32((const float*)scale_data + i * 4);
+                        float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+                        _v = vmlaq_f32(_bias, _v, _scale);
+                        vst1q_f32(ptr, _v);
+                    }
+                }
+                else
+                {
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int i = 0; i < w; i++)
+                    {
+                        const int* intptr = (const int*)bottom_blob + i * 4;
+                        float* ptr = (float*)top_blob + i * 4;
+
+                        float32x4_t _scale = vld1q_f32((const float*)scale_data + i * 4);
+                        float32x4_t _bias = vld1q_f32((const float*)bias_data + i * 4);
+                        float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+                        _v = vmlaq_f32(_bias, _v, _scale);
+                        vst1q_f32(ptr, _v);
+                    }
                 }
             }
         }
@@ -118,7 +170,7 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             if (top_blob.empty())
                 return -100;
 
-            if (bias_term)
+            if (bias_data_size == 0)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
@@ -126,14 +178,13 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     const int* intptr = bottom_blob.row<const int>(i);
                     float* ptr = top_blob.row(i);
 
-                    float bias = bias_data_size > 1 ? bias_data[i] : bias_data[0];
+                    float32x4_t _scale = scale_data_size == 1 ? vdupq_n_f32(scale_data[0]) : vld1q_f32((const float*)scale_data + i * 4);
 
                     for (int j = 0; j < w; j++)
                     {
-                        ptr[0] = intptr[0] * scale + bias;
-                        ptr[1] = intptr[1] * scale + bias;
-                        ptr[2] = intptr[2] * scale + bias;
-                        ptr[3] = intptr[3] * scale + bias;
+                        float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+                        _v = vmulq_f32(_v, _scale);
+                        vst1q_f32(ptr, _v);
 
                         intptr += 4;
                         ptr += 4;
@@ -148,12 +199,14 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     const int* intptr = bottom_blob.row<const int>(i);
                     float* ptr = top_blob.row(i);
 
+                    float32x4_t _scale = scale_data_size == 1 ? vdupq_n_f32(scale_data[0]) : vld1q_f32((const float*)scale_data + i * 4);
+                    float32x4_t _bias = bias_data_size == 1 ? vdupq_n_f32(bias_data[0]) : vld1q_f32((const float*)bias_data + i * 4);
+
                     for (int j = 0; j < w; j++)
                     {
-                        ptr[0] = intptr[0] * scale;
-                        ptr[1] = intptr[1] * scale;
-                        ptr[2] = intptr[2] * scale;
-                        ptr[3] = intptr[3] * scale;
+                        float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+                        _v = vmlaq_f32(_bias, _v, _scale);
+                        vst1q_f32(ptr, _v);
 
                         intptr += 4;
                         ptr += 4;
@@ -173,7 +226,7 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             if (top_blob.empty())
                 return -100;
 
-            if (bias_term)
+            if (bias_data_size == 0)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
@@ -181,14 +234,13 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     const int* intptr = bottom_blob.channel(q);
                     float* ptr = top_blob.channel(q);
 
-                    float bias = bias_data[q];
+                    float32x4_t _scale = scale_data_size == 1 ? vdupq_n_f32(scale_data[0]) : vld1q_f32((const float*)scale_data + q * 4);
 
                     for (int i = 0; i < size; i++)
                     {
-                        ptr[0] = intptr[0] * scale + bias;
-                        ptr[1] = intptr[1] * scale + bias;
-                        ptr[2] = intptr[2] * scale + bias;
-                        ptr[3] = intptr[3] * scale + bias;
+                        float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+                        _v = vmulq_f32(_v, _scale);
+                        vst1q_f32(ptr, _v);
 
                         intptr += 4;
                         ptr += 4;
@@ -203,12 +255,14 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     const int* intptr = bottom_blob.channel(q);
                     float* ptr = top_blob.channel(q);
 
+                    float32x4_t _scale = scale_data_size == 1 ? vdupq_n_f32(scale_data[0]) : vld1q_f32((const float*)scale_data + q * 4);
+                    float32x4_t _bias = bias_data_size == 1 ? vdupq_n_f32(bias_data[0]) : vld1q_f32((const float*)bias_data + q * 4);
+
                     for (int i = 0; i < size; i++)
                     {
-                        ptr[0] = intptr[0] * scale;
-                        ptr[1] = intptr[1] * scale;
-                        ptr[2] = intptr[2] * scale;
-                        ptr[3] = intptr[3] * scale;
+                        float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+                        _v = vmlaq_f32(_bias, _v, _scale);
+                        vst1q_f32(ptr, _v);
 
                         intptr += 4;
                         ptr += 4;
@@ -232,19 +286,21 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
         const int* intptr = bottom_blob;
         float* ptr = top_blob;
 
-        if (bias_term)
+        if (scale_data_size == 1)
         {
-            if (bias_data_size > 1)
+            const float scale = scale_data[0];
+
+            if (bias_data_size == 0)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
-                    ptr[i] = intptr[i] * scale + bias_data[i];
+                    ptr[i] = intptr[i] * scale;
                 }
             }
-            else
+            else if (bias_data_size == 1)
             {
-                float bias = bias_data[0];
+                const float bias = bias_data[0];
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
@@ -252,13 +308,42 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     ptr[i] = intptr[i] * scale + bias;
                 }
             }
+            else
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int i = 0; i < w; i++)
+                {
+                    ptr[i] = intptr[i] * scale + bias_data[i];
+                }
+            }
         }
         else
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < w; i++)
+            if (bias_data_size == 0)
             {
-                ptr[i] = intptr[i] * scale;
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int i = 0; i < w; i++)
+                {
+                    ptr[i] = intptr[i] * scale_data[i];
+                }
+            }
+            else if (bias_data_size == 1)
+            {
+                const float bias = bias_data[0];
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int i = 0; i < w; i++)
+                {
+                    ptr[i] = intptr[i] * scale_data[i] + bias;
+                }
+            }
+            else
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int i = 0; i < w; i++)
+                {
+                    ptr[i] = intptr[i] * scale_data[i] + bias_data[i];
+                }
             }
         }
     }
@@ -272,7 +357,7 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
         if (top_blob.empty())
             return -100;
 
-        if (bias_term)
+        if (bias_data_size == 0)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
@@ -280,11 +365,24 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 const int* intptr = bottom_blob.row<const int>(i);
                 float* ptr = top_blob.row(i);
 
-                float bias = bias_data_size > 1 ? bias_data[i] : bias_data[0];
+                const float scale = scale_data_size == 1 ? scale_data[0] : scale_data[i];
 
-                for (int j = 0; j < w; j++)
+                int j = 0;
+#if __ARM_NEON
+                float32x4_t _scale = vdupq_n_f32(scale);
+                for (; j + 3 < w; j += 4)
                 {
-                    ptr[j] = intptr[j] * scale + bias;
+                    float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+                    _v = vmulq_f32(_v, _scale);
+                    vst1q_f32(ptr, _v);
+
+                    intptr += 4;
+                    ptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < w; j++)
+                {
+                    *ptr++ = *intptr++ * scale;
                 }
             }
         }
@@ -296,9 +394,26 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 const int* intptr = bottom_blob.row<const int>(i);
                 float* ptr = top_blob.row(i);
 
-                for (int j = 0; j < w; j++)
+                const float scale = scale_data_size == 1 ? scale_data[0] : scale_data[i];
+                const float bias = bias_data_size == 1 ? bias_data[0] : bias_data[i];
+
+                int j = 0;
+#if __ARM_NEON
+                float32x4_t _scale = vdupq_n_f32(scale);
+                float32x4_t _bias = vdupq_n_f32(bias);
+                for (; j + 3 < w; j += 4)
                 {
-                    ptr[j] = intptr[j] * scale;
+                    float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+                    _v = vmlaq_f32(_bias, _v, _scale);
+                    vst1q_f32(ptr, _v);
+
+                    intptr += 4;
+                    ptr += 4;
+                }
+#endif // __ARM_NEON
+                for (; j < w; j++)
+                {
+                    *ptr++ = *intptr++ * scale + bias;
                 }
             }
         }
@@ -315,7 +430,7 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
         if (top_blob.empty())
             return -100;
 
-        if (bias_term)
+        if (bias_data_size == 0)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -323,93 +438,24 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 const int* intptr = bottom_blob.channel(q);
                 float* ptr = top_blob.channel(q);
 
-                float bias = bias_data[q];
+                const float scale = scale_data_size == 1 ? scale_data[0] : scale_data[q];
 
+                int i = 0;
 #if __ARM_NEON
-                int nn = size >> 3;
-                int remain = size & 7;
-#else
-                int remain = size;
-#endif // __ARM_NEON
-
-#if __ARM_NEON
-#if __aarch64__
-                if (nn > 0)
+                float32x4_t _scale = vdupq_n_f32(scale);
+                for (; i + 3 < size; i += 4)
                 {
-                    asm volatile(
-                        "dup    v2.4s, %w6                   \n" // scale
-                        "dup    v3.4s, %w7                   \n" // bias
-                        "0:                                  \n"
-                        "prfm   pldl1keep, [%1, #128]        \n"
-                        "ld1    {v0.4s, v1.4s}, [%1], #32    \n" // data
-                        // top_s32 -> top_f32
-                        "scvtf  v5.4s, v0.4s                 \n"
-                        "scvtf  v6.4s, v1.4s                 \n"
-                        // top_f32 = top_f32 * scale_out
-                        "fmul   v5.4s, v5.4s, v2.4s          \n"
-                        "fmul   v6.4s, v6.4s, v2.4s          \n"
-                        // top_f32 = top_f32 + bias_tm
-                        "fadd   v5.4s, v5.4s, v3.4s          \n"
-                        "fadd   v6.4s, v6.4s, v3.4s          \n"
-                        // save top_f32
-                        "st1    {v5.4s, v6.4s}, [%2], #32    \n"
-                        "subs   %w0, %w0, #1                 \n"
-                        "bne    0b                           \n"
-                        : "=r"(nn),     // %0
-                        "=r"(intptr), // %1
-                        "=r"(ptr)     // %2
-                        : "0"(nn),
-                        "1"(intptr),
-                        "2"(ptr),
-                        "r"(scale), // %6
-                        "r"(bias)   // %7
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6");
+                    float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+                    _v = vmulq_f32(_v, _scale);
+                    vst1q_f32(ptr, _v);
+
+                    intptr += 4;
+                    ptr += 4;
                 }
-#else
-                if (nn > 0)
-                {
-                    asm volatile(
-                        "pld        [%1, #256]          \n"
-                        "vld1.s32   {d0-d3}, [%1]!      \n" //q0-q1 data
-                        "vdup.f32   q10, %6             \n" //q10 scale
-                        "vdup.f32   q12, %7             \n" //q12 bias
-
-                        "0:                             \n"
-                        "vcvt.f32.s32 q0, q0            \n"
-                        "vcvt.f32.s32 q1, q1            \n"
-
-                        "vmul.f32   q0,q0,q10           \n"
-                        "vmul.f32   q1,q1,q10           \n"
-
-                        "vadd.f32   q2,q0,q12           \n"
-                        "vadd.f32   q3,q1,q12           \n"
-
-                        "pld        [%1, #256]          \n"
-                        "vld1.s32   {d0-d3}, [%1]!      \n"
-                        "vst1.f32   {d4-d7}, [%2]!      \n"
-
-                        "subs       %0, #1              \n"
-                        "bne        0b                  \n"
-
-                        "sub        %1, #32             \n"
-                        : "=r"(nn),     // %0
-                        "=r"(intptr), // %1
-                        "=r"(ptr)     // %2
-                        : "0"(nn),
-                        "1"(intptr),
-                        "2"(ptr),
-                        "r"(scale), // %6
-                        "r"(bias)   // %7
-                        : "cc", "memory", "q0", "q1", "q2", "q3", "q10", "q12");
-                }
-#endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain > 0; remain--)
+                for (; i < size; i++)
                 {
-                    *ptr = *intptr * scale + bias;
-
-                    intptr++;
-                    ptr++;
+                    *ptr++ = *intptr++ * scale;
                 }
             }
         }
@@ -421,81 +467,26 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 const int* intptr = bottom_blob.channel(q);
                 float* ptr = top_blob.channel(q);
 
+                const float scale = scale_data_size == 1 ? scale_data[0] : scale_data[q];
+                const float bias = bias_data_size == 1 ? bias_data[0] : bias_data[q];
+
+                int i = 0;
 #if __ARM_NEON
-                int nn = size >> 3;
-                int remain = size & 7;
-#else
-                int remain = size;
-#endif // __ARM_NEON
-
-#if __ARM_NEON
-#if __aarch64__
-                if (nn > 0)
+                float32x4_t _scale = vdupq_n_f32(scale);
+                float32x4_t _bias = vdupq_n_f32(bias);
+                for (; i + 3 < size; i += 4)
                 {
-                    asm volatile(
-                        "dup    v2.4s, %w6                   \n" // scale
-                        "0:                                  \n"
-                        "prfm   pldl1keep, [%1, #128]      \n"
-                        "ld1    {v0.4s, v1.4s}, [%1], #32    \n" // data
-                        // top_s32 -> top_f32
-                        "scvtf  v5.4s, v0.4s                 \n"
-                        "scvtf  v6.4s, v1.4s                 \n"
-                        // top_f32 = top_f32 * scale_out
-                        "fmul   v5.4s, v5.4s, v2.4s          \n"
-                        "fmul   v6.4s, v6.4s, v2.4s          \n"
-                        // save top_f32
-                        "st1    {v5.4s, v6.4s}, [%2], #32    \n"
-                        "subs   %w0, %w0, #1                 \n"
-                        "bne    0b                           \n"
-                        : "=r"(nn),     // %0
-                        "=r"(intptr), // %1
-                        "=r"(ptr)     // %2
-                        : "0"(nn),
-                        "1"(intptr),
-                        "2"(ptr),
-                        "r"(scale) // %6
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6");
+                    float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+                    _v = vmlaq_f32(_bias, _v, _scale);
+                    vst1q_f32(ptr, _v);
+
+                    intptr += 4;
+                    ptr += 4;
                 }
-#else
-                if (nn > 0)
-                {
-                    asm volatile(
-                        "pld        [%1, #256]          \n"
-                        "vld1.s32   {d0-d3}, [%1]!      \n" //q0-q1 data
-                        "vdup.f32   q10, %6             \n" //q10 scale
-
-                        "0:                             \n"
-                        "vcvt.f32.s32 q0, q0            \n"
-                        "vcvt.f32.s32 q1, q1            \n"
-
-                        "vmul.f32   q2,q0,q10           \n"
-                        "vmul.f32   q3,q1,q10           \n"
-
-                        "pld        [%1, #256]          \n"
-                        "vld1.s32   {d0-d3}, [%1]!      \n"
-                        "vst1.f32   {d4-d7}, [%2]!      \n"
-
-                        "subs       %0, #1              \n"
-                        "bne        0b                  \n"
-
-                        "sub        %1, #32             \n"
-                        : "=r"(nn),     // %0
-                        "=r"(intptr), // %1
-                        "=r"(ptr)     // %2
-                        : "0"(nn),
-                        "1"(intptr),
-                        "2"(ptr),
-                        "r"(scale) // %6
-                        : "cc", "memory", "q0", "q1", "q2", "q3", "q10", "q12");
-                }
-#endif // __aarch64__
 #endif // __ARM_NEON
-                for (; remain > 0; remain--)
+                for (; i < size; i++)
                 {
-                    *ptr = *intptr * scale;
-
-                    intptr++;
-                    ptr++;
+                    *ptr++ = *intptr++ * scale + bias;
                 }
             }
         }
