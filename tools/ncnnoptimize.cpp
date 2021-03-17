@@ -209,6 +209,10 @@ public:
     // 0=fp32 1=fp16
     int storage_type;
 
+    // Cut param and bin -1=no cut
+    int cutstart;
+    int cutend;
+
 public:
     int fuse_batchnorm_scale();
     int fuse_convolution_batchnorm();
@@ -3056,6 +3060,12 @@ int NetOptimize::save(const char* parampath, const char* binpath)
         if (layer->type == "ncnnfused")
             continue;
 
+        if (cutstart > 0 && i < cutstart)
+            continue;
+        
+        if (cutend > 0 && i > cutend)
+            continue;
+
         size_t bottom_count = layer->bottoms.size();
         size_t top_count = layer->tops.size();
 
@@ -3986,9 +3996,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
 int main(int argc, char** argv)
 {
-    if (argc != 6)
+    if (argc < 6)
     {
-        fprintf(stderr, "usage: %s [inparam] [inbin] [outparam] [outbin] [flag]\n", argv[0]);
+        fprintf(stderr, "usage: %s [inparam] [inbin] [outparam] [outbin] [flag] [cutstart] [cutend]\n", argv[0]);
         return -1;
     }
 
@@ -3997,7 +4007,19 @@ int main(int argc, char** argv)
     const char* outparam = argv[3];
     const char* outbin = argv[4];
     int flag = atoi(argv[5]);
+    int cutstart = -1;
+    int cutend = -1;
 
+    if (argc > 6)
+    {
+        cutstart = atoi(argv[6]);
+    }
+
+    if (argc > 7)
+    {
+        cutend = atoi(argv[7]);
+    }
+    
     NetOptimize optimizer;
 
     if (flag == 65536 || flag == 1)
@@ -4008,6 +4030,9 @@ int main(int argc, char** argv)
     {
         optimizer.storage_type = 0;
     }
+
+    optimizer.cutstart = cutstart;
+    optimizer.cutend = cutend;
 
     optimizer.load_param(inparam);
     if (strcmp(inbin, "null") == 0)
