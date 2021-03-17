@@ -1992,7 +1992,10 @@ int Net::load_model(const char* modelpath)
         NCNN_LOGE("fopen %s failed", modelpath);
         return -1;
     }
-
+    if (opt.use_packing_layout == true)
+    {
+        ncnn::set_omp_num_threads(opt.num_threads);
+    }
     int ret = load_model(fp);
     fclose(fp);
     return ret;
