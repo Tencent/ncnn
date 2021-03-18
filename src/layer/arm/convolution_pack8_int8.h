@@ -65,8 +65,6 @@ static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
 
                     for (int k = 0; k < maxk; k++)
                     {
-                        //                         int8x8_t _val = vld1_s8(sptr + space_ofs[k] * 8);
-
                         int8x8_t _val0 = vld1_dup_s8(sptr + space_ofs[k] * 8);
                         int8x8_t _val1 = vld1_dup_s8(sptr + space_ofs[k] * 8 + 1);
                         int8x8_t _val2 = vld1_dup_s8(sptr + space_ofs[k] * 8 + 2);

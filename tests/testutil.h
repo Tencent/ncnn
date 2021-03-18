@@ -314,12 +314,12 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!op->support_fp16_storage) opt.use_fp16_arithmetic = false;
     if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
 
-    if (op->use_int8_inference)
-    {
-        opt.use_bf16_storage = false;
-        opt.use_fp16_storage = false;
-        opt.use_packing_layout = false;
-    }
+    //     if (op->use_int8_inference)
+    //     {
+    //         opt.use_bf16_storage = false;
+    //         opt.use_fp16_storage = false;
+    //         opt.use_packing_layout = false;
+    //     }
 
     op->create_pipeline(opt);
 
@@ -726,12 +726,12 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!op->support_fp16_storage) opt.use_fp16_arithmetic = false;
     if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
 
-    if (op->use_int8_inference)
-    {
-        opt.use_bf16_storage = false;
-        opt.use_fp16_storage = false;
-        opt.use_packing_layout = false;
-    }
+    //     if (op->use_int8_inference)
+    //     {
+    //         opt.use_bf16_storage = false;
+    //         opt.use_fp16_storage = false;
+    //         opt.use_packing_layout = false;
+    //     }
 
     op->create_pipeline(opt);
 
@@ -1073,6 +1073,11 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[3].use_image_storage = true;
     opts[3].use_weight_fp16_storage = true;
 
+    opts[0].use_int8_inference = true;
+    opts[1].use_int8_inference = true;
+    opts[2].use_int8_inference = true;
+    opts[3].use_int8_inference = true;
+
     for (int i = 0; i < 4; i++)
     {
         const ncnn::Option& opt = opts[i];
@@ -1181,6 +1186,11 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[3].use_shader_pack8 = true;
     opts[3].use_image_storage = true;
     opts[3].use_weight_fp16_storage = true;
+
+    opts[0].use_int8_inference = true;
+    opts[1].use_int8_inference = true;
+    opts[2].use_int8_inference = true;
+    opts[3].use_int8_inference = true;
 
     for (int i = 0; i < 4; i++)
     {

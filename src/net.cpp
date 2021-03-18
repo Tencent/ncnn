@@ -101,6 +101,7 @@ NetPrivate::NetPrivate(Option& _opt)
 
 int NetPrivate::fuse_network()
 {
+#if 0
     // set the int8 op fusion:requantize
 #if NCNN_STRING && NCNN_REQUANT
     // NCNN_LOGE("Test op fusion to int8 implement:");
@@ -246,6 +247,7 @@ int NetPrivate::fuse_network()
             }
         }
     }
+#endif
 #endif
     return 0;
 }
@@ -1487,14 +1489,14 @@ int Net::load_param(const DataReader& dr)
             return -1;
         }
 
-        if (layer->use_int8_inference)
-        {
-            // no int8 gpu or packing layout support yet
-            opt.use_vulkan_compute = false;
-            opt.use_packing_layout = false;
-            opt.use_fp16_storage = false;
-            opt.use_bf16_storage = false;
-        }
+        //         if (layer->use_int8_inference)
+        //         {
+        //             // no int8 gpu or packing layout support yet
+        //             opt.use_vulkan_compute = false;
+        // //             opt.use_packing_layout = false;
+        // //             opt.use_fp16_storage = false;
+        // //             opt.use_bf16_storage = false;
+        //         }
 
 #if NCNN_VULKAN
         if (opt.use_vulkan_compute)
@@ -1698,14 +1700,14 @@ int Net::load_param_bin(const DataReader& dr)
             return -1;
         }
 
-        if (layer->use_int8_inference)
-        {
-            // no int8 gpu or packing layout support yet
-            opt.use_vulkan_compute = false;
-            opt.use_packing_layout = false;
-            opt.use_fp16_storage = false;
-            opt.use_bf16_storage = false;
-        }
+        //         if (layer->use_int8_inference)
+        //         {
+        //             // no int8 gpu or packing layout support yet
+        //             opt.use_vulkan_compute = false;
+        //             opt.use_packing_layout = false;
+        //             opt.use_fp16_storage = false;
+        //             opt.use_bf16_storage = false;
+        //         }
 
 #if NCNN_VULKAN
         if (opt.use_vulkan_compute)
@@ -1839,14 +1841,14 @@ int Net::load_model(const DataReader& dr)
             break;
         }
 
-        if (layer->use_int8_inference)
-        {
-            // no int8 gpu or packing layout support yet
-            opt.use_vulkan_compute = false;
-            opt.use_packing_layout = false;
-            opt.use_fp16_storage = false;
-            opt.use_bf16_storage = false;
-        }
+        //         if (layer->use_int8_inference)
+        //         {
+        //             // no int8 gpu or packing layout support yet
+        //             opt.use_vulkan_compute = false;
+        //             opt.use_packing_layout = false;
+        //             opt.use_fp16_storage = false;
+        //             opt.use_bf16_storage = false;
+        //         }
     }
 
     d->fuse_network();
