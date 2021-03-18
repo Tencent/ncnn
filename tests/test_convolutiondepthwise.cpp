@@ -167,7 +167,6 @@ static int test_convolutiondepthwise_int8(int w, int h, int c, int outch, int ke
     }
 
     return ret;
-    return 0;
 }
 
 static int test_convolutiondepthwise_1()
@@ -255,6 +254,5 @@ int main()
 {
     SRAND(7767517);
 
-    //     return test_convolutiondepthwise_0() || test_convolutiondepthwise_1();
-    return test_convolutiondepthwise_1();
+    return test_convolutiondepthwise_0() || test_convolutiondepthwise_1();
 }

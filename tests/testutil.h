@@ -33,6 +33,9 @@ static struct prng_rand_t g_prng_rand_state;
 #define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
 #define RAND()      prng_rand(&g_prng_rand_state)
 
+#define TEST_LAYER_DISABLE_AUTO_INPUT_PACKING (1 << 0)
+#define TEST_LAYER_DISABLE_AUTO_INPUT_CASTING (1 << 1)
+
 static float RandomFloat(float a = -1.2f, float b = 1.2f)
 {
     float random = ((float)RAND()) / (float)uint64_t(-1); //RAND_MAX;
@@ -213,7 +216,7 @@ static int CompareMat(const std::vector<ncnn::Mat>& a, const std::vector<ncnn::M
 }
 
 template<typename T>
-int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& a, int top_blob_count, std::vector<ncnn::Mat>& b, void (*func)(T*))
+int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& a, int top_blob_count, std::vector<ncnn::Mat>& b, void (*func)(T*), int flag)
 {
     ncnn::Layer* op = ncnn::create_layer(typeindex);
 
@@ -273,7 +276,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
 }
 
 template<typename T>
-int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count, std::vector<ncnn::Mat>& c, const std::vector<ncnn::Mat>& top_shapes, void (*func)(T*))
+int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count, std::vector<ncnn::Mat>& c, const std::vector<ncnn::Mat>& top_shapes, void (*func)(T*), int flag)
 {
     ncnn::Layer* op = ncnn::create_layer(typeindex);
 
@@ -321,7 +324,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     op->create_pipeline(opt);
 
     std::vector<ncnn::Mat> a4(a.size());
-    if (opt.use_packing_layout && op->support_packing)
+    if (opt.use_packing_layout && op->support_packing && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_PACKING))
     {
         for (size_t i = 0; i < a.size(); i++)
         {
@@ -332,6 +335,8 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             if (dims == 2) elemcount = a[i].elempack * a[i].h;
             if (dims == 3) elemcount = a[i].elempack * a[i].c;
 
+            int elembits = a[i].elembits();
+
             int dst_elempack = 1;
 
 #if NCNN_AVX2
@@ -340,7 +345,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
 #elif NCNN_ARM82
-            if (elemcount % 8 == 0 && opt.use_fp16_arithmetic)
+            if (elemcount % 8 == 0 && opt.use_fp16_arithmetic && elembits == 16)
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
@@ -357,18 +362,15 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         a4 = a;
     }
 
-    if (opt.use_fp16_storage && op->support_fp16_storage)
+    for (size_t i = 0; i < a4.size(); i++)
     {
-        for (size_t i = 0; i < a4.size(); i++)
+        if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
         {
             ncnn::Mat a_fp16;
             ncnn::cast_float32_to_float16(a4[i], a_fp16, opt);
             a4[i] = a_fp16;
         }
-    }
-    else if (opt.use_bf16_storage && op->support_bf16_storage)
-    {
-        for (size_t i = 0; i < a4.size(); i++)
+        else if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
         {
             ncnn::Mat a_bf16;
             ncnn::cast_float32_to_bfloat16(a4[i], a_bf16, opt);
@@ -392,18 +394,15 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         op->forward(a4, c, opt);
     }
 
-    if (opt.use_fp16_storage && op->support_fp16_storage)
+    for (size_t i = 0; i < c.size(); i++)
     {
-        for (size_t i = 0; i < c.size(); i++)
+        if (opt.use_fp16_storage && op->support_fp16_storage && c[i].elembits() == 16)
         {
             ncnn::Mat c_fp32;
             ncnn::cast_float16_to_float32(c[i], c_fp32, opt);
             c[i] = c_fp32;
         }
-    }
-    else if (opt.use_bf16_storage && op->support_bf16_storage)
-    {
-        for (size_t i = 0; i < c.size(); i++)
+        else if (opt.use_bf16_storage && op->support_bf16_storage && c[i].elembits() == 16)
         {
             ncnn::Mat c_fp32;
             ncnn::cast_bfloat16_to_float32(c[i], c_fp32, opt);
@@ -420,7 +419,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
 #if NCNN_VULKAN
 template<typename T>
-int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count, std::vector<ncnn::Mat>& d, const std::vector<ncnn::Mat>& top_shapes, void (*func)(T*))
+int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count, std::vector<ncnn::Mat>& d, const std::vector<ncnn::Mat>& top_shapes, void (*func)(T*), int flag)
 {
     ncnn::Layer* op = ncnn::create_layer(typeindex);
 
@@ -588,12 +587,12 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 #endif // NCNN_VULKAN
 
 template<typename T>
-int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count, const std::vector<ncnn::Mat>& top_shapes = std::vector<ncnn::Mat>(), float epsilon = 0.001, void (*func)(T*) = 0)
+int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const std::vector<ncnn::Mat>& a, int top_blob_count, const std::vector<ncnn::Mat>& top_shapes = std::vector<ncnn::Mat>(), float epsilon = 0.001, void (*func)(T*) = 0, int flag = 0)
 {
     // naive
     std::vector<ncnn::Mat> b;
     {
-        int ret = test_layer_naive(typeindex, pd, weights, a, top_blob_count, b, func);
+        int ret = test_layer_naive(typeindex, pd, weights, a, top_blob_count, b, func, flag);
         if (ret != 0)
         {
             fprintf(stderr, "test_layer_naive failed\n");
@@ -604,7 +603,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     // cpu
     {
         std::vector<ncnn::Mat> c;
-        int ret = test_layer_cpu(typeindex, pd, weights, _opt, a, top_blob_count, c, std::vector<ncnn::Mat>(), func);
+        int ret = test_layer_cpu(typeindex, pd, weights, _opt, a, top_blob_count, c, std::vector<ncnn::Mat>(), func, flag);
         if (ret != 0 || CompareMat(b, c, epsilon) != 0)
         {
             fprintf(stderr, "test_layer_cpu failed\n");
@@ -615,7 +614,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     // cpu shape hint
     {
         std::vector<ncnn::Mat> c;
-        int ret = test_layer_cpu(typeindex, pd, weights, _opt, a, top_blob_count, c, b, func);
+        int ret = test_layer_cpu(typeindex, pd, weights, _opt, a, top_blob_count, c, b, func, flag);
         if (ret != 0 || CompareMat(b, c, epsilon) != 0)
         {
             fprintf(stderr, "test_layer_cpu failed with shape hint\n");
@@ -627,7 +626,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     // gpu
     {
         std::vector<ncnn::Mat> d;
-        int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, top_blob_count, d, std::vector<ncnn::Mat>(), func);
+        int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, top_blob_count, d, std::vector<ncnn::Mat>(), func, flag);
         if (ret != 233 && (ret != 0 || CompareMat(b, d, epsilon) != 0))
         {
             fprintf(stderr, "test_layer_gpu failed\n");
@@ -638,7 +637,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     // gpu shape hint
     {
         std::vector<ncnn::Mat> d;
-        int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, top_blob_count, d, b, func);
+        int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, top_blob_count, d, b, func, flag);
         if (ret != 233 && (ret != 0 || CompareMat(b, d, epsilon) != 0))
         {
             fprintf(stderr, "test_layer_gpu failed with shape hint\n");
@@ -651,7 +650,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 }
 
 template<typename T>
-int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Mat& a, ncnn::Mat& b, void (*func)(T*))
+int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Mat& a, ncnn::Mat& b, void (*func)(T*), int flag)
 {
     ncnn::Layer* op = ncnn::create_layer(typeindex);
 
@@ -698,7 +697,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
 }
 
 template<typename T>
-int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, ncnn::Mat& c, const ncnn::Mat& top_shape, void (*func)(T*))
+int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, ncnn::Mat& c, const ncnn::Mat& top_shape, void (*func)(T*), int flag)
 {
     ncnn::Layer* op = ncnn::create_layer(typeindex);
 
@@ -741,7 +740,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     op->create_pipeline(opt);
 
     ncnn::Mat a4;
-    if (opt.use_packing_layout && op->support_packing)
+    if (opt.use_packing_layout && op->support_packing && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_PACKING))
     {
         // resolve dst_elempack
         int dims = a.dims;
@@ -749,6 +748,8 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         if (dims == 1) elemcount = a.elempack * a.w;
         if (dims == 2) elemcount = a.elempack * a.h;
         if (dims == 3) elemcount = a.elempack * a.c;
+
+        int elembits = a.elembits();
 
         int dst_elempack = 1;
 
@@ -758,7 +759,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         else if (elemcount % 4 == 0)
             dst_elempack = 4;
 #elif NCNN_ARM82
-        if (elemcount % 8 == 0 && opt.use_fp16_arithmetic)
+        if (elemcount % 8 == 0 && opt.use_fp16_arithmetic && elembits == 16)
             dst_elempack = 8;
         else if (elemcount % 4 == 0)
             dst_elempack = 4;
@@ -774,13 +775,13 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         a4 = a;
     }
 
-    if (opt.use_fp16_storage && op->support_fp16_storage)
+    if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
     {
         ncnn::Mat a_fp16;
         ncnn::cast_float32_to_float16(a4, a_fp16, opt);
         a4 = a_fp16;
     }
-    else if (opt.use_bf16_storage && op->support_bf16_storage)
+    else if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
     {
         ncnn::Mat a_bf16;
         ncnn::cast_float32_to_bfloat16(a4, a_bf16, opt);
@@ -797,13 +798,13 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         op->forward(a4, c, opt);
     }
 
-    if (opt.use_fp16_storage && op->support_fp16_storage)
+    if (opt.use_fp16_storage && op->support_fp16_storage && c.elembits() == 16)
     {
         ncnn::Mat c_fp32;
         ncnn::cast_float16_to_float32(c, c_fp32, opt);
         c = c_fp32;
     }
-    else if (opt.use_bf16_storage && op->support_bf16_storage)
+    else if (opt.use_bf16_storage && op->support_bf16_storage && c.elembits() == 16)
     {
         ncnn::Mat c_fp32;
         ncnn::cast_bfloat16_to_float32(c, c_fp32, opt);
@@ -819,7 +820,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
 #if NCNN_VULKAN
 template<typename T>
-int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, ncnn::Mat& d, const ncnn::Mat& top_shape, void (*func)(T*))
+int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, ncnn::Mat& d, const ncnn::Mat& top_shape, void (*func)(T*), int flag)
 {
     ncnn::Layer* op = ncnn::create_layer(typeindex);
 
@@ -974,12 +975,12 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 #endif // NCNN_VULKAN
 
 template<typename T>
-int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, const ncnn::Mat& top_shape = ncnn::Mat(), float epsilon = 0.001, void (*func)(T*) = 0)
+int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Option& _opt, const ncnn::Mat& a, const ncnn::Mat& top_shape = ncnn::Mat(), float epsilon = 0.001, void (*func)(T*) = 0, int flag = 0)
 {
     // naive
     ncnn::Mat b;
     {
-        int ret = test_layer_naive(typeindex, pd, weights, a, b, func);
+        int ret = test_layer_naive(typeindex, pd, weights, a, b, func, flag);
         if (ret != 0)
         {
             fprintf(stderr, "test_layer_naive failed\n");
@@ -990,7 +991,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     // cpu
     {
         ncnn::Mat c;
-        int ret = test_layer_cpu(typeindex, pd, weights, _opt, a, c, ncnn::Mat(), func);
+        int ret = test_layer_cpu(typeindex, pd, weights, _opt, a, c, ncnn::Mat(), func, flag);
         if (ret != 0 || CompareMat(b, c, epsilon) != 0)
         {
             fprintf(stderr, "test_layer_cpu failed\n");
@@ -1001,7 +1002,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     // cpu shape hint
     {
         ncnn::Mat c;
-        int ret = test_layer_cpu(typeindex, pd, weights, _opt, a, c, b, func);
+        int ret = test_layer_cpu(typeindex, pd, weights, _opt, a, c, b, func, flag);
         if (ret != 0 || CompareMat(b, c, epsilon) != 0)
         {
             fprintf(stderr, "test_layer_cpu failed with shape hint\n");
@@ -1013,7 +1014,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     // gpu
     {
         ncnn::Mat d;
-        int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, d, ncnn::Mat(), func);
+        int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, d, ncnn::Mat(), func, flag);
         if (ret != 233 && (ret != 0 || CompareMat(b, d, epsilon) != 0))
         {
             fprintf(stderr, "test_layer_gpu failed\n");
@@ -1024,7 +1025,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     // gpu shape hint
     {
         ncnn::Mat d;
-        int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, d, b, func);
+        int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, d, b, func, flag);
         if (ret != 233 && (ret != 0 || CompareMat(b, d, epsilon) != 0))
         {
             fprintf(stderr, "test_layer_gpu failed with shape hint\n");
@@ -1037,7 +1038,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 }
 
 template<typename T>
-int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& a, int top_blob_count = 1, float epsilon = 0.001, void (*func)(T*) = 0)
+int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& a, int top_blob_count = 1, float epsilon = 0.001, void (*func)(T*) = 0, int flag = 0)
 {
     ncnn::Option opts[4];
 
@@ -1134,7 +1135,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         }
 
         std::vector<ncnn::Mat> top_shapes;
-        int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_blob_count, top_shapes, epsilon_fp16, func);
+        int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_blob_count, top_shapes, epsilon_fp16, func, flag);
         if (ret != 0)
         {
             fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_fp16_arithmetic=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_fp16_arithmetic, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
@@ -1146,7 +1147,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 }
 
 template<typename T>
-int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Mat& a, float epsilon = 0.001, void (*func)(T*) = 0)
+int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Mat& a, float epsilon = 0.001, void (*func)(T*) = 0, int flag = 0)
 {
     ncnn::Option opts[4];
 
@@ -1238,7 +1239,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         }
 
         ncnn::Mat top_shape;
-        int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_shape, epsilon_fp16, func);
+        int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_shape, epsilon_fp16, func, flag);
         if (ret != 0)
         {
             fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_fp16_arithmetic=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_fp16_arithmetic, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage);
