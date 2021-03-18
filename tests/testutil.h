@@ -324,18 +324,32 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     op->create_pipeline(opt);
 
     std::vector<ncnn::Mat> a4(a.size());
-    if (opt.use_packing_layout && op->support_packing && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_PACKING))
+
+    for (size_t i = 0; i < a4.size(); i++)
     {
-        for (size_t i = 0; i < a.size(); i++)
+        if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+        {
+            ncnn::cast_float32_to_float16(a[i], a4[i], opt);
+        }
+        else if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+        {
+            ncnn::cast_float32_to_bfloat16(a[i], a4[i], opt);
+        }
+        else
+        {
+            a4[i] = a[i];
+        }
+
+        if (opt.use_packing_layout && op->support_packing && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_PACKING))
         {
             // resolve dst_elempack
-            int dims = a[i].dims;
+            int dims = a4[i].dims;
             int elemcount = 0;
-            if (dims == 1) elemcount = a[i].elempack * a[i].w;
-            if (dims == 2) elemcount = a[i].elempack * a[i].h;
-            if (dims == 3) elemcount = a[i].elempack * a[i].c;
+            if (dims == 1) elemcount = a4[i].elempack * a4[i].w;
+            if (dims == 2) elemcount = a4[i].elempack * a4[i].h;
+            if (dims == 3) elemcount = a4[i].elempack * a4[i].c;
 
-            int elembits = a[i].elembits();
+            int elembits = a4[i].elembits();
 
             int dst_elempack = 1;
 
@@ -354,27 +368,9 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
                 dst_elempack = 4;
 #endif
 
-            ncnn::convert_packing(a[i], a4[i], dst_elempack, opt);
-        }
-    }
-    else
-    {
-        a4 = a;
-    }
-
-    for (size_t i = 0; i < a4.size(); i++)
-    {
-        if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
-        {
-            ncnn::Mat a_fp16;
-            ncnn::cast_float32_to_float16(a4[i], a_fp16, opt);
-            a4[i] = a_fp16;
-        }
-        else if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
-        {
-            ncnn::Mat a_bf16;
-            ncnn::cast_float32_to_bfloat16(a4[i], a_bf16, opt);
-            a4[i] = a_bf16;
+            ncnn::Mat a4_packed;
+            ncnn::convert_packing(a4[i], a4_packed, dst_elempack, opt);
+            a4[i] = a4_packed;
         }
     }
 
@@ -740,16 +736,30 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     op->create_pipeline(opt);
 
     ncnn::Mat a4;
+
+    if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    {
+        ncnn::cast_float32_to_float16(a, a4, opt);
+    }
+    else if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    {
+        ncnn::cast_float32_to_bfloat16(a, a4, opt);
+    }
+    else
+    {
+        a4 = a;
+    }
+
     if (opt.use_packing_layout && op->support_packing && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_PACKING))
     {
         // resolve dst_elempack
-        int dims = a.dims;
+        int dims = a4.dims;
         int elemcount = 0;
-        if (dims == 1) elemcount = a.elempack * a.w;
-        if (dims == 2) elemcount = a.elempack * a.h;
-        if (dims == 3) elemcount = a.elempack * a.c;
+        if (dims == 1) elemcount = a4.elempack * a4.w;
+        if (dims == 2) elemcount = a4.elempack * a4.h;
+        if (dims == 3) elemcount = a4.elempack * a4.c;
 
-        int elembits = a.elembits();
+        int elembits = a4.elembits();
 
         int dst_elempack = 1;
 
@@ -768,24 +778,9 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             dst_elempack = 4;
 #endif
 
-        ncnn::convert_packing(a, a4, dst_elempack, opt);
-    }
-    else
-    {
-        a4 = a;
-    }
-
-    if (opt.use_fp16_storage && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
-    {
-        ncnn::Mat a_fp16;
-        ncnn::cast_float32_to_float16(a4, a_fp16, opt);
-        a4 = a_fp16;
-    }
-    else if (opt.use_bf16_storage && op->support_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
-    {
-        ncnn::Mat a_bf16;
-        ncnn::cast_float32_to_bfloat16(a4, a_bf16, opt);
-        a4 = a_bf16;
+        ncnn::Mat a4_packed;
+        ncnn::convert_packing(a4, a4_packed, dst_elempack, opt);
+        a4 = a4_packed;
     }
 
     if (op->support_inplace)

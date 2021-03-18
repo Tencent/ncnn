@@ -1863,6 +1863,8 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     if (top_blob.empty())
         return -100;
 
+    //     NCNN_LOGE("forward_int8_arm %d %d", elempack, out_elempack);
+
     if (elempack == 8 && out_elempack == 8)
     {
         Mat top_blob_int32;
@@ -1934,7 +1936,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     {
         if (dilation_w > 1 || dilation_h > 1)
         {
-            return Convolution::forward(bottom_blob, top_blob, opt);
+            return Convolution::forward_int8(bottom_blob, top_blob, opt);
         }
 
         Mat top_blob_int32;
@@ -1975,10 +1977,10 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
                 //             conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd23_data_int8, opt);
                 conv3x3s1_winograd43_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd23_data_int8, opt);
             }
-            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-            {
-                conv3x3s2_packed_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3s2_data_int8, opt);
-            }
+            //             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            //             {
+            //                 conv3x3s2_packed_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3s2_data_int8, opt);
+            //             }
             else
             {
                 conv_im2col_sgemm_int8_neon(bottom_blob_bordered, top_blob_int32, weight_sgemm_data_int8, kernel_w, kernel_h, stride_w, stride_h, opt);
