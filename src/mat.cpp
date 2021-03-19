@@ -141,11 +141,11 @@ Mat Mat::from_float16(const unsigned short* data, int size)
             "st1    {v1.4s}, [%2], #16      \n"
             "bne    0b                      \n"
             : "=r"(nn),   // %0
-              "=r"(data), // %1
-              "=r"(ptr)   // %2
+            "=r"(data), // %1
+            "=r"(ptr)   // %2
             : "0"(nn),
-              "1"(data),
-              "2"(ptr)
+            "1"(data),
+            "2"(ptr)
             : "cc", "memory", "v0", "v1");
     }
 #else
@@ -160,11 +160,11 @@ Mat Mat::from_float16(const unsigned short* data, int size)
             "vst1.f32   {d2-d3}, [%2 :128]! \n"
             "bne        0b                  \n"
             : "=r"(nn),   // %0
-              "=r"(data), // %1
-              "=r"(ptr)   // %2
+            "=r"(data), // %1
+            "=r"(ptr)   // %2
             : "0"(nn),
-              "1"(data),
-              "2"(ptr)
+            "1"(data),
+            "2"(ptr)
             : "cc", "memory", "q0", "q1");
     }
 #endif // __aarch64__
