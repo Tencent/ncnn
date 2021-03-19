@@ -44,7 +44,8 @@ protected:
     virtual int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
-    ncnn::Layer* flatten;
+    Layer* flatten;
+    Layer* activation;
 
     // fp16
     Mat weight_data_fp16;
