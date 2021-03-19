@@ -442,34 +442,53 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    Mat bottom_blob_unbordered = bottom_blob;
+    Mat bottom_blob_int8 = bottom_blob;
     if (elemsize != 1)
     {
-        bottom_blob_unbordered.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
-        if (bottom_blob_unbordered.empty())
-            return -100;
-
         const int channels_g = channels / group;
 
-        // quantize, scale and round to nearest
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int g = 0; g < group; g++)
+        Mat scales(channels);
         {
-            Option opt_g = opt;
-            opt_g.num_threads = 1;
-            opt_g.blob_allocator = bottom_blob_unbordered.allocator;
-            opt_g.use_packing_layout = false;
-
-            const Mat bottom_blob_g = bottom_blob.channel_range(channels_g * g, channels_g);
-            Mat bottom_blob_int8_g = bottom_blob_unbordered.channel_range(channels_g * g, channels_g);
-            const Mat bottom_blob_int8_scales_g = bottom_blob_int8_scales.range(g, 1);
-
-            quantize_to_int8(bottom_blob_g, bottom_blob_int8_g, bottom_blob_int8_scales_g, opt_g);
+            float* ps = scales;
+            for (int g = 0; g < group; g++)
+            {
+                float scale = bottom_blob_int8_scales[g];
+                for (int q = 0; q < channels_g; q++)
+                {
+                    *ps++ = scale;
+                }
+            }
         }
+
+        Option opt_q = opt;
+        opt_q.blob_allocator = opt.workspace_allocator;
+        quantize_to_int8(bottom_blob, bottom_blob_int8, scales, opt_q);
+
+        //         bottom_blob_unbordered.create(w, h, channels, (size_t)1u, opt.workspace_allocator);
+        //         if (bottom_blob_unbordered.empty())
+        //             return -100;
+        //
+        //         const int channels_g = channels / group;
+        //
+        //         // quantize, scale and round to nearest
+        //         #pragma omp parallel for num_threads(opt.num_threads)
+        //         for (int g = 0; g < group; g++)
+        //         {
+        //             Option opt_g = opt;
+        //             opt_g.num_threads = 1;
+        //             opt_g.blob_allocator = bottom_blob_unbordered.allocator;
+        //             opt_g.use_packing_layout = false;
+        //
+        //             const Mat bottom_blob_g = bottom_blob.channel_range(channels_g * g, channels_g);
+        //             Mat bottom_blob_int8_g = bottom_blob_unbordered.channel_range(channels_g * g, channels_g);
+        //             const Mat bottom_blob_int8_scales_g = bottom_blob_int8_scales.range(g, 1);
+        //
+        //             quantize_to_int8(bottom_blob_g, bottom_blob_int8_g, bottom_blob_int8_scales_g, opt_g);
+        //         }
     }
 
     Mat bottom_blob_bordered;
-    make_padding(bottom_blob_unbordered, bottom_blob_bordered, opt);
+    make_padding(bottom_blob_int8, bottom_blob_bordered, opt);
     if (bottom_blob_bordered.empty())
         return -100;
 

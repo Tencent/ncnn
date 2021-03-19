@@ -54,7 +54,8 @@ static void convolution_int8(const Mat& bottom_blob, Mat& top_blob, const Mat& w
             {
                 int sum = 0;
 
-                const signed char* kptr = weight_data_int8.channel(p);
+                //                 const signed char* kptr = weight_data_int8.channel(p);
+                const signed char* kptr = (const signed char*)weight_data_int8 + maxk * channels * p;
 
                 // channels
                 for (int q = 0; q < channels; q++)

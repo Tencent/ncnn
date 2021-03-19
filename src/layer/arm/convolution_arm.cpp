@@ -1871,18 +1871,18 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
 {
     int elembits = bottom_blob.elembits();
 
-    Mat bottom_blob_unbordered = bottom_blob;
+    Mat bottom_blob_int8 = bottom_blob;
     if (elembits != 8)
     {
         Option opt_q = opt;
         opt_q.blob_allocator = opt.workspace_allocator;
-        quantize_to_int8(bottom_blob, bottom_blob_unbordered, bottom_blob_int8_scales, opt_q);
+        quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
     }
 
     //     NCNN_LOGE("Convolution_arm input %d x %d  ksize=%d %d  stride=%d %d", w, h, kernel_w, kernel_h, stride_w, stride_h);
 
     Mat bottom_blob_bordered;
-    make_padding(bottom_blob_unbordered, bottom_blob_bordered, opt);
+    make_padding(bottom_blob_int8, bottom_blob_bordered, opt);
     if (bottom_blob_bordered.empty())
         return -100;
 
@@ -1898,10 +1898,9 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     int outh = (h - kernel_extent_h) / stride_h + 1;
 
     int out_elempack = (opt.use_packing_layout && num_output % 8 == 0) ? 8 : 1;
-    //     size_t out_elemsize = elemsize / elempack * out_elempack;
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
 
-    NCNN_LOGE("forward_int8_arm %d %d    %d %d", w, h, elempack, out_elempack);
+    //     NCNN_LOGE("forward_int8_arm %d %d %d    %d %d", w, h, bottom_blob_bordered.c, elempack, out_elempack);
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
@@ -2088,7 +2087,8 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         if (top_blob_int32.empty())
             return -100;
 
-        convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data_int8, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        //         convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data_int8, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
 
         if (use_int8_requantize == true)
         {

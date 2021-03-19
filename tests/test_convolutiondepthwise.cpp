@@ -148,16 +148,18 @@ static int test_convolutiondepthwise_int8(int w, int h, int c, int outch, int ke
 
     std::vector<ncnn::Mat> weights(bias ? 4 : 3);
     weights[0] = RandomMat(outch / group * c / group * kernel * kernel * group);
+    ncnn::Mat weight_scales = scales_mat(weights[0], group, c * kernel * kernel / group, c * kernel * kernel / group);
+    ncnn::Mat input_scales = scales_mat(a, 1, w * h * c, a.cstep);
     if (bias)
     {
         weights[1] = RandomMat(outch);
-        weights[2] = RandomMat(group);
-        weights[3] = RandomMat(1);
+        weights[2] = weight_scales;
+        weights[3] = input_scales;
     }
     else
     {
-        weights[1] = RandomMat(group);
-        weights[2] = RandomMat(1);
+        weights[1] = weight_scales;
+        weights[2] = input_scales;
     }
 
     int ret = test_layer<ncnn::ConvolutionDepthWise>("ConvolutionDepthWise", pd, weights, a, 0.001f, requant ? set_param : 0);
