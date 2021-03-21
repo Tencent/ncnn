@@ -269,6 +269,8 @@ NetOptimize::NetOptimize()
     : blobs(mutable_blobs()), layers(mutable_layers())
 {
     has_custom_layer = false;
+    cutstart = -1;
+    cutend = -1;
 }
 
 ncnn::Layer* NetOptimize::create_custom_layer(const char* type)
