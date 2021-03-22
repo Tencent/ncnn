@@ -89,6 +89,20 @@
 #include "layer/yolodetectionoutput.h"
 #include "layer/yolov3detectionoutput.h"
 
+static void replace_denormals_with_zero(float* data, size_t data_length)
+{
+    const int total = static_cast<int>(data_length);
+    for (size_t i = 0; i < data_length; ++i)
+    {
+        float value = data[i];
+
+        if (fabsf(value) < 1e-30 && fabsf(value) != 0.f)
+        {
+            data[i] = 0.f;
+        }
+    }
+}
+
 class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
@@ -3025,6 +3039,11 @@ int NetOptimize::fwrite_weight_tag_data(int tag, const ncnn::Mat& data, FILE* bp
     else
     {
         fwrite(&tag, sizeof(int), 1, bp);
+        if (data_flattened.elemsize == 4) // fp32
+        {
+            replace_denormals_with_zero(data_flattened, data_flattened.w);
+        }
+
         fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
     }
 
@@ -3042,6 +3061,11 @@ int NetOptimize::fwrite_weight_data(const ncnn::Mat& data, FILE* bp)
     int p0 = ftell(bp);
 
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
+    if (data_flattened.elemsize == 4) // fp32
+    {
+        replace_denormals_with_zero(data_flattened, data_flattened.w);
+    }
+
     fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
 
     // padding to 32bit align
