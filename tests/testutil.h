@@ -35,6 +35,7 @@ static struct prng_rand_t g_prng_rand_state;
 
 #define TEST_LAYER_DISABLE_AUTO_INPUT_PACKING (1 << 0)
 #define TEST_LAYER_DISABLE_AUTO_INPUT_CASTING (1 << 1)
+#define TEST_LAYER_DISABLE_GPU_TESTING        (1 << 2)
 
 static float RandomFloat(float a = -1.2f, float b = 1.2f)
 {
@@ -453,13 +454,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
     op->load_model(mb);
 
-    if (op->use_int8_inference)
-    {
-        // NOTE skip int8 on gpu
-        delete op;
-        return 233;
-    }
-
     ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
     ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
 
@@ -620,6 +614,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 
 #if NCNN_VULKAN
     // gpu
+    if (!(flag & TEST_LAYER_DISABLE_GPU_TESTING))
     {
         std::vector<ncnn::Mat> d;
         int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, top_blob_count, d, std::vector<ncnn::Mat>(), func, flag);
@@ -631,6 +626,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     }
 
     // gpu shape hint
+    if (!(flag & TEST_LAYER_DISABLE_GPU_TESTING))
     {
         std::vector<ncnn::Mat> d;
         int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, top_blob_count, d, b, func, flag);
@@ -847,13 +843,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     ncnn::ModelBinFromMatArray mb(weights.data());
 
     op->load_model(mb);
-
-    if (op->use_int8_inference)
-    {
-        // NOTE skip int8 on gpu
-        delete op;
-        return 233;
-    }
 
     ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
     ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);

@@ -207,7 +207,8 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
         weights[2] = input_scales;
     }
 
-    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a, 1.0f, requant ? set_param : 0);
+    int flag = TEST_LAYER_DISABLE_GPU_TESTING;
+    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a, requant ? 1.0f : 0.001f, requant ? set_param : 0, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant);

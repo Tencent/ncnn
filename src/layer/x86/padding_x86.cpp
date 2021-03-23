@@ -317,7 +317,8 @@ int Padding_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                     // TODO perchannel
                     //                     int64_t pad_value = per_channel_pad_data_size ? vld1_s8(per_channel_pad_data + q * 8) : vdup_n_s8((signed char)value);
-                    int64_t pad_value = (int64_t)_mm_set1_pi8((signed char)value);
+                    int64_t v8 = (int64_t)value;
+                    int64_t pad_value = v8 | (v8 << 8) | (v8 << 16) | (v8 << 24) | (v8 << 32) | (v8 << 40) | (v8 << 48) | (v8 << 56);
 
                     //Channel padding
                     if ((q - front_) < 0 || (q - front_) >= channels)
