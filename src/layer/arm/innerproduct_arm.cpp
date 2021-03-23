@@ -223,6 +223,7 @@ int InnerProduct_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const 
     if (top_blob_int32.empty())
         return -100;
 
+#if __ARM_NEON
     if (out_elempack == 8)
     {
         // num_output
@@ -255,6 +256,7 @@ int InnerProduct_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const 
             vst1q_s32(outptr + p * 8 + 4, _sum1);
         }
     }
+#endif // __ARM_NEON
 
     if (out_elempack == 1)
     {

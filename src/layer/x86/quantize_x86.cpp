@@ -117,7 +117,7 @@ static inline __m128i float2int8(__m128 _v0, __m128 _v1, __m128 _v2, __m128 _v3)
 #if __AVX__
 static inline int64_t float2int8(__m256 _v0)
 {
-    __m256i _v0_i = _mm256_cvtps_epi32(_mm256_round_ps(_v0, _MM_FROUND_TO_NEAREST_INT |_MM_FROUND_NO_EXC));
+    __m256i _v0_i = _mm256_cvtps_epi32(_mm256_round_ps(_v0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
 
     __m256i _v01_s16 = _mm256_packs_epi32(_v0_i, _v0_i);
     _v01_s16 = _mm256_permute4x64_epi64(_v01_s16, 0xd8);
@@ -134,8 +134,8 @@ static inline int64_t float2int8(__m256 _v0)
 
 static inline __m128i float2int8(__m256 _v0, __m256 _v1)
 {
-    __m256i _v0_i = _mm256_cvtps_epi32(_mm256_round_ps(_v0, _MM_FROUND_TO_NEAREST_INT |_MM_FROUND_NO_EXC));
-    __m256i _v1_i = _mm256_cvtps_epi32(_mm256_round_ps(_v1, _MM_FROUND_TO_NEAREST_INT |_MM_FROUND_NO_EXC));
+    __m256i _v0_i = _mm256_cvtps_epi32(_mm256_round_ps(_v0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
+    __m256i _v1_i = _mm256_cvtps_epi32(_mm256_round_ps(_v1, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
 
     __m256i _v01_s16 = _mm256_packs_epi32(_v0_i, _v1_i);
     _v01_s16 = _mm256_permute4x64_epi64(_v01_s16, 0xd8);
