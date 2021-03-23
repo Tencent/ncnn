@@ -67,7 +67,10 @@ static inline int64_t float2int8(__m128 _v0, __m128 _v1)
 
     __m128i _v8 = _mm_packs_epi16(_v01_s16, _v01_s16);
 
-    return _mm_cvtsi128_si64(_v8);
+    // TODO use _mm_cvtsi128_si64 on 64bit target
+    int64_t v8[2];
+    _mm_storeu_si128((__m128i*)v8, _v8);
+    return v8[0];
 }
 #endif // __SSE2__
 
@@ -872,7 +875,11 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
                                     __m128i _sum8i = _mm_loadl_epi64((const __m128i*)&_sum8);
                                     __m128i _m = _mm_cmpgt_epi8(_sum8i, _mm_setzero_si128());
                                     _sum8i = _mm_or_si128(_mm_and_si128(_sum8i, _m), _mm_andnot_si128(_sum8i, _m));
-                                    _sum8 = _mm_cvtsi128_si64(_sum8i);
+
+                                    // TODO use _mm_cvtsi128_si64 on 64bit target
+                                    int64_t sum8i[2];
+                                    _mm_storeu_si128((__m128i*)sum8i, _sum8i);
+                                    _sum8 = sum8i[0];
                                     //                                     _sum8 = vmax_s8(_sum8, vdup_n_s8(0));
                                     //                                     sums8 = std::max(sums8, (signed char)0);
                                 }

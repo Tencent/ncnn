@@ -62,7 +62,10 @@ static inline int64_t float2int8(__m128 _v0, __m128 _v1)
 
     __m128i _v8 = _mm_packs_epi16(_v01_s16, _v01_s16);
 
-    return _mm_cvtsi128_si64(_v8);
+    // TODO use _mm_cvtsi128_si64 on 64bit target
+    int64_t v8[2];
+    _mm_storeu_si128((__m128i*)v8, _v8);
+    return v8[0];
 }
 
 static inline __m128i float2int8(__m128 _v0, __m128 _v1, __m128 _v2, __m128 _v3)
@@ -129,7 +132,10 @@ static inline int64_t float2int8(__m256 _v0)
 
     __m128i _v8 = _mm_packs_epi16(_v01_s16low, _v01_s16low);
 
-    return _mm_cvtsi128_si64(_v8);
+    // TODO use _mm_cvtsi128_si64 on 64bit target
+    int64_t v8[2];
+    _mm_storeu_si128((__m128i*)v8, _v8);
+    return v8[0];
 }
 
 static inline __m128i float2int8(__m256 _v0, __m256 _v1)
