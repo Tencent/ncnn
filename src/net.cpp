@@ -78,6 +78,9 @@ public:
 
     std::vector<custom_layer_registry_entry> custom_layer_registry;
 
+    PoolAllocator* local_blob_allocator;
+    PoolAllocator* local_workspace_allocator;
+
 #if NCNN_VULKAN
     const VulkanDevice* vkdev;
 
@@ -91,6 +94,9 @@ public:
 NetPrivate::NetPrivate(Option& _opt)
     : opt(_opt)
 {
+    local_blob_allocator = 0;
+    local_workspace_allocator = 0;
+
 #if NCNN_VULKAN
     vkdev = 0;
     weight_vkallocator = 0;
@@ -1892,6 +1898,26 @@ int Net::load_model(const DataReader& dr)
         }
     }
 
+    if (opt.use_local_pool_allocator)
+    {
+        if (opt.blob_allocator == 0)
+        {
+            if (!d->local_blob_allocator)
+            {
+                d->local_blob_allocator = new PoolAllocator;
+                d->local_blob_allocator->set_size_compare_ratio(0.f);
+            }
+        }
+        if (opt.workspace_allocator == 0)
+        {
+            if (!d->local_workspace_allocator)
+            {
+                d->local_workspace_allocator = new PoolAllocator;
+                d->local_workspace_allocator->set_size_compare_ratio(0.5f);
+            }
+        }
+    }
+
 #if NCNN_VULKAN
     if (opt.use_vulkan_compute)
     {
@@ -2094,6 +2120,17 @@ void Net::clear()
     }
     d->layers.clear();
 
+    if (d->local_blob_allocator)
+    {
+        delete d->local_blob_allocator;
+        d->local_blob_allocator = 0;
+    }
+    if (d->local_workspace_allocator)
+    {
+        delete d->local_workspace_allocator;
+        d->local_workspace_allocator = 0;
+    }
+
 #if NCNN_VULKAN
     if (d->weight_vkallocator)
     {
@@ -2264,24 +2301,7 @@ Extractor::Extractor(const Net* _net, size_t blob_count)
 
 Extractor::~Extractor()
 {
-    d->blob_mats.clear();
-
-#if NCNN_VULKAN
-    if (d->net->opt.use_vulkan_compute)
-    {
-        d->blob_mats_gpu.clear();
-        d->blob_mats_gpu_image.clear();
-
-        if (d->local_blob_vkallocator)
-        {
-            d->net->vulkan_device()->reclaim_blob_allocator(d->local_blob_vkallocator);
-        }
-        if (d->local_staging_vkallocator)
-        {
-            d->net->vulkan_device()->reclaim_staging_allocator(d->local_staging_vkallocator);
-        }
-    }
-#endif // NCNN_VULKAN
+    clear();
 
     delete d;
 }
@@ -2320,6 +2340,28 @@ Extractor& Extractor::operator=(const Extractor& rhs)
 #endif // NCNN_VULKAN
 
     return *this;
+}
+
+void Extractor::clear()
+{
+    d->blob_mats.clear();
+
+#if NCNN_VULKAN
+    if (d->opt.use_vulkan_compute)
+    {
+        d->blob_mats_gpu.clear();
+        d->blob_mats_gpu_image.clear();
+
+        if (d->local_blob_vkallocator)
+        {
+            d->net->vulkan_device()->reclaim_blob_allocator(d->local_blob_vkallocator);
+        }
+        if (d->local_staging_vkallocator)
+        {
+            d->net->vulkan_device()->reclaim_staging_allocator(d->local_staging_vkallocator);
+        }
+    }
+#endif // NCNN_VULKAN
 }
 
 void Extractor::set_light_mode(bool enable)
@@ -2417,6 +2459,19 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     if (d->blob_mats[blob_index].dims == 0)
     {
         int layer_index = d->net->blobs()[blob_index].producer;
+
+        // use local allocator
+        if (d->opt.use_local_pool_allocator)
+        {
+            if (!d->opt.blob_allocator)
+            {
+                d->opt.blob_allocator = d->net->d->local_blob_allocator;
+            }
+            if (!d->opt.workspace_allocator)
+            {
+                d->opt.workspace_allocator = d->net->d->local_workspace_allocator;
+            }
+        }
 
 #if NCNN_VULKAN
         if (d->opt.use_vulkan_compute)

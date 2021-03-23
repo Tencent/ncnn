@@ -21,7 +21,7 @@ namespace ncnn {
 Option::Option()
 {
     lightmode = true;
-    num_threads = get_cpu_count();
+    num_threads = get_big_cpu_count();
     blob_allocator = 0;
     workspace_allocator = 0;
 
@@ -63,6 +63,8 @@ Option::Option()
     use_weight_fp16_storage = false;
 
     flush_denormals = 3;
+
+    use_local_pool_allocator = true;
 }
 
 } // namespace ncnn

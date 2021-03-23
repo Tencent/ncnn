@@ -432,7 +432,8 @@ int get_little_cpu_count()
 
 int get_big_cpu_count()
 {
-    return get_cpu_thread_affinity_mask(2).num_enabled();
+    int big_cpu_count = get_cpu_thread_affinity_mask(2).num_enabled();
+    return big_cpu_count ? big_cpu_count : g_cpucount;
 }
 
 #if defined __ANDROID__ || defined __linux__
