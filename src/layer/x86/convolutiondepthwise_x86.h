@@ -40,6 +40,9 @@ public:
 
     // packing
     Mat weight_data_packed;
+
+    // int8
+    Mat weight_data_int8;
 };
 
 } // namespace ncnn

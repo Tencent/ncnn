@@ -69,7 +69,13 @@ static void convolution_pack8to1_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         int16x8_t _s8 = vmull_s8(_val, _w);
 
                         int32x4_t _s4 = vaddl_s16(vget_low_s16(_s8), vget_high_s16(_s8));
+#if __aarch64__
                         sum += vaddvq_s32(_s4); // dot
+#else
+                        int32x2_t _ss = vadd_s32(vget_low_s32(_s4), vget_high_s32(_s4));
+                        _ss = vpadd_s32(_ss, _ss);
+                        sum += vget_lane_s32(_ss, 0);
+#endif
 
                         kptr += 8;
                     }

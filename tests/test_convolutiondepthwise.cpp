@@ -162,7 +162,7 @@ static int test_convolutiondepthwise_int8(int w, int h, int c, int outch, int ke
         weights[2] = input_scales;
     }
 
-    int ret = test_layer<ncnn::ConvolutionDepthWise>("ConvolutionDepthWise", pd, weights, a, 0.001f, requant ? set_param : 0);
+    int ret = test_layer<ncnn::ConvolutionDepthWise>("ConvolutionDepthWise", pd, weights, a, 1.0f, requant ? set_param : 0);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolutiondepthwise_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d requant=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, requant);

@@ -244,8 +244,8 @@ int InnerProduct_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const 
                 int8x8_t _w = vld1_s8(kptr);
 
                 int16x8_t _s0 = vmull_s8(_val, _w);
-                _sum0 = vaddw_s16(_sum0, vget_low_f32(_s0));
-                _sum1 = vaddw_s16(_sum1, vget_high_f32(_s0));
+                _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
+                _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
 
                 sptr += 1;
                 kptr += 8;
