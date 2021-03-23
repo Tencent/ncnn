@@ -86,7 +86,7 @@ static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                         _sum0 = _mm_add_epi32(_sum0, _s0);
                         _sum1 = _mm_add_epi32(_sum1, _s1);
 
-                        __m128i _w1 = _mm_loadl_epi64((const __m128i*)kptr);
+                        __m128i _w1 = _mm_loadl_epi64((const __m128i*)(kptr + 8));
                         _w1 = _mm_unpacklo_epi8(_w1, _mm_cmpgt_epi8(_mm_setzero_si128(), _w1));
 
                         _sl = _mm_mullo_epi16(_val1, _w1);
@@ -97,7 +97,7 @@ static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                         _sum0 = _mm_add_epi32(_sum0, _s0);
                         _sum1 = _mm_add_epi32(_sum1, _s1);
 
-                        __m128i _w2 = _mm_loadl_epi64((const __m128i*)kptr);
+                        __m128i _w2 = _mm_loadl_epi64((const __m128i*)(kptr + 16));
                         _w2 = _mm_unpacklo_epi8(_w2, _mm_cmpgt_epi8(_mm_setzero_si128(), _w2));
 
                         _sl = _mm_mullo_epi16(_val2, _w2);
@@ -108,7 +108,7 @@ static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                         _sum0 = _mm_add_epi32(_sum0, _s0);
                         _sum1 = _mm_add_epi32(_sum1, _s1);
 
-                        __m128i _w3 = _mm_loadl_epi64((const __m128i*)kptr);
+                        __m128i _w3 = _mm_loadl_epi64((const __m128i*)(kptr + 24));
                         _w3 = _mm_unpacklo_epi8(_w3, _mm_cmpgt_epi8(_mm_setzero_si128(), _w3));
 
                         _sl = _mm_mullo_epi16(_val3, _w3);
@@ -119,7 +119,7 @@ static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                         _sum0 = _mm_add_epi32(_sum0, _s0);
                         _sum1 = _mm_add_epi32(_sum1, _s1);
 
-                        __m128i _w4 = _mm_loadl_epi64((const __m128i*)kptr);
+                        __m128i _w4 = _mm_loadl_epi64((const __m128i*)(kptr + 32));
                         _w4 = _mm_unpacklo_epi8(_w4, _mm_cmpgt_epi8(_mm_setzero_si128(), _w4));
 
                         _sl = _mm_mullo_epi16(_val4, _w4);
@@ -130,7 +130,7 @@ static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                         _sum0 = _mm_add_epi32(_sum0, _s0);
                         _sum1 = _mm_add_epi32(_sum1, _s1);
 
-                        __m128i _w5 = _mm_loadl_epi64((const __m128i*)kptr);
+                        __m128i _w5 = _mm_loadl_epi64((const __m128i*)(kptr + 40));
                         _w5 = _mm_unpacklo_epi8(_w5, _mm_cmpgt_epi8(_mm_setzero_si128(), _w5));
 
                         _sl = _mm_mullo_epi16(_val5, _w5);
@@ -141,7 +141,7 @@ static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                         _sum0 = _mm_add_epi32(_sum0, _s0);
                         _sum1 = _mm_add_epi32(_sum1, _s1);
 
-                        __m128i _w6 = _mm_loadl_epi64((const __m128i*)kptr);
+                        __m128i _w6 = _mm_loadl_epi64((const __m128i*)(kptr + 48));
                         _w6 = _mm_unpacklo_epi8(_w6, _mm_cmpgt_epi8(_mm_setzero_si128(), _w6));
 
                         _sl = _mm_mullo_epi16(_val6, _w6);
@@ -152,7 +152,7 @@ static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                         _sum0 = _mm_add_epi32(_sum0, _s0);
                         _sum1 = _mm_add_epi32(_sum1, _s1);
 
-                        __m128i _w7 = _mm_loadl_epi64((const __m128i*)kptr);
+                        __m128i _w7 = _mm_loadl_epi64((const __m128i*)(kptr + 56));
                         _w7 = _mm_unpacklo_epi8(_w7, _mm_cmpgt_epi8(_mm_setzero_si128(), _w7));
 
                         _sl = _mm_mullo_epi16(_val7, _w7);
@@ -165,8 +165,6 @@ static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
 
                         kptr += 64;
                     }
-
-                    kptr += maxk;
                 }
 
                 _mm_storeu_si128((__m128i*)(outptr + j * 8), _sum0);

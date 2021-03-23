@@ -109,8 +109,6 @@ static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
 
                         kptr += 64;
                     }
-
-                    kptr += maxk;
                 }
 
                 vst1q_s32(outptr + j * 8, _sum0);
