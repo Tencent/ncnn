@@ -996,6 +996,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 
 #if NCNN_VULKAN
     // gpu
+    if (!(flag & TEST_LAYER_DISABLE_GPU_TESTING))
     {
         ncnn::Mat d;
         int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, d, ncnn::Mat(), func, flag);
@@ -1007,6 +1008,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
     }
 
     // gpu shape hint
+    if (!(flag & TEST_LAYER_DISABLE_GPU_TESTING))
     {
         ncnn::Mat d;
         int ret = test_layer_gpu(typeindex, pd, weights, _opt, a, d, b, func, flag);
