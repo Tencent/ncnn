@@ -44,6 +44,8 @@ namespace ncnn {
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
 
+#include "convolution_int8.h"
+
 #if __ARM_NEON
 #include "convolution_pack4.h"
 #include "convolution_pack4_bf16s.h"
@@ -68,7 +70,6 @@ namespace ncnn {
 #include "convolution_7x7_pack1to4.h"
 #include "convolution_7x7_pack1to4_bf16s.h"
 
-#include "convolution_int8.h"
 #include "convolution_pack8_int8.h"
 #include "convolution_pack1to8_int8.h"
 #include "convolution_pack8to1_int8.h"
@@ -1799,6 +1800,31 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
     }
 #endif // __ARM_NEON
 
+    if (elempack == 1 && out_elempack == 1)
+    {
+        if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            //         conv3x3s1_winograd23_transform_kernel_int8_neon(weight_data, weight_3x3_winograd23_data_int8, num_input, num_output);
+            conv3x3s1_winograd43_transform_kernel_int8_neon(weight_data, weight_3x3_winograd23_data_int8, num_input, num_output);
+        }
+
+        /*    if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+        conv3x3s2_transform_kernel_int8_neon(weight_data, weight_3x3s2_data_int8, num_input, num_output);
+        }
+        else */
+        if (opt.use_sgemm_convolution && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv1x1s1_sgemm_transform_kernel_int8_neon(weight_data, weight_sgemm_data_int8, num_input, num_output);
+        }
+        else if (opt.use_sgemm_convolution && dilation_w == 1 && dilation_h == 1)
+        {
+            conv_im2col_sgemm_transform_kernel_int8_neon(weight_data, weight_sgemm_data_int8, num_input, num_output, maxk);
+        }
+
+        return 0;
+    }
+
     // src = kw-kh-inch-outch
     // dst = pb-pa-kw-kh-inch/pa-outch/pb
     {
@@ -1831,31 +1857,6 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
             }
         }
     }
-
-    //     use_winograd3x3_int8 = false;
-    //     use_sgemm1x1_int8 = false;
-
-    //     if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-    //     {
-    //         //         use_winograd3x3_int8 = true;
-    //         //         conv3x3s1_winograd23_transform_kernel_int8_neon(weight_data, weight_3x3_winograd23_data_int8, num_input, num_output);
-    //         conv3x3s1_winograd43_transform_kernel_int8_neon(weight_data, weight_3x3_winograd23_data_int8, num_input, num_output);
-    //     }
-
-    /*    if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-    {
-        conv3x3s2_transform_kernel_int8_neon(weight_data, weight_3x3s2_data_int8, num_input, num_output);
-    }
-    else */
-    //     if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-    //     {
-    //         //         use_sgemm1x1_int8 = true;
-    //         conv1x1s1_sgemm_transform_kernel_int8_neon(weight_data, weight_1x1s1_sgemm_data_int8, num_input, num_output);
-    //     }
-    //     else
-    //     {
-    //         conv_im2col_sgemm_transform_kernel_int8_neon(weight_data, weight_sgemm_data_int8, num_input, num_output, maxk);
-    //     }
 
     return 0;
 }
@@ -2091,177 +2092,230 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
 
     if (elempack == 1 && out_elempack == 1)
     {
-        Mat top_blob_int32;
-        top_blob_int32.create(outw, outh, num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.workspace_allocator);
-        if (top_blob_int32.empty())
-            return -100;
-
-        //         convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data_int8, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-        convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-
-        if (use_int8_requantize == true)
+        if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            // requantize, reverse scale inplace
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
+            Mat top_blob_int32;
+            top_blob_int32.create(outw, outh, num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.workspace_allocator);
+            if (top_blob_int32.empty())
+                return -100;
+
+            //             conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd23_data_int8, opt);
+            conv3x3s1_winograd43_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd23_data_int8, opt);
+
+            if (use_int8_requantize)
             {
-                Option opt_g = opt;
-                opt_g.num_threads = 1;
-                opt_g.blob_allocator = top_blob.allocator;
+                // requantize, reverse scale inplace
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int p = 0; p < num_output; p++)
+                {
+                    Option opt_g = opt;
+                    opt_g.num_threads = 1;
+                    opt_g.blob_allocator = top_blob.allocator;
 
-                Mat top_blob_int32_g = top_blob_int32.channel_range(p, 1);
-                Mat top_blob_g = top_blob.channel_range(p, 1);
+                    Mat top_blob_tm_g = top_blob_int32.channel_range(p, 1);
+                    Mat top_blob_g = top_blob.channel_range(p, 1);
 
-                // requantize and relu
-                float scale_in;
-                if (weight_data_int8_scales[p] == 0)
-                    scale_in = 0;
-                else
-                    scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+                    // requantize and relu
+                    float scale_in;
+                    if (weight_data_int8_scales[p] == 0)
+                        scale_in = 0;
+                    else
+                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
 
-                float scale_out = top_blob_int8_scale; //FIXME load param
+                    float scale_out = top_blob_int8_scale; //FIXME load param
 
-                requantize_int8_to_int8(top_blob_int32_g, top_blob_g, scale_in, scale_out, bias_term ? (const float*)bias_data + p : 0, bias_term ? 1 : 0, 0, opt_g);
+                    requantize_int8_to_int8(top_blob_tm_g, top_blob_g, scale_in, scale_out, bias_term ? (const float*)bias_data + p : 0, bias_term ? 1 : 0, 0, opt_g);
+                }
+            }
+            else
+            {
+                Mat scale_data(num_output);
+                for (int p = 0; p < num_output; p++)
+                {
+                    // dequantize
+                    float scale_in;
+                    if (weight_data_int8_scales[p] == 0)
+                        scale_in = 0;
+                    else
+                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+                    scale_data[p] = scale_in;
+                }
+
+                dequantize_from_int32(top_blob_int32, top_blob, scale_data, bias_data, opt);
+            }
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (opt.use_sgemm_convolution && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            if (use_int8_requantize)
+            {
+                std::vector<float> requantize_scales;
+                for (int p = 0; p < num_output; p++)
+                {
+                    float scale_in;
+                    if (weight_data_int8_scales[p] == 0)
+                        scale_in = 0;
+                    else
+                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+                    float scale_out = top_blob_int8_scale;
+
+                    requantize_scales.push_back(scale_in);
+                    requantize_scales.push_back(scale_out);
+                }
+
+                conv1x1s1_sgemm_int8_requant_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_int8, bias_data, requantize_scales, opt);
+            }
+            else
+            {
+                Mat top_blob_int32;
+                top_blob_int32.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
+                if (top_blob_int32.empty())
+                    return -100;
+
+                conv1x1s1_sgemm_int8_neon(bottom_blob_bordered, top_blob_int32, weight_sgemm_data_int8, opt);
+
+                Mat scale_data(num_output);
+                for (int p = 0; p < num_output; p++)
+                {
+                    // dequantize
+                    float scale_in;
+                    if (weight_data_int8_scales[p] == 0)
+                        scale_in = 0;
+                    else
+                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+                    scale_data[p] = scale_in;
+                }
+
+                dequantize_from_int32(top_blob_int32, top_blob, scale_data, bias_data, opt);
+            }
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (opt.use_sgemm_convolution && dilation_w == 1 && dilation_h == 1)
+        {
+            Mat top_blob_int32;
+            top_blob_int32.create(outw, outh, num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.workspace_allocator);
+            if (top_blob_int32.empty())
+                return -100;
+
+            conv_im2col_sgemm_int8_neon(bottom_blob_bordered, top_blob_int32, weight_sgemm_data_int8, kernel_w, kernel_h, stride_w, stride_h, opt);
+
+            if (use_int8_requantize)
+            {
+                // requantize, reverse scale inplace
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int p = 0; p < num_output; p++)
+                {
+                    Option opt_g = opt;
+                    opt_g.num_threads = 1;
+                    opt_g.blob_allocator = top_blob.allocator;
+
+                    Mat top_blob_tm_g = top_blob_int32.channel_range(p, 1);
+                    Mat top_blob_g = top_blob.channel_range(p, 1);
+
+                    // requantize and relu
+                    float scale_in;
+                    if (weight_data_int8_scales[p] == 0)
+                        scale_in = 0;
+                    else
+                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+                    float scale_out = top_blob_int8_scale; //FIXME load param
+
+                    requantize_int8_to_int8(top_blob_tm_g, top_blob_g, scale_in, scale_out, bias_term ? (const float*)bias_data + p : 0, bias_term ? 1 : 0, 0, opt_g);
+                }
+            }
+            else
+            {
+                Mat scale_data(num_output);
+                for (int p = 0; p < num_output; p++)
+                {
+                    // dequantize
+                    float scale_in;
+                    if (weight_data_int8_scales[p] == 0)
+                        scale_in = 0;
+                    else
+                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+                    scale_data[p] = scale_in;
+                }
+
+                dequantize_from_int32(top_blob_int32, top_blob, scale_data, bias_data, opt);
+            }
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
             }
         }
         else
         {
-            Mat scale_data(num_output);
-            for (int p = 0; p < num_output; p++)
-            {
-                // dequantize
-                float scale_in;
-                if (weight_data_int8_scales[p] == 0)
-                    scale_in = 0;
-                else
-                    scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+            Mat top_blob_int32;
+            top_blob_int32.create(outw, outh, num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.workspace_allocator);
+            if (top_blob_int32.empty())
+                return -100;
 
-                scale_data[p] = scale_in;
+            //         convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data_int8, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+            convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+
+            if (use_int8_requantize)
+            {
+                // requantize, reverse scale inplace
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int p = 0; p < num_output / out_elempack; p++)
+                {
+                    Option opt_g = opt;
+                    opt_g.num_threads = 1;
+                    opt_g.blob_allocator = top_blob.allocator;
+
+                    Mat top_blob_int32_g = top_blob_int32.channel_range(p, 1);
+                    Mat top_blob_g = top_blob.channel_range(p, 1);
+
+                    // requantize and relu
+                    float scale_in;
+                    if (weight_data_int8_scales[p] == 0)
+                        scale_in = 0;
+                    else
+                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+                    float scale_out = top_blob_int8_scale; //FIXME load param
+
+                    requantize_int8_to_int8(top_blob_int32_g, top_blob_g, scale_in, scale_out, bias_term ? (const float*)bias_data + p : 0, bias_term ? 1 : 0, 0, opt_g);
+                }
+            }
+            else
+            {
+                Mat scale_data(num_output);
+                for (int p = 0; p < num_output; p++)
+                {
+                    // dequantize
+                    float scale_in;
+                    if (weight_data_int8_scales[p] == 0)
+                        scale_in = 0;
+                    else
+                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+                    scale_data[p] = scale_in;
+                }
+
+                dequantize_from_int32(top_blob_int32, top_blob, scale_data, bias_data, opt);
             }
 
-            dequantize_from_int32(top_blob_int32, top_blob, scale_data, bias_data, opt);
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
         }
-
-        if (activation)
-        {
-            activation->forward_inplace(top_blob, opt);
-        }
-
-        //         if (dilation_w > 1 || dilation_h > 1)
-        //         {
-        //             return Convolution::forward_int8(bottom_blob, top_blob, opt);
-        //         }
-        //
-        //         Mat top_blob_int32;
-        //         top_blob_int32.create(outw, outh, num_output, (size_t)4u, opt.workspace_allocator);
-        //         if (top_blob_int32.empty())
-        //             return -100;
-        //
-        //         if (use_int8_requantize == true)
-        //         {
-        //             if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        //             {
-        //                 std::vector<float> requantize_scales;
-        //                 for (int p = 0; p < num_output; p++)
-        //                 {
-        //                     float scale_in;
-        //                     if (weight_data_int8_scales[p] == 0)
-        //                         scale_in = 0;
-        //                     else
-        //                         scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
-        //
-        //                     float scale_out = top_blob_int8_scale;
-        //
-        //                     requantize_scales.push_back(scale_in);
-        //                     requantize_scales.push_back(scale_out);
-        //                 }
-        //
-        //                 conv1x1s1_sgemm_int8_requant_neon(bottom_blob_bordered, top_blob, weight_1x1s1_sgemm_data_int8, bias_data, requantize_scales, opt);
-        //
-        //                 if (activation)
-        //                 {
-        //                     activation->forward_inplace(top_blob, opt);
-        //                 }
-        //
-        //                 return 0;
-        //             }
-        //             else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        //             {
-        //                 //             conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd23_data_int8, opt);
-        //                 conv3x3s1_winograd43_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd23_data_int8, opt);
-        //             }
-        //             //             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        //             //             {
-        //             //                 conv3x3s2_packed_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3s2_data_int8, opt);
-        //             //             }
-        //             else
-        //             {
-        //                 conv_im2col_sgemm_int8_neon(bottom_blob_bordered, top_blob_int32, weight_sgemm_data_int8, kernel_w, kernel_h, stride_w, stride_h, opt);
-        //             }
-        //
-        //             // requantize, reverse scale inplace
-        //             #pragma omp parallel for num_threads(opt.num_threads)
-        //             for (int p = 0; p < num_output; p++)
-        //             {
-        //                 Option opt_g = opt;
-        //                 opt_g.num_threads = 1;
-        //                 opt_g.blob_allocator = top_blob.allocator;
-        //
-        //                 Mat top_blob_tm_g = top_blob_int32.channel_range(p, 1);
-        //                 Mat top_blob_g = top_blob.channel_range(p, 1);
-        //
-        //                 // requantize and relu
-        //                 float scale_in;
-        //                 if (weight_data_int8_scales[p] == 0)
-        //                     scale_in = 0;
-        //                 else
-        //                     scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
-        //
-        //                 float scale_out = top_blob_int8_scale; //FIXME load param
-        //
-        //                 requantize_int8_to_int8(top_blob_tm_g, top_blob_g, scale_in, scale_out, bias_term ? (const float*)bias_data + p : 0, bias_term ? 1 : 0, 0, opt_g);
-        //             }
-        //         }
-        //         else
-        //         {
-        //             if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        //             {
-        //                 conv1x1s1_sgemm_int8_neon(bottom_blob_bordered, top_blob_int32, weight_1x1s1_sgemm_data_int8, opt);
-        //             }
-        //             else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        //             {
-        //                 //             conv3x3s1_winograd23_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd23_data_int8, opt);
-        //                 conv3x3s1_winograd43_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd23_data_int8, opt);
-        //             }
-        //             //             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        //             //             {
-        //             //                 conv3x3s2_packed_int8_neon(bottom_blob_bordered, top_blob_int32, weight_3x3s2_data_int8, opt);
-        //             //             }
-        //             else
-        //             {
-        //                 conv_im2col_sgemm_int8_neon(bottom_blob_bordered, top_blob_int32, weight_sgemm_data_int8, kernel_w, kernel_h, stride_w, stride_h, opt);
-        //             }
-        //
-        //             Mat scale_data(num_output);
-        //             for (int p = 0; p < num_output; p++)
-        //             {
-        //                 // dequantize
-        //                 float scale_in;
-        //                 if (weight_data_int8_scales[p] == 0)
-        //                     scale_in = 0;
-        //                 else
-        //                     scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
-        //
-        //                 scale_data[p] = scale_in;
-        //             }
-        //
-        //             dequantize_from_int32(top_blob_int32, top_blob, scale_data, bias_data, opt);
-        //         }
-        //
-        //         if (activation)
-        //         {
-        //             activation->forward_inplace(top_blob, opt);
-        //         }
     }
 
     return 0;

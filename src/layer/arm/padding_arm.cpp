@@ -409,6 +409,7 @@ int Padding_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
+#if __ARM_NEON
     if (elempack == 8)
     {
         if (dims == 1)
@@ -492,6 +493,7 @@ int Padding_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
             }
         }
     }
+#endif // __ARM_NEON
 
     Mat bottom_blob_unpacked = bottom_blob;
     if (elempack != 1)

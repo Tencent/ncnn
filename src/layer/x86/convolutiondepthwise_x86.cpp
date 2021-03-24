@@ -966,79 +966,95 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
 
         if (elempack == 1)
         {
-            //         if (use_int8_requantize)
-            //         {
-            //             std::vector<float> requantize_scales;
-            //             for (int g = 0; g < group; g++)
-            //             {
-            //                 float scale_in;
-            //                 if (weight_data_int8_scales[g] == 0)
-            //                     scale_in = 0;
-            //                 else
-            //                     scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
-            //
-            //                 float scale_out = top_blob_int8_scale;
-            //
-            //                 requantize_scales.push_back(scale_in);
-            //                 requantize_scales.push_back(scale_out);
-            //             }
-            //
-            //             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-            //             {
-            //                 convdw3x3s1_int8_requant_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
-            //
-            //                 if (activation)
-            //                 {
-            //                     activation->forward_inplace(top_blob, opt);
-            //                 }
-            //
-            //                 return 0;
-            //             }
-            //             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-            //             {
-            //                 convdw3x3s2_int8_requant_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
-            //
-            //                 if (activation)
-            //                 {
-            //                     activation->forward_inplace(top_blob, opt);
-            //                 }
-            //
-            //                 return 0;
-            //             }
-            //         }
-            //         else
-            //         {
-            //             std::vector<float> dequantize_scales;
-            //             for (int g = 0; g < group; g++)
-            //             {
-            //                 float top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
-            //
-            //                 dequantize_scales.push_back(top_rescale);
-            //             }
-            //
-            //             if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
-            //             {
-            //                 convdw3x3s1_int8_dequant_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);
-            //
-            //                 if (activation)
-            //                 {
-            //                     activation->forward_inplace(top_blob, opt);
-            //                 }
-            //
-            //                 return 0;
-            //             }
-            //             if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
-            //             {
-            //                 convdw3x3s2_int8_dequant_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);
-            //
-            //                 if (activation)
-            //                 {
-            //                     activation->forward_inplace(top_blob, opt);
-            //                 }
-            //
-            //                 return 0;
-            //             }
-            //         }
+            if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+            {
+                if (use_int8_requantize)
+                {
+                    std::vector<float> requantize_scales;
+                    for (int g = 0; g < group; g++)
+                    {
+                        float scale_in;
+                        if (weight_data_int8_scales[g] == 0)
+                            scale_in = 0;
+                        else
+                            scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+                        float scale_out = top_blob_int8_scale;
+
+                        requantize_scales.push_back(scale_in);
+                        requantize_scales.push_back(scale_out);
+                    }
+
+                    convdw3x3s1_int8_requant_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
+
+                    if (activation)
+                    {
+                        activation->forward_inplace(top_blob, opt);
+                    }
+                }
+                else
+                {
+                    std::vector<float> dequantize_scales;
+                    for (int g = 0; g < group; g++)
+                    {
+                        float top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+                        dequantize_scales.push_back(top_rescale);
+                    }
+
+                    convdw3x3s1_int8_dequant_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);
+
+                    if (activation)
+                    {
+                        activation->forward_inplace(top_blob, opt);
+                    }
+                }
+            }
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                if (use_int8_requantize)
+                {
+                    std::vector<float> requantize_scales;
+                    for (int g = 0; g < group; g++)
+                    {
+                        float scale_in;
+                        if (weight_data_int8_scales[g] == 0)
+                            scale_in = 0;
+                        else
+                            scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+                        float scale_out = top_blob_int8_scale;
+
+                        requantize_scales.push_back(scale_in);
+                        requantize_scales.push_back(scale_out);
+                    }
+
+                    convdw3x3s2_int8_requant_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
+
+                    if (activation)
+                    {
+                        activation->forward_inplace(top_blob, opt);
+                    }
+                }
+                else
+                {
+                    std::vector<float> dequantize_scales;
+                    for (int g = 0; g < group; g++)
+                    {
+                        float top_rescale = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+                        dequantize_scales.push_back(top_rescale);
+                    }
+
+                    convdw3x3s2_int8_dequant_sse(bottom_blob_bordered, top_blob, weight_data, bias_data, dequantize_scales, opt);
+
+                    if (activation)
+                    {
+                        activation->forward_inplace(top_blob, opt);
+                    }
+                }
+            }
+            else
             {
                 const int maxk = kernel_w * kernel_h;
 

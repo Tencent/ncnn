@@ -70,12 +70,9 @@ public:
     // int8
     Mat weight_data_int8;
 
-    //     bool use_winograd3x3_int8;
-    //     bool use_sgemm1x1_int8;
     //     Mat weight_3x3s2_data_int8;
-    //     Mat weight_1x1s1_sgemm_data_int8;
-    //     Mat weight_sgemm_data_int8;
-    //     std::vector<Mat> weight_3x3_winograd23_data_int8;
+    Mat weight_sgemm_data_int8;
+    std::vector<Mat> weight_3x3_winograd23_data_int8;
 };
 
 } // namespace ncnn
