@@ -390,7 +390,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     for (int j = 0; j < w; j++)
                     {
                         __m128 _v0 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr));
-                        __m128 _v1 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr + 4));
+                        __m128 _v1 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)(intptr + 4)));
                         _v0 = _mm_mul_ps(_v0, _scale0);
                         _v1 = _mm_mul_ps(_v1, _scale1);
                         _mm_storeu_ps(ptr0, _v0);
@@ -419,7 +419,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     for (int j = 0; j < w; j++)
                     {
                         __m128 _v0 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr));
-                        __m128 _v1 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr + 4));
+                        __m128 _v1 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)(intptr + 4)));
                         _v0 = _mm_add_ps(_bias0, _mm_mul_ps(_v0, _scale0));
                         _v1 = _mm_add_ps(_bias1, _mm_mul_ps(_v1, _scale1));
                         _mm_storeu_ps(ptr0, _v0);
@@ -460,7 +460,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     for (int i = 0; i < size; i++)
                     {
                         __m128 _v0 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr));
-                        __m128 _v1 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr + 4));
+                        __m128 _v1 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)(intptr + 4)));
                         _v0 = _mm_mul_ps(_v0, _scale0);
                         _v1 = _mm_mul_ps(_v1, _scale1);
                         _mm_storeu_ps(ptr0, _v0);
@@ -489,7 +489,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     for (int i = 0; i < size; i++)
                     {
                         __m128 _v0 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr));
-                        __m128 _v1 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)intptr + 4));
+                        __m128 _v1 = _mm_cvtepi32_ps(_mm_loadu_si128((const __m128i*)(intptr + 4)));
                         _v0 = _mm_add_ps(_bias0, _mm_mul_ps(_v0, _scale0));
                         _v1 = _mm_add_ps(_bias1, _mm_mul_ps(_v1, _scale1));
                         _mm_storeu_ps(ptr0, _v0);
