@@ -315,13 +315,6 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!op->support_fp16_storage) opt.use_fp16_arithmetic = false;
     if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
 
-    //     if (op->use_int8_inference)
-    //     {
-    //         opt.use_bf16_storage = false;
-    //         opt.use_fp16_storage = false;
-    //         opt.use_packing_layout = false;
-    //     }
-
     op->create_pipeline(opt);
 
     std::vector<ncnn::Mat> a4(a.size());
@@ -722,13 +715,6 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!op->support_fp16_storage) opt.use_fp16_arithmetic = false;
     if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
 
-    //     if (op->use_int8_inference)
-    //     {
-    //         opt.use_bf16_storage = false;
-    //         opt.use_fp16_storage = false;
-    //         opt.use_packing_layout = false;
-    //     }
-
     op->create_pipeline(opt);
 
     ncnn::Mat a4;
@@ -1120,6 +1106,11 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
             epsilon_fp16 = epsilon;
         }
 
+        if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
+        {
+            a_fp16 = a;
+        }
+
         if (opt.use_fp16_arithmetic)
         {
             epsilon_fp16 = epsilon * 1000; // 1.0
@@ -1227,6 +1218,11 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
             a_fp16 = a;
             weights_fp16 = weights;
             epsilon_fp16 = epsilon;
+        }
+
+        if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
+        {
+            a_fp16 = a;
         }
 
         if (opt.use_fp16_arithmetic)

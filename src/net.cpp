@@ -1489,15 +1489,6 @@ int Net::load_param(const DataReader& dr)
             return -1;
         }
 
-        //         if (layer->use_int8_inference)
-        //         {
-        //             // no int8 gpu or packing layout support yet
-        //             opt.use_vulkan_compute = false;
-        // //             opt.use_packing_layout = false;
-        // //             opt.use_fp16_storage = false;
-        // //             opt.use_bf16_storage = false;
-        //         }
-
 #if NCNN_VULKAN
         if (opt.use_vulkan_compute)
             layer->vkdev = d->vkdev;
@@ -1558,6 +1549,12 @@ int Net::load_param(const DataReader& dr)
         {
             NCNN_LOGE("ParamDict load_param failed");
             continue;
+        }
+
+        if (layer->support_int8_storage)
+        {
+            // no int8 gpu support yet
+            opt.use_vulkan_compute = false;
         }
 
         // pull out top shape hints
@@ -1700,15 +1697,6 @@ int Net::load_param_bin(const DataReader& dr)
             return -1;
         }
 
-        //         if (layer->use_int8_inference)
-        //         {
-        //             // no int8 gpu or packing layout support yet
-        //             opt.use_vulkan_compute = false;
-        //             opt.use_packing_layout = false;
-        //             opt.use_fp16_storage = false;
-        //             opt.use_bf16_storage = false;
-        //         }
-
 #if NCNN_VULKAN
         if (opt.use_vulkan_compute)
             layer->vkdev = d->vkdev;
@@ -1753,6 +1741,12 @@ int Net::load_param_bin(const DataReader& dr)
         {
             NCNN_LOGE("ParamDict load_param failed");
             continue;
+        }
+
+        if (layer->support_int8_storage)
+        {
+            // no int8 gpu support yet
+            opt.use_vulkan_compute = false;
         }
 
         // pull out top blob shape hints
@@ -1841,14 +1835,11 @@ int Net::load_model(const DataReader& dr)
             break;
         }
 
-        //         if (layer->use_int8_inference)
-        //         {
-        //             // no int8 gpu or packing layout support yet
-        //             opt.use_vulkan_compute = false;
-        //             opt.use_packing_layout = false;
-        //             opt.use_fp16_storage = false;
-        //             opt.use_bf16_storage = false;
-        //         }
+        if (layer->support_int8_storage)
+        {
+            // no int8 gpu support yet
+            opt.use_vulkan_compute = false;
+        }
     }
 
     d->fuse_network();

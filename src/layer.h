@@ -85,7 +85,6 @@ public:
     bool support_tensor_storage;
 
     // TODO drop these fields
-    //     bool use_int8_inference;
     bool support_weight_fp16_storage;
 
     bool support_reserved_0;

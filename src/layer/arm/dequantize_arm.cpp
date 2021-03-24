@@ -35,10 +35,10 @@ Dequantize_arm::Dequantize_arm()
 
 int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    int elembits = bottom_blob.elembits();
+    // assert bottom_blob.elembits() == 32
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage && elembits == 16)
+    if (opt.use_fp16_storage)
     {
         if (opt.use_fp16_arithmetic)
             return forward_fp16sa(bottom_blob, top_blob, opt);
@@ -47,7 +47,7 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
     }
 #endif
 
-    if (opt.use_bf16_storage && elembits == 16)
+    if (opt.use_bf16_storage)
         return forward_bf16s(bottom_blob, top_blob, opt);
 
     int dims = bottom_blob.dims;
@@ -2831,7 +2831,7 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
         int channels = bottom_blob.c;
         int size = w * h;
 
-        top_blob.create(w, h, channels, (size_t)4u, opt.blob_allocator);
+        top_blob.create(w, h, channels, (size_t)2u, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
