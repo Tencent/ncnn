@@ -1366,7 +1366,7 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
         int channels = bottom_blob.c;
         int size = w * h;
 
-        top_blob.create(w, h, channels, (size_t)4u, opt.blob_allocator);
+        top_blob.create(w, h, channels, (size_t)2u, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -2138,7 +2138,7 @@ int Dequantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
         int channels = bottom_blob.c;
         int size = w * h;
 
-        top_blob.create(w, h, channels, (size_t)4u, opt.blob_allocator);
+        top_blob.create(w, h, channels, (size_t)2u, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
