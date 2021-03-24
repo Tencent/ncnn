@@ -39,7 +39,7 @@ static inline signed char float2int8(float v)
 }
 
 #if __SSE2__
-static inline int64_t float2int8(__m128 _v0, __m128 _v1)
+static inline int64_t float2int8(const __m128& _v0, const __m128& _v1)
 {
     float v0[4];
     float v1[4];

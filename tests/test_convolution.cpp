@@ -253,6 +253,8 @@ static int test_convolution_1()
                   || test_convolution_int8(9, 7, 7, 7, k, d, s, p, 1)
                   || test_convolution_int8(9, 7, 8, 8, k, d, s, p, 1)
                   || test_convolution_int8(9, 7, 15, 15, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 16, 15, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 15, 16, k, d, s, p, 1)
                   || test_convolution_int8(9, 7, 16, 16, k, d, s, p, 1);
 
         if (ret != 0)
@@ -274,13 +276,20 @@ static int test_convolution_1()
                   || test_convolution_int8(9, 7, 7, 7, k, d, s, p, 1, true)
                   || test_convolution_int8(9, 7, 8, 8, k, d, s, p, 1, true)
                   || test_convolution_int8(9, 7, 15, 15, k, d, s, p, 1, true)
+                  || test_convolution_int8(9, 7, 16, 15, k, d, s, p, 1, true)
+                  || test_convolution_int8(9, 7, 15, 16, k, d, s, p, 1, true)
                   || test_convolution_int8(9, 7, 16, 16, k, d, s, p, 1, true);
 
         if (ret != 0)
             return -1;
     }
 
-    return 0;
+    return 0
+           || test_convolution_int8(13, 16, 16, 24, 3, 1, 1, 1, 1)
+           || test_convolution_int8(8, 8, 16, 24, 3, 1, 1, 1, 0)
+           || test_convolution_int8(4, 8, 16, 24, 3, 1, 1, 1, 1)
+           || test_convolution_int8(4, 20, 16, 24, 3, 1, 1, 1, 0)
+           || test_convolution_int8(6, 7, 64, 64, 3, 1, 2, 0, 1);
 }
 
 int main()
