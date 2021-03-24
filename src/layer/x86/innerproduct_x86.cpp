@@ -1758,11 +1758,12 @@ int InnerProduct_x86::create_pipeline_int8(const Option& opt)
     const int num_input = weight_data_size / num_output;
 
     int out_elempack = 1;
-
+#if __SSE2__
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 8 == 0 ? 8 : 1;
     }
+#endif // __SSE2__
 
     // src = inch-outch
     // dst = pb-inch-outch/pb
@@ -1824,10 +1825,12 @@ int InnerProduct_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const 
     //     int elempack = bottom_blob_int8_flattened.elempack;
 
     int out_elempack = 1;
+#if __SSE2__
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 8 == 0 ? 8 : 1;
     }
+#endif // __SSE2__
     //     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);

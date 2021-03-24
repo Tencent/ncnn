@@ -1791,12 +1791,13 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
 
     int elempack = 1;
     int out_elempack = 1;
-
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
         elempack = num_input % 8 == 0 ? 8 : 1;
         out_elempack = num_output % 8 == 0 ? 8 : 1;
     }
+#endif // __ARM_NEON
 
     // src = kw-kh-inch-outch
     // dst = pb-pa-kw-kh-inch/pa-outch/pb
@@ -1897,7 +1898,13 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
 
-    int out_elempack = (opt.use_packing_layout && num_output % 8 == 0) ? 8 : 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : 1;
+    }
+#endif // __ARM_NEON
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
 
     //     NCNN_LOGE("forward_int8_arm %d %d %d    %d %d", w, h, bottom_blob_bordered.c, elempack, out_elempack);
@@ -1906,6 +1913,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     if (top_blob.empty())
         return -100;
 
+#if __ARM_NEON
     if (elempack == 8 && out_elempack == 8)
     {
         Mat top_blob_int32;
@@ -2079,6 +2087,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
             activation->forward_inplace(top_blob, opt);
         }
     }
+#endif // __ARM_NEON
 
     if (elempack == 1 && out_elempack == 1)
     {

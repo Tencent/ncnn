@@ -140,7 +140,13 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
     // depth-wise
     if (channels == group && group == num_output)
     {
-        int elempack = (support_packing && opt.use_packing_layout && channels % 4 == 0) ? 4 : 1;
+        int elempack = 1;
+#if __ARM_NEON
+        if (opt.use_packing_layout)
+        {
+            elempack = channels % 4 == 0 ? 4 : 1;
+        }
+#endif // __ARM_NEON
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         if (opt.use_fp16_storage)
@@ -388,7 +394,13 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif // __ARM_NEON
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -631,7 +643,11 @@ int ConvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blo
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -1198,7 +1214,13 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif // __ARM_NEON
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -1503,7 +1525,13 @@ int ConvolutionDepthWise_arm::create_pipeline_int8_arm(const Option& opt)
     // depth-wise
     if (channels == group && group == num_output)
     {
-        int elempack = opt.use_packing_layout && channels % 8 == 0 ? 8 : 1;
+        int elempack = 1;
+#if __ARM_NEON
+        if (opt.use_packing_layout)
+        {
+            elempack = channels % 8 == 0 ? 8 : 1;
+        }
+#endif // __ARM_NEON
 
         if (elempack == 8)
         {
@@ -1569,7 +1597,13 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
 
-    int out_elempack = (opt.use_packing_layout && num_output % 8 == 0) ? 8 : 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : 1;
+    }
+#endif // __ARM_NEON
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -1579,6 +1613,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
     // depth-wise
     if (channels * elempack == group && group == num_output)
     {
+#if __ARM_NEON
         if (elempack == 8)
         {
             {
@@ -1747,6 +1782,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                 }
             }
         }
+#endif // __ARM_NEON
 
         if (elempack == 1)
         {
@@ -1971,8 +2007,15 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
     const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
 
-    int g_elempack = (opt.use_packing_layout && channels_g % 8 == 0) ? 8 : 1;
-    int out_g_elempack = (opt.use_packing_layout && num_output_g % 8 == 0) ? 8 : 1;
+    int g_elempack = 1;
+    int out_g_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        g_elempack = channels_g % 8 == 0 ? 8 : 1;
+        out_g_elempack = num_output_g % 8 == 0 ? 8 : 1;
+    }
+#endif // __ARM_NEON
 
     // unpacking
     Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
