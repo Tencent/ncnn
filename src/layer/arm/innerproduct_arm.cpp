@@ -212,7 +212,6 @@ int InnerProduct_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const 
     {
         out_elempack = num_output % 8 == 0 ? 8 : 1;
     }
-    //     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);
     if (top_blob.empty())

@@ -1861,14 +1861,6 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
     return 0;
 }
 
-// static inline signed char float2int8(float v)
-// {
-//     int int32 = static_cast<int>(round(v));
-//     if (int32 > 127) return 127;
-//     if (int32 < -127) return -127;
-//     return (signed char)int32;
-// }
-
 int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int elembits = bottom_blob.elembits();
@@ -1907,6 +1899,14 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     }
 #endif // __ARM_NEON
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (opt.use_fp16_storage)
+    {
+        out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+    }
+#endif
+    if (opt.use_bf16_storage)
+        out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
 
     //     NCNN_LOGE("forward_int8_arm %d %d %d    %d %d", w, h, bottom_blob_bordered.c, elempack, out_elempack);
 
