@@ -1108,11 +1108,17 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             ncnn::Requantize* op = (ncnn::Requantize*)layer;
             ncnn::Requantize* op_default = (ncnn::Requantize*)layer_default;
 
-            fprintf_param_value(" 0=%f", scale_in)
-            fprintf_param_value(" 1=%f", scale_out)
-            fprintf_param_value(" 2=%d", bias_term)
-            fprintf_param_value(" 3=%d", bias_data_size)
-            fprintf_param_value(" 4=%d", fusion_relu)
+            fprintf_param_value(" 0=%d", scale_in_data_size)
+            fprintf_param_value(" 1=%d", scale_out_data_size)
+            fprintf_param_value(" 2=%d", bias_data_size)
+            fprintf_param_value(" 3=%d", activation_type)
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(4, op->activation_params, pp);
+            }
+
+            fwrite_weight_data(op->scale_in_data, bp);
+            fwrite_weight_data(op->scale_out_data, bp);
+            fwrite_weight_data(op->bias_data, bp);
         }
         else if (layer->type == "Reshape")
         {
