@@ -80,7 +80,7 @@
 #include "layer/yolodetectionoutput.h"
 #include "layer/yolov3detectionoutput.h"
 
-static bool read_int8scale_table(const char* filepath, std::map<std::string, std::vector<float> >& blob_int8scale_table, std::map<std::string, std::vector<float> >& weight_int8scale_table)
+static bool read_int8scale_table(const char* filepath, std::map<std::string, ncnn::Mat>& blob_int8scale_table, std::map<std::string, ncnn::Mat>& weight_int8scale_table)
 {
     blob_int8scale_table.clear();
     weight_int8scale_table.clear();
@@ -132,11 +132,11 @@ static bool read_int8scale_table(const char* filepath, std::map<std::string, std
         // XYZ_param_N pattern
         if (strstr(key_str.c_str(), "_param_"))
         {
-            weight_int8scale_table[key_str] = scales;
+            weight_int8scale_table[key_str] = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
         }
         else
         {
-            blob_int8scale_table[key_str] = scales;
+            blob_int8scale_table[key_str] = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
         }
         key_str.clear();
         scales.clear();
@@ -157,8 +157,8 @@ public:
 
     // 0=fp32 1=fp16 2=int8
     int storage_type;
-    std::map<std::string, std::vector<float> > blob_int8scale_table;
-    std::map<std::string, std::vector<float> > weight_int8scale_table;
+    std::map<std::string, ncnn::Mat> blob_int8scale_table;
+    std::map<std::string, ncnn::Mat> weight_int8scale_table;
 
 public:
     int quantize_convolution();
@@ -190,14 +190,14 @@ int NetQuantize::quantize_convolution()
             continue;
 
         // find convolution layer
-        std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
+        std::map<std::string, ncnn::Mat>::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
         if (iter_data == blob_int8scale_table.end())
             continue;
 
         char key[256];
         sprintf(key, "%s_param_0", layers[i]->name.c_str());
 
-        std::map<std::string, std::vector<float> >::iterator iter = weight_int8scale_table.find(key);
+        std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
         {
             fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
@@ -207,38 +207,26 @@ int NetQuantize::quantize_convolution()
         // Convolution - quantize weight from fp32 to int8
         ncnn::Convolution* convolution = (ncnn::Convolution*)layers[i];
 
-        std::vector<float> weight_data_int8_scales = iter->second;
+        ncnn::Mat weight_data_int8_scales = iter->second;
 
         fprintf(stderr, "quantize_convolution %s\n", convolution->name.c_str());
 
         {
-            ncnn::Mat int8_weight_data(convolution->weight_data_size, (size_t)1u);
-            if (int8_weight_data.empty())
+            const int maxk = convolution->kernel_w * convolution->kernel_h;
+            const int num_input = convolution->weight_data_size / convolution->num_output / maxk;
+
+            ncnn::Mat weight_data_r2 = convolution->weight_data.reshape(maxk, num_input, convolution->num_output);
+
+            ncnn::Mat weight_data_int8;
+
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = convolution->weight_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(weight_data_r2, weight_data_int8, weight_data_int8_scales, opt_q);
+            if (weight_data_int8.empty())
                 return -100;
 
-            const int weight_data_size_output = convolution->weight_data_size / convolution->num_output;
-
-            // quantize weight to int8
-            for (int n = 0; n < convolution->num_output; n++)
-            {
-                ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
-
-                ncnn::ParamDict pd;
-                pd.set(0, weight_data_int8_scales[n]); // scale
-
-                op->load_param(pd);
-
-                ncnn::Option opt;
-                opt.blob_allocator = int8_weight_data.allocator;
-
-                const ncnn::Mat weight_data_n = convolution->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-                ncnn::Mat int8_weight_data_n = int8_weight_data.range(weight_data_size_output * n, weight_data_size_output);
-                op->forward(weight_data_n, int8_weight_data_n, opt);
-
-                delete op;
-            }
-
-            convolution->weight_data = int8_weight_data;
+            convolution->weight_data = weight_data_int8.reshape(convolution->weight_data_size);
         }
 
         convolution->int8_scale_term = 2;
@@ -257,14 +245,14 @@ int NetQuantize::quantize_convolutiondepthwise()
             continue;
 
         // find convolutiondepthwise layer
-        std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
+        std::map<std::string, ncnn::Mat>::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
         if (iter_data == blob_int8scale_table.end())
             continue;
 
         char key[256];
         sprintf(key, "%s_param_0", layers[i]->name.c_str());
 
-        std::map<std::string, std::vector<float> >::iterator iter = weight_int8scale_table.find(key);
+        std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
         {
             fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
@@ -274,7 +262,7 @@ int NetQuantize::quantize_convolutiondepthwise()
         // Convolution - quantize weight from fp32 to int8
         ncnn::ConvolutionDepthWise* convdw = (ncnn::ConvolutionDepthWise*)layers[i];
 
-        std::vector<float> weight_data_int8_scales = iter->second;
+        ncnn::Mat weight_data_int8_scales = iter->second;
 
         fprintf(stderr, "quantize_convolution %s\n", convdw->name.c_str());
 
@@ -283,26 +271,18 @@ int NetQuantize::quantize_convolutiondepthwise()
             if (int8_weight_data.empty())
                 return -100;
 
-            const int weight_data_size_output = convdw->weight_data_size / convdw->group;
+            const int weight_data_size_g = convdw->weight_data_size / convdw->group;
 
-            // quantize weight to int8
-            for (int n = 0; n < convdw->group; n++)
+            for (int g = 0; g < convdw->group; g++)
             {
-                ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
+                ncnn::Option opt_q = opt;
+                opt_q.blob_allocator = int8_weight_data.allocator;
+                opt_q.use_packing_layout = false;
 
-                ncnn::ParamDict pd;
-                pd.set(0, weight_data_int8_scales[n]); // scale
-
-                op->load_param(pd);
-
-                ncnn::Option opt;
-                opt.blob_allocator = int8_weight_data.allocator;
-
-                const ncnn::Mat weight_data_n = convdw->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-                ncnn::Mat int8_weight_data_n = int8_weight_data.range(weight_data_size_output * n, weight_data_size_output);
-                op->forward(weight_data_n, int8_weight_data_n, opt);
-
-                delete op;
+                const ncnn::Mat weight_data_g = convdw->weight_data.range(weight_data_size_g * g, weight_data_size_g);
+                ncnn::Mat int8_weight_data_g = int8_weight_data.range(weight_data_size_g * g, weight_data_size_g);
+                const ncnn::Mat weight_data_int8_scales_g = weight_data_int8_scales.range(g, 1);
+                ncnn::quantize_to_int8(weight_data_g, int8_weight_data_g, weight_data_int8_scales_g, opt_q);
             }
 
             convdw->weight_data = int8_weight_data;
@@ -324,14 +304,14 @@ int NetQuantize::quantize_innerproduct()
             continue;
 
         // find InnerProduct layer
-        std::map<std::string, std::vector<float> >::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
+        std::map<std::string, ncnn::Mat>::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
         if (iter_data == blob_int8scale_table.end())
             continue;
 
         char key[256];
         sprintf(key, "%s_param_0", layers[i]->name.c_str());
 
-        std::map<std::string, std::vector<float> >::iterator iter = weight_int8scale_table.find(key);
+        std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
         {
             fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
@@ -341,38 +321,23 @@ int NetQuantize::quantize_innerproduct()
         // InnerProduct - quantize weight from fp32 to int8
         ncnn::InnerProduct* fc = (ncnn::InnerProduct*)layers[i];
 
-        std::vector<float> weight_data_int8_scales = iter->second;
+        ncnn::Mat weight_data_int8_scales = iter->second;
 
         fprintf(stderr, "quantize_convolution %s\n", fc->name.c_str());
 
         {
-            ncnn::Mat int8_weight_data(fc->weight_data_size, (size_t)1u);
-            if (int8_weight_data.empty())
+            const int num_input = fc->weight_data_size / fc->num_output;
+
+            ncnn::Mat weight_data_r2 = fc->weight_data.reshape(num_input, fc->num_output);
+
+            ncnn::Mat weight_data_int8;
+            ncnn::Option opt_q = opt;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(weight_data_r2, weight_data_int8, weight_data_int8_scales, opt_q);
+            if (weight_data_int8.empty())
                 return -100;
 
-            const int weight_data_size_output = fc->weight_data_size / fc->num_output;
-
-            // quantize weight to int8
-            for (int n = 0; n < fc->num_output; n++)
-            {
-                ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Quantize);
-
-                ncnn::ParamDict pd;
-                pd.set(0, weight_data_int8_scales[n]); // scale
-
-                op->load_param(pd);
-
-                ncnn::Option opt;
-                opt.blob_allocator = int8_weight_data.allocator;
-
-                const ncnn::Mat weight_data_n = fc->weight_data.range(weight_data_size_output * n, weight_data_size_output);
-                ncnn::Mat int8_weight_data_n = int8_weight_data.range(weight_data_size_output * n, weight_data_size_output);
-                op->forward(weight_data_n, int8_weight_data_n, opt);
-
-                delete op;
-            }
-
-            fc->weight_data = int8_weight_data;
+            fc->weight_data = weight_data_int8.reshape(fc->weight_data_size);
         }
 
         fc->int8_scale_term = 2;
@@ -609,8 +574,8 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             // write int8_scale data
             if (op->int8_scale_term)
             {
-                std::vector<float> weight_int8scale;
-                std::vector<float> blob_int8scale;
+                ncnn::Mat weight_int8scale;
+                ncnn::Mat blob_int8scale;
 
                 char key[256];
                 sprintf(key, "%s_param_0", layers[i]->name.c_str());
@@ -626,8 +591,8 @@ int NetQuantize::save(const char* parampath, const char* binpath)
                 }
 
                 // write int8_scale data
-                fwrite(weight_int8scale.data(), sizeof(float), weight_int8scale.size(), bp);
-                fwrite(blob_int8scale.data(), sizeof(float), blob_int8scale.size(), bp);
+                fwrite_weight_data(weight_int8scale, bp);
+                fwrite_weight_data(blob_int8scale, bp);
             }
         }
         else if (layer->type == "ConvolutionDepthWise")
@@ -673,8 +638,8 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             // write int8_scale data
             if (op->int8_scale_term)
             {
-                std::vector<float> weight_int8scale;
-                std::vector<float> blob_int8scale;
+                ncnn::Mat weight_int8scale;
+                ncnn::Mat blob_int8scale;
 
                 char key[256];
                 sprintf(key, "%s_param_0", layers[i]->name.c_str());
@@ -690,8 +655,8 @@ int NetQuantize::save(const char* parampath, const char* binpath)
                 }
 
                 // write int8_scale data
-                fwrite(weight_int8scale.data(), sizeof(float), weight_int8scale.size(), bp);
-                fwrite(blob_int8scale.data(), sizeof(float), blob_int8scale.size(), bp);
+                fwrite_weight_data(weight_int8scale, bp);
+                fwrite_weight_data(blob_int8scale, bp);
             }
         }
         else if (layer->type == "Crop")
@@ -863,8 +828,8 @@ int NetQuantize::save(const char* parampath, const char* binpath)
             // write int8_scale data
             if (op->int8_scale_term)
             {
-                std::vector<float> weight_int8scale;
-                std::vector<float> blob_int8scale;
+                ncnn::Mat weight_int8scale;
+                ncnn::Mat blob_int8scale;
 
                 char key[256];
                 sprintf(key, "%s_param_0", layers[i]->name.c_str());
@@ -880,8 +845,8 @@ int NetQuantize::save(const char* parampath, const char* binpath)
                 }
 
                 // write int8_scale data
-                fwrite(weight_int8scale.data(), sizeof(float), weight_int8scale.size(), bp);
-                fwrite(blob_int8scale.data(), sizeof(float), blob_int8scale.size(), bp);
+                fwrite_weight_data(weight_int8scale, bp);
+                fwrite_weight_data(blob_int8scale, bp);
             }
         }
         else if (layer->type == "Input")
