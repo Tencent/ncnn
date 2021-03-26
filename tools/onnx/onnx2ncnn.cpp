@@ -4006,11 +4006,8 @@ int main(int argc, char** argv)
             }
             else
             {
-                const onnx::TensorProto& min_tp = weights[node.input(1)];
-                const onnx::TensorProto& max_tp = weights[node.input(2)];
-
-                min = get_node_attr_from_input_f(min_tp);
-                max = get_node_attr_from_input_f(max_tp);
+                min = weights.find(node.input(1)) != weights.end() ? get_node_attr_from_input_f(weights[node.input(1)]) : -FLT_MAX;
+                max = weights.find(node.input(2)) != weights.end() ? get_node_attr_from_input_f(weights[node.input(2)]) : FLT_MAX;
             }
 
             fprintf(pp, " 0=%e", min);

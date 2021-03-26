@@ -335,7 +335,12 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, cons
     if (layer->one_blob_only)
     {
         int bottom_blob_index = layer->bottoms[0];
-        bottom_blob = blob_mats[bottom_blob_index].shape();
+        bottom_blob.dims = blob_mats[bottom_blob_index].dims;
+        bottom_blob.w = blob_mats[bottom_blob_index].w;
+        bottom_blob.h = blob_mats[bottom_blob_index].h;
+        bottom_blob.c = blob_mats[bottom_blob_index].c;
+        bottom_blob.elempack = blob_mats[bottom_blob_index].elempack;
+        bottom_blob.elemsize = blob_mats[bottom_blob_index].elemsize;
     }
 #endif
     int ret = do_forward_layer(layer, blob_mats, opt);
