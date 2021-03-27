@@ -184,6 +184,13 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     pd.set(6, outch * c * kernel * kernel);
     pd.set(8, requant ? 101 : 1); // int8_scale_term
 
+    int activation_type = RAND() % 6; // 0 1 2 3 4 5
+    ncnn::Mat activation_params(2);
+    activation_params[0] = RandomFloat(-1, 0); // alpha
+    activation_params[1] = RandomFloat(0, 1);  // beta
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
     std::vector<ncnn::Mat> weights(bias ? 5 : 4);
     weights[0] = RandomMat(outch * c * kernel * kernel);
 
@@ -208,7 +215,7 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a, requant ? 1.0f : 0.001f, 0, flag);
     if (ret != 0)
     {
-        fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant);
+        fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant, activation_type, activation_params[0], activation_params[1]);
     }
 
     return ret;

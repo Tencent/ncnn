@@ -95,6 +95,13 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
     pd.set(2, outch * a.w * a.h * a.c);
     pd.set(8, 1); // int8_scale_term
 
+    int activation_type = RAND() % 6; // 0 1 2 3 4 5
+    ncnn::Mat activation_params(2);
+    activation_params[0] = RandomFloat(-1, 0); // alpha
+    activation_params[1] = RandomFloat(0, 1);  // beta
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
     std::vector<ncnn::Mat> weights(bias ? 4 : 3);
     const int k = a.w * a.h * a.c;
     weights[0] = RandomMat(outch * k);
@@ -117,7 +124,7 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
     int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, a, 0.001f, 0, flag);
     if (ret != 0)
     {
-        fprintf(stderr, "test_innerproduct_int8 failed a.dims=%d a=(%d %d %d) outch=%d bias=%d\n", a.dims, a.w, a.h, a.c, outch, bias);
+        fprintf(stderr, "test_innerproduct_int8 failed a.dims=%d a=(%d %d %d) outch=%d bias=%d act=%d actparams=[%f,%f]\n", a.dims, a.w, a.h, a.c, outch, bias, activation_type, activation_params[0], activation_params[1]);
     }
 
     return ret;
