@@ -442,50 +442,63 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                     kptr += maxk;
                 }
 
+                float scale_in;
+                if (weight_data_int8_scales[p] == 0)
+                    scale_in = 0;
+                else
+                    scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+                float sumfp32 = sum * scale_in;
+
+                if (bias_term)
+                    sumfp32 += bias_data[p];
+
+                if (activation_type == 1)
+                {
+                    sumfp32 = std::max(sumfp32, 0.f);
+                }
+                else if (activation_type == 2)
+                {
+                    float slope = activation_params[0];
+                    sumfp32 = sumfp32 > 0.f ? sumfp32 : sumfp32 * slope;
+                }
+                else if (activation_type == 3)
+                {
+                    float min = activation_params[0];
+                    float max = activation_params[1];
+                    if (sumfp32 < min)
+                        sumfp32 = min;
+                    if (sumfp32 > max)
+                        sumfp32 = max;
+                }
+                else if (activation_type == 4)
+                {
+                    sumfp32 = static_cast<float>(1.f / (1.f + exp(-sumfp32)));
+                }
+                else if (activation_type == 5)
+                {
+                    const float MISH_THRESHOLD = 20;
+                    float x = sumfp32, y;
+                    if (x > MISH_THRESHOLD)
+                        y = x;
+                    else if (x < -MISH_THRESHOLD)
+                        y = expf(x);
+                    else
+                        y = logf(expf(x) + 1);
+                    sumfp32 = static_cast<float>(x * tanh(y));
+                }
+
                 if (use_int8_requantize)
                 {
-                    // requantize and relu
-                    float scale_in;
-                    if (weight_data_int8_scales[p] == 0)
-                        scale_in = 0;
-                    else
-                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
-
-                    float sumfp32 = sum * scale_in;
-
-                    if (bias_term)
-                        sumfp32 += bias_data[p];
-
+                    // requantize
                     float scale_out = top_blob_int8_scales[0];
-
                     signed char sums8 = float2int8(sumfp32 * scale_out);
-
-                    if (activation_type == 1)
-                    {
-                        sums8 = std::max(sums8, (signed char)0);
-                    }
-
                     outptr[0] = sums8;
                     outptr += 1;
                 }
                 else
                 {
-                    // dequantize and relu
-                    float scale_in;
-                    if (weight_data_int8_scales[p] == 0)
-                        scale_in = 0;
-                    else
-                        scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
-
-                    float sumfp32 = sum * scale_in;
-                    if (bias_term)
-                        sumfp32 += bias_data[p];
-
-                    if (activation_type == 1)
-                    {
-                        sumfp32 = std::max(sumfp32, 0.f);
-                    }
-
+                    // dequantize
                     ((float*)outptr)[0] = sumfp32;
                     outptr += 4;
                 }

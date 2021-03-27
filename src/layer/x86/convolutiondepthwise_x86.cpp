@@ -785,129 +785,54 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
                                 _sum1 = _mm_add_epi32(_sum1, _s1);
                             }
 
+                            __m128 _scale_in0;
+                            __m128 _scale_in1;
+                            {
+                                __m128 _bottom_blob_int8_scales0 = _mm_loadu_ps((const float*)bottom_blob_int8_scales + g * 8);
+                                __m128 _bottom_blob_int8_scales1 = _mm_loadu_ps((const float*)bottom_blob_int8_scales + g * 8 + 4);
+                                __m128 _weight_data_int8_scales0 = _mm_loadu_ps((const float*)weight_data_int8_scales + g * 8);
+                                __m128 _weight_data_int8_scales1 = _mm_loadu_ps((const float*)weight_data_int8_scales + g * 8 + 4);
+                                _scale_in0 = _mm_rcp_ps(_mm_mul_ps(_bottom_blob_int8_scales0, _weight_data_int8_scales0));
+                                _scale_in1 = _mm_rcp_ps(_mm_mul_ps(_bottom_blob_int8_scales1, _weight_data_int8_scales1));
+
+                                __m128 _m0 = _mm_cmpneq_ps(_weight_data_int8_scales0, _mm_setzero_ps());
+                                __m128 _m1 = _mm_cmpneq_ps(_weight_data_int8_scales1, _mm_setzero_ps());
+                                _scale_in0 = _mm_and_ps(_scale_in0, _m0);
+                                _scale_in1 = _mm_and_ps(_scale_in1, _m1);
+                            }
+
+                            __m128 _sumfp32_0 = _mm_mul_ps(_mm_cvtepi32_ps(_sum0), _scale_in0);
+                            __m128 _sumfp32_1 = _mm_mul_ps(_mm_cvtepi32_ps(_sum1), _scale_in1);
+
+                            if (bias_term)
+                            {
+                                __m128 _bias0 = _mm_loadu_ps((const float*)bias_data + g * 8);
+                                __m128 _bias1 = _mm_loadu_ps((const float*)bias_data + g * 8 + 4);
+                                _sumfp32_0 = _mm_add_ps(_sumfp32_0, _bias0);
+                                _sumfp32_1 = _mm_add_ps(_sumfp32_1, _bias1);
+                            }
+
+                            _sumfp32_0 = activation_sse(_sumfp32_0, activation_type, activation_params);
+                            _sumfp32_1 = activation_sse(_sumfp32_1, activation_type, activation_params);
+
                             if (use_int8_requantize)
                             {
                                 // requantize and relu
-                                __m128 _scale_in0;
-                                __m128 _scale_in1;
-                                //                                 float scale_in;
-                                //                                 if (weight_data_int8_scales[g] == 0)
-                                //                                 {
-                                //                                     _scale_in0 = vdupq_n_f32(0.f);
-                                //                                     _scale_in1 = vdupq_n_f32(0.f);
-                                // //                                     scale_in = 0;
-                                //                                 }
-                                //                                 else
-                                {
-                                    __m128 _bottom_blob_int8_scales0 = _mm_loadu_ps((const float*)bottom_blob_int8_scales + g * 8);
-                                    __m128 _bottom_blob_int8_scales1 = _mm_loadu_ps((const float*)bottom_blob_int8_scales + g * 8 + 4);
-                                    __m128 _weight_data_int8_scales0 = _mm_loadu_ps((const float*)weight_data_int8_scales + g * 8);
-                                    __m128 _weight_data_int8_scales1 = _mm_loadu_ps((const float*)weight_data_int8_scales + g * 8 + 4);
-                                    _scale_in0 = _mm_rcp_ps(_mm_mul_ps(_bottom_blob_int8_scales0, _weight_data_int8_scales0));
-                                    _scale_in1 = _mm_rcp_ps(_mm_mul_ps(_bottom_blob_int8_scales1, _weight_data_int8_scales1));
-                                    //                                     scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
-
-                                    __m128 _m0 = _mm_cmpneq_ps(_weight_data_int8_scales0, _mm_setzero_ps());
-                                    __m128 _m1 = _mm_cmpneq_ps(_weight_data_int8_scales1, _mm_setzero_ps());
-                                    _scale_in0 = _mm_and_ps(_scale_in0, _m0);
-                                    _scale_in1 = _mm_and_ps(_scale_in1, _m1);
-                                }
-
-                                __m128 _sumfp32_0 = _mm_mul_ps(_mm_cvtepi32_ps(_sum0), _scale_in0);
-                                __m128 _sumfp32_1 = _mm_mul_ps(_mm_cvtepi32_ps(_sum1), _scale_in1);
-                                //                                 float sumfp32 = sum * scale_in;
-
-                                if (bias_term)
-                                {
-                                    __m128 _bias0 = _mm_loadu_ps((const float*)bias_data + g * 8);
-                                    __m128 _bias1 = _mm_loadu_ps((const float*)bias_data + g * 8 + 4);
-                                    _sumfp32_0 = _mm_add_ps(_sumfp32_0, _bias0);
-                                    _sumfp32_1 = _mm_add_ps(_sumfp32_1, _bias1);
-                                    //                                     sumfp32 += bias_data[g];
-                                }
-
-                                //                                 float scale_out = top_blob_int8_scales[g];
-                                //                                 signed char sums8 = float2int8(sumfp32 * scale_out);
-
                                 __m128 _scale_out0 = _mm_loadu_ps((const float*)top_blob_int8_scales + g * 8);
                                 __m128 _scale_out1 = _mm_loadu_ps((const float*)top_blob_int8_scales + g * 8 + 4);
                                 _sumfp32_0 = _mm_mul_ps(_sumfp32_0, _scale_out0);
                                 _sumfp32_1 = _mm_mul_ps(_sumfp32_1, _scale_out1);
                                 int64_t _sum8 = float2int8(_sumfp32_0, _sumfp32_1);
 
-                                if (activation_type == 1)
-                                {
-                                    __m128i _sum8i = _mm_loadl_epi64((const __m128i*)&_sum8);
-                                    __m128i _m = _mm_cmpgt_epi8(_sum8i, _mm_setzero_si128());
-                                    _sum8i = _mm_or_si128(_mm_and_si128(_sum8i, _m), _mm_andnot_si128(_sum8i, _m));
-
-                                    // TODO use _mm_cvtsi128_si64 on 64bit target
-                                    int64_t sum8i[2];
-                                    _mm_storeu_si128((__m128i*)sum8i, _sum8i);
-                                    _sum8 = sum8i[0];
-                                    //                                     _sum8 = vmax_s8(_sum8, vdup_n_s8(0));
-                                    //                                     sums8 = std::max(sums8, (signed char)0);
-                                }
-
                                 *(int64_t*)outptr_s8 = _sum8;
-                                //                                 vst1_s8(outptr_s8, _sum8);
                                 outptr_s8 += 8;
-                                //                                 outptr_s8[0] = sums8;
-                                //                                 outptr_s8 += 1;
                             }
                             else
                             {
                                 // dequantize and relu
-                                __m128 _scale_in0;
-                                __m128 _scale_in1;
-                                //                                 float scale_in;
-                                //                                 if (weight_data_int8_scales[g] == 0)
-                                //                                 {
-                                //                                     _scale_in0 = vdupq_n_f32(0.f);
-                                //                                     _scale_in1 = vdupq_n_f32(0.f);
-                                // //                                     scale_in = 0;
-                                //                                 }
-                                //                                 else
-                                {
-                                    __m128 _bottom_blob_int8_scales0 = _mm_loadu_ps((const float*)bottom_blob_int8_scales + g * 8);
-                                    __m128 _bottom_blob_int8_scales1 = _mm_loadu_ps((const float*)bottom_blob_int8_scales + g * 8 + 4);
-                                    __m128 _weight_data_int8_scales0 = _mm_loadu_ps((const float*)weight_data_int8_scales + g * 8);
-                                    __m128 _weight_data_int8_scales1 = _mm_loadu_ps((const float*)weight_data_int8_scales + g * 8 + 4);
-                                    _scale_in0 = _mm_rcp_ps(_mm_mul_ps(_bottom_blob_int8_scales0, _weight_data_int8_scales0));
-                                    _scale_in1 = _mm_rcp_ps(_mm_mul_ps(_bottom_blob_int8_scales1, _weight_data_int8_scales1));
-                                    //                                     scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
-
-                                    __m128 _m0 = _mm_cmpneq_ps(_weight_data_int8_scales0, _mm_setzero_ps());
-                                    __m128 _m1 = _mm_cmpneq_ps(_weight_data_int8_scales1, _mm_setzero_ps());
-                                    _scale_in0 = _mm_and_ps(_scale_in0, _m0);
-                                    _scale_in1 = _mm_and_ps(_scale_in1, _m1);
-                                }
-
-                                __m128 _sumfp32_0 = _mm_mul_ps(_mm_cvtepi32_ps(_sum0), _scale_in0);
-                                __m128 _sumfp32_1 = _mm_mul_ps(_mm_cvtepi32_ps(_sum1), _scale_in1);
-                                //                                 float sumfp32 = sum * scale_in;
-
-                                if (bias_term)
-                                {
-                                    __m128 _bias0 = _mm_loadu_ps((const float*)bias_data + g * 8);
-                                    __m128 _bias1 = _mm_loadu_ps((const float*)bias_data + g * 8 + 4);
-                                    _sumfp32_0 = _mm_add_ps(_sumfp32_0, _bias0);
-                                    _sumfp32_1 = _mm_add_ps(_sumfp32_1, _bias1);
-                                    //                                     sumfp32 += bias_data[g];
-                                }
-
-                                if (activation_type == 1)
-                                {
-                                    _sumfp32_0 = _mm_max_ps(_sumfp32_0, _mm_setzero_ps());
-                                    _sumfp32_1 = _mm_max_ps(_sumfp32_1, _mm_setzero_ps());
-                                    //                                     sumfp32 = std::max(sumfp32, 0.f);
-                                }
-
                                 _mm_storeu_ps(outptr_f32, _sumfp32_0);
                                 _mm_storeu_ps(outptr_f32 + 4, _sumfp32_1);
                                 outptr_f32 += 8;
-                                //                                 outptr_f32[0] = sumfp32;
-                                //                                 outptr_f32 += 1;
                             }
                         }
                     }
@@ -918,7 +843,7 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
 
         if (elempack == 1)
         {
-            if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+            if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1 && activation_type == 0)
             {
                 if (use_int8_requantize)
                 {
@@ -962,7 +887,7 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
                     }
                 }
             }
-            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && activation_type == 0)
             {
                 if (use_int8_requantize)
                 {
@@ -1052,51 +977,30 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
                                 sum += val * w;
                             }
 
+                            float scale_in;
+                            if (weight_data_int8_scales[g] == 0)
+                                scale_in = 0;
+                            else
+                                scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+                            float sumfp32 = sum * scale_in;
+
+                            if (bias_term)
+                                sumfp32 += bias_data[g];
+
+                            sumfp32 = activation_ss(sumfp32, activation_type, activation_params);
+
                             if (use_int8_requantize)
                             {
-                                // requantize and relu
-                                float scale_in;
-                                if (weight_data_int8_scales[g] == 0)
-                                    scale_in = 0;
-                                else
-                                    scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
-
-                                float sumfp32 = sum * scale_in;
-
-                                if (bias_term)
-                                    sumfp32 += bias_data[g];
-
+                                // requantize
                                 float scale_out = top_blob_int8_scales[g];
-
                                 signed char sums8 = float2int8(sumfp32 * scale_out);
-
-                                if (activation_type == 1)
-                                {
-                                    sums8 = std::max(sums8, (signed char)0);
-                                }
-
                                 outptr_s8[0] = sums8;
                                 outptr_s8 += 1;
                             }
                             else
                             {
-                                // dequantize and relu
-                                float scale_in;
-                                if (weight_data_int8_scales[g] == 0)
-                                    scale_in = 0;
-                                else
-                                    scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
-
-                                float sumfp32 = sum * scale_in;
-
-                                if (bias_term)
-                                    sumfp32 += bias_data[g];
-
-                                if (activation_type == 1)
-                                {
-                                    sumfp32 = std::max(sumfp32, 0.f);
-                                }
-
+                                // dequantize
                                 outptr_f32[0] = sumfp32;
                                 outptr_f32 += 1;
                             }

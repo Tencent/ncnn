@@ -1606,119 +1606,51 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                                 _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
                             }
 
+                            float32x4_t _scale_in0;
+                            float32x4_t _scale_in1;
+                            {
+                                float32x4_t _bottom_blob_int8_scales0 = vld1q_f32((const float*)bottom_blob_int8_scales + g * 8);
+                                float32x4_t _bottom_blob_int8_scales1 = vld1q_f32((const float*)bottom_blob_int8_scales + g * 8 + 4);
+                                float32x4_t _weight_data_int8_scales0 = vld1q_f32((const float*)weight_data_int8_scales + g * 8);
+                                float32x4_t _weight_data_int8_scales1 = vld1q_f32((const float*)weight_data_int8_scales + g * 8 + 4);
+                                _scale_in0 = div_ps(vdupq_n_f32(1.f), vmulq_f32(_bottom_blob_int8_scales0, _weight_data_int8_scales0));
+                                _scale_in1 = div_ps(vdupq_n_f32(1.f), vmulq_f32(_bottom_blob_int8_scales1, _weight_data_int8_scales1));
+
+                                uint32x4_t _m0 = vmvnq_u32(vceqq_f32(_weight_data_int8_scales0, vdupq_n_f32(0.f)));
+                                uint32x4_t _m1 = vmvnq_u32(vceqq_f32(_weight_data_int8_scales1, vdupq_n_f32(0.f)));
+                                _scale_in0 = vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(_scale_in0), _m0));
+                                _scale_in1 = vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(_scale_in1), _m1));
+                            }
+
+                            float32x4_t _sumfp32_0 = vmulq_f32(vcvtq_f32_s32(_sum0), _scale_in0);
+                            float32x4_t _sumfp32_1 = vmulq_f32(vcvtq_f32_s32(_sum1), _scale_in1);
+
+                            if (bias_term)
+                            {
+                                float32x4_t _bias0 = vld1q_f32((const float*)bias_data + g * 8);
+                                float32x4_t _bias1 = vld1q_f32((const float*)bias_data + g * 8 + 4);
+                                _sumfp32_0 = vaddq_f32(_sumfp32_0, _bias0);
+                                _sumfp32_1 = vaddq_f32(_sumfp32_1, _bias1);
+                            }
+
+                            _sumfp32_0 = activation_ps(_sumfp32_0, activation_type, activation_params);
+                            _sumfp32_1 = activation_ps(_sumfp32_1, activation_type, activation_params);
+
                             if (use_int8_requantize)
                             {
-                                // requantize and relu
-                                float32x4_t _scale_in0;
-                                float32x4_t _scale_in1;
-                                //                                 float scale_in;
-                                //                                 if (weight_data_int8_scales[g] == 0)
-                                //                                 {
-                                //                                     _scale_in0 = vdupq_n_f32(0.f);
-                                //                                     _scale_in1 = vdupq_n_f32(0.f);
-                                // //                                     scale_in = 0;
-                                //                                 }
-                                //                                 else
-                                {
-                                    float32x4_t _bottom_blob_int8_scales0 = vld1q_f32((const float*)bottom_blob_int8_scales + g * 8);
-                                    float32x4_t _bottom_blob_int8_scales1 = vld1q_f32((const float*)bottom_blob_int8_scales + g * 8 + 4);
-                                    float32x4_t _weight_data_int8_scales0 = vld1q_f32((const float*)weight_data_int8_scales + g * 8);
-                                    float32x4_t _weight_data_int8_scales1 = vld1q_f32((const float*)weight_data_int8_scales + g * 8 + 4);
-                                    _scale_in0 = div_ps(vdupq_n_f32(1.f), vmulq_f32(_bottom_blob_int8_scales0, _weight_data_int8_scales0));
-                                    _scale_in1 = div_ps(vdupq_n_f32(1.f), vmulq_f32(_bottom_blob_int8_scales1, _weight_data_int8_scales1));
-                                    //                                     scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
-
-                                    uint32x4_t _m0 = vmvnq_u32(vceqq_f32(_weight_data_int8_scales0, vdupq_n_f32(0.f)));
-                                    uint32x4_t _m1 = vmvnq_u32(vceqq_f32(_weight_data_int8_scales1, vdupq_n_f32(0.f)));
-                                    _scale_in0 = vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(_scale_in0), _m0));
-                                    _scale_in1 = vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(_scale_in1), _m1));
-                                }
-
-                                float32x4_t _sumfp32_0 = vmulq_f32(vcvtq_f32_s32(_sum0), _scale_in0);
-                                float32x4_t _sumfp32_1 = vmulq_f32(vcvtq_f32_s32(_sum1), _scale_in1);
-                                //                                 float sumfp32 = sum * scale_in;
-
-                                if (bias_term)
-                                {
-                                    float32x4_t _bias0 = vld1q_f32((const float*)bias_data + g * 8);
-                                    float32x4_t _bias1 = vld1q_f32((const float*)bias_data + g * 8 + 4);
-                                    _sumfp32_0 = vaddq_f32(_sumfp32_0, _bias0);
-                                    _sumfp32_1 = vaddq_f32(_sumfp32_1, _bias1);
-                                    //                                     sumfp32 += bias_data[g];
-                                }
-
-                                //                                 float scale_out = top_blob_int8_scales[g];
-                                //                                 signed char sums8 = float2int8(sumfp32 * scale_out);
-
+                                // requantize
                                 float32x4_t _scale_out0 = vld1q_f32((const float*)top_blob_int8_scales + g * 8);
                                 float32x4_t _scale_out1 = vld1q_f32((const float*)top_blob_int8_scales + g * 8 + 4);
                                 int8x8_t _sum8 = float2int8(vmulq_f32(_sumfp32_0, _scale_out0), vmulq_f32(_sumfp32_1, _scale_out1));
-
-                                if (activation_type == 1)
-                                {
-                                    _sum8 = vmax_s8(_sum8, vdup_n_s8(0));
-                                    //                                     sums8 = std::max(sums8, (signed char)0);
-                                }
-
                                 vst1_s8(outptr_s8, _sum8);
                                 outptr_s8 += 8;
-                                //                                 outptr_s8[0] = sums8;
-                                //                                 outptr_s8 += 1;
                             }
                             else
                             {
-                                // dequantize and relu
-                                float32x4_t _scale_in0;
-                                float32x4_t _scale_in1;
-                                //                                 float scale_in;
-                                //                                 if (weight_data_int8_scales[g] == 0)
-                                //                                 {
-                                //                                     _scale_in0 = vdupq_n_f32(0.f);
-                                //                                     _scale_in1 = vdupq_n_f32(0.f);
-                                // //                                     scale_in = 0;
-                                //                                 }
-                                //                                 else
-                                {
-                                    float32x4_t _bottom_blob_int8_scales0 = vld1q_f32((const float*)bottom_blob_int8_scales + g * 8);
-                                    float32x4_t _bottom_blob_int8_scales1 = vld1q_f32((const float*)bottom_blob_int8_scales + g * 8 + 4);
-                                    float32x4_t _weight_data_int8_scales0 = vld1q_f32((const float*)weight_data_int8_scales + g * 8);
-                                    float32x4_t _weight_data_int8_scales1 = vld1q_f32((const float*)weight_data_int8_scales + g * 8 + 4);
-                                    _scale_in0 = div_ps(vdupq_n_f32(1.f), vmulq_f32(_bottom_blob_int8_scales0, _weight_data_int8_scales0));
-                                    _scale_in1 = div_ps(vdupq_n_f32(1.f), vmulq_f32(_bottom_blob_int8_scales1, _weight_data_int8_scales1));
-                                    //                                     scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
-
-                                    uint32x4_t _m0 = vmvnq_u32(vceqq_f32(_weight_data_int8_scales0, vdupq_n_f32(0.f)));
-                                    uint32x4_t _m1 = vmvnq_u32(vceqq_f32(_weight_data_int8_scales1, vdupq_n_f32(0.f)));
-                                    _scale_in0 = vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(_scale_in0), _m0));
-                                    _scale_in1 = vreinterpretq_f32_u32(vandq_u32(vreinterpretq_u32_f32(_scale_in1), _m1));
-                                }
-
-                                float32x4_t _sumfp32_0 = vmulq_f32(vcvtq_f32_s32(_sum0), _scale_in0);
-                                float32x4_t _sumfp32_1 = vmulq_f32(vcvtq_f32_s32(_sum1), _scale_in1);
-                                //                                 float sumfp32 = sum * scale_in;
-
-                                if (bias_term)
-                                {
-                                    float32x4_t _bias0 = vld1q_f32((const float*)bias_data + g * 8);
-                                    float32x4_t _bias1 = vld1q_f32((const float*)bias_data + g * 8 + 4);
-                                    _sumfp32_0 = vaddq_f32(_sumfp32_0, _bias0);
-                                    _sumfp32_1 = vaddq_f32(_sumfp32_1, _bias1);
-                                    //                                     sumfp32 += bias_data[g];
-                                }
-
-                                if (activation_type == 1)
-                                {
-                                    float32x4_t _zero = vdupq_n_f32(0.f);
-                                    _sumfp32_0 = vmaxq_f32(_sumfp32_0, _zero);
-                                    _sumfp32_1 = vmaxq_f32(_sumfp32_1, _zero);
-                                    //                                     sumfp32 = std::max(sumfp32, 0.f);
-                                }
-
+                                // dequantize
                                 vst1q_f32(outptr_f32, _sumfp32_0);
                                 vst1q_f32(outptr_f32 + 4, _sumfp32_1);
                                 outptr_f32 += 8;
-                                //                                 outptr_f32[0] = sumfp32;
-                                //                                 outptr_f32 += 1;
                             }
                         }
                     }
@@ -1729,7 +1661,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
 
         if (elempack == 1)
         {
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && activation_type == 0)
             {
                 if (use_int8_requantize)
                 {
@@ -1786,7 +1718,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                     }
                 }
             }
-            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && activation_type == 0)
             {
                 if (use_int8_requantize)
                 {
@@ -1889,51 +1821,30 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                                 sum += val * w;
                             }
 
+                            float scale_in;
+                            if (weight_data_int8_scales[g] == 0)
+                                scale_in = 0;
+                            else
+                                scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+                            float sumfp32 = sum * scale_in;
+
+                            if (bias_term)
+                                sumfp32 += bias_data[g];
+
+                            sumfp32 = activation_ss(sumfp32, activation_type, activation_params);
+
                             if (use_int8_requantize)
                             {
-                                // requantize and relu
-                                float scale_in;
-                                if (weight_data_int8_scales[g] == 0)
-                                    scale_in = 0;
-                                else
-                                    scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
-
-                                float sumfp32 = sum * scale_in;
-
-                                if (bias_term)
-                                    sumfp32 += bias_data[g];
-
+                                // requantize
                                 float scale_out = top_blob_int8_scales[g];
-
                                 signed char sums8 = float2int8(sumfp32 * scale_out);
-
-                                if (activation_type == 1)
-                                {
-                                    sums8 = std::max(sums8, (signed char)0);
-                                }
-
                                 outptr_s8[0] = sums8;
                                 outptr_s8 += 1;
                             }
                             else
                             {
-                                // dequantize and relu
-                                float scale_in;
-                                if (weight_data_int8_scales[g] == 0)
-                                    scale_in = 0;
-                                else
-                                    scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
-
-                                float sumfp32 = sum * scale_in;
-
-                                if (bias_term)
-                                    sumfp32 += bias_data[g];
-
-                                if (activation_type == 1)
-                                {
-                                    sumfp32 = std::max(sumfp32, 0.f);
-                                }
-
+                                // dequantize
                                 outptr_f32[0] = sumfp32;
                                 outptr_f32 += 1;
                             }
