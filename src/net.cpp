@@ -1393,6 +1393,9 @@ int Net::load_param(const DataReader& dr)
         {
             // no int8 gpu support yet
             opt.use_vulkan_compute = false;
+
+            // TODO enable when pack8 kernel implemented
+            opt.use_packing_layout = false;
         }
 
         // pull out top shape hints
@@ -1585,6 +1588,9 @@ int Net::load_param_bin(const DataReader& dr)
         {
             // no int8 gpu support yet
             opt.use_vulkan_compute = false;
+
+            // TODO enable when pack8 kernel implemented
+            opt.use_packing_layout = false;
         }
 
         // pull out top blob shape hints
@@ -1677,6 +1683,9 @@ int Net::load_model(const DataReader& dr)
         {
             // no int8 gpu support yet
             opt.use_vulkan_compute = false;
+
+            // TODO enable when pack8 kernel implemented
+            opt.use_packing_layout = false;
         }
     }
 

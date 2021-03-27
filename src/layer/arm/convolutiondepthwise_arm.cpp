@@ -1661,7 +1661,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
 
         if (elempack == 1)
         {
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && activation_type == 0)
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (activation_type == 0 || activation_type == 1))
             {
                 if (use_int8_requantize)
                 {
@@ -1681,11 +1681,6 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                     }
 
                     convdw3x3s1_int8_requant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
-
-                    if (activation)
-                    {
-                        activation->forward_inplace(top_blob, opt);
-                    }
                 }
                 else
                 {
@@ -1711,14 +1706,14 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                     }
 
                     dequantize_from_int32(top_blob_int32, top_blob, scale_data, bias_data, opt);
+                }
 
-                    if (activation)
-                    {
-                        activation->forward_inplace(top_blob, opt);
-                    }
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
                 }
             }
-            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && activation_type == 0)
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (activation_type == 0 || activation_type == 1))
             {
                 if (use_int8_requantize)
                 {
@@ -1738,11 +1733,6 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                     }
 
                     convdw3x3s2_int8_requant_neon(bottom_blob_bordered, top_blob, weight_data, bias_data, requantize_scales, opt);
-
-                    if (activation)
-                    {
-                        activation->forward_inplace(top_blob, opt);
-                    }
                 }
                 else
                 {
@@ -1768,11 +1758,11 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                     }
 
                     dequantize_from_int32(top_blob_int32, top_blob, scale_data, bias_data, opt);
+                }
 
-                    if (activation)
-                    {
-                        activation->forward_inplace(top_blob, opt);
-                    }
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
                 }
             }
             else

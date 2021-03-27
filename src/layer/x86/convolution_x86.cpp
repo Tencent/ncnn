@@ -1320,7 +1320,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
                 }
             }
         }
-        else if (opt.use_sgemm_convolution && dilation_w == 1 && dilation_h == 1 && activation_type == 0)
+        else if (opt.use_sgemm_convolution && dilation_w == 1 && dilation_h == 1 && (activation_type == 0 || activation_type == 1))
         {
             if (use_int8_requantize)
             {

@@ -23,6 +23,7 @@
 #include <vector>
 
 // ncnn public header
+#include "datareader.h"
 #include "layer.h"
 #include "layer_type.h"
 #include "net.h"
@@ -80,6 +81,19 @@
 #include "layer/unaryop.h"
 #include "layer/yolodetectionoutput.h"
 #include "layer/yolov3detectionoutput.h"
+
+class DataReaderFromEmpty : public ncnn::DataReader
+{
+public:
+    virtual int scan(const char* format, void* p) const
+    {
+        return 0;
+    }
+    virtual size_t read(void* /*buf*/, size_t size) const
+    {
+        return size;
+    }
+};
 
 static bool read_int8scale_table(const char* filepath, std::map<std::string, ncnn::Mat>& blob_int8scale_table, std::map<std::string, ncnn::Mat>& weight_int8scale_table)
 {
@@ -1447,7 +1461,13 @@ int main(int argc, char** argv)
     }
 
     quantizer.load_param(inparam);
-    quantizer.load_model(inbin);
+    if (strcmp(inbin, "null") == 0)
+    {
+        DataReaderFromEmpty dr;
+        quantizer.load_model(dr);
+    }
+    else
+        quantizer.load_model(inbin);
 
     quantizer.quantize_convolution();
     quantizer.quantize_convolutiondepthwise();

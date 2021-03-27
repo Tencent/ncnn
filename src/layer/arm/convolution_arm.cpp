@@ -2039,7 +2039,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
                 }
             }
         }
-        else if (opt.use_sgemm_convolution && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && activation_type == 0)
+        else if (opt.use_sgemm_convolution && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (activation_type == 0 || activation_type == 1))
         {
             if (use_int8_requantize)
             {
@@ -2090,7 +2090,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (opt.use_sgemm_convolution && dilation_w == 1 && dilation_h == 1 && activation_type == 0)
+        else if (opt.use_sgemm_convolution && dilation_w == 1 && dilation_h == 1)
         {
             Mat top_blob_int32;
             top_blob_int32.create(outw, outh, num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.workspace_allocator);
