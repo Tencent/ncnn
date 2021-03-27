@@ -16,14 +16,6 @@
 
 #include <float.h>
 
-static inline signed char float2int8(float v)
-{
-    int int32 = static_cast<int>(round(v));
-    if (int32 > 127) return 127;
-    if (int32 < -127) return -127;
-    return (signed char)int32;
-}
-
 namespace ncnn {
 
 Clip::Clip()
@@ -40,39 +32,8 @@ int Clip::load_param(const ParamDict& pd)
     return 0;
 }
 
-int Clip::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) const
-{
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
-    int size = w * h;
-    signed char min_int8 = float2int8(min);
-    signed char max_int8 = float2int8(max);
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
-    {
-        signed char* ptr = bottom_top_blob.channel(q);
-
-        for (int i = 0; i < size; i++)
-        {
-            if (ptr[i] < min_int8)
-                ptr[i] = min_int8;
-            if (ptr[i] > max_int8)
-                ptr[i] = max_int8;
-        }
-    }
-
-    return 0;
-}
-
 int Clip::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    if (bottom_top_blob.elemsize == 1u)
-    {
-        return Clip::forward_inplace_int8(bottom_top_blob, opt);
-    }
-
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
