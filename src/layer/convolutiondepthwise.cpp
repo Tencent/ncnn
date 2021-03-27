@@ -132,23 +132,6 @@ int ConvolutionDepthWise::create_pipeline(const Option& opt)
         }
 
         weight_data = int8_weight_data;
-
-        //         const int weight_data_size_g = weight_data_size / group;
-        // //         const int maxk = kernel_w * kernel_h;
-        // //         const int num_input = weight_data_size / num_output / maxk;
-        //
-        //         Mat weight_data_r2 = weight_data.reshape(weight_data_size_g, group);
-        //
-        //         Mat weight_data_int8;
-        //
-        //         Option opt_q = opt;
-        //         opt_q.blob_allocator = weight_data.allocator;
-        //         opt_q.use_packing_layout = false;
-        //         quantize_to_int8(weight_data_r2, weight_data_int8, weight_data_int8_scales, opt_q);
-        //         if (weight_data_int8.empty())
-        //             return -100;
-        //
-        //         weight_data = weight_data_int8.reshape(weight_data_size);
     }
 
     return 0;

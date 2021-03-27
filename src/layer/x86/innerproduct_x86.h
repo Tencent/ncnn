@@ -35,8 +35,8 @@ public:
 protected:
     int forward_fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
-    int create_pipeline_int8(const Option& opt);
-    virtual int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    int create_pipeline_int8_x86(const Option& opt);
+    int forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     Layer* flatten;

@@ -23,12 +23,6 @@
 #include "arm_activation.h"
 #include "arm_usability.h"
 
-#if __ARM_NEON
-#if __aarch64__
-#include "gemm_symm_int8.h"
-#endif
-#endif // __ARM_NEON
-
 namespace ncnn {
 
 InnerProduct_arm::InnerProduct_arm()
@@ -49,7 +43,7 @@ InnerProduct_arm::InnerProduct_arm()
 int InnerProduct_arm::create_pipeline(const Option& opt)
 {
 #if __ARM_NEON
-    if (opt.use_packing_layout or opt.use_int8_inference)
+    if (opt.use_packing_layout || opt.use_int8_inference)
     {
         flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
 
@@ -63,7 +57,7 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
 
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
-        return create_pipeline_int8(opt);
+        return create_pipeline_int8_arm(opt);
     }
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
@@ -100,7 +94,7 @@ int InnerProduct_arm::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int InnerProduct_arm::create_pipeline_int8(const Option& opt)
+int InnerProduct_arm::create_pipeline_int8_arm(const Option& opt)
 {
     if (activation_type == 1)
     {
@@ -172,7 +166,7 @@ int InnerProduct_arm::create_pipeline_int8(const Option& opt)
     return 0;
 }
 
-int InnerProduct_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int num_input = weight_data_size / num_output;
 
@@ -184,7 +178,7 @@ int InnerProduct_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const 
         opt_unpack.blob_allocator = opt.workspace_allocator;
         convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_unpack);
 
-        return InnerProduct::forward_int8(bottom_blob_unpacked, top_blob, opt);
+        return forward_int8(bottom_blob_unpacked, top_blob, opt);
     }
 
     int elembits = bottom_blob.elembits();
@@ -352,8 +346,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 {
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
-        // TODO
-        return forward_int8(bottom_blob, top_blob, opt);
+        return forward_int8_arm(bottom_blob, top_blob, opt);
     }
 
     int elembits = bottom_blob.elembits();

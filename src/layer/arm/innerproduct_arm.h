@@ -40,8 +40,8 @@ protected:
     int create_pipeline_bf16s(const Option& opt);
     int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
-    int create_pipeline_int8(const Option& opt);
-    virtual int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    int create_pipeline_int8_arm(const Option& opt);
+    int forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
     Layer* flatten;

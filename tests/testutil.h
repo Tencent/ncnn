@@ -1176,11 +1176,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[3].use_image_storage = true;
     opts[3].use_weight_fp16_storage = true;
 
-    opts[0].use_int8_inference = true;
-    opts[1].use_int8_inference = true;
-    opts[2].use_int8_inference = true;
-    opts[3].use_int8_inference = true;
-
     for (int i = 0; i < 4; i++)
     {
         const ncnn::Option& opt = opts[i];

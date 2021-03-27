@@ -68,24 +68,6 @@ int InnerProduct::create_pipeline(const Option& opt)
     // runtime quantize the weight data
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)4u && int8_scale_term)
     {
-        //         Mat int8_weight_data(weight_data_size, (size_t)1u);
-        //         if (int8_weight_data.empty())
-        //             return -100;
-        //
-        //         const int weight_data_size_output = weight_data_size / num_output;
-        //
-        //         for (int p = 0; p < num_output; p++)
-        //         {
-        //             Option opt_q = opt;
-        //             opt_q.blob_allocator = int8_weight_data.allocator;
-        //
-        //             const Mat weight_data_n = weight_data.range(weight_data_size_output * p, weight_data_size_output);
-        //             Mat int8_weight_data_n = int8_weight_data.range(weight_data_size_output * p, weight_data_size_output);
-        //             quantize_float32_to_int8(weight_data_n, int8_weight_data_n, weight_data_int8_scales[p], opt_q);
-        //         }
-        //
-        //         weight_data = int8_weight_data;
-
         const int num_input = weight_data_size / num_output;
 
         Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
