@@ -18,13 +18,10 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
-#include "neon_mathfun.h"
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-#include "neon_mathfun_fp16s.h"
-#endif
 #endif // __ARM_NEON
 
-#include "neon_activation.h"
+#include "arm_activation.h"
+#include "arm_usability.h"
 
 namespace ncnn {
 
@@ -42,31 +39,6 @@ namespace ncnn {
 #include "convolutiondepthwise_3x3_pack8_fp16s.h"
 #include "convolutiondepthwise_5x5_pack8_fp16s.h"
 #endif
-#endif // __ARM_NEON
-
-#if __ARM_NEON
-static inline int8x8_t float2int8(float32x4_t _vlow, float32x4_t _vhigh)
-{
-#if __aarch64__
-    int32x4_t _vlow32 = vcvtaq_s32_f32(_vlow);
-    int32x4_t _vhigh32 = vcvtaq_s32_f32(_vhigh);
-#else
-    // use vcvtr.s32.f32
-    int32x4_t _vlow32;
-    int32x4_t _vhigh32;
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 0)), _vlow32, 0);
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 1)), _vlow32, 1);
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 2)), _vlow32, 2);
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 3)), _vlow32, 3);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 0)), _vhigh32, 0);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 1)), _vhigh32, 1);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 2)), _vhigh32, 2);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 3)), _vhigh32, 3);
-#endif
-    int16x8_t _v16 = vcombine_s16(vqmovn_s32(_vlow32), vqmovn_s32(_vhigh32));
-    int8x8_t _v8 = vqmovn_s16(_v16);
-    return vmax_s8(vmin_s8(_v8, vdup_n_s8(127)), vdup_n_s8(-127));
-}
 #endif // __ARM_NEON
 
 ConvolutionDepthWise_arm::ConvolutionDepthWise_arm()
@@ -1097,32 +1069,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
                                 sum += val * w;
                             }
 
-                            if (activation_type == 1)
-                            {
-                                sum = std::max(sum, 0.f);
-                            }
-                            else if (activation_type == 2)
-                            {
-                                float slope = activation_params[0];
-                                sum = sum > 0.f ? sum : sum * slope;
-                            }
-                            else if (activation_type == 3)
-                            {
-                                float min = activation_params[0];
-                                float max = activation_params[1];
-                                if (sum < min)
-                                    sum = min;
-                                if (sum > max)
-                                    sum = max;
-                            }
-                            else if (activation_type == 4)
-                            {
-                                sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                            }
-                            else if (activation_type == 5)
-                            {
-                                sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                            }
+                            sum = activation_ss(sum, activation_type, activation_params);
 
                             outptr[j] = (__fp16)sum;
                         }
@@ -1427,32 +1374,7 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
                                 sum += val * w;
                             }
 
-                            if (activation_type == 1)
-                            {
-                                sum = std::max(sum, 0.f);
-                            }
-                            else if (activation_type == 2)
-                            {
-                                float slope = activation_params[0];
-                                sum = sum > 0.f ? sum : sum * slope;
-                            }
-                            else if (activation_type == 3)
-                            {
-                                float min = activation_params[0];
-                                float max = activation_params[1];
-                                if (sum < min)
-                                    sum = min;
-                                if (sum > max)
-                                    sum = max;
-                            }
-                            else if (activation_type == 4)
-                            {
-                                sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                            }
-                            else if (activation_type == 5)
-                            {
-                                sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                            }
+                            sum = activation_ss(sum, activation_type, activation_params);
 
                             outptr[j] = float32_to_bfloat16(sum);
                         }

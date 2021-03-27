@@ -16,10 +16,9 @@
 
 #if __SSE2__
 #include <emmintrin.h>
-#if __AVX__
-#include "avx_usability.h"
-#endif // __AVX__
 #endif // __SSE2__
+
+#include "x86_usability.h"
 
 namespace ncnn {
 

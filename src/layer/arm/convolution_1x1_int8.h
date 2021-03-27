@@ -15,14 +15,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static inline signed char float2int8(float v)
-{
-    int int32 = round(v);
-    if (int32 > 127) return 127;
-    if (int32 < -127) return -127;
-    return (signed char)int32;
-}
-
 #if __aarch64__
 #if 1
 #include "gemm_symm_int8.h"

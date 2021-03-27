@@ -18,16 +18,12 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
-#include "neon_mathfun.h"
 #if __aarch64__
 #include "gemm_symm_int8.h"
 #endif
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-#include "neon_mathfun_fp16s.h"
-#endif
 #endif // __ARM_NEON
-#include "cpu.h"
-#include "neon_activation.h"
+
+#include "arm_activation.h"
 
 namespace ncnn {
 
@@ -443,30 +439,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                         sum += m[i] * kptr[i];
                     }
 
-                    if (activation_type == 1)
-                    {
-                        sum = std::max(sum, 0.f);
-                    }
-                    else if (activation_type == 2)
-                    {
-                        float slope = activation_params[0];
-                        sum = sum > 0.f ? sum : sum * slope;
-                    }
-                    else if (activation_type == 3)
-                    {
-                        float min = activation_params[0];
-                        float max = activation_params[1];
-                        if (sum < min) sum = min;
-                        if (sum > max) sum = max;
-                    }
-                    else if (activation_type == 4)
-                    {
-                        sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                    }
-                    else if (activation_type == 5)
-                    {
-                        sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                    }
+                    sum = activation_ss(sum, activation_type, activation_params);
 
                     outptr[0] = sum;
                     outptr += 1;
@@ -615,48 +588,10 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
 #endif // __ARM_NEON
 
-        if (activation_type == 1)
-        {
-            sum0 = std::max(sum0, 0.f);
-            sum1 = std::max(sum1, 0.f);
-            sum2 = std::max(sum2, 0.f);
-            sum3 = std::max(sum3, 0.f);
-        }
-        else if (activation_type == 2)
-        {
-            float slope = activation_params[0];
-            sum0 = sum0 > 0.f ? sum0 : sum0 * slope;
-            sum1 = sum1 > 0.f ? sum1 : sum1 * slope;
-            sum2 = sum2 > 0.f ? sum2 : sum2 * slope;
-            sum3 = sum3 > 0.f ? sum3 : sum3 * slope;
-        }
-        else if (activation_type == 3)
-        {
-            float min = activation_params[0];
-            float max = activation_params[1];
-            if (sum0 < min) sum0 = min;
-            if (sum0 > max) sum0 = max;
-            if (sum1 < min) sum1 = min;
-            if (sum1 > max) sum1 = max;
-            if (sum2 < min) sum2 = min;
-            if (sum2 > max) sum2 = max;
-            if (sum3 < min) sum3 = min;
-            if (sum3 > max) sum3 = max;
-        }
-        else if (activation_type == 4)
-        {
-            sum0 = static_cast<float>(1.f / (1.f + exp(-sum0)));
-            sum1 = static_cast<float>(1.f / (1.f + exp(-sum1)));
-            sum2 = static_cast<float>(1.f / (1.f + exp(-sum2)));
-            sum3 = static_cast<float>(1.f / (1.f + exp(-sum3)));
-        }
-        else if (activation_type == 5)
-        {
-            sum0 = static_cast<float>(sum0 * tanh(log(exp(sum0) + 1.f)));
-            sum1 = static_cast<float>(sum1 * tanh(log(exp(sum1) + 1.f)));
-            sum2 = static_cast<float>(sum2 * tanh(log(exp(sum2) + 1.f)));
-            sum3 = static_cast<float>(sum3 * tanh(log(exp(sum3) + 1.f)));
-        }
+        sum0 = activation_ss(sum0, activation_type, activation_params);
+        sum1 = activation_ss(sum1, activation_type, activation_params);
+        sum2 = activation_ss(sum2, activation_type, activation_params);
+        sum3 = activation_ss(sum3, activation_type, activation_params);
 
         top_blob[p] = sum0;
         top_blob[p + 1] = sum1;
@@ -970,30 +905,7 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
                         sum += (float)m[i] * (float)kptr[i];
                     }
 
-                    if (activation_type == 1)
-                    {
-                        sum = std::max(sum, 0.f);
-                    }
-                    else if (activation_type == 2)
-                    {
-                        float slope = activation_params[0];
-                        sum = sum > 0.f ? sum : sum * slope;
-                    }
-                    else if (activation_type == 3)
-                    {
-                        float min = activation_params[0];
-                        float max = activation_params[1];
-                        if (sum < min) sum = min;
-                        if (sum > max) sum = max;
-                    }
-                    else if (activation_type == 4)
-                    {
-                        sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                    }
-                    else if (activation_type == 5)
-                    {
-                        sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                    }
+                    sum = activation_ss(sum, activation_type, activation_params);
 
                     outptr[0] = (__fp16)sum;
                     outptr += 1;
@@ -1537,30 +1449,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                         sum += (float)(m[i] * kptr[i]);
                     }
 
-                    if (activation_type == 1)
-                    {
-                        sum = std::max(sum, 0.f);
-                    }
-                    else if (activation_type == 2)
-                    {
-                        float slope = activation_params[0];
-                        sum = sum > 0.f ? sum : sum * slope;
-                    }
-                    else if (activation_type == 3)
-                    {
-                        float min = activation_params[0];
-                        float max = activation_params[1];
-                        if (sum < min) sum = min;
-                        if (sum > max) sum = max;
-                    }
-                    else if (activation_type == 4)
-                    {
-                        sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                    }
-                    else if (activation_type == 5)
-                    {
-                        sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                    }
+                    sum = activation_ss(sum, activation_type, activation_params);
 
                     outptr[0] = (__fp16)sum;
                     outptr += 1;
@@ -2093,30 +1982,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                         sum += bfloat16_to_float32(m[i]) * bfloat16_to_float32(kptr[i]);
                     }
 
-                    if (activation_type == 1)
-                    {
-                        sum = std::max(sum, 0.f);
-                    }
-                    else if (activation_type == 2)
-                    {
-                        float slope = activation_params[0];
-                        sum = sum > 0.f ? sum : sum * slope;
-                    }
-                    else if (activation_type == 3)
-                    {
-                        float min = activation_params[0];
-                        float max = activation_params[1];
-                        if (sum < min) sum = min;
-                        if (sum > max) sum = max;
-                    }
-                    else if (activation_type == 4)
-                    {
-                        sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                    }
-                    else if (activation_type == 5)
-                    {
-                        sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                    }
+                    sum = activation_ss(sum, activation_type, activation_params);
 
                     outptr[0] = float32_to_bfloat16(sum);
                     outptr += 1;

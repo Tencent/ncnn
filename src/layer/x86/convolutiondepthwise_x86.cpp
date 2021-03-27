@@ -16,63 +16,17 @@
 
 #if __SSE2__
 #include <emmintrin.h>
-#include "sse_activation.h"
-#include "sse_usability.h"
-
 #if __AVX__
 #include <immintrin.h>
-#include "avx_activation.h"
-#include "avx_usability.h"
 #endif
 #endif // __SSE2__
+
+#include "x86_activation.h"
+#include "x86_usability.h"
 
 #include "layer_type.h"
 
 namespace ncnn {
-
-static inline signed char float2int8(float v)
-{
-    int int32 = round(v);
-    if (int32 > 127) return 127;
-    if (int32 < -127) return -127;
-    return (signed char)int32;
-}
-
-#if __SSE2__
-static inline int64_t float2int8(const __m128& _v0, const __m128& _v1)
-{
-    float v0[4];
-    float v1[4];
-    _mm_storeu_ps(v0, _v0);
-    _mm_storeu_ps(v1, _v1);
-
-    int v0_i[4];
-    int v1_i[4];
-    v0_i[0] = round(v0[0]);
-    v0_i[1] = round(v0[1]);
-    v0_i[2] = round(v0[2]);
-    v0_i[3] = round(v0[3]);
-    v1_i[0] = round(v1[0]);
-    v1_i[1] = round(v1[1]);
-    v1_i[2] = round(v1[2]);
-    v1_i[3] = round(v1[3]);
-
-    __m128i _v0_i = _mm_loadu_si128((const __m128i*)v0_i);
-    __m128i _v1_i = _mm_loadu_si128((const __m128i*)v1_i);
-
-    __m128i _v01_s16 = _mm_packs_epi32(_v0_i, _v1_i);
-
-    _v01_s16 = _mm_min_epi16(_v01_s16, _mm_set1_epi16(127));
-    _v01_s16 = _mm_max_epi16(_v01_s16, _mm_set1_epi16(-127));
-
-    __m128i _v8 = _mm_packs_epi16(_v01_s16, _v01_s16);
-
-    // TODO use _mm_cvtsi128_si64 on 64bit target
-    int64_t v8[2];
-    _mm_storeu_si128((__m128i*)v8, _v8);
-    return v8[0];
-}
-#endif // __SSE2__
 
 #if __SSE2__
 #if __AVX__

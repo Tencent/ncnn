@@ -12,9 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#if __ARM_NEON
-#include <arm_neon.h>
-#endif // __ARM_NEON
+#ifndef ARM_ACTIVATION_H
+#define ARM_ACTIVATION_H
 
 static inline float activation_ss(float v, int activation_type, const ncnn::Mat& activation_params)
 {
@@ -49,6 +48,9 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
 }
 
 #if __ARM_NEON
+#include <arm_neon.h>
+#include "neon_mathfun.h"
+
 static inline float32x4_t activation_ps(float32x4_t _v, int activation_type, const ncnn::Mat& activation_params)
 {
     if (activation_type == 1)
@@ -82,7 +84,10 @@ static inline float32x4_t activation_ps(float32x4_t _v, int activation_type, con
 
     return _v;
 }
+
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#include "neon_mathfun_fp16s.h"
+
 static inline __fp16 activation_ss(__fp16 v, int activation_type, const ncnn::Mat& activation_params)
 {
     if (activation_type == 1)
@@ -184,3 +189,5 @@ static inline float16x8_t activation_ps(float16x8_t _v, int activation_type, con
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON
+
+#endif // ARM_ACTIVATION_H

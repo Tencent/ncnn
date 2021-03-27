@@ -16,15 +16,13 @@
 
 #if __SSE2__
 #include <emmintrin.h>
-#include "sse_activation.h"
-#include "sse_usability.h"
-
 #if __AVX__
 #include <immintrin.h>
-#include "avx_activation.h"
-#include "avx_usability.h"
 #endif
 #endif // __SSE2__
+
+#include "x86_activation.h"
+#include "x86_usability.h"
 
 #include "benchmark.h"
 #include "layer_type.h"
@@ -1048,32 +1046,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             kptr += maxk;
                         }
 
-                        if (activation_type == 1)
-                        {
-                            sum = std::max(sum, 0.f);
-                        }
-                        else if (activation_type == 2)
-                        {
-                            float slope = activation_params[0];
-                            sum = sum > 0.f ? sum : sum * slope;
-                        }
-                        else if (activation_type == 3)
-                        {
-                            float min = activation_params[0];
-                            float max = activation_params[1];
-                            if (sum < min)
-                                sum = min;
-                            if (sum > max)
-                                sum = max;
-                        }
-                        else if (activation_type == 4)
-                        {
-                            sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                        }
-                        else if (activation_type == 5)
-                        {
-                            sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                        }
+                        sum = activation_ss(sum, activation_type, activation_params);
 
                         outptr[j] = sum;
                     }

@@ -14,9 +14,7 @@
 
 #include "packing_x86.h"
 
-#if __AVX__
-#include "avx_usability.h"
-#endif // __AVX__
+#include "x86_usability.h"
 
 namespace ncnn {
 
