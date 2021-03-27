@@ -23,6 +23,7 @@
 #endif // __ARM_NEON
 
 #include "arm_activation.h"
+#include "arm_usability.h"
 
 namespace ncnn {
 
@@ -1869,6 +1870,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         out_elempack = num_output % 8 == 0 ? 8 : 1;
     }
 #endif // __ARM_NEON
+    bool use_int8_requantize = int8_scale_term > 100;
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (opt.use_fp16_storage)
@@ -1910,10 +1912,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
                 scale_in_data[p] = scale_in;
             }
 
-            Mat scale_out_data(1);
-            scale_out_data[0] = top_blob_int8_scale; //FIXME load param
-
-            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, scale_out_data, bias_data, 0, Mat(), opt);
+            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, 0, Mat(), opt);
         }
         else
         {
@@ -1963,10 +1962,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
                 scale_in_data[p] = scale_in;
             }
 
-            Mat scale_out_data(1);
-            scale_out_data[0] = top_blob_int8_scale; //FIXME load param
-
-            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, scale_out_data, bias_data, 0, Mat(), opt);
+            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, 0, Mat(), opt);
         }
         else
         {
@@ -2016,10 +2012,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
                 scale_in_data[p] = scale_in;
             }
 
-            Mat scale_out_data(1);
-            scale_out_data[0] = top_blob_int8_scale; //FIXME load param
-
-            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, scale_out_data, bias_data, 0, Mat(), opt);
+            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, 0, Mat(), opt);
         }
         else
         {
@@ -2073,10 +2066,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
                     scale_in_data[p] = scale_in;
                 }
 
-                Mat scale_out_data(1);
-                scale_out_data[0] = top_blob_int8_scale; //FIXME load param
-
-                requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, scale_out_data, bias_data, 0, Mat(), opt);
+                requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, 0, Mat(), opt);
             }
             else
             {
@@ -2114,7 +2104,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
                     else
                         scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
 
-                    float scale_out = top_blob_int8_scale;
+                    float scale_out = top_blob_int8_scales[0];
 
                     requantize_scales.push_back(scale_in);
                     requantize_scales.push_back(scale_out);
@@ -2176,10 +2166,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
                     scale_in_data[p] = scale_in;
                 }
 
-                Mat scale_out_data(1);
-                scale_out_data[0] = top_blob_int8_scale; //FIXME load param
-
-                requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, scale_out_data, bias_data, 0, Mat(), opt);
+                requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, 0, Mat(), opt);
             }
             else
             {
@@ -2229,10 +2216,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
                     scale_in_data[p] = scale_in;
                 }
 
-                Mat scale_out_data(1);
-                scale_out_data[0] = top_blob_int8_scale; //FIXME load param
-
-                requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, scale_out_data, bias_data, 0, Mat(), opt);
+                requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, 0, Mat(), opt);
             }
             else
             {

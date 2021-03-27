@@ -93,16 +93,8 @@ int Convolution_x86::create_pipeline(const Option& opt)
         activation = ncnn::create_layer(ncnn::LayerType::Clip);
 
         ncnn::ParamDict pd;
-        if (use_int8_requantize)
-        {
-            pd.set(0, activation_params[0] * top_blob_int8_scale); // min
-            pd.set(1, activation_params[1] * top_blob_int8_scale); // max
-        }
-        else
-        {
-            pd.set(0, activation_params[0]); // min
-            pd.set(1, activation_params[1]); // max
-        }
+        pd.set(0, activation_params[0]); // min
+        pd.set(1, activation_params[1]); // max
 
         activation->load_param(pd);
     }
@@ -1165,6 +1157,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         out_elempack = num_output % 8 == 0 ? 8 : 1;
     }
 #endif // __SSE2__
+    bool use_int8_requantize = int8_scale_term > 100;
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
 
     //     NCNN_LOGE("forward_int8_arm %d %d %d    %d %d", w, h, bottom_blob_bordered.c, elempack, out_elempack);
@@ -1200,10 +1193,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
                 scale_in_data[p] = scale_in;
             }
 
-            Mat scale_out_data(1);
-            scale_out_data[0] = top_blob_int8_scale; //FIXME load param
-
-            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, scale_out_data, bias_data, 0, Mat(), opt);
+            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, 0, Mat(), opt);
         }
         else
         {
@@ -1253,10 +1243,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
                 scale_in_data[p] = scale_in;
             }
 
-            Mat scale_out_data(1);
-            scale_out_data[0] = top_blob_int8_scale; //FIXME load param
-
-            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, scale_out_data, bias_data, 0, Mat(), opt);
+            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, 0, Mat(), opt);
         }
         else
         {
@@ -1306,10 +1293,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
                 scale_in_data[p] = scale_in;
             }
 
-            Mat scale_out_data(1);
-            scale_out_data[0] = top_blob_int8_scale; //FIXME load param
-
-            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, scale_out_data, bias_data, 0, Mat(), opt);
+            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, 0, Mat(), opt);
         }
         else
         {
@@ -1363,10 +1347,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
                     scale_in_data[p] = scale_in;
                 }
 
-                Mat scale_out_data(1);
-                scale_out_data[0] = top_blob_int8_scale; //FIXME load param
-
-                requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, scale_out_data, bias_data, 0, Mat(), opt);
+                requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, 0, Mat(), opt);
             }
             else
             {
@@ -1404,7 +1385,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
                     else
                         scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
 
-                    float scale_out = top_blob_int8_scale; //FIXME load param
+                    float scale_out = top_blob_int8_scales[0];
 
                     requantize_scales.push_back(scale_in);
                     requantize_scales.push_back(scale_out);
@@ -1459,10 +1440,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
                     scale_in_data[p] = scale_in;
                 }
 
-                Mat scale_out_data(1);
-                scale_out_data[0] = top_blob_int8_scale; //FIXME load param
-
-                requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, scale_out_data, bias_data, 0, Mat(), opt);
+                requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, 0, Mat(), opt);
             }
             else
             {

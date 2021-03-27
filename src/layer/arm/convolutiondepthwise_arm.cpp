@@ -240,9 +240,6 @@ int ConvolutionDepthWise_arm::create_group_ops(const Option& opt)
 
         ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution);
 
-        // FIXME
-        // ((ncnn::Convolution*)op)->use_int8_requantize = use_int8_requantize;
-
         // set param
         ncnn::ParamDict pd;
         pd.set(0, num_output_g); // num_output
@@ -265,7 +262,7 @@ int ConvolutionDepthWise_arm::create_group_ops(const Option& opt)
         // set weights
         if (bias_term)
         {
-            ncnn::Mat weights[4];
+            ncnn::Mat weights[5];
             weights[0] = weight_data_g;
             weights[1] = bias_data_g;
 
@@ -276,12 +273,16 @@ int ConvolutionDepthWise_arm::create_group_ops(const Option& opt)
                 weights[2] = weight_data_int8_scales_g;
                 weights[3] = bottom_blob_int8_scales.range(g, 1);
             }
+            if (int8_scale_term > 100)
+            {
+                weights[4] = top_blob_int8_scales.range(g, 1);
+            }
 
             op->load_model(ModelBinFromMatArray(weights));
         }
         else
         {
-            ncnn::Mat weights[3];
+            ncnn::Mat weights[4];
             weights[0] = weight_data_g;
 
             if (int8_scale_term)
@@ -290,6 +291,10 @@ int ConvolutionDepthWise_arm::create_group_ops(const Option& opt)
                 weight_data_int8_scales_g.fill(weight_data_int8_scales[g]);
                 weights[1] = weight_data_int8_scales_g;
                 weights[2] = bottom_blob_int8_scales.range(g, 1);
+            }
+            if (int8_scale_term > 100)
+            {
+                weights[3] = top_blob_int8_scales.range(g, 1);
             }
 
             op->load_model(ModelBinFromMatArray(weights));
@@ -1526,6 +1531,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
         out_elempack = num_output % 8 == 0 ? 8 : 1;
     }
 #endif // __ARM_NEON
+    bool use_int8_requantize = int8_scale_term > 100;
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (opt.use_fp16_storage)
@@ -1641,11 +1647,12 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                                     //                                     sumfp32 += bias_data[g];
                                 }
 
-                                float scale_out = top_blob_int8_scale; //FIXME load param
-
+                                //                                 float scale_out = top_blob_int8_scales[g];
                                 //                                 signed char sums8 = float2int8(sumfp32 * scale_out);
 
-                                int8x8_t _sum8 = float2int8(vmulq_n_f32(_sumfp32_0, scale_out), vmulq_n_f32(_sumfp32_1, scale_out));
+                                float32x4_t _scale_out0 = vld1q_f32((const float*)top_blob_int8_scales + g * 8);
+                                float32x4_t _scale_out1 = vld1q_f32((const float*)top_blob_int8_scales + g * 8 + 4);
+                                int8x8_t _sum8 = float2int8(vmulq_f32(_sumfp32_0, _scale_out0), vmulq_f32(_sumfp32_1, _scale_out1));
 
                                 if (activation_type == 1)
                                 {
@@ -1735,7 +1742,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                         else
                             scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
 
-                        float scale_out = top_blob_int8_scale;
+                        float scale_out = top_blob_int8_scales[g];
 
                         requantize_scales.push_back(scale_in);
                         requantize_scales.push_back(scale_out);
@@ -1792,7 +1799,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                         else
                             scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
 
-                        float scale_out = top_blob_int8_scale;
+                        float scale_out = top_blob_int8_scales[g];
 
                         requantize_scales.push_back(scale_in);
                         requantize_scales.push_back(scale_out);
@@ -1896,7 +1903,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                                 if (bias_term)
                                     sumfp32 += bias_data[g];
 
-                                float scale_out = top_blob_int8_scale; //FIXME load param
+                                float scale_out = top_blob_int8_scales[g];
 
                                 signed char sums8 = float2int8(sumfp32 * scale_out);
 

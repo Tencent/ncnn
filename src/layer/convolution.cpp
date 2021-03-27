@@ -22,8 +22,6 @@ Convolution::Convolution()
 {
     one_blob_only = true;
     support_inplace = false;
-
-    use_int8_requantize = false;
 }
 
 int Convolution::load_param(const ParamDict& pd)
@@ -72,6 +70,11 @@ int Convolution::load_model(const ModelBin& mb)
     {
         weight_data_int8_scales = mb.load(num_output, 1);
         bottom_blob_int8_scales = mb.load(1, 1);
+    }
+
+    if (int8_scale_term > 100)
+    {
+        top_blob_int8_scales = mb.load(1, 1);
     }
 
     return 0;
@@ -402,6 +405,7 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
     }
 
     // int8
+    bool use_int8_requantize = int8_scale_term > 100;
     size_t out_elemsize = use_int8_requantize ? 1u : 4u;
 
     top_blob.create(outw, outh, num_output, out_elemsize, opt.blob_allocator);
@@ -452,7 +456,7 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                     if (bias_term)
                         sumfp32 += bias_data[p];
 
-                    float scale_out = top_blob_int8_scale; //FIXME load param
+                    float scale_out = top_blob_int8_scales[0];
 
                     signed char sums8 = float2int8(sumfp32 * scale_out);
 

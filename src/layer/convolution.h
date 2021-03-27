@@ -67,9 +67,7 @@ public:
 
     Mat weight_data_int8_scales;
     Mat bottom_blob_int8_scales;
-    float top_blob_int8_scale; // TODO load param
-
-    bool use_int8_requantize;
+    Mat top_blob_int8_scales;
 
     // implementation type, 0 means do not use auto pack model
     int impl_type;

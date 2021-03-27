@@ -18,12 +18,16 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#endif // __ARM_NEON
+
+#include "arm_activation.h"
+#include "arm_usability.h"
+
+#if __ARM_NEON
 #if __aarch64__
 #include "gemm_symm_int8.h"
 #endif
 #endif // __ARM_NEON
-
-#include "arm_activation.h"
 
 namespace ncnn {
 
