@@ -170,12 +170,6 @@ static int test_convolution_2()
            || test_convolution_vec(64, 128, 1, 1, 1, 0, 0);
 }
 
-void set_param(ncnn::Convolution* layer)
-{
-    layer->use_int8_requantize = true;
-    layer->top_blob_int8_scale = 64.f;
-}
-
 static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, bool requant = false)
 {
     ncnn::Mat a = RandomMat(w, h, c);
@@ -188,26 +182,30 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     pd.set(4, pad);      // pad_w
     pd.set(5, bias);     // bias_term
     pd.set(6, outch * c * kernel * kernel);
-    pd.set(8, 1); // int8_scale_term
+    pd.set(8, requant ? 101 : 1); // int8_scale_term
 
-    std::vector<ncnn::Mat> weights(bias ? 4 : 3);
+    std::vector<ncnn::Mat> weights(bias ? 5 : 4);
     weights[0] = RandomMat(outch * c * kernel * kernel);
 
     ncnn::Mat weight_scales = scales_mat(weights[0], outch, c * kernel * kernel, c * kernel * kernel);
     ncnn::Mat input_scales = scales_mat(a, 1, w * h * c, a.cstep);
+    ncnn::Mat top_scales = requant ? scales_mat(a, 1, w * h * c, a.cstep) : ncnn::Mat();
     if (bias)
     {
         weights[1] = RandomMat(outch);
         weights[2] = weight_scales;
         weights[3] = input_scales;
+        weights[4] = top_scales;
     }
     else
     {
         weights[1] = weight_scales;
         weights[2] = input_scales;
+        weights[3] = top_scales;
     }
 
-    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a, 1.0f, requant ? set_param : 0);
+    int flag = TEST_LAYER_DISABLE_GPU_TESTING;
+    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a, requant ? 1.0f : 0.001f, 0, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant);
@@ -252,6 +250,8 @@ static int test_convolution_1()
                   || test_convolution_int8(9, 7, 7, 7, k, d, s, p, 1)
                   || test_convolution_int8(9, 7, 8, 8, k, d, s, p, 1)
                   || test_convolution_int8(9, 7, 15, 15, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 16, 15, k, d, s, p, 1)
+                  || test_convolution_int8(9, 7, 15, 16, k, d, s, p, 1)
                   || test_convolution_int8(9, 7, 16, 16, k, d, s, p, 1);
 
         if (ret != 0)
@@ -273,13 +273,20 @@ static int test_convolution_1()
                   || test_convolution_int8(9, 7, 7, 7, k, d, s, p, 1, true)
                   || test_convolution_int8(9, 7, 8, 8, k, d, s, p, 1, true)
                   || test_convolution_int8(9, 7, 15, 15, k, d, s, p, 1, true)
+                  || test_convolution_int8(9, 7, 16, 15, k, d, s, p, 1, true)
+                  || test_convolution_int8(9, 7, 15, 16, k, d, s, p, 1, true)
                   || test_convolution_int8(9, 7, 16, 16, k, d, s, p, 1, true);
 
         if (ret != 0)
             return -1;
     }
 
-    return 0;
+    return 0
+           || test_convolution_int8(13, 16, 16, 24, 3, 1, 1, 1, 1)
+           || test_convolution_int8(8, 8, 16, 24, 3, 1, 1, 1, 0)
+           || test_convolution_int8(4, 8, 16, 24, 3, 1, 1, 1, 1)
+           || test_convolution_int8(4, 20, 16, 24, 3, 1, 1, 1, 0)
+           || test_convolution_int8(6, 7, 64, 64, 3, 1, 2, 0, 1);
 }
 
 int main()

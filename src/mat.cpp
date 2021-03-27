@@ -540,14 +540,19 @@ void cast_bfloat16_to_float32(const Mat& src, Mat& dst, const Option& opt)
     delete cast;
 }
 
-void quantize_float32_to_int8(const Mat& src, Mat& dst, float scale, const Option& opt)
+void quantize_to_int8(const Mat& src, Mat& dst, const Mat& scale_data, const Option& opt)
 {
     Layer* quantize = create_layer(LayerType::Quantize);
 
     ParamDict pd;
-    pd.set(0, scale);
+    pd.set(0, scale_data.w);
 
     quantize->load_param(pd);
+
+    Mat weights[1];
+    weights[0] = scale_data;
+
+    quantize->load_model(ModelBinFromMatArray(weights));
 
     quantize->create_pipeline(opt);
 
@@ -558,46 +563,48 @@ void quantize_float32_to_int8(const Mat& src, Mat& dst, float scale, const Optio
     delete quantize;
 }
 
-void dequantize_int32_to_float32(Mat& m, float scale, const float* bias, int bias_data_size, const Option& opt)
+void dequantize_from_int32(const Mat& src, Mat& dst, const Mat& scale_data, const Mat& bias_data, const Option& opt)
 {
     Layer* dequantize = create_layer(LayerType::Dequantize);
 
     ParamDict pd;
-    pd.set(0, scale);
-    pd.set(1, bias ? 1 : 0);
-    pd.set(2, bias_data_size);
+    pd.set(0, scale_data.w);
+    pd.set(1, bias_data.w);
 
     dequantize->load_param(pd);
 
-    Mat weights[1];
-    weights[0] = Mat(bias_data_size, (void*)bias);
+    Mat weights[2];
+    weights[0] = scale_data;
+    weights[1] = bias_data;
 
     dequantize->load_model(ModelBinFromMatArray(weights));
 
     dequantize->create_pipeline(opt);
 
-    dequantize->forward_inplace(m, opt);
+    dequantize->forward(src, dst, opt);
 
     dequantize->destroy_pipeline(opt);
 
     delete dequantize;
 }
 
-void requantize_int8_to_int8(const Mat& src, Mat& dst, float scale_in, float scale_out, const float* bias, int bias_data_size, int fusion_relu, const Option& opt)
+void requantize_from_int32_to_int8(const Mat& src, Mat& dst, const Mat& scale_in_data, const Mat& scale_out_data, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 {
     Layer* requantize = create_layer(LayerType::Requantize);
 
     ParamDict pd;
-    pd.set(0, scale_in);
-    pd.set(1, scale_out);
-    pd.set(2, bias ? 1 : 0);
-    pd.set(3, bias_data_size);
-    pd.set(4, fusion_relu);
+    pd.set(0, scale_in_data.w);
+    pd.set(1, scale_out_data.w);
+    pd.set(2, bias_data.w);
+    pd.set(3, activation_type);
+    pd.set(4, activation_params);
 
     requantize->load_param(pd);
 
-    Mat weights[1];
-    weights[0] = Mat(bias_data_size, (void*)bias);
+    Mat weights[3];
+    weights[0] = scale_in_data;
+    weights[1] = scale_out_data;
+    weights[2] = bias_data;
 
     requantize->load_model(ModelBinFromMatArray(weights));
 

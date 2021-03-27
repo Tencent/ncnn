@@ -20,11 +20,6 @@
 #include "modelbin.h"
 #include "paramdict.h"
 
-// for fuse_network()
-#include "convolution.h"
-#include "convolutiondepthwise.h"
-#include "relu.h"
-
 #include <stdarg.h>
 #include <stdint.h>
 #include <string.h>
@@ -46,10 +41,6 @@ public:
     NetPrivate(Option& _opt);
 
     Option& opt;
-
-    // parse the structure of network
-    // fuse int8 op dequantize and quantize by requantize
-    int fuse_network();
 
 #if NCNN_VULKAN
 
@@ -103,157 +94,6 @@ NetPrivate::NetPrivate(Option& _opt)
     weight_staging_vkallocator = 0;
     pipeline_cache = 0;
 #endif // NCNN_VULKAN
-}
-
-int NetPrivate::fuse_network()
-{
-    // set the int8 op fusion:requantize
-#if NCNN_STRING && NCNN_REQUANT
-    // NCNN_LOGE("Test op fusion to int8 implement:");
-    // parse the network whether is a quantization model
-    bool net_quantized = false;
-    for (size_t i = 0; i < layers.size(); i++)
-    {
-        Layer* layer = layers[i];
-        if (layer->type == "Convolution" || layer->type == "ConvolutionDepthWise")
-        {
-            if (layer->type == "Convolution" && (((Convolution*)layer)->weight_data.elemsize != 1u))
-                continue;
-            if (layer->type == "ConvolutionDepthWise" && (((ConvolutionDepthWise*)layer)->weight_data.elemsize != 1u))
-                continue;
-            net_quantized = true;
-        }
-    }
-
-    if (net_quantized == false)
-        return 0;
-
-    for (size_t i = 0; i < layers.size(); i++)
-    {
-        Layer* layer = layers[i];
-
-        if (layer->type == "Convolution" || layer->type == "ConvolutionDepthWise")
-        {
-            if (layer->type == "Convolution" && (((Convolution*)layer)->weight_data.elemsize != 1u))
-                continue;
-            if (layer->type == "ConvolutionDepthWise" && (((ConvolutionDepthWise*)layer)->weight_data.elemsize != 1u))
-                continue;
-
-            int layer_next_index = blobs[layer->tops[0]].consumer;
-            Layer* layer_next = layers[layer_next_index];
-
-            if (layer_next->type == "Convolution" || layer_next->type == "ConvolutionDepthWise")
-            {
-                if (layer_next->type == "Convolution" && ((Convolution*)layer_next)->weight_data.elemsize != 1u)
-                    continue;
-                if (layer_next->type == "ConvolutionDepthWise" && ((ConvolutionDepthWise*)layer_next)->weight_data.elemsize != 1u)
-                    continue;
-
-                // NCNN_LOGE("%s, %s", layer->name.c_str(), layer_next->name.c_str());
-                if (layer->type == "Convolution" && layer_next->type == "Convolution")
-                {
-                    ((Convolution*)layer)->use_int8_requantize = true;
-                    ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next)->bottom_blob_int8_scale;
-                }
-                else if (layer->type == "ConvolutionDepthWise" && layer_next->type == "Convolution")
-                {
-                    ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
-                    ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((Convolution*)layer_next)->bottom_blob_int8_scale;
-                }
-                else if (layer->type == "Convolution" && layer_next->type == "ConvolutionDepthWise")
-                {
-                    ((Convolution*)layer)->use_int8_requantize = true;
-                    ((Convolution*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next)->bottom_blob_int8_scales[0];
-                }
-                else
-                {
-                    ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
-                    ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next)->bottom_blob_int8_scales[0];
-                }
-            }
-            else if (layer_next->type == "ReLU")
-            {
-                int layer_next_2_index = blobs[layer_next->tops[0]].consumer;
-                Layer* layer_next_2 = layers[layer_next_2_index];
-
-                if (layer_next_2->type == "Convolution" || layer_next_2->type == "ConvolutionDepthWise")
-                {
-                    if (layer_next_2->type == "Convolution" && ((Convolution*)layer_next_2)->weight_data.elemsize != 1u)
-                        continue;
-                    if (layer_next_2->type == "ConvolutionDepthWise" && ((ConvolutionDepthWise*)layer_next_2)->weight_data.elemsize != 1u)
-                        continue;
-
-                    //                         NCNN_LOGE("%s, %s, %s", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
-                    if (layer->type == "Convolution" && layer_next_2->type == "Convolution")
-                    {
-                        ((Convolution*)layer)->use_int8_requantize = true;
-                        ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_2)->bottom_blob_int8_scale;
-                    }
-                    else if (layer->type == "ConvolutionDepthWise" && layer_next_2->type == "Convolution")
-                    {
-                        ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
-                        ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_2)->bottom_blob_int8_scale;
-                    }
-                    else if (layer->type == "Convolution" && layer_next_2->type == "ConvolutionDepthWise")
-                    {
-                        ((Convolution*)layer)->use_int8_requantize = true;
-                        ((Convolution*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next_2)->bottom_blob_int8_scales[0];
-                    }
-                    else
-                    {
-                        ((ConvolutionDepthWise*)layer)->use_int8_requantize = true;
-                        ((ConvolutionDepthWise*)layer)->top_blob_int8_scale = ((ConvolutionDepthWise*)layer_next_2)->bottom_blob_int8_scales[0];
-                    }
-                }
-                else if (layer_next_2->type == "Split")
-                {
-                    bool all_conv = true;
-                    for (size_t i = 0; i < layer_next_2->tops.size(); i++)
-                    {
-                        int layer_next_3_index = blobs[layer_next_2->tops[i]].consumer;
-                        if (layers[layer_next_3_index]->type != "Convolution" && layers[layer_next_3_index]->type != "ConvolutionDepthWise" && layers[layer_next_3_index]->type != "PriorBox")
-                        {
-                            // NCNN_LOGE("%s, %s, %s, %s", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str(), layers[layer_next_3_index]->name.c_str());
-                            all_conv = false;
-                        }
-                    }
-
-                    if (all_conv == true && layer_next_2->tops.size() >= size_t(2))
-                    {
-                        // NCNN_LOGE("%s, %s, %s, ", layer->name.c_str(), layer_next->name.c_str(), layer_next_2->name.c_str());
-                        for (size_t i = 0; i < layer_next_2->tops.size(); i++)
-                        {
-                            int layer_next_3_index = blobs[layer_next_2->tops[i]].consumer;
-                            Layer* layer_next_3 = layers[layer_next_3_index];
-
-                            // NCNN_LOGE("%s, ", layer_next_3->name.c_str());
-                            if (layer_next_3->type == "Convolution")
-                            {
-                                ((Convolution*)layer)->top_blob_int8_scale = ((Convolution*)layer_next_3)->bottom_blob_int8_scale;
-                            }
-                        }
-
-                        ((Convolution*)layer)->use_int8_requantize = true;
-                        // NCNN_LOGE("");
-                    }
-                }
-                else
-                {
-                    // NCNN_LOGE("%s, %s", layer->name.c_str(), layer_next->name.c_str());
-                }
-            }
-            else if (layer_next->type == "Pooling")
-            {
-                // ToDo
-            }
-            else
-            {
-                // NCNN_LOGE("%s", layer->name.c_str());
-            }
-        }
-    }
-#endif
-    return 0;
 }
 
 #if NCNN_VULKAN
@@ -1498,15 +1338,6 @@ int Net::load_param(const DataReader& dr)
             return -1;
         }
 
-        if (layer->use_int8_inference)
-        {
-            // no int8 gpu or packing layout support yet
-            opt.use_vulkan_compute = false;
-            opt.use_packing_layout = false;
-            opt.use_fp16_storage = false;
-            opt.use_bf16_storage = false;
-        }
-
 #if NCNN_VULKAN
         if (opt.use_vulkan_compute)
             layer->vkdev = d->vkdev;
@@ -1567,6 +1398,15 @@ int Net::load_param(const DataReader& dr)
         {
             NCNN_LOGE("ParamDict load_param failed");
             continue;
+        }
+
+        if (layer->support_int8_storage)
+        {
+            // no int8 gpu support yet
+            opt.use_vulkan_compute = false;
+
+            // TODO enable when pack8 kernel implemented
+            opt.use_packing_layout = false;
         }
 
         // pull out top shape hints
@@ -1709,15 +1549,6 @@ int Net::load_param_bin(const DataReader& dr)
             return -1;
         }
 
-        if (layer->use_int8_inference)
-        {
-            // no int8 gpu or packing layout support yet
-            opt.use_vulkan_compute = false;
-            opt.use_packing_layout = false;
-            opt.use_fp16_storage = false;
-            opt.use_bf16_storage = false;
-        }
-
 #if NCNN_VULKAN
         if (opt.use_vulkan_compute)
             layer->vkdev = d->vkdev;
@@ -1762,6 +1593,15 @@ int Net::load_param_bin(const DataReader& dr)
         {
             NCNN_LOGE("ParamDict load_param failed");
             continue;
+        }
+
+        if (layer->support_int8_storage)
+        {
+            // no int8 gpu support yet
+            opt.use_vulkan_compute = false;
+
+            // TODO enable when pack8 kernel implemented
+            opt.use_packing_layout = false;
         }
 
         // pull out top blob shape hints
@@ -1850,17 +1690,15 @@ int Net::load_model(const DataReader& dr)
             break;
         }
 
-        if (layer->use_int8_inference)
+        if (layer->support_int8_storage)
         {
-            // no int8 gpu or packing layout support yet
+            // no int8 gpu support yet
             opt.use_vulkan_compute = false;
+
+            // TODO enable when pack8 kernel implemented
             opt.use_packing_layout = false;
-            opt.use_fp16_storage = false;
-            opt.use_bf16_storage = false;
         }
     }
-
-    d->fuse_network();
 
 #if NCNN_VULKAN
     if (opt.use_vulkan_compute)

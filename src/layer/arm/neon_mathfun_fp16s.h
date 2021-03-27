@@ -39,6 +39,9 @@
  *  (this is the zlib license)
  */
 
+#ifndef NEON_MATHFUN_FP16S_H
+#define NEON_MATHFUN_FP16S_H
+
 #include <arm_neon.h>
 
 #define c_inv_mant_mask_f16 -31745 // ~0x7c00u
@@ -669,3 +672,5 @@ static inline float16x8_t sigmoid_ps(float16x8_t _v)
     _v = vaddq_f16(_v, _one);
     return vdivq_f16(_one, _v);
 }
+
+#endif // NEON_MATHFUN_FP16S_H

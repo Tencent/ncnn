@@ -12,6 +12,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#ifndef NEON_MATHFUN_TANH_H
+#define NEON_MATHFUN_TANH_H
+
 #include <arm_neon.h>
 
 // tanh neon vector version
@@ -87,3 +90,5 @@ static inline float32x4_t tanh_ps(float32x4_t x)
     y = vreinterpretq_f32_u32(vbslq_u32(mask_l2, vreinterpretq_u32_f32(y1), vreinterpretq_u32_f32(y)));
     return y;
 }
+
+#endif // NEON_MATHFUN_TANH_H

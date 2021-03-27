@@ -113,7 +113,8 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
         weights[2] = input_scales;
     }
 
-    int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, a);
+    int flag = TEST_LAYER_DISABLE_GPU_TESTING;
+    int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, a, 0.001f, 0, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_innerproduct_int8 failed a.dims=%d a=(%d %d %d) outch=%d bias=%d\n", a.dims, a.w, a.h, a.c, outch, bias);
@@ -211,7 +212,8 @@ static int test_innerproduct_gemm_int8(const ncnn::Mat& a, int outch, int bias)
         weights[2] = input_scales;
     }
 
-    int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, a);
+    int flag = TEST_LAYER_DISABLE_GPU_TESTING;
+    int ret = test_layer<ncnn::InnerProduct>("InnerProduct", pd, weights, a, 0.001f, 0, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_innerproduct_gemm_int8 failed a.dims=%d a=(%d %d %d) outch=%d bias=%d\n", a.dims, a.w, a.h, a.c, outch, bias);

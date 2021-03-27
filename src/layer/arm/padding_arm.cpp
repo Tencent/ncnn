@@ -23,6 +23,7 @@ namespace ncnn {
 #if __ARM_NEON
 #include "padding_pack4.h"
 #include "padding_pack4_bf16s_fp16s.h"
+#include "padding_pack8_int8.h"
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "padding_pack8_fp16s.h"
 #endif
@@ -73,6 +74,9 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     }
 
     int elembits = bottom_blob.elembits();
+
+    if (elembits == 8)
+        return forward_int8(bottom_blob, top_blob, opt);
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (opt.use_fp16_storage && elembits == 16)
@@ -375,6 +379,113 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             padding_replicate_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right);
                         if (type == 2)
                             padding_reflect_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right);
+                    }
+                }
+
+                return 0;
+            }
+        }
+    }
+#endif // __ARM_NEON
+
+    Mat bottom_blob_unpacked = bottom_blob;
+    if (elempack != 1)
+    {
+        Option opt_pack1 = opt;
+        opt_pack1.blob_allocator = opt.workspace_allocator;
+
+        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+    }
+
+    return Padding::forward(bottom_blob_unpacked, top_blob, opt);
+}
+
+int Padding_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    int dims = bottom_blob.dims;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+#if __ARM_NEON
+    if (elempack == 8)
+    {
+        if (dims == 1)
+        {
+            int outw = w * elempack + left + right;
+
+            int out_elempack = outw % 8 == 0 ? 8 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (left % 8 == 0 && out_elempack == 8)
+            {
+                // TODO
+            }
+        }
+
+        if (dims == 2)
+        {
+            int outw = w + left + right;
+            int outh = h * elempack + top + bottom;
+
+            int out_elempack = outh % 8 == 0 ? 8 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (top % 8 == 0 && out_elempack == 8)
+            {
+                // TODO
+            }
+        }
+
+        if (dims == 3)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outc = channels * elempack + front + behind;
+
+            int out_elempack = outc % 8 == 0 ? 8 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (front % 8 == 0 && out_elempack == 8 && !(outc != channels * elempack && type != 0))
+            {
+                int front_ = front / elempack;
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < outc / out_elempack; q++)
+                {
+                    Mat borderm = top_blob.channel(q);
+
+                    // TODO perchannel
+                    //                     int8x8_t pad_value = per_channel_pad_data_size ? vld1_s8(per_channel_pad_data + q * 8) : vdup_n_s8((signed char)value);
+                    int8x8_t pad_value = vdup_n_s8((signed char)value);
+
+                    //Channel padding
+                    if ((q - front_) < 0 || (q - front_) >= channels)
+                    {
+                        borderm.fill<int8x8_t>(pad_value);
+                    }
+                    else
+                    {
+                        const Mat m = bottom_blob.channel(q - front_);
+                        if (type == 0)
+                            padding_constant_pack8_int8_neon(m, borderm, top, bottom, left, right, pad_value);
+                        if (type == 1)
+                            padding_replicate_pack8_int8_neon(m, borderm, top, bottom, left, right);
+                        if (type == 2)
+                            padding_reflect_pack8_int8_neon(m, borderm, top, bottom, left, right);
                     }
                 }
 

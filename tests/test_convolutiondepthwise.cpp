@@ -125,12 +125,6 @@ static int test_convolutiondepthwise_0()
     return 0;
 }
 
-void set_param(ncnn::ConvolutionDepthWise* layer)
-{
-    layer->use_int8_requantize = true;
-    layer->top_blob_int8_scale = 64.f;
-}
-
 static int test_convolutiondepthwise_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int group, bool requant = false)
 {
     ncnn::Mat a = RandomMat(w, h, c);
@@ -144,30 +138,35 @@ static int test_convolutiondepthwise_int8(int w, int h, int c, int outch, int ke
     pd.set(5, bias);     // bias_term
     pd.set(6, outch / group * c / group * kernel * kernel * group);
     pd.set(7, group);
-    pd.set(8, 1); // int8_scale_term
+    pd.set(8, requant ? 101 : 1); // int8_scale_term
 
-    std::vector<ncnn::Mat> weights(bias ? 4 : 3);
+    std::vector<ncnn::Mat> weights(bias ? 5 : 4);
     weights[0] = RandomMat(outch / group * c / group * kernel * kernel * group);
+    ncnn::Mat weight_scales = scales_mat(weights[0], group, c * kernel * kernel / group, c * kernel * kernel / group);
+    ncnn::Mat input_scales = scales_mat(a, 1, w * h * c, a.cstep);
+    ncnn::Mat top_scales = requant ? scales_mat(a, 1, w * h * c, a.cstep) : ncnn::Mat();
     if (bias)
     {
         weights[1] = RandomMat(outch);
-        weights[2] = RandomMat(group);
-        weights[3] = RandomMat(1);
+        weights[2] = weight_scales;
+        weights[3] = input_scales;
+        weights[4] = top_scales;
     }
     else
     {
-        weights[1] = RandomMat(group);
-        weights[2] = RandomMat(1);
+        weights[1] = weight_scales;
+        weights[2] = input_scales;
+        weights[3] = top_scales;
     }
 
-    int ret = test_layer<ncnn::ConvolutionDepthWise>("ConvolutionDepthWise", pd, weights, a, 0.001f, requant ? set_param : 0);
+    int flag = TEST_LAYER_DISABLE_GPU_TESTING;
+    int ret = test_layer<ncnn::ConvolutionDepthWise>("ConvolutionDepthWise", pd, weights, a, requant ? 1.0f : 0.001f, 0, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolutiondepthwise_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d requant=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, requant);
     }
 
-    //     return ret;
-    return 0;
+    return ret;
 }
 
 static int test_convolutiondepthwise_1()

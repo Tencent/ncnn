@@ -2674,7 +2674,7 @@ int NetOptimize::replace_convolution_with_innerproduct_after_global_pooling()
         innerproduct->weight_data = convolution->weight_data;
         innerproduct->bias_data = convolution->bias_data;
         innerproduct->weight_data_int8_scales = convolution->weight_data_int8_scales;
-        innerproduct->bottom_blob_int8_scale = convolution->bottom_blob_int8_scale;
+        innerproduct->bottom_blob_int8_scales = convolution->bottom_blob_int8_scales;
 
         innerproduct->activation_type = convolution->activation_type;
         innerproduct->activation_params = convolution->activation_params;
@@ -2740,7 +2740,7 @@ int NetOptimize::replace_convolution_with_innerproduct_after_innerproduct()
             innerproduct2->weight_data = convolution->weight_data;
             innerproduct2->bias_data = convolution->bias_data;
             innerproduct->weight_data_int8_scales = convolution->weight_data_int8_scales;
-            innerproduct->bottom_blob_int8_scale = convolution->bottom_blob_int8_scale;
+            innerproduct->bottom_blob_int8_scales = convolution->bottom_blob_int8_scales;
 
             innerproduct2->activation_type = convolution->activation_type;
             innerproduct2->activation_params = convolution->activation_params;
@@ -3852,7 +3852,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Quantize* op = (ncnn::Quantize*)layer;
             ncnn::Quantize* op_default = (ncnn::Quantize*)layer_default;
 
-            fprintf_param_value(" 0=%e", scale)
+            fprintf_param_value(" 0=%d", scale_data_size)
+
+            fwrite_weight_data(op->scale_data, bp);
         }
         else if (layer->type == "Reduction")
         {
@@ -3887,11 +3889,17 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Requantize* op = (ncnn::Requantize*)layer;
             ncnn::Requantize* op_default = (ncnn::Requantize*)layer_default;
 
-            fprintf_param_value(" 0=%e", scale_in)
-            fprintf_param_value(" 1=%e", scale_out)
-            fprintf_param_value(" 2=%d", bias_term)
-            fprintf_param_value(" 3=%d", bias_data_size)
-            fprintf_param_value(" 4=%d", fusion_relu)
+            fprintf_param_value(" 0=%d", scale_in_data_size)
+            fprintf_param_value(" 1=%d", scale_out_data_size)
+            fprintf_param_value(" 2=%d", bias_data_size)
+            fprintf_param_value(" 3=%d", activation_type)
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(4, op->activation_params, pp);
+            }
+
+            fwrite_weight_data(op->scale_in_data, bp);
+            fwrite_weight_data(op->scale_out_data, bp);
+            fwrite_weight_data(op->bias_data, bp);
         }
         else if (layer->type == "Reshape")
         {

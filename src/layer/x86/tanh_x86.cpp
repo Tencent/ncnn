@@ -14,12 +14,7 @@
 
 #include "tanh_x86.h"
 
-#if __SSE2__
-#include "sse_activation.h"
-#if __AVX__
-#include "avx_activation.h"
-#endif // __AVX__
-#endif // __SSE2__
+#include "x86_activation.h"
 
 #include <math.h>
 
