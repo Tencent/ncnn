@@ -759,23 +759,40 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         if (dims == 2) elemcount = bottom_blob.elempack * bottom_blob.h;
         if (dims == 3) elemcount = bottom_blob.elempack * bottom_blob.c;
 
+        int elembits = bottom_blob.elembits();
+
         int dst_elempack = 1;
         if (layer->support_packing)
         {
+            if (elembits == 32)
+            {
 #if NCNN_AVX2
-            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
-                dst_elempack = 8;
-            else if (elemcount % 4 == 0)
-                dst_elempack = 4;
-#elif NCNN_ARM82
-            if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && layer->support_fp16_storage)
-                dst_elempack = 8;
-            else if (elemcount % 4 == 0)
-                dst_elempack = 4;
+                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
 #else
-            if (elemcount % 4 == 0)
-                dst_elempack = 4;
+                if (elemcount % 4 == 0)
+                    dst_elempack = 4;
 #endif
+            }
+            if (elembits == 16)
+            {
+#if NCNN_ARM82
+                if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && layer->support_fp16_storage)
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
+#else
+                if (elemcount % 4 == 0)
+                    dst_elempack = 4;
+#endif
+            }
+            if (elembits == 8)
+            {
+                if (elemcount % 8 == 0)
+                    dst_elempack = 8;
+            }
         }
 
         if (bottom_blob.elempack != dst_elempack)
