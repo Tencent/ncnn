@@ -590,7 +590,7 @@ static inline float16x4_t tanh_ps(float16x4_t x)
 
     // abs(x) > HALFMAXLOGF
     // return 1.0 or -1.0
-    uint16x4_t mask_pos = vcgt_f16(x2, vdup_n_f16(0.f));
+    uint16x4_t mask_pos = vcgt_f16(x, vdup_n_f16(0.f));
     float16x4_t y1 = vreinterpret_f16_u16(vbsl_u16(mask_pos, vreinterpret_u16_f16(vdup_n_f16(1.f)), vreinterpret_u16_f16(vdup_n_f16(-1.f))));
 
     y = vreinterpret_f16_u16(vbsl_u16(mask_l, vreinterpret_u16_f16(y0), vreinterpret_u16_f16(y)));
@@ -647,7 +647,7 @@ static inline float16x8_t tanh_ps(float16x8_t x)
 
     // abs(x) > HALFMAXLOGF
     // return 1.0 or -1.0
-    uint16x8_t mask_pos = vcgtq_f16(x2, vdupq_n_f16(0.f));
+    uint16x8_t mask_pos = vcgtq_f16(x, vdupq_n_f16(0.f));
     float16x8_t y1 = vreinterpretq_f16_u16(vbslq_u16(mask_pos, vreinterpretq_u16_f16(vdupq_n_f16(1.f)), vreinterpretq_u16_f16(vdupq_n_f16(-1.f))));
 
     y = vreinterpretq_f16_u16(vbslq_u16(mask_l, vreinterpretq_u16_f16(y0), vreinterpretq_u16_f16(y)));

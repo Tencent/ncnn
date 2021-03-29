@@ -83,7 +83,7 @@ static inline float32x4_t tanh_ps(float32x4_t x)
 
     // abs(x) > HALFMAXLOGF
     // return 1.0 or -1.0
-    uint32x4_t mask_pos = vcgtq_f32(x2, vdupq_n_f32(0.f));
+    uint32x4_t mask_pos = vcgtq_f32(x, vdupq_n_f32(0.f));
     float32x4_t y1 = vreinterpretq_f32_u32(vbslq_u32(mask_pos, vreinterpretq_u32_f32(vdupq_n_f32(1.f)), vreinterpretq_u32_f32(vdupq_n_f32(-1.f))));
 
     y = vreinterpretq_f32_u32(vbslq_u32(mask_l, vreinterpretq_u32_f32(y0), vreinterpretq_u32_f32(y)));
