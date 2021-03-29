@@ -1685,6 +1685,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "_copy")
         {
+            // noop
         }
         else if (n.op == "_div_scalar")
         {
@@ -2152,6 +2153,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "Flatten")
         {
+            // no param
         }
         else if (n.op == "floor")
         {
@@ -2266,6 +2268,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "LinearRegressionOutput")
         {
+            // noop
         }
         else if (n.op == "log")
         {
@@ -2274,9 +2277,11 @@ int main(int argc, char** argv)
         }
         else if (n.op == "LogisticRegressionOutput")
         {
+            // noop
         }
         else if (n.op == "MAERegressionOutput")
         {
+            // noop
         }
         else if (n.op == "max" || n.op == "mean" || n.op == "min" || n.op == "prod" || n.op == "sum")
         {
@@ -2352,12 +2357,6 @@ int main(int argc, char** argv)
 
             int channel_before = pad_width[2];
             int channel_after = pad_width[3];
-            if (channel_before != 0 || channel_after != 0)
-            {
-                // FIXME
-                fprintf(stderr, "Unsupported pad_width on channel axis !\n");
-            }
-
             int top = pad_width[4];
             int bottom = pad_width[5];
             int left = pad_width[6];
@@ -2369,6 +2368,8 @@ int main(int argc, char** argv)
             fprintf(pp, " 3=%d", right);
             fprintf(pp, " 4=%d", type);
             fprintf(pp, " 5=%e", constant_value);
+            fprintf(pp, " 7=%d", channel_before);
+            fprintf(pp, " 8=%d", channel_after);
         }
         else if (n.op == "Pooling")
         {
@@ -2447,6 +2448,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "relu")
         {
+            // no param
         }
         else if (n.op == "Reshape")
         {
@@ -2485,6 +2487,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "sigmoid")
         {
+            // no param
         }
         else if (n.op == "sin")
         {
@@ -2605,6 +2608,7 @@ int main(int argc, char** argv)
         }
         else if (n.op == "tanh")
         {
+            // no param
         }
         else if (n.op == "Transpose" || n.op == "transpose")
         {

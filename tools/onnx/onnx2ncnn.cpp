@@ -5530,6 +5530,7 @@ int main(int argc, char** argv)
         }
         else if (op == "Sigmoid")
         {
+            // no param
         }
         else if (op == "Sin")
         {
@@ -5706,6 +5707,7 @@ int main(int argc, char** argv)
         }
         else if (op == "Swish")
         {
+            // no param
         }
         else if (op == "Tan")
         {
