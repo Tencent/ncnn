@@ -33,7 +33,6 @@ Crop_arm::Crop_arm()
 }
 
 #if __ARM_NEON
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 static void crop_pack8_neon(const Mat& src, Mat& dst, int top, int left)
 {
     int w = dst.w;
@@ -59,21 +58,21 @@ static void crop_pack8_neon(const Mat& src, Mat& dst, int top, int left)
     }
 }
 
-static void crop_pack8_fp16_neon(const Mat& src, Mat& dst, int top, int left)
+static void crop_pack8_bf16_fp16s_neon(const Mat& src, Mat& dst, int top, int left)
 {
     int w = dst.w;
     int h = dst.h;
     int right = src.w - dst.w - left;
 
-    const __fp16* ptr = src.row<__fp16>(top) + left * 8;
-    __fp16* outptr = dst;
+    const unsigned short* ptr = src.row<unsigned short>(top) + left * 8;
+    unsigned short* outptr = dst;
 
     for (int y = 0; y < h; y++)
     {
         for (int x = 0; x < w; x++)
         {
-            float16x8_t _p = vld1q_f16(ptr);
-            vst1q_f16(outptr, _p);
+            uint16x8_t _p = vld1q_u16(ptr);
+            vst1q_u16(outptr, _p);
             ptr += 8;
             outptr += 8;
         }
@@ -81,7 +80,6 @@ static void crop_pack8_fp16_neon(const Mat& src, Mat& dst, int top, int left)
         ptr += (left + right) * 8;
     }
 }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 static void crop_pack4_neon(const Mat& src, Mat& dst, int top, int left)
 {
@@ -106,7 +104,7 @@ static void crop_pack4_neon(const Mat& src, Mat& dst, int top, int left)
     }
 }
 
-static void crop_pack4_bf16_neon(const Mat& src, Mat& dst, int top, int left)
+static void crop_pack4_bf16_fp16s_neon(const Mat& src, Mat& dst, int top, int left)
 {
     int w = dst.w;
     int h = dst.h;
@@ -140,7 +138,6 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     int elempack = bottom_blob.elempack;
 
 #if __ARM_NEON
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (elempack == 8)
     {
         int _woffset, _hoffset, _coffset;
@@ -165,7 +162,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             if (_woffset % 8 == 0 && out_elempack == 8)
             {
                 if (elemsize == 16u)
-                    crop_pack8_fp16_neon(bottom_blob, top_blob, 0, _woffset / elempack);
+                    crop_pack8_bf16_fp16s_neon(bottom_blob, top_blob, 0, _woffset / elempack);
                 else
                     crop_pack8_neon(bottom_blob, top_blob, 0, _woffset / elempack);
 
@@ -191,7 +188,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             if (_hoffset % 8 == 0 && out_elempack == 8)
             {
                 if (elemsize == 16u)
-                    crop_pack8_fp16_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                    crop_pack8_bf16_fp16s_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
                 else
                     crop_pack8_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
@@ -232,7 +229,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     Mat borderm = top_blob.channel(q);
 
                     if (elemsize == 16u)
-                        crop_pack8_fp16_neon(m, borderm, _hoffset, _woffset);
+                        crop_pack8_bf16_fp16s_neon(m, borderm, _hoffset, _woffset);
                     else
                         crop_pack8_neon(m, borderm, _hoffset, _woffset);
                 }
@@ -241,7 +238,6 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             }
         }
     }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
     if (elempack == 4)
     {
@@ -271,7 +267,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             if (_woffset % 4 == 0 && out_elempack == 4)
             {
                 if (elemsize == 8u)
-                    crop_pack4_bf16_neon(bottom_blob, top_blob, 0, _woffset / elempack);
+                    crop_pack4_bf16_fp16s_neon(bottom_blob, top_blob, 0, _woffset / elempack);
                 else
                     crop_pack4_neon(bottom_blob, top_blob, 0, _woffset / elempack);
 
@@ -301,7 +297,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             if (_hoffset % 4 == 0 && out_elempack == 4)
             {
                 if (elemsize == 8u)
-                    crop_pack4_bf16_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                    crop_pack4_bf16_fp16s_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
                 else
                     crop_pack4_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
@@ -346,7 +342,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     Mat borderm = top_blob.channel(q);
 
                     if (elemsize == 8u)
-                        crop_pack4_bf16_neon(m, borderm, _hoffset, _woffset);
+                        crop_pack4_bf16_fp16s_neon(m, borderm, _hoffset, _woffset);
                     else
                         crop_pack4_neon(m, borderm, _hoffset, _woffset);
                 }
@@ -386,7 +382,6 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     Mat& top_blob = top_blobs[0];
 
 #if __ARM_NEON
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (elempack == 8)
     {
         int _woffset, _hoffset, _coffset;
@@ -418,7 +413,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             if (_woffset % 8 == 0 && out_elempack == 8)
             {
                 if (elemsize == 16u)
-                    crop_pack8_fp16_neon(bottom_blob, top_blob, 0, _woffset / elempack);
+                    crop_pack8_bf16_fp16s_neon(bottom_blob, top_blob, 0, _woffset / elempack);
                 else
                     crop_pack8_neon(bottom_blob, top_blob, 0, _woffset / elempack);
 
@@ -444,7 +439,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             if (_hoffset % 8 == 0 && out_elempack == 8)
             {
                 if (elemsize == 16u)
-                    crop_pack8_fp16_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                    crop_pack8_bf16_fp16s_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
                 else
                     crop_pack8_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
@@ -485,7 +480,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     Mat borderm = top_blob.channel(q);
 
                     if (elemsize == 16u)
-                        crop_pack8_fp16_neon(m, borderm, _hoffset, _woffset);
+                        crop_pack8_bf16_fp16s_neon(m, borderm, _hoffset, _woffset);
                     else
                         crop_pack8_neon(m, borderm, _hoffset, _woffset);
                 }
@@ -494,7 +489,6 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             }
         }
     }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
     if (elempack == 4)
     {
@@ -531,7 +525,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             if (_woffset % 4 == 0 && out_elempack == 4)
             {
                 if (elemsize == 8u)
-                    crop_pack4_bf16_neon(bottom_blob, top_blob, 0, _woffset / elempack);
+                    crop_pack4_bf16_fp16s_neon(bottom_blob, top_blob, 0, _woffset / elempack);
                 else
                     crop_pack4_neon(bottom_blob, top_blob, 0, _woffset / elempack);
 
@@ -561,7 +555,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             if (_hoffset % 4 == 0 && out_elempack == 4)
             {
                 if (elemsize == 8u)
-                    crop_pack4_bf16_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+                    crop_pack4_bf16_fp16s_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
                 else
                     crop_pack4_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
@@ -606,7 +600,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     Mat borderm = top_blob.channel(q);
 
                     if (elemsize == 8u)
-                        crop_pack4_bf16_neon(m, borderm, _hoffset, _woffset);
+                        crop_pack4_bf16_fp16s_neon(m, borderm, _hoffset, _woffset);
                     else
                         crop_pack4_neon(m, borderm, _hoffset, _woffset);
                 }
