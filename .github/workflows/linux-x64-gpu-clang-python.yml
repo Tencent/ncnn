@@ -36,14 +36,14 @@ jobs:
       uses: actions/cache@v1
       with:
         path: swiftshader-install
-        key: swiftshader-linux-install-20200508
+        key: swiftshader-linux-install-20210330
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: 2dd864470e310d173d35fa95ca3a14d216734aab
+        ref: 4c0f888d7ef87a06dc7e6f01c3a9341aa8a826bf
     - name: checkout-swiftshader-submodules
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
