@@ -35,13 +35,21 @@ public:
 protected:
     int forward_fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+    int create_pipeline_int8_x86(const Option& opt);
+    int forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
 public:
-    ncnn::Layer* flatten;
+    Layer* flatten;
+    Layer* activation;
 
     Mat weight_data_packed;
 
     // fp16 weight data
     Mat weight_data_fp16;
+
+    // int8
+    Mat weight_data_int8;
+    Mat scales_in;
 };
 
 } // namespace ncnn

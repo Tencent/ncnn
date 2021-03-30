@@ -15,11 +15,10 @@
 from math import sqrt
 import numpy as np
 import cv2
-from nms import nms
 import ncnn
 from .model_store import get_model_file
 from ..utils.objects import Detect_Object
-from ..utils.functional import sigmoid
+from ..utils.functional import sigmoid, nms
 
 
 class Yolact:
@@ -48,7 +47,7 @@ class Yolact:
 
         # original model converted from https://github.com/dbolya/yolact
         # yolact_resnet50_54_800000.pth
-        # the ncnn model https://github.com/caishanli/pyncnn-assets/tree/master/models
+        # the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
         self.net.load_param(get_model_file("yolact.param"))
         self.net.load_model(get_model_file("yolact.bin"))
 
@@ -311,11 +310,16 @@ class Yolact:
             classes_tmp = classes[where]
             conf_scores_tmp = conf_scores[where]
 
-            indexes = nms.boxes(
+            score_mask = conf_scores_tmp > self.confidence_threshold
+            boxes_tmp = boxes_tmp[score_mask]
+            masks_tmp = masks_tmp[score_mask]
+            classes_tmp = classes_tmp[score_mask]
+            conf_scores_tmp = conf_scores_tmp[score_mask]
+
+            indexes = nms(
                 boxes_tmp,
                 conf_scores_tmp,
-                nms_threshold=self.nms_threshold,
-                score_threshold=self.confidence_threshold,
+                iou_threshold=self.nms_threshold,
                 top_k=self.keep_top_k,
             )
 

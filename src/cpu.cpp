@@ -71,6 +71,10 @@
 #endif
 #endif
 
+#if defined(__SSE3__)
+#include <immintrin.h>
+#endif
+
 namespace ncnn {
 
 #if defined __ANDROID__ || defined __linux__
@@ -428,7 +432,8 @@ int get_little_cpu_count()
 
 int get_big_cpu_count()
 {
-    return get_cpu_thread_affinity_mask(2).num_enabled();
+    int big_cpu_count = get_cpu_thread_affinity_mask(2).num_enabled();
+    return big_cpu_count ? big_cpu_count : g_cpucount;
 }
 
 #if defined __ANDROID__ || defined __linux__
@@ -844,6 +849,53 @@ void set_kmp_blocktime(int time_ms)
     kmp_set_blocktime(time_ms);
 #else
     (void)time_ms;
+#endif
+}
+
+static ncnn::ThreadLocalStorage tls_flush_denormals;
+
+int get_flush_denormals()
+{
+#if defined(__SSE3__)
+    return (int)reinterpret_cast<size_t>(tls_flush_denormals.get());
+#else
+    return 0;
+#endif
+}
+
+int set_flush_denormals(int flush_denormals)
+{
+    if (flush_denormals < 0 || flush_denormals > 3)
+    {
+        NCNN_LOGE("denormals_zero %d not supported", flush_denormals);
+        return -1;
+    }
+#if defined(__SSE3__)
+    if (flush_denormals == 0)
+    {
+        _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_OFF);
+        _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_OFF);
+    }
+    else if (flush_denormals == 1)
+    {
+        _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+        _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_OFF);
+    }
+    else if (flush_denormals == 2)
+    {
+        _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_OFF);
+        _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+    }
+    else if (flush_denormals == 3)
+    {
+        _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+        _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+    }
+
+    tls_flush_denormals.set(reinterpret_cast<void*>((size_t)flush_denormals));
+    return 0;
+#else
+    return 0;
 #endif
 }
 

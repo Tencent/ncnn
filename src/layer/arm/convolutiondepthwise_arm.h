@@ -53,6 +53,9 @@ public:
     // bf16
     Mat weight_data_bf16;
     Mat weight_data_pack4_bf16;
+
+    // int8
+    Mat weight_data_int8;
 };
 
 } // namespace ncnn

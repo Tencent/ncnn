@@ -445,6 +445,9 @@ PYBIND11_MODULE(ncnn, m)
         m[i] = v;
     },
     py::arg("i"), py::arg("v"))
+    .def("__len__", [](Mat& m) {
+        return m.w;
+    })
 
     //convenient construct from pixel data
     .def_static(
@@ -757,32 +760,33 @@ PYBIND11_MODULE(ncnn, m)
     .value("PIXEL_BGRA2RGBA", ncnn::Mat::PixelType::PIXEL_BGRA2RGBA);
 
     py::class_<Extractor>(m, "Extractor")
+    .def("__enter__", [](Extractor& ex) -> Extractor& { return ex; })
+    .def("__exit__", [](Extractor& ex, pybind11::args) {
+        ex.clear();
+    })
+    .def("clear", &Extractor::clear)
     .def("set_light_mode", &Extractor::set_light_mode, py::arg("enable"))
     .def("set_num_threads", &Extractor::set_num_threads, py::arg("num_threads"))
     .def("set_blob_allocator", &Extractor::set_blob_allocator, py::arg("allocator"))
     .def("set_workspace_allocator", &Extractor::set_workspace_allocator, py::arg("allocator"))
 #if NCNN_STRING
     .def("input", (int (Extractor::*)(const char*, const Mat&)) & Extractor::input, py::arg("blob_name"), py::arg("in"))
-    .def("extract", (int (Extractor::*)(const char*, Mat&, int)) & Extractor::extract,
-         py::arg("blob_name"), py::arg("feat"), py::arg("type") = 0)
+    .def("extract", (int (Extractor::*)(const char*, Mat&, int)) & Extractor::extract, py::arg("blob_name"), py::arg("feat"), py::arg("type") = 0)
     .def(
-        "extract",
-    [](Extractor& ex, const char* blob_name, int type) {
+    "extract", [](Extractor& ex, const char* blob_name, int type) {
         ncnn::Mat feat;
         int ret = ex.extract(blob_name, feat, type);
-        return py::make_tuple(ret, feat);
+        return py::make_tuple(ret, feat.clone());
     },
     py::arg("blob_name"), py::arg("type") = 0)
 #endif
     .def("input", (int (Extractor::*)(int, const Mat&)) & Extractor::input)
-    .def("extract", (int (Extractor::*)(int, Mat&, int)) & Extractor::extract,
-         py::arg("blob_index"), py::arg("feat"), py::arg("type") = 0)
+    .def("extract", (int (Extractor::*)(int, Mat&, int)) & Extractor::extract, py::arg("blob_index"), py::arg("feat"), py::arg("type") = 0)
     .def(
-        "extract",
-    [](Extractor& ex, int blob_index, int type) {
+    "extract", [](Extractor& ex, int blob_index, int type) {
         ncnn::Mat feat;
         int ret = ex.extract(blob_index, feat, type);
-        return py::make_tuple(ret, feat);
+        return py::make_tuple(ret, feat.clone());
     },
     py::arg("blob_index"), py::arg("type") = 0);
 
@@ -799,7 +803,6 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("support_bf16_storage", &Layer::support_bf16_storage)
     .def_readwrite("support_fp16_storage", &Layer::support_fp16_storage)
     .def_readwrite("support_image_storage", &Layer::support_image_storage)
-    .def_readwrite("use_int8_inference", &Layer::use_int8_inference)
     .def_readwrite("support_weight_fp16_storage", &Layer::support_weight_fp16_storage)
     .def("forward", (int (Layer::*)(const std::vector<Mat>&, std::vector<Mat>&, const Option&) const) & Layer::forward,
          py::arg("bottom_blobs"), py::arg("top_blobs"), py::arg("opt"))
@@ -822,19 +825,20 @@ PYBIND11_MODULE(ncnn, m)
     py::class_<Net>(m, "Net")
     .def(py::init<>())
     .def_readwrite("opt", &Net::opt)
+    .def("__enter__", [](Net& net) -> Net& { return net; })
+    .def("__exit__", [](Net& net, pybind11::args) {
+        net.clear();
+    })
 
 #if NCNN_VULKAN
     .def("set_vulkan_device", (void (Net::*)(int)) & Net::set_vulkan_device, py::arg("device_index"))
     .def("set_vulkan_device", (void (Net::*)(const VulkanDevice*)) & Net::set_vulkan_device, py::arg("vkdev"))
-    .def("vulkan_device", &Net::vulkan_device)
+    .def("vulkan_device", &Net::vulkan_device, py::return_value_policy::reference_internal)
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING
     .def(
-        "register_custom_layer",
-        [](Net& net, const char* type,
-           const std::function<ncnn::Layer*()>& creator,
-    const std::function<void(ncnn::Layer*)>& destroyer) {
+    "register_custom_layer", [](Net& net, const char* type, const std::function<ncnn::Layer*()>& creator, const std::function<void(ncnn::Layer*)>& destroyer) {
         if (g_layer_factroy_index == g_layer_factroys.size())
         {
             std::stringstream ss;
@@ -850,10 +854,7 @@ PYBIND11_MODULE(ncnn, m)
     py::arg("type"), py::arg("creator"), py::arg("destroyer"))
 #endif //NCNN_STRING
     .def(
-        "register_custom_layer",
-        [](Net& net, int index,
-           const std::function<ncnn::Layer*()>& creator,
-    const std::function<void(ncnn::Layer*)>& destroyer) {
+    "register_custom_layer", [](Net& net, int index, const std::function<ncnn::Layer*()>& creator, const std::function<void(ncnn::Layer*)>& destroyer) {
         if (g_layer_factroy_index == g_layer_factroys.size())
         {
             std::stringstream ss;
@@ -882,7 +883,7 @@ PYBIND11_MODULE(ncnn, m)
 #endif // NCNN_STDIO
 
     .def("clear", &Net::clear)
-    .def("create_extractor", &Net::create_extractor)
+    .def("create_extractor", &Net::create_extractor, py::keep_alive<0, 1>()) //net should be kept alive until retuned ex is freed by gc
     .def("blobs", &Net::blobs, py::return_value_policy::reference_internal)
     .def("layers", &Net::layers, py::return_value_policy::reference_internal);
 
@@ -1075,19 +1076,19 @@ PYBIND11_MODULE(ncnn, m)
     py::arg("src"),
     py::arg("opt") = Option());
 
-    m.def("quantize_float32_to_int8", &quantize_float32_to_int8,
+    m.def("quantize_to_int8", &quantize_to_int8,
           py::arg("src"), py::arg("dst"),
-          py::arg("scale"),
+          py::arg("scale_data"),
           py::arg("opt") = Option());
     m.def(
-        "quantize_float32_to_int8",
-    [](const Mat& src, float scale, const Option& opt) {
+        "quantize_to_int8",
+    [](const Mat& src, const Mat& scale_data, const Option& opt) {
         Mat dst;
-        quantize_float32_to_int8(src, dst, scale, opt);
+        quantize_to_int8(src, dst, scale_data, opt);
         return dst;
     },
     py::arg("src"),
-    py::arg("scale"),
+    py::arg("scale_data"),
     py::arg("opt") = Option());
 
 #if NCNN_STRING
@@ -1111,11 +1112,22 @@ PYBIND11_MODULE(ncnn, m)
     m.def("destroy_gpu_instance", &destroy_gpu_instance);
     m.def("get_gpu_count", &get_gpu_count);
     m.def("get_default_gpu_index", &get_default_gpu_index);
-    m.def("get_gpu_info", &get_gpu_info, py::arg("device_index") = 0);
-    m.def("get_gpu_device", &get_gpu_device, py::arg("device_index") = 0);
+    m.def("get_gpu_info", &get_gpu_info, py::arg("device_index") = 0, py::return_value_policy::reference);
+    m.def("get_gpu_device", &get_gpu_device, py::arg("device_index") = 0, py::return_value_policy::reference);
+
+    py::class_<VkBufferMemory>(m, "VkBufferMemory")
+    .def_readwrite("offset", &VkBufferMemory::offset)
+    .def_readwrite("capacity", &VkBufferMemory::capacity)
+    .def_readwrite("refcount", &VkBufferMemory::refcount);
+
+    py::class_<VkImageMemory>(m, "VkImageMemory")
+    .def_readwrite("width", &VkImageMemory::width)
+    .def_readwrite("height", &VkImageMemory::height)
+    .def_readwrite("depth", &VkImageMemory::depth)
+    .def_readwrite("refcount", &VkImageMemory::refcount);
 
     py::class_<VkAllocator, PyVkAllocator<> >(m, "VkAllocator")
-    .def_readwrite("vkdev", &VkAllocator::vkdev)
+    .def_readonly("vkdev", &VkAllocator::vkdev)
     .def_readwrite("buffer_memory_type_index", &VkAllocator::buffer_memory_type_index)
     .def_readwrite("image_memory_type_index", &VkAllocator::image_memory_type_index)
     .def_readwrite("mappable", &VkAllocator::mappable)
@@ -1124,37 +1136,53 @@ PYBIND11_MODULE(ncnn, m)
     py::class_<VkBlobAllocator, VkAllocator, PyVkAllocatorOther<VkBlobAllocator> >(m, "VkBlobAllocator")
     .def(py::init<const VulkanDevice*>())
     .def("clear", &VkBlobAllocator::clear)
-    .def("fastMalloc", (VkBufferMemory * (VkBlobAllocator::*)(size_t size)) & VkBlobAllocator::fastMalloc)
+    .def("fastMalloc", (VkBufferMemory * (VkBlobAllocator::*)(size_t size)) & VkBlobAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkBlobAllocator::*)(VkBufferMemory * ptr)) & VkBlobAllocator::fastFree)
-    .def("fastMalloc", (VkImageMemory * (VkBlobAllocator::*)(int, int, int, size_t, int)) & VkBlobAllocator::fastMalloc)
+    .def("fastMalloc", (VkImageMemory * (VkBlobAllocator::*)(int, int, int, size_t, int)) & VkBlobAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkBlobAllocator::*)(VkImageMemory * ptr)) & VkBlobAllocator::fastFree);
 
     py::class_<VkWeightAllocator, VkAllocator, PyVkAllocatorOther<VkWeightAllocator> >(m, "VkWeightAllocator")
     .def(py::init<const VulkanDevice*>())
     .def("clear", &VkWeightAllocator::clear)
-    .def("fastMalloc", (VkBufferMemory * (VkWeightAllocator::*)(size_t size)) & VkWeightAllocator::fastMalloc)
+    .def("fastMalloc", (VkBufferMemory * (VkWeightAllocator::*)(size_t size)) & VkWeightAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkWeightAllocator::*)(VkBufferMemory * ptr)) & VkWeightAllocator::fastFree)
-    .def("fastMalloc", (VkImageMemory * (VkWeightAllocator::*)(int, int, int, size_t, int)) & VkWeightAllocator::fastMalloc)
+    .def("fastMalloc", (VkImageMemory * (VkWeightAllocator::*)(int, int, int, size_t, int)) & VkWeightAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkWeightAllocator::*)(VkImageMemory * ptr)) & VkWeightAllocator::fastFree);
 
     py::class_<VkStagingAllocator, VkAllocator, PyVkAllocatorOther<VkStagingAllocator> >(m, "VkStagingAllocator")
     .def(py::init<const VulkanDevice*>())
     .def("set_size_compare_ratio", &VkStagingAllocator::set_size_compare_ratio)
     .def("clear", &VkStagingAllocator::clear)
-    .def("fastMalloc", (VkBufferMemory * (VkStagingAllocator::*)(size_t size)) & VkStagingAllocator::fastMalloc)
+    .def("fastMalloc", (VkBufferMemory * (VkStagingAllocator::*)(size_t size)) & VkStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkStagingAllocator::*)(VkBufferMemory * ptr)) & VkStagingAllocator::fastFree)
-    .def("fastMalloc", (VkImageMemory * (VkStagingAllocator::*)(int, int, int, size_t, int)) & VkStagingAllocator::fastMalloc)
+    .def("fastMalloc", (VkImageMemory * (VkStagingAllocator::*)(int, int, int, size_t, int)) & VkStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkStagingAllocator::*)(VkImageMemory * ptr)) & VkStagingAllocator::fastFree);
 
     py::class_<VkWeightStagingAllocator, VkAllocator, PyVkAllocatorOther<VkWeightStagingAllocator> >(m, "VkWeightStagingAllocator")
     .def(py::init<const VulkanDevice*>())
-    .def("fastMalloc", (VkBufferMemory * (VkWeightStagingAllocator::*)(size_t size)) & VkWeightStagingAllocator::fastMalloc)
+    .def("fastMalloc", (VkBufferMemory * (VkWeightStagingAllocator::*)(size_t size)) & VkWeightStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkWeightStagingAllocator::*)(VkBufferMemory * ptr)) & VkWeightStagingAllocator::fastFree)
-    .def("fastMalloc", (VkImageMemory * (VkWeightStagingAllocator::*)(int, int, int, size_t, int)) & VkWeightStagingAllocator::fastMalloc)
+    .def("fastMalloc", (VkImageMemory * (VkWeightStagingAllocator::*)(int, int, int, size_t, int)) & VkWeightStagingAllocator::fastMalloc, py::return_value_policy::reference_internal)
     .def("fastFree", (void (VkWeightStagingAllocator::*)(VkImageMemory * ptr)) & VkWeightStagingAllocator::fastFree);
 
+    py::class_<GpuInfo>(m, "GpuInfo")
+    .def(py::init<>())
+    .def("api_version", &GpuInfo::api_version)
+    .def("driver_version", &GpuInfo::driver_version)
+    .def("vendor_id", &GpuInfo::vendor_id)
+    .def("device_id", &GpuInfo::device_id)
+    .def("pipeline_cache_uuid", [](GpuInfo& gpuinfo) {
+        return py::memoryview::from_buffer(gpuinfo.pipeline_cache_uuid(), {VK_UUID_SIZE}, {sizeof(uint8_t) * VK_UUID_SIZE});
+    })
+    .def("type", &GpuInfo::type);
+
     py::class_<VulkanDevice>(m, "VulkanDevice")
-    .def(py::init<int>(), py::arg("device_index") = 0);
+    .def(py::init<int>(), py::arg("device_index") = 0)
+    .def(
+    "info", [](VulkanDevice& dev) {
+        return &dev.info;
+    },
+    py::return_value_policy::reference_internal);
 #endif // NCNN_VULKAN
 
     m.doc() = R"pbdoc(

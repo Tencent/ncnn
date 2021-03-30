@@ -64,7 +64,38 @@ void benchmark(const Layer* layer, double start, double end)
 void benchmark(const Layer* layer, const Mat& bottom_blob, Mat& top_blob, double start, double end)
 {
     fprintf(stderr, "%-24s %-30s %8.2lfms", layer->type.c_str(), layer->name.c_str(), end - start);
-    fprintf(stderr, "    |    feature_map: %4d x %-4d    inch: %4d *%d  outch: %4d *%d", bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elempack, top_blob.c, top_blob.elempack);
+
+    char in_shape_str[64] = {'\0'};
+    char out_shape_str[64] = {'\0'};
+
+    if (bottom_blob.dims == 1)
+    {
+        sprintf(in_shape_str, "[%3d *%d]", bottom_blob.w, bottom_blob.elempack);
+    }
+    if (bottom_blob.dims == 2)
+    {
+        sprintf(in_shape_str, "[%3d, %3d *%d]", bottom_blob.w, bottom_blob.h, bottom_blob.elempack);
+    }
+    if (bottom_blob.dims == 3)
+    {
+        sprintf(in_shape_str, "[%3d, %3d, %3d *%d]", bottom_blob.w, bottom_blob.h, bottom_blob.c, bottom_blob.elempack);
+    }
+
+    if (top_blob.dims == 1)
+    {
+        sprintf(out_shape_str, "[%3d *%d]", top_blob.w, top_blob.elempack);
+    }
+    if (top_blob.dims == 2)
+    {
+        sprintf(out_shape_str, "[%3d, %3d *%d]", top_blob.w, top_blob.h, top_blob.elempack);
+    }
+    if (top_blob.dims == 3)
+    {
+        sprintf(out_shape_str, "[%3d, %3d, %3d *%d]", top_blob.w, top_blob.h, top_blob.c, top_blob.elempack);
+    }
+
+    fprintf(stderr, "    | %22s -> %-22s", in_shape_str, out_shape_str);
+
     if (layer->type == "Convolution")
     {
         fprintf(stderr, "     kernel: %1d x %1d     stride: %1d x %1d",

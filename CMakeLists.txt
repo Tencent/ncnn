@@ -40,6 +40,11 @@ if(NOT CMAKE_VERSION VERSION_LESS "3.15")
     cmake_policy(SET CMP0091 NEW)
 endif()
 
+if(POLICY CMP0025)
+    # reference from https://cmake.org/cmake/help/latest/policy/CMP0025.html
+    cmake_policy(SET CMP0025 NEW)
+endif()
+
 project(ncnn)
 
 if(MSVC AND NOT CMAKE_VERSION VERSION_LESS "3.15")
@@ -68,7 +73,6 @@ option(NCNN_PIXEL_AFFINE "warp affine image pixel" ON)
 option(NCNN_CMAKE_VERBOSE "print verbose cmake messages" OFF)
 option(NCNN_VULKAN "vulkan compute support" OFF)
 option(NCNN_SYSTEM_GLSLANG "use system glslang library" OFF)
-option(NCNN_REQUANT "auto merge int8 quant and dequant" OFF)
 option(NCNN_RUNTIME_CPU "runtime dispatch cpu routines" ON)
 option(NCNN_DISABLE_PIC "disable position-independent code" OFF)
 option(NCNN_BUILD_TESTS "build tests" OFF)

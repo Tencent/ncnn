@@ -31,7 +31,7 @@ class ShuffleNetV2:
 
         # https://github.com/miaow1988/ShuffleNet_V2_pytorch_caffe
         # models can be downloaded from https://github.com/miaow1988/ShuffleNet_V2_pytorch_caffe/releases
-        # the ncnn model https://github.com/caishanli/pyncnn-assets/tree/master/models
+        # the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
         self.net.load_param(get_model_file("shufflenet_v2_x0.5.param"))
         self.net.load_model(get_model_file("shufflenet_v2_x0.5.bin"))
 

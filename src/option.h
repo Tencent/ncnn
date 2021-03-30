@@ -121,7 +121,16 @@ public:
     // TODO drop this option
     bool use_weight_fp16_storage;
 
-    bool use_reserved_0;
+    // enable DAZ(Denormals-Are-Zero) and FTZ(Flush-To-Zero)
+    // default value is 3
+    // 0 = DAZ OFF, FTZ OFF
+    // 1 = DAZ ON , FTZ OFF
+    // 2 = DAZ OFF, FTZ ON
+    // 3 = DAZ ON,  FTZ ON
+    int flush_denormals;
+
+    bool use_local_pool_allocator;
+
     bool use_reserved_1;
     bool use_reserved_2;
     bool use_reserved_3;

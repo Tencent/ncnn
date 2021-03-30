@@ -35,7 +35,7 @@ int InnerProduct::load_param(const ParamDict& pd)
 
     if (int8_scale_term)
     {
-        use_int8_inference = true;
+        support_int8_storage = true;
     }
 
     return 0;
@@ -57,7 +57,7 @@ int InnerProduct::load_model(const ModelBin& mb)
     if (int8_scale_term)
     {
         weight_data_int8_scales = mb.load(num_output, 1);
-        bottom_blob_int8_scale = mb.load(1, 1)[0];
+        bottom_blob_int8_scales = mb.load(1, 1);
     }
 
     return 0;
@@ -68,23 +68,18 @@ int InnerProduct::create_pipeline(const Option& opt)
     // runtime quantize the weight data
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)4u && int8_scale_term)
     {
-        Mat int8_weight_data(weight_data_size, (size_t)1u);
-        if (int8_weight_data.empty())
+        const int num_input = weight_data_size / num_output;
+
+        Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
+
+        Mat weight_data_int8;
+        Option opt_q = opt;
+        opt_q.use_packing_layout = false;
+        quantize_to_int8(weight_data_r2, weight_data_int8, weight_data_int8_scales, opt_q);
+        if (weight_data_int8.empty())
             return -100;
 
-        const int weight_data_size_output = weight_data_size / num_output;
-
-        for (int p = 0; p < num_output; p++)
-        {
-            Option opt_q = opt;
-            opt_q.blob_allocator = int8_weight_data.allocator;
-
-            const Mat weight_data_n = weight_data.range(weight_data_size_output * p, weight_data_size_output);
-            Mat int8_weight_data_n = int8_weight_data.range(weight_data_size_output * p, weight_data_size_output);
-            quantize_float32_to_int8(weight_data_n, int8_weight_data_n, weight_data_int8_scales[p], opt_q);
-        }
-
-        weight_data = int8_weight_data;
+        weight_data = weight_data_int8.reshape(weight_data_size);
     }
 
     return 0;
@@ -94,14 +89,77 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 {
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
-        return InnerProduct::forward_int8(bottom_blob, top_blob, opt);
+        return forward_int8(bottom_blob, top_blob, opt);
     }
+
+    const int num_input = weight_data_size / num_output;
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int size = w * h;
+
+    if (bottom_blob.dims == 2 && w == num_input && h > 1)
+    {
+        // gemm
+        top_blob.create(num_output, h, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int j = 0; j < h; j++)
+        {
+            const float* m = bottom_blob.row(j);
+            float* outptr = top_blob.row(j);
+
+            for (int p = 0; p < num_output; p++)
+            {
+                const float* kptr = (const float*)weight_data + w * p;
+
+                float sum = 0.f;
+
+                if (bias_term)
+                    sum = bias_data[p];
+
+                for (int i = 0; i < w; i++)
+                {
+                    sum += m[i] * kptr[i];
+                }
+
+                if (activation_type == 1)
+                {
+                    sum = std::max(sum, 0.f);
+                }
+                else if (activation_type == 2)
+                {
+                    float slope = activation_params[0];
+                    sum = sum > 0.f ? sum : sum * slope;
+                }
+                else if (activation_type == 3)
+                {
+                    float min = activation_params[0];
+                    float max = activation_params[1];
+                    if (sum < min)
+                        sum = min;
+                    if (sum > max)
+                        sum = max;
+                }
+                else if (activation_type == 4)
+                {
+                    sum = static_cast<float>(1.f / (1.f + exp(-sum)));
+                }
+                else if (activation_type == 5)
+                {
+                    sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
+                }
+
+                outptr[p] = sum;
+            }
+        }
+
+        return 0;
+    }
 
     top_blob.create(num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
@@ -162,19 +220,69 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
 int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    const int num_input = weight_data_size / num_output;
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int size = w * h;
 
-    Mat bottom_blob_tm = bottom_blob;
+    Mat bottom_blob_int8 = bottom_blob;
     if (elemsize != 1)
     {
         Option opt_g = opt;
         opt_g.blob_allocator = opt.workspace_allocator;
+        opt_g.use_packing_layout = false;
 
-        quantize_float32_to_int8(bottom_blob, bottom_blob_tm, bottom_blob_int8_scale, opt_g);
+        quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_g);
+    }
+
+    if (bottom_blob.dims == 2 && w == num_input && h > 1)
+    {
+        // gemm
+        top_blob.create(num_output, h, 4u, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int j = 0; j < h; j++)
+        {
+            const signed char* m = bottom_blob_int8.row<signed char>(j);
+            const signed char* kptr = weight_data;
+            float* outptr = top_blob.row(j);
+
+            for (int p = 0; p < num_output; p++)
+            {
+                int sum = 0;
+
+                for (int i = 0; i < w; i++)
+                {
+                    sum += m[i] * kptr[i];
+                }
+
+                // dequantize and relu
+                float scale_in;
+                if (weight_data_int8_scales[p] == 0)
+                    scale_in = 0;
+                else
+                    scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+                float sumfp32 = sum * scale_in;
+
+                if (bias_term)
+                    sumfp32 += bias_data[p];
+
+                if (activation_type == 1)
+                {
+                    sumfp32 = std::max(sumfp32, 0.f);
+                }
+
+                outptr[p] = sumfp32;
+            }
+        }
+
+        return 0;
     }
 
     top_blob.create(num_output, 4u, opt.blob_allocator);
@@ -194,7 +302,7 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         for (int q = 0; q < channels; q++)
         {
             const signed char* w = (const signed char*)weight_data + offset + size * q;
-            const signed char* m = bottom_blob_tm.channel(q);
+            const signed char* m = bottom_blob_int8.channel(q);
 
             for (int i = 0; i < size; i++)
             {
@@ -207,7 +315,7 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         if (weight_data_int8_scales[p] == 0)
             scale_in = 0;
         else
-            scale_in = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[p]);
+            scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
 
         float sumfp32 = sum * scale_in;
 

@@ -378,14 +378,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
 
     // upload
     VkMat dst_staging;
-    if (opt.blob_vkallocator->mappable)
-    {
-        dst_staging.create_like(src_fp16, opt.blob_vkallocator);
-    }
-    else
-    {
-        dst_staging.create_like(src_fp16, opt.staging_vkallocator);
-    }
+    dst_staging.create_like(src_fp16, opt.staging_vkallocator);
     if (dst_staging.empty())
         return;
 
@@ -443,14 +436,7 @@ void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt
 
     // upload
     VkMat dst_staging;
-    if (opt.blob_vkallocator->mappable)
-    {
-        dst_staging.create_like(src_fp16, opt.blob_vkallocator);
-    }
-    else
-    {
-        dst_staging.create_like(src_fp16, opt.staging_vkallocator);
-    }
+    dst_staging.create_like(src_fp16, opt.staging_vkallocator);
     if (dst_staging.empty())
         return;
 
@@ -479,7 +465,27 @@ void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt
         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
     // gpu cast to fp16 on the fly (integrated gpu)
-    vkdev->convert_packing(dst_staging, dst, dst_elempack, *this, opt);
+    if (vkdev->info.bug_buffer_image_load_zero())
+    {
+        // clone buffer to bridge image
+        VkImageMat dst_image;
+        record_clone(dst_staging, dst_image, opt);
+        if (dst_image.empty())
+            return;
+
+        vkdev->convert_packing(dst_image, dst, dst_elempack, *this, opt);
+
+        // image and imageview can not be destroyed until command execution ends
+        NCNN_XADD(&dst_image.data->command_refcount, 1);
+        d->image_blocks_to_destroy.push_back(dst_image.data);
+
+        submit_and_wait();
+        reset();
+    }
+    else
+    {
+        vkdev->convert_packing(dst_staging, dst, dst_elempack, *this, opt);
+    }
 }
 
 void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
@@ -506,17 +512,13 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
         opt_staging.use_fp16_packed = false;
         opt_staging.use_fp16_storage = false;
     }
-
-    VkMat dst_staging;
-    if (opt_staging.blob_vkallocator->mappable)
-    {
-        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
-    }
-    else
+    if (!opt_staging.blob_vkallocator->mappable)
     {
         opt_staging.blob_vkallocator = opt.staging_vkallocator;
-        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
+
+    VkMat dst_staging;
+    vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
 
     // barrier device any @ compute to host-read @ compute
     if (dst_staging.data->access_flags & VK_ACCESS_HOST_WRITE_BIT || dst_staging.data->stage_flags != VK_PIPELINE_STAGE_HOST_BIT)
@@ -634,17 +636,33 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
         opt_staging.use_fp16_packed = false;
         opt_staging.use_fp16_storage = false;
     }
+    if (!opt_staging.blob_vkallocator->mappable)
+    {
+        opt_staging.blob_vkallocator = opt.staging_vkallocator;
+    }
 
     VkMat dst_staging;
-    if (opt_staging.blob_vkallocator->mappable)
+    if (vkdev->info.bug_buffer_image_load_zero())
     {
-        vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
+        VkImageMat src_image;
+        vkdev->convert_packing(src, src_image, dst_elempack, *this, opt);
+        if (src_image.empty())
+            return;
+
+        record_clone(src_image, dst_staging, opt_staging);
+
+        // image and imageview can not be destroyed until command execution ends
+        NCNN_XADD(&src_image.data->command_refcount, 1);
+        d->image_blocks_to_destroy.push_back(src_image.data);
     }
     else
     {
-        opt_staging.blob_vkallocator = opt.staging_vkallocator;
         vkdev->convert_packing(src, dst_staging, dst_elempack, *this, opt_staging);
     }
+
+    // image and imageview can not be destroyed until command execution ends
+    NCNN_XADD(&src.data->command_refcount, 1);
+    d->image_blocks_to_destroy.push_back(src.data);
 
     // barrier device any @ compute to host-read @ compute
     if (dst_staging.data->access_flags & VK_ACCESS_HOST_WRITE_BIT || dst_staging.data->stage_flags != VK_PIPELINE_STAGE_HOST_BIT)
@@ -755,7 +773,24 @@ void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const 
     else
         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
-    vkdev->convert_packing(src, dst, dst_elempack, *this, opt);
+    if (vkdev->info.bug_buffer_image_load_zero())
+    {
+        // clone buffer to bridge image
+        VkImageMat src_image;
+        record_clone(src, src_image, opt);
+        if (src_image.empty())
+            return;
+
+        vkdev->convert_packing(src_image, dst, dst_elempack, *this, opt);
+
+        // image and imageview can not be destroyed until command execution ends
+        NCNN_XADD(&src_image.data->command_refcount, 1);
+        d->image_blocks_to_destroy.push_back(src_image.data);
+    }
+    else
+    {
+        vkdev->convert_packing(src, dst, dst_elempack, *this, opt);
+    }
 }
 
 void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const Option& opt)
@@ -775,42 +810,54 @@ void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const 
     else
         dst_elempack = elemcount % 4 == 0 ? 4 : 1;
 
-    vkdev->convert_packing(src, dst, dst_elempack, *this, opt);
+    if (vkdev->info.bug_buffer_image_load_zero())
+    {
+        VkImageMat src_image;
+        Option opt_image = opt;
+        opt_image.blob_vkallocator = src.allocator;
+        vkdev->convert_packing(src, src_image, dst_elempack, *this, opt_image);
+        if (src_image.empty())
+            return;
+
+        record_clone(src_image, dst, opt);
+
+        // image and imageview can not be destroyed until command execution ends
+        NCNN_XADD(&src_image.data->command_refcount, 1);
+        d->image_blocks_to_destroy.push_back(src_image.data);
+    }
+    else
+    {
+        vkdev->convert_packing(src, dst, dst_elempack, *this, opt);
+    }
+
+    // image and imageview can not be destroyed until command execution ends
+    NCNN_XADD(&src.data->command_refcount, 1);
+    d->image_blocks_to_destroy.push_back(src.data);
 }
 
 void VkCompute::record_clone(const Mat& src, VkMat& dst, const Option& opt)
 {
     //     NCNN_LOGE("record_clone host to buffer");
 
-    if (!opt.blob_vkallocator->mappable)
-    {
-        // host to staging
-        VkMat dst_staging;
-        Option opt_staging = opt;
-        opt_staging.blob_vkallocator = opt.staging_vkallocator;
-        record_clone(src, dst_staging, opt_staging);
-
-        // staging to device
-        record_clone(dst_staging, dst, opt);
-
-        // stash staging
-        d->upload_staging_buffers.push_back(dst_staging);
-
-        return;
-    }
-
-    // create dst
-    dst.create_like(src, opt.blob_vkallocator);
-    if (dst.empty())
+    // host to staging
+    VkMat dst_staging;
+    dst_staging.create_like(src, opt.staging_vkallocator);
+    if (dst_staging.empty())
         return;
 
     // memcpy src to device
-    memcpy(dst.mapped_ptr(), src.data, src.total() * src.elemsize);
-    dst.allocator->flush(dst.data);
+    memcpy(dst_staging.mapped_ptr(), src.data, src.total() * src.elemsize);
+    dst_staging.allocator->flush(dst_staging.data);
 
     // mark device host-write @ null
-    dst.data->access_flags = VK_ACCESS_HOST_WRITE_BIT;
-    dst.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
+    dst_staging.data->access_flags = VK_ACCESS_HOST_WRITE_BIT;
+    dst_staging.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
+
+    // staging to device
+    record_clone(dst_staging, dst, opt);
+
+    // stash staging
+    d->upload_staging_buffers.push_back(dst_staging);
 }
 
 void VkCompute::record_clone(const Mat& src, VkImageMat& dst, const Option& opt)

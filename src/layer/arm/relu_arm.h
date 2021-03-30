@@ -31,7 +31,7 @@ protected:
     int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
 #endif
     int forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const;
-    int forward_inplace_int8_neon(Mat& bottom_top_blob, const Option& opt) const;
+    int forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn

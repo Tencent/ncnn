@@ -85,15 +85,12 @@ benchmark$ ../build/benchmark/benchncnn 10 $(nproc) 0 0
 [0 AMD RADV FIJI (LLVM 10.0.1)]  queueC=1[4]  queueG=0[1]  queueT=0[1]
 [0 AMD RADV FIJI (LLVM 10.0.1)]  bugsbn1=0  buglbia=0  bugcopc=0  bugihfa=0
 [0 AMD RADV FIJI (LLVM 10.0.1)]  fp16p=1  fp16s=1  fp16a=0  int8s=1  int8a=1
-warmup_loop_count = 5
-[1] loop_count = 10
-[2] num_threads = 32
-[3] powersave = 0
-[4] gpu_device = 0
-[5] cooling_down_time = 1
-          squeezenet        max =  297.54/s  median =  271.51/s
-           mobilenet        max =  222.22/s  median =  215.89/s
-        mobilenet_v2        max =  151.51/s  median =  138.20/s
+num_threads = 4
+powersave = 0
+gpu_device = 0
+cooling_down = 1
+          squeezenet  min =    4.68  max =    4.99  avg =    4.85
+     squeezenet_int8  min =   38.52  max =   66.90  avg =   48.52
 ...
 ```
 
@@ -176,7 +173,7 @@ $ export PATH="<your-toolchain-compiler-path>:${PATH}"
 
 Alternatively install a cross-compiler provided by the distribution (i.e. on Debian / Ubuntu, you can do `sudo apt install g++-arm-linux-gnueabi g++-arm-linux-gnueabihf g++-aarch64-linux-gnu`).
 
-Depending on your needs build one ore more of the below targets.
+Depending on your needs build one or more of the below targets.
 
 AArch32 target with soft float (arm-linux-gnueabi)
 ```

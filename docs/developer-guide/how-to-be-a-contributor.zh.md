@@ -3,25 +3,35 @@
 #### 一、fork 分支
 在浏览器中打开 [ncnn](https://github.com/tencent/ncnn), `fork` 到自己的 repositories，例如
 ```
-github.com/user/ncnn
+https://github.com/user/ncnn
 ```
-clone 项目，fetch 官方 remote
 
+clone 项目到本地，添加官方 remote 并 fetch:
 ```
 $ git clone https://github.com/user/ncnn && cd ncnn
 $ git remote add tencent https://github.com/tencent/ncnn
-```
-对于 `git clone` 下来的项目，remote origin 是指 clone 下来的 `user/ncnn`；remote tencent 即官方 repo。
-可以基于不同的 remote 创建和提交分支。
-
-```
 $ git fetch tencent
+```
+对于 `git clone` 下来的项目，它现在有两个 remote，分别是 origin 和 tencent：
+
+```
+$ git remote -v
+origin   https://github.com/user/ncnn (fetch)
+origin   https://github.com/user/ncnn (push)
+tencent  https://github.com/Tencent/ncnn (fetch)
+tencent  https://github.com/Tencent/ncnn (push)
+```
+origin 指向你 fork 的仓库地址；remote 即官方 repo。可以基于不同的 remote 创建和提交分支。
+
+例如切换到官方 master 分支，并基于此创建自己的分支（命名尽量言简意赅。一个分支只做一件事，方便 review 和 revert）
+```
 $ git checkout tencent/master
+$ git checkout -b add-conv-int8
 ```
 
-创建自己的分支，命名尽量言简意赅。一个分支只做一件事，方便 review 和 revert。例如：
+或创建分支时指定基于官方 master 分支：
 ```
-$ git checkout -b add-conv-int8
+$ git checkout -b fix-typo-in-document tencent/master
 ```
 
 > `git fetch` 是从远程获取最新代码到本地。如果是第二次 pr ncnn，直接从  `git fetch tencent` 开始即可，不需要 `git remote add tencent`，也不需要修改 `github.com/user/ncnn`。
@@ -41,10 +51,10 @@ $ git checkout -b add-conv-int8
 $ git commit -a
 $ git push origin add-conv-int8
 ```
-推荐使用 [`commitizen`](https://pypi.org/project/commitizen/) 等工具格式化 commit message，方便事后检索海量提交记录
+推荐使用 [`commitizen`](https://pypi.org/project/commitizen/) 或 [`gitlint`](https://jorisroovers.com/gitlint/) 等工具格式化 commit message，方便事后检索海量提交记录
 
 #### 三、代码提交
-浏览器中打开 [ncnn pulls](https://github.com/Tencent/ncnn/pulls)，此时应有此分支 pr 提示，点击 `Compare & pull request`
+浏览器中打开 [ncnn pulls](https://github.com/Tencent/ncnn/pulls) ，此时应有此分支 pr 提示，点击 `Compare & pull request`
 
 * 标题**必须**是英文。未完成的分支应以 `WIP:` 开头，例如 `WIP: add conv int8`
 * 正文宜包含以下内容，中英不限
