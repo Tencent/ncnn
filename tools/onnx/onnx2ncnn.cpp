@@ -2091,17 +2091,9 @@ static void fuse_lstm_gru_rnn(onnx::GraphProto* mutable_graph, std::map<std::str
             }
 
             blob_names.erase(node->output(0));
-            if (node->output_size() > 1)
-            {
-                for (int j = 1; j < node->output_size(); j++)
-                {
-                    blob_names.erase(node->output(j));
-                }
-            }
             blob_names.erase(node2->output(0));
 
-            node->clear_output();
-            node->add_output(node3->output(0));
+            node->set_output(0, node3->output(0));
 
             reduced_node_count += 2;
             i += 2;
@@ -2182,16 +2174,8 @@ static void fuse_lstm_gru_rnn(onnx::GraphProto* mutable_graph, std::map<std::str
             node_reference[node->output(0)] -= 1;
 
             blob_names.erase(node->output(0));
-            if (node->output_size() > 1)
-            {
-                for (int j = 1; j < node->output_size(); j++)
-                {
-                    blob_names.erase(node->output(j));
-                }
-            }
 
-            node->clear_output();
-            node->add_output(node2->output(0));
+            node->set_output(0, node2->output(0));
 
             reduced_node_count += 1;
             i += 1;
@@ -4006,11 +3990,8 @@ int main(int argc, char** argv)
             }
             else
             {
-                const onnx::TensorProto& min_tp = weights[node.input(1)];
-                const onnx::TensorProto& max_tp = weights[node.input(2)];
-
-                min = get_node_attr_from_input_f(min_tp);
-                max = get_node_attr_from_input_f(max_tp);
+                min = weights.find(node.input(1)) != weights.end() ? get_node_attr_from_input_f(weights[node.input(1)]) : -FLT_MAX;
+                max = weights.find(node.input(2)) != weights.end() ? get_node_attr_from_input_f(weights[node.input(2)]) : FLT_MAX;
             }
 
             fprintf(pp, " 0=%e", min);
@@ -5533,6 +5514,7 @@ int main(int argc, char** argv)
         }
         else if (op == "Sigmoid")
         {
+            // no param
         }
         else if (op == "Sin")
         {
@@ -5709,6 +5691,7 @@ int main(int argc, char** argv)
         }
         else if (op == "Swish")
         {
+            // no param
         }
         else if (op == "Tan")
         {

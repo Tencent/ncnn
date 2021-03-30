@@ -14,12 +14,7 @@
 
 #include "relu_x86.h"
 
-#if __SSE2__
-#include "sse_activation.h"
-#if __AVX__
-#include "avx_activation.h"
-#endif // __AVX__
-#endif // __SSE2__
+#include "x86_activation.h"
 
 namespace ncnn {
 
@@ -32,6 +27,11 @@ ReLU_x86::ReLU_x86()
 
 int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+    int elembits = bottom_top_blob.elembits();
+
+    if (elembits == 8)
+        return forward_inplace_int8(bottom_top_blob, opt);
+
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
@@ -147,4 +147,81 @@ int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+int ReLU_x86::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) const
+{
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int channels = bottom_top_blob.c;
+    int size = w * h;
+    int elempack = bottom_top_blob.elempack;
+
+#if __SSE2__
+    if (elempack == 8)
+    {
+        if (slope == 0.f)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                signed char* ptr = bottom_top_blob.channel(q);
+
+                int i = 0;
+                for (; i < size; i++)
+                {
+                    if (ptr[0] < 0)
+                        ptr[0] = 0;
+                    if (ptr[1] < 0)
+                        ptr[1] = 0;
+                    if (ptr[2] < 0)
+                        ptr[2] = 0;
+                    if (ptr[3] < 0)
+                        ptr[3] = 0;
+                    if (ptr[4] < 0)
+                        ptr[4] = 0;
+                    if (ptr[5] < 0)
+                        ptr[5] = 0;
+                    if (ptr[6] < 0)
+                        ptr[6] = 0;
+                    if (ptr[7] < 0)
+                        ptr[7] = 0;
+
+                    ptr += 8;
+                }
+            }
+        }
+        else
+        {
+            // TODO leakyrelu
+        }
+
+        return 0;
+    }
+#endif // __SSE2__
+
+    if (slope == 0.f)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            signed char* ptr = bottom_top_blob.channel(q);
+
+            int i = 0;
+            for (; i < size; i++)
+            {
+                if (*ptr < 0)
+                    *ptr = 0;
+
+                ptr++;
+            }
+        }
+    }
+    else
+    {
+        // TODO leakyrelu
+    }
+
+    return 0;
+}
+
 } //namespace ncnn

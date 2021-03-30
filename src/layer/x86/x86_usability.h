@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,9 +12,112 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef AVX_USABILITY_H
-#define AVX_USABILITY_H
+#ifndef X86_USABILITY_H
+#define X86_USABILITY_H
 
+static inline signed char float2int8(float v)
+{
+    int int32 = round(v);
+    if (int32 > 127) return 127;
+    if (int32 < -127) return -127;
+    return (signed char)int32;
+}
+
+#if __SSE2__
+#include <emmintrin.h>
+
+static inline float _mm_reduce_add_ps(__m128 x128)
+{
+    const __m128 x64 = _mm_add_ps(x128, _mm_movehl_ps(x128, x128));
+    const __m128 x32 = _mm_add_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
+    return _mm_cvtss_f32(x32);
+}
+
+static inline int64_t float2int8(const __m128& _v0, const __m128& _v1)
+{
+    float v0[4];
+    float v1[4];
+    _mm_storeu_ps(v0, _v0);
+    _mm_storeu_ps(v1, _v1);
+
+    int v0_i[4];
+    int v1_i[4];
+    v0_i[0] = round(v0[0]);
+    v0_i[1] = round(v0[1]);
+    v0_i[2] = round(v0[2]);
+    v0_i[3] = round(v0[3]);
+    v1_i[0] = round(v1[0]);
+    v1_i[1] = round(v1[1]);
+    v1_i[2] = round(v1[2]);
+    v1_i[3] = round(v1[3]);
+
+    __m128i _v0_i = _mm_loadu_si128((const __m128i*)v0_i);
+    __m128i _v1_i = _mm_loadu_si128((const __m128i*)v1_i);
+
+    __m128i _v01_s16 = _mm_packs_epi32(_v0_i, _v1_i);
+
+    _v01_s16 = _mm_min_epi16(_v01_s16, _mm_set1_epi16(127));
+    _v01_s16 = _mm_max_epi16(_v01_s16, _mm_set1_epi16(-127));
+
+    __m128i _v8 = _mm_packs_epi16(_v01_s16, _v01_s16);
+
+    // TODO use _mm_cvtsi128_si64 on 64bit target
+    int64_t v8[2];
+    _mm_storeu_si128((__m128i*)v8, _v8);
+    return v8[0];
+}
+
+static inline __m128i float2int8(const __m128& _v0, const __m128& _v1, const __m128& _v2, const __m128& _v3)
+{
+    float v0[4];
+    float v1[4];
+    float v2[4];
+    float v3[4];
+    _mm_storeu_ps(v0, _v0);
+    _mm_storeu_ps(v1, _v1);
+    _mm_storeu_ps(v2, _v2);
+    _mm_storeu_ps(v3, _v3);
+
+    int v0_i[4];
+    int v1_i[4];
+    int v2_i[4];
+    int v3_i[4];
+    v0_i[0] = round(v0[0]);
+    v0_i[1] = round(v0[1]);
+    v0_i[2] = round(v0[2]);
+    v0_i[3] = round(v0[3]);
+    v1_i[0] = round(v1[0]);
+    v1_i[1] = round(v1[1]);
+    v1_i[2] = round(v1[2]);
+    v1_i[3] = round(v1[3]);
+    v2_i[0] = round(v2[0]);
+    v2_i[1] = round(v2[1]);
+    v2_i[2] = round(v2[2]);
+    v2_i[3] = round(v2[3]);
+    v3_i[0] = round(v3[0]);
+    v3_i[1] = round(v3[1]);
+    v3_i[2] = round(v3[2]);
+    v3_i[3] = round(v3[3]);
+
+    __m128i _v0_i = _mm_loadu_si128((const __m128i*)v0_i);
+    __m128i _v1_i = _mm_loadu_si128((const __m128i*)v1_i);
+    __m128i _v2_i = _mm_loadu_si128((const __m128i*)v2_i);
+    __m128i _v3_i = _mm_loadu_si128((const __m128i*)v3_i);
+
+    __m128i _v01_s16 = _mm_packs_epi32(_v0_i, _v1_i);
+    __m128i _v23_s16 = _mm_packs_epi32(_v2_i, _v3_i);
+
+    _v01_s16 = _mm_min_epi16(_v01_s16, _mm_set1_epi16(127));
+    _v23_s16 = _mm_min_epi16(_v23_s16, _mm_set1_epi16(127));
+    _v01_s16 = _mm_max_epi16(_v01_s16, _mm_set1_epi16(-127));
+    _v23_s16 = _mm_max_epi16(_v23_s16, _mm_set1_epi16(-127));
+
+    __m128i _v8 = _mm_packs_epi16(_v01_s16, _v23_s16);
+
+    return _v8;
+}
+
+#if __AVX__
 #include <immintrin.h>
 
 static inline __m256 loadfp16(const unsigned short* ptr)
@@ -110,4 +213,43 @@ static inline float _mm256_reduce_add_ps(__m256 x)
     return _mm_cvtss_f32(x32);
 }
 
-#endif // AVX_USABILITY_H
+static inline int64_t float2int8(const __m256& _v0)
+{
+    __m256i _v0_i = _mm256_cvtps_epi32(_mm256_round_ps(_v0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
+
+    __m256i _v01_s16 = _mm256_packs_epi32(_v0_i, _v0_i);
+    _v01_s16 = _mm256_permute4x64_epi64(_v01_s16, 0xd8);
+
+    __m128i _v01_s16low = _mm256_extractf128_si256(_v01_s16, 0);
+
+    _v01_s16low = _mm_min_epi16(_v01_s16low, _mm_set1_epi16(127));
+    _v01_s16low = _mm_max_epi16(_v01_s16low, _mm_set1_epi16(-127));
+
+    __m128i _v8 = _mm_packs_epi16(_v01_s16low, _v01_s16low);
+
+    // TODO use _mm_cvtsi128_si64 on 64bit target
+    int64_t v8[2];
+    _mm_storeu_si128((__m128i*)v8, _v8);
+    return v8[0];
+}
+
+static inline __m128i float2int8(const __m256& _v0, const __m256& _v1)
+{
+    __m256i _v0_i = _mm256_cvtps_epi32(_mm256_round_ps(_v0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
+    __m256i _v1_i = _mm256_cvtps_epi32(_mm256_round_ps(_v1, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
+
+    __m256i _v01_s16 = _mm256_packs_epi32(_v0_i, _v1_i);
+    _v01_s16 = _mm256_permute4x64_epi64(_v01_s16, 0xd8);
+
+    _v01_s16 = _mm256_min_epi16(_v01_s16, _mm256_set1_epi16(127));
+    _v01_s16 = _mm256_max_epi16(_v01_s16, _mm256_set1_epi16(-127));
+
+    __m256i _v8 = _mm256_packs_epi16(_v01_s16, _v01_s16);
+    _v8 = _mm256_permute4x64_epi64(_v8, 0xd8);
+
+    return _mm256_extractf128_si256(_v8, 0);
+}
+#endif // __AVX__
+#endif // __SSE2__
+
+#endif // X86_USABILITY_H

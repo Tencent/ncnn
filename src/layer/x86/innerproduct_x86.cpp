@@ -16,15 +16,13 @@
 
 #if __SSE2__
 #include <emmintrin.h>
-#include "sse_activation.h"
-#include "sse_usability.h"
-
 #if __AVX__
 #include <immintrin.h>
-#include "avx_activation.h"
-#include "avx_usability.h"
 #endif
 #endif // __SSE2__
+
+#include "x86_activation.h"
+#include "x86_usability.h"
 
 #include "layer_type.h"
 
@@ -40,6 +38,7 @@ InnerProduct_x86::InnerProduct_x86()
 #endif // __SSE2__
 
     flatten = 0;
+    activation = 0;
 }
 
 int InnerProduct_x86::create_pipeline(const Option& opt)
@@ -53,6 +52,11 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
         flatten->load_param(pd);
 
         flatten->create_pipeline(opt);
+    }
+
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+    {
+        return create_pipeline_int8_x86(opt);
     }
 
     const int num_input = weight_data_size / num_output;
@@ -122,8 +126,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 {
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
-        // TODO
-        return InnerProduct::forward(bottom_blob, top_blob, opt);
+        return forward_int8_x86(bottom_blob, top_blob, opt);
     }
 
     const int num_input = weight_data_size / num_output;
@@ -828,30 +831,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     sum += _mm_reduce_add_ps(_suml);
 #endif // __SSE2__
 
-                    if (activation_type == 1)
-                    {
-                        sum = std::max(sum, 0.f);
-                    }
-                    else if (activation_type == 2)
-                    {
-                        float slope = activation_params[0];
-                        sum = sum > 0.f ? sum : sum * slope;
-                    }
-                    else if (activation_type == 3)
-                    {
-                        float min = activation_params[0];
-                        float max = activation_params[1];
-                        if (sum < min) sum = min;
-                        if (sum > max) sum = max;
-                    }
-                    else if (activation_type == 4)
-                    {
-                        sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                    }
-                    else if (activation_type == 5)
-                    {
-                        sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                    }
+                    sum = activation_ss(sum, activation_type, activation_params);
 
                     outptr[0] = sum;
                     outptr += 1;
@@ -1384,32 +1364,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             sum += _mm_reduce_add_ps(_suml);
 #endif // __SSE2__
 
-            if (activation_type == 1)
-            {
-                sum = std::max(sum, 0.f);
-            }
-            else if (activation_type == 2)
-            {
-                float slope = activation_params[0];
-                sum = sum > 0.f ? sum : sum * slope;
-            }
-            else if (activation_type == 3)
-            {
-                float min = activation_params[0];
-                float max = activation_params[1];
-                if (sum < min)
-                    sum = min;
-                if (sum > max)
-                    sum = max;
-            }
-            else if (activation_type == 4)
-            {
-                sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-            }
-            else if (activation_type == 5)
-            {
-                sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-            }
+            sum = activation_ss(sum, activation_type, activation_params);
 
             float* outptr = top_blob;
             outptr[p] = sum;
@@ -1738,5 +1693,195 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
     return 0;
 }
 #endif // __AVX__
+
+int InnerProduct_x86::create_pipeline_int8_x86(const Option& opt)
+{
+    if (activation_type == 1)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+
+    const int num_input = weight_data_size / num_output;
+
+    int out_elempack = 1;
+#if __SSE2__
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : 1;
+    }
+#endif // __SSE2__
+
+    // src = inch-outch
+    // dst = pb-inch-outch/pb
+    {
+        Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
+
+        weight_data_int8.create(num_input, num_output / out_elempack, (size_t)out_elempack, out_elempack);
+
+        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+        {
+            signed char* g0 = weight_data_int8.row<signed char>(q / out_elempack);
+
+            for (int p = 0; p < num_input; p++)
+            {
+                for (int j = 0; j < out_elempack; j++)
+                {
+                    *g0++ = weight_data_r2.row<signed char>(q + j)[p];
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int num_input = weight_data_size / num_output;
+
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
+    {
+        // gemm
+        Mat bottom_blob_unpacked;
+        Option opt_unpack = opt;
+        opt_unpack.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_unpack);
+
+        return forward_int8(bottom_blob_unpacked, top_blob, opt);
+    }
+
+    int elembits = bottom_blob.elembits();
+
+    Mat bottom_blob_int8 = bottom_blob;
+    if (elembits != 8)
+    {
+        Option opt_q = opt;
+        opt_q.blob_allocator = opt.workspace_allocator;
+        quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+    }
+
+    Mat bottom_blob_int8_flattened = bottom_blob_int8;
+    if (bottom_blob_int8.dims != 1)
+    {
+        Option opt_flatten = opt;
+        opt_flatten.blob_allocator = opt.workspace_allocator;
+        flatten->forward(bottom_blob_int8, bottom_blob_int8_flattened, opt_flatten);
+    }
+
+    //     int elempack = bottom_blob_int8_flattened.elempack;
+
+    int out_elempack = 1;
+#if __SSE2__
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : 1;
+    }
+#endif // __SSE2__
+    //     size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    top_blob.create(num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    Mat top_blob_int32;
+    top_blob_int32.create(num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.workspace_allocator);
+    if (top_blob_int32.empty())
+        return -100;
+
+#if __SSE2__
+    if (out_elempack == 8)
+    {
+        // num_output
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = 0; p < num_output / out_elempack; p++)
+        {
+            __m128i _sum0 = _mm_setzero_si128();
+            __m128i _sum1 = _mm_setzero_si128();
+
+            const signed char* kptr = weight_data_int8.row<const signed char>(p);
+            const signed char* sptr = bottom_blob_int8_flattened;
+
+            int i = 0;
+            for (; i < num_input; i++)
+            {
+                __m128i _val = _mm_set1_epi16((short)sptr[0]);
+
+                // TODO use _mm_cvtepi8_epi16 on sse4.1
+                __m128i _w = _mm_loadl_epi64((const __m128i*)kptr);
+                _w = _mm_unpacklo_epi8(_w, _mm_cmpgt_epi8(_mm_setzero_si128(), _w));
+
+                __m128i _sl = _mm_mullo_epi16(_val, _w);
+                __m128i _sh = _mm_mulhi_epi16(_val, _w);
+                __m128i _s0 = _mm_unpacklo_epi16(_sl, _sh);
+                __m128i _s1 = _mm_unpackhi_epi16(_sl, _sh);
+
+                _sum0 = _mm_add_epi32(_sum0, _s0);
+                _sum1 = _mm_add_epi32(_sum1, _s1);
+
+                sptr += 1;
+                kptr += 8;
+            }
+
+            int* outptr = (int*)top_blob_int32;
+            _mm_storeu_si128((__m128i*)(outptr + p * 8), _sum0);
+            _mm_storeu_si128((__m128i*)(outptr + p * 8 + 4), _sum1);
+        }
+    }
+#endif // __SSE2__
+
+    if (out_elempack == 1)
+    {
+        // num_output
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = 0; p < num_output / out_elempack; p++)
+        {
+            int sum = 0;
+
+            const signed char* kptr = weight_data_int8.row<const signed char>(p);
+            const signed char* sptr = bottom_blob_int8_flattened;
+
+            int i = 0;
+            for (; i < num_input; i++)
+            {
+                signed char val = sptr[0];
+
+                signed char w = kptr[0];
+
+                sum += val * w;
+
+                sptr += 1;
+                kptr += 1;
+            }
+
+            int* outptr = (int*)top_blob_int32;
+            outptr[p] = sum;
+        }
+    }
+
+    Mat scale_data(num_output);
+    for (int p = 0; p < num_output; p++)
+    {
+        // dequantize
+        float scale_in;
+        if (weight_data_int8_scales[p] == 0)
+            scale_in = 0;
+        else
+            scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+        scale_data[p] = scale_in;
+    }
+
+    dequantize_from_int32(top_blob_int32, top_blob, scale_data, bias_data, opt);
+
+    if (activation)
+    {
+        activation->forward_inplace(top_blob, opt);
+    }
+
+    return 0;
+}
 
 } // namespace ncnn

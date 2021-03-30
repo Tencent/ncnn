@@ -803,7 +803,6 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("support_bf16_storage", &Layer::support_bf16_storage)
     .def_readwrite("support_fp16_storage", &Layer::support_fp16_storage)
     .def_readwrite("support_image_storage", &Layer::support_image_storage)
-    .def_readwrite("use_int8_inference", &Layer::use_int8_inference)
     .def_readwrite("support_weight_fp16_storage", &Layer::support_weight_fp16_storage)
     .def("forward", (int (Layer::*)(const std::vector<Mat>&, std::vector<Mat>&, const Option&) const) & Layer::forward,
          py::arg("bottom_blobs"), py::arg("top_blobs"), py::arg("opt"))
@@ -1077,19 +1076,19 @@ PYBIND11_MODULE(ncnn, m)
     py::arg("src"),
     py::arg("opt") = Option());
 
-    m.def("quantize_float32_to_int8", &quantize_float32_to_int8,
+    m.def("quantize_to_int8", &quantize_to_int8,
           py::arg("src"), py::arg("dst"),
-          py::arg("scale"),
+          py::arg("scale_data"),
           py::arg("opt") = Option());
     m.def(
-        "quantize_float32_to_int8",
-    [](const Mat& src, float scale, const Option& opt) {
+        "quantize_to_int8",
+    [](const Mat& src, const Mat& scale_data, const Option& opt) {
         Mat dst;
-        quantize_float32_to_int8(src, dst, scale, opt);
+        quantize_to_int8(src, dst, scale_data, opt);
         return dst;
     },
     py::arg("src"),
-    py::arg("scale"),
+    py::arg("scale_data"),
     py::arg("opt") = Option());
 
 #if NCNN_STRING

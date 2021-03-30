@@ -14,10 +14,8 @@
 
 #include "lstm_x86.h"
 
-#if __AVX__
-#include "avx_activation.h"
-#include "avx_usability.h"
-#endif // __AVX__
+#include "x86_activation.h"
+#include "x86_usability.h"
 
 #include <math.h>
 #include "layer_type.h"

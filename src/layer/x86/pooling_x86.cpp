@@ -51,7 +51,6 @@ int Pooling_x86::create_pipeline(const Option& /*opt*/)
         support_image_storage = false;
         support_tensor_storage = false;
 
-        use_int8_inference = false;
         support_weight_fp16_storage = false;
     }
     return 0;
