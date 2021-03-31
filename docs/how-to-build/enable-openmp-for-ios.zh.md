@@ -263,7 +263,7 @@ int main()
 ```
 $ cctools-port/usage_examples/ios_toolchain/target/bin/arm-apple-darwin11-clang -fopenmp testomp.c -o testomp
 ```
-找一台双核cpu的越狱设备，比如这个 ipad2，把程序上传后运行，乱许输出表明 openmp 是可用的了
+找一台双核cpu的越狱设备，比如这个 ipad2，把程序上传后运行，乱序输出表明 openmp 是可用的了
 ```
 Chengjiede-iPad:~ root# ./testomp
 0
