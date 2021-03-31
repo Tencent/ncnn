@@ -26,6 +26,11 @@
 
 namespace ncnn {
 
+#if __ARM_NEON
+#include "requantize_relu_pack4.h"
+#include "requantize_relu_pack8.h"
+#endif // __ARM_NEON
+
 Requantize_arm::Requantize_arm()
 {
 #if __ARM_NEON
@@ -421,6 +426,12 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             top_blob.create(w, h, channels, (size_t)8u, 8, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
+
+            if (activation_type == 1)
+            {
+                requantize_relu_pack8_neon(bottom_blob, top_blob, scale_in_data, scale_out_data, bias_data, opt);
+                return 0;
+            }
 
             if (bias_data_size == 0)
             {
@@ -940,6 +951,12 @@ int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             top_blob.create(w, h, outc, (size_t)out_elempack, out_elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
+
+            if (activation_type == 1)
+            {
+                requantize_relu_pack4_neon(bottom_blob, top_blob, scale_in_data, scale_out_data, bias_data, opt);
+                return 0;
+            }
 
             if (out_elempack == 8)
             {

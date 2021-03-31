@@ -93,7 +93,11 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         float* ptr = (float*)top_blob + i * 4;
 
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1q_f32(ptr, _v);
                     }
                 }
@@ -107,7 +111,11 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                         float32x4_t _bias = vld1q_f32((const float*)bias_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1q_f32(ptr, _v);
                     }
                 }
@@ -140,7 +148,11 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                         float32x4_t _scale = vld1q_f32((const float*)scale_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1q_f32(ptr, _v);
                     }
                 }
@@ -155,7 +167,11 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         float32x4_t _scale = vld1q_f32((const float*)scale_data + i * 4);
                         float32x4_t _bias = vld1q_f32((const float*)bias_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1q_f32(ptr, _v);
                     }
                 }
@@ -217,8 +233,13 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     {
                         float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
                         float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+#if __aarch64__
+                        _v0 = vfmaq_f32(_bias0, _v0, _scale0);
+                        _v1 = vfmaq_f32(_bias1, _v1, _scale1);
+#else
                         _v0 = vmlaq_f32(_bias0, _v0, _scale0);
                         _v1 = vmlaq_f32(_bias1, _v1, _scale1);
+#endif
                         vst1q_f32(ptr0, _v0);
                         vst1q_f32(ptr1, _v1);
 
@@ -287,8 +308,13 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     {
                         float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
                         float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+#if __aarch64__
+                        _v0 = vfmaq_f32(_bias0, _v0, _scale0);
+                        _v1 = vfmaq_f32(_bias1, _v1, _scale1);
+#else
                         _v0 = vmlaq_f32(_bias0, _v0, _scale0);
                         _v1 = vmlaq_f32(_bias1, _v1, _scale1);
+#endif
                         vst1q_f32(ptr0, _v0);
                         vst1q_f32(ptr1, _v1);
 
@@ -341,7 +367,11 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         float* ptr = (float*)top_blob + i * 4;
 
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1q_f32(ptr, _v);
                     }
                 }
@@ -355,7 +385,11 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                         float32x4_t _bias = vld1q_f32((const float*)bias_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1q_f32(ptr, _v);
                     }
                 }
@@ -388,7 +422,11 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                         float32x4_t _scale = vld1q_f32((const float*)scale_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1q_f32(ptr, _v);
                     }
                 }
@@ -403,7 +441,11 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         float32x4_t _scale = vld1q_f32((const float*)scale_data + i * 4);
                         float32x4_t _bias = vld1q_f32((const float*)bias_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1q_f32(ptr, _v);
                     }
                 }
@@ -454,7 +496,11 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     for (int j = 0; j < w; j++)
                     {
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1q_f32(ptr, _v);
 
                         intptr += 4;
@@ -510,7 +556,11 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     for (int i = 0; i < size; i++)
                     {
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1q_f32(ptr, _v);
 
                         intptr += 4;
@@ -653,7 +703,11 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 for (; j + 3 < w; j += 4)
                 {
                     float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                    _v = vfmaq_f32(_bias, _v, _scale);
+#else
                     _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                     vst1q_f32(ptr, _v);
 
                     intptr += 4;
@@ -726,7 +780,11 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 for (; i + 3 < size; i += 4)
                 {
                     float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                    _v = vfmaq_f32(_bias, _v, _scale);
+#else
                     _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                     vst1q_f32(ptr, _v);
 
                     intptr += 4;
@@ -789,7 +847,7 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
                         __fp16* ptr = (__fp16*)top_blob + i * 4;
 
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
-                        _v = vmlaq_f32(_bias, _v, _scale);
+                        _v = vfmaq_f32(_bias, _v, _scale);
                         vst1_f16(ptr, vcvt_f16_f32(_v));
                     }
                 }
@@ -803,7 +861,7 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
 
                         float32x4_t _bias = vld1q_f32((const float*)bias_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
-                        _v = vmlaq_f32(_bias, _v, _scale);
+                        _v = vfmaq_f32(_bias, _v, _scale);
                         vst1_f16(ptr, vcvt_f16_f32(_v));
                     }
                 }
@@ -836,7 +894,7 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
 
                         float32x4_t _scale = vld1q_f32((const float*)scale_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
-                        _v = vmlaq_f32(_bias, _v, _scale);
+                        _v = vfmaq_f32(_bias, _v, _scale);
                         vst1_f16(ptr, vcvt_f16_f32(_v));
                     }
                 }
@@ -851,7 +909,7 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
                         float32x4_t _scale = vld1q_f32((const float*)scale_data + i * 4);
                         float32x4_t _bias = vld1q_f32((const float*)bias_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
-                        _v = vmlaq_f32(_bias, _v, _scale);
+                        _v = vfmaq_f32(_bias, _v, _scale);
                         vst1_f16(ptr, vcvt_f16_f32(_v));
                     }
                 }
@@ -1345,7 +1403,7 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
                 for (; j + 3 < w; j += 4)
                 {
                     float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
-                    _v = vmlaq_f32(_bias, _v, _scale);
+                    _v = vfmaq_f32(_bias, _v, _scale);
                     vst1_f16(ptr, vcvt_f16_f32(_v));
 
                     intptr += 4;
@@ -1414,7 +1472,7 @@ int Dequantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const O
                 for (; i + 3 < size; i += 4)
                 {
                     float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
-                    _v = vmlaq_f32(_bias, _v, _scale);
+                    _v = vfmaq_f32(_bias, _v, _scale);
                     vst1_f16(ptr, vcvt_f16_f32(_v));
 
                     intptr += 4;
@@ -2033,7 +2091,7 @@ int Dequantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
                 for (; j + 3 < w; j += 4)
                 {
                     float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
-                    _v = vmlaq_f32(_bias, _v, _scale);
+                    _v = vfmaq_f32(_bias, _v, _scale);
                     vst1_f16(ptr, vcvt_f16_f32(_v));
 
                     intptr += 4;
@@ -2102,7 +2160,7 @@ int Dequantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
                 for (; i + 3 < size; i += 4)
                 {
                     float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
-                    _v = vmlaq_f32(_bias, _v, _scale);
+                    _v = vfmaq_f32(_bias, _v, _scale);
                     vst1_f16(ptr, vcvt_f16_f32(_v));
 
                     intptr += 4;
@@ -2165,7 +2223,11 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                         unsigned short* ptr = (unsigned short*)top_blob + i * 4;
 
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1_u16(ptr, vcvt_bf16_f32(_v));
                     }
                 }
@@ -2179,7 +2241,11 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 
                         float32x4_t _bias = vld1q_f32((const float*)bias_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1_u16(ptr, vcvt_bf16_f32(_v));
                     }
                 }
@@ -2212,7 +2278,11 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 
                         float32x4_t _scale = vld1q_f32((const float*)scale_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1_u16(ptr, vcvt_bf16_f32(_v));
                     }
                 }
@@ -2227,7 +2297,11 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                         float32x4_t _scale = vld1q_f32((const float*)scale_data + i * 4);
                         float32x4_t _bias = vld1q_f32((const float*)bias_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1_u16(ptr, vcvt_bf16_f32(_v));
                     }
                 }
@@ -2289,8 +2363,13 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                     {
                         float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
                         float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+#if __aarch64__
+                        _v0 = vfmaq_f32(_bias0, _v0, _scale0);
+                        _v1 = vfmaq_f32(_bias1, _v1, _scale1);
+#else
                         _v0 = vmlaq_f32(_bias0, _v0, _scale0);
                         _v1 = vmlaq_f32(_bias1, _v1, _scale1);
+#endif
                         vst1_u16(ptr0, vcvt_bf16_f32(_v0));
                         vst1_u16(ptr1, vcvt_bf16_f32(_v1));
 
@@ -2359,8 +2438,13 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                     {
                         float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
                         float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+#if __aarch64__
+                        _v0 = vfmaq_f32(_bias0, _v0, _scale0);
+                        _v1 = vfmaq_f32(_bias1, _v1, _scale1);
+#else
                         _v0 = vmlaq_f32(_bias0, _v0, _scale0);
                         _v1 = vmlaq_f32(_bias1, _v1, _scale1);
+#endif
                         vst1_u16(ptr0, vcvt_bf16_f32(_v0));
                         vst1_u16(ptr1, vcvt_bf16_f32(_v1));
 
@@ -2413,7 +2497,11 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                         unsigned short* ptr = (unsigned short*)top_blob + i * 4;
 
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1_u16(ptr, vcvt_bf16_f32(_v));
                     }
                 }
@@ -2427,7 +2515,11 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 
                         float32x4_t _bias = vld1q_f32((const float*)bias_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1_u16(ptr, vcvt_bf16_f32(_v));
                     }
                 }
@@ -2460,7 +2552,11 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 
                         float32x4_t _scale = vld1q_f32((const float*)scale_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1_u16(ptr, vcvt_bf16_f32(_v));
                     }
                 }
@@ -2475,7 +2571,11 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                         float32x4_t _scale = vld1q_f32((const float*)scale_data + i * 4);
                         float32x4_t _bias = vld1q_f32((const float*)bias_data + i * 4);
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1_u16(ptr, vcvt_bf16_f32(_v));
                     }
                 }
@@ -2526,7 +2626,11 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                     for (int j = 0; j < w; j++)
                     {
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1_u16(ptr, vcvt_bf16_f32(_v));
 
                         intptr += 4;
@@ -2582,7 +2686,11 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                     for (int i = 0; i < size; i++)
                     {
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                        _v = vfmaq_f32(_bias, _v, _scale);
+#else
                         _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                         vst1_u16(ptr, vcvt_bf16_f32(_v));
 
                         intptr += 4;
@@ -2725,7 +2833,11 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                 for (; j + 3 < w; j += 4)
                 {
                     float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                    _v = vfmaq_f32(_bias, _v, _scale);
+#else
                     _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                     vst1_u16(ptr, vcvt_bf16_f32(_v));
 
                     intptr += 4;
@@ -2798,7 +2910,11 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
                 for (; i + 3 < size; i += 4)
                 {
                     float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
+#if __aarch64__
+                    _v = vfmaq_f32(_bias, _v, _scale);
+#else
                     _v = vmlaq_f32(_bias, _v, _scale);
+#endif
                     vst1_u16(ptr, vcvt_bf16_f32(_v));
 
                     intptr += 4;

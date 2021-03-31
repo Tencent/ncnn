@@ -155,85 +155,174 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
                 "eor    v14.16b, v14.16b, v14.16b   \n"
                 "eor    v15.16b, v15.16b, v15.16b   \n"
 
+                "prfm   pldl1keep, [%2, #128]       \n"
+
+                "prfm   pldl1keep, [%3, #256]       \n"
+
                 "lsr    w4, %w1, #1                 \n" // w4 = nn >> 1
                 "cmp    w4, #0                      \n"
                 "beq    1f                          \n"
 
                 "prfm   pldl1keep, [%3, #512]       \n"
+
+                "add    x5, %2, #16                 \n"
+
+                "prfm   pldl1keep, [x5, #128]       \n"
+
                 "ld1    {v16.16b}, [%2]             \n" // val L H
                 "ld1    {v20.16b, v21.16b, v22.16b, v23.16b}, [%3], #64 \n"
                 "add    %2, %2, #32                 \n"
                 "ext    v17.16b, v16.16b, v16.16b, #8 \n" // val H L
+
+                "ld1    {v18.16b}, [%2]             \n"
+                "add    %2, %2, #32                 \n"
 
                 "0:                                 \n"
 
-                "ld1    {v18.16b}, [%2]             \n"
                 "smull  v24.8h, v16.8b,  v20.8b     \n"
-                "sub    %2, %2, #16                 \n"
-                "smull2 v25.8h, v17.16b, v20.16b    \n"
-                "smull  v26.8h, v16.8b,  v21.8b     \n"
-                "smull2 v27.8h, v17.16b, v21.16b    \n"
-                "ext    v19.16b, v18.16b, v18.16b, #8 \n" // val H L
-                "smlal  v24.8h, v18.8b,  v22.8b     \n"
-                "smlal2 v25.8h, v19.16b, v22.16b    \n"
-                "smlal  v26.8h, v18.8b,  v23.8b     \n"
-                "smlal2 v27.8h, v19.16b, v23.16b    \n"
-                "sadalp v0.4s, v24.8h               \n"
-                "smull  v28.8h, v17.8b,  v20.8b     \n"
-                "sadalp v1.4s, v25.8h               \n"
-                "smull2 v29.8h, v16.16b, v20.16b    \n"
-                "sadalp v2.4s, v26.8h               \n"
-                "smull  v30.8h, v17.8b,  v21.8b     \n"
-                "sadalp v3.4s, v27.8h               \n"
-                "smull2 v31.8h, v16.16b, v21.16b    \n"
-                "ld1    {v16.16b}, [%2]             \n" // val L H
-                "smlal  v28.8h, v19.8b,  v22.8b     \n"
-                "add    %2, %2, #32                 \n"
-                "smlal2 v29.8h, v18.16b, v22.16b    \n"
-                "smlal  v30.8h, v19.8b,  v23.8b     \n"
-                "ext    v17.16b, v16.16b, v16.16b, #8 \n" // val H L
-                "smlal2 v31.8h, v18.16b, v23.16b    \n"
-                "ld1    {v18.16b}, [%2]             \n"
-                "smull  v24.8h, v16.8b,  v20.8b     \n"
-                "add    %2, %2, #16                 \n"
+                "prfm   pldl1keep, [%3, #256]       \n"
                 "smull2 v25.8h, v17.16b, v20.16b    \n"
                 "prfm   pldl1keep, [%3, #512]       \n"
                 "smull  v26.8h, v16.8b,  v21.8b     \n"
-                "ext    v19.16b, v18.16b, v18.16b, #8 \n" // val H L
+                "subs   w4, w4, #1                  \n"
                 "smull2 v27.8h, v17.16b, v21.16b    \n"
-                "sadalp v4.4s, v28.8h               \n"
+                "ext    v19.16b, v18.16b, v18.16b, #8 \n" // val H L
+
+                "smlal  v24.8h, v18.8b,  v22.8b     \n"
+                "smlal2 v25.8h, v19.16b, v22.16b    \n"
+                "smlal  v26.8h, v18.8b,  v23.8b     \n"
+                "smlal2 v27.8h, v19.16b, v23.16b    \n"
+
+                "smull2 v29.8h, v16.16b, v20.16b    \n"
+                "sadalp v0.4s, v24.8h               \n"
+                "smull  v28.8h, v17.8b,  v20.8b     \n"
+                "sadalp v1.4s, v25.8h               \n"
+                "smull2 v31.8h, v16.16b, v21.16b    \n"
+                "ld1    {v16.16b}, [x5]             \n" // val L H
+                "smull  v30.8h, v17.8b,  v21.8b     \n"
+                "add    x5, x5, #32                 \n"
+                "smlal2 v29.8h, v18.16b, v22.16b    \n"
+                "sadalp v2.4s, v26.8h               \n"
+                "smlal  v28.8h, v19.8b,  v22.8b     \n"
+                "sadalp v3.4s, v27.8h               \n"
+                "smlal2 v31.8h, v18.16b, v23.16b    \n"
+                "ld1    {v18.16b}, [x5]             \n"
+                "smlal  v30.8h, v19.8b,  v23.8b     \n"
+                "ext    v17.16b, v16.16b, v16.16b, #8 \n" // val H L
+
+                "smull  v24.8h, v16.8b,  v20.8b     \n"
+                "add    x5, x5, #32                 \n"
+                "smull2 v25.8h, v17.16b, v20.16b    \n"
+                "prfm   pldl1keep, [x5, #128]       \n"
+                "smull  v26.8h, v16.8b,  v21.8b     \n"
+                "prfm   pldl1keep, [x5, #384]       \n"
+                "smull2 v27.8h, v17.16b, v21.16b    \n"
+                "ext    v19.16b, v18.16b, v18.16b, #8 \n" // val H L
+
                 "smlal  v24.8h, v18.8b,  v22.8b     \n"
                 "sadalp v5.4s, v29.8h               \n"
                 "smlal2 v25.8h, v19.16b, v22.16b    \n"
-                "sadalp v6.4s, v30.8h               \n"
+                "sadalp v4.4s, v28.8h               \n"
                 "smlal  v26.8h, v18.8b,  v23.8b     \n"
                 "sadalp v7.4s, v31.8h               \n"
                 "smlal2 v27.8h, v19.16b, v23.16b    \n"
+                "sadalp v6.4s, v30.8h               \n"
+
+                "smull2 v29.8h, v16.16b, v20.16b    \n"
                 "sadalp v8.4s, v24.8h               \n"
                 "smull  v28.8h, v17.8b,  v20.8b     \n"
                 "sadalp v9.4s, v25.8h               \n"
-                "smull2 v29.8h, v16.16b, v20.16b    \n"
-                "sadalp v10.4s, v26.8h              \n"
-                "smull  v30.8h, v17.8b,  v21.8b     \n"
-                "sadalp v11.4s, v27.8h              \n"
                 "smull2 v31.8h, v16.16b, v21.16b    \n"
-                "smlal  v28.8h, v19.8b,  v22.8b     \n"
                 "ld1    {v16.16b}, [%2]             \n" // val L H
-                "smlal2 v29.8h, v18.16b, v22.16b    \n"
+                "smull  v30.8h, v17.8b,  v21.8b     \n"
                 "add    %2, %2, #32                 \n"
-                "smlal  v30.8h, v19.8b,  v23.8b     \n"
+                "smlal2 v29.8h, v18.16b, v22.16b    \n"
+                "sadalp v10.4s, v26.8h              \n"
+                "smlal  v28.8h, v19.8b,  v22.8b     \n"
+                "sadalp v11.4s, v27.8h              \n"
                 "smlal2 v31.8h, v18.16b, v23.16b    \n"
-                "sadalp v12.4s, v28.8h              \n"
+                "ld1    {v18.16b}, [%2]             \n"
+                "smlal  v30.8h, v19.8b,  v23.8b     \n"
+                "add    %2, %2, #32                 \n"
                 "ld1    {v20.16b, v21.16b, v22.16b, v23.16b}, [%3], #64 \n"
+
                 "sadalp v13.4s, v29.8h              \n"
-                "subs   w4, w4, #1                  \n"
-                "sadalp v14.4s, v30.8h              \n"
-                "ext    v17.16b, v16.16b, v16.16b, #8 \n" // val H L
+                "prfm   pldl1keep, [%2, #128]       \n"
+                "sadalp v12.4s, v28.8h              \n"
+                "prfm   pldl1keep, [%2, #384]       \n"
                 "sadalp v15.4s, v31.8h              \n"
+                "ext    v17.16b, v16.16b, v16.16b, #8 \n" // val H L
+
+                "sadalp v14.4s, v30.8h              \n"
+
+
+//                 "ld1    {v18.16b}, [%2]             \n"
+//                 "smull  v24.8h, v16.8b,  v20.8b     \n"
+//                 "sub    %2, %2, #16                 \n"
+//                 "smull2 v25.8h, v17.16b, v20.16b    \n"
+//                 "smull  v26.8h, v16.8b,  v21.8b     \n"
+//                 "smull2 v27.8h, v17.16b, v21.16b    \n"
+//                 "ext    v19.16b, v18.16b, v18.16b, #8 \n" // val H L
+//                 "smlal  v24.8h, v18.8b,  v22.8b     \n"
+//                 "smlal2 v25.8h, v19.16b, v22.16b    \n"
+//                 "smlal  v26.8h, v18.8b,  v23.8b     \n"
+//                 "smlal2 v27.8h, v19.16b, v23.16b    \n"
+//                 "sadalp v0.4s, v24.8h               \n"
+//                 "smull  v28.8h, v17.8b,  v20.8b     \n"
+//                 "sadalp v1.4s, v25.8h               \n"
+//                 "smull2 v29.8h, v16.16b, v20.16b    \n"
+//                 "sadalp v2.4s, v26.8h               \n"
+//                 "smull  v30.8h, v17.8b,  v21.8b     \n"
+//                 "sadalp v3.4s, v27.8h               \n"
+//                 "smull2 v31.8h, v16.16b, v21.16b    \n"
+//                 "ld1    {v16.16b}, [%2]             \n" // val L H
+//                 "smlal  v28.8h, v19.8b,  v22.8b     \n"
+//                 "add    %2, %2, #32                 \n"
+//                 "smlal2 v29.8h, v18.16b, v22.16b    \n"
+//                 "smlal  v30.8h, v19.8b,  v23.8b     \n"
+//                 "ext    v17.16b, v16.16b, v16.16b, #8 \n" // val H L
+//                 "smlal2 v31.8h, v18.16b, v23.16b    \n"
+//                 "ld1    {v18.16b}, [%2]             \n"
+//                 "smull  v24.8h, v16.8b,  v20.8b     \n"
+//                 "add    %2, %2, #16                 \n"
+//                 "smull2 v25.8h, v17.16b, v20.16b    \n"
+//                 "prfm   pldl1keep, [%3, #512]       \n"
+//                 "smull  v26.8h, v16.8b,  v21.8b     \n"
+//                 "ext    v19.16b, v18.16b, v18.16b, #8 \n" // val H L
+//                 "smull2 v27.8h, v17.16b, v21.16b    \n"
+//                 "sadalp v4.4s, v28.8h               \n"
+//                 "smlal  v24.8h, v18.8b,  v22.8b     \n"
+//                 "sadalp v5.4s, v29.8h               \n"
+//                 "smlal2 v25.8h, v19.16b, v22.16b    \n"
+//                 "sadalp v6.4s, v30.8h               \n"
+//                 "smlal  v26.8h, v18.8b,  v23.8b     \n"
+//                 "sadalp v7.4s, v31.8h               \n"
+//                 "smlal2 v27.8h, v19.16b, v23.16b    \n"
+//                 "sadalp v8.4s, v24.8h               \n"
+//                 "smull  v28.8h, v17.8b,  v20.8b     \n"
+//                 "sadalp v9.4s, v25.8h               \n"
+//                 "smull2 v29.8h, v16.16b, v20.16b    \n"
+//                 "sadalp v10.4s, v26.8h              \n"
+//                 "smull  v30.8h, v17.8b,  v21.8b     \n"
+//                 "sadalp v11.4s, v27.8h              \n"
+//                 "smull2 v31.8h, v16.16b, v21.16b    \n"
+//                 "smlal  v28.8h, v19.8b,  v22.8b     \n"
+//                 "ld1    {v16.16b}, [%2]             \n" // val L H
+//                 "smlal2 v29.8h, v18.16b, v22.16b    \n"
+//                 "add    %2, %2, #32                 \n"
+//                 "smlal  v30.8h, v19.8b,  v23.8b     \n"
+//                 "smlal2 v31.8h, v18.16b, v23.16b    \n"
+//                 "sadalp v12.4s, v28.8h              \n"
+//                 "ld1    {v20.16b, v21.16b, v22.16b, v23.16b}, [%3], #64 \n"
+//                 "sadalp v13.4s, v29.8h              \n"
+//                 "subs   w4, w4, #1                  \n"
+//                 "sadalp v14.4s, v30.8h              \n"
+//                 "ext    v17.16b, v16.16b, v16.16b, #8 \n" // val H L
+//                 "sadalp v15.4s, v31.8h              \n"
 
                 "bne    0b                          \n"
 
-                "sub    %2, %2, #32                 \n"
+                "sub    %2, %2, #64                 \n"
                 "sub    %3, %3, #64                 \n"
 
                 "1:                                 \n"
@@ -305,7 +394,7 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
                 "1"(nn),
                 "2"(tmpptr),
                 "3"(kptr0)
-                : "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
+                : "x4", "x5", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
             );
 #endif
 
