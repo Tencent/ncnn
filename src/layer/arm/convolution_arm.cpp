@@ -1833,6 +1833,7 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
         }
     }
 
+#if __ARM_NEON
     if (elempack == 8 && out_elempack == 8)
     {
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -1852,6 +1853,7 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
             convolution_im2col_sgemm_transform_kernel_pack8_int8_neon(weight_data, weight_data_int8, num_input, num_output, kernel_w, kernel_h);
         }
     }
+#endif // __ARM_NEON
 
     return 0;
 }
