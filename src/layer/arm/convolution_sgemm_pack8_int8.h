@@ -633,8 +633,8 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
             {
                 int8x16_t _val = vld1q_s8(tmpptr);
 
-                int16x8_t _w01 = vld1q_s8(kptr0);
-                int16x8_t _w23 = vld1q_s8(kptr0 + 16);
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
 
                 int16x8_t _wv0 = vmull_s8(vget_low_s8(_val), vget_low_s8(_w01));
                 int16x8_t _wv1 = vmull_s8(vget_low_s8(_val), vget_high_s8(_w01));
@@ -661,8 +661,8 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
             {
                 int8x8_t _val = vld1_s8(tmpptr);
 
-                int16x8_t _w01 = vld1q_s8(kptr0);
-                int16x8_t _w23 = vld1q_s8(kptr0 + 16);
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
 
                 int16x8_t _wv0 = vmull_s8(_val, vget_low_s8(_w01));
                 int16x8_t _wv1 = vmull_s8(_val, vget_high_s8(_w01));
