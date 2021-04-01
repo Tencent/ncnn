@@ -106,8 +106,8 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
 #else
                     asm volatile(
                         "pld        [%0, #128]          \n"
-                        "vld1.s8    {d0-d1}, [%0 :128]  \n"
-                        "vst1.s8    {d0-d1}, [%1 :128]! \n"
+                        "vld1.s8    {d0-d1}, [%0 :64]   \n"
+                        "vst1.s8    {d0-d1}, [%1 :64]!  \n"
                         : "=r"(img0),  // %0
                         "=r"(tmpptr) // %1
                         : "0"(img0),
@@ -369,7 +369,7 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
                 "1"(nn),
                 "2"(tmpptr),
                 "3"(kptr0)
-                : "x4", "x5", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
+                : "memory", "x4", "x5", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
             );
         }
 #endif
@@ -384,6 +384,7 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
 
             int nn = inch * maxk; // inch always > 0
 
+#if __aarch64__
             int32x4_t _sum00 = vdupq_n_s32(0);
             int32x4_t _sum01 = vdupq_n_s32(0);
             int32x4_t _sum02 = vdupq_n_s32(0);
@@ -396,114 +397,6 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
             int j = 0;
             for (; j + 1 < nn; j += 2)
             {
-#if 0
-                asm volatile(
-                    "ld1    {v16.8b, v17.8b, v18.8b, v19.8b}, [%0], #32 \n"
-                    "ld1    {v20.8b, v21.8b, v22.8b, v23.8b}, [%1] \n"
-                    "add    %1, %1, #64             \n"
-
-                    "smull  v24.8h, v16.8b, v20.8b  \n"
-                    "smull  v25.8h, v16.8b, v21.8b  \n"
-                    "smull  v26.8h, v16.8b, v22.8b  \n"
-                    "smull  v27.8h, v16.8b, v23.8b  \n"
-                    "smull  v28.8h, v17.8b, v20.8b  \n"
-                    "smull  v29.8h, v17.8b, v21.8b  \n"
-                    "smull  v30.8h, v17.8b, v22.8b  \n"
-                    "smull  v31.8h, v17.8b, v23.8b  \n"
-
-                    "ld1    {v20.8b, v21.8b, v22.8b, v23.8b}, [%1] \n"
-                    "sub    %1, %1, #32             \n"
-
-                    "smlal  v24.8h, v18.8b, v20.8b  \n"
-                    "smlal  v25.8h, v18.8b, v21.8b  \n"
-                    "smlal  v26.8h, v18.8b, v22.8b  \n"
-                    "smlal  v27.8h, v18.8b, v23.8b  \n"
-                    "smlal  v28.8h, v19.8b, v20.8b  \n"
-                    "smlal  v29.8h, v19.8b, v21.8b  \n"
-                    "smlal  v30.8h, v19.8b, v22.8b  \n"
-                    "smlal  v31.8h, v19.8b, v23.8b  \n"
-
-                    "sadalp %2.4s, v24.8h           \n"
-                    "sadalp %3.4s, v25.8h           \n"
-                    "sadalp %4.4s, v26.8h           \n"
-                    "sadalp %5.4s, v27.8h           \n"
-                    "sadalp %10.4s, v28.8h          \n"
-                    "sadalp %11.4s, v29.8h          \n"
-                    "sadalp %12.4s, v30.8h          \n"
-                    "sadalp %13.4s, v31.8h          \n"
-
-                    "ld1    {v20.8b, v21.8b, v22.8b, v23.8b}, [%1] \n"
-                    "add    %1, %1, #64             \n"
-
-                    "smull  v24.8h, v16.8b, v20.8b  \n"
-                    "smull  v25.8h, v16.8b, v21.8b  \n"
-                    "smull  v26.8h, v16.8b, v22.8b  \n"
-                    "smull  v27.8h, v16.8b, v23.8b  \n"
-                    "smull  v28.8h, v17.8b, v20.8b  \n"
-                    "smull  v29.8h, v17.8b, v21.8b  \n"
-                    "smull  v30.8h, v17.8b, v22.8b  \n"
-                    "smull  v31.8h, v17.8b, v23.8b  \n"
-
-                    "ld1    {v20.8b, v21.8b, v22.8b, v23.8b}, [%1] \n"
-                    "add    %1, %1, #32             \n"
-
-                    "smlal  v24.8h, v18.8b, v20.8b  \n"
-                    "smlal  v25.8h, v18.8b, v21.8b  \n"
-                    "smlal  v26.8h, v18.8b, v22.8b  \n"
-                    "smlal  v27.8h, v18.8b, v23.8b  \n"
-                    "smlal  v28.8h, v19.8b, v20.8b  \n"
-                    "smlal  v29.8h, v19.8b, v21.8b  \n"
-                    "smlal  v30.8h, v19.8b, v22.8b  \n"
-                    "smlal  v31.8h, v19.8b, v23.8b  \n"
-
-                    "sadalp %6.4s, v24.8h           \n"
-                    "sadalp %7.4s, v25.8h           \n"
-                    "sadalp %8.4s, v26.8h           \n"
-                    "sadalp %9.4s, v27.8h           \n"
-                    "sadalp %14.4s, v28.8h          \n"
-                    "sadalp %15.4s, v29.8h          \n"
-                    "sadalp %16.4s, v30.8h          \n"
-                    "sadalp %17.4s, v31.8h          \n"
-
-                    : "=r"(tmpptr),
-                    "=r"(kptr0),
-                    "=w"(_sum00),
-                    "=w"(_sum01),
-                    "=w"(_sum02),
-                    "=w"(_sum03),
-                    "=w"(_sum04),
-                    "=w"(_sum05),
-                    "=w"(_sum06),
-                    "=w"(_sum07),
-                    "=w"(_sum10),
-                    "=w"(_sum11),
-                    "=w"(_sum12),
-                    "=w"(_sum13),
-                    "=w"(_sum14),
-                    "=w"(_sum15),
-                    "=w"(_sum16),
-                    "=w"(_sum17)
-                    : "0"(tmpptr),
-                    "1"(kptr0),
-                    "2"(_sum00),
-                    "3"(_sum01),
-                    "4"(_sum02),
-                    "5"(_sum03),
-                    "6"(_sum04),
-                    "7"(_sum05),
-                    "8"(_sum06),
-                    "9"(_sum07),
-                    "10"(_sum10),
-                    "11"(_sum11),
-                    "12"(_sum12),
-                    "13"(_sum13),
-                    "14"(_sum14),
-                    "15"(_sum15),
-                    "16"(_sum16),
-                    "17"(_sum17)
-                    : "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-                );
-#else
                 int8x16_t _val0 = vld1q_s8(tmpptr);
                 int8x16_t _val1 = vld1q_s8(tmpptr + 16);
 
@@ -544,92 +437,9 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
 
                 tmpptr += 32;
                 kptr0 += 64;
-#endif
             }
             for (; j < nn; j++)
             {
-#if 0
-                asm volatile(
-                    "ld1    {v16.8b, v17.8b}, [%0], #16 \n"
-                    "ld1    {v20.8b, v21.8b, v22.8b, v23.8b}, [%1], #32 \n"
-
-                    "smull  v24.8h, v16.8b, v20.8b  \n"
-                    "smull  v25.8h, v16.8b, v21.8b  \n"
-                    "smull  v26.8h, v16.8b, v22.8b  \n"
-                    "smull  v27.8h, v16.8b, v23.8b  \n"
-                    "smull  v28.8h, v17.8b, v20.8b  \n"
-                    "smull  v29.8h, v17.8b, v21.8b  \n"
-                    "smull  v30.8h, v17.8b, v22.8b  \n"
-                    "smull  v31.8h, v17.8b, v23.8b  \n"
-
-                    "sadalp %2.4s, v24.8h           \n"
-                    "sadalp %3.4s, v25.8h           \n"
-                    "sadalp %4.4s, v26.8h           \n"
-                    "sadalp %5.4s, v27.8h           \n"
-                    "sadalp %10.4s, v28.8h          \n"
-                    "sadalp %11.4s, v29.8h          \n"
-                    "sadalp %12.4s, v30.8h          \n"
-                    "sadalp %13.4s, v31.8h          \n"
-
-                    "ld1    {v20.8b, v21.8b, v22.8b, v23.8b}, [%1], #32 \n"
-
-                    "smull  v24.8h, v16.8b, v20.8b  \n"
-                    "smull  v25.8h, v16.8b, v21.8b  \n"
-                    "smull  v26.8h, v16.8b, v22.8b  \n"
-                    "smull  v27.8h, v16.8b, v23.8b  \n"
-                    "smull  v28.8h, v17.8b, v20.8b  \n"
-                    "smull  v29.8h, v17.8b, v21.8b  \n"
-                    "smull  v30.8h, v17.8b, v22.8b  \n"
-                    "smull  v31.8h, v17.8b, v23.8b  \n"
-
-                    "sadalp %6.4s, v24.8h           \n"
-                    "sadalp %7.4s, v25.8h           \n"
-                    "sadalp %8.4s, v26.8h           \n"
-                    "sadalp %9.4s, v27.8h           \n"
-                    "sadalp %14.4s, v28.8h          \n"
-                    "sadalp %15.4s, v29.8h          \n"
-                    "sadalp %16.4s, v30.8h          \n"
-                    "sadalp %17.4s, v31.8h          \n"
-
-                    : "=r"(tmpptr),
-                    "=r"(kptr0),
-                    "=w"(_sum00),
-                    "=w"(_sum01),
-                    "=w"(_sum02),
-                    "=w"(_sum03),
-                    "=w"(_sum04),
-                    "=w"(_sum05),
-                    "=w"(_sum06),
-                    "=w"(_sum07),
-                    "=w"(_sum10),
-                    "=w"(_sum11),
-                    "=w"(_sum12),
-                    "=w"(_sum13),
-                    "=w"(_sum14),
-                    "=w"(_sum15),
-                    "=w"(_sum16),
-                    "=w"(_sum17)
-                    : "0"(tmpptr),
-                    "1"(kptr0),
-                    "2"(_sum00),
-                    "3"(_sum01),
-                    "4"(_sum02),
-                    "5"(_sum03),
-                    "6"(_sum04),
-                    "7"(_sum05),
-                    "8"(_sum06),
-                    "9"(_sum07),
-                    "10"(_sum10),
-                    "11"(_sum11),
-                    "12"(_sum12),
-                    "13"(_sum13),
-                    "14"(_sum14),
-                    "15"(_sum15),
-                    "16"(_sum16),
-                    "17"(_sum17)
-                    : "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31"
-                );
-#else
                 int8x16_t _val = vld1q_s8(tmpptr);
 
                 int8x16_t _w01 = vld1q_s8(kptr0);
@@ -655,10 +465,8 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
 
                 tmpptr += 16;
                 kptr0 += 32;
-#endif
             }
 
-#if __aarch64__
             int32x4_t _s001 = vpaddq_s32(_sum00, _sum01);
             int32x4_t _s023 = vpaddq_s32(_sum02, _sum03);
             int32x4_t _s101 = vpaddq_s32(_sum10, _sum11);
@@ -666,23 +474,144 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
 
             int32x4_t _s00123 = vpaddq_s32(_s001, _s023);
             int32x4_t _s10123 = vpaddq_s32(_s101, _s123);
-#else
-            int32x2_t _s001_low = vpadd_s32(vget_low_s32(_sum00), vget_low_s32(_sum01));
-            int32x2_t _s001_high = vpadd_s32(vget_high_s32(_sum00), vget_high_s32(_sum01));
-            int32x2_t _s023_low = vpadd_s32(vget_low_s32(_sum02), vget_low_s32(_sum03));
-            int32x2_t _s023_high = vpadd_s32(vget_high_s32(_sum02), vget_high_s32(_sum03));
-            int32x2_t _s101_low = vpadd_s32(vget_low_s32(_sum10), vget_low_s32(_sum11));
-            int32x2_t _s101_high = vpadd_s32(vget_high_s32(_sum10), vget_high_s32(_sum11));
-            int32x2_t _s123_low = vpadd_s32(vget_low_s32(_sum12), vget_low_s32(_sum13));
-            int32x2_t _s123_high = vpadd_s32(vget_high_s32(_sum12), vget_high_s32(_sum13));
-
-            int32x4_t _s00123 = vcombine_s32(vpadd_s32(_s001_low, _s023_low), vpadd_s32(_s001_high, _s023_high));
-            int32x4_t _s10123 = vcombine_s32(vpadd_s32(_s101_low, _s123_low), vpadd_s32(_s101_high, _s123_high));
-#endif
 
             vst1q_s32(outptr0, _s00123);
             vst1q_s32(outptr0 + 4, _s10123);
             outptr0 += 8;
+#else
+            asm volatile(
+                "veor       q0, q0              \n"
+                "veor       q1, q1              \n"
+                "veor       q2, q2              \n"
+                "veor       q3, q3              \n"
+                "veor       q4, q4              \n"
+                "veor       q5, q5              \n"
+                "veor       q6, q6              \n"
+                "veor       q7, q7              \n"
+
+                "pld        [%2, #256]          \n"
+
+                "lsr        r4, %1, #1          \n" // r4 = nn = size >> 1
+                "cmp        r4, #0              \n"
+                "beq        1f                  \n"
+
+                "add        r5, %3, #16         \n"
+                "pld        [%3, #128]          \n"
+                "mov        r6, #32             \n"
+                "pld        [%3, #384]          \n"
+
+                "vld1.s8    {d20-d21}, [%3], r6 \n" // _w01
+
+                "vld1.s8    {d16-d19}, [%2]!    \n" // _val0 _val1
+
+                "vld1.s8    {d22-d23}, [%3], r6 \n" // _w45
+
+                "0:                             \n"
+
+                "vmull.s8   q12, d16, d20       \n"
+                "pld        [%2, #256]          \n"
+                "vmull.s8   q13, d16, d21       \n"
+                "pld        [%3, #384]          \n"
+                "vmull.s8   q14, d17, d20       \n"
+                "vmull.s8   q15, d17, d21       \n"
+                "vld1.s8    {d20-d21}, [r5], r6 \n" // _w23
+
+                "vmlal.s8   q12, d18, d22       \n"
+                "vmlal.s8   q13, d18, d23       \n"
+                "subs       r4, r4, #1          \n"
+                "vmlal.s8   q14, d19, d22       \n"
+                "vmlal.s8   q15, d19, d23       \n"
+                "vld1.s8    {d22-d23}, [r5], r6 \n" // _w67
+
+                "vpadal.s16 q0, q12             \n"
+                "vmull.s8   q12, d16, d20       \n"
+                "vpadal.s16 q1, q13             \n"
+                "vmull.s8   q13, d16, d21       \n"
+                "vpadal.s16 q4, q14             \n"
+                "vmull.s8   q14, d17, d20       \n"
+                "vpadal.s16 q5, q15             \n"
+                "vmull.s8   q15, d17, d21       \n"
+                "vld1.s8    {d16-d17}, [%2]!    \n" // _val0
+
+                "vmlal.s8   q12, d18, d22       \n"
+                "vld1.s8    {d20-d21}, [%3], r6 \n" // _w01
+                "vmlal.s8   q13, d18, d23       \n"
+                "pld        [r5, #128]          \n"
+                "vmlal.s8   q14, d19, d22       \n"
+                "pld        [r5, #384]          \n"
+                "vmlal.s8   q15, d19, d23       \n"
+                "vld1.s8    {d18-d19}, [%2]!    \n" // _val1
+
+                "vpadal.s16 q2, q12             \n"
+                "vld1.s8    {d22-d23}, [%3], r6 \n" // _w45
+                "vpadal.s16 q3, q13             \n"
+                "pld        [%2, #128]          \n"
+                "vpadal.s16 q6, q14             \n"
+                "pld        [%3, #128]          \n"
+                "vpadal.s16 q7, q15             \n"
+
+                "bne        0b                  \n"
+
+                "sub        %2, %2, #32         \n"
+                "sub        %3, %3, #64         \n"
+
+                "1:                             \n"
+                "and        r4, %1, #1          \n" // r4 = remain = size & 1
+                "cmp        r4, #0              \n" // r4 > 0
+                "beq        2f                  \n"
+
+                "vld1.s8    {d16-d17}, [%2]!    \n" // _val
+                "vld1.s8    {d20-d21}, [%3]!    \n" // _w01
+
+                "vmull.s8   q12, d16, d20       \n"
+
+                "vld1.s8    {d22-d23}, [%3]!    \n" // _w23
+                "vmull.s8   q13, d16, d21       \n"
+                "vmull.s8   q14, d17, d20       \n"
+                "vmull.s8   q15, d17, d21       \n"
+
+                "vpadal.s16 q0, q12             \n"
+                "vmull.s8   q12, d16, d22       \n"
+                "vpadal.s16 q1, q13             \n"
+                "vmull.s8   q13, d16, d23       \n"
+                "vpadal.s16 q4, q14             \n"
+                "vmull.s8   q14, d17, d22       \n"
+                "vpadal.s16 q5, q15             \n"
+                "vmull.s8   q15, d17, d23       \n"
+
+                "vpadal.s16 q2, q12             \n"
+                "vpadal.s16 q3, q13             \n"
+                "vpadal.s16 q6, q14             \n"
+                "vpadal.s16 q7, q15             \n"
+
+                "2:                             \n"
+
+                "vpadd.s32  d16, d0, d1         \n"
+                "vpadd.s32  d17, d2, d3         \n"
+                "vpadd.s32  d18, d4, d5         \n"
+                "vpadd.s32  d19, d6, d7         \n"
+                "vpadd.s32  d20, d8, d9         \n"
+                "vpadd.s32  d21, d10, d11       \n"
+                "vpadd.s32  d22, d12, d13       \n"
+                "vpadd.s32  d23, d14, d15       \n"
+
+                "vpadd.s32  d0, d16, d17        \n"
+                "vpadd.s32  d1, d18, d19        \n"
+                "vpadd.s32  d2, d20, d21        \n"
+                "vpadd.s32  d3, d22, d23        \n"
+
+                "vst1.f32   {d0-d3}, [%0 :128]! \n"
+
+                : "=r"(outptr0),
+                 "=r"(nn),
+                "=r"(tmpptr),
+                "=r"(kptr0)
+                : "0"(outptr0),
+                "1"(nn),
+                "2"(tmpptr),
+                "3"(kptr0)
+                : "memory", "r4", "r5", "r6", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
+#endif
         }
         for (; i < size; i++)
         {
@@ -756,12 +685,12 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
 
             int32x4_t _s0123 = vpaddq_s32(_s01, _s23);
 #else
-            int32x2_t _s01_low = vpadd_s32(vget_low_s32(_sum0), vget_low_s32(_sum1));
-            int32x2_t _s01_high = vpadd_s32(vget_high_s32(_sum0), vget_high_s32(_sum1));
-            int32x2_t _s23_low = vpadd_s32(vget_low_s32(_sum2), vget_low_s32(_sum3));
-            int32x2_t _s23_high = vpadd_s32(vget_high_s32(_sum2), vget_high_s32(_sum3));
+            int32x2_t _s01_low = vpadd_s32(vget_low_s32(_sum0), vget_high_s32(_sum0));
+            int32x2_t _s01_high = vpadd_s32(vget_low_s32(_sum1), vget_high_s32(_sum1));
+            int32x2_t _s23_low = vpadd_s32(vget_low_s32(_sum2), vget_high_s32(_sum2));
+            int32x2_t _s23_high = vpadd_s32(vget_low_s32(_sum3), vget_high_s32(_sum3));
 
-            int32x4_t _s0123 = vcombine_s32(vpadd_s32(_s01_low, _s23_low), vpadd_s32(_s01_high, _s23_high));
+            int32x4_t _s0123 = vcombine_s32(vpadd_s32(_s01_low, _s01_high), vpadd_s32(_s23_low, _s23_high));
 #endif
 
             vst1q_s32(outptr0, _s0123);
