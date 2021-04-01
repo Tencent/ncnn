@@ -172,7 +172,7 @@ static void requantize_relu_pack8_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                 intptr += 16;
                 ptr += 16;
-#else // __aarch64__
+#else  // __aarch64__
                 asm volatile(
                     "pld            [%0, #512]      \n"
                     "vldm           %0!, {d8-d15}   \n"
@@ -230,8 +230,7 @@ static void requantize_relu_pack8_neon(const Mat& bottom_blob, Mat& top_blob, co
                     "w"(_scale1), // %5
                     "w"(_bias0),  // %6
                     "w"(_bias1)   // %7
-                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8"
-                );
+                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8");
 #endif // __aarch64__
             }
             for (; i < size; i++)
@@ -245,7 +244,7 @@ static void requantize_relu_pack8_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                 intptr += 8;
                 ptr += 8;
-#else // __aarch64__
+#else  // __aarch64__
                 asm volatile(
                     "pld            [%0, #256]      \n"
                     "vld1.s32       {d4-d7}, [%0 :128]! \n"
@@ -286,8 +285,7 @@ static void requantize_relu_pack8_neon(const Mat& bottom_blob, Mat& top_blob, co
                     "w"(_scale1), // %5
                     "w"(_bias0),  // %6
                     "w"(_bias1)   // %7
-                    : "memory", "q0", "q1", "q2", "q3", "q4"
-                );
+                    : "memory", "q0", "q1", "q2", "q3", "q4");
 #endif // __aarch64__
             }
         }

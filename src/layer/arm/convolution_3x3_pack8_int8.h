@@ -118,7 +118,7 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int inch = bottom_blob.c;
-//     size_t elemsize = bottom_blob.elemsize;
+    //     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
     int outw = top_blob.w;
@@ -190,22 +190,22 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                         int16x8_t _v2 = vdupq_n_s16(2);
                         int16x8_t _v4 = vdupq_n_s16(4);
 
-//                         int16x8_t _tmp0m = vfmsq_n_f16(vfmaq_n_f16(_r04, _r00, 4.f), _r02, 5.f);
+                        //                         int16x8_t _tmp0m = vfmsq_n_f16(vfmaq_n_f16(_r04, _r00, 4.f), _r02, 5.f);
                         int16x8_t _tmp0m = vsubq_s16(vaddw_s8(vmull_s8(_r00, _v4s8), _r04), vmull_s8(_r02, _v5s8));
 
-//                         int16x8_t _tmp1m = vfmsq_n_f16(vaddq_f16(_r04, _r03), vaddq_f16(_r01, _r02), 4.f);
+                        //                         int16x8_t _tmp1m = vfmsq_n_f16(vaddq_f16(_r04, _r03), vaddq_f16(_r01, _r02), 4.f);
                         int16x8_t _tmp1m = vmlsq_s16(vaddl_s8(_r04, _r03), vaddl_s8(_r01, _r02), _v4);
 
-//                         int16x8_t _tmp2m = vfmaq_n_f16(vsubq_f16(_r04, _r03), vsubq_f16(_r01, _r02), 4.f);
+                        //                         int16x8_t _tmp2m = vfmaq_n_f16(vsubq_f16(_r04, _r03), vsubq_f16(_r01, _r02), 4.f);
                         int16x8_t _tmp2m = vmlaq_s16(vsubl_s8(_r04, _r03), vsubl_s8(_r01, _r02), _v4);
 
-//                         int16x8_t _tmp3m = vfmsq_n_f16(vsubq_f16(_r04, _r02), vsubq_f16(_r01, _r03), 2.f);
+                        //                         int16x8_t _tmp3m = vfmsq_n_f16(vsubq_f16(_r04, _r02), vsubq_f16(_r01, _r03), 2.f);
                         int16x8_t _tmp3m = vmlsq_s16(vsubl_s8(_r04, _r02), vsubl_s8(_r01, _r03), _v2);
 
-//                         int16x8_t _tmp4m = vfmaq_n_f16(vsubq_f16(_r04, _r02), vsubq_f16(_r01, _r03), 2.f);
+                        //                         int16x8_t _tmp4m = vfmaq_n_f16(vsubq_f16(_r04, _r02), vsubq_f16(_r01, _r03), 2.f);
                         int16x8_t _tmp4m = vmlaq_s16(vsubl_s8(_r04, _r02), vsubl_s8(_r01, _r03), _v2);
 
-//                         int16x8_t _tmp5m = vfmsq_n_f16(vfmaq_n_f16(_r05, _r01, 4.f), _r03, 5.f);
+                        //                         int16x8_t _tmp5m = vfmsq_n_f16(vfmaq_n_f16(_r05, _r01, 4.f), _r03, 5.f);
                         int16x8_t _tmp5m = vsubq_s16(vaddw_s8(vmull_s8(_r01, _v4s8), _r05), vmull_s8(_r03, _v5s8));
 
                         vst1q_s16(tmp[0][m], _tmp0m);
@@ -277,11 +277,11 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
         // permute
         //         bottom_blob_tm.create(tiles, 36, inch, elemsize, elempack, opt.workspace_allocator);
         Mat bottom_blob_tm2;
-//         if (tiles >= 12)
-//             bottom_blob_tm2.create(12 * inch, tiles / 12 + (tiles % 12) / 8 + (tiles % 12 % 8) / 4 + (tiles % 12 % 4) / 2 + tiles % 12 % 2, 36, 2u * elempack, elempack, opt.workspace_allocator);
-//         else if (tiles >= 8)
-//             bottom_blob_tm2.create(8 * inch, tiles / 8 + (tiles % 8) / 4 + (tiles % 4) / 2 + tiles % 2, 36, 2u * elempack, elempack, opt.workspace_allocator);
-//         else
+        //         if (tiles >= 12)
+        //             bottom_blob_tm2.create(12 * inch, tiles / 12 + (tiles % 12) / 8 + (tiles % 12 % 8) / 4 + (tiles % 12 % 4) / 2 + tiles % 12 % 2, 36, 2u * elempack, elempack, opt.workspace_allocator);
+        //         else if (tiles >= 8)
+        //             bottom_blob_tm2.create(8 * inch, tiles / 8 + (tiles % 8) / 4 + (tiles % 4) / 2 + tiles % 2, 36, 2u * elempack, elempack, opt.workspace_allocator);
+        //         else
         if (tiles >= 4)
             bottom_blob_tm2.create(4 * inch, tiles / 4 + (tiles % 4) / 2 + tiles % 2, 36, 2u * elempack, elempack, opt.workspace_allocator);
         else if (tiles >= 2)
@@ -381,7 +381,7 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
 #endif
             for (; i + 3 < tiles; i += 4)
             {
-//                 __fp16* tmpptr = tm2.row<__fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
+                //                 __fp16* tmpptr = tm2.row<__fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
                 short* tmpptr = tm2.row<short>(i / 4);
 
                 const short* r0 = bottom_blob_tm;
@@ -416,7 +416,7 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
             }
             for (; i + 1 < tiles; i += 2)
             {
-//                 __fp16* tmpptr = tm2.row<__fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
+                //                 __fp16* tmpptr = tm2.row<__fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
                 short* tmpptr = tm2.row<short>(i / 4 + (i % 4) / 2);
 
                 const short* r0 = bottom_blob_tm;
@@ -452,7 +452,7 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
 
             for (; i < tiles; i++)
             {
-//                 __fp16* tmpptr = tm2.row<__fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
+                //                 __fp16* tmpptr = tm2.row<__fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
                 short* tmpptr = tm2.row<short>(i / 4 + (i % 4) / 2 + i % 2);
 
                 const short* r0 = bottom_blob_tm;
@@ -789,7 +789,7 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
 #endif
                 for (; i + 3 < tiles; i += 4)
                 {
-//                     const __fp16* r0 = bb2.row<const __fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
+                    //                     const __fp16* r0 = bb2.row<const __fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
                     const short* r0 = bb2.row<const short>(i / 4);
                     const short* k0 = kernel0_tm.row<const short>(r);
 
@@ -908,7 +908,7 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                 }
                 for (; i + 1 < tiles; i += 2)
                 {
-//                     const __fp16* r0 = bb2.row<const __fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
+                    //                     const __fp16* r0 = bb2.row<const __fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
                     const short* r0 = bb2.row<const short>(i / 4 + (i % 4) / 2);
                     const short* k0 = kernel0_tm.row<const short>(r);
 
@@ -985,7 +985,7 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                 }
                 for (; i < tiles; i++)
                 {
-//                     const __fp16* r0 = bb2.row<const __fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
+                    //                     const __fp16* r0 = bb2.row<const __fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
                     const short* r0 = bb2.row<const short>(i / 4 + (i % 4) / 2 + i % 2);
                     const short* k0 = kernel0_tm.row<const short>(r);
 
@@ -1099,49 +1099,49 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                     // TODO neon optimize
                     for (int m = 0; m < 5; m++)
                     {
-                        int32x4_t _out0tm0_low  = vld1q_s32(output0_tm_0);
+                        int32x4_t _out0tm0_low = vld1q_s32(output0_tm_0);
                         int32x4_t _out0tm0_high = vld1q_s32(output0_tm_0 + 4);
-                        int32x4_t _out0tm1_low  = vld1q_s32(output0_tm_1);
+                        int32x4_t _out0tm1_low = vld1q_s32(output0_tm_1);
                         int32x4_t _out0tm1_high = vld1q_s32(output0_tm_1 + 4);
-                        int32x4_t _out0tm2_low  = vld1q_s32(output0_tm_2);
+                        int32x4_t _out0tm2_low = vld1q_s32(output0_tm_2);
                         int32x4_t _out0tm2_high = vld1q_s32(output0_tm_2 + 4);
-                        int32x4_t _out0tm3_low  = vld1q_s32(output0_tm_3);
+                        int32x4_t _out0tm3_low = vld1q_s32(output0_tm_3);
                         int32x4_t _out0tm3_high = vld1q_s32(output0_tm_3 + 4);
-                        int32x4_t _out0tm4_low  = vld1q_s32(output0_tm_4);
+                        int32x4_t _out0tm4_low = vld1q_s32(output0_tm_4);
                         int32x4_t _out0tm4_high = vld1q_s32(output0_tm_4 + 4);
-                        int32x4_t _out0tm5_low  = vld1q_s32(output0_tm_5);
+                        int32x4_t _out0tm5_low = vld1q_s32(output0_tm_5);
                         int32x4_t _out0tm5_high = vld1q_s32(output0_tm_5 + 4);
 
-                        int32x4_t _tmp02a_low  = vaddq_s32(_out0tm1_low , _out0tm2_low );
+                        int32x4_t _tmp02a_low = vaddq_s32(_out0tm1_low, _out0tm2_low);
                         int32x4_t _tmp02a_high = vaddq_s32(_out0tm1_high, _out0tm2_high);
-                        int32x4_t _tmp13a_low  = vsubq_s32(_out0tm1_low , _out0tm2_low );
+                        int32x4_t _tmp13a_low = vsubq_s32(_out0tm1_low, _out0tm2_low);
                         int32x4_t _tmp13a_high = vsubq_s32(_out0tm1_high, _out0tm2_high);
 
-                        int32x4_t _tmp02b_low  = vaddq_s32(_out0tm3_low , _out0tm4_low );
+                        int32x4_t _tmp02b_low = vaddq_s32(_out0tm3_low, _out0tm4_low);
                         int32x4_t _tmp02b_high = vaddq_s32(_out0tm3_high, _out0tm4_high);
-                        int32x4_t _tmp13b_low  = vsubq_s32(_out0tm3_low , _out0tm4_low );
+                        int32x4_t _tmp13b_low = vsubq_s32(_out0tm3_low, _out0tm4_low);
                         int32x4_t _tmp13b_high = vsubq_s32(_out0tm3_high, _out0tm4_high);
 
                         int32x4_t _v2 = vdupq_n_s32(2);
                         int32x4_t _v4 = vdupq_n_s32(4);
                         int32x4_t _v8 = vdupq_n_s32(8);
 
-                        int32x4_t _tmp0m_low  = vaddq_s32(vaddq_s32(_out0tm0_low , _tmp02a_low ), _tmp02b_low );
+                        int32x4_t _tmp0m_low = vaddq_s32(vaddq_s32(_out0tm0_low, _tmp02a_low), _tmp02b_low);
                         int32x4_t _tmp0m_high = vaddq_s32(vaddq_s32(_out0tm0_high, _tmp02a_high), _tmp02b_high);
-                        int32x4_t _tmp1m_low  = vmlaq_s32(_tmp13a_low , _tmp13b_low , _v2);
+                        int32x4_t _tmp1m_low = vmlaq_s32(_tmp13a_low, _tmp13b_low, _v2);
                         int32x4_t _tmp1m_high = vmlaq_s32(_tmp13a_high, _tmp13b_high, _v2);
-                        int32x4_t _tmp2m_low  = vmlaq_s32(_tmp02a_low , _tmp02b_low , _v4);
+                        int32x4_t _tmp2m_low = vmlaq_s32(_tmp02a_low, _tmp02b_low, _v4);
                         int32x4_t _tmp2m_high = vmlaq_s32(_tmp02a_high, _tmp02b_high, _v4);
-                        int32x4_t _tmp3m_low  = vmlaq_s32(vmlaq_s32(_tmp13a_low , _out0tm5_low , _v4), _tmp13b_low , _v8);
+                        int32x4_t _tmp3m_low = vmlaq_s32(vmlaq_s32(_tmp13a_low, _out0tm5_low, _v4), _tmp13b_low, _v8);
                         int32x4_t _tmp3m_high = vmlaq_s32(vmlaq_s32(_tmp13a_high, _out0tm5_high, _v4), _tmp13b_high, _v8);
 
-                        vst1q_s32(tmp[0][m], _tmp0m_low );
+                        vst1q_s32(tmp[0][m], _tmp0m_low);
                         vst1q_s32(tmp[0][m] + 4, _tmp0m_high);
-                        vst1q_s32(tmp[1][m], _tmp1m_low );
+                        vst1q_s32(tmp[1][m], _tmp1m_low);
                         vst1q_s32(tmp[1][m] + 4, _tmp1m_high);
-                        vst1q_s32(tmp[2][m], _tmp2m_low );
+                        vst1q_s32(tmp[2][m], _tmp2m_low);
                         vst1q_s32(tmp[2][m] + 4, _tmp2m_high);
-                        vst1q_s32(tmp[3][m], _tmp3m_low );
+                        vst1q_s32(tmp[3][m], _tmp3m_low);
                         vst1q_s32(tmp[3][m] + 4, _tmp3m_high);
 
                         output0_tm_0 += tiles * 48;
@@ -1153,58 +1153,58 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                     }
                     for (int m = 5; m < 6; m++)
                     {
-                        int32x4_t _out0tm0_low  = vld1q_s32(output0_tm_0);
+                        int32x4_t _out0tm0_low = vld1q_s32(output0_tm_0);
                         int32x4_t _out0tm0_high = vld1q_s32(output0_tm_0 + 4);
-                        int32x4_t _out0tm1_low  = vld1q_s32(output0_tm_1);
+                        int32x4_t _out0tm1_low = vld1q_s32(output0_tm_1);
                         int32x4_t _out0tm1_high = vld1q_s32(output0_tm_1 + 4);
-                        int32x4_t _out0tm2_low  = vld1q_s32(output0_tm_2);
+                        int32x4_t _out0tm2_low = vld1q_s32(output0_tm_2);
                         int32x4_t _out0tm2_high = vld1q_s32(output0_tm_2 + 4);
-                        int32x4_t _out0tm3_low  = vld1q_s32(output0_tm_3);
+                        int32x4_t _out0tm3_low = vld1q_s32(output0_tm_3);
                         int32x4_t _out0tm3_high = vld1q_s32(output0_tm_3 + 4);
-                        int32x4_t _out0tm4_low  = vld1q_s32(output0_tm_4);
+                        int32x4_t _out0tm4_low = vld1q_s32(output0_tm_4);
                         int32x4_t _out0tm4_high = vld1q_s32(output0_tm_4 + 4);
-                        int32x4_t _out0tm5_low  = vld1q_s32(output0_tm_5);
+                        int32x4_t _out0tm5_low = vld1q_s32(output0_tm_5);
                         int32x4_t _out0tm5_high = vld1q_s32(output0_tm_5 + 4);
 
-                        int32x4_t _tmp02a_low  = vaddq_s32(_out0tm1_low , _out0tm2_low );
+                        int32x4_t _tmp02a_low = vaddq_s32(_out0tm1_low, _out0tm2_low);
                         int32x4_t _tmp02a_high = vaddq_s32(_out0tm1_high, _out0tm2_high);
-                        int32x4_t _tmp13a_low  = vsubq_s32(_out0tm1_low , _out0tm2_low );
+                        int32x4_t _tmp13a_low = vsubq_s32(_out0tm1_low, _out0tm2_low);
                         int32x4_t _tmp13a_high = vsubq_s32(_out0tm1_high, _out0tm2_high);
 
-                        int32x4_t _tmp02b_low  = vaddq_s32(_out0tm3_low , _out0tm4_low );
+                        int32x4_t _tmp02b_low = vaddq_s32(_out0tm3_low, _out0tm4_low);
                         int32x4_t _tmp02b_high = vaddq_s32(_out0tm3_high, _out0tm4_high);
-                        int32x4_t _tmp13b_low  = vsubq_s32(_out0tm3_low , _out0tm4_low );
+                        int32x4_t _tmp13b_low = vsubq_s32(_out0tm3_low, _out0tm4_low);
                         int32x4_t _tmp13b_high = vsubq_s32(_out0tm3_high, _out0tm4_high);
 
                         int32x4_t _v2 = vdupq_n_s32(2);
                         int32x4_t _v4 = vdupq_n_s32(4);
                         int32x4_t _v8 = vdupq_n_s32(8);
 
-                        int32x4_t _tmp0m_low  = vaddq_s32(vaddq_s32(_out0tm0_low , _tmp02a_low ), _tmp02b_low );
+                        int32x4_t _tmp0m_low = vaddq_s32(vaddq_s32(_out0tm0_low, _tmp02a_low), _tmp02b_low);
                         int32x4_t _tmp0m_high = vaddq_s32(vaddq_s32(_out0tm0_high, _tmp02a_high), _tmp02b_high);
-                        int32x4_t _tmp1m_low  = vmlaq_s32(_tmp13a_low , _tmp13b_low , _v2);
+                        int32x4_t _tmp1m_low = vmlaq_s32(_tmp13a_low, _tmp13b_low, _v2);
                         int32x4_t _tmp1m_high = vmlaq_s32(_tmp13a_high, _tmp13b_high, _v2);
-                        int32x4_t _tmp2m_low  = vmlaq_s32(_tmp02a_low , _tmp02b_low , _v4);
+                        int32x4_t _tmp2m_low = vmlaq_s32(_tmp02a_low, _tmp02b_low, _v4);
                         int32x4_t _tmp2m_high = vmlaq_s32(_tmp02a_high, _tmp02b_high, _v4);
-                        int32x4_t _tmp3m_low  = vmlaq_s32(vmlaq_s32(_tmp13a_low , _out0tm5_low , _v4), _tmp13b_low , _v8);
+                        int32x4_t _tmp3m_low = vmlaq_s32(vmlaq_s32(_tmp13a_low, _out0tm5_low, _v4), _tmp13b_low, _v8);
                         int32x4_t _tmp3m_high = vmlaq_s32(vmlaq_s32(_tmp13a_high, _out0tm5_high, _v4), _tmp13b_high, _v8);
 
-                        _tmp0m_low  = vmulq_s32(_tmp0m_low , _v4);
+                        _tmp0m_low = vmulq_s32(_tmp0m_low, _v4);
                         _tmp0m_high = vmulq_s32(_tmp0m_high, _v4);
-                        _tmp1m_low  = vmulq_s32(_tmp1m_low , _v4);
+                        _tmp1m_low = vmulq_s32(_tmp1m_low, _v4);
                         _tmp1m_high = vmulq_s32(_tmp1m_high, _v4);
-                        _tmp2m_low  = vmulq_s32(_tmp2m_low , _v4);
+                        _tmp2m_low = vmulq_s32(_tmp2m_low, _v4);
                         _tmp2m_high = vmulq_s32(_tmp2m_high, _v4);
-                        _tmp3m_low  = vmulq_s32(_tmp3m_low , _v4);
+                        _tmp3m_low = vmulq_s32(_tmp3m_low, _v4);
                         _tmp3m_high = vmulq_s32(_tmp3m_high, _v4);
 
-                        vst1q_s32(tmp[0][m], _tmp0m_low );
+                        vst1q_s32(tmp[0][m], _tmp0m_low);
                         vst1q_s32(tmp[0][m] + 4, _tmp0m_high);
-                        vst1q_s32(tmp[1][m], _tmp1m_low );
+                        vst1q_s32(tmp[1][m], _tmp1m_low);
                         vst1q_s32(tmp[1][m] + 4, _tmp1m_high);
-                        vst1q_s32(tmp[2][m], _tmp2m_low );
+                        vst1q_s32(tmp[2][m], _tmp2m_low);
                         vst1q_s32(tmp[2][m] + 4, _tmp2m_high);
-                        vst1q_s32(tmp[3][m], _tmp3m_low );
+                        vst1q_s32(tmp[3][m], _tmp3m_low);
                         vst1q_s32(tmp[3][m] + 4, _tmp3m_high);
 
                         output0_tm_0 += tiles * 48;
@@ -1217,60 +1217,60 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
 
                     for (int m = 0; m < 4; m++)
                     {
-                        int32x4_t _tmp00_low  = vld1q_s32(tmp[m][0]);
+                        int32x4_t _tmp00_low = vld1q_s32(tmp[m][0]);
                         int32x4_t _tmp00_high = vld1q_s32(tmp[m][0] + 4);
-                        int32x4_t _tmp01_low  = vld1q_s32(tmp[m][1]);
+                        int32x4_t _tmp01_low = vld1q_s32(tmp[m][1]);
                         int32x4_t _tmp01_high = vld1q_s32(tmp[m][1] + 4);
-                        int32x4_t _tmp02_low  = vld1q_s32(tmp[m][2]);
+                        int32x4_t _tmp02_low = vld1q_s32(tmp[m][2]);
                         int32x4_t _tmp02_high = vld1q_s32(tmp[m][2] + 4);
-                        int32x4_t _tmp03_low  = vld1q_s32(tmp[m][3]);
+                        int32x4_t _tmp03_low = vld1q_s32(tmp[m][3]);
                         int32x4_t _tmp03_high = vld1q_s32(tmp[m][3] + 4);
-                        int32x4_t _tmp04_low  = vld1q_s32(tmp[m][4]);
+                        int32x4_t _tmp04_low = vld1q_s32(tmp[m][4]);
                         int32x4_t _tmp04_high = vld1q_s32(tmp[m][4] + 4);
-                        int32x4_t _tmp05_low  = vld1q_s32(tmp[m][5]);
+                        int32x4_t _tmp05_low = vld1q_s32(tmp[m][5]);
                         int32x4_t _tmp05_high = vld1q_s32(tmp[m][5] + 4);
 
-                        int32x4_t _tmp02a_low  = vaddq_s32(_tmp01_low , _tmp02_low );
+                        int32x4_t _tmp02a_low = vaddq_s32(_tmp01_low, _tmp02_low);
                         int32x4_t _tmp02a_high = vaddq_s32(_tmp01_high, _tmp02_high);
-                        int32x4_t _tmp13a_low  = vsubq_s32(_tmp01_low , _tmp02_low );
+                        int32x4_t _tmp13a_low = vsubq_s32(_tmp01_low, _tmp02_low);
                         int32x4_t _tmp13a_high = vsubq_s32(_tmp01_high, _tmp02_high);
 
-                        int32x4_t _tmp02b_low  = vaddq_s32(_tmp03_low , _tmp04_low );
+                        int32x4_t _tmp02b_low = vaddq_s32(_tmp03_low, _tmp04_low);
                         int32x4_t _tmp02b_high = vaddq_s32(_tmp03_high, _tmp04_high);
-                        int32x4_t _tmp13b_low  = vsubq_s32(_tmp03_low , _tmp04_low );
+                        int32x4_t _tmp13b_low = vsubq_s32(_tmp03_low, _tmp04_low);
                         int32x4_t _tmp13b_high = vsubq_s32(_tmp03_high, _tmp04_high);
 
                         int32x4_t _v2 = vdupq_n_s32(2);
                         int32x4_t _v4 = vdupq_n_s32(4);
                         int32x4_t _v8 = vdupq_n_s32(8);
 
-                        int32x4_t _out00_low  = vaddq_s32(vaddq_s32(_tmp00_low , _tmp02a_low ), _tmp02b_low );
+                        int32x4_t _out00_low = vaddq_s32(vaddq_s32(_tmp00_low, _tmp02a_low), _tmp02b_low);
                         int32x4_t _out00_high = vaddq_s32(vaddq_s32(_tmp00_high, _tmp02a_high), _tmp02b_high);
-                        int32x4_t _out01_low  = vmlaq_s32(_tmp13a_low , _tmp13b_low , _v2);
+                        int32x4_t _out01_low = vmlaq_s32(_tmp13a_low, _tmp13b_low, _v2);
                         int32x4_t _out01_high = vmlaq_s32(_tmp13a_high, _tmp13b_high, _v2);
-                        int32x4_t _out02_low  = vmlaq_s32(_tmp02a_low , _tmp02b_low , _v4);
+                        int32x4_t _out02_low = vmlaq_s32(_tmp02a_low, _tmp02b_low, _v4);
                         int32x4_t _out02_high = vmlaq_s32(_tmp02a_high, _tmp02b_high, _v4);
-                        int32x4_t _out03_low  = vmlaq_s32(vaddq_s32(_tmp05_low , _tmp13a_low ), _tmp13b_low , _v8);
+                        int32x4_t _out03_low = vmlaq_s32(vaddq_s32(_tmp05_low, _tmp13a_low), _tmp13b_low, _v8);
                         int32x4_t _out03_high = vmlaq_s32(vaddq_s32(_tmp05_high, _tmp13a_high), _tmp13b_high, _v8);
 
                         // TODO use integer trick for division by 576
                         float32x4_t _v576 = vdupq_n_f32(1.0 / 576);
-                        _out00_low  = vcvtq_s32_f32(vmulq_f32(vcvtq_f32_s32(_out00_low ), _v576));
+                        _out00_low = vcvtq_s32_f32(vmulq_f32(vcvtq_f32_s32(_out00_low), _v576));
                         _out00_high = vcvtq_s32_f32(vmulq_f32(vcvtq_f32_s32(_out00_high), _v576));
-                        _out01_low  = vcvtq_s32_f32(vmulq_f32(vcvtq_f32_s32(_out01_low ), _v576));
+                        _out01_low = vcvtq_s32_f32(vmulq_f32(vcvtq_f32_s32(_out01_low), _v576));
                         _out01_high = vcvtq_s32_f32(vmulq_f32(vcvtq_f32_s32(_out01_high), _v576));
-                        _out02_low  = vcvtq_s32_f32(vmulq_f32(vcvtq_f32_s32(_out02_low ), _v576));
+                        _out02_low = vcvtq_s32_f32(vmulq_f32(vcvtq_f32_s32(_out02_low), _v576));
                         _out02_high = vcvtq_s32_f32(vmulq_f32(vcvtq_f32_s32(_out02_high), _v576));
-                        _out03_low  = vcvtq_s32_f32(vmulq_f32(vcvtq_f32_s32(_out03_low ), _v576));
+                        _out03_low = vcvtq_s32_f32(vmulq_f32(vcvtq_f32_s32(_out03_low), _v576));
                         _out03_high = vcvtq_s32_f32(vmulq_f32(vcvtq_f32_s32(_out03_high), _v576));
 
                         vst1q_s32(output0, _out00_low);
                         vst1q_s32(output0 + 4, _out00_high);
                         vst1q_s32(output0 + 8, _out01_low);
                         vst1q_s32(output0 + 12, _out01_high);
-                        vst1q_s32(output0 + 16, _out02_low );
+                        vst1q_s32(output0 + 16, _out02_low);
                         vst1q_s32(output0 + 20, _out02_high);
-                        vst1q_s32(output0 + 24, _out03_low );
+                        vst1q_s32(output0 + 24, _out03_low);
                         vst1q_s32(output0 + 28, _out03_high);
 
                         output0 += outw * 8;
