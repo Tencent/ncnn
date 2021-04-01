@@ -204,8 +204,8 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                         "vcvtr.s32.f32  s15, s15        \n"
 
                         "vqmovn.s32     d8, q0          \n"
-                        "vqmovn.s32     d9, q1          \n"
-                        "vqmovn.s32     d10, q2         \n"
+                        "vqmovn.s32     d10, q1         \n"
+                        "vqmovn.s32     d9, q2          \n"
                         "vqmovn.s32     d11, q3         \n"
                         "vqmovn.s16     d8, q4          \n"
                         "vqmovn.s16     d9, q5          \n"
