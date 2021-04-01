@@ -33,7 +33,7 @@ static inline float _mm_reduce_add_ps(__m128 x128)
     return _mm_cvtss_f32(x32);
 }
 
-static inline int64_t float2int8(const __m128& _v0, const __m128& _v1)
+static inline int64_t float2int8_sse(const __m128& _v0, const __m128& _v1)
 {
     float v0[4];
     float v1[4];
@@ -67,7 +67,7 @@ static inline int64_t float2int8(const __m128& _v0, const __m128& _v1)
     return v8[0];
 }
 
-static inline __m128i float2int8(const __m128& _v0, const __m128& _v1, const __m128& _v2, const __m128& _v3)
+static inline __m128i float2int8_sse(const __m128& _v0, const __m128& _v1, const __m128& _v2, const __m128& _v3)
 {
     float v0[4];
     float v1[4];
@@ -213,7 +213,7 @@ static inline float _mm256_reduce_add_ps(__m256 x)
     return _mm_cvtss_f32(x32);
 }
 
-static inline int64_t float2int8(const __m256& _v0)
+static inline int64_t float2int8_avx(const __m256& _v0)
 {
     __m256i _v0_i = _mm256_cvtps_epi32(_mm256_round_ps(_v0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
 
@@ -233,7 +233,7 @@ static inline int64_t float2int8(const __m256& _v0)
     return v8[0];
 }
 
-static inline __m128i float2int8(const __m256& _v0, const __m256& _v1)
+static inline __m128i float2int8_avx(const __m256& _v0, const __m256& _v1)
 {
     __m256i _v0_i = _mm256_cvtps_epi32(_mm256_round_ps(_v0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
     __m256i _v1_i = _mm256_cvtps_epi32(_mm256_round_ps(_v1, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
