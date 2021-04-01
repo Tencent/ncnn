@@ -63,7 +63,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
                     __m256 _v = _mm256_loadu_ps(ptr);
                     _v = _mm256_mul_ps(_v, _scale);
-                    *(int64_t*)outptr = float2int8(_v);
+                    *(int64_t*)outptr = float2int8_avx(_v);
                 }
             }
             else
@@ -77,7 +77,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     __m256 _v = _mm256_loadu_ps(ptr);
                     __m256 _scale = _mm256_loadu_ps((const float*)scale_data + i * 8);
                     _v = _mm256_mul_ps(_v, _scale);
-                    *(int64_t*)outptr = float2int8(_v);
+                    *(int64_t*)outptr = float2int8_avx(_v);
                 }
             }
         }
@@ -108,7 +108,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         __m256 _v1 = _mm256_loadu_ps(ptr + 8);
                         _v0 = _mm256_mul_ps(_v0, _scale);
                         _v1 = _mm256_mul_ps(_v1, _scale);
-                        __m128i _v = float2int8(_v0, _v1);
+                        __m128i _v = float2int8_avx(_v0, _v1);
                         _mm_storeu_si128((__m128i*)outptr, _v);
 
                         ptr += 16;
@@ -118,7 +118,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     {
                         __m256 _v = _mm256_loadu_ps(ptr);
                         _v = _mm256_mul_ps(_v, _scale);
-                        *(int64_t*)outptr = float2int8(_v);
+                        *(int64_t*)outptr = float2int8_avx(_v);
 
                         ptr += 8;
                         outptr += 8;
@@ -142,7 +142,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         __m256 _v1 = _mm256_loadu_ps(ptr + 8);
                         _v0 = _mm256_mul_ps(_v0, _scale);
                         _v1 = _mm256_mul_ps(_v1, _scale);
-                        __m128i _v = float2int8(_v0, _v1);
+                        __m128i _v = float2int8_avx(_v0, _v1);
                         _mm_storeu_si128((__m128i*)outptr, _v);
 
                         ptr += 16;
@@ -152,7 +152,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     {
                         __m256 _v = _mm256_loadu_ps(ptr);
                         _v = _mm256_mul_ps(_v, _scale);
-                        *(int64_t*)outptr = float2int8(_v);
+                        *(int64_t*)outptr = float2int8_avx(_v);
 
                         ptr += 8;
                         outptr += 8;
@@ -189,7 +189,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         __m256 _v1 = _mm256_loadu_ps(ptr + 8);
                         _v0 = _mm256_mul_ps(_v0, _scale);
                         _v1 = _mm256_mul_ps(_v1, _scale);
-                        __m128i _v = float2int8(_v0, _v1);
+                        __m128i _v = float2int8_avx(_v0, _v1);
                         _mm_storeu_si128((__m128i*)outptr, _v);
 
                         ptr += 16;
@@ -199,7 +199,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     {
                         __m256 _v = _mm256_loadu_ps(ptr);
                         _v = _mm256_mul_ps(_v, _scale);
-                        *(int64_t*)outptr = float2int8(_v);
+                        *(int64_t*)outptr = float2int8_avx(_v);
 
                         ptr += 8;
                         outptr += 8;
@@ -223,7 +223,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         __m256 _v1 = _mm256_loadu_ps(ptr + 8);
                         _v0 = _mm256_mul_ps(_v0, _scale);
                         _v1 = _mm256_mul_ps(_v1, _scale);
-                        __m128i _v = float2int8(_v0, _v1);
+                        __m128i _v = float2int8_avx(_v0, _v1);
                         _mm_storeu_si128((__m128i*)outptr, _v);
 
                         ptr += 16;
@@ -233,7 +233,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     {
                         __m256 _v = _mm256_loadu_ps(ptr);
                         _v = _mm256_mul_ps(_v, _scale);
-                        *(int64_t*)outptr = float2int8(_v);
+                        *(int64_t*)outptr = float2int8_avx(_v);
 
                         ptr += 8;
                         outptr += 8;
@@ -325,7 +325,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                             _v1 = _mm_mul_ps(_v1, _scale);
                             _v2 = _mm_mul_ps(_v2, _scale);
                             _v3 = _mm_mul_ps(_v3, _scale);
-                            __m128i _v = float2int8(_v0, _v1, _v2, _v3);
+                            __m128i _v = float2int8_sse(_v0, _v1, _v2, _v3);
                             _mm_storeu_si128((__m128i*)outptr, _v);
 
                             ptr0 += 8;
@@ -338,7 +338,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                             __m128 _vhigh = _mm_loadu_ps(ptr1);
                             _vlow = _mm_mul_ps(_vlow, _scale);
                             _vhigh = _mm_mul_ps(_vhigh, _scale);
-                            *(int64_t*)outptr = float2int8(_vlow, _vhigh);
+                            *(int64_t*)outptr = float2int8_sse(_vlow, _vhigh);
 
                             ptr0 += 4;
                             ptr1 += 4;
@@ -369,7 +369,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                             _v1 = _mm_mul_ps(_v1, _scale1);
                             _v2 = _mm_mul_ps(_v2, _scale0);
                             _v3 = _mm_mul_ps(_v3, _scale1);
-                            __m128i _v = float2int8(_v0, _v1, _v2, _v3);
+                            __m128i _v = float2int8_sse(_v0, _v1, _v2, _v3);
                             _mm_storeu_si128((__m128i*)outptr, _v);
 
                             ptr0 += 8;
@@ -382,7 +382,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                             __m128 _vhigh = _mm_loadu_ps(ptr1);
                             _vlow = _mm_mul_ps(_vlow, _scale0);
                             _vhigh = _mm_mul_ps(_vhigh, _scale1);
-                            *(int64_t*)outptr = float2int8(_vlow, _vhigh);
+                            *(int64_t*)outptr = float2int8_sse(_vlow, _vhigh);
 
                             ptr0 += 4;
                             ptr1 += 4;
@@ -492,7 +492,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                             _v1 = _mm_mul_ps(_v1, _scale);
                             _v2 = _mm_mul_ps(_v2, _scale);
                             _v3 = _mm_mul_ps(_v3, _scale);
-                            __m128i _v = float2int8(_v0, _v1, _v2, _v3);
+                            __m128i _v = float2int8_sse(_v0, _v1, _v2, _v3);
                             _mm_storeu_si128((__m128i*)outptr, _v);
 
                             ptr0 += 8;
@@ -505,7 +505,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                             __m128 _vhigh = _mm_loadu_ps(ptr1);
                             _vlow = _mm_mul_ps(_vlow, _scale);
                             _vhigh = _mm_mul_ps(_vhigh, _scale);
-                            *(int64_t*)outptr = float2int8(_vlow, _vhigh);
+                            *(int64_t*)outptr = float2int8_sse(_vlow, _vhigh);
 
                             ptr0 += 4;
                             ptr1 += 4;
@@ -536,7 +536,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                             _v1 = _mm_mul_ps(_v1, _scale1);
                             _v2 = _mm_mul_ps(_v2, _scale0);
                             _v3 = _mm_mul_ps(_v3, _scale1);
-                            __m128i _v = float2int8(_v0, _v1, _v2, _v3);
+                            __m128i _v = float2int8_sse(_v0, _v1, _v2, _v3);
                             _mm_storeu_si128((__m128i*)outptr, _v);
 
                             ptr0 += 8;
@@ -549,7 +549,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                             __m128 _vhigh = _mm_loadu_ps(ptr1);
                             _vlow = _mm_mul_ps(_vlow, _scale0);
                             _vhigh = _mm_mul_ps(_vhigh, _scale1);
-                            *(int64_t*)outptr = float2int8(_vlow, _vhigh);
+                            *(int64_t*)outptr = float2int8_sse(_vlow, _vhigh);
 
                             ptr0 += 4;
                             ptr1 += 4;
