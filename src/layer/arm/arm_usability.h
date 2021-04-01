@@ -33,8 +33,8 @@ static inline int8x8_t float2int8(float32x4_t _vlow, float32x4_t _vhigh)
     int32x4_t _vhigh32 = vcvtaq_s32_f32(_vhigh);
 #else
     // use vcvtr.s32.f32
-    int32x4_t _vlow32;
-    int32x4_t _vhigh32;
+    int32x4_t _vlow32 = int32x4_t();
+    int32x4_t _vhigh32 = int32x4_t();
     _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 0)), _vlow32, 0);
     _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 1)), _vlow32, 1);
     _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 2)), _vlow32, 2);
@@ -56,8 +56,8 @@ static inline int8x8_t float2int8relu(float32x4_t _vlow, float32x4_t _vhigh)
     int32x4_t _vhigh32 = vcvtaq_s32_f32(_vhigh);
 #else
     // use vcvtr.s32.f32
-    int32x4_t _vlow32;
-    int32x4_t _vhigh32;
+    int32x4_t _vlow32 = int32x4_t();
+    int32x4_t _vhigh32 = int32x4_t();
     _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 0)), _vlow32, 0);
     _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 1)), _vlow32, 1);
     _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 2)), _vlow32, 2);
