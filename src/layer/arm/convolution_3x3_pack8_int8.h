@@ -795,6 +795,7 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
 
                     int nn = inch; // inch always > 0
 
+#if __aarch64__
                     int32x4_t _sum0 = vdupq_n_s32(0);
                     int32x4_t _sum1 = vdupq_n_s32(0);
                     int32x4_t _sum2 = vdupq_n_s32(0);
@@ -812,13 +813,6 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                         int16x8_t _val3 = vld1q_s16(r0 + 24);
 
                         int16x8_t _w0 = vld1q_s16(k0);
-                        int16x8_t _w1 = vld1q_s16(k0 + 8);
-                        int16x8_t _w2 = vld1q_s16(k0 + 16);
-                        int16x8_t _w3 = vld1q_s16(k0 + 24);
-                        int16x8_t _w4 = vld1q_s16(k0 + 32);
-                        int16x8_t _w5 = vld1q_s16(k0 + 40);
-                        int16x8_t _w6 = vld1q_s16(k0 + 48);
-                        int16x8_t _w7 = vld1q_s16(k0 + 56);
 
                         _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w0), vget_low_s16(_val0), 0);
                         _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w0), vget_low_s16(_val0), 0);
@@ -829,6 +823,8 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                         _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_w0), vget_low_s16(_val3), 0);
                         _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_w0), vget_low_s16(_val3), 0);
 
+                        int16x8_t _w1 = vld1q_s16(k0 + 8);
+
                         _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w1), vget_low_s16(_val0), 1);
                         _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w1), vget_low_s16(_val0), 1);
                         _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_w1), vget_low_s16(_val1), 1);
@@ -837,6 +833,8 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                         _sum5 = vmlal_lane_s16(_sum5, vget_high_s16(_w1), vget_low_s16(_val2), 1);
                         _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_w1), vget_low_s16(_val3), 1);
                         _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_w1), vget_low_s16(_val3), 1);
+
+                        int16x8_t _w2 = vld1q_s16(k0 + 16);
 
                         _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w2), vget_low_s16(_val0), 2);
                         _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w2), vget_low_s16(_val0), 2);
@@ -847,6 +845,8 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                         _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_w2), vget_low_s16(_val3), 2);
                         _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_w2), vget_low_s16(_val3), 2);
 
+                        int16x8_t _w3 = vld1q_s16(k0 + 24);
+
                         _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w3), vget_low_s16(_val0), 3);
                         _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w3), vget_low_s16(_val0), 3);
                         _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_w3), vget_low_s16(_val1), 3);
@@ -855,6 +855,8 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                         _sum5 = vmlal_lane_s16(_sum5, vget_high_s16(_w3), vget_low_s16(_val2), 3);
                         _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_w3), vget_low_s16(_val3), 3);
                         _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_w3), vget_low_s16(_val3), 3);
+
+                        int16x8_t _w4 = vld1q_s16(k0 + 32);
 
                         _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w4), vget_high_s16(_val0), 0);
                         _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w4), vget_high_s16(_val0), 0);
@@ -865,6 +867,8 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                         _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_w4), vget_high_s16(_val3), 0);
                         _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_w4), vget_high_s16(_val3), 0);
 
+                        int16x8_t _w5 = vld1q_s16(k0 + 40);
+
                         _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w5), vget_high_s16(_val0), 1);
                         _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w5), vget_high_s16(_val0), 1);
                         _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_w5), vget_high_s16(_val1), 1);
@@ -874,6 +878,8 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                         _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_w5), vget_high_s16(_val3), 1);
                         _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_w5), vget_high_s16(_val3), 1);
 
+                        int16x8_t _w6 = vld1q_s16(k0 + 48);
+
                         _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w6), vget_high_s16(_val0), 2);
                         _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w6), vget_high_s16(_val0), 2);
                         _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_w6), vget_high_s16(_val1), 2);
@@ -882,6 +888,8 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                         _sum5 = vmlal_lane_s16(_sum5, vget_high_s16(_w6), vget_high_s16(_val2), 2);
                         _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_w6), vget_high_s16(_val3), 2);
                         _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_w6), vget_high_s16(_val3), 2);
+
+                        int16x8_t _w7 = vld1q_s16(k0 + 56);
 
                         _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w7), vget_high_s16(_val0), 3);
                         _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w7), vget_high_s16(_val0), 3);
@@ -905,6 +913,134 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                     vst1q_s32(output0_tm + 24, _sum6);
                     vst1q_s32(output0_tm + 28, _sum7);
                     output0_tm += 32;
+#else
+                    asm volatile(
+                        "veor       q8, q8              \n"
+                        "veor       q9, q9              \n"
+                        "veor       q10, q10            \n"
+                        "veor       q11, q11            \n"
+                        "veor       q12, q12            \n"
+                        "veor       q13, q13            \n"
+                        "veor       q14, q14            \n"
+                        "veor       q15, q15            \n"
+
+                        "0:                             \n"
+
+                        "pld        [%1, #256]          \n"
+                        "pld        [%1, #512]          \n"
+                        "vldm       %1!, {d0-d7}        \n"
+
+                        "pld        [%2, #256]          \n"
+                        "vld1.s16   {d8-d11}, [%2 :128]! \n"
+
+                        "vmlal.s16  q8, d8, d0[0]       \n"
+                        "vmlal.s16  q9, d9, d0[0]       \n"
+                        "vmlal.s16  q10, d8, d2[0]      \n"
+                        "vmlal.s16  q11, d9, d2[0]      \n"
+                        "vmlal.s16  q12, d8, d4[0]      \n"
+                        "vmlal.s16  q13, d9, d4[0]      \n"
+                        "vmlal.s16  q14, d8, d6[0]      \n"
+                        "vmlal.s16  q15, d9, d6[0]      \n"
+
+                        "pld        [%2, #128]          \n"
+                        "vld1.s16   {d8-d9}, [%2 :128]! \n"
+
+                        "vmlal.s16  q8, d10, d0[1]      \n"
+                        "vmlal.s16  q9, d11, d0[1]      \n"
+                        "vmlal.s16  q10, d10, d2[1]     \n"
+                        "vmlal.s16  q11, d11, d2[1]     \n"
+                        "vmlal.s16  q12, d10, d4[1]     \n"
+                        "vmlal.s16  q13, d11, d4[1]     \n"
+                        "vmlal.s16  q14, d10, d6[1]     \n"
+                        "vmlal.s16  q15, d11, d6[1]     \n"
+
+                        "pld        [%2, #128]          \n"
+                        "vld1.s16   {d10-d11}, [%2 :128]! \n"
+
+                        "vmlal.s16  q8, d8, d0[2]       \n"
+                        "vmlal.s16  q9, d9, d0[2]       \n"
+                        "vmlal.s16  q10, d8, d2[2]      \n"
+                        "vmlal.s16  q11, d9, d2[2]      \n"
+                        "vmlal.s16  q12, d8, d4[2]      \n"
+                        "vmlal.s16  q13, d9, d4[2]      \n"
+                        "vmlal.s16  q14, d8, d6[2]      \n"
+                        "vmlal.s16  q15, d9, d6[2]      \n"
+
+                        "pld        [%2, #128]          \n"
+                        "vld1.s16   {d8-d9}, [%2 :128]! \n"
+
+                        "vmlal.s16  q8, d10, d0[3]      \n"
+                        "vmlal.s16  q9, d11, d0[3]      \n"
+                        "vmlal.s16  q10, d10, d2[3]     \n"
+                        "vmlal.s16  q11, d11, d2[3]     \n"
+                        "vmlal.s16  q12, d10, d4[3]     \n"
+                        "vmlal.s16  q13, d11, d4[3]     \n"
+                        "vmlal.s16  q14, d10, d6[3]     \n"
+                        "vmlal.s16  q15, d11, d6[3]     \n"
+
+                        "pld        [%2, #128]          \n"
+                        "vld1.s16   {d10-d11}, [%2 :128]! \n"
+
+                        "vmlal.s16  q8, d8, d1[0]       \n"
+                        "vmlal.s16  q9, d9, d1[0]       \n"
+                        "vmlal.s16  q10, d8, d3[0]      \n"
+                        "vmlal.s16  q11, d9, d3[0]      \n"
+                        "vmlal.s16  q12, d8, d5[0]      \n"
+                        "vmlal.s16  q13, d9, d5[0]      \n"
+                        "vmlal.s16  q14, d8, d7[0]      \n"
+                        "vmlal.s16  q15, d9, d7[0]      \n"
+
+                        "pld        [%2, #128]          \n"
+                        "vld1.s16   {d8-d9}, [%2 :128]! \n"
+
+                        "vmlal.s16  q8, d10, d1[1]      \n"
+                        "vmlal.s16  q9, d11, d1[1]      \n"
+                        "vmlal.s16  q10, d10, d3[1]     \n"
+                        "vmlal.s16  q11, d11, d3[1]     \n"
+                        "vmlal.s16  q12, d10, d5[1]     \n"
+                        "vmlal.s16  q13, d11, d5[1]     \n"
+                        "vmlal.s16  q14, d10, d7[1]     \n"
+                        "vmlal.s16  q15, d11, d7[1]     \n"
+
+                        "pld        [%2, #128]          \n"
+                        "vld1.s16   {d10-d11}, [%2 :128]! \n"
+
+                        "vmlal.s16  q8, d8, d1[2]       \n"
+                        "vmlal.s16  q9, d9, d1[2]       \n"
+                        "vmlal.s16  q10, d8, d3[2]      \n"
+                        "vmlal.s16  q11, d9, d3[2]      \n"
+                        "vmlal.s16  q12, d8, d5[2]      \n"
+                        "vmlal.s16  q13, d9, d5[2]      \n"
+                        "vmlal.s16  q14, d8, d7[2]      \n"
+                        "vmlal.s16  q15, d9, d7[2]      \n"
+
+                        "subs       %3, %3, #1          \n"
+
+                        "vmlal.s16  q8, d10, d1[3]      \n"
+                        "vmlal.s16  q9, d11, d1[3]      \n"
+                        "vmlal.s16  q10, d10, d3[3]     \n"
+                        "vmlal.s16  q11, d11, d3[3]     \n"
+                        "vmlal.s16  q12, d10, d5[3]     \n"
+                        "vmlal.s16  q13, d11, d5[3]     \n"
+                        "vmlal.s16  q14, d10, d7[3]     \n"
+                        "vmlal.s16  q15, d11, d7[3]     \n"
+
+                        "bne        0b                  \n"
+                        "1:                             \n"
+
+                        "vstm       %0!, {d16-d23}      \n"
+                        "vstm       %0!, {d24-d31}      \n"
+
+                        : "=r"(output0_tm),
+                        "=r"(r0),
+                        "=r"(k0),
+                        "=r"(nn)
+                        : "0"(output0_tm),
+                        "1"(r0),
+                        "2"(k0),
+                        "3"(nn)
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
+#endif
                 }
                 for (; i + 1 < tiles; i += 2)
                 {
