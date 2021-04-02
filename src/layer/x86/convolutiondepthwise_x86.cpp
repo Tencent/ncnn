@@ -822,7 +822,7 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
                                 __m128 _scale_out1 = _mm_loadu_ps((const float*)top_blob_int8_scales + g * 8 + 4);
                                 _sumfp32_0 = _mm_mul_ps(_sumfp32_0, _scale_out0);
                                 _sumfp32_1 = _mm_mul_ps(_sumfp32_1, _scale_out1);
-                                int64_t _sum8 = float2int8(_sumfp32_0, _sumfp32_1);
+                                int64_t _sum8 = float2int8_sse(_sumfp32_0, _sumfp32_1);
 
                                 *(int64_t*)outptr_s8 = _sum8;
                                 outptr_s8 += 8;
