@@ -25,29 +25,79 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
     // permute
     Mat tmp;
 #if __aarch64__
+#if __ARM_FEATURE_DOTPROD
+    if (size >= 8)
+        tmp.create(8 * maxk, inch, size / 8 + (size % 8) / 4 + (size % 4) / 2 + size % 2, 8u, 8, opt.workspace_allocator);
+    else if (size >= 4)
+        tmp.create(4 * maxk, inch, size / 4 + (size % 4) / 2 + size % 2, 8u, 8, opt.workspace_allocator);
+    else if (size >= 2)
+        tmp.create(2 * maxk, inch, size / 2 + size % 2, 8u, 8, opt.workspace_allocator);
+    else
+        tmp.create(maxk, inch, size, 8u, 8, opt.workspace_allocator);
+#else  // __ARM_FEATURE_DOTPROD
     if (size >= 4)
         tmp.create(4 * maxk, inch, size / 4 + (size % 4) / 2 + size % 2, 8u, 8, opt.workspace_allocator);
     else if (size >= 2)
         tmp.create(2 * maxk, inch, size / 2 + size % 2, 8u, 8, opt.workspace_allocator);
     else
         tmp.create(maxk, inch, size, 8u, 8, opt.workspace_allocator);
-#else
+#endif // __ARM_FEATURE_DOTPROD
+#else  // __aarch64__
     if (size >= 2)
         tmp.create(2 * maxk, inch, size / 2 + size % 2, 8u, 8, opt.workspace_allocator);
     else
         tmp.create(maxk, inch, size, 8u, 8, opt.workspace_allocator);
-#endif
+#endif // __aarch64__
     {
 #if __aarch64__
+#if __ARM_FEATURE_DOTPROD
+        int remain_size_start = 0;
+        int nn_size = (size - remain_size_start) >> 3;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
+        {
+            int i = remain_size_start + ii * 8;
+
+            signed char* tmpptr = tmp.channel(i / 8);
+
+            for (int q = 0; q < inch; q++)
+            {
+                const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i * 8;
+
+                for (int k = 0; k < maxk; k++)
+                {
+                    asm volatile(
+                        "prfm   pldl1keep, [%0, #512]       \n"
+                        "ld1    {v0.16b, v1.16b, v2.16b, v3.16b}, [%0]      \n"
+                        "st1    {v0.16b, v1.16b, v2.16b, v3.16b}, [%1], #64 \n"
+                        : "=r"(img0),  // %0
+                        "=r"(tmpptr) // %1
+                        : "0"(img0),
+                        "1"(tmpptr)
+                        : "memory", "v0", "v1", "v2", "v3");
+                    img0 += size * 8;
+                }
+            }
+        }
+
+        remain_size_start += nn_size << 3;
+        nn_size = (size - remain_size_start) >> 2;
+#else  // __ARM_FEATURE_DOTPROD
         int remain_size_start = 0;
         int nn_size = (size - remain_size_start) >> 2;
+#endif // __ARM_FEATURE_DOTPROD
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 4;
 
+#if __ARM_FEATURE_DOTPROD
+            signed char* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+#else
             signed char* tmpptr = tmp.channel(i / 4);
+#endif
 
             for (int q = 0; q < inch; q++)
             {
@@ -57,13 +107,13 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
                 {
                     asm volatile(
                         "prfm   pldl1keep, [%0, #256]       \n"
-                        "ld1    {v0.8h, v1.8h}, [%0]        \n"
-                        "st1    {v0.8h, v1.8h}, [%1], #32   \n"
+                        "ld1    {v0.16b, v1.16b}, [%0]      \n"
+                        "st1    {v0.16b, v1.16b}, [%1], #32 \n"
                         : "=r"(img0),  // %0
                         "=r"(tmpptr) // %1
                         : "0"(img0),
                         "1"(tmpptr)
-                        : "memory", "v0", "v1", "v2", "v3");
+                        : "memory", "v0", "v1");
                     img0 += size * 8;
                 }
             }
@@ -82,7 +132,11 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
             int i = remain_size_start + ii * 2;
 
 #if __aarch64__
+#if __ARM_FEATURE_DOTPROD
+            signed char* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2);
+#else
             signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2);
+#endif
 #else
             signed char* tmpptr = tmp.channel(i / 2);
 #endif
@@ -125,7 +179,11 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
         for (int i = remain_size_start; i < size; i++)
         {
 #if __aarch64__
+#if __ARM_FEATURE_DOTPROD
+            signed char* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2 + i % 2);
+#else
             signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2 + i % 2);
+#endif
 #else
             signed char* tmpptr = tmp.channel(i / 2 + i % 2);
 #endif
@@ -170,13 +228,155 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
 
         int i = 0;
 #if __aarch64__
-        for (; i + 3 < size; i += 4)
+#if __ARM_FEATURE_DOTPROD
+        for (; i + 7 < size; i += 8)
         {
-            const signed char* tmpptr = tmp.channel(i / 4);
+            const signed char* tmpptr = tmp.channel(i / 8);
             const signed char* kptr0 = kernel.channel(p);
 
             int nn = inch * maxk; // inch always > 0
 
+            int32x4_t _sum01_0 = vdupq_n_s32(0);
+            int32x4_t _sum01_1 = vdupq_n_s32(0);
+            int32x4_t _sum01_2 = vdupq_n_s32(0);
+            int32x4_t _sum01_3 = vdupq_n_s32(0);
+            int32x4_t _sum23_0 = vdupq_n_s32(0);
+            int32x4_t _sum23_1 = vdupq_n_s32(0);
+            int32x4_t _sum23_2 = vdupq_n_s32(0);
+            int32x4_t _sum23_3 = vdupq_n_s32(0);
+            int32x4_t _sum45_0 = vdupq_n_s32(0);
+            int32x4_t _sum45_1 = vdupq_n_s32(0);
+            int32x4_t _sum45_2 = vdupq_n_s32(0);
+            int32x4_t _sum45_3 = vdupq_n_s32(0);
+            int32x4_t _sum67_0 = vdupq_n_s32(0);
+            int32x4_t _sum67_1 = vdupq_n_s32(0);
+            int32x4_t _sum67_2 = vdupq_n_s32(0);
+            int32x4_t _sum67_3 = vdupq_n_s32(0);
+
+            int j = 0;
+            for (; j < nn; j++)
+            {
+                int8x16_t _val0 = vld1q_s8(tmpptr);
+                int8x16_t _val1 = vld1q_s8(tmpptr + 16);
+                int8x16_t _val2 = vld1q_s8(tmpptr + 32);
+                int8x16_t _val3 = vld1q_s8(tmpptr + 48);
+
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                int8x16_t _w0 = vcombine_s8(vget_low_s8(_w01), vget_low_s8(_w01));
+                int8x16_t _w1 = vcombine_s8(vget_high_s8(_w01), vget_high_s8(_w01));
+                int8x16_t _w2 = vcombine_s8(vget_low_s8(_w23), vget_low_s8(_w23));
+                int8x16_t _w3 = vcombine_s8(vget_high_s8(_w23), vget_high_s8(_w23));
+
+                _sum01_0 = vdotq_s32(_sum01_0, _val0, _w0);
+                _sum01_1 = vdotq_s32(_sum01_1, _val0, _w1);
+                _sum01_2 = vdotq_s32(_sum01_2, _val0, _w2);
+                _sum01_3 = vdotq_s32(_sum01_3, _val0, _w3);
+                _sum23_0 = vdotq_s32(_sum23_0, _val1, _w0);
+                _sum23_1 = vdotq_s32(_sum23_1, _val1, _w1);
+                _sum23_2 = vdotq_s32(_sum23_2, _val1, _w2);
+                _sum23_3 = vdotq_s32(_sum23_3, _val1, _w3);
+                _sum45_0 = vdotq_s32(_sum45_0, _val2, _w0);
+                _sum45_1 = vdotq_s32(_sum45_1, _val2, _w1);
+                _sum45_2 = vdotq_s32(_sum45_2, _val2, _w2);
+                _sum45_3 = vdotq_s32(_sum45_3, _val2, _w3);
+                _sum67_0 = vdotq_s32(_sum67_0, _val3, _w0);
+                _sum67_1 = vdotq_s32(_sum67_1, _val3, _w1);
+                _sum67_2 = vdotq_s32(_sum67_2, _val3, _w2);
+                _sum67_3 = vdotq_s32(_sum67_3, _val3, _w3);
+
+                tmpptr += 64;
+                kptr0 += 32;
+            }
+
+            int32x4_t _s01_01 = vpaddq_s32(_sum01_0, _sum01_1);
+            int32x4_t _s01_23 = vpaddq_s32(_sum01_2, _sum01_3);
+            int32x4_t _s23_01 = vpaddq_s32(_sum23_0, _sum23_1);
+            int32x4_t _s23_23 = vpaddq_s32(_sum23_2, _sum23_3);
+            int32x4_t _s45_01 = vpaddq_s32(_sum45_0, _sum45_1);
+            int32x4_t _s45_23 = vpaddq_s32(_sum45_2, _sum45_3);
+            int32x4_t _s67_01 = vpaddq_s32(_sum67_0, _sum67_1);
+            int32x4_t _s67_23 = vpaddq_s32(_sum67_2, _sum67_3);
+
+            int32x4x2_t _sum01 = vuzpq_s32(_s01_01, _s01_23);
+            int32x4x2_t _sum23 = vuzpq_s32(_s23_01, _s23_23);
+            int32x4x2_t _sum45 = vuzpq_s32(_s45_01, _s45_23);
+            int32x4x2_t _sum67 = vuzpq_s32(_s67_01, _s67_23);
+
+            vst1q_s32(outptr0, _sum01.val[0]);
+            vst1q_s32(outptr0 + 4, _sum01.val[1]);
+            vst1q_s32(outptr0 + 8, _sum23.val[0]);
+            vst1q_s32(outptr0 + 12, _sum23.val[1]);
+            vst1q_s32(outptr0 + 16, _sum45.val[0]);
+            vst1q_s32(outptr0 + 20, _sum45.val[1]);
+            vst1q_s32(outptr0 + 24, _sum67.val[0]);
+            vst1q_s32(outptr0 + 28, _sum67.val[1]);
+            outptr0 += 32;
+        }
+#endif
+        for (; i + 3 < size; i += 4)
+        {
+#if __ARM_FEATURE_DOTPROD
+            const signed char* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+#else
+            const signed char* tmpptr = tmp.channel(i / 4);
+#endif
+            const signed char* kptr0 = kernel.channel(p);
+
+            int nn = inch * maxk; // inch always > 0
+
+#if __ARM_FEATURE_DOTPROD
+            int32x4_t _sum01_0 = vdupq_n_s32(0);
+            int32x4_t _sum01_1 = vdupq_n_s32(0);
+            int32x4_t _sum01_2 = vdupq_n_s32(0);
+            int32x4_t _sum01_3 = vdupq_n_s32(0);
+            int32x4_t _sum23_0 = vdupq_n_s32(0);
+            int32x4_t _sum23_1 = vdupq_n_s32(0);
+            int32x4_t _sum23_2 = vdupq_n_s32(0);
+            int32x4_t _sum23_3 = vdupq_n_s32(0);
+
+            int j = 0;
+            for (; j < nn; j++)
+            {
+                int8x16_t _val0 = vld1q_s8(tmpptr);
+                int8x16_t _val1 = vld1q_s8(tmpptr + 16);
+
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                int8x16_t _w0 = vcombine_s8(vget_low_s8(_w01), vget_low_s8(_w01));
+                int8x16_t _w1 = vcombine_s8(vget_high_s8(_w01), vget_high_s8(_w01));
+                int8x16_t _w2 = vcombine_s8(vget_low_s8(_w23), vget_low_s8(_w23));
+                int8x16_t _w3 = vcombine_s8(vget_high_s8(_w23), vget_high_s8(_w23));
+
+                _sum01_0 = vdotq_s32(_sum01_0, _val0, _w0);
+                _sum01_1 = vdotq_s32(_sum01_1, _val0, _w1);
+                _sum01_2 = vdotq_s32(_sum01_2, _val0, _w2);
+                _sum01_3 = vdotq_s32(_sum01_3, _val0, _w3);
+                _sum23_0 = vdotq_s32(_sum23_0, _val1, _w0);
+                _sum23_1 = vdotq_s32(_sum23_1, _val1, _w1);
+                _sum23_2 = vdotq_s32(_sum23_2, _val1, _w2);
+                _sum23_3 = vdotq_s32(_sum23_3, _val1, _w3);
+
+                tmpptr += 32;
+                kptr0 += 32;
+            }
+
+            int32x4_t _s01_01 = vpaddq_s32(_sum01_0, _sum01_1);
+            int32x4_t _s01_23 = vpaddq_s32(_sum01_2, _sum01_3);
+            int32x4_t _s23_01 = vpaddq_s32(_sum23_0, _sum23_1);
+            int32x4_t _s23_23 = vpaddq_s32(_sum23_2, _sum23_3);
+
+            int32x4x2_t _sum01 = vuzpq_s32(_s01_01, _s01_23);
+            int32x4x2_t _sum23 = vuzpq_s32(_s23_01, _s23_23);
+
+            vst1q_s32(outptr0, _sum01.val[0]);
+            vst1q_s32(outptr0 + 4, _sum01.val[1]);
+            vst1q_s32(outptr0 + 8, _sum23.val[0]);
+            vst1q_s32(outptr0 + 12, _sum23.val[1]);
+            outptr0 += 16;
+#else  // __ARM_FEATURE_DOTPROD
             asm volatile(
                 "eor    v0.16b, v0.16b, v0.16b      \n"
                 "eor    v1.16b, v1.16b, v1.16b      \n"
@@ -370,12 +570,17 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
                 "2"(tmpptr),
                 "3"(kptr0)
                 : "memory", "x4", "x5", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+#endif // __ARM_FEATURE_DOTPROD
         }
-#endif
+#endif // __aarch64__
         for (; i + 1 < size; i += 2)
         {
 #if __aarch64__
+#if __ARM_FEATURE_DOTPROD
+            const signed char* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2);
+#else
             const signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2);
+#endif
 #else
             const signed char* tmpptr = tmp.channel(i / 2);
 #endif
@@ -384,6 +589,43 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
             int nn = inch * maxk; // inch always > 0
 
 #if __aarch64__
+#if __ARM_FEATURE_DOTPROD
+            int32x4_t _sum01_0 = vdupq_n_s32(0);
+            int32x4_t _sum01_1 = vdupq_n_s32(0);
+            int32x4_t _sum01_2 = vdupq_n_s32(0);
+            int32x4_t _sum01_3 = vdupq_n_s32(0);
+
+            int j = 0;
+            for (; j < nn; j++)
+            {
+                int8x16_t _val = vld1q_s8(tmpptr);
+
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                int8x16_t _w0 = vcombine_s8(vget_low_s8(_w01), vget_low_s8(_w01));
+                int8x16_t _w1 = vcombine_s8(vget_high_s8(_w01), vget_high_s8(_w01));
+                int8x16_t _w2 = vcombine_s8(vget_low_s8(_w23), vget_low_s8(_w23));
+                int8x16_t _w3 = vcombine_s8(vget_high_s8(_w23), vget_high_s8(_w23));
+
+                _sum01_0 = vdotq_s32(_sum01_0, _val, _w0);
+                _sum01_1 = vdotq_s32(_sum01_1, _val, _w1);
+                _sum01_2 = vdotq_s32(_sum01_2, _val, _w2);
+                _sum01_3 = vdotq_s32(_sum01_3, _val, _w3);
+
+                tmpptr += 16;
+                kptr0 += 32;
+            }
+
+            int32x4_t _s01_01 = vpaddq_s32(_sum01_0, _sum01_1);
+            int32x4_t _s01_23 = vpaddq_s32(_sum01_2, _sum01_3);
+
+            int32x4x2_t _sum01 = vuzpq_s32(_s01_01, _s01_23);
+
+            vst1q_s32(outptr0, _sum01.val[0]);
+            vst1q_s32(outptr0 + 4, _sum01.val[1]);
+            outptr0 += 8;
+#else  // __ARM_FEATURE_DOTPROD
             int32x4_t _sum00 = vdupq_n_s32(0);
             int32x4_t _sum01 = vdupq_n_s32(0);
             int32x4_t _sum02 = vdupq_n_s32(0);
@@ -477,7 +719,8 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
             vst1q_s32(outptr0, _s00123);
             vst1q_s32(outptr0 + 4, _s10123);
             outptr0 += 8;
-#else
+#endif // __ARM_FEATURE_DOTPROD
+#else  // __aarch64__
             asm volatile(
                 "veor       q0, q0              \n"
                 "veor       q1, q1              \n"
@@ -610,12 +853,16 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
                 "2"(tmpptr),
                 "3"(kptr0)
                 : "memory", "r4", "r5", "r6", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
-#endif
+#endif // __aarch64__
         }
         for (; i < size; i++)
         {
 #if __aarch64__
+#if __ARM_FEATURE_DOTPROD
+            const signed char* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + (i % 4) / 2 + i % 2);
+#else
             const signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2 + i % 2);
+#endif
 #else
             const signed char* tmpptr = tmp.channel(i / 2 + i % 2);
 #endif
@@ -623,6 +870,32 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
 
             int nn = inch * maxk; // inch always > 0
 
+#if __ARM_FEATURE_DOTPROD
+            int32x4_t _sum01 = vdupq_n_s32(0);
+            int32x4_t _sum23 = vdupq_n_s32(0);
+
+            int j = 0;
+            for (; j < nn; j++)
+            {
+                int8x8_t _val = vld1_s8(tmpptr);
+
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                int8x16_t _valval = vcombine_s8(_val, _val);
+
+                _sum01 = vdotq_s32(_sum01, _valval, _w01);
+                _sum23 = vdotq_s32(_sum23, _valval, _w23);
+
+                tmpptr += 8;
+                kptr0 += 32;
+            }
+
+            int32x4_t _s0123 = vpaddq_s32(_sum01, _sum23);
+
+            vst1q_s32(outptr0, _s0123);
+            outptr0 += 4;
+#else // __ARM_FEATURE_DOTPROD
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -694,6 +967,7 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
 
             vst1q_s32(outptr0, _s0123);
             outptr0 += 4;
+#endif // __ARM_FEATURE_DOTPROD
         }
     }
 }
