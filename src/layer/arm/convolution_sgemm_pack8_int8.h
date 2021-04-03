@@ -931,11 +931,11 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
                 "mov        r6, #32             \n"
                 "pld        [%3, #384]          \n"
 
-                "vld1.s8    {d20-d21}, [%3], r6 \n" // _w01
+                "vld1.s8    {d20-d21}, [%3 :128], r6 \n" // _w01
 
-                "vld1.s8    {d16-d19}, [%2]!    \n" // _val0 _val1
+                "vld1.s8    {d16-d19}, [%2 :128]! \n" // _val0 _val1
 
-                "vld1.s8    {d22-d23}, [%3], r6 \n" // _w45
+                "vld1.s8    {d22-d23}, [%3 :128], r6 \n" // _w45
 
                 "0:                             \n"
 
@@ -945,14 +945,14 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
                 "pld        [%3, #384]          \n"
                 "vmull.s8   q14, d17, d20       \n"
                 "vmull.s8   q15, d17, d21       \n"
-                "vld1.s8    {d20-d21}, [r5], r6 \n" // _w23
+                "vld1.s8    {d20-d21}, [r5 :128], r6 \n" // _w23
 
                 "vmlal.s8   q12, d18, d22       \n"
                 "vmlal.s8   q13, d18, d23       \n"
                 "subs       r4, r4, #1          \n"
                 "vmlal.s8   q14, d19, d22       \n"
                 "vmlal.s8   q15, d19, d23       \n"
-                "vld1.s8    {d22-d23}, [r5], r6 \n" // _w67
+                "vld1.s8    {d22-d23}, [r5 :128], r6 \n" // _w67
 
                 "vpadal.s16 q0, q12             \n"
                 "vmull.s8   q12, d16, d20       \n"
@@ -962,19 +962,19 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
                 "vmull.s8   q14, d17, d20       \n"
                 "vpadal.s16 q5, q15             \n"
                 "vmull.s8   q15, d17, d21       \n"
-                "vld1.s8    {d16-d17}, [%2]!    \n" // _val0
+                "vld1.s8    {d16-d17}, [%2 :128]! \n" // _val0
 
                 "vmlal.s8   q12, d18, d22       \n"
-                "vld1.s8    {d20-d21}, [%3], r6 \n" // _w01
+                "vld1.s8    {d20-d21}, [%3 :128], r6 \n" // _w01
                 "vmlal.s8   q13, d18, d23       \n"
                 "pld        [r5, #128]          \n"
                 "vmlal.s8   q14, d19, d22       \n"
                 "pld        [r5, #384]          \n"
                 "vmlal.s8   q15, d19, d23       \n"
-                "vld1.s8    {d18-d19}, [%2]!    \n" // _val1
+                "vld1.s8    {d18-d19}, [%2 :128]! \n" // _val1
 
                 "vpadal.s16 q2, q12             \n"
-                "vld1.s8    {d22-d23}, [%3], r6 \n" // _w45
+                "vld1.s8    {d22-d23}, [%3 :128], r6 \n" // _w45
                 "vpadal.s16 q3, q13             \n"
                 "pld        [%2, #128]          \n"
                 "vpadal.s16 q6, q14             \n"
@@ -991,12 +991,12 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
                 "cmp        r4, #0              \n" // r4 > 0
                 "beq        2f                  \n"
 
-                "vld1.s8    {d16-d17}, [%2]!    \n" // _val
-                "vld1.s8    {d20-d21}, [%3]!    \n" // _w01
+                "vld1.s8    {d16-d17}, [%2 :128]! \n" // _val
+                "vld1.s8    {d20-d21}, [%3 :128]! \n" // _w01
 
                 "vmull.s8   q12, d16, d20       \n"
 
-                "vld1.s8    {d22-d23}, [%3]!    \n" // _w23
+                "vld1.s8    {d22-d23}, [%3 :128]! \n" // _w23
                 "vmull.s8   q13, d16, d21       \n"
                 "vmull.s8   q14, d17, d20       \n"
                 "vmull.s8   q15, d17, d21       \n"
