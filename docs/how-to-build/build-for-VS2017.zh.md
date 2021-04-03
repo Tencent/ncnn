@@ -43,3 +43,9 @@ ncnn 会安装在 build-vs2017/install 里头
 
 ncnn 转换工具在 build-vs2017/tools 里头
 
+## opencv支持
+https://github.com/opencv/opencv
+
+我下载到 C:/Users/shuiz/opencv 解压缩
+
+cmake 增加  -DOpenCV_DIR=C:/Users/shuiz/opencv/build/x64/vc14/lib
