@@ -275,7 +275,27 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     float32x4_t _scale0 = scale_data_size == 1 ? vdupq_n_f32(scale_data[0]) : vld1q_f32((const float*)scale_data + q * 8);
                     float32x4_t _scale1 = scale_data_size == 1 ? vdupq_n_f32(scale_data[0]) : vld1q_f32((const float*)scale_data + q * 8 + 4);
 
-                    for (int i = 0; i < size; i++)
+                    int i = 0;
+                    for (; i + 1 < size; i += 2)
+                    {
+                        float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+                        float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+                        float32x4_t _v2 = vcvtq_f32_s32(vld1q_s32(intptr + 8));
+                        float32x4_t _v3 = vcvtq_f32_s32(vld1q_s32(intptr + 12));
+                        _v0 = vmulq_f32(_v0, _scale0);
+                        _v1 = vmulq_f32(_v1, _scale1);
+                        _v2 = vmulq_f32(_v2, _scale0);
+                        _v3 = vmulq_f32(_v3, _scale1);
+                        vst1q_f32(ptr0, _v0);
+                        vst1q_f32(ptr0 + 4, _v2);
+                        vst1q_f32(ptr1, _v1);
+                        vst1q_f32(ptr1 + 4, _v3);
+
+                        intptr += 16;
+                        ptr0 += 8;
+                        ptr1 += 8;
+                    }
+                    for (; i < size; i++)
                     {
                         float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
                         float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
@@ -304,7 +324,34 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     float32x4_t _bias0 = bias_data_size == 1 ? vdupq_n_f32(bias_data[0]) : vld1q_f32((const float*)bias_data + q * 8);
                     float32x4_t _bias1 = bias_data_size == 1 ? vdupq_n_f32(bias_data[0]) : vld1q_f32((const float*)bias_data + q * 8 + 4);
 
-                    for (int i = 0; i < size; i++)
+                    int i = 0;
+                    for (; i + 1 < size; i += 2)
+                    {
+                        float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+                        float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+                        float32x4_t _v2 = vcvtq_f32_s32(vld1q_s32(intptr + 8));
+                        float32x4_t _v3 = vcvtq_f32_s32(vld1q_s32(intptr + 12));
+#if __aarch64__
+                        _v0 = vfmaq_f32(_bias0, _v0, _scale0);
+                        _v1 = vfmaq_f32(_bias1, _v1, _scale1);
+                        _v2 = vfmaq_f32(_bias0, _v2, _scale0);
+                        _v3 = vfmaq_f32(_bias1, _v3, _scale1);
+#else
+                        _v0 = vmlaq_f32(_bias0, _v0, _scale0);
+                        _v1 = vmlaq_f32(_bias1, _v1, _scale1);
+                        _v2 = vmlaq_f32(_bias0, _v2, _scale0);
+                        _v3 = vmlaq_f32(_bias1, _v3, _scale1);
+#endif
+                        vst1q_f32(ptr0, _v0);
+                        vst1q_f32(ptr0 + 4, _v2);
+                        vst1q_f32(ptr1, _v1);
+                        vst1q_f32(ptr1 + 4, _v3);
+
+                        intptr += 16;
+                        ptr0 += 8;
+                        ptr1 += 8;
+                    }
+                    for (; i < size; i++)
                     {
                         float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
                         float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
@@ -531,7 +578,20 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                     float32x4_t _scale = scale_data_size == 1 ? vdupq_n_f32(scale_data[0]) : vld1q_f32((const float*)scale_data + q * 4);
 
-                    for (int i = 0; i < size; i++)
+                    int i = 0;
+                    for (; i + 1 < size; i += 2)
+                    {
+                        float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+                        float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+                        _v0 = vmulq_f32(_v0, _scale);
+                        _v1 = vmulq_f32(_v1, _scale);
+                        vst1q_f32(ptr, _v0);
+                        vst1q_f32(ptr + 4, _v1);
+
+                        intptr += 8;
+                        ptr += 8;
+                    }
+                    for (; i < size; i++)
                     {
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
                         _v = vmulq_f32(_v, _scale);
@@ -553,7 +613,25 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     float32x4_t _scale = scale_data_size == 1 ? vdupq_n_f32(scale_data[0]) : vld1q_f32((const float*)scale_data + q * 4);
                     float32x4_t _bias = bias_data_size == 1 ? vdupq_n_f32(bias_data[0]) : vld1q_f32((const float*)bias_data + q * 4);
 
-                    for (int i = 0; i < size; i++)
+                    int i = 0;
+                    for (; i + 1 < size; i += 2)
+                    {
+                        float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+                        float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+#if __aarch64__
+                        _v0 = vfmaq_f32(_bias, _v0, _scale);
+                        _v1 = vfmaq_f32(_bias, _v1, _scale);
+#else
+                        _v0 = vmlaq_f32(_bias, _v0, _scale);
+                        _v1 = vmlaq_f32(_bias, _v1, _scale);
+#endif
+                        vst1q_f32(ptr, _v0);
+                        vst1q_f32(ptr + 4, _v1);
+
+                        intptr += 8;
+                        ptr += 8;
+                    }
+                    for (; i < size; i++)
                     {
                         float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
 #if __aarch64__
@@ -746,6 +824,18 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 int i = 0;
 #if __ARM_NEON
                 float32x4_t _scale = vdupq_n_f32(scale);
+                for (; i + 7 < size; i += 8)
+                {
+                    float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+                    float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+                    _v0 = vmulq_f32(_v0, _scale);
+                    _v1 = vmulq_f32(_v1, _scale);
+                    vst1q_f32(ptr, _v0);
+                    vst1q_f32(ptr + 4, _v1);
+
+                    intptr += 8;
+                    ptr += 8;
+                }
                 for (; i + 3 < size; i += 4)
                 {
                     float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
@@ -777,6 +867,23 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 #if __ARM_NEON
                 float32x4_t _scale = vdupq_n_f32(scale);
                 float32x4_t _bias = vdupq_n_f32(bias);
+                for (; i + 7 < size; i += 8)
+                {
+                    float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));
+                    float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr + 4));
+#if __aarch64__
+                    _v0 = vfmaq_f32(_bias, _v0, _scale);
+                    _v1 = vfmaq_f32(_bias, _v1, _scale);
+#else
+                    _v0 = vmlaq_f32(_bias, _v0, _scale);
+                    _v1 = vmlaq_f32(_bias, _v1, _scale);
+#endif
+                    vst1q_f32(ptr, _v0);
+                    vst1q_f32(ptr + 4, _v1);
+
+                    intptr += 8;
+                    ptr += 8;
+                }
                 for (; i + 3 < size; i += 4)
                 {
                     float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));

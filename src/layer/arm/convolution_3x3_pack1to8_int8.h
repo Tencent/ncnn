@@ -54,6 +54,84 @@ static void conv3x3s1_pack1to8_int8_neon(const Mat& bottom_blob, Mat& top_blob, 
             for (; i < outh; i++)
             {
                 int j = 0;
+                for (; j + 1 < outw; j += 2)
+                {
+                    int32x4_t _sum0 = vld1q_s32(outptr0);
+                    int32x4_t _sum1 = vld1q_s32(outptr0 + 4);
+                    int32x4_t _sum2 = vld1q_s32(outptr0 + 8);
+                    int32x4_t _sum3 = vld1q_s32(outptr0 + 12);
+
+                    int8x8_t _r00 = vld1_dup_s8(r0);
+                    int8x8_t _r01 = vld1_dup_s8(r0 + 1);
+                    int8x8_t _r02 = vld1_dup_s8(r0 + 2);
+                    int8x8_t _r03 = vld1_dup_s8(r0 + 3);
+
+                    int16x8_t _s0_00 = vmull_s8(_r00, _k00);
+                    int16x8_t _s1_00 = vmull_s8(_r01, _k00);
+                    int16x8_t _s0_01 = vmull_s8(_r01, _k01);
+                    int16x8_t _s1_01 = vmull_s8(_r02, _k01);
+
+                    int8x8_t _r10 = vld1_dup_s8(r1);
+                    int8x8_t _r11 = vld1_dup_s8(r1 + 1);
+                    int8x8_t _r12 = vld1_dup_s8(r1 + 2);
+                    int8x8_t _r13 = vld1_dup_s8(r1 + 3);
+
+                    _s0_00 = vmlal_s8(_s0_00, _r02, _k02);
+                    _s1_00 = vmlal_s8(_s1_00, _r03, _k02);
+                    _s0_01 = vmlal_s8(_s0_01, _r10, _k10);
+                    _s1_01 = vmlal_s8(_s1_01, _r11, _k10);
+
+                    _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0_00));
+                    _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0_00));
+                    _sum2 = vaddw_s16(_sum2, vget_low_s16(_s1_00));
+                    _sum3 = vaddw_s16(_sum3, vget_high_s16(_s1_00));
+                    _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0_01));
+                    _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0_01));
+                    _sum2 = vaddw_s16(_sum2, vget_low_s16(_s1_01));
+                    _sum3 = vaddw_s16(_sum3, vget_high_s16(_s1_01));
+
+                    int16x8_t _s0_11 = vmull_s8(_r11, _k11);
+                    int16x8_t _s1_11 = vmull_s8(_r12, _k11);
+                    int16x8_t _s0_12 = vmull_s8(_r12, _k12);
+                    int16x8_t _s1_12 = vmull_s8(_r13, _k12);
+
+                    int8x8_t _r20 = vld1_dup_s8(r2);
+                    int8x8_t _r21 = vld1_dup_s8(r2 + 1);
+                    int8x8_t _r22 = vld1_dup_s8(r2 + 2);
+                    int8x8_t _r23 = vld1_dup_s8(r2 + 3);
+
+                    _s0_11 = vmlal_s8(_s0_11, _r20, _k20);
+                    _s1_11 = vmlal_s8(_s1_11, _r21, _k20);
+                    _s0_12 = vmlal_s8(_s0_12, _r21, _k21);
+                    _s1_12 = vmlal_s8(_s1_12, _r22, _k21);
+
+                    _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0_11));
+                    _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0_11));
+                    _sum2 = vaddw_s16(_sum2, vget_low_s16(_s1_11));
+                    _sum3 = vaddw_s16(_sum3, vget_high_s16(_s1_11));
+                    _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0_12));
+                    _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0_12));
+                    _sum2 = vaddw_s16(_sum2, vget_low_s16(_s1_12));
+                    _sum3 = vaddw_s16(_sum3, vget_high_s16(_s1_12));
+
+                    int16x8_t _s0_22 = vmull_s8(_r22, _k22);
+                    int16x8_t _s1_22 = vmull_s8(_r23, _k22);
+
+                    _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0_22));
+                    _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0_22));
+                    _sum2 = vaddw_s16(_sum2, vget_low_s16(_s1_22));
+                    _sum3 = vaddw_s16(_sum3, vget_high_s16(_s1_22));
+
+                    vst1q_s32(outptr0, _sum0);
+                    vst1q_s32(outptr0 + 4, _sum1);
+                    vst1q_s32(outptr0 + 8, _sum2);
+                    vst1q_s32(outptr0 + 12, _sum3);
+
+                    r0 += 2;
+                    r1 += 2;
+                    r2 += 2;
+                    outptr0 += 16;
+                }
                 for (; j < outw; j++)
                 {
                     int8x8_t _r00 = vld1_dup_s8(r0);
@@ -156,6 +234,87 @@ static void conv3x3s2_pack1to8_int8_neon(const Mat& bottom_blob, Mat& top_blob, 
             for (; i < outh; i++)
             {
                 int j = 0;
+                for (; j + 1 < outw; j += 2)
+                {
+                    int32x4_t _sum0 = vld1q_s32(outptr0);
+                    int32x4_t _sum1 = vld1q_s32(outptr0 + 4);
+                    int32x4_t _sum2 = vld1q_s32(outptr0 + 8);
+                    int32x4_t _sum3 = vld1q_s32(outptr0 + 12);
+
+                    int8x8_t _r00 = vld1_dup_s8(r0);
+                    int8x8_t _r01 = vld1_dup_s8(r0 + 1);
+                    int8x8_t _r02 = vld1_dup_s8(r0 + 2);
+                    int8x8_t _r03 = vld1_dup_s8(r0 + 3);
+                    int8x8_t _r04 = vld1_dup_s8(r0 + 4);
+
+                    int16x8_t _s0_00 = vmull_s8(_r00, _k00);
+                    int16x8_t _s1_00 = vmull_s8(_r02, _k00);
+                    int16x8_t _s0_01 = vmull_s8(_r01, _k01);
+                    int16x8_t _s1_01 = vmull_s8(_r03, _k01);
+
+                    int8x8_t _r10 = vld1_dup_s8(r1);
+                    int8x8_t _r11 = vld1_dup_s8(r1 + 1);
+                    int8x8_t _r12 = vld1_dup_s8(r1 + 2);
+                    int8x8_t _r13 = vld1_dup_s8(r1 + 3);
+                    int8x8_t _r14 = vld1_dup_s8(r1 + 4);
+
+                    _s0_00 = vmlal_s8(_s0_00, _r02, _k02);
+                    _s1_00 = vmlal_s8(_s1_00, _r04, _k02);
+                    _s0_01 = vmlal_s8(_s0_01, _r10, _k10);
+                    _s1_01 = vmlal_s8(_s1_01, _r12, _k10);
+
+                    _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0_00));
+                    _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0_00));
+                    _sum2 = vaddw_s16(_sum2, vget_low_s16(_s1_00));
+                    _sum3 = vaddw_s16(_sum3, vget_high_s16(_s1_00));
+                    _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0_01));
+                    _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0_01));
+                    _sum2 = vaddw_s16(_sum2, vget_low_s16(_s1_01));
+                    _sum3 = vaddw_s16(_sum3, vget_high_s16(_s1_01));
+
+                    int16x8_t _s0_11 = vmull_s8(_r11, _k11);
+                    int16x8_t _s1_11 = vmull_s8(_r13, _k11);
+                    int16x8_t _s0_12 = vmull_s8(_r12, _k12);
+                    int16x8_t _s1_12 = vmull_s8(_r14, _k12);
+
+                    int8x8_t _r20 = vld1_dup_s8(r2);
+                    int8x8_t _r21 = vld1_dup_s8(r2 + 1);
+                    int8x8_t _r22 = vld1_dup_s8(r2 + 2);
+                    int8x8_t _r23 = vld1_dup_s8(r2 + 3);
+                    int8x8_t _r24 = vld1_dup_s8(r2 + 4);
+
+                    _s0_11 = vmlal_s8(_s0_11, _r20, _k20);
+                    _s1_11 = vmlal_s8(_s1_11, _r22, _k20);
+                    _s0_12 = vmlal_s8(_s0_12, _r21, _k21);
+                    _s1_12 = vmlal_s8(_s1_12, _r23, _k21);
+
+                    _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0_11));
+                    _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0_11));
+                    _sum2 = vaddw_s16(_sum2, vget_low_s16(_s1_11));
+                    _sum3 = vaddw_s16(_sum3, vget_high_s16(_s1_11));
+                    _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0_12));
+                    _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0_12));
+                    _sum2 = vaddw_s16(_sum2, vget_low_s16(_s1_12));
+                    _sum3 = vaddw_s16(_sum3, vget_high_s16(_s1_12));
+
+                    int16x8_t _s0_22 = vmull_s8(_r22, _k22);
+                    int16x8_t _s1_22 = vmull_s8(_r24, _k22);
+
+                    _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0_22));
+                    _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0_22));
+                    _sum2 = vaddw_s16(_sum2, vget_low_s16(_s1_22));
+                    _sum3 = vaddw_s16(_sum3, vget_high_s16(_s1_22));
+
+                    vst1q_s32(outptr0, _sum0);
+                    vst1q_s32(outptr0 + 4, _sum1);
+                    vst1q_s32(outptr0 + 8, _sum2);
+                    vst1q_s32(outptr0 + 12, _sum3);
+
+                    r0 += 4;
+                    r1 += 4;
+                    r2 += 4;
+                    outptr0 += 16;
+                }
                 for (; j < outw; j++)
                 {
                     int8x8_t _r00 = vld1_dup_s8(r0);
