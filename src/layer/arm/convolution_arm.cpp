@@ -75,6 +75,7 @@ namespace ncnn {
 #include "convolution_3x3_pack8_int8.h"
 #include "convolution_3x3_pack1to8_int8.h"
 #include "convolution_7x7_pack1to8_int8.h"
+#include "convolution_3x3_pack8to1_int8.h"
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "convolution_fp16s.h"
@@ -1855,6 +1856,14 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
             convolution_im2col_sgemm_transform_kernel_pack8_int8_neon(weight_data, weight_data_int8, num_input, num_output, kernel_w, kernel_h);
         }
     }
+
+    if (elempack == 8 && out_elempack == 1)
+    {
+        if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_winograd42_transform_kernel_pack8to1_int8_neon(weight_data, weight_data_int8, num_input, num_output);
+        }
+    }
 #endif // __ARM_NEON
 
     return 0;
@@ -2047,7 +2056,14 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         if (top_blob_int32.empty())
             return -100;
 
-        convolution_pack8to1_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data_int8, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_winograd42_pack8to1_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data_int8, opt);
+        }
+        else
+        {
+            convolution_pack8to1_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data_int8, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        }
 
         Mat scale_in_data(num_output);
         for (int p = 0; p < num_output; p++)

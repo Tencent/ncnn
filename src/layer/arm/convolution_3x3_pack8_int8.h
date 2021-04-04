@@ -449,7 +449,6 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                     r0 += bottom_blob_tm.cstep * 8;
                 }
             }
-
             for (; i < tiles; i++)
             {
                 //                 __fp16* tmpptr = tm2.row<__fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
