@@ -277,17 +277,25 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
         // permute
         //         bottom_blob_tm.create(tiles, 36, inch, elemsize, elempack, opt.workspace_allocator);
         Mat bottom_blob_tm2;
-        //         if (tiles >= 12)
-        //             bottom_blob_tm2.create(12 * inch, tiles / 12 + (tiles % 12) / 8 + (tiles % 12 % 8) / 4 + (tiles % 12 % 4) / 2 + tiles % 12 % 2, 36, 2u * elempack, elempack, opt.workspace_allocator);
-        //         else if (tiles >= 8)
-        //             bottom_blob_tm2.create(8 * inch, tiles / 8 + (tiles % 8) / 4 + (tiles % 4) / 2 + tiles % 2, 36, 2u * elempack, elempack, opt.workspace_allocator);
-        //         else
+#if __aarch64__
+        if (tiles >= 12)
+            bottom_blob_tm2.create(12 * inch, tiles / 12 + (tiles % 12) / 8 + (tiles % 12 % 8) / 4 + (tiles % 12 % 4) / 2 + tiles % 12 % 2, 36, 2u * elempack, elempack, opt.workspace_allocator);
+        else if (tiles >= 8)
+            bottom_blob_tm2.create(8 * inch, tiles / 8 + (tiles % 8) / 4 + (tiles % 4) / 2 + tiles % 2, 36, 2u * elempack, elempack, opt.workspace_allocator);
+        else if (tiles >= 4)
+            bottom_blob_tm2.create(4 * inch, tiles / 4 + (tiles % 4) / 2 + tiles % 2, 36, 2u * elempack, elempack, opt.workspace_allocator);
+        else if (tiles >= 2)
+            bottom_blob_tm2.create(2 * inch, tiles / 2 + tiles % 2, 36, 2u * elempack, elempack, opt.workspace_allocator);
+        else // if (tiles >= 1)
+            bottom_blob_tm2.create(1 * inch, tiles, 36, 2u * elempack, elempack, opt.workspace_allocator);
+#else
         if (tiles >= 4)
             bottom_blob_tm2.create(4 * inch, tiles / 4 + (tiles % 4) / 2 + tiles % 2, 36, 2u * elempack, elempack, opt.workspace_allocator);
         else if (tiles >= 2)
             bottom_blob_tm2.create(2 * inch, tiles / 2 + tiles % 2, 36, 2u * elempack, elempack, opt.workspace_allocator);
         else // if (tiles >= 1)
             bottom_blob_tm2.create(1 * inch, tiles, 36, 2u * elempack, elempack, opt.workspace_allocator);
+#endif
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int r = 0; r < 36; r++)
@@ -296,12 +304,12 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
 
             // tile
             int i = 0;
-#if 0
+#if __aarch64__
             for (; i + 11 < tiles; i += 12)
             {
-                __fp16* tm2p = tm2.row<__fp16>(i / 12);
+                short* tm2p = tm2.row<short>(i / 12);
 
-                const __fp16* r0 = bottom_blob_tm;
+                const short* r0 = bottom_blob_tm;
 
                 r0 += (r * tiles + i) * 8;
 
@@ -343,9 +351,9 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
             }
             for (; i + 7 < tiles; i += 8)
             {
-                __fp16* tmpptr = tm2.row<__fp16>(i / 12 + (i % 12) / 8);
+                short* tmpptr = tm2.row<short>(i / 12 + (i % 12) / 8);
 
-                const __fp16* r0 = bottom_blob_tm;
+                const short* r0 = bottom_blob_tm;
 
                 r0 += (r * tiles + i) * 8;
 
@@ -378,11 +386,14 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                     r0 += bottom_blob_tm.cstep * 8;
                 }
             }
-#endif
+#endif // __aarch64__
             for (; i + 3 < tiles; i += 4)
             {
-                //                 __fp16* tmpptr = tm2.row<__fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
+#if __aarch64__
+                short* tmpptr = tm2.row<short>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
+#else
                 short* tmpptr = tm2.row<short>(i / 4);
+#endif
 
                 const short* r0 = bottom_blob_tm;
 
@@ -416,8 +427,11 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
             }
             for (; i + 1 < tiles; i += 2)
             {
-                //                 __fp16* tmpptr = tm2.row<__fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
+#if __aarch64__
+                short* tmpptr = tm2.row<short>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
+#else
                 short* tmpptr = tm2.row<short>(i / 4 + (i % 4) / 2);
+#endif
 
                 const short* r0 = bottom_blob_tm;
 
@@ -451,8 +465,11 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
             }
             for (; i < tiles; i++)
             {
-                //                 __fp16* tmpptr = tm2.row<__fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
+#if __aarch64__
+                short* tmpptr = tm2.row<short>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
+#else
                 short* tmpptr = tm2.row<short>(i / 4 + (i % 4) / 2 + i % 2);
+#endif
 
                 const short* r0 = bottom_blob_tm;
 
@@ -503,15 +520,38 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                 const Mat bb2 = bottom_blob_tm2.channel(r);
 
                 int i = 0;
-#if 0
+#if __aarch64__
                 for (; i + 11 < tiles; i += 12)
                 {
-                    const __fp16* r0 = bb2.row<const __fp16>(i / 12);
-                    const __fp16* k0 = kernel0_tm.row<const __fp16>(r);
+                    const short* r0 = bb2.row<const short>(i / 12);
+                    const short* k0 = kernel0_tm.row<const short>(r);
 
                     int nn = inch; // inch always > 0
 
                     asm volatile(
+                        "ld1    {v0.8h, v1.8h}, [%2], #32   \n" // r01
+
+                        "eor    v8.16b, v8.16b, v8.16b      \n"
+                        "eor    v9.16b, v9.16b, v9.16b      \n"
+
+                        "ld1    {v4.8h, v5.8h}, [%3], #32   \n" // w01
+
+                        "eor    v10.16b, v10.16b, v10.16b   \n"
+                        "eor    v11.16b, v11.16b, v11.16b   \n"
+
+                        "prfm   pldl1keep, [%2, #256]       \n"
+
+                        "eor    v12.16b, v12.16b, v12.16b   \n"
+                        "eor    v13.16b, v13.16b, v13.16b   \n"
+
+                        "prfm   pldl1keep, [%3, #256]       \n"
+
+                        "eor    v14.16b, v14.16b, v14.16b   \n"
+                        "eor    v15.16b, v15.16b, v15.16b   \n"
+                        "eor    v16.16b, v16.16b, v16.16b   \n"
+                        "eor    v17.16b, v17.16b, v17.16b   \n"
+                        "eor    v18.16b, v18.16b, v18.16b   \n"
+                        "eor    v19.16b, v19.16b, v19.16b   \n"
                         "eor    v20.16b, v20.16b, v20.16b   \n"
                         "eor    v21.16b, v21.16b, v21.16b   \n"
                         "eor    v22.16b, v22.16b, v22.16b   \n"
@@ -527,132 +567,276 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
 
                         "0:                                 \n"
 
-                        "prfm   pldl1keep, [%2, #512]       \n"
-                        "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%2], #64 \n" // r0123
+                        "smlal  v8.4s, v4.4h, v0.h[0]       \n"
+                        "smlal2 v9.4s, v4.8h, v0.h[0]       \n"
+                        "smlal  v10.4s, v4.4h, v0.h[1]      \n"
+                        "smlal2 v11.4s, v4.8h, v0.h[1]      \n"
+                        "smlal  v12.4s, v4.4h, v0.h[2]      \n"
+                        "smlal2 v13.4s, v4.8h, v0.h[2]      \n"
+                        "smlal  v14.4s, v4.4h, v0.h[3]      \n"
+                        "smlal2 v15.4s, v4.8h, v0.h[3]      \n"
+                        "smlal  v16.4s, v4.4h, v0.h[4]      \n"
+                        "smlal2 v17.4s, v4.8h, v0.h[4]      \n"
+                        "smlal  v18.4s, v4.4h, v0.h[5]      \n"
+                        "smlal2 v19.4s, v4.8h, v0.h[5]      \n"
+                        "smlal  v20.4s, v4.4h, v0.h[6]      \n"
+                        "smlal2 v21.4s, v4.8h, v0.h[6]      \n"
+                        "smlal  v22.4s, v4.4h, v0.h[7]      \n"
+                        "smlal2 v23.4s, v4.8h, v0.h[7]      \n"
 
-                        "prfm   pldl1keep, [%3, #512]       \n"
-                        "ld1    {v12.8h, v13.8h, v14.8h, v15.8h}, [%3], #64 \n" // w0123
+                        "ld1    {v2.8h, v3.8h}, [%2], #32   \n" // r23
 
-                        "fmla   v20.8h, v12.8h, v0.h[0]     \n"
-                        "fmla   v21.8h, v12.8h, v0.h[1]     \n"
-                        "fmla   v22.8h, v12.8h, v0.h[2]     \n"
-                        "fmla   v23.8h, v12.8h, v0.h[3]     \n"
-                        "fmla   v24.8h, v12.8h, v0.h[4]     \n"
-                        "fmla   v25.8h, v12.8h, v0.h[5]     \n"
-                        "fmla   v26.8h, v12.8h, v0.h[6]     \n"
-                        "fmla   v27.8h, v12.8h, v0.h[7]     \n"
-                        "fmla   v28.8h, v12.8h, v1.h[0]     \n"
-                        "fmla   v29.8h, v12.8h, v1.h[1]     \n"
-                        "fmla   v30.8h, v12.8h, v1.h[2]     \n"
-                        "fmla   v31.8h, v12.8h, v1.h[3]     \n"
+                        "smlal  v24.4s, v4.4h, v1.h[0]      \n"
+                        "smlal2 v25.4s, v4.8h, v1.h[0]      \n"
+                        "smlal  v26.4s, v4.4h, v1.h[1]      \n"
+                        "smlal2 v27.4s, v4.8h, v1.h[1]      \n"
 
-                        "fmla   v20.8h, v13.8h, v1.h[4]     \n"
-                        "fmla   v21.8h, v13.8h, v1.h[5]     \n"
-                        "fmla   v22.8h, v13.8h, v1.h[6]     \n"
-                        "fmla   v23.8h, v13.8h, v1.h[7]     \n"
-                        "fmla   v24.8h, v13.8h, v2.h[0]     \n"
-                        "fmla   v25.8h, v13.8h, v2.h[1]     \n"
-                        "fmla   v26.8h, v13.8h, v2.h[2]     \n"
-                        "fmla   v27.8h, v13.8h, v2.h[3]     \n"
-                        "fmla   v28.8h, v13.8h, v2.h[4]     \n"
-                        "fmla   v29.8h, v13.8h, v2.h[5]     \n"
-                        "fmla   v30.8h, v13.8h, v2.h[6]     \n"
-                        "fmla   v31.8h, v13.8h, v2.h[7]     \n"
+                        "prfm   pldl1keep, [%2, #256]       \n"
 
-                        "prfm   pldl1keep, [%2, #512]       \n"
-                        "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%2], #64 \n" // r4567
+                        "smlal  v28.4s, v4.4h, v1.h[2]      \n"
+                        "smlal2 v29.4s, v4.8h, v1.h[2]      \n"
+                        "smlal  v30.4s, v4.4h, v1.h[3]      \n"
+                        "smlal2 v31.4s, v4.8h, v1.h[3]      \n"
 
-                        "fmla   v20.8h, v14.8h, v3.h[0]     \n"
-                        "fmla   v21.8h, v14.8h, v3.h[1]     \n"
-                        "fmla   v22.8h, v14.8h, v3.h[2]     \n"
-                        "fmla   v23.8h, v14.8h, v3.h[3]     \n"
-                        "fmla   v24.8h, v14.8h, v3.h[4]     \n"
-                        "fmla   v25.8h, v14.8h, v3.h[5]     \n"
-                        "fmla   v26.8h, v14.8h, v3.h[6]     \n"
-                        "fmla   v27.8h, v14.8h, v3.h[7]     \n"
-                        "fmla   v28.8h, v14.8h, v4.h[0]     \n"
-                        "fmla   v29.8h, v14.8h, v4.h[1]     \n"
-                        "fmla   v30.8h, v14.8h, v4.h[2]     \n"
-                        "fmla   v31.8h, v14.8h, v4.h[3]     \n"
+                        "ld1    {v6.8h, v7.8h}, [%3], #32   \n" // w23
 
-                        "prfm   pldl1keep, [%3, #512]       \n"
-                        "ld1    {v16.8h, v17.8h, v18.8h, v19.8h}, [%3], #64 \n" // w4567
+                        "smlal  v8.4s, v5.4h, v1.h[4]       \n"
+                        "smlal2 v9.4s, v5.8h, v1.h[4]       \n"
+                        "smlal  v10.4s, v5.4h, v1.h[5]      \n"
+                        "smlal2 v11.4s, v5.8h, v1.h[5]      \n"
 
-                        "fmla   v20.8h, v15.8h, v4.h[4]     \n"
-                        "fmla   v21.8h, v15.8h, v4.h[5]     \n"
-                        "fmla   v22.8h, v15.8h, v4.h[6]     \n"
-                        "fmla   v23.8h, v15.8h, v4.h[7]     \n"
-                        "fmla   v24.8h, v15.8h, v5.h[0]     \n"
-                        "fmla   v25.8h, v15.8h, v5.h[1]     \n"
-                        "fmla   v26.8h, v15.8h, v5.h[2]     \n"
-                        "fmla   v27.8h, v15.8h, v5.h[3]     \n"
-                        "fmla   v28.8h, v15.8h, v5.h[4]     \n"
-                        "fmla   v29.8h, v15.8h, v5.h[5]     \n"
-                        "fmla   v30.8h, v15.8h, v5.h[6]     \n"
-                        "fmla   v31.8h, v15.8h, v5.h[7]     \n"
+                        "prfm   pldl1keep, [%3, #256]       \n"
 
-                        "fmla   v20.8h, v16.8h, v6.h[0]     \n"
-                        "fmla   v21.8h, v16.8h, v6.h[1]     \n"
-                        "fmla   v22.8h, v16.8h, v6.h[2]     \n"
-                        "fmla   v23.8h, v16.8h, v6.h[3]     \n"
-                        "fmla   v24.8h, v16.8h, v6.h[4]     \n"
-                        "fmla   v25.8h, v16.8h, v6.h[5]     \n"
-                        "fmla   v26.8h, v16.8h, v6.h[6]     \n"
-                        "fmla   v27.8h, v16.8h, v6.h[7]     \n"
-                        "fmla   v28.8h, v16.8h, v7.h[0]     \n"
-                        "fmla   v29.8h, v16.8h, v7.h[1]     \n"
-                        "fmla   v30.8h, v16.8h, v7.h[2]     \n"
-                        "fmla   v31.8h, v16.8h, v7.h[3]     \n"
+                        "smlal  v12.4s, v5.4h, v1.h[6]      \n"
+                        "smlal2 v13.4s, v5.8h, v1.h[6]      \n"
+                        "smlal  v14.4s, v5.4h, v1.h[7]      \n"
+                        "smlal2 v15.4s, v5.8h, v1.h[7]      \n"
+                        "smlal  v16.4s, v5.4h, v2.h[0]      \n"
+                        "smlal2 v17.4s, v5.8h, v2.h[0]      \n"
+                        "smlal  v18.4s, v5.4h, v2.h[1]      \n"
+                        "smlal2 v19.4s, v5.8h, v2.h[1]      \n"
+                        "smlal  v20.4s, v5.4h, v2.h[2]      \n"
+                        "smlal2 v21.4s, v5.8h, v2.h[2]      \n"
+                        "smlal  v22.4s, v5.4h, v2.h[3]      \n"
+                        "smlal2 v23.4s, v5.8h, v2.h[3]      \n"
+                        "smlal  v24.4s, v5.4h, v2.h[4]      \n"
+                        "smlal2 v25.4s, v5.8h, v2.h[4]      \n"
+                        "smlal  v26.4s, v5.4h, v2.h[5]      \n"
+                        "smlal2 v27.4s, v5.8h, v2.h[5]      \n"
+                        "smlal  v28.4s, v5.4h, v2.h[6]      \n"
+                        "smlal2 v29.4s, v5.8h, v2.h[6]      \n"
+                        "smlal  v30.4s, v5.4h, v2.h[7]      \n"
+                        "smlal2 v31.4s, v5.8h, v2.h[7]      \n"
 
-                        "prfm   pldl1keep, [%2, #512]       \n"
-                        "ld1    {v8.8h, v9.8h, v10.8h, v11.8h}, [%2], #64 \n" // r891011
+                        "ld1    {v0.8h, v1.8h}, [%2], #32   \n" // r45
 
-                        "fmla   v20.8h, v17.8h, v7.h[4]     \n"
-                        "fmla   v21.8h, v17.8h, v7.h[5]     \n"
-                        "fmla   v22.8h, v17.8h, v7.h[6]     \n"
-                        "fmla   v23.8h, v17.8h, v7.h[7]     \n"
-                        "fmla   v24.8h, v17.8h, v8.h[0]     \n"
-                        "fmla   v25.8h, v17.8h, v8.h[1]     \n"
-                        "fmla   v26.8h, v17.8h, v8.h[2]     \n"
-                        "fmla   v27.8h, v17.8h, v8.h[3]     \n"
-                        "fmla   v28.8h, v17.8h, v8.h[4]     \n"
-                        "fmla   v29.8h, v17.8h, v8.h[5]     \n"
-                        "fmla   v30.8h, v17.8h, v8.h[6]     \n"
-                        "fmla   v31.8h, v17.8h, v8.h[7]     \n"
+                        "smlal  v8.4s, v6.4h, v3.h[0]       \n"
+                        "smlal2 v9.4s, v6.8h, v3.h[0]       \n"
+                        "smlal  v10.4s, v6.4h, v3.h[1]      \n"
+                        "smlal2 v11.4s, v6.8h, v3.h[1]      \n"
 
-                        "fmla   v20.8h, v18.8h, v9.h[0]     \n"
-                        "fmla   v21.8h, v18.8h, v9.h[1]     \n"
-                        "fmla   v22.8h, v18.8h, v9.h[2]     \n"
-                        "fmla   v23.8h, v18.8h, v9.h[3]     \n"
-                        "fmla   v24.8h, v18.8h, v9.h[4]     \n"
-                        "fmla   v25.8h, v18.8h, v9.h[5]     \n"
-                        "fmla   v26.8h, v18.8h, v9.h[6]     \n"
-                        "fmla   v27.8h, v18.8h, v9.h[7]     \n"
-                        "fmla   v28.8h, v18.8h, v10.h[0]    \n"
-                        "fmla   v29.8h, v18.8h, v10.h[1]    \n"
-                        "fmla   v30.8h, v18.8h, v10.h[2]    \n"
-                        "fmla   v31.8h, v18.8h, v10.h[3]    \n"
+                        "prfm   pldl1keep, [%2, #256]       \n"
+
+                        "smlal  v12.4s, v6.4h, v3.h[2]      \n"
+                        "smlal2 v13.4s, v6.8h, v3.h[2]      \n"
+                        "smlal  v14.4s, v6.4h, v3.h[3]      \n"
+                        "smlal2 v15.4s, v6.8h, v3.h[3]      \n"
+                        "smlal  v16.4s, v6.4h, v3.h[4]      \n"
+                        "smlal2 v17.4s, v6.8h, v3.h[4]      \n"
+                        "smlal  v18.4s, v6.4h, v3.h[5]      \n"
+                        "smlal2 v19.4s, v6.8h, v3.h[5]      \n"
+                        "smlal  v20.4s, v6.4h, v3.h[6]      \n"
+                        "smlal2 v21.4s, v6.8h, v3.h[6]      \n"
+                        "smlal  v22.4s, v6.4h, v3.h[7]      \n"
+                        "smlal2 v23.4s, v6.8h, v3.h[7]      \n"
+
+                        "smlal  v24.4s, v6.4h, v0.h[0]      \n"
+                        "smlal2 v25.4s, v6.8h, v0.h[0]      \n"
+                        "smlal  v26.4s, v6.4h, v0.h[1]      \n"
+                        "smlal2 v27.4s, v6.8h, v0.h[1]      \n"
+                        "smlal  v28.4s, v6.4h, v0.h[2]      \n"
+                        "smlal2 v29.4s, v6.8h, v0.h[2]      \n"
+                        "smlal  v30.4s, v6.4h, v0.h[3]      \n"
+                        "smlal2 v31.4s, v6.8h, v0.h[3]      \n"
+
+                        "ld1    {v4.8h, v5.8h}, [%3], #32   \n" // w45
+
+                        "smlal  v8.4s, v7.4h, v0.h[4]       \n"
+                        "smlal2 v9.4s, v7.8h, v0.h[4]       \n"
+                        "smlal  v10.4s, v7.4h, v0.h[5]      \n"
+                        "smlal2 v11.4s, v7.8h, v0.h[5]      \n"
+
+                        "prfm   pldl1keep, [%3, #256]       \n"
+
+                        "smlal  v12.4s, v7.4h, v0.h[6]      \n"
+                        "smlal2 v13.4s, v7.8h, v0.h[6]      \n"
+                        "smlal  v14.4s, v7.4h, v0.h[7]      \n"
+                        "smlal2 v15.4s, v7.8h, v0.h[7]      \n"
+
+                        "ld1    {v2.8h, v3.8h}, [%2], #32   \n" // r67
+
+                        "smlal  v16.4s, v7.4h, v1.h[0]      \n"
+                        "smlal2 v17.4s, v7.8h, v1.h[0]      \n"
+                        "smlal  v18.4s, v7.4h, v1.h[1]      \n"
+                        "smlal2 v19.4s, v7.8h, v1.h[1]      \n"
+
+                        "prfm   pldl1keep, [%2, #256]       \n"
+
+                        "smlal  v20.4s, v7.4h, v1.h[2]      \n"
+                        "smlal2 v21.4s, v7.8h, v1.h[2]      \n"
+                        "smlal  v22.4s, v7.4h, v1.h[3]      \n"
+                        "smlal2 v23.4s, v7.8h, v1.h[3]      \n"
+                        "smlal  v24.4s, v7.4h, v1.h[4]      \n"
+                        "smlal2 v25.4s, v7.8h, v1.h[4]      \n"
+                        "smlal  v26.4s, v7.4h, v1.h[5]      \n"
+                        "smlal2 v27.4s, v7.8h, v1.h[5]      \n"
+                        "smlal  v28.4s, v7.4h, v1.h[6]      \n"
+                        "smlal2 v29.4s, v7.8h, v1.h[6]      \n"
+                        "smlal  v30.4s, v7.4h, v1.h[7]      \n"
+                        "smlal2 v31.4s, v7.8h, v1.h[7]      \n"
+
+                        "smlal  v8.4s, v4.4h, v2.h[0]       \n"
+                        "smlal2 v9.4s, v4.8h, v2.h[0]       \n"
+                        "smlal  v10.4s, v4.4h, v2.h[1]      \n"
+                        "smlal2 v11.4s, v4.8h, v2.h[1]      \n"
+                        "smlal  v12.4s, v4.4h, v2.h[2]      \n"
+                        "smlal2 v13.4s, v4.8h, v2.h[2]      \n"
+                        "smlal  v14.4s, v4.4h, v2.h[3]      \n"
+                        "smlal2 v15.4s, v4.8h, v2.h[3]      \n"
+                        "smlal  v16.4s, v4.4h, v2.h[4]      \n"
+                        "smlal2 v17.4s, v4.8h, v2.h[4]      \n"
+                        "smlal  v18.4s, v4.4h, v2.h[5]      \n"
+                        "smlal2 v19.4s, v4.8h, v2.h[5]      \n"
+                        "smlal  v20.4s, v4.4h, v2.h[6]      \n"
+                        "smlal2 v21.4s, v4.8h, v2.h[6]      \n"
+                        "smlal  v22.4s, v4.4h, v2.h[7]      \n"
+                        "smlal2 v23.4s, v4.8h, v2.h[7]      \n"
+
+                        "ld1    {v0.8h, v1.8h}, [%2], #32   \n" // r89
+
+                        "smlal  v24.4s, v4.4h, v3.h[0]      \n"
+                        "smlal2 v25.4s, v4.8h, v3.h[0]      \n"
+                        "smlal  v26.4s, v4.4h, v3.h[1]      \n"
+                        "smlal2 v27.4s, v4.8h, v3.h[1]      \n"
+
+                        "prfm   pldl1keep, [%2, #256]       \n"
+
+                        "smlal  v28.4s, v4.4h, v3.h[2]      \n"
+                        "smlal2 v29.4s, v4.8h, v3.h[2]      \n"
+                        "smlal  v30.4s, v4.4h, v3.h[3]      \n"
+                        "smlal2 v31.4s, v4.8h, v3.h[3]      \n"
+
+                        "ld1    {v6.8h, v7.8h}, [%3], #32   \n" // w67
+
+                        "smlal  v8.4s, v5.4h, v3.h[4]       \n"
+                        "smlal2 v9.4s, v5.8h, v3.h[4]       \n"
+                        "smlal  v10.4s, v5.4h, v3.h[5]      \n"
+                        "smlal2 v11.4s, v5.8h, v3.h[5]      \n"
+
+                        "prfm   pldl1keep, [%3, #256]       \n"
+
+                        "smlal  v12.4s, v5.4h, v3.h[6]      \n"
+                        "smlal2 v13.4s, v5.8h, v3.h[6]      \n"
+                        "smlal  v14.4s, v5.4h, v3.h[7]      \n"
+                        "smlal2 v15.4s, v5.8h, v3.h[7]      \n"
+
+                        "smlal  v16.4s, v5.4h, v0.h[0]      \n"
+                        "smlal2 v17.4s, v5.8h, v0.h[0]      \n"
+                        "smlal  v18.4s, v5.4h, v0.h[1]      \n"
+                        "smlal2 v19.4s, v5.8h, v0.h[1]      \n"
+                        "smlal  v20.4s, v5.4h, v0.h[2]      \n"
+                        "smlal2 v21.4s, v5.8h, v0.h[2]      \n"
+                        "smlal  v22.4s, v5.4h, v0.h[3]      \n"
+                        "smlal2 v23.4s, v5.8h, v0.h[3]      \n"
+                        "smlal  v24.4s, v5.4h, v0.h[4]      \n"
+                        "smlal2 v25.4s, v5.8h, v0.h[4]      \n"
+                        "smlal  v26.4s, v5.4h, v0.h[5]      \n"
+                        "smlal2 v27.4s, v5.8h, v0.h[5]      \n"
+                        "smlal  v28.4s, v5.4h, v0.h[6]      \n"
+                        "smlal2 v29.4s, v5.8h, v0.h[6]      \n"
+                        "smlal  v30.4s, v5.4h, v0.h[7]      \n"
+                        "smlal2 v31.4s, v5.8h, v0.h[7]      \n"
+
+                        "ld1    {v2.8h, v3.8h}, [%2], #32   \n" // r1011
+
+                        "smlal  v8.4s, v6.4h, v1.h[0]       \n"
+                        "smlal2 v9.4s, v6.8h, v1.h[0]       \n"
+                        "smlal  v10.4s, v6.4h, v1.h[1]      \n"
+                        "smlal2 v11.4s, v6.8h, v1.h[1]      \n"
+
+                        "prfm   pldl1keep, [%2, #256]       \n"
+
+                        "smlal  v12.4s, v6.4h, v1.h[2]      \n"
+                        "smlal2 v13.4s, v6.8h, v1.h[2]      \n"
+                        "smlal  v14.4s, v6.4h, v1.h[3]      \n"
+                        "smlal2 v15.4s, v6.8h, v1.h[3]      \n"
+                        "smlal  v16.4s, v6.4h, v1.h[4]      \n"
+                        "smlal2 v17.4s, v6.8h, v1.h[4]      \n"
+                        "smlal  v18.4s, v6.4h, v1.h[5]      \n"
+                        "smlal2 v19.4s, v6.8h, v1.h[5]      \n"
+                        "smlal  v20.4s, v6.4h, v1.h[6]      \n"
+                        "smlal2 v21.4s, v6.8h, v1.h[6]      \n"
+                        "smlal  v22.4s, v6.4h, v1.h[7]      \n"
+                        "smlal2 v23.4s, v6.8h, v1.h[7]      \n"
+                        "smlal  v24.4s, v6.4h, v2.h[0]      \n"
+                        "smlal2 v25.4s, v6.8h, v2.h[0]      \n"
+                        "smlal  v26.4s, v6.4h, v2.h[1]      \n"
+                        "smlal2 v27.4s, v6.8h, v2.h[1]      \n"
+                        "smlal  v28.4s, v6.4h, v2.h[2]      \n"
+                        "smlal2 v29.4s, v6.8h, v2.h[2]      \n"
+                        "smlal  v30.4s, v6.4h, v2.h[3]      \n"
+                        "smlal2 v31.4s, v6.8h, v2.h[3]      \n"
+
+                        "ld1    {v4.8h, v5.8h}, [%3], #32   \n" // w01
+
+                        "smlal  v8.4s, v7.4h, v2.h[4]       \n"
+                        "smlal2 v9.4s, v7.8h, v2.h[4]       \n"
+                        "smlal  v10.4s, v7.4h, v2.h[5]      \n"
+                        "smlal2 v11.4s, v7.8h, v2.h[5]      \n"
+
+                        "prfm   pldl1keep, [%3, #256]       \n"
+
+                        "smlal  v12.4s, v7.4h, v2.h[6]      \n"
+                        "smlal2 v13.4s, v7.8h, v2.h[6]      \n"
+                        "smlal  v14.4s, v7.4h, v2.h[7]      \n"
+                        "smlal2 v15.4s, v7.8h, v2.h[7]      \n"
+
+                        "ld1    {v0.8h, v1.8h}, [%2], #32   \n" // r01
+
+                        "smlal  v16.4s, v7.4h, v3.h[0]      \n"
+                        "smlal2 v17.4s, v7.8h, v3.h[0]      \n"
+                        "smlal  v18.4s, v7.4h, v3.h[1]      \n"
+                        "smlal2 v19.4s, v7.8h, v3.h[1]      \n"
+
+                        "prfm   pldl1keep, [%2, #256]       \n"
+
+                        "smlal  v20.4s, v7.4h, v3.h[2]      \n"
+                        "smlal2 v21.4s, v7.8h, v3.h[2]      \n"
+                        "smlal  v22.4s, v7.4h, v3.h[3]      \n"
+                        "smlal2 v23.4s, v7.8h, v3.h[3]      \n"
+                        "smlal  v24.4s, v7.4h, v3.h[4]      \n"
+                        "smlal2 v25.4s, v7.8h, v3.h[4]      \n"
+                        "smlal  v26.4s, v7.4h, v3.h[5]      \n"
+                        "smlal2 v27.4s, v7.8h, v3.h[5]      \n"
 
                         "subs   %w0, %w0, #1                \n"
 
-                        "fmla   v20.8h, v19.8h, v10.h[4]    \n"
-                        "fmla   v21.8h, v19.8h, v10.h[5]    \n"
-                        "fmla   v22.8h, v19.8h, v10.h[6]    \n"
-                        "fmla   v23.8h, v19.8h, v10.h[7]    \n"
-                        "fmla   v24.8h, v19.8h, v11.h[0]    \n"
-                        "fmla   v25.8h, v19.8h, v11.h[1]    \n"
-                        "fmla   v26.8h, v19.8h, v11.h[2]    \n"
-                        "fmla   v27.8h, v19.8h, v11.h[3]    \n"
-                        "fmla   v28.8h, v19.8h, v11.h[4]    \n"
-                        "fmla   v29.8h, v19.8h, v11.h[5]    \n"
-                        "fmla   v30.8h, v19.8h, v11.h[6]    \n"
-                        "fmla   v31.8h, v19.8h, v11.h[7]    \n"
+                        "smlal  v28.4s, v7.4h, v3.h[6]      \n"
+                        "smlal2 v29.4s, v7.8h, v3.h[6]      \n"
+                        "smlal  v30.4s, v7.4h, v3.h[7]      \n"
+                        "smlal2 v31.4s, v7.8h, v3.h[7]      \n"
 
                         "bne    0b                          \n"
 
-                        "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%1], #64 \n"
-                        "st1    {v24.8h, v25.8h, v26.8h, v27.8h}, [%1], #64 \n"
-                        "st1    {v28.8h, v29.8h, v30.8h, v31.8h}, [%1], #64 \n"
+                        "sub    %2, %2, #32                 \n"
+                        "sub    %3, %3, #32                 \n"
+
+                        "st1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%1], #64 \n"
+                        "st1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%1], #64 \n"
+                        "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%1], #64 \n"
+                        "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%1], #64 \n"
+                        "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%1], #64 \n"
+                        "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%1], #64 \n"
 
                         : "=r"(nn),         // %0
                         "=r"(output0_tm), // %1
@@ -666,130 +850,221 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                 }
                 for (; i + 7 < tiles; i += 8)
                 {
-                    const __fp16* r0 = bb2.row<const __fp16>(i / 12 + (i % 12) / 8);
-                    const __fp16* k0 = kernel0_tm.row<const __fp16>(r);
+                    const short* r0 = bb2.row<const short>(i / 12 + (i % 12) / 8);
+                    const short* k0 = kernel0_tm.row<const short>(r);
 
                     int nn = inch; // inch always > 0
 
-                    asm volatile(
-                        "eor    v16.16b, v16.16b, v16.16b   \n"
-                        "eor    v17.16b, v17.16b, v17.16b   \n"
-                        "eor    v18.16b, v18.16b, v18.16b   \n"
-                        "eor    v19.16b, v19.16b, v19.16b   \n"
-                        "eor    v20.16b, v20.16b, v20.16b   \n"
-                        "eor    v21.16b, v21.16b, v21.16b   \n"
-                        "eor    v22.16b, v22.16b, v22.16b   \n"
-                        "eor    v23.16b, v23.16b, v23.16b   \n"
+                    int32x4_t _sum0 = vdupq_n_s32(0);
+                    int32x4_t _sum1 = vdupq_n_s32(0);
+                    int32x4_t _sum2 = vdupq_n_s32(0);
+                    int32x4_t _sum3 = vdupq_n_s32(0);
+                    int32x4_t _sum4 = vdupq_n_s32(0);
+                    int32x4_t _sum5 = vdupq_n_s32(0);
+                    int32x4_t _sum6 = vdupq_n_s32(0);
+                    int32x4_t _sum7 = vdupq_n_s32(0);
+                    int32x4_t _sum8 = vdupq_n_s32(0);
+                    int32x4_t _sum9 = vdupq_n_s32(0);
+                    int32x4_t _suma = vdupq_n_s32(0);
+                    int32x4_t _sumb = vdupq_n_s32(0);
+                    int32x4_t _sumc = vdupq_n_s32(0);
+                    int32x4_t _sumd = vdupq_n_s32(0);
+                    int32x4_t _sume = vdupq_n_s32(0);
+                    int32x4_t _sumf = vdupq_n_s32(0);
 
-                        "0:                                 \n"
+                    for (int j = 0; j < nn; j++)
+                    {
+                        int16x8_t _val0 = vld1q_s16(r0);
+                        int16x8_t _val1 = vld1q_s16(r0 + 8);
+                        int16x8_t _val2 = vld1q_s16(r0 + 16);
+                        int16x8_t _val3 = vld1q_s16(r0 + 24);
+                        int16x8_t _val4 = vld1q_s16(r0 + 32);
+                        int16x8_t _val5 = vld1q_s16(r0 + 40);
+                        int16x8_t _val6 = vld1q_s16(r0 + 48);
+                        int16x8_t _val7 = vld1q_s16(r0 + 56);
 
-                        "prfm   pldl1keep, [%2, #512]       \n"
-                        "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%2], #64 \n" // r0123
+                        int16x8_t _w0 = vld1q_s16(k0);
 
-                        "prfm   pldl1keep, [%3, #512]       \n"
-                        "ld1    {v8.8h, v9.8h, v10.8h, v11.8h}, [%3], #64 \n" // w0123
+                        _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w0), vget_low_s16(_val0), 0);
+                        _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w0), vget_low_s16(_val0), 0);
+                        _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_w0), vget_low_s16(_val0), 1);
+                        _sum3 = vmlal_lane_s16(_sum3, vget_high_s16(_w0), vget_low_s16(_val0), 1);
+                        _sum4 = vmlal_lane_s16(_sum4, vget_low_s16(_w0), vget_low_s16(_val0), 2);
+                        _sum5 = vmlal_lane_s16(_sum5, vget_high_s16(_w0), vget_low_s16(_val0), 2);
+                        _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_w0), vget_low_s16(_val0), 3);
+                        _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_w0), vget_low_s16(_val0), 3);
+                        _sum8 = vmlal_lane_s16(_sum8, vget_low_s16(_w0), vget_high_s16(_val0), 0);
+                        _sum9 = vmlal_lane_s16(_sum9, vget_high_s16(_w0), vget_high_s16(_val0), 0);
+                        _suma = vmlal_lane_s16(_suma, vget_low_s16(_w0), vget_high_s16(_val0), 1);
+                        _sumb = vmlal_lane_s16(_sumb, vget_high_s16(_w0), vget_high_s16(_val0), 1);
+                        _sumc = vmlal_lane_s16(_sumc, vget_low_s16(_w0), vget_high_s16(_val0), 2);
+                        _sumd = vmlal_lane_s16(_sumd, vget_high_s16(_w0), vget_high_s16(_val0), 2);
+                        _sume = vmlal_lane_s16(_sume, vget_low_s16(_w0), vget_high_s16(_val0), 3);
+                        _sumf = vmlal_lane_s16(_sumf, vget_high_s16(_w0), vget_high_s16(_val0), 3);
 
-                        "fmla   v16.8h, v8.8h, v0.h[0]      \n"
-                        "fmla   v17.8h, v8.8h, v0.h[1]      \n"
-                        "fmla   v18.8h, v8.8h, v0.h[2]      \n"
-                        "fmla   v19.8h, v8.8h, v0.h[3]      \n"
-                        "fmla   v20.8h, v8.8h, v0.h[4]      \n"
-                        "fmla   v21.8h, v8.8h, v0.h[5]      \n"
-                        "fmla   v22.8h, v8.8h, v0.h[6]      \n"
-                        "fmla   v23.8h, v8.8h, v0.h[7]      \n"
+                        int16x8_t _w1 = vld1q_s16(k0 + 8);
 
-                        "fmla   v16.8h, v9.8h, v1.h[0]      \n"
-                        "fmla   v17.8h, v9.8h, v1.h[1]      \n"
-                        "fmla   v18.8h, v9.8h, v1.h[2]      \n"
-                        "fmla   v19.8h, v9.8h, v1.h[3]      \n"
-                        "fmla   v20.8h, v9.8h, v1.h[4]      \n"
-                        "fmla   v21.8h, v9.8h, v1.h[5]      \n"
-                        "fmla   v22.8h, v9.8h, v1.h[6]      \n"
-                        "fmla   v23.8h, v9.8h, v1.h[7]      \n"
+                        _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w1), vget_low_s16(_val1), 0);
+                        _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w1), vget_low_s16(_val1), 0);
+                        _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_w1), vget_low_s16(_val1), 1);
+                        _sum3 = vmlal_lane_s16(_sum3, vget_high_s16(_w1), vget_low_s16(_val1), 1);
+                        _sum4 = vmlal_lane_s16(_sum4, vget_low_s16(_w1), vget_low_s16(_val1), 2);
+                        _sum5 = vmlal_lane_s16(_sum5, vget_high_s16(_w1), vget_low_s16(_val1), 2);
+                        _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_w1), vget_low_s16(_val1), 3);
+                        _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_w1), vget_low_s16(_val1), 3);
+                        _sum8 = vmlal_lane_s16(_sum8, vget_low_s16(_w1), vget_high_s16(_val1), 0);
+                        _sum9 = vmlal_lane_s16(_sum9, vget_high_s16(_w1), vget_high_s16(_val1), 0);
+                        _suma = vmlal_lane_s16(_suma, vget_low_s16(_w1), vget_high_s16(_val1), 1);
+                        _sumb = vmlal_lane_s16(_sumb, vget_high_s16(_w1), vget_high_s16(_val1), 1);
+                        _sumc = vmlal_lane_s16(_sumc, vget_low_s16(_w1), vget_high_s16(_val1), 2);
+                        _sumd = vmlal_lane_s16(_sumd, vget_high_s16(_w1), vget_high_s16(_val1), 2);
+                        _sume = vmlal_lane_s16(_sume, vget_low_s16(_w1), vget_high_s16(_val1), 3);
+                        _sumf = vmlal_lane_s16(_sumf, vget_high_s16(_w1), vget_high_s16(_val1), 3);
 
-                        "prfm   pldl1keep, [%2, #512]       \n"
-                        "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%2], #64 \n" // r4567
+                        int16x8_t _w2 = vld1q_s16(k0 + 16);
 
-                        "fmla   v16.8h, v10.8h, v2.h[0]     \n"
-                        "fmla   v17.8h, v10.8h, v2.h[1]     \n"
-                        "fmla   v18.8h, v10.8h, v2.h[2]     \n"
-                        "fmla   v19.8h, v10.8h, v2.h[3]     \n"
-                        "fmla   v20.8h, v10.8h, v2.h[4]     \n"
-                        "fmla   v21.8h, v10.8h, v2.h[5]     \n"
-                        "fmla   v22.8h, v10.8h, v2.h[6]     \n"
-                        "fmla   v23.8h, v10.8h, v2.h[7]     \n"
+                        _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w2), vget_low_s16(_val2), 0);
+                        _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w2), vget_low_s16(_val2), 0);
+                        _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_w2), vget_low_s16(_val2), 1);
+                        _sum3 = vmlal_lane_s16(_sum3, vget_high_s16(_w2), vget_low_s16(_val2), 1);
+                        _sum4 = vmlal_lane_s16(_sum4, vget_low_s16(_w2), vget_low_s16(_val2), 2);
+                        _sum5 = vmlal_lane_s16(_sum5, vget_high_s16(_w2), vget_low_s16(_val2), 2);
+                        _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_w2), vget_low_s16(_val2), 3);
+                        _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_w2), vget_low_s16(_val2), 3);
+                        _sum8 = vmlal_lane_s16(_sum8, vget_low_s16(_w2), vget_high_s16(_val2), 0);
+                        _sum9 = vmlal_lane_s16(_sum9, vget_high_s16(_w2), vget_high_s16(_val2), 0);
+                        _suma = vmlal_lane_s16(_suma, vget_low_s16(_w2), vget_high_s16(_val2), 1);
+                        _sumb = vmlal_lane_s16(_sumb, vget_high_s16(_w2), vget_high_s16(_val2), 1);
+                        _sumc = vmlal_lane_s16(_sumc, vget_low_s16(_w2), vget_high_s16(_val2), 2);
+                        _sumd = vmlal_lane_s16(_sumd, vget_high_s16(_w2), vget_high_s16(_val2), 2);
+                        _sume = vmlal_lane_s16(_sume, vget_low_s16(_w2), vget_high_s16(_val2), 3);
+                        _sumf = vmlal_lane_s16(_sumf, vget_high_s16(_w2), vget_high_s16(_val2), 3);
 
-                        "prfm   pldl1keep, [%3, #512]       \n"
-                        "ld1    {v12.8h, v13.8h, v14.8h, v15.8h}, [%3], #64 \n" // w4567
+                        int16x8_t _w3 = vld1q_s16(k0 + 24);
 
-                        "fmla   v16.8h, v11.8h, v3.h[0]     \n"
-                        "fmla   v17.8h, v11.8h, v3.h[1]     \n"
-                        "fmla   v18.8h, v11.8h, v3.h[2]     \n"
-                        "fmla   v19.8h, v11.8h, v3.h[3]     \n"
-                        "fmla   v20.8h, v11.8h, v3.h[4]     \n"
-                        "fmla   v21.8h, v11.8h, v3.h[5]     \n"
-                        "fmla   v22.8h, v11.8h, v3.h[6]     \n"
-                        "fmla   v23.8h, v11.8h, v3.h[7]     \n"
+                        _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w3), vget_low_s16(_val3), 0);
+                        _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w3), vget_low_s16(_val3), 0);
+                        _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_w3), vget_low_s16(_val3), 1);
+                        _sum3 = vmlal_lane_s16(_sum3, vget_high_s16(_w3), vget_low_s16(_val3), 1);
+                        _sum4 = vmlal_lane_s16(_sum4, vget_low_s16(_w3), vget_low_s16(_val3), 2);
+                        _sum5 = vmlal_lane_s16(_sum5, vget_high_s16(_w3), vget_low_s16(_val3), 2);
+                        _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_w3), vget_low_s16(_val3), 3);
+                        _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_w3), vget_low_s16(_val3), 3);
+                        _sum8 = vmlal_lane_s16(_sum8, vget_low_s16(_w3), vget_high_s16(_val3), 0);
+                        _sum9 = vmlal_lane_s16(_sum9, vget_high_s16(_w3), vget_high_s16(_val3), 0);
+                        _suma = vmlal_lane_s16(_suma, vget_low_s16(_w3), vget_high_s16(_val3), 1);
+                        _sumb = vmlal_lane_s16(_sumb, vget_high_s16(_w3), vget_high_s16(_val3), 1);
+                        _sumc = vmlal_lane_s16(_sumc, vget_low_s16(_w3), vget_high_s16(_val3), 2);
+                        _sumd = vmlal_lane_s16(_sumd, vget_high_s16(_w3), vget_high_s16(_val3), 2);
+                        _sume = vmlal_lane_s16(_sume, vget_low_s16(_w3), vget_high_s16(_val3), 3);
+                        _sumf = vmlal_lane_s16(_sumf, vget_high_s16(_w3), vget_high_s16(_val3), 3);
 
-                        "fmla   v16.8h, v12.8h, v4.h[0]     \n"
-                        "fmla   v17.8h, v12.8h, v4.h[1]     \n"
-                        "fmla   v18.8h, v12.8h, v4.h[2]     \n"
-                        "fmla   v19.8h, v12.8h, v4.h[3]     \n"
-                        "fmla   v20.8h, v12.8h, v4.h[4]     \n"
-                        "fmla   v21.8h, v12.8h, v4.h[5]     \n"
-                        "fmla   v22.8h, v12.8h, v4.h[6]     \n"
-                        "fmla   v23.8h, v12.8h, v4.h[7]     \n"
+                        int16x8_t _w4 = vld1q_s16(k0 + 32);
 
-                        "fmla   v16.8h, v13.8h, v5.h[0]     \n"
-                        "fmla   v17.8h, v13.8h, v5.h[1]     \n"
-                        "fmla   v18.8h, v13.8h, v5.h[2]     \n"
-                        "fmla   v19.8h, v13.8h, v5.h[3]     \n"
-                        "fmla   v20.8h, v13.8h, v5.h[4]     \n"
-                        "fmla   v21.8h, v13.8h, v5.h[5]     \n"
-                        "fmla   v22.8h, v13.8h, v5.h[6]     \n"
-                        "fmla   v23.8h, v13.8h, v5.h[7]     \n"
+                        _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w4), vget_low_s16(_val4), 0);
+                        _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w4), vget_low_s16(_val4), 0);
+                        _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_w4), vget_low_s16(_val4), 1);
+                        _sum3 = vmlal_lane_s16(_sum3, vget_high_s16(_w4), vget_low_s16(_val4), 1);
+                        _sum4 = vmlal_lane_s16(_sum4, vget_low_s16(_w4), vget_low_s16(_val4), 2);
+                        _sum5 = vmlal_lane_s16(_sum5, vget_high_s16(_w4), vget_low_s16(_val4), 2);
+                        _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_w4), vget_low_s16(_val4), 3);
+                        _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_w4), vget_low_s16(_val4), 3);
+                        _sum8 = vmlal_lane_s16(_sum8, vget_low_s16(_w4), vget_high_s16(_val4), 0);
+                        _sum9 = vmlal_lane_s16(_sum9, vget_high_s16(_w4), vget_high_s16(_val4), 0);
+                        _suma = vmlal_lane_s16(_suma, vget_low_s16(_w4), vget_high_s16(_val4), 1);
+                        _sumb = vmlal_lane_s16(_sumb, vget_high_s16(_w4), vget_high_s16(_val4), 1);
+                        _sumc = vmlal_lane_s16(_sumc, vget_low_s16(_w4), vget_high_s16(_val4), 2);
+                        _sumd = vmlal_lane_s16(_sumd, vget_high_s16(_w4), vget_high_s16(_val4), 2);
+                        _sume = vmlal_lane_s16(_sume, vget_low_s16(_w4), vget_high_s16(_val4), 3);
+                        _sumf = vmlal_lane_s16(_sumf, vget_high_s16(_w4), vget_high_s16(_val4), 3);
 
-                        "fmla   v16.8h, v14.8h, v6.h[0]     \n"
-                        "fmla   v17.8h, v14.8h, v6.h[1]     \n"
-                        "fmla   v18.8h, v14.8h, v6.h[2]     \n"
-                        "fmla   v19.8h, v14.8h, v6.h[3]     \n"
-                        "fmla   v20.8h, v14.8h, v6.h[4]     \n"
-                        "fmla   v21.8h, v14.8h, v6.h[5]     \n"
-                        "fmla   v22.8h, v14.8h, v6.h[6]     \n"
-                        "fmla   v23.8h, v14.8h, v6.h[7]     \n"
+                        int16x8_t _w5 = vld1q_s16(k0 + 40);
 
-                        "subs   %w0, %w0, #1                \n"
+                        _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w5), vget_low_s16(_val5), 0);
+                        _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w5), vget_low_s16(_val5), 0);
+                        _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_w5), vget_low_s16(_val5), 1);
+                        _sum3 = vmlal_lane_s16(_sum3, vget_high_s16(_w5), vget_low_s16(_val5), 1);
+                        _sum4 = vmlal_lane_s16(_sum4, vget_low_s16(_w5), vget_low_s16(_val5), 2);
+                        _sum5 = vmlal_lane_s16(_sum5, vget_high_s16(_w5), vget_low_s16(_val5), 2);
+                        _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_w5), vget_low_s16(_val5), 3);
+                        _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_w5), vget_low_s16(_val5), 3);
+                        _sum8 = vmlal_lane_s16(_sum8, vget_low_s16(_w5), vget_high_s16(_val5), 0);
+                        _sum9 = vmlal_lane_s16(_sum9, vget_high_s16(_w5), vget_high_s16(_val5), 0);
+                        _suma = vmlal_lane_s16(_suma, vget_low_s16(_w5), vget_high_s16(_val5), 1);
+                        _sumb = vmlal_lane_s16(_sumb, vget_high_s16(_w5), vget_high_s16(_val5), 1);
+                        _sumc = vmlal_lane_s16(_sumc, vget_low_s16(_w5), vget_high_s16(_val5), 2);
+                        _sumd = vmlal_lane_s16(_sumd, vget_high_s16(_w5), vget_high_s16(_val5), 2);
+                        _sume = vmlal_lane_s16(_sume, vget_low_s16(_w5), vget_high_s16(_val5), 3);
+                        _sumf = vmlal_lane_s16(_sumf, vget_high_s16(_w5), vget_high_s16(_val5), 3);
 
-                        "fmla   v16.8h, v15.8h, v7.h[0]     \n"
-                        "fmla   v17.8h, v15.8h, v7.h[1]     \n"
-                        "fmla   v18.8h, v15.8h, v7.h[2]     \n"
-                        "fmla   v19.8h, v15.8h, v7.h[3]     \n"
-                        "fmla   v20.8h, v15.8h, v7.h[4]     \n"
-                        "fmla   v21.8h, v15.8h, v7.h[5]     \n"
-                        "fmla   v22.8h, v15.8h, v7.h[6]     \n"
-                        "fmla   v23.8h, v15.8h, v7.h[7]     \n"
+                        int16x8_t _w6 = vld1q_s16(k0 + 48);
 
-                        "bne    0b                          \n"
+                        _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w6), vget_low_s16(_val6), 0);
+                        _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w6), vget_low_s16(_val6), 0);
+                        _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_w6), vget_low_s16(_val6), 1);
+                        _sum3 = vmlal_lane_s16(_sum3, vget_high_s16(_w6), vget_low_s16(_val6), 1);
+                        _sum4 = vmlal_lane_s16(_sum4, vget_low_s16(_w6), vget_low_s16(_val6), 2);
+                        _sum5 = vmlal_lane_s16(_sum5, vget_high_s16(_w6), vget_low_s16(_val6), 2);
+                        _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_w6), vget_low_s16(_val6), 3);
+                        _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_w6), vget_low_s16(_val6), 3);
+                        _sum8 = vmlal_lane_s16(_sum8, vget_low_s16(_w6), vget_high_s16(_val6), 0);
+                        _sum9 = vmlal_lane_s16(_sum9, vget_high_s16(_w6), vget_high_s16(_val6), 0);
+                        _suma = vmlal_lane_s16(_suma, vget_low_s16(_w6), vget_high_s16(_val6), 1);
+                        _sumb = vmlal_lane_s16(_sumb, vget_high_s16(_w6), vget_high_s16(_val6), 1);
+                        _sumc = vmlal_lane_s16(_sumc, vget_low_s16(_w6), vget_high_s16(_val6), 2);
+                        _sumd = vmlal_lane_s16(_sumd, vget_high_s16(_w6), vget_high_s16(_val6), 2);
+                        _sume = vmlal_lane_s16(_sume, vget_low_s16(_w6), vget_high_s16(_val6), 3);
+                        _sumf = vmlal_lane_s16(_sumf, vget_high_s16(_w6), vget_high_s16(_val6), 3);
 
-                        "st1    {v16.8h, v17.8h, v18.8h, v19.8h}, [%1], #64 \n"
+                        int16x8_t _w7 = vld1q_s16(k0 + 56);
 
-                        "st1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%1], #64 \n"
+                        _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_w7), vget_low_s16(_val7), 0);
+                        _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_w7), vget_low_s16(_val7), 0);
+                        _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_w7), vget_low_s16(_val7), 1);
+                        _sum3 = vmlal_lane_s16(_sum3, vget_high_s16(_w7), vget_low_s16(_val7), 1);
+                        _sum4 = vmlal_lane_s16(_sum4, vget_low_s16(_w7), vget_low_s16(_val7), 2);
+                        _sum5 = vmlal_lane_s16(_sum5, vget_high_s16(_w7), vget_low_s16(_val7), 2);
+                        _sum6 = vmlal_lane_s16(_sum6, vget_low_s16(_w7), vget_low_s16(_val7), 3);
+                        _sum7 = vmlal_lane_s16(_sum7, vget_high_s16(_w7), vget_low_s16(_val7), 3);
+                        _sum8 = vmlal_lane_s16(_sum8, vget_low_s16(_w7), vget_high_s16(_val7), 0);
+                        _sum9 = vmlal_lane_s16(_sum9, vget_high_s16(_w7), vget_high_s16(_val7), 0);
+                        _suma = vmlal_lane_s16(_suma, vget_low_s16(_w7), vget_high_s16(_val7), 1);
+                        _sumb = vmlal_lane_s16(_sumb, vget_high_s16(_w7), vget_high_s16(_val7), 1);
+                        _sumc = vmlal_lane_s16(_sumc, vget_low_s16(_w7), vget_high_s16(_val7), 2);
+                        _sumd = vmlal_lane_s16(_sumd, vget_high_s16(_w7), vget_high_s16(_val7), 2);
+                        _sume = vmlal_lane_s16(_sume, vget_low_s16(_w7), vget_high_s16(_val7), 3);
+                        _sumf = vmlal_lane_s16(_sumf, vget_high_s16(_w7), vget_high_s16(_val7), 3);
 
-                        : "=r"(nn),         // %0
-                        "=r"(output0_tm), // %1
-                        "=r"(r0),         // %2
-                        "=r"(k0)          // %3
-                        : "0"(nn),
-                        "1"(output0_tm),
-                        "2"(r0),
-                        "3"(k0)
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
+                        r0 += 64;
+                        k0 += 64;
+                    }
+
+                    vst1q_s32(output0_tm, _sum0);
+                    vst1q_s32(output0_tm + 4, _sum1);
+                    vst1q_s32(output0_tm + 8, _sum2);
+                    vst1q_s32(output0_tm + 12, _sum3);
+                    vst1q_s32(output0_tm + 16, _sum4);
+                    vst1q_s32(output0_tm + 20, _sum5);
+                    vst1q_s32(output0_tm + 24, _sum6);
+                    vst1q_s32(output0_tm + 28, _sum7);
+                    vst1q_s32(output0_tm + 32, _sum8);
+                    vst1q_s32(output0_tm + 36, _sum9);
+                    vst1q_s32(output0_tm + 40, _suma);
+                    vst1q_s32(output0_tm + 44, _sumb);
+                    vst1q_s32(output0_tm + 48, _sumc);
+                    vst1q_s32(output0_tm + 52, _sumd);
+                    vst1q_s32(output0_tm + 56, _sume);
+                    vst1q_s32(output0_tm + 60, _sumf);
+                    output0_tm += 64;
                 }
-#endif
+#endif // __aarch64__
                 for (; i + 3 < tiles; i += 4)
                 {
-                    //                     const __fp16* r0 = bb2.row<const __fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
+#if __aarch64__
+                    const short* r0 = bb2.row<const short>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
+#else
                     const short* r0 = bb2.row<const short>(i / 4);
+#endif
                     const short* k0 = kernel0_tm.row<const short>(r);
 
                     int nn = inch; // inch always > 0
@@ -1043,8 +1318,11 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                 }
                 for (; i + 1 < tiles; i += 2)
                 {
-                    //                     const __fp16* r0 = bb2.row<const __fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
+#if __aarch64__
+                    const short* r0 = bb2.row<const short>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
+#else
                     const short* r0 = bb2.row<const short>(i / 4 + (i % 4) / 2);
+#endif
                     const short* k0 = kernel0_tm.row<const short>(r);
 
                     int nn = inch; // inch always > 0
@@ -1120,8 +1398,11 @@ static void conv3x3s1_winograd42_pack8_int8_neon(const Mat& bottom_blob, Mat& to
                 }
                 for (; i < tiles; i++)
                 {
-                    //                     const __fp16* r0 = bb2.row<const __fp16>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
+#if __aarch64__
+                    const short* r0 = bb2.row<const short>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
+#else
                     const short* r0 = bb2.row<const short>(i / 4 + (i % 4) / 2 + i % 2);
+#endif
                     const short* k0 = kernel0_tm.row<const short>(r);
 
                     int nn = inch; // inch always > 0
