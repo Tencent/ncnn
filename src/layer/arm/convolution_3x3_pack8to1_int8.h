@@ -357,7 +357,7 @@ static void conv3x3s1_winograd42_pack8to1_int8_neon(const Mat& bottom_blob, Mat&
                     // transpose 8x4
 #if __aarch64__
                     asm volatile(
-                        "prfm   pldl1keep, [%0, #256]   \n"
+                        "prfm   pldl1keep, [%0, #512]   \n"
                         "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
                         "st4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
                         : "=r"(r0),  // %0
@@ -367,14 +367,18 @@ static void conv3x3s1_winograd42_pack8to1_int8_neon(const Mat& bottom_blob, Mat&
                         : "memory", "v0", "v1", "v2", "v3");
 #else
                     asm volatile(
-                        "pld        [%0, #256]          \n"
-                        "vld1.s8    {d0-d3}, [%0 :64]   \n"
-                        "vst4.s8    {d0-d3}, [%1 :64]!  \n"
+                        "pld        [%0, #512]          \n"
+                        "vldm       %0, {d0-d7}         \n"
+                        "vswp       d1, d2              \n"
+                        "vswp       d5, d6              \n"
+                        "vswp       q1, q2              \n"
+                        "vst4.s16   {d0-d3}, [%1 :64]!  \n"
+                        "vst4.s16   {d4-d7}, [%1 :64]!  \n"
                         : "=r"(r0),  // %0
                         "=r"(tm2p) // %1
                         : "0"(r0),
                         "1"(tm2p)
-                        : "memory", "q0", "q1");
+                        : "memory", "q0", "q1", "q2", "q3");
 #endif // __aarch64__
                     r0 += bottom_blob_tm.cstep * 8;
                 }
@@ -403,8 +407,8 @@ static void conv3x3s1_winograd42_pack8to1_int8_neon(const Mat& bottom_blob, Mat&
 #else
                     asm volatile(
                         "pld        [%0, #128]          \n"
-                        "vld1.s8    {d0-d1}, [%0 :64]   \n"
-                        "vst1.s8    {d0-d1}, [%1 :64]!  \n"
+                        "vld1.s16   {d0-d1}, [%0 :64]   \n"
+                        "vst1.s16   {d0-d1}, [%1 :64]!  \n"
                         : "=r"(r0),  // %0
                         "=r"(tm2p) // %1
                         : "0"(r0),
