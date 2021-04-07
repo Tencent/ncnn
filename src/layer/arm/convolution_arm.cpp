@@ -1847,7 +1847,11 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
         {
             convolution_im2col_sgemm_transform_kernel_pack8_int8_neon(weight_data, weight_data_int8, num_input, num_output, kernel_w, kernel_h);
         }
+#if __ARM_FEATURE_DOTPROD
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 256 && num_output >= 256)
+#else
         else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+#endif
         {
             conv3x3s1_winograd42_transform_kernel_pack8_int8_neon(weight_data, weight_data_int8, num_input, num_output);
         }
@@ -1890,6 +1894,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
 
     int w = bottom_blob_bordered.w;
     int h = bottom_blob_bordered.h;
+    int channels = bottom_blob_bordered.c;
     int elempack = bottom_blob_bordered.elempack;
     size_t elemsize = bottom_blob_bordered.elemsize;
 
@@ -1923,6 +1928,8 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     if (top_blob.empty())
         return -100;
 
+    const int num_input = channels * elempack;
+
 #if __ARM_NEON
     if (elempack == 8 && out_elempack == 8)
     {
@@ -1944,7 +1951,11 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
 
             conv1x1s2_pack8_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data_int8, opt);
         }
+#if __ARM_FEATURE_DOTPROD
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 256 && num_output >= 256)
+#else
         else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+#endif
         {
             top_blob_int32.create(outw, outh, num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.workspace_allocator);
             if (top_blob_int32.empty())
