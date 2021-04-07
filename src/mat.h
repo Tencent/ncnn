@@ -960,6 +960,63 @@ inline void Mat::fill(T _v)
     }
 }
 
+inline Mat& Mat::operator=(const Mat& m)
+{
+    if (this == &m)
+        return *this;
+
+    if (m.refcount)
+        NCNN_XADD(m.refcount, 1);
+
+    release();
+
+    data = m.data;
+    refcount = m.refcount;
+    elemsize = m.elemsize;
+    elempack = m.elempack;
+    allocator = m.allocator;
+
+    dims = m.dims;
+    w = m.w;
+    h = m.h;
+    c = m.c;
+
+    cstep = m.cstep;
+
+    return *this;
+}
+
+inline void Mat::addref()
+{
+    if (refcount)
+        NCNN_XADD(refcount, 1);
+}
+
+inline void Mat::release()
+{
+    if (refcount && NCNN_XADD(refcount, -1) == 1)
+    {
+        if (allocator)
+            allocator->fastFree(data);
+        else
+            fastFree(data);
+    }
+
+    data = 0;
+
+    elemsize = 0;
+    elempack = 0;
+
+    dims = 0;
+    w = 0;
+    h = 0;
+    c = 0;
+
+    cstep = 0;
+
+    refcount = 0;
+}
+
 inline bool Mat::empty() const
 {
     return data == 0 || total() == 0;
@@ -1163,6 +1220,32 @@ inline VkMat::~VkMat()
     release();
 }
 
+inline VkMat& VkMat::operator=(const VkMat& m)
+{
+    if (this == &m)
+        return *this;
+
+    if (m.refcount)
+        NCNN_XADD(m.refcount, 1);
+
+    release();
+
+    data = m.data;
+    refcount = m.refcount;
+    elemsize = m.elemsize;
+    elempack = m.elempack;
+    allocator = m.allocator;
+
+    dims = m.dims;
+    w = m.w;
+    h = m.h;
+    c = m.c;
+
+    cstep = m.cstep;
+
+    return *this;
+}
+
 inline Mat VkMat::mapped() const
 {
     if (!allocator->mappable)
@@ -1186,6 +1269,37 @@ inline void* VkMat::mapped_ptr() const
         return 0;
 
     return (unsigned char*)data->mapped_ptr + data->offset;
+}
+
+inline void VkMat::addref()
+{
+    if (refcount)
+        NCNN_XADD(refcount, 1);
+}
+
+inline void VkMat::release()
+{
+    if (refcount && NCNN_XADD(refcount, -1) == 1)
+    {
+        if (allocator && data)
+        {
+            allocator->fastFree(data);
+        }
+    }
+
+    data = 0;
+
+    elemsize = 0;
+    elempack = 0;
+
+    dims = 0;
+    w = 0;
+    h = 0;
+    c = 0;
+
+    cstep = 0;
+
+    refcount = 0;
 }
 
 inline bool VkMat::empty() const
@@ -1312,6 +1426,30 @@ inline VkImageMat::~VkImageMat()
     release();
 }
 
+inline VkImageMat& VkImageMat::operator=(const VkImageMat& m)
+{
+    if (this == &m)
+        return *this;
+
+    if (m.refcount)
+        NCNN_XADD(m.refcount, 1);
+
+    release();
+
+    data = m.data;
+    refcount = m.refcount;
+    elemsize = m.elemsize;
+    elempack = m.elempack;
+    allocator = m.allocator;
+
+    dims = m.dims;
+    w = m.w;
+    h = m.h;
+    c = m.c;
+
+    return *this;
+}
+
 inline Mat VkImageMat::mapped() const
 {
     if (!allocator->mappable || !data->mapped_ptr)
@@ -1335,6 +1473,35 @@ inline void* VkImageMat::mapped_ptr() const
         return 0;
 
     return (unsigned char*)data->mapped_ptr + data->bind_offset;
+}
+
+inline void VkImageMat::addref()
+{
+    if (refcount)
+        NCNN_XADD(refcount, 1);
+}
+
+inline void VkImageMat::release()
+{
+    if (refcount && NCNN_XADD(refcount, -1) == 1)
+    {
+        if (allocator && data)
+        {
+            allocator->fastFree(data);
+        }
+    }
+
+    data = 0;
+
+    elemsize = 0;
+    elempack = 0;
+
+    dims = 0;
+    w = 0;
+    h = 0;
+    c = 0;
+
+    refcount = 0;
 }
 
 inline bool VkImageMat::empty() const

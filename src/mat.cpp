@@ -33,32 +33,6 @@
 
 namespace ncnn {
 
-Mat& Mat::operator=(const Mat& m)
-{
-    if (this == &m)
-        return *this;
-
-    if (m.refcount)
-        NCNN_XADD(m.refcount, 1);
-
-    release();
-
-    data = m.data;
-    refcount = m.refcount;
-    elemsize = m.elemsize;
-    elempack = m.elempack;
-    allocator = m.allocator;
-
-    dims = m.dims;
-    w = m.w;
-    h = m.h;
-    c = m.c;
-
-    cstep = m.cstep;
-
-    return *this;
-}
-
 Mat Mat::clone(Allocator* _allocator) const
 {
     if (empty())
@@ -408,64 +382,7 @@ void Mat::create_like(const VkImageMat& im, Allocator* _allocator)
 }
 #endif // NCNN_VULKAN
 
-void Mat::addref()
-{
-    if (refcount)
-        NCNN_XADD(refcount, 1);
-}
-
-void Mat::release()
-{
-    if (refcount && NCNN_XADD(refcount, -1) == 1)
-    {
-        if (allocator)
-            allocator->fastFree(data);
-        else
-            fastFree(data);
-    }
-
-    data = 0;
-
-    elemsize = 0;
-    elempack = 0;
-
-    dims = 0;
-    w = 0;
-    h = 0;
-    c = 0;
-
-    cstep = 0;
-
-    refcount = 0;
-}
-
 #if NCNN_VULKAN
-VkMat& VkMat::operator=(const VkMat& m)
-{
-    if (this == &m)
-        return *this;
-
-    if (m.refcount)
-        NCNN_XADD(m.refcount, 1);
-
-    release();
-
-    data = m.data;
-    refcount = m.refcount;
-    elemsize = m.elemsize;
-    elempack = m.elempack;
-    allocator = m.allocator;
-
-    dims = m.dims;
-    w = m.w;
-    h = m.h;
-    c = m.c;
-
-    cstep = m.cstep;
-
-    return *this;
-}
-
 void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
 {
     if (dims == 1 && w == _w && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
@@ -673,61 +590,6 @@ void VkMat::create_like(const VkImageMat& im, VkAllocator* _allocator)
         create(im.w, im.h, im.c, im.elemsize, im.elempack, _allocator);
 }
 
-void VkMat::addref()
-{
-    if (refcount)
-        NCNN_XADD(refcount, 1);
-}
-
-void VkMat::release()
-{
-    if (refcount && NCNN_XADD(refcount, -1) == 1)
-    {
-        if (allocator && data)
-        {
-            allocator->fastFree(data);
-        }
-    }
-
-    data = 0;
-
-    elemsize = 0;
-    elempack = 0;
-
-    dims = 0;
-    w = 0;
-    h = 0;
-    c = 0;
-
-    cstep = 0;
-
-    refcount = 0;
-}
-
-VkImageMat& VkImageMat::operator=(const VkImageMat& m)
-{
-    if (this == &m)
-        return *this;
-
-    if (m.refcount)
-        NCNN_XADD(m.refcount, 1);
-
-    release();
-
-    data = m.data;
-    refcount = m.refcount;
-    elemsize = m.elemsize;
-    elempack = m.elempack;
-    allocator = m.allocator;
-
-    dims = m.dims;
-    w = m.w;
-    h = m.h;
-    c = m.c;
-
-    return *this;
-}
-
 void VkImageMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
 {
     if (dims == 1 && w == _w && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
@@ -921,35 +783,6 @@ void VkImageMat::create_like(const VkImageMat& im, VkAllocator* _allocator)
         create(im.w, im.h, im.elemsize, im.elempack, _allocator);
     if (_dims == 3)
         create(im.w, im.h, im.c, im.elemsize, im.elempack, _allocator);
-}
-
-void VkImageMat::addref()
-{
-    if (refcount)
-        NCNN_XADD(refcount, 1);
-}
-
-void VkImageMat::release()
-{
-    if (refcount && NCNN_XADD(refcount, -1) == 1)
-    {
-        if (allocator && data)
-        {
-            allocator->fastFree(data);
-        }
-    }
-
-    data = 0;
-
-    elemsize = 0;
-    elempack = 0;
-
-    dims = 0;
-    w = 0;
-    h = 0;
-    c = 0;
-
-    refcount = 0;
 }
 #endif // NCNN_VULKAN
 
