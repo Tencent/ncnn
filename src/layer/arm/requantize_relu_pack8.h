@@ -154,7 +154,7 @@ static void requantize_relu_pack8_neon(const Mat& bottom_blob, Mat& top_blob, co
                 ptr += 32;
             }
 #endif // __aarch64__
-            for (; i + 3 < size; i += 4)
+            for (; i + 1 < size; i += 2)
             {
 #if __aarch64__
                 float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr));

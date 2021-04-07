@@ -290,6 +290,7 @@ static int test_convolution_1()
     }
 
     return 0
+           || test_convolution_int8(11, 11, 8, 16, 3, 1, 1, 1, 1)
            || test_convolution_int8(13, 16, 16, 24, 3, 1, 1, 1, 1)
            || test_convolution_int8(8, 8, 16, 24, 3, 1, 1, 1, 0)
            || test_convolution_int8(4, 8, 16, 24, 3, 1, 1, 1, 1)
