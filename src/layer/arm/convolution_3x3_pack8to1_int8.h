@@ -289,13 +289,19 @@ static void conv3x3s1_winograd42_pack8to1_int8_neon(const Mat& bottom_blob, Mat&
         // permute
         //         bottom_blob_tm.create(tiles, 36, inch, elemsize, elempack, opt.workspace_allocator);
         Mat bottom_blob_tm2;
-        //         if (tiles >= 8)
-        //             bottom_blob_tm2.create(8 * inch, tiles / 8 + (tiles % 8) / 4 + tiles % 4, 36, 2u * elempack, elempack, opt.workspace_allocator);
-        //         else
+#if __aarch64__
+        if (tiles >= 8)
+            bottom_blob_tm2.create(8 * inch, tiles / 8 + (tiles % 8) / 4 + tiles % 4, 36, 2u * elempack, elempack, opt.workspace_allocator);
+        else if (tiles >= 4)
+            bottom_blob_tm2.create(4 * inch, tiles / 4 + tiles % 4, 36, 2u * elempack, elempack, opt.workspace_allocator);
+        else // if (tiles >= 1)
+            bottom_blob_tm2.create(1 * inch, tiles, 36, 2u * elempack, elempack, opt.workspace_allocator);
+#else
         if (tiles >= 4)
             bottom_blob_tm2.create(4 * inch, tiles / 4 + tiles % 4, 36, 2u * elempack, elempack, opt.workspace_allocator);
         else // if (tiles >= 1)
             bottom_blob_tm2.create(1 * inch, tiles, 36, 2u * elempack, elempack, opt.workspace_allocator);
+#endif // __aarch64__
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int r = 0; r < 36; r++)
@@ -304,7 +310,7 @@ static void conv3x3s1_winograd42_pack8to1_int8_neon(const Mat& bottom_blob, Mat&
 
             // tile
             int i = 0;
-#if 0
+#if __aarch64__
             for (; i + 7 < tiles; i += 8)
             {
                 short* tm2p = tm2.row<short>(i / 8);
@@ -345,8 +351,11 @@ static void conv3x3s1_winograd42_pack8to1_int8_neon(const Mat& bottom_blob, Mat&
 #endif
             for (; i + 3 < tiles; i += 4)
             {
-                //                 short* tm2p = tm2.row<short>(i / 8 + (i % 8) / 4);
+#if __aarch64__
+                short* tm2p = tm2.row<short>(i / 8 + (i % 8) / 4);
+#else
                 short* tm2p = tm2.row<short>(i / 4);
+#endif
 
                 const short* r0 = bottom_blob_tm;
 
@@ -385,8 +394,11 @@ static void conv3x3s1_winograd42_pack8to1_int8_neon(const Mat& bottom_blob, Mat&
             }
             for (; i < tiles; i++)
             {
-                //                 short* tm2p = tm2.row<short>(i / 8 + (i % 8) / 4 + i % 4);
+#if __aarch64__
+                short* tm2p = tm2.row<short>(i / 8 + (i % 8) / 4 + i % 4);
+#else
                 short* tm2p = tm2.row<short>(i / 4 + i % 4);
+#endif
 
                 const short* r0 = bottom_blob_tm;
 
@@ -451,16 +463,23 @@ static void conv3x3s1_winograd42_pack8to1_int8_neon(const Mat& bottom_blob, Mat&
                 const Mat bb2 = bottom_blob_tm2.channel(r);
 
                 int i = 0;
-#if 0
+#if __aarch64__
                 for (; i + 7 < tiles; i += 8)
                 {
                     const short* r0 = bb2.row<const short>(i / 8);
-
                     const short* kptr = kernel01_tm.row<const short>(r);
 
                     int nn = inch; // inch always > 0
 
                     asm volatile(
+                        "eor    v16.16b, v16.16b, v16.16b   \n"
+                        "eor    v17.16b, v17.16b, v17.16b   \n"
+                        "eor    v18.16b, v18.16b, v18.16b   \n"
+                        "eor    v19.16b, v19.16b, v19.16b   \n"
+                        "eor    v20.16b, v20.16b, v20.16b   \n"
+                        "eor    v21.16b, v21.16b, v21.16b   \n"
+                        "eor    v22.16b, v22.16b, v22.16b   \n"
+                        "eor    v23.16b, v23.16b, v23.16b   \n"
                         "eor    v24.16b, v24.16b, v24.16b   \n"
                         "eor    v25.16b, v25.16b, v25.16b   \n"
                         "eor    v26.16b, v26.16b, v26.16b   \n"
@@ -473,101 +492,165 @@ static void conv3x3s1_winograd42_pack8to1_int8_neon(const Mat& bottom_blob, Mat&
                         "0:                                 \n"
 
                         "prfm   pldl1keep, [%9, #512]       \n"
-                        "ld1    {v16.8h, v17.8h, v18.8h, v19.8h}, [%9], #64 \n"
+                        "ld1    {v8.8h, v9.8h, v10.8h, v11.8h}, [%9], #64 \n"
 
                         "prfm   pldl1keep, [%10, #512]      \n"
                         "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%10], #64 \n"
 
-                        "fmla   v24.8h, v16.8h, v0.h[0]     \n"
-                        "fmla   v25.8h, v16.8h, v0.h[1]     \n"
-                        "fmla   v26.8h, v16.8h, v0.h[2]     \n"
-                        "fmla   v27.8h, v16.8h, v0.h[3]     \n"
-                        "fmla   v28.8h, v16.8h, v0.h[4]     \n"
-                        "fmla   v29.8h, v16.8h, v0.h[5]     \n"
-                        "fmla   v30.8h, v16.8h, v0.h[6]     \n"
-                        "fmla   v31.8h, v16.8h, v0.h[7]     \n"
+                        "smlal  v16.4s, v8.4h, v0.h[0]      \n"
+                        "smlal2 v17.4s, v8.8h, v0.h[0]      \n"
+                        "smlal  v18.4s, v8.4h, v0.h[1]      \n"
+                        "smlal2 v19.4s, v8.8h, v0.h[1]      \n"
+                        "smlal  v20.4s, v8.4h, v0.h[2]      \n"
+                        "smlal2 v21.4s, v8.8h, v0.h[2]      \n"
+                        "smlal  v22.4s, v8.4h, v0.h[3]      \n"
+                        "smlal2 v23.4s, v8.8h, v0.h[3]      \n"
+                        "smlal  v24.4s, v8.4h, v0.h[4]      \n"
+                        "smlal2 v25.4s, v8.8h, v0.h[4]      \n"
+                        "smlal  v26.4s, v8.4h, v0.h[5]      \n"
+                        "smlal2 v27.4s, v8.8h, v0.h[5]      \n"
+                        "smlal  v28.4s, v8.4h, v0.h[6]      \n"
+                        "smlal2 v29.4s, v8.8h, v0.h[6]      \n"
+                        "smlal  v30.4s, v8.4h, v0.h[7]      \n"
+                        "smlal2 v31.4s, v8.8h, v0.h[7]      \n"
 
-                        "fmla   v24.8h, v17.8h, v1.h[0]     \n"
-                        "fmla   v25.8h, v17.8h, v1.h[1]     \n"
-                        "fmla   v26.8h, v17.8h, v1.h[2]     \n"
-                        "fmla   v27.8h, v17.8h, v1.h[3]     \n"
-                        "fmla   v28.8h, v17.8h, v1.h[4]     \n"
-                        "fmla   v29.8h, v17.8h, v1.h[5]     \n"
-                        "fmla   v30.8h, v17.8h, v1.h[6]     \n"
-                        "fmla   v31.8h, v17.8h, v1.h[7]     \n"
+                        "smlal  v16.4s, v9.4h, v1.h[0]      \n"
+                        "smlal2 v17.4s, v9.8h, v1.h[0]      \n"
+                        "smlal  v18.4s, v9.4h, v1.h[1]      \n"
+                        "smlal2 v19.4s, v9.8h, v1.h[1]      \n"
+                        "smlal  v20.4s, v9.4h, v1.h[2]      \n"
+                        "smlal2 v21.4s, v9.8h, v1.h[2]      \n"
+                        "smlal  v22.4s, v9.4h, v1.h[3]      \n"
+                        "smlal2 v23.4s, v9.8h, v1.h[3]      \n"
+                        "smlal  v24.4s, v9.4h, v1.h[4]      \n"
+                        "smlal2 v25.4s, v9.8h, v1.h[4]      \n"
+                        "smlal  v26.4s, v9.4h, v1.h[5]      \n"
+                        "smlal2 v27.4s, v9.8h, v1.h[5]      \n"
+                        "smlal  v28.4s, v9.4h, v1.h[6]      \n"
+                        "smlal2 v29.4s, v9.8h, v1.h[6]      \n"
+                        "smlal  v30.4s, v9.4h, v1.h[7]      \n"
+                        "smlal2 v31.4s, v9.8h, v1.h[7]      \n"
 
                         "prfm   pldl1keep, [%9, #512]       \n"
-                        "ld1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%9], #64 \n"
+                        "ld1    {v12.8h, v13.8h, v14.8h, v15.8h}, [%9], #64 \n"
 
-                        "fmla   v24.8h, v18.8h, v2.h[0]     \n"
-                        "fmla   v25.8h, v18.8h, v2.h[1]     \n"
-                        "fmla   v26.8h, v18.8h, v2.h[2]     \n"
-                        "fmla   v27.8h, v18.8h, v2.h[3]     \n"
-                        "fmla   v28.8h, v18.8h, v2.h[4]     \n"
-                        "fmla   v29.8h, v18.8h, v2.h[5]     \n"
-                        "fmla   v30.8h, v18.8h, v2.h[6]     \n"
-                        "fmla   v31.8h, v18.8h, v2.h[7]     \n"
+                        "smlal  v16.4s, v10.4h, v2.h[0]     \n"
+                        "smlal2 v17.4s, v10.8h, v2.h[0]     \n"
+                        "smlal  v18.4s, v10.4h, v2.h[1]     \n"
+                        "smlal2 v19.4s, v10.8h, v2.h[1]     \n"
+                        "smlal  v20.4s, v10.4h, v2.h[2]     \n"
+                        "smlal2 v21.4s, v10.8h, v2.h[2]     \n"
+                        "smlal  v22.4s, v10.4h, v2.h[3]     \n"
+                        "smlal2 v23.4s, v10.8h, v2.h[3]     \n"
+                        "smlal  v24.4s, v10.4h, v2.h[4]     \n"
+                        "smlal2 v25.4s, v10.8h, v2.h[4]     \n"
+                        "smlal  v26.4s, v10.4h, v2.h[5]     \n"
+                        "smlal2 v27.4s, v10.8h, v2.h[5]     \n"
+                        "smlal  v28.4s, v10.4h, v2.h[6]     \n"
+                        "smlal2 v29.4s, v10.8h, v2.h[6]     \n"
+                        "smlal  v30.4s, v10.4h, v2.h[7]     \n"
+                        "smlal2 v31.4s, v10.8h, v2.h[7]     \n"
 
                         "prfm   pldl1keep, [%10, #512]      \n"
                         "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%10], #64 \n"
 
-                        "fmla   v24.8h, v19.8h, v3.h[0]     \n"
-                        "fmla   v25.8h, v19.8h, v3.h[1]     \n"
-                        "fmla   v26.8h, v19.8h, v3.h[2]     \n"
-                        "fmla   v27.8h, v19.8h, v3.h[3]     \n"
-                        "fmla   v28.8h, v19.8h, v3.h[4]     \n"
-                        "fmla   v29.8h, v19.8h, v3.h[5]     \n"
-                        "fmla   v30.8h, v19.8h, v3.h[6]     \n"
-                        "fmla   v31.8h, v19.8h, v3.h[7]     \n"
+                        "smlal  v16.4s, v11.4h, v3.h[0]     \n"
+                        "smlal2 v17.4s, v11.8h, v3.h[0]     \n"
+                        "smlal  v18.4s, v11.4h, v3.h[1]     \n"
+                        "smlal2 v19.4s, v11.8h, v3.h[1]     \n"
+                        "smlal  v20.4s, v11.4h, v3.h[2]     \n"
+                        "smlal2 v21.4s, v11.8h, v3.h[2]     \n"
+                        "smlal  v22.4s, v11.4h, v3.h[3]     \n"
+                        "smlal2 v23.4s, v11.8h, v3.h[3]     \n"
+                        "smlal  v24.4s, v11.4h, v3.h[4]     \n"
+                        "smlal2 v25.4s, v11.8h, v3.h[4]     \n"
+                        "smlal  v26.4s, v11.4h, v3.h[5]     \n"
+                        "smlal2 v27.4s, v11.8h, v3.h[5]     \n"
+                        "smlal  v28.4s, v11.4h, v3.h[6]     \n"
+                        "smlal2 v29.4s, v11.8h, v3.h[6]     \n"
+                        "smlal  v30.4s, v11.4h, v3.h[7]     \n"
+                        "smlal2 v31.4s, v11.8h, v3.h[7]     \n"
 
-                        "fmla   v24.8h, v20.8h, v4.h[0]     \n"
-                        "fmla   v25.8h, v20.8h, v4.h[1]     \n"
-                        "fmla   v26.8h, v20.8h, v4.h[2]     \n"
-                        "fmla   v27.8h, v20.8h, v4.h[3]     \n"
-                        "fmla   v28.8h, v20.8h, v4.h[4]     \n"
-                        "fmla   v29.8h, v20.8h, v4.h[5]     \n"
-                        "fmla   v30.8h, v20.8h, v4.h[6]     \n"
-                        "fmla   v31.8h, v20.8h, v4.h[7]     \n"
+                        "smlal  v16.4s, v12.4h, v4.h[0]     \n"
+                        "smlal2 v17.4s, v12.8h, v4.h[0]     \n"
+                        "smlal  v18.4s, v12.4h, v4.h[1]     \n"
+                        "smlal2 v19.4s, v12.8h, v4.h[1]     \n"
+                        "smlal  v20.4s, v12.4h, v4.h[2]     \n"
+                        "smlal2 v21.4s, v12.8h, v4.h[2]     \n"
+                        "smlal  v22.4s, v12.4h, v4.h[3]     \n"
+                        "smlal2 v23.4s, v12.8h, v4.h[3]     \n"
+                        "smlal  v24.4s, v12.4h, v4.h[4]     \n"
+                        "smlal2 v25.4s, v12.8h, v4.h[4]     \n"
+                        "smlal  v26.4s, v12.4h, v4.h[5]     \n"
+                        "smlal2 v27.4s, v12.8h, v4.h[5]     \n"
+                        "smlal  v28.4s, v12.4h, v4.h[6]     \n"
+                        "smlal2 v29.4s, v12.8h, v4.h[6]     \n"
+                        "smlal  v30.4s, v12.4h, v4.h[7]     \n"
+                        "smlal2 v31.4s, v12.8h, v4.h[7]     \n"
 
-                        "fmla   v24.8h, v21.8h, v5.h[0]     \n"
-                        "fmla   v25.8h, v21.8h, v5.h[1]     \n"
-                        "fmla   v26.8h, v21.8h, v5.h[2]     \n"
-                        "fmla   v27.8h, v21.8h, v5.h[3]     \n"
-                        "fmla   v28.8h, v21.8h, v5.h[4]     \n"
-                        "fmla   v29.8h, v21.8h, v5.h[5]     \n"
-                        "fmla   v30.8h, v21.8h, v5.h[6]     \n"
-                        "fmla   v31.8h, v21.8h, v5.h[7]     \n"
+                        "smlal  v16.4s, v13.4h, v5.h[0]     \n"
+                        "smlal2 v17.4s, v13.8h, v5.h[0]     \n"
+                        "smlal  v18.4s, v13.4h, v5.h[1]     \n"
+                        "smlal2 v19.4s, v13.8h, v5.h[1]     \n"
+                        "smlal  v20.4s, v13.4h, v5.h[2]     \n"
+                        "smlal2 v21.4s, v13.8h, v5.h[2]     \n"
+                        "smlal  v22.4s, v13.4h, v5.h[3]     \n"
+                        "smlal2 v23.4s, v13.8h, v5.h[3]     \n"
+                        "smlal  v24.4s, v13.4h, v5.h[4]     \n"
+                        "smlal2 v25.4s, v13.8h, v5.h[4]     \n"
+                        "smlal  v26.4s, v13.4h, v5.h[5]     \n"
+                        "smlal2 v27.4s, v13.8h, v5.h[5]     \n"
+                        "smlal  v28.4s, v13.4h, v5.h[6]     \n"
+                        "smlal2 v29.4s, v13.8h, v5.h[6]     \n"
+                        "smlal  v30.4s, v13.4h, v5.h[7]     \n"
+                        "smlal2 v31.4s, v13.8h, v5.h[7]     \n"
 
-                        "fmla   v24.8h, v22.8h, v6.h[0]     \n"
-                        "fmla   v25.8h, v22.8h, v6.h[1]     \n"
-                        "fmla   v26.8h, v22.8h, v6.h[2]     \n"
-                        "fmla   v27.8h, v22.8h, v6.h[3]     \n"
-                        "fmla   v28.8h, v22.8h, v6.h[4]     \n"
-                        "fmla   v29.8h, v22.8h, v6.h[5]     \n"
-                        "fmla   v30.8h, v22.8h, v6.h[6]     \n"
-                        "fmla   v31.8h, v22.8h, v6.h[7]     \n"
+                        "smlal  v16.4s, v14.4h, v6.h[0]     \n"
+                        "smlal2 v17.4s, v14.8h, v6.h[0]     \n"
+                        "smlal  v18.4s, v14.4h, v6.h[1]     \n"
+                        "smlal2 v19.4s, v14.8h, v6.h[1]     \n"
+                        "smlal  v20.4s, v14.4h, v6.h[2]     \n"
+                        "smlal2 v21.4s, v14.8h, v6.h[2]     \n"
+                        "smlal  v22.4s, v14.4h, v6.h[3]     \n"
+                        "smlal2 v23.4s, v14.8h, v6.h[3]     \n"
+                        "smlal  v24.4s, v14.4h, v6.h[4]     \n"
+                        "smlal2 v25.4s, v14.8h, v6.h[4]     \n"
+                        "smlal  v26.4s, v14.4h, v6.h[5]     \n"
+                        "smlal2 v27.4s, v14.8h, v6.h[5]     \n"
+                        "smlal  v28.4s, v14.4h, v6.h[6]     \n"
+                        "smlal2 v29.4s, v14.8h, v6.h[6]     \n"
+                        "smlal  v30.4s, v14.4h, v6.h[7]     \n"
+                        "smlal2 v31.4s, v14.8h, v6.h[7]     \n"
 
                         "subs   %w0, %w0, #1                \n"
 
-                        "fmla   v24.8h, v23.8h, v7.h[0]     \n"
-                        "fmla   v25.8h, v23.8h, v7.h[1]     \n"
-                        "fmla   v26.8h, v23.8h, v7.h[2]     \n"
-                        "fmla   v27.8h, v23.8h, v7.h[3]     \n"
-                        "fmla   v28.8h, v23.8h, v7.h[4]     \n"
-                        "fmla   v29.8h, v23.8h, v7.h[5]     \n"
-                        "fmla   v30.8h, v23.8h, v7.h[6]     \n"
-                        "fmla   v31.8h, v23.8h, v7.h[7]     \n"
+                        "smlal  v16.4s, v15.4h, v7.h[0]     \n"
+                        "smlal2 v17.4s, v15.8h, v7.h[0]     \n"
+                        "smlal  v18.4s, v15.4h, v7.h[1]     \n"
+                        "smlal2 v19.4s, v15.8h, v7.h[1]     \n"
+                        "smlal  v20.4s, v15.4h, v7.h[2]     \n"
+                        "smlal2 v21.4s, v15.8h, v7.h[2]     \n"
+                        "smlal  v22.4s, v15.4h, v7.h[3]     \n"
+                        "smlal2 v23.4s, v15.8h, v7.h[3]     \n"
+                        "smlal  v24.4s, v15.4h, v7.h[4]     \n"
+                        "smlal2 v25.4s, v15.8h, v7.h[4]     \n"
+                        "smlal  v26.4s, v15.4h, v7.h[5]     \n"
+                        "smlal2 v27.4s, v15.8h, v7.h[5]     \n"
+                        "smlal  v28.4s, v15.4h, v7.h[6]     \n"
+                        "smlal2 v29.4s, v15.8h, v7.h[6]     \n"
+                        "smlal  v30.4s, v15.4h, v7.h[7]     \n"
+                        "smlal2 v31.4s, v15.8h, v7.h[7]     \n"
 
                         "bne    0b                          \n"
 
-                        "st1    {v24.8h}, [%1], #16         \n"
-                        "st1    {v25.8h}, [%2], #16         \n"
-                        "st1    {v26.8h}, [%3], #16         \n"
-                        "st1    {v27.8h}, [%4], #16         \n"
-                        "st1    {v28.8h}, [%5], #16         \n"
-                        "st1    {v29.8h}, [%6], #16         \n"
-                        "st1    {v30.8h}, [%7], #16         \n"
-                        "st1    {v31.8h}, [%8], #16         \n"
+                        "st1    {v16.4s, v17.4s}, [%1], #32 \n"
+                        "st1    {v18.4s, v19.4s}, [%2], #32 \n"
+                        "st1    {v20.4s, v21.4s}, [%3], #32 \n"
+                        "st1    {v22.4s, v23.4s}, [%4], #32 \n"
+                        "st1    {v24.4s, v25.4s}, [%5], #32 \n"
+                        "st1    {v26.4s, v27.4s}, [%6], #32 \n"
+                        "st1    {v28.4s, v29.4s}, [%7], #32 \n"
+                        "st1    {v30.4s, v31.4s}, [%8], #32 \n"
 
                         : "=r"(nn),         // %0
                         "=r"(output0_tm), // %1
@@ -591,13 +674,16 @@ static void conv3x3s1_winograd42_pack8to1_int8_neon(const Mat& bottom_blob, Mat&
                         "8"(output7_tm),
                         "9"(r0),
                         "10"(kptr)
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
                 }
 #endif
                 for (; i + 3 < tiles; i += 4)
                 {
-                    //                     const short* r0 = bb2.row<const short>(i / 8 + (i % 8) / 4);
+#if __aarch64__
+                    const short* r0 = bb2.row<const short>(i / 8 + (i % 8) / 4);
+#else
                     const short* r0 = bb2.row<const short>(i / 4);
+#endif
                     const short* k0 = kernel01_tm.row<const short>(r);
 
                     int nn = inch; // inch always > 0
@@ -730,8 +816,11 @@ static void conv3x3s1_winograd42_pack8to1_int8_neon(const Mat& bottom_blob, Mat&
                 }
                 for (; i < tiles; i++)
                 {
-                    //                     const short* r0 = bb2.row<const short>(i / 8 + (i % 8) / 4 + i % 4);
+#if __aarch64__
+                    const short* r0 = bb2.row<const short>(i / 8 + (i % 8) / 4 + i % 4);
+#else
                     const short* r0 = bb2.row<const short>(i / 4 + i % 4);
+#endif
                     const short* k0 = kernel01_tm.row<const short>(r);
 
                     int nn = inch; // inch always > 0
@@ -814,61 +903,68 @@ static void conv3x3s1_winograd42_pack8to1_int8_neon(const Mat& bottom_blob, Mat&
                 const Mat bb2 = bottom_blob_tm2.channel(r);
 
                 int i = 0;
-#if 0
+#if __aarch64__
                 for (; i + 7 < tiles; i += 8)
                 {
                     const short* r0 = bb2.row<const short>(i / 8);
 
                     const short* kptr = kernel0_tm.row<const short>(r);
 
-                    int nn = inch; // inch always > 0
+                    int32x4_t _sum0 = vdupq_n_s32(0);
+                    int32x4_t _sum1 = vdupq_n_s32(0);
+                    int32x4_t _sum2 = vdupq_n_s32(0);
+                    int32x4_t _sum3 = vdupq_n_s32(0);
 
-                    asm volatile(
-                        "eor    v30.16b, v30.16b, v30.16b   \n"
+                    for (int q = 0; q < inch; q++)
+                    {
+                        int16x8_t _r0 = vld1q_s16(r0);
+                        int16x8_t _r1 = vld1q_s16(r0 + 8);
+                        int16x8_t _r2 = vld1q_s16(r0 + 16);
+                        int16x8_t _r3 = vld1q_s16(r0 + 24);
+                        int16x8_t _r4 = vld1q_s16(r0 + 32);
+                        int16x8_t _r5 = vld1q_s16(r0 + 40);
+                        int16x8_t _r6 = vld1q_s16(r0 + 48);
+                        int16x8_t _r7 = vld1q_s16(r0 + 56);
 
-                        "0:                                 \n"
+                        int16x8_t _k0 = vld1q_s16(kptr);
 
-                        "prfm   pldl1keep, [%2, #512]       \n"
-                        "ld1    {v16.8h, v17.8h, v18.8h, v19.8h}, [%2], #64 \n"
+                        _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_r0), vget_low_s16(_k0), 0);
+                        _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_r0), vget_low_s16(_k0), 0);
+                        _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_r1), vget_low_s16(_k0), 1);
+                        _sum3 = vmlal_lane_s16(_sum3, vget_high_s16(_r1), vget_low_s16(_k0), 1);
+                        _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_r2), vget_low_s16(_k0), 2);
+                        _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_r2), vget_low_s16(_k0), 2);
+                        _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_r3), vget_low_s16(_k0), 3);
+                        _sum3 = vmlal_lane_s16(_sum3, vget_high_s16(_r3), vget_low_s16(_k0), 3);
+                        _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_r4), vget_high_s16(_k0), 0);
+                        _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_r4), vget_high_s16(_k0), 0);
+                        _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_r5), vget_high_s16(_k0), 1);
+                        _sum3 = vmlal_lane_s16(_sum3, vget_high_s16(_r5), vget_high_s16(_k0), 1);
+                        _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_r6), vget_high_s16(_k0), 2);
+                        _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_r6), vget_high_s16(_k0), 2);
+                        _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_r7), vget_high_s16(_k0), 3);
+                        _sum3 = vmlal_lane_s16(_sum3, vget_high_s16(_r7), vget_high_s16(_k0), 3);
 
-                        "prfm   pldl1keep, [%3, #128]       \n"
-                        "ld1    {v0.8h}, [%3], #16          \n"
+                        kptr += 8;
+                        r0 += 64;
+                    }
 
-                        "fmla   v30.8h, v16.8h, v0.h[0]     \n"
-                        "fmla   v30.8h, v17.8h, v0.h[1]     \n"
+                    _sum0 = vaddq_s32(_sum0, _sum2);
+                    _sum1 = vaddq_s32(_sum1, _sum3);
 
-                        "prfm   pldl1keep, [%2, #512]       \n"
-                        "ld1    {v20.8h, v21.8h, v22.8h, v23.8h}, [%2], #64 \n"
+                    vst1q_s32(output0_tm, _sum0);
+                    vst1q_s32(output0_tm + 4, _sum1);
 
-                        "fmla   v30.8h, v18.8h, v0.h[2]     \n"
-                        "fmla   v30.8h, v19.8h, v0.h[3]     \n"
-
-                        "subs   %w0, %w0, #1                \n"
-
-                        "fmla   v30.8h, v20.8h, v0.h[4]     \n"
-                        "fmla   v30.8h, v21.8h, v0.h[5]     \n"
-                        "fmla   v30.8h, v22.8h, v0.h[6]     \n"
-                        "fmla   v30.8h, v23.8h, v0.h[7]     \n"
-
-                        "bne    0b                          \n"
-
-                        "st1    {v30.8h}, [%1], #16         \n"
-
-                        : "=r"(nn),         // %0
-                        "=r"(output0_tm), // %1
-                        "=r"(r0),         // %2
-                        "=r"(kptr)        // %3
-                        : "0"(nn),
-                        "1"(output0_tm),
-                        "2"(r0),
-                        "3"(kptr)
-                        : "cc", "memory", "v0", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v30");
+                    output0_tm += 8;
                 }
 #endif
                 for (; i + 3 < tiles; i += 4)
                 {
-                    //                     const short* r0 = bb2.row<const short>(i / 8 + (i % 8) / 4);
+#if __aarch64__
+                    const short* r0 = bb2.row<const short>(i / 8 + (i % 8) / 4);
+#else
                     const short* r0 = bb2.row<const short>(i / 4);
+#endif
                     const short* kptr = kernel0_tm.row<const short>(r);
 
                     int32x4_t _sum0 = vdupq_n_s32(0);
@@ -904,8 +1000,11 @@ static void conv3x3s1_winograd42_pack8to1_int8_neon(const Mat& bottom_blob, Mat&
                 }
                 for (; i < tiles; i++)
                 {
-                    //                     const short* r0 = bb2.row<const short>(i / 8 + (i % 8) / 4 + i % 4);
+#if __aarch64__
+                    const short* r0 = bb2.row<const short>(i / 8 + (i % 8) / 4 + i % 4);
+#else
                     const short* r0 = bb2.row<const short>(i / 4 + i % 4);
+#endif
                     const short* kptr = kernel0_tm.row<const short>(r);
 
                     int32x4_t _sum0 = vdupq_n_s32(0);
