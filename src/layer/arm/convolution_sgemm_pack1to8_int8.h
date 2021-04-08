@@ -1191,7 +1191,7 @@ static void im2col_sgemm_pack1to8_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 "lsr    w4, %w2, #2                 \n" // w4 = nn1 >> 2
                 "cmp    w4, #0                      \n"
-                "beq    1f                          \n"
+                "beq    5f                          \n"
 
                 "4:                                 \n"
 
