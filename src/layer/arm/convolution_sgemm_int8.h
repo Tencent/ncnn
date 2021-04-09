@@ -1969,8 +1969,8 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                 int8x16_t _val = vld1q_s8(tmpptr);
                 int8x8_t _w = vld1_dup_s8(kptr0);
 
-                int16x8_t _s0 = vmull_s8(vget_low_s16(_val), _w);
-                int16x8_t _s1 = vmull_s8(vget_high_s16(_val), _w);
+                int16x8_t _s0 = vmull_s8(vget_low_s8(_val), _w);
+                int16x8_t _s1 = vmull_s8(vget_high_s8(_val), _w);
 
                 _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
                 _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
