@@ -68,9 +68,7 @@ public:
 
     Mat weight_data_int8_scales;
     Mat bottom_blob_int8_scales;
-    float top_blob_int8_scale;
-
-    bool use_int8_requantize;
+    Mat top_blob_int8_scales;
 };
 
 } // namespace ncnn

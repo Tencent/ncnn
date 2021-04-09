@@ -262,7 +262,11 @@ int main(int argc, char** argv)
 
     // Add a run of the canonicalizer to optimize the mlir module.
     pm.addNestedPass<mlir::FuncOp>(mlir::createCanonicalizerPass());
-    pm.run(*m);
+    if (pm.run(*m).failed())
+    {
+        fprintf(stderr, "canonicalizer pass failed\n");
+        return -1;
+    }
 
     //     m->dump();
 
@@ -767,7 +771,10 @@ int main(int argc, char** argv)
             fprintf(pp, "%-16s", op.c_str());
         }
 
-        fprintf(pp, " op_%d %d %d", opid, num_input, num_output);
+        char opid_name[64];
+        sprintf(opid_name, "op_%d", opid);
+
+        fprintf(pp, " %-24s %d %d", opid_name, num_input, num_output);
 
         for (int i = 0; i < (int)operation.getNumOperands(); i++)
         {

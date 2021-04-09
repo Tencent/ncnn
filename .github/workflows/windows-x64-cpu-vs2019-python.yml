@@ -1,7 +1,7 @@
 name: windows-x64-cpu-vs2019-python
 on: [push, pull_request]
 jobs:
-  windows-vs2019-ptyhon:
+  windows-vs2019-python:
     runs-on: windows-latest
     strategy:
       matrix:

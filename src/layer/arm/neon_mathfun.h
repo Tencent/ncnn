@@ -25,6 +25,9 @@
  *  (this is the zlib license)
  */
 
+#ifndef NEON_MATHFUN_H
+#define NEON_MATHFUN_H
+
 #include <arm_neon.h>
 
 #if (__ARM_FP & 2)
@@ -357,3 +360,4 @@ static inline float32x4_t sigmoid_ps(float32x4_t _v)
 }
 
 #include "neon_mathfun_tanh.h"
+#endif // NEON_MATHFUN_H

@@ -178,7 +178,7 @@ static void generate_proposals(const ncnn::Mat& cls_pred, const ncnn::Mat& dis_p
                     delete softmax;
                 }
 
-                float dis_pred[4];
+                float pred_ltrb[4];
                 for (int k = 0; k < 4; k++)
                 {
                     float dis = 0.f;
@@ -188,16 +188,16 @@ static void generate_proposals(const ncnn::Mat& cls_pred, const ncnn::Mat& dis_p
                         dis += l * dis_after_sm[l];
                     }
 
-                    dis_pred[k] = dis * stride;
+                    pred_ltrb[k] = dis * stride;
                 }
 
                 float pb_cx = (j + 0.5f) * stride;
                 float pb_cy = (i + 0.5f) * stride;
 
-                float x0 = pb_cx - dis_pred[0];
-                float y0 = pb_cy - dis_pred[1];
-                float x1 = pb_cx + dis_pred[2];
-                float y1 = pb_cy + dis_pred[3];
+                float x0 = pb_cx - pred_ltrb[0];
+                float y0 = pb_cy - pred_ltrb[1];
+                float x1 = pb_cx + pred_ltrb[2];
+                float y1 = pb_cy + pred_ltrb[3];
 
                 Object obj;
                 obj.rect.x = x0;

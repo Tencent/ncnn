@@ -182,7 +182,11 @@ macro(ncnn_add_layer class)
             )
             set_source_files_properties(${NCNN_ARM82_SOURCE} PROPERTIES GENERATED TRUE)
 
-            set_source_files_properties(${NCNN_ARM82_SOURCE} PROPERTIES COMPILE_FLAGS "-march=armv8.2-a+fp16")
+            if(NCNN_COMPILER_SUPPORT_ARM82_FP16_DOTPROD)
+                set_source_files_properties(${NCNN_ARM82_SOURCE} PROPERTIES COMPILE_FLAGS "-march=armv8.2-a+fp16+dotprod")
+            elseif(NCNN_COMPILER_SUPPORT_ARM82_FP16)
+                set_source_files_properties(${NCNN_ARM82_SOURCE} PROPERTIES COMPILE_FLAGS "-march=armv8.2-a+fp16")
+            endif()
 
             list(APPEND ncnn_SRCS ${NCNN_ARM82_HEADER} ${NCNN_ARM82_SOURCE})
 

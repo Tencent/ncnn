@@ -1,6 +1,7 @@
-// BUG1989 is pleased to support the open source community by supporting ncnn available.
+// Tencent is pleased to support the open source community by making ncnn available.
 //
 // Copyright (C) 2019 BUG1989. All rights reserved.
+// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -22,6 +23,8 @@ namespace ncnn {
 class Requantize_arm : virtual public Requantize
 {
 public:
+    Requantize_arm();
+
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 };
 

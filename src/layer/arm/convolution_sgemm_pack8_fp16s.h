@@ -805,7 +805,7 @@ static void convolution_im2col_sgemm_pack8_fp16sa_neon(const Mat& bottom_blob, M
                             vst1q_f16(ptr, _val);
 
                             sptr += stride_w * 8;
-                            ptr += 4;
+                            ptr += 8;
                         }
 
                         sptr += gap;

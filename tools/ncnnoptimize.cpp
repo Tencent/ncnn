@@ -89,6 +89,20 @@
 #include "layer/yolodetectionoutput.h"
 #include "layer/yolov3detectionoutput.h"
 
+static void replace_denormals_with_zero(float* data, size_t data_length)
+{
+    const int total = static_cast<int>(data_length);
+    for (size_t i = 0; i < data_length; ++i)
+    {
+        float value = data[i];
+
+        if (fabsf(value) < 1e-30 && fabsf(value) != 0.f)
+        {
+            data[i] = 0.f;
+        }
+    }
+}
+
 class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:
@@ -209,6 +223,10 @@ public:
     // 0=fp32 1=fp16
     int storage_type;
 
+    // Cut param and bin -1=no cut
+    int cutstart;
+    int cutend;
+
 public:
     int fuse_batchnorm_scale();
     int fuse_convolution_batchnorm();
@@ -249,6 +267,8 @@ public:
     int shape_inference();
     int estimate_memory_footprint();
 
+    int set_cutparam(const char* cutstartname, const char* cutendname);
+
 public:
     int fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp);
     int fprintf_param_float_array(int id, const ncnn::Mat& m, FILE* pp);
@@ -263,6 +283,8 @@ NetOptimize::NetOptimize()
     : blobs(mutable_blobs()), layers(mutable_layers())
 {
     has_custom_layer = false;
+    cutstart = -1;
+    cutend = -1;
 }
 
 ncnn::Layer* NetOptimize::create_custom_layer(const char* type)
@@ -2652,7 +2674,7 @@ int NetOptimize::replace_convolution_with_innerproduct_after_global_pooling()
         innerproduct->weight_data = convolution->weight_data;
         innerproduct->bias_data = convolution->bias_data;
         innerproduct->weight_data_int8_scales = convolution->weight_data_int8_scales;
-        innerproduct->bottom_blob_int8_scale = convolution->bottom_blob_int8_scale;
+        innerproduct->bottom_blob_int8_scales = convolution->bottom_blob_int8_scales;
 
         innerproduct->activation_type = convolution->activation_type;
         innerproduct->activation_params = convolution->activation_params;
@@ -2718,7 +2740,7 @@ int NetOptimize::replace_convolution_with_innerproduct_after_innerproduct()
             innerproduct2->weight_data = convolution->weight_data;
             innerproduct2->bias_data = convolution->bias_data;
             innerproduct->weight_data_int8_scales = convolution->weight_data_int8_scales;
-            innerproduct->bottom_blob_int8_scale = convolution->bottom_blob_int8_scale;
+            innerproduct->bottom_blob_int8_scales = convolution->bottom_blob_int8_scales;
 
             innerproduct2->activation_type = convolution->activation_type;
             innerproduct2->activation_params = convolution->activation_params;
@@ -2933,6 +2955,41 @@ int NetOptimize::estimate_memory_footprint()
     return 0;
 }
 
+int NetOptimize::set_cutparam(const char* cutstartname, const char* cutendname)
+{
+    if (cutstartname != nullptr)
+    {
+        int layindex = find_layer_index_by_name(cutstartname);
+        if (layindex >= 0)
+        {
+            cutstart = layindex;
+            fprintf(stderr, "cutstart layer %d:%s\n", layindex, cutstartname);
+        }
+        else
+        {
+            fprintf(stderr, "not find target cutstart layer %s\n", cutstartname);
+            return -1;
+        }
+    }
+
+    if (cutendname != nullptr)
+    {
+        int layindex = find_layer_index_by_name(cutendname);
+        if (layindex >= 0)
+        {
+            cutend = layindex;
+            fprintf(stderr, "cutend layer %d:%s\n", layindex, cutendname);
+        }
+        else
+        {
+            fprintf(stderr, "not find target cutend layer %s\n", cutendname);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 int NetOptimize::fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp)
 {
     const int count = m.w;
@@ -2982,6 +3039,11 @@ int NetOptimize::fwrite_weight_tag_data(int tag, const ncnn::Mat& data, FILE* bp
     else
     {
         fwrite(&tag, sizeof(int), 1, bp);
+        if (data_flattened.elemsize == 4) // fp32
+        {
+            replace_denormals_with_zero(data_flattened, data_flattened.w);
+        }
+
         fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
     }
 
@@ -2999,6 +3061,11 @@ int NetOptimize::fwrite_weight_data(const ncnn::Mat& data, FILE* bp)
     int p0 = ftell(bp);
 
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
+    if (data_flattened.elemsize == 4) // fp32
+    {
+        replace_denormals_with_zero(data_flattened, data_flattened.w);
+    }
+
     fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
 
     // padding to 32bit align
@@ -3054,6 +3121,12 @@ int NetOptimize::save(const char* parampath, const char* binpath)
     {
         const ncnn::Layer* layer = layers[i];
         if (layer->type == "ncnnfused")
+            continue;
+
+        if (cutstart > 0 && i < cutstart)
+            continue;
+
+        if (cutend > 0 && i > cutend)
             continue;
 
         size_t bottom_count = layer->bottoms.size();
@@ -3779,7 +3852,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Quantize* op = (ncnn::Quantize*)layer;
             ncnn::Quantize* op_default = (ncnn::Quantize*)layer_default;
 
-            fprintf_param_value(" 0=%e", scale)
+            fprintf_param_value(" 0=%d", scale_data_size)
+
+            fwrite_weight_data(op->scale_data, bp);
         }
         else if (layer->type == "Reduction")
         {
@@ -3814,11 +3889,17 @@ int NetOptimize::save(const char* parampath, const char* binpath)
             ncnn::Requantize* op = (ncnn::Requantize*)layer;
             ncnn::Requantize* op_default = (ncnn::Requantize*)layer_default;
 
-            fprintf_param_value(" 0=%e", scale_in)
-            fprintf_param_value(" 1=%e", scale_out)
-            fprintf_param_value(" 2=%d", bias_term)
-            fprintf_param_value(" 3=%d", bias_data_size)
-            fprintf_param_value(" 4=%d", fusion_relu)
+            fprintf_param_value(" 0=%d", scale_in_data_size)
+            fprintf_param_value(" 1=%d", scale_out_data_size)
+            fprintf_param_value(" 2=%d", bias_data_size)
+            fprintf_param_value(" 3=%d", activation_type)
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(4, op->activation_params, pp);
+            }
+
+            fwrite_weight_data(op->scale_in_data, bp);
+            fwrite_weight_data(op->scale_out_data, bp);
+            fwrite_weight_data(op->bias_data, bp);
         }
         else if (layer->type == "Reshape")
         {
@@ -3986,9 +4067,9 @@ int NetOptimize::save(const char* parampath, const char* binpath)
 
 int main(int argc, char** argv)
 {
-    if (argc != 6)
+    if (argc < 6)
     {
-        fprintf(stderr, "usage: %s [inparam] [inbin] [outparam] [outbin] [flag]\n", argv[0]);
+        fprintf(stderr, "usage: %s [inparam] [inbin] [outparam] [outbin] [flag] [cutstart] [cutend]\n", argv[0]);
         return -1;
     }
 
@@ -3997,6 +4078,18 @@ int main(int argc, char** argv)
     const char* outparam = argv[3];
     const char* outbin = argv[4];
     int flag = atoi(argv[5]);
+    const char* cutstartname = nullptr;
+    const char* cutendname = nullptr;
+
+    if (argc > 6)
+    {
+        cutstartname = argv[6];
+    }
+
+    if (argc > 7)
+    {
+        cutendname = argv[7];
+    }
 
     NetOptimize optimizer;
 
@@ -4010,6 +4103,7 @@ int main(int argc, char** argv)
     }
 
     optimizer.load_param(inparam);
+
     if (strcmp(inbin, "null") == 0)
     {
         DataReaderFromEmpty dr;
@@ -4017,6 +4111,11 @@ int main(int argc, char** argv)
     }
     else
         optimizer.load_model(inbin);
+
+    if (optimizer.set_cutparam(cutstartname, cutendname) < 0)
+    {
+        return -1;
+    }
 
     optimizer.fuse_batchnorm_scale();
     optimizer.fuse_convolution_batchnorm();

@@ -32,7 +32,7 @@ class ImportAndroidHardwareBufferPipeline;
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_PLATFORM_API
 class VkComputePrivate;
-class VkCompute
+class NCNN_EXPORT VkCompute
 {
 public:
     explicit VkCompute(const VulkanDevice* vkdev);
@@ -109,7 +109,7 @@ private:
 };
 
 class VkTransferPrivate;
-class VkTransfer
+class NCNN_EXPORT VkTransfer
 {
 public:
     explicit VkTransfer(const VulkanDevice* vkdev);

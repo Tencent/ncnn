@@ -36,7 +36,6 @@ protected:
 
 public:
     Layer* activation;
-    bool use_winograd3x3;
     Mat weight_3x3_winograd23_data;
     Mat weight_sgemm_data;
     std::vector<Mat> weight_3x3_winograd43_data;
@@ -49,7 +48,7 @@ public:
     Mat weight_3x3_winograd64_data_pack8;
 
     // int8
-    bool use_winograd3x3_int8;
+    Mat weight_data_int8;
     Mat weight_3x3_winograd23_data_int8;
 };
 

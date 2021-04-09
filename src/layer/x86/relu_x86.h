@@ -25,6 +25,9 @@ public:
     ReLU_x86();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
+
+protected:
+    int forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn

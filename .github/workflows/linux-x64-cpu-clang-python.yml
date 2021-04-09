@@ -1,7 +1,7 @@
 name: linux-x64-cpu-clang-python
 on: [push, pull_request]
 jobs:
-  linux-clang-ptyhon:
+  linux-clang-python:
     runs-on: ubuntu-latest
     strategy:
       matrix:
