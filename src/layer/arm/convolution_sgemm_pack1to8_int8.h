@@ -1618,7 +1618,7 @@ static void im2col_sgemm_pack1to8_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 "7:                             \n"
 
-                "vst1.f32   {d0-d3}, [%0 :128]! \n"
+                "vst1.s32   {d0-d3}, [%0 :128]! \n"
 
                 : "=r"(outptr0),
                 "=r"(nn),

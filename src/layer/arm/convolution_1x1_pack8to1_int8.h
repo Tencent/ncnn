@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
+static void conv1x1s1_sgemm_pack8to1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -22,10 +22,10 @@ static void conv1x1s1_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
     bottom_im2col.w = size;
     bottom_im2col.h = 1;
 
-    im2col_sgemm_int8_neon(bottom_im2col, top_blob, kernel, opt);
+    im2col_sgemm_pack8to1_int8_neon(bottom_im2col, top_blob, kernel, opt);
 }
 
-static void conv1x1s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
+static void conv1x1s2_pack8to1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
@@ -35,7 +35,7 @@ static void conv1x1s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat
     int outw = top_blob.w;
     int outh = top_blob.h;
 
-    const int tailstep = w - 2 * outw + w;
+    const int tailstep = (w - 2 * outw + w) * 8;
 
     Mat bottom_blob_shrinked;
     bottom_blob_shrinked.create(outw, outh, channels, elemsize, elempack, opt.workspace_allocator);
@@ -51,33 +51,40 @@ static void conv1x1s2_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat
             int j = 0;
             for (; j + 3 < outw; j += 4)
             {
-                outptr[0] = r0[0];
-                outptr[1] = r0[2];
-                outptr[2] = r0[4];
-                outptr[3] = r0[6];
+                int8x8_t _v0 = vld1_s8(r0);
+                int8x8_t _v1 = vld1_s8(r0 + 16);
+                int8x8_t _v2 = vld1_s8(r0 + 32);
+                int8x8_t _v3 = vld1_s8(r0 + 48);
+                vst1_s8(outptr, _v0);
+                vst1_s8(outptr + 8, _v1);
+                vst1_s8(outptr + 16, _v2);
+                vst1_s8(outptr + 24, _v3);
 
-                r0 += 8;
-                outptr += 4;
+                r0 += 64;
+                outptr += 32;
             }
             for (; j + 1 < outw; j += 2)
             {
-                outptr[0] = r0[0];
-                outptr[1] = r0[2];
+                int8x8_t _v0 = vld1_s8(r0);
+                int8x8_t _v1 = vld1_s8(r0 + 16);
+                vst1_s8(outptr, _v0);
+                vst1_s8(outptr + 8, _v1);
 
-                r0 += 4;
-                outptr += 2;
+                r0 += 32;
+                outptr += 16;
             }
             for (; j < outw; j++)
             {
-                outptr[0] = r0[0];
+                int8x8_t _v = vld1_s8(r0);
+                vst1_s8(outptr, _v);
 
-                r0 += 2;
-                outptr += 1;
+                r0 += 16;
+                outptr += 8;
             }
 
             r0 += tailstep;
         }
     }
 
-    conv1x1s1_sgemm_int8_neon(bottom_blob_shrinked, top_blob, kernel, opt);
+    conv1x1s1_sgemm_pack8to1_int8_neon(bottom_blob_shrinked, top_blob, kernel, opt);
 }
