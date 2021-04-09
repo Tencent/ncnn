@@ -29,6 +29,12 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b)
         Randomize(a, 0.001f, 2.f);
         Randomize(b, 0.001f, 2.f);
     }
+    if (op_type == 3 || op_type == 8)
+    {
+        // value must be positive for pow
+        Randomize(a, 0.1f, 10.f);
+        Randomize(b, 0.1f, 10.f);
+    }
 
     ncnn::ParamDict pd;
     pd.set(0, op_type);
@@ -260,6 +266,38 @@ static int test_binaryop_s4()
            || test_binaryop(RandomMat(11, 6, 1), RandomMat(11, 6, 16));
 }
 
+static int test_binaryop_s5()
+{
+    return 0
+           || test_binaryop(RandomMat(11, 6, 2), RandomMat(1, 6, 2))
+           || test_binaryop(RandomMat(11, 6, 4), RandomMat(1, 6, 4))
+           || test_binaryop(RandomMat(11, 6, 16), RandomMat(1, 6, 16));
+}
+
+static int test_binaryop_s6()
+{
+    return 0
+           || test_binaryop(RandomMat(11, 6, 2), RandomMat(11, 1, 2))
+           || test_binaryop(RandomMat(11, 6, 4), RandomMat(11, 1, 4))
+           || test_binaryop(RandomMat(11, 6, 16), RandomMat(11, 1, 16));
+}
+
+static int test_binaryop_s7()
+{
+    return 0
+           || test_binaryop(RandomMat(1, 6, 2), RandomMat(11, 6, 2))
+           || test_binaryop(RandomMat(1, 6, 4), RandomMat(11, 6, 4))
+           || test_binaryop(RandomMat(1, 6, 16), RandomMat(11, 6, 16));
+}
+
+static int test_binaryop_s8()
+{
+    return 0
+           || test_binaryop(RandomMat(11, 1, 2), RandomMat(11, 6, 2))
+           || test_binaryop(RandomMat(11, 1, 4), RandomMat(11, 6, 4))
+           || test_binaryop(RandomMat(11, 1, 16), RandomMat(11, 6, 16));
+}
+
 int main()
 {
     SRAND(7767517);
@@ -289,7 +327,11 @@ int main()
                   || test_binaryop_s1()
                   || test_binaryop_s2()
                   || test_binaryop_s3()
-                  || test_binaryop_s4();
+                  || test_binaryop_s4()
+                  || test_binaryop_s5()
+                  || test_binaryop_s6()
+                  || test_binaryop_s7()
+                  || test_binaryop_s8();
 
         if (ret != 0)
             return ret;
