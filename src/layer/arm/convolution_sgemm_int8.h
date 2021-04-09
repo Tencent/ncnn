@@ -24,6 +24,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
 
     // permute
     Mat tmp;
+#if __ARM_NEON
 #if __aarch64__
 #if __ARM_FEATURE_DOTPROD
     if (inch >= 8)
@@ -569,10 +570,36 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
             }
         }
     }
+#else // __ARM_NEON
+    tmp.create(maxk, inch, size, 1u, 1, opt.workspace_allocator);
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < size; i++)
+        {
+            signed char* tmpptr = tmp.channel(i);
+
+            int q = 0;
+            for (; q < inch; q++)
+            {
+                const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
+
+                for (int k = 0; k < maxk; k++)
+                {
+                    tmpptr[0] = img0[0];
+
+                    tmpptr += 1;
+
+                    img0 += size;
+                }
+            }
+        }
+    }
+#endif // __ARM_NEON
 
     int nn_outch = 0;
     int remain_outch_start = 0;
 
+#if __ARM_NEON
     nn_outch = outch >> 2;
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -1916,6 +1943,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
     }
 
     remain_outch_start += nn_outch << 2;
+#endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
@@ -1923,6 +1951,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
         int* outptr0 = top_blob.channel(p);
 
         int i = 0;
+#if __ARM_NEON
 #if __aarch64__
 #if __ARM_FEATURE_DOTPROD
         for (; i + 15 < size; i += 16)
@@ -2397,6 +2426,31 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
             outptr0[0] = sum;
             outptr0 += 1;
         }
+#else  // __ARM_NEON
+        for (; i < size; i++)
+        {
+            const signed char* tmpptr = tmp.channel(i);
+            const signed char* kptr0 = kernel.channel(p);
+
+            int nn1 = inch * maxk;
+
+            int sum = 0;
+            int j = 0;
+            for (; j < nn1; j++)
+            {
+                signed char val = tmpptr[0];
+                signed char w = kptr0[0];
+
+                sum += val * w;
+
+                tmpptr += 1;
+                kptr0 += 1;
+            }
+
+            outptr0[0] = sum;
+            outptr0 += 1;
+        }
+#endif // __ARM_NEON
     }
 }
 
@@ -2404,6 +2458,7 @@ static void convolution_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kern
 {
     const int maxk = kernel_w * kernel_h;
 
+#if __ARM_NEON
     // interleave
     // src = maxk-inch-outch
     // dst = 8a-4b-maxk-inch/8a-outch/4b
@@ -2521,6 +2576,9 @@ static void convolution_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kern
             }
         }
     }
+#else  // __ARM_NEON
+    kernel_tm = _kernel.reshape(maxk, inch, outch);
+#endif // __ARM_NEON
 }
 
 static void convolution_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
