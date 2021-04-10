@@ -3,7 +3,7 @@
 # 如何加入技术交流QQ群？
 
 # 如何看作者b站直播？
-
+nihui的bilibili直播间：https://live.bilibili.com/1264617
 # 编译
 
 ## 怎样下载源码？
@@ -187,12 +187,13 @@ you may find more info on use-ncnn-with-alexnet
 你应该在 load_param / load_model 之前设置 net.opt.use_vulkan_compute = true;
 
 ## 多个blob输入，多个blob输出，怎么做？
-
-ex.input()
-ex.input()
-ex.extract()
-ex.extract()
-
+多次执行`ex.input()` 和 `ex.extract()`
+```
+ex.input();
+ex.input();
+ex.extract();
+ex.extract();
+```
 ## Extractor extract 多次会重复计算吗？
 
 ## 如何看每一层的耗时？
@@ -209,7 +210,7 @@ https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx
 
 ## 如何初始化 ncnn::Mat 为全 0
 
-mat.fill(0.f);
+`mat.fill(0.f);`
 
 ## 如何转换 yuv 数据
 
@@ -222,7 +223,8 @@ warpaffine_bilinear_c3
 
 ## 如何获得中间层的blob输出
 
-ex.extract()
+    ncnn::Mat output;
+    ex.extract("your_blob_name", output);
 
 ## 为什么我使用GPU，但是GPU占用为0
 
