@@ -248,8 +248,8 @@ warpaffine_bilinear_c3
 
 ## 为什么我使用GPU，但是GPU占用为0
 
-windows 10 资源管理器显示 TAB 切换到 Compute_0 / Compute_1
-GPU-Z
+windows 10 任务管理器 - 性能选项卡 - GPU - 选择其中一个视图左上角的下拉箭头切换到 Compute_0 / Compute_1 / Cuda
+你还可以安装软件：GPU-Z 
 
 ## layer XYZ not exists or registered
 
@@ -346,6 +346,24 @@ void pretty_print(const ncnn::Mat& m)
             printf("\n");
         }
         printf("------------------------\n");
+    }
+}
+```
+In Android Studio, `printf` will not work, you can use `__android_log_print` instead. Example :
+```C++
+#include <android/log.h>  // Don't forget this
+
+void pretty_print(const ncnn::Mat& m)
+{
+    for (int q=0; q<m.c; q++)
+    {
+        for (int y=0; y<m.h; y++)
+        {
+            for (int x=0; x<m.w; x++)
+            {
+                __android_log_print(ANDROID_LOG_DEBUG,"LOG_TAG","ncnn Mat is : %f", m.channel(q).row(y)[x]);
+            }
+        }
     }
 }
 ```
