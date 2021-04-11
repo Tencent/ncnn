@@ -301,10 +301,12 @@ for msvc++:
 for g++:
 
     setenv("OMP_WAIT_POLICY", "passive", 1)
-
+    
     reference: https://stackoverflow.com/questions/34439956/vc-crash-when-freeing-a-dll-built-with-openmp
 
 # 跑出来的结果对不上
+
+[ncnn-produce-wrong-result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result)
 
 ## 如何打印 ncnn::Mat 的值？
 
