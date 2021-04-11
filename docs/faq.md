@@ -90,9 +90,15 @@ opencv rtti -> opencv-mobile
 
 ## caffe
 
+`./caffe2ncnn caffe.prototxt caffe.caffemodel ncnn.param ncnn.bin`
+
 ## mxnet
 
+` ./mxnet2ncnn mxnet-symbol.json mxnet.params ncnn.param ncnn.bin`
+
 ## darknet
+
+[https://github.com/xiangweizeng/darknet2ncnn](https://github.com/xiangweizeng/darknet2ncnn)
 
 ## pytorch - onnx
 
@@ -100,7 +106,11 @@ opencv rtti -> opencv-mobile
 
 ## tensorflow 1.x/2.x - keras
 
+[https://github.com/MarsTechHAN/keras2ncnn](https://github.com/MarsTechHAN/keras2ncnn) **[@MarsTechHAN](https://github.com/MarsTechHAN)**
+
 ## tensorflow 2.x - mlir
+
+[通过MLIR将tensorflow2模型转换到ncnn](https://zhuanlan.zhihu.com/p/152535430) **@[nihui](https://www.zhihu.com/people/nihui-2)**
 
 ## Shape not supported yet! Gather not supported yet! Cast not supported yet!
 
@@ -422,6 +432,8 @@ https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result
 
 ## 如何使用量化工具？
 
+[Post Training Quantization Tools](https://github.com/Tencent/ncnn/tree/master/tools/quantize)
+
 ## 如何设置线程数？
 
 ## 如何降低CPU占用率？
@@ -436,6 +448,13 @@ OMP_WAIT_POLICY=passive
 先 extract 分类，判断后，再 extract bbox
 
 ## 如何启用 bf16s 加速？
+
+```
+net.opt.use_packing_layout = true;
+net.opt.use_bf16_storage = true;
+```
+
+[用bf16加速ncnn](https://zhuanlan.zhihu.com/p/112564372) **@[nihui](https://www.zhihu.com/people/nihui-2)**
 
 A53
 
