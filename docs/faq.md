@@ -116,6 +116,8 @@ why gpu能更快
 
 ## ncnnoptimize 怎么转成 fp16 模型
 
+`ncnnoptimize model.param model.bin yolov5s-opt.param yolov5s-opt.bin 65536`
+
 ## ncnnoptimize 怎样查看模型的 FLOPS / 内存占用情况
 
 ## 怎么修改模型支持动态 shape？
