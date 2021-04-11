@@ -13,6 +13,10 @@
 ```cpp
 ncnn::Mat in = ncnn::Mat::from_pixels_roi(im.data, ncnn::Mat::PIXEL_RGB, im_w, im_h, x, y, roiw, roih);
 ```
+For Android Application, it is :
+```cpp
+ncnn::Mat in = ncnn::Mat::from_android_bitmap_roi(env, image, ncnn::Mat::PIXEL_RGBA2RGB, x, y, roiw, roih);
+```
 
 ### image roi crop + resize + convert to ncnn::Mat
 
@@ -27,6 +31,10 @@ ncnn::Mat in = ncnn::Mat::from_pixels_roi(im.data, ncnn::Mat::PIXEL_RGB, im_w, i
 ```
 ```cpp
 ncnn::Mat in = ncnn::Mat::from_pixels_roi_resize(im.data, ncnn::Mat::PIXEL_RGB, im_w, im_h, x, y, roiw, roih, target_w, target_h);
+```
+For Android Application, it is :
+```cpp
+ncnn::Mat in = ncnn::Mat::from_android_bitmap_roi_resize(env, image, ncnn::Mat::PIXEL_RGBA2RGB, x, y, roiw, roih, target_w, target_h);
 ```
 
 ### ncnn::Mat export image + offset paste
