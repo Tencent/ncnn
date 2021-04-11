@@ -364,5 +364,13 @@ https://github.com/Tencent/ncnn/wiki/build-minimal-library
 
 # 其他
 
-## up主用的什么系统/编辑器？
+## up主用的什么系统/编辑器/开发环境？
 
+| 软件类型     |   软件名称  |
+| ------------| ----------- |
+| 系统        | Fedora       |
+| 桌面环境     | KDE         |
+| 编辑器       | Kate        |
+| 画草图       | kolourpaint |
+| 画函数图像   | kmplot      |
+| bilibili直播 |  OBS         |
