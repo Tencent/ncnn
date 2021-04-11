@@ -449,6 +449,13 @@ OMP_WAIT_POLICY=passive
 
 ## 如何启用 bf16s 加速？
 
+```
+net.opt.use_packing_layout = true;
+net.opt.use_bf16_storage = true;
+```
+
+[用bf16加速ncnn](https://zhuanlan.zhihu.com/p/112564372) **@[nihui](https://www.zhihu.com/people/nihui-2)**
+
 A53
 
 ## 如何裁剪更小的 ncnn 库？
