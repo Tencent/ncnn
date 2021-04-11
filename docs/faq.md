@@ -94,6 +94,8 @@ opencv rtti -> opencv-mobile
 
 ## mxnet
 
+` ./mxnet2ncnn mxnet-symbol.json mxnet.params ncnn.param ncnn.bin`
+
 ## darknet
 
 [https://github.com/xiangweizeng/darknet2ncnn](https://github.com/xiangweizeng/darknet2ncnn)
