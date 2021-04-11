@@ -102,6 +102,8 @@ opencv rtti -> opencv-mobile
 
 ## tensorflow 1.x/2.x - keras
 
+[https://github.com/MarsTechHAN/keras2ncnn](https://github.com/MarsTechHAN/keras2ncnn) **[@MarsTechHAN](https://github.com/MarsTechHAN)**
+
 ## tensorflow 2.x - mlir
 
 [通过MLIR将tensorflow2模型转换到ncnn](https://zhuanlan.zhihu.com/p/152535430) **@[nihui](https://www.zhihu.com/people/nihui-2)**
