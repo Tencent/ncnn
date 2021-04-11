@@ -216,6 +216,8 @@ https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx
 
 ## 如何 resize crop rotate 图片
 
+[efficient roi resize rotate](https://github.com/Tencent/ncnn/wiki/efficient-roi-resize-rotate)
+
 ## 如何人脸5点对齐
 
 get_affine_transform
