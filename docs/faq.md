@@ -96,6 +96,8 @@ opencv rtti -> opencv-mobile
 
 ## pytorch - onnx
 
+(use ncnn with pytorch or onnx)[https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx]
+
 ## tensorflow 1.x/2.x - keras
 
 ## tensorflow 2.x - mlir
