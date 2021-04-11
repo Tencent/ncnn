@@ -94,6 +94,8 @@ opencv rtti -> opencv-mobile
 
 ## darknet
 
+[https://github.com/xiangweizeng/darknet2ncnn](https://github.com/xiangweizeng/darknet2ncnn)
+
 ## pytorch - onnx
 
 [use ncnn with pytorch or onnx](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx)
