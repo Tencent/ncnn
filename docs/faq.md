@@ -96,7 +96,7 @@ opencv rtti -> opencv-mobile
 
 ## pytorch - onnx
 
-(use ncnn with pytorch or onnx)[https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx]
+[use ncnn with pytorch or onnx](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx)
 
 ## tensorflow 1.x/2.x - keras
 
@@ -109,6 +109,8 @@ onnx-simplifier 静态shape
 ## convertmodel
 
 ## netron
+
+[https://github.com/lutzroeder/netron](https://github.com/lutzroeder/netron)
 
 ## 怎么生成有固定 shape 信息的模型？
 
