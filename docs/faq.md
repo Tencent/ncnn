@@ -90,6 +90,8 @@ opencv rtti -> opencv-mobile
 
 ## caffe
 
+`./caffe2ncnn caffe.prototxt caffe.caffemodel ncnn.param ncnn.bin`
+
 ## mxnet
 
 ## darknet
