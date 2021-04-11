@@ -428,6 +428,8 @@ https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result
 
 ## 如何使用量化工具？
 
+[Post Training Quantization Tools](https://github.com/Tencent/ncnn/tree/master/tools/quantize)
+
 ## 如何设置线程数？
 
 ## 如何降低CPU占用率？
