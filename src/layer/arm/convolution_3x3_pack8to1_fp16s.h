@@ -983,8 +983,8 @@ static void conv3x3s1_winograd64_pack8to1_fp16sa_neon(const Mat& bottom_blob, Ma
 
                         _sum0 = vfmaq_f16(_sum0, _r0, _k0);
 
-                        kptr += 4;
-                        r0 += 4;
+                        kptr += 8;
+                        r0 += 8;
                     }
 
                     __fp16 sum0 = vaddvq_f32(vcvt_f32_f16(vadd_f16(vget_low_f16(_sum0), vget_high_f16(_sum0))));

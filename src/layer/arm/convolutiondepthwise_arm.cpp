@@ -34,6 +34,9 @@ namespace ncnn {
 #include "convolutiondepthwise_3x3_pack4_bf16s.h"
 #include "convolutiondepthwise_5x5_pack4.h"
 #include "convolutiondepthwise_5x5_pack4_bf16s.h"
+
+#include "convolutiondepthwise_3x3_pack8_int8.h"
+
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "convolutiondepthwise_3x3_fp16s.h"
 #include "convolutiondepthwise_3x3_pack8_fp16s.h"
@@ -1558,6 +1561,79 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
 #if __ARM_NEON
         if (elempack == 8)
         {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (activation_type == 0 || activation_type == 1))
+            {
+                Mat top_blob_int32;
+                top_blob_int32.create(outw, outh, num_output / out_elempack, (size_t)4u * out_elempack, out_elempack, opt.workspace_allocator);
+                if (top_blob_int32.empty())
+                    return -100;
+
+                convdw3x3s1_pack8_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data_int8, opt);
+
+                Mat scale_in_data(group);
+                for (int g = 0; g < group; g++)
+                {
+                    // dequantize
+                    float scale_in;
+                    if (weight_data_int8_scales[g] == 0)
+                        scale_in = 0;
+                    else
+                        scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+                    scale_in_data[g] = scale_in;
+                }
+
+                if (use_int8_requantize)
+                {
+                    requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
+                }
+                else
+                {
+                    dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
+
+                    if (activation)
+                    {
+                        activation->forward_inplace(top_blob, opt);
+                    }
+                }
+            }
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (activation_type == 0 || activation_type == 1))
+            {
+                Mat top_blob_int32;
+                top_blob_int32.create(outw, outh, num_output / out_elempack, (size_t)4u * out_elempack, out_elempack, opt.workspace_allocator);
+                if (top_blob_int32.empty())
+                    return -100;
+
+                convdw3x3s2_pack8_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data_int8, opt);
+
+                Mat scale_in_data(group);
+                for (int g = 0; g < group; g++)
+                {
+                    // dequantize
+                    float scale_in;
+                    if (weight_data_int8_scales[g] == 0)
+                        scale_in = 0;
+                    else
+                        scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+                    scale_in_data[g] = scale_in;
+                }
+
+                if (use_int8_requantize)
+                {
+                    requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
+                }
+                else
+                {
+                    dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
+
+                    if (activation)
+                    {
+                        activation->forward_inplace(top_blob, opt);
+                    }
+                }
+            }
+            else
             {
                 const int maxk = kernel_w * kernel_h;
 

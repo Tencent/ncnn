@@ -52,8 +52,10 @@ static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
         {
             for (int j = 0; j < outw; j++)
             {
-                int32x4_t _sum0 = vdupq_n_s32(0);
-                int32x4_t _sum1 = vdupq_n_s32(0);
+                int32x4_t _sum01 = vdupq_n_s32(0);
+                int32x4_t _sum23 = vdupq_n_s32(0);
+                int32x4_t _sum45 = vdupq_n_s32(0);
+                int32x4_t _sum67 = vdupq_n_s32(0);
 
                 const signed char* kptr = weight_data_int8.channel(p);
 
@@ -65,14 +67,7 @@ static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
 
                     for (int k = 0; k < maxk; k++)
                     {
-                        int8x8_t _val0 = vld1_dup_s8(sptr + space_ofs[k] * 8);
-                        int8x8_t _val1 = vld1_dup_s8(sptr + space_ofs[k] * 8 + 1);
-                        int8x8_t _val2 = vld1_dup_s8(sptr + space_ofs[k] * 8 + 2);
-                        int8x8_t _val3 = vld1_dup_s8(sptr + space_ofs[k] * 8 + 3);
-                        int8x8_t _val4 = vld1_dup_s8(sptr + space_ofs[k] * 8 + 4);
-                        int8x8_t _val5 = vld1_dup_s8(sptr + space_ofs[k] * 8 + 5);
-                        int8x8_t _val6 = vld1_dup_s8(sptr + space_ofs[k] * 8 + 6);
-                        int8x8_t _val7 = vld1_dup_s8(sptr + space_ofs[k] * 8 + 7);
+                        int8x8_t _val = vld1_s8(sptr + space_ofs[k] * 8);
 
                         int8x8_t _w0 = vld1_s8(kptr);
                         int8x8_t _w1 = vld1_s8(kptr + 8);
@@ -83,33 +78,35 @@ static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                         int8x8_t _w6 = vld1_s8(kptr + 48);
                         int8x8_t _w7 = vld1_s8(kptr + 56);
 
-                        int16x8_t _wv0 = vmull_s8(_w0, _val0);
-                        _wv0 = vmlal_s8(_wv0, _w1, _val1);
+                        int16x8_t _wv0 = vmull_s8(_val, _w0);
+                        int16x8_t _wv1 = vmull_s8(_val, _w1);
+                        int16x8_t _wv2 = vmull_s8(_val, _w2);
+                        int16x8_t _wv3 = vmull_s8(_val, _w3);
+                        int16x8_t _wv4 = vmull_s8(_val, _w4);
+                        int16x8_t _wv5 = vmull_s8(_val, _w5);
+                        int16x8_t _wv6 = vmull_s8(_val, _w6);
+                        int16x8_t _wv7 = vmull_s8(_val, _w7);
 
-                        int16x8_t _wv2 = vmull_s8(_w2, _val2);
-                        _wv2 = vmlal_s8(_wv2, _w3, _val3);
+                        int16x4_t _wv00 = vpadd_s16(vget_low_s16(_wv0), vget_high_s16(_wv0));
+                        int16x4_t _wv11 = vpadd_s16(vget_low_s16(_wv1), vget_high_s16(_wv1));
+                        int16x4_t _wv22 = vpadd_s16(vget_low_s16(_wv2), vget_high_s16(_wv2));
+                        int16x4_t _wv33 = vpadd_s16(vget_low_s16(_wv3), vget_high_s16(_wv3));
+                        int16x4_t _wv44 = vpadd_s16(vget_low_s16(_wv4), vget_high_s16(_wv4));
+                        int16x4_t _wv55 = vpadd_s16(vget_low_s16(_wv5), vget_high_s16(_wv5));
+                        int16x4_t _wv66 = vpadd_s16(vget_low_s16(_wv6), vget_high_s16(_wv6));
+                        int16x4_t _wv77 = vpadd_s16(vget_low_s16(_wv7), vget_high_s16(_wv7));
 
-                        int16x8_t _wv4 = vmull_s8(_w4, _val4);
-                        _wv4 = vmlal_s8(_wv4, _w5, _val5);
-
-                        int16x8_t _wv6 = vmull_s8(_w6, _val6);
-                        _wv6 = vmlal_s8(_wv6, _w7, _val7);
-
-                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_wv0));
-                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_wv0));
-
-                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_wv2));
-                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_wv2));
-
-                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_wv4));
-                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_wv4));
-
-                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_wv6));
-                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_wv6));
+                        _sum01 = vpadalq_s16(_sum01, vcombine_s16(_wv00, _wv11));
+                        _sum23 = vpadalq_s16(_sum23, vcombine_s16(_wv22, _wv33));
+                        _sum45 = vpadalq_s16(_sum45, vcombine_s16(_wv44, _wv55));
+                        _sum67 = vpadalq_s16(_sum67, vcombine_s16(_wv66, _wv77));
 
                         kptr += 64;
                     }
                 }
+
+                int32x4_t _sum0 = vcombine_s32(vpadd_s32(vget_low_s32(_sum01), vget_high_s32(_sum01)), vpadd_s32(vget_low_s32(_sum23), vget_high_s32(_sum23)));
+                int32x4_t _sum1 = vcombine_s32(vpadd_s32(vget_low_s32(_sum45), vget_high_s32(_sum45)), vpadd_s32(vget_low_s32(_sum67), vget_high_s32(_sum67)));
 
                 vst1q_s32(outptr + j * 8, _sum0);
                 vst1q_s32(outptr + j * 8 + 4, _sum1);

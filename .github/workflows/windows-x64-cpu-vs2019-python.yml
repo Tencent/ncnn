@@ -1,5 +1,11 @@
 name: windows-x64-cpu-vs2019-python
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [master]
+    paths-ignore: ['**.md']
 jobs:
   windows-vs2019-python:
     runs-on: windows-latest

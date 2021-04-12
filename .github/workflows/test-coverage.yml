@@ -1,5 +1,11 @@
 name: test-coverage
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [master]
+    paths-ignore: ['**.md']
 jobs:
   linux-gcc-gpu:
     runs-on: ubuntu-latest

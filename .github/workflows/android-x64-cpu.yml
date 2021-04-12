@@ -1,5 +1,11 @@
 name: android-x64-cpu
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [master]
+    paths-ignore: ['**.md']
 jobs:
   android-x86_64:
     runs-on: ubuntu-latest
