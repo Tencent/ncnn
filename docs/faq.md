@@ -501,3 +501,14 @@ https://github.com/Tencent/ncnn/wiki/build-minimal-library
 | 画草图       | kolourpaint |
 | 画函数图像   | kmplot      |
 | bilibili直播 |  OBS         |
+| 表格/图表软件 |           |
+
+## up主会支持吗..系列难度？
+
+| 支持     |   难度  |
+| ------------| ----------- |
+| opencl        | 渡劫        |
+| arm m0     | 渡劫          |
+| 低版本编译器       | 大乘        |
+| 高版本C标准       | 元婴 |
+| NPU   | 出窍      |
