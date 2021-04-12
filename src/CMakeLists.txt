@@ -161,6 +161,14 @@ configure_file(layer_shader_type_enum.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_sha
 
 if(NCNN_SHARED_LIB)
     add_library(ncnn SHARED ${ncnn_SRCS})
+    if(IOS OR APPLE)
+        set_target_properties(ncnn PROPERTIES
+              FRAMEWORK TRUE
+              FRAMEWORK_VERSION A # Version "A" is macOS convention
+              MACOSX_FRAMEWORK_IDENTIFIER com.tencent.ncnn
+            )
+    endif()
+    
 else()
     add_library(ncnn STATIC ${ncnn_SRCS})
 endif()
@@ -175,6 +183,7 @@ if(NCNN_SHARED_LIB)
         # for cpu_support_x86_avx2
         target_link_libraries(ncnn PRIVATE gcc)
     endif()
+    
 else()
     set_target_properties(ncnn PROPERTIES COMPILE_FLAGS -DNCNN_STATIC_DEFINE)
 endif()
@@ -365,8 +374,96 @@ if(NCNN_INSTALL_SDK)
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
+        FRAMEWORK DESTINATION lib
     )
-    install(FILES
+    if(NCNN_SHARED_LIB AND (IOS OR APPLE))
+        install(FILES
+            allocator.h
+            benchmark.h
+            blob.h
+            c_api.h
+            command.h
+            cpu.h
+            datareader.h
+            gpu.h
+            layer.h
+            layer_shader_type.h
+            layer_type.h
+            mat.h
+            modelbin.h
+            net.h
+            option.h
+            paramdict.h
+            pipeline.h
+            pipelinecache.h
+            simpleocv.h
+            simpleomp.h
+            simplestl.h
+            vulkan_header_fix.h
+            ${CMAKE_CURRENT_BINARY_DIR}/ncnn_export.h
+            ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
+            ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
+            ${CMAKE_CURRENT_BINARY_DIR}/platform.h
+            DESTINATION lib/ncnn.framework/Headers
+        )
+        install(DIRECTORY
+            ../glslang/glslang/Include
+            ../glslang/glslang/Public
+            DESTINATION lib/ncnn.framework/Headers/glslang
+        )
+        install(FILES
+            ../glslang/glslang/MachineIndependent/attribute.h
+            ../glslang/glslang/MachineIndependent/glslang_tab.cpp.h
+            ../glslang/glslang/MachineIndependent/gl_types.h
+            ../glslang/glslang/MachineIndependent/Initialize.h
+            ../glslang/glslang/MachineIndependent/iomapper.h
+            ../glslang/glslang/MachineIndependent/LiveTraverser.h
+            ../glslang/glslang/MachineIndependent/localintermediate.h
+            ../glslang/glslang/MachineIndependent/ParseHelper.h
+            ../glslang/glslang/MachineIndependent/reflection.h
+            ../glslang/glslang/MachineIndependent/RemoveTree.h
+            ../glslang/glslang/MachineIndependent/Scan.h
+            ../glslang/glslang/MachineIndependent/ScanContext.h
+            ../glslang/glslang/MachineIndependent/SymbolTable.h
+            ../glslang/glslang/MachineIndependent/Versions.h
+            ../glslang/glslang/MachineIndependent/parseVersions.h
+            ../glslang/glslang/MachineIndependent/propagateNoContraction.h
+            DESTINATION lib/ncnn.framework/Headers/glslang/MachineIndependent
+        )
+        install(FILES
+            ../glslang/glslang/MachineIndependent/preprocessor/PpContext.h
+            ../glslang/glslang/MachineIndependent/preprocessor/PpTokens.h
+            DESTINATION lib/ncnn.framework/Headers/glslang/MachineIndependent/preprocessor
+        )
+        install(FILES
+            ../glslang/SPIRV/bitutils.h
+            ../glslang/SPIRV/spirv.hpp
+            ../glslang/SPIRV/GLSL.std.450.h
+            ../glslang/SPIRV/GLSL.ext.EXT.h
+            ../glslang/SPIRV/GLSL.ext.KHR.h
+            ../glslang/SPIRV/GlslangToSpv.h
+            ../glslang/SPIRV/hex_float.h
+            ../glslang/SPIRV/Logger.h
+            ../glslang/SPIRV/SpvBuilder.h
+            ../glslang/SPIRV/spvIR.h
+            ../glslang/SPIRV/doc.h
+            ../glslang/SPIRV/SpvTools.h
+            ../glslang/SPIRV/disassemble.h
+            ../glslang/SPIRV/GLSL.ext.AMD.h
+            ../glslang/SPIRV/GLSL.ext.NV.h
+            ../glslang/SPIRV/NonSemanticDebugPrintf.h
+            DESTINATION lib/ncnn.framework/Headers/glslang/SPIRV
+        )
+        install(FILES
+            ${CMAKE_CURRENT_BINARY_DIR}/../glslang/glslang/libGenericCodeGen.a
+            ${CMAKE_CURRENT_BINARY_DIR}/../glslang/glslang/libglslang.a
+            ${CMAKE_CURRENT_BINARY_DIR}/../glslang/glslang/libMachineIndependent.a
+            ${CMAKE_CURRENT_BINARY_DIR}/../glslang/OGLCompilersDLL/libOGLCompiler.a
+            ${CMAKE_CURRENT_BINARY_DIR}/../glslang/SPIRV/libSPIRV.a
+            DESTINATION lib/ncnn.framework
+        ) 
+    else()
+        install(FILES
         allocator.h
         benchmark.h
         blob.h
@@ -394,7 +491,9 @@ if(NCNN_INSTALL_SDK)
         ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/platform.h
         DESTINATION include/ncnn
-    )
+        )
+    endif()
+    
     install(EXPORT ncnn DESTINATION lib/cmake/ncnn)
     configure_file(${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnnConfig.cmake.in ncnnConfig.cmake @ONLY)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake DESTINATION lib/cmake/ncnn)
