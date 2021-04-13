@@ -26,8 +26,11 @@
 namespace ncnn {
 
 #include "convolutiondepthwise_3x3.h"
-#include "convolutiondepthwise_3x3_int8.h"
 #include "convolutiondepthwise_5x5.h"
+
+#if NCNN_INT8
+#include "convolutiondepthwise_3x3_int8.h"
+#endif // NCNN_INT8
 
 #if __ARM_NEON
 #include "convolutiondepthwise_3x3_pack4.h"
@@ -35,7 +38,9 @@ namespace ncnn {
 #include "convolutiondepthwise_5x5_pack4.h"
 #include "convolutiondepthwise_5x5_pack4_bf16s.h"
 
+#if NCNN_INT8
 #include "convolutiondepthwise_3x3_pack8_int8.h"
+#endif // NCNN_INT8
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "convolutiondepthwise_3x3_fp16s.h"
@@ -104,10 +109,12 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
         activation->create_pipeline(opt);
     }
 
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return create_pipeline_int8_arm(opt);
     }
+#endif
 
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
@@ -269,6 +276,7 @@ int ConvolutionDepthWise_arm::create_group_ops(const Option& opt)
             weights[0] = weight_data_g;
             weights[1] = bias_data_g;
 
+#if NCNN_INT8
             if (int8_scale_term)
             {
                 Mat weight_data_int8_scales_g(num_output_g);
@@ -280,6 +288,7 @@ int ConvolutionDepthWise_arm::create_group_ops(const Option& opt)
             {
                 weights[4] = top_blob_int8_scales.range(g, 1);
             }
+#endif
 
             op->load_model(ModelBinFromMatArray(weights));
         }
@@ -288,6 +297,7 @@ int ConvolutionDepthWise_arm::create_group_ops(const Option& opt)
             ncnn::Mat weights[4];
             weights[0] = weight_data_g;
 
+#if NCNN_INT8
             if (int8_scale_term)
             {
                 Mat weight_data_int8_scales_g(num_output_g);
@@ -299,6 +309,7 @@ int ConvolutionDepthWise_arm::create_group_ops(const Option& opt)
             {
                 weights[3] = top_blob_int8_scales.range(g, 1);
             }
+#endif
 
             op->load_model(ModelBinFromMatArray(weights));
         }
@@ -332,13 +343,12 @@ int ConvolutionDepthWise_arm::destroy_pipeline(const Option& opt)
 
 int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    // convolv with NxN kernel
-    // value = value + bias
-
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return forward_int8_arm(bottom_blob, top_blob, opt);
     }
+#endif
 
     int elembits = bottom_blob.elembits();
 
@@ -1447,6 +1457,7 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
     return 0;
 }
 
+#if NCNN_INT8
 int ConvolutionDepthWise_arm::create_pipeline_int8_arm(const Option& opt)
 {
     const int maxk = kernel_w * kernel_h;
@@ -1981,5 +1992,6 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
 
     return 0;
 }
+#endif // NCNN_INT8
 
 } // namespace ncnn

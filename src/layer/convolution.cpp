@@ -47,7 +47,12 @@ int Convolution::load_param(const ParamDict& pd)
 
     if (int8_scale_term)
     {
+#if NCNN_INT8
         support_int8_storage = true;
+#else
+        NCNN_LOGE("please build ncnn with NCNN_INT8 enabled for int8 inference");
+        return -1;
+#endif
     }
 
     return 0;
@@ -66,6 +71,7 @@ int Convolution::load_model(const ModelBin& mb)
             return -100;
     }
 
+#if NCNN_INT8
     if (int8_scale_term)
     {
         weight_data_int8_scales = mb.load(num_output, 1);
@@ -76,12 +82,14 @@ int Convolution::load_model(const ModelBin& mb)
     {
         top_blob_int8_scales = mb.load(1, 1);
     }
+#endif // NCNN_INT8
 
     return 0;
 }
 
 int Convolution::create_pipeline(const Option& opt)
 {
+#if NCNN_INT8
     // runtime quantize the weight data
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)4u && int8_scale_term)
     {
@@ -101,6 +109,7 @@ int Convolution::create_pipeline(const Option& opt)
 
         weight_data = weight_data_int8.reshape(weight_data_size);
     }
+#endif // NCNN_INT8
 
     return 0;
 }
@@ -110,10 +119,12 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     // convolv with NxN kernel
     // value = value + bias
 
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return forward_int8(bottom_blob, top_blob, opt);
     }
+#endif
 
     // flattened blob, implement as InnerProduct
     if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
@@ -140,11 +151,13 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             weights[0] = weight_data;
             weights[1] = bias_data;
 
+#if NCNN_INT8
             if (int8_scale_term)
             {
                 weights[2] = weight_data_int8_scales;
                 weights[3] = bottom_blob_int8_scales;
             }
+#endif
 
             op->load_model(ModelBinFromMatArray(weights));
 
@@ -327,6 +340,7 @@ void Convolution::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered
     }
 }
 
+#if NCNN_INT8
 static inline signed char float2int8(float v)
 {
     int int32 = static_cast<int>(round(v));
@@ -492,5 +506,6 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     return 0;
 }
+#endif // NCNN_INT8
 
 } // namespace ncnn

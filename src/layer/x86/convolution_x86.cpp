@@ -35,18 +35,21 @@ namespace ncnn {
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
 
+#if NCNN_INT8
 #include "convolution_sgemm_int8.h"
 #include "convolution_1x1_int8.h"
 #include "convolution_3x3_int8.h"
-
 #include "convolution_int8.h"
+#endif // NCNN_INT8
 
 #if __SSE2__
 #include "convolution_1x1_pack4.h"
 
+#if NCNN_INT8
 #include "convolution_pack8_int8.h"
 #include "convolution_pack1to8_int8.h"
 #include "convolution_pack8to1_int8.h"
+#endif // NCNN_INT8
 #if __AVX__
 #include "convolution_3x3_pack1to8.h"
 #include "convolution_3x3_pack8to1.h"
@@ -118,10 +121,12 @@ int Convolution_x86::create_pipeline(const Option& opt)
         activation->create_pipeline(opt);
     }
 
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return create_pipeline_int8_x86(opt);
     }
+#endif
 
     int kernel_size = kernel_w * kernel_h;
     int num_input = weight_data_size / kernel_size / num_output;
@@ -311,10 +316,12 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     // convolv with NxN kernel
     // value = value + bias
 
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return forward_int8_x86(bottom_blob, top_blob, opt);
     }
+#endif
 
     if (bottom_blob.dims != 3)
     {
@@ -1058,6 +1065,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     return 0;
 }
 
+#if NCNN_INT8
 int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
 {
     const int maxk = kernel_w * kernel_h;
@@ -1410,6 +1418,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
 
     return 0;
 }
+#endif // NCNN_INT8
 
 int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
