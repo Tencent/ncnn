@@ -14,6 +14,8 @@ add_subdirectory(onnx)
 add_subdirectory(darknet)
 if(NCNN_INT8)
     add_subdirectory(quantize)
+else()
+    message(WARNING "NCNN_INT8 disabled, quantize tools won't be built")
 endif()
 
 add_executable(ncnn2mem ncnn2mem.cpp)
