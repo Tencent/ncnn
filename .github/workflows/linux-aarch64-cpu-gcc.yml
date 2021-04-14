@@ -43,15 +43,26 @@ jobs:
         sudo apt-get update
         sudo apt-get install g++-aarch64-linux-gnu
 
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DNCNN_ARM82=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j 2
-
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DNCNN_ARM82=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
     - name: test
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
+        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
+
+    - name: build-noint8
+      run: |
+        mkdir build-noint8 && cd build-noint8
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DNCNN_ARM82=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-noint8
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build-noint8
         TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
 
   linux-gcc-arm82:
@@ -90,13 +101,24 @@ jobs:
         sudo apt-get update
         sudo apt-get install g++-aarch64-linux-gnu
 
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DNCNN_ARM82=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j 2
-
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DNCNN_ARM82=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
     - name: test
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
+        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
+
+    - name: build-noint8
+      run: |
+        mkdir build-noint8 && cd build-noint8
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DNCNN_ARM82=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_INT8=OFF ..
+        cmake --build . -j 2
+    - name: test-noint8
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build-noint8
         TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
