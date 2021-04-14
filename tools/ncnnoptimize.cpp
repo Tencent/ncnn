@@ -2673,8 +2673,10 @@ int NetOptimize::replace_convolution_with_innerproduct_after_global_pooling()
 
         innerproduct->weight_data = convolution->weight_data;
         innerproduct->bias_data = convolution->bias_data;
+#if NCNN_INT8
         innerproduct->weight_data_int8_scales = convolution->weight_data_int8_scales;
         innerproduct->bottom_blob_int8_scales = convolution->bottom_blob_int8_scales;
+#endif
 
         innerproduct->activation_type = convolution->activation_type;
         innerproduct->activation_params = convolution->activation_params;
@@ -2739,8 +2741,10 @@ int NetOptimize::replace_convolution_with_innerproduct_after_innerproduct()
 
             innerproduct2->weight_data = convolution->weight_data;
             innerproduct2->bias_data = convolution->bias_data;
+#if NCNN_INT8
             innerproduct->weight_data_int8_scales = convolution->weight_data_int8_scales;
             innerproduct->bottom_blob_int8_scales = convolution->bottom_blob_int8_scales;
+#endif
 
             innerproduct2->activation_type = convolution->activation_type;
             innerproduct2->activation_params = convolution->activation_params;

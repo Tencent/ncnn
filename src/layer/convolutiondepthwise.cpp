@@ -53,7 +53,12 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
 
     if (int8_scale_term)
     {
+#if NCNN_INT8
         support_int8_storage = true;
+#else
+        NCNN_LOGE("please build ncnn with NCNN_INT8 enabled for int8 inference");
+        return -1;
+#endif
     }
 
     return 0;
@@ -72,6 +77,7 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
             return -100;
     }
 
+#if NCNN_INT8
     if (int8_scale_term == 1 || int8_scale_term == 101)
     {
         weight_data_int8_scales = mb.load(group, 1);
@@ -104,12 +110,14 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
         top_blob_int8_scales = Mat(group);
         top_blob_int8_scales.fill(top_blob_int8_scale);
     }
+#endif // NCNN_INT8
 
     return 0;
 }
 
 int ConvolutionDepthWise::create_pipeline(const Option& opt)
 {
+#if NCNN_INT8
     // runtime quantize the weight data
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)4u && int8_scale_term)
     {
@@ -133,6 +141,7 @@ int ConvolutionDepthWise::create_pipeline(const Option& opt)
 
         weight_data = int8_weight_data;
     }
+#endif // NCNN_INT8
 
     return 0;
 }
@@ -142,10 +151,12 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
     // convolv with NxN kernel
     // value = value + bias
 
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return forward_int8(bottom_blob, top_blob, opt);
     }
+#endif
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -403,6 +414,7 @@ void ConvolutionDepthWise::make_padding(const Mat& bottom_blob, Mat& bottom_blob
     }
 }
 
+#if NCNN_INT8
 static inline signed char float2int8(float v)
 {
     int int32 = static_cast<int>(round(v));
@@ -694,5 +706,6 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
 
     return 0;
 }
+#endif // NCNN_INT8
 
 } // namespace ncnn

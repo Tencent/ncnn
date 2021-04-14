@@ -29,19 +29,21 @@ namespace ncnn {
 
 #include "convolution_bf16s.h"
 #include "convolution_sgemm.h"
-#include "convolution_sgemm_int8.h"
 
 #include "convolution_1x1.h"
 #include "convolution_1x1_bf16s.h"
-#include "convolution_1x1_int8.h"
 #include "convolution_2x2.h"
 #include "convolution_3x3.h"
-#include "convolution_3x3_int8.h"
 #include "convolution_4x4.h"
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
 
+#if NCNN_INT8
+#include "convolution_sgemm_int8.h"
+#include "convolution_1x1_int8.h"
+#include "convolution_3x3_int8.h"
 #include "convolution_int8.h"
+#endif // NCNN_INT8
 
 #if __ARM_NEON
 #include "convolution_pack4.h"
@@ -67,6 +69,7 @@ namespace ncnn {
 #include "convolution_7x7_pack1to4.h"
 #include "convolution_7x7_pack1to4_bf16s.h"
 
+#if NCNN_INT8
 #include "convolution_pack8_int8.h"
 #include "convolution_pack1to8_int8.h"
 #include "convolution_pack8to1_int8.h"
@@ -80,6 +83,7 @@ namespace ncnn {
 #include "convolution_3x3_pack1to8_int8.h"
 #include "convolution_7x7_pack1to8_int8.h"
 #include "convolution_3x3_pack8to1_int8.h"
+#endif // NCNN_INT8
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "convolution_fp16s.h"
@@ -169,10 +173,12 @@ int Convolution_arm::create_pipeline(const Option& opt)
         activation->create_pipeline(opt);
     }
 
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return create_pipeline_int8_arm(opt);
     }
+#endif
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (opt.use_fp16_storage)
@@ -418,10 +424,12 @@ int Convolution_arm::destroy_pipeline(const Option& opt)
 
 int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return forward_int8_arm(bottom_blob, top_blob, opt);
     }
+#endif
 
     if (bottom_blob.dims != 3)
     {
@@ -1767,6 +1775,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
     return 0;
 }
 
+#if NCNN_INT8
 int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
 {
     const int maxk = kernel_w * kernel_h;
@@ -2263,6 +2272,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
 
     return 0;
 }
+#endif // NCNN_INT8
 
 int Convolution_arm::forwardDilation_arm(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {

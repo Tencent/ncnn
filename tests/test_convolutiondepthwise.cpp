@@ -125,6 +125,7 @@ static int test_convolutiondepthwise_0()
     return 0;
 }
 
+#if NCNN_INT8
 static int test_convolutiondepthwise_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int group, bool requant = false)
 {
     ncnn::Mat a = RandomMat(w, h, c);
@@ -251,10 +252,15 @@ static int test_convolutiondepthwise_1()
 
     return 0;
 }
+#endif // NCNN_INT8
 
 int main()
 {
     SRAND(7767517);
 
+#if NCNN_INT8
     return test_convolutiondepthwise_0() || test_convolutiondepthwise_1();
+#else
+    return test_convolutiondepthwise_0();
+#endif
 }

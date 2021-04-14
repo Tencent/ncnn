@@ -35,7 +35,12 @@ int InnerProduct::load_param(const ParamDict& pd)
 
     if (int8_scale_term)
     {
+#if NCNN_INT8
         support_int8_storage = true;
+#else
+        NCNN_LOGE("please build ncnn with NCNN_INT8 enabled for int8 inference");
+        return -1;
+#endif
     }
 
     return 0;
@@ -54,17 +59,20 @@ int InnerProduct::load_model(const ModelBin& mb)
             return -100;
     }
 
+#if NCNN_INT8
     if (int8_scale_term)
     {
         weight_data_int8_scales = mb.load(num_output, 1);
         bottom_blob_int8_scales = mb.load(1, 1);
     }
+#endif // NCNN_INT8
 
     return 0;
 }
 
 int InnerProduct::create_pipeline(const Option& opt)
 {
+#if NCNN_INT8
     // runtime quantize the weight data
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)4u && int8_scale_term)
     {
@@ -81,16 +89,19 @@ int InnerProduct::create_pipeline(const Option& opt)
 
         weight_data = weight_data_int8.reshape(weight_data_size);
     }
+#endif // NCNN_INT8
 
     return 0;
 }
 
 int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return forward_int8(bottom_blob, top_blob, opt);
     }
+#endif
 
     const int num_input = weight_data_size / num_output;
 
@@ -218,6 +229,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     return 0;
 }
 
+#if NCNN_INT8
 int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int num_input = weight_data_size / num_output;
@@ -332,5 +344,6 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     return 0;
 }
+#endif // NCNN_INT8
 
 } // namespace ncnn

@@ -30,8 +30,10 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
+#if NCNN_INT8
     int create_pipeline_int8_x86(const Option& opt);
     int forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
     int forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
@@ -47,9 +49,11 @@ public:
 
     Mat weight_3x3_winograd64_data_pack8;
 
+#if NCNN_INT8
     // int8
     Mat weight_data_int8;
     Mat weight_3x3_winograd23_data_int8;
+#endif
 };
 
 } // namespace ncnn
