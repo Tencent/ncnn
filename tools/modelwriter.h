@@ -534,6 +534,12 @@ int ModelWriter::fwrite_weight_tag_data(int tag, const ncnn::Mat& data, FILE* bp
         ncnn::cast_float32_to_float16(data_flattened, data_flattened_fp16);
         fwrite(data_flattened_fp16.data, data_flattened_fp16.elemsize, data_flattened_fp16.w, bp);
     }
+    else if (data_flattened.elemsize == 1)
+    {
+        tag = 0x000D4B38; // int8 magic
+        fwrite(&tag, sizeof(int), 1, bp);
+        fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
+    }
     else
     {
         fwrite(&tag, sizeof(int), 1, bp);

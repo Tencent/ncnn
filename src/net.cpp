@@ -1413,7 +1413,7 @@ int Net::load_param(const DataReader& dr)
         int pdlr = pd.load_param(dr);
         if (pdlr != 0)
         {
-            NCNN_LOGE("ParamDict load_param failed");
+            NCNN_LOGE("ParamDict load_param %d %s failed", i, layer->name.c_str());
             continue;
         }
 
@@ -1466,7 +1466,7 @@ int Net::load_param(const DataReader& dr)
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
-            NCNN_LOGE("layer load_param failed");
+            NCNN_LOGE("layer load_param %d %s failed", i, layer->name.c_str());
             continue;
         }
 
@@ -1605,7 +1605,7 @@ int Net::load_param_bin(const DataReader& dr)
         int pdlr = pd.load_param_bin(dr);
         if (pdlr != 0)
         {
-            NCNN_LOGE("ParamDict load_param failed");
+            NCNN_LOGE("ParamDict load_param %d %s failed", i, layer->name.c_str());
             continue;
         }
 
@@ -1658,7 +1658,7 @@ int Net::load_param_bin(const DataReader& dr)
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
-            NCNN_LOGE("layer load_param failed");
+            NCNN_LOGE("layer load_param %d %s failed", i, layer->name.c_str());
             continue;
         }
 
@@ -1677,18 +1677,20 @@ int Net::load_model(const DataReader& dr)
         return -1;
     }
 
+    int layer_count = (int)d->layers.size();
+
     // load file
     int ret = 0;
 
     ModelBinFromDataReader mb(dr);
-    for (size_t i = 0; i < d->layers.size(); i++)
+    for (int i = 0; i < layer_count; i++)
     {
         Layer* layer = d->layers[i];
 
         //Here we found inconsistent content in the parameter file.
         if (!layer)
         {
-            NCNN_LOGE("load_model error at layer %d, parameter file has inconsistent content.", (int)i);
+            NCNN_LOGE("load_model error at layer %d %s, parameter file has inconsistent content.", i, layer->name.c_str());
             ret = -1;
             break;
         }
@@ -1696,7 +1698,7 @@ int Net::load_model(const DataReader& dr)
         int lret = layer->load_model(mb);
         if (lret != 0)
         {
-            NCNN_LOGE("layer load_model %d failed", (int)i);
+            NCNN_LOGE("layer load_model %d %s failed", i, layer->name.c_str());
             ret = -1;
             break;
         }
@@ -1720,14 +1722,14 @@ int Net::load_model(const DataReader& dr)
     }
 #endif // NCNN_VULKAN
 
-    for (size_t i = 0; i < d->layers.size(); i++)
+    for (int i = 0; i < layer_count; i++)
     {
         Layer* layer = d->layers[i];
 
         //Here we found inconsistent content in the parameter file.
         if (!layer)
         {
-            NCNN_LOGE("load_model error at layer %d, parameter file has inconsistent content.", (int)i);
+            NCNN_LOGE("load_model error at layer %d %s, parameter file has inconsistent content.", i, layer->name.c_str());
             ret = -1;
             break;
         }
@@ -1743,7 +1745,7 @@ int Net::load_model(const DataReader& dr)
         int cret = layer->create_pipeline(opt1);
         if (cret != 0)
         {
-            NCNN_LOGE("layer create_pipeline %d failed", (int)i);
+            NCNN_LOGE("layer create_pipeline %d %s failed", i, layer->name.c_str());
             ret = -1;
             break;
         }
