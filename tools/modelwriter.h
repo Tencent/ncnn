@@ -342,6 +342,8 @@ int ModelWriter::shape_inference()
         if (dims == 2) m.create(w, h);
         if (dims == 3) m.create(w, h, c);
 
+        m.fill(0.f);
+
         ex.input(int(i), m);
     }
 

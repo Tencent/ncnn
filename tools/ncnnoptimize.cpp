@@ -37,8 +37,9 @@ public:
     {
         return 0;
     }
-    virtual size_t read(void* /*buf*/, size_t size) const
+    virtual size_t read(void* buf, size_t size) const
     {
+        memset(buf, 0, size);
         return size;
     }
 };
