@@ -18,6 +18,8 @@ cmake 工具链怎么设置啊？
 
 ## The submodules were not downloaded! Please update submodules with "git submodule update --init" and try again
 
+执行 git submodule update --init 之后继续操作
+
 ## Could NOT find Protobuf (missing: Protobuf_INCLUDE_DIR)
 
 sudo apt-get install libprotobuf-dev protobuf-compiler
