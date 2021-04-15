@@ -2508,21 +2508,37 @@ int Extractor::extract(int blob_index, VkMat& feat, VkCompute& cmd)
     if (blob_index < 0 || blob_index >= (int)d->blob_mats.size())
         return -1;
 
+    int old_blocktime = get_kmp_blocktime();
+    set_kmp_blocktime(d->opt.openmp_blocktime);
+
+    int old_flush_denormals = get_flush_denormals();
+    set_flush_denormals(d->opt.flush_denormals);
+
     int ret = 0;
 
     if (d->blob_mats_gpu[blob_index].dims == 0)
     {
-        int layer_index = d->net->blobs()[blob_index].producer;
-        ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->blob_mats_gpu, cmd, d->opt);
-    }
-
-    if (d->blob_mats_gpu[blob_index].dims == 0 && d->blob_mats_gpu_image[blob_index].dims != 0)
-    {
-        // image to buffer
-        cmd.record_image_to_buffer(d->blob_mats_gpu_image[blob_index], d->blob_mats_gpu[blob_index], d->opt);
+        if (d->blob_mats_gpu_image[blob_index].dims != 0)
+        {
+            // image to buffer
+            cmd.record_image_to_buffer(d->blob_mats_gpu_image[blob_index], d->blob_mats_gpu[blob_index], d->opt);
+        }
+        else if (d->blob_mats[blob_index].dims != 0)
+        {
+            // host to buffer
+            cmd.record_upload(d->blob_mats[blob_index], d->blob_mats_gpu[blob_index], d->opt);
+        }
+        else
+        {
+            int layer_index = d->net->blobs()[blob_index].producer;
+            ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->blob_mats_gpu, cmd, d->opt);
+        }
     }
 
     feat = d->blob_mats_gpu[blob_index];
+
+    set_kmp_blocktime(old_blocktime);
+    set_flush_denormals(old_flush_denormals);
 
     return ret;
 }
@@ -2545,23 +2561,40 @@ int Extractor::extract(int blob_index, VkImageMat& feat, VkCompute& cmd)
     int old_blocktime = get_kmp_blocktime();
     set_kmp_blocktime(d->opt.openmp_blocktime);
 
+    int old_flush_denormals = get_flush_denormals();
+    set_flush_denormals(d->opt.flush_denormals);
+
     int ret = 0;
 
     if (d->blob_mats_gpu_image[blob_index].dims == 0)
     {
-        int layer_index = d->net->blobs()[blob_index].producer;
-        ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->blob_mats_gpu, d->blob_mats_gpu_image, cmd, d->opt);
-    }
-
-    if (d->blob_mats_gpu_image[blob_index].dims == 0 && d->blob_mats_gpu[blob_index].dims != 0)
-    {
-        // buffer to image
-        cmd.record_buffer_to_image(d->blob_mats_gpu[blob_index], d->blob_mats_gpu_image[blob_index], d->opt);
+        if (d->blob_mats_gpu[blob_index].dims != 0)
+        {
+            // buffer to image
+            cmd.record_buffer_to_image(d->blob_mats_gpu[blob_index], d->blob_mats_gpu_image[blob_index], d->opt);
+        }
+        else if (d->blob_mats[blob_index].dims != 0)
+        {
+            // host to image
+            cmd.record_upload(d->blob_mats[blob_index], d->blob_mats_gpu_image[blob_index], d->opt);
+        }
+        else
+        {
+            int layer_index = d->net->blobs()[blob_index].producer;
+            ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->blob_mats_gpu, d->blob_mats_gpu_image, cmd, d->opt);
+        }
     }
 
     feat = d->blob_mats_gpu_image[blob_index];
 
+    if (feat.empty())
+    {
+        NCNN_LOGE("extract %d image allocation failed", blob_index);
+        ret = -100;
+    }
+
     set_kmp_blocktime(old_blocktime);
+    set_flush_denormals(old_flush_denormals);
 
     return ret;
 }
