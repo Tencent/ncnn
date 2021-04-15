@@ -794,7 +794,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 int outh = blobs[layer->tops[0]].shape.h;
                 int outc = blobs[layer->tops[0]].shape.c;
 
-                mac += op->kernel_h * op->kernel_w * outw * outh * outc * inc;
+                mac += (uint64_t)op->kernel_h * op->kernel_w * outw * outh * outc * inc;
             }
         }
         else if (layer->type == "ConvolutionDepthWise")
@@ -855,7 +855,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 int outh = blobs[layer->tops[0]].shape.h;
                 int outc = blobs[layer->tops[0]].shape.c;
 
-                mac += op->kernel_h * op->kernel_w * outw * outh * (outc / op->group) * (inc / op->group) * op->group;
+                mac += (uint64_t)op->kernel_h * op->kernel_w * outw * outh * (outc / op->group) * (inc / op->group) * op->group;
             }
         }
         else if (layer->type == "Crop")
@@ -935,7 +935,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 int inc = blobs[layer->bottoms[0]].shape.c;
                 int outc = blobs[layer->tops[0]].shape.c;
 
-                mac += op->kernel_h * op->kernel_w * inw * inh * outc * inc;
+                mac += (uint64_t)op->kernel_h * op->kernel_w * inw * inh * outc * inc;
             }
         }
         else if (layer->type == "DeconvolutionDepthWise")
@@ -992,7 +992,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 int inc = blobs[layer->bottoms[0]].shape.c;
                 int outc = blobs[layer->tops[0]].shape.c;
 
-                mac += op->kernel_h * op->kernel_w * inw * inh * (outc / op->group) * (inc / op->group) * op->group;
+                mac += (uint64_t)op->kernel_h * op->kernel_w * inw * inh * (outc / op->group) * (inc / op->group) * op->group;
             }
         }
         else if (layer->type == "DetectionOutput")
@@ -1140,7 +1140,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 int inc = blobs[layer->bottoms[0]].shape.c;
                 int outw = blobs[layer->tops[0]].shape.w;
 
-                mac += inw * inh * inc * outw;
+                mac += (uint64_t)inw * inh * inc * outw;
             }
         }
         else if (layer->type == "Input")
