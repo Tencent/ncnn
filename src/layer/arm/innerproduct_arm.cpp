@@ -1906,6 +1906,42 @@ int InnerProduct_arm::create_pipeline_int8_arm(const Option& opt)
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
+    else if (activation_type == 2)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]); // slope
+        activation->load_param(pd);
+    }
+    else if (activation_type == 3)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Clip);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]); // min
+        pd.set(1, activation_params[1]); // max
+        activation->load_param(pd);
+    }
+    else if (activation_type == 4)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 5)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Mish);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+
+    if (activation)
+    {
+        activation->create_pipeline(opt);
+    }
 
     const int num_input = weight_data_size / num_output;
 
@@ -1937,35 +1973,6 @@ int InnerProduct_arm::create_pipeline_int8_arm(const Option& opt)
         }
     }
 
-    //     // convert fp32 to int8
-    //     if (weight_data_int8_scales.empty())
-    //     {
-    //         return 0;
-    //     }
-    // #if __aarch64__
-    //     // first reorder Matrix A before MatMul
-    //     const int n = num_output;
-    //     const int k = weight_data.total() / n;
-    //     weight_data_int8.create(n * k, (size_t)1u, opt.blob_allocator);
-    //
-    //     int8_t* b = weight_data;
-    //     int8_t* sb = weight_data_int8;
-    //     reorder_a(b, sb, n, k, k);
-    //
-    //     // pre-built scales
-    //     scales_in.create(num_output, 4u, opt.blob_allocator);
-    //     for (int i = 0; i < num_output; ++i)
-    //     {
-    //         if (std::fabs(static_cast<float>(weight_data_int8_scales[i])) <= 1e-6)
-    //         {
-    //             scales_in[i] = 0.f;
-    //         }
-    //         else
-    //         {
-    //             scales_in[i] = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[i]);
-    //         }
-    //     }
-    // #endif
     return 0;
 }
 
@@ -2026,13 +2033,30 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
-            int32x4_t _sum0 = vdupq_n_s32(0);
-            int32x4_t _sum1 = vdupq_n_s32(0);
-
             const signed char* kptr = weight_data_int8.row<const signed char>(p);
             const signed char* sptr = bottom_blob_int8_flattened;
 
+            int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
+
             int i = 0;
+            for (; i + 1 < num_input; i += 2)
+            {
+                int8x8_t _val0 = vdup_n_s8(sptr[0]);
+                int8x8_t _val1 = vdup_n_s8(sptr[1]);
+
+                int8x8_t _w0 = vld1_s8(kptr);
+                int8x8_t _w1 = vld1_s8(kptr + 8);
+
+                int16x8_t _s0 = vmull_s8(_val0, _w0);
+                _s0 = vmlal_s8(_s0, _val1, _w1);
+
+                _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
+                _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
+
+                sptr += 2;
+                kptr += 16;
+            }
             for (; i < num_input; i++)
             {
                 int8x8_t _val = vdup_n_s8(sptr[0]);
@@ -2060,10 +2084,10 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
-            int sum = 0;
-
             const signed char* kptr = weight_data_int8.row<const signed char>(p);
             const signed char* sptr = bottom_blob_int8_flattened;
+
+            int sum = 0;
 
             int i = 0;
             for (; i < num_input; i++)
@@ -2104,45 +2128,6 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
     }
 
     return 0;
-
-    // #if __aarch64__
-    //     const int w = bottom_blob_tm.w;
-    //     const int h = bottom_blob_tm.h;
-    //
-    //     const int m = 1;
-    //     const int k = bottom_blob_tm.c * w * h;
-    //     Mat bottom_blob_reorder(m * k, (size_t)1u, opt.workspace_allocator);
-    //     {
-    //         reorder_a(bottom_blob_tm_flattened, bottom_blob_reorder, m, k, k);
-    //     }
-    //
-    //     Mat top_blob_tm(m * num_output, (size_t)4u, opt.workspace_allocator);
-    //     int32_t* pc = top_blob_tm;
-    //     const int8_t* pa = bottom_blob_reorder;
-    //     const int8_t* pb = weight_data_int8;
-    //     int8kernel((void*)pc, pa, pb, m, k, num_output, num_output, 0, 0, opt);
-    //
-    //     float* outptr = top_blob;
-    //
-    //     // dequant.fused.relu int32_t to float
-    //     for (int p = 0; p < num_output; ++p)
-    //     {
-    //         float sumfp32 = pc[p] * scales_in[p];
-    //         if (bias_term)
-    //         {
-    //             sumfp32 += bias_data[p];
-    //         }
-    //         if (1 == activation_type)
-    //         {
-    //             sumfp32 = std::max(0.f, sumfp32);
-    //         }
-    //
-    //         outptr[p] = sumfp32;
-    //     }
-    //     return 0;
-    // #else
-    //     return InnerProduct::forward_int8(bottom_blob, top_blob, opt);
-    // #endif
 }
 #endif // NCNN_INT8
 
