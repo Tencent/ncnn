@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv1x1s1_sgemm_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
+static void conv1x1s1_sgemm_pack8to4_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -22,10 +22,10 @@ static void conv1x1s1_sgemm_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blo
     bottom_im2col.w = size;
     bottom_im2col.h = 1;
 
-    im2col_sgemm_pack8_int8_neon(bottom_im2col, top_blob, kernel, opt);
+    im2col_sgemm_pack8to4_int8_neon(bottom_im2col, top_blob, kernel, opt);
 }
 
-static void conv1x1s2_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
+static void conv1x1s2_pack8to4_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
@@ -86,5 +86,5 @@ static void conv1x1s2_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, con
         }
     }
 
-    conv1x1s1_sgemm_pack8_int8_neon(bottom_blob_shrinked, top_blob, kernel, opt);
+    conv1x1s1_sgemm_pack8to4_int8_neon(bottom_blob_shrinked, top_blob, kernel, opt);
 }
