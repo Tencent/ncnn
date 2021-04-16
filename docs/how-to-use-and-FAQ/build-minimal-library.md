@@ -39,6 +39,15 @@ cmake -DNCNN_STRING=OFF ..
 
     Read more [here](https://github.com/Tencent/ncnn/blob/master/docs/how-to-use-and-FAQ/use-ncnn-with-alexnet.md#input-and-output).
 
+### disable NCNN_INT8
+
+```
+cmake -DNCNN_INT8=OFF ..
+```
+
+* Cannot use quantized int8 inference.
+
+
 ### drop pixel rotate and affine functions
 
 ```

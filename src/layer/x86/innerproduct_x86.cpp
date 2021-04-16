@@ -54,10 +54,12 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
         flatten->create_pipeline(opt);
     }
 
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return create_pipeline_int8_x86(opt);
     }
+#endif
 
     const int num_input = weight_data_size / num_output;
 
@@ -124,10 +126,12 @@ int InnerProduct_x86::destroy_pipeline(const Option& opt)
 
 int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return forward_int8_x86(bottom_blob, top_blob, opt);
     }
+#endif
 
     const int num_input = weight_data_size / num_output;
 
@@ -1694,6 +1698,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
 }
 #endif // __AVX__
 
+#if NCNN_INT8
 int InnerProduct_x86::create_pipeline_int8_x86(const Option& opt)
 {
     if (activation_type == 1)
@@ -1702,6 +1707,42 @@ int InnerProduct_x86::create_pipeline_int8_x86(const Option& opt)
 
         ncnn::ParamDict pd;
         activation->load_param(pd);
+    }
+    else if (activation_type == 2)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]); // slope
+        activation->load_param(pd);
+    }
+    else if (activation_type == 3)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Clip);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]); // min
+        pd.set(1, activation_params[1]); // max
+        activation->load_param(pd);
+    }
+    else if (activation_type == 4)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 5)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Mish);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+
+    if (activation)
+    {
+        activation->create_pipeline(opt);
     }
 
     const int num_input = weight_data_size / num_output;
@@ -1883,5 +1924,6 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
 
     return 0;
 }
+#endif // NCNN_INT8
 
 } // namespace ncnn

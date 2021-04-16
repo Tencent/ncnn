@@ -76,6 +76,86 @@ static bool vstr_is_float(const char vstr[16])
     return false;
 }
 
+static float vstr_to_float(const char vstr[16])
+{
+    double v = 0.0;
+
+    const char* p = vstr;
+
+    // sign
+    bool sign = *p != '-';
+    if (*p == '+' || *p == '-')
+    {
+        p++;
+    }
+
+    // digits before decimal point or exponent
+    unsigned int v1 = 0;
+    while (isdigit(*p))
+    {
+        v1 = v1 * 10 + (*p - '0');
+        p++;
+    }
+
+    v = (double)v1;
+
+    // digits after decimal point
+    if (*p == '.')
+    {
+        p++;
+
+        unsigned int pow10 = 1;
+        unsigned int v2 = 0;
+
+        while (isdigit(*p))
+        {
+            v2 = v2 * 10 + (*p - '0');
+            pow10 *= 10;
+            p++;
+        }
+
+        v += v2 / (double)pow10;
+    }
+
+    // exponent
+    if (*p == 'e' || *p == 'E')
+    {
+        p++;
+
+        // sign of exponent
+        bool fact = *p != '-';
+        if (*p == '+' || *p == '-')
+        {
+            p++;
+        }
+
+        // digits of exponent
+        unsigned int expon = 0;
+        while (isdigit(*p))
+        {
+            expon = expon * 10 + (*p - '0');
+            p++;
+        }
+
+        double scale = 1.0;
+        while (expon >= 8)
+        {
+            scale *= 1e8;
+            expon -= 8;
+        }
+        while (expon > 0)
+        {
+            scale *= 10.0;
+            expon -= 1;
+        }
+
+        v = fact ? v * scale : v / scale;
+    }
+
+    //     fprintf(stderr, "v = %f\n", v);
+    return sign ? (float)v : (float)-v;
+}
+
 static int dump_param(const char* parampath, const char* parambinpath, const char* idcpppath)
 {
     FILE* fp = fopen(parampath, "rb");
@@ -241,8 +321,7 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
 
                     if (is_float)
                     {
-                        float vf;
-                        sscanf(vstr, "%f", &vf);
+                        float vf = vstr_to_float(vstr);
                         fwrite(&vf, sizeof(float), 1, mp);
                     }
                     else
@@ -267,8 +346,7 @@ static int dump_param(const char* parampath, const char* parambinpath, const cha
 
                 if (is_float)
                 {
-                    float vf;
-                    sscanf(vstr, "%f", &vf);
+                    float vf = vstr_to_float(vstr);
                     fwrite(&vf, sizeof(float), 1, mp);
                 }
                 else

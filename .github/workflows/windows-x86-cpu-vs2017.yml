@@ -1,5 +1,11 @@
 name: windows-x86-cpu-vs2017
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [master]
+    paths-ignore: ['**.md']
 jobs:
   windows-vs2017:
     runs-on: windows-2016

@@ -1,5 +1,11 @@
 name: android-armv7-gpu
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [master]
+    paths-ignore: ['**.md']
 jobs:
   android-armv7-gpu:
     runs-on: ubuntu-latest

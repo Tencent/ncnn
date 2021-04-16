@@ -1,5 +1,11 @@
 name: linux-x64-cpu-clang
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [master]
+    paths-ignore: ['**.md']
 jobs:
   linux-clang:
     runs-on: ubuntu-latest
@@ -41,6 +47,16 @@ jobs:
         cmake --build . -j 2
     - name: test-avx2
       run: cd build-avx2 && ctest --output-on-failure -j 2
+    - name: build-noint8
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-noint8 && cd build-noint8
+        cmake -DNCNN_INT8=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-noint8
+      run: cd build-noint8 && ctest --output-on-failure -j 2
 
   linux-clang-simplestl:
     runs-on: ubuntu-latest

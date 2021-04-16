@@ -1413,7 +1413,7 @@ int Net::load_param(const DataReader& dr)
         int pdlr = pd.load_param(dr);
         if (pdlr != 0)
         {
-            NCNN_LOGE("ParamDict load_param failed");
+            NCNN_LOGE("ParamDict load_param %d %s failed", i, layer->name.c_str());
             continue;
         }
 
@@ -1466,7 +1466,7 @@ int Net::load_param(const DataReader& dr)
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
-            NCNN_LOGE("layer load_param failed");
+            NCNN_LOGE("layer load_param %d %s failed", i, layer->name.c_str());
             continue;
         }
 
@@ -1605,7 +1605,7 @@ int Net::load_param_bin(const DataReader& dr)
         int pdlr = pd.load_param_bin(dr);
         if (pdlr != 0)
         {
-            NCNN_LOGE("ParamDict load_param failed");
+            NCNN_LOGE("ParamDict load_param %d %s failed", i, layer->name.c_str());
             continue;
         }
 
@@ -1658,7 +1658,7 @@ int Net::load_param_bin(const DataReader& dr)
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
-            NCNN_LOGE("layer load_param failed");
+            NCNN_LOGE("layer load_param %d %s failed", i, layer->name.c_str());
             continue;
         }
 
@@ -1677,18 +1677,20 @@ int Net::load_model(const DataReader& dr)
         return -1;
     }
 
+    int layer_count = (int)d->layers.size();
+
     // load file
     int ret = 0;
 
     ModelBinFromDataReader mb(dr);
-    for (size_t i = 0; i < d->layers.size(); i++)
+    for (int i = 0; i < layer_count; i++)
     {
         Layer* layer = d->layers[i];
 
         //Here we found inconsistent content in the parameter file.
         if (!layer)
         {
-            NCNN_LOGE("load_model error at layer %d, parameter file has inconsistent content.", (int)i);
+            NCNN_LOGE("load_model error at layer %d %s, parameter file has inconsistent content.", i, layer->name.c_str());
             ret = -1;
             break;
         }
@@ -1696,7 +1698,7 @@ int Net::load_model(const DataReader& dr)
         int lret = layer->load_model(mb);
         if (lret != 0)
         {
-            NCNN_LOGE("layer load_model %d failed", (int)i);
+            NCNN_LOGE("layer load_model %d %s failed", i, layer->name.c_str());
             ret = -1;
             break;
         }
@@ -1720,14 +1722,14 @@ int Net::load_model(const DataReader& dr)
     }
 #endif // NCNN_VULKAN
 
-    for (size_t i = 0; i < d->layers.size(); i++)
+    for (int i = 0; i < layer_count; i++)
     {
         Layer* layer = d->layers[i];
 
         //Here we found inconsistent content in the parameter file.
         if (!layer)
         {
-            NCNN_LOGE("load_model error at layer %d, parameter file has inconsistent content.", (int)i);
+            NCNN_LOGE("load_model error at layer %d %s, parameter file has inconsistent content.", i, layer->name.c_str());
             ret = -1;
             break;
         }
@@ -1743,7 +1745,7 @@ int Net::load_model(const DataReader& dr)
         int cret = layer->create_pipeline(opt1);
         if (cret != 0)
         {
-            NCNN_LOGE("layer create_pipeline %d failed", (int)i);
+            NCNN_LOGE("layer create_pipeline %d %s failed", i, layer->name.c_str());
             ret = -1;
             break;
         }
@@ -2508,21 +2510,37 @@ int Extractor::extract(int blob_index, VkMat& feat, VkCompute& cmd)
     if (blob_index < 0 || blob_index >= (int)d->blob_mats.size())
         return -1;
 
+    int old_blocktime = get_kmp_blocktime();
+    set_kmp_blocktime(d->opt.openmp_blocktime);
+
+    int old_flush_denormals = get_flush_denormals();
+    set_flush_denormals(d->opt.flush_denormals);
+
     int ret = 0;
 
     if (d->blob_mats_gpu[blob_index].dims == 0)
     {
-        int layer_index = d->net->blobs()[blob_index].producer;
-        ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->blob_mats_gpu, cmd, d->opt);
-    }
-
-    if (d->blob_mats_gpu[blob_index].dims == 0 && d->blob_mats_gpu_image[blob_index].dims != 0)
-    {
-        // image to buffer
-        cmd.record_image_to_buffer(d->blob_mats_gpu_image[blob_index], d->blob_mats_gpu[blob_index], d->opt);
+        if (d->blob_mats_gpu_image[blob_index].dims != 0)
+        {
+            // image to buffer
+            cmd.record_image_to_buffer(d->blob_mats_gpu_image[blob_index], d->blob_mats_gpu[blob_index], d->opt);
+        }
+        else if (d->blob_mats[blob_index].dims != 0)
+        {
+            // host to buffer
+            cmd.record_upload(d->blob_mats[blob_index], d->blob_mats_gpu[blob_index], d->opt);
+        }
+        else
+        {
+            int layer_index = d->net->blobs()[blob_index].producer;
+            ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->blob_mats_gpu, cmd, d->opt);
+        }
     }
 
     feat = d->blob_mats_gpu[blob_index];
+
+    set_kmp_blocktime(old_blocktime);
+    set_flush_denormals(old_flush_denormals);
 
     return ret;
 }
@@ -2545,23 +2563,40 @@ int Extractor::extract(int blob_index, VkImageMat& feat, VkCompute& cmd)
     int old_blocktime = get_kmp_blocktime();
     set_kmp_blocktime(d->opt.openmp_blocktime);
 
+    int old_flush_denormals = get_flush_denormals();
+    set_flush_denormals(d->opt.flush_denormals);
+
     int ret = 0;
 
     if (d->blob_mats_gpu_image[blob_index].dims == 0)
     {
-        int layer_index = d->net->blobs()[blob_index].producer;
-        ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->blob_mats_gpu, d->blob_mats_gpu_image, cmd, d->opt);
-    }
-
-    if (d->blob_mats_gpu_image[blob_index].dims == 0 && d->blob_mats_gpu[blob_index].dims != 0)
-    {
-        // buffer to image
-        cmd.record_buffer_to_image(d->blob_mats_gpu[blob_index], d->blob_mats_gpu_image[blob_index], d->opt);
+        if (d->blob_mats_gpu[blob_index].dims != 0)
+        {
+            // buffer to image
+            cmd.record_buffer_to_image(d->blob_mats_gpu[blob_index], d->blob_mats_gpu_image[blob_index], d->opt);
+        }
+        else if (d->blob_mats[blob_index].dims != 0)
+        {
+            // host to image
+            cmd.record_upload(d->blob_mats[blob_index], d->blob_mats_gpu_image[blob_index], d->opt);
+        }
+        else
+        {
+            int layer_index = d->net->blobs()[blob_index].producer;
+            ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->blob_mats_gpu, d->blob_mats_gpu_image, cmd, d->opt);
+        }
     }
 
     feat = d->blob_mats_gpu_image[blob_index];
 
+    if (feat.empty())
+    {
+        NCNN_LOGE("extract %d image allocation failed", blob_index);
+        ret = -100;
+    }
+
     set_kmp_blocktime(old_blocktime);
+    set_flush_denormals(old_flush_denormals);
 
     return ret;
 }

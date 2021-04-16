@@ -1,5 +1,11 @@
 name: linux-mips-cpu-gcc
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [master]
+    paths-ignore: ['**.md']
 jobs:
   linux-gcc-mipsel:
     runs-on: ubuntu-20.04

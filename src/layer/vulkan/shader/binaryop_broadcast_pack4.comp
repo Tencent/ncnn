@@ -119,6 +119,30 @@ void main()
                 // special type 4
                 az = 0;
             }
+
+            if (psc(aw) != 1 && psc(bw) == 1 && psc(bh) == psc(ah) && psc(bc) == psc(ac))
+            {
+                // special type 5
+                bx = 0;
+            }
+
+            if (psc(bw) == psc(aw) && psc(ah) != 1 && psc(bh) == 1 && psc(bc) == psc(ac))
+            {
+                // special type 6
+                by = 0;
+            }
+
+            if (psc(bw) != 1 && psc(aw) == 1 && psc(bh) == psc(ah) && psc(bc) == psc(ac))
+            {
+                // special type 7
+                ax = 0;
+            }
+
+            if (psc(bw) == psc(aw) && psc(bh) != 1 && psc(ah) == 1 && psc(bc) == psc(ac))
+            {
+                // special type 8
+                ay = 0;
+            }
         }
 
         if (psc(bdims) == 2)
@@ -238,6 +262,34 @@ void main()
             {
                 // special type 3
                 ai = gz * psc(acstep);
+                bi = gi;
+            }
+
+            if (psc(aw) != 1 && psc(bw) == 1 && psc(bh) == psc(ah) && psc(bc) == psc(ac))
+            {
+                // special type 5
+                ai = gi;
+                bi = gz * psc(bcstep) + gy;
+            }
+
+            if (psc(bw) == psc(aw) && psc(ah) != 1 && psc(bh) == 1 && psc(bc) == psc(ac))
+            {
+                // special type 6
+                ai = gi;
+                bi = gz * psc(bcstep) + gx;
+            }
+
+            if (psc(bw) != 1 && psc(aw) == 1 && psc(bh) == psc(ah) && psc(bc) == psc(ac))
+            {
+                // special type 7
+                ai = gz * psc(acstep) + gy;
+                bi = gi;
+            }
+
+            if (psc(bw) == psc(aw) && psc(bh) != 1 && psc(ah) == 1 && psc(bc) == psc(ac))
+            {
+                // special type 8
+                ai = gz * psc(acstep) + gx;
                 bi = gi;
             }
         }

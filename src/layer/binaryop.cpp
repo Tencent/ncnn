@@ -150,6 +150,124 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 return 0;
             }
 
+            if (w != 1 && w1 == 1 && h1 == h && channels1 == channels)
+            {
+                // special type 5
+                c.create(w, h, channels, elemsize, opt.blob_allocator);
+                if (c.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels1; q++)
+                {
+                    const float* ptr = a.channel(q);
+                    const float* ptr1 = b.channel(q);
+                    float* outptr = c.channel(q);
+
+                    for (int y = 0; y < h; y++)
+                    {
+                        const float b0 = ptr1[y];
+                        for (int x = 0; x < w; x++)
+                        {
+                            outptr[x] = op(ptr[x], b0);
+                        }
+
+                        ptr += w;
+                        outptr += w;
+                    }
+                }
+
+                return 0;
+            }
+
+            if (w1 == w && h != 1 && h1 == 1 && channels1 == channels)
+            {
+                // special type 6
+                c.create(w, h, channels, elemsize, opt.blob_allocator);
+                if (c.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels1; q++)
+                {
+                    const float* ptr = a.channel(q);
+                    const float* ptr1 = b.channel(q);
+                    float* outptr = c.channel(q);
+
+                    for (int y = 0; y < h; y++)
+                    {
+                        for (int x = 0; x < w; x++)
+                        {
+                            outptr[x] = op(ptr[x], ptr1[x]);
+                        }
+
+                        ptr += w;
+                        outptr += w;
+                    }
+                }
+
+                return 0;
+            }
+
+            if (w1 != 1 && w == 1 && h1 == h && channels1 == channels)
+            {
+                // special type 7
+                c.create(w1, h1, channels1, elemsize, opt.blob_allocator);
+                if (c.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels1; q++)
+                {
+                    const float* ptr = a.channel(q);
+                    const float* ptr1 = b.channel(q);
+                    float* outptr = c.channel(q);
+
+                    for (int y = 0; y < h1; y++)
+                    {
+                        const float a0 = ptr[y];
+                        for (int x = 0; x < w1; x++)
+                        {
+                            outptr[x] = op(a0, ptr1[x]);
+                        }
+
+                        ptr1 += w1;
+                        outptr += w1;
+                    }
+                }
+
+                return 0;
+            }
+
+            if (w1 == w && h1 != 1 && h == 1 && channels1 == channels)
+            {
+                // special type 8
+                c.create(w1, h1, channels1, elemsize, opt.blob_allocator);
+                if (c.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels1; q++)
+                {
+                    const float* ptr = a.channel(q);
+                    const float* ptr1 = b.channel(q);
+                    float* outptr = c.channel(q);
+
+                    for (int y = 0; y < h1; y++)
+                    {
+                        for (int x = 0; x < w1; x++)
+                        {
+                            outptr[x] = op(ptr[x], ptr1[x]);
+                        }
+
+                        ptr1 += w1;
+                        outptr += w1;
+                    }
+                }
+
+                return 0;
+            }
+
             // type 19
             c.create(w, h, channels, elemsize, opt.blob_allocator);
             if (c.empty())

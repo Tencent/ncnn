@@ -1,5 +1,11 @@
 name: linux-x64-cpu-clang-python
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [master]
+    paths-ignore: ['**.md']
 jobs:
   linux-clang-python:
     runs-on: ubuntu-latest

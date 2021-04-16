@@ -1,5 +1,11 @@
 name: windows-x64-gpu-vs2017
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [master]
+    paths-ignore: ['**.md']
 jobs:
   windows-vs2017-gpu:
     runs-on: windows-2016

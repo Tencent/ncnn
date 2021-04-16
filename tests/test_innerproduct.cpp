@@ -87,6 +87,7 @@ static int test_innerproduct_2()
            || test_innerproduct(RandomMat(24), 32, 1);
 }
 
+#if NCNN_INT8
 static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias)
 {
     ncnn::ParamDict pd;
@@ -145,6 +146,7 @@ static int test_innerproduct_3()
            || test_innerproduct_int8(RandomMat(7, 2, 16), 4, 1)
            || test_innerproduct_int8(RandomMat(6, 3, 16), 16, 1);
 }
+#endif // NCNN_INT8
 
 static int test_innerproduct_gemm(const ncnn::Mat& a, int outch, int bias)
 {
@@ -193,6 +195,7 @@ static int test_innerproduct_4()
            || test_innerproduct_gemm(RandomMat(12, 16), 7, 1);
 }
 
+#if NCNN_INT8
 static int test_innerproduct_gemm_int8(const ncnn::Mat& a, int outch, int bias)
 {
     ncnn::ParamDict pd;
@@ -242,11 +245,13 @@ static int test_innerproduct_5()
            || test_innerproduct_gemm_int8(RandomMat(6, 16), 16, 0)
            || test_innerproduct_gemm_int8(RandomMat(12, 16), 7, 1);
 }
+#endif // NCNN_INT8
 
 int main()
 {
     SRAND(7767517);
 
+#if NCNN_INT8
     return 0
            || test_innerproduct_0()
            || test_innerproduct_1()
@@ -254,4 +259,11 @@ int main()
            || test_innerproduct_3()
            || test_innerproduct_4()
            || test_innerproduct_5();
+#else
+    return 0
+           || test_innerproduct_0()
+           || test_innerproduct_1()
+           || test_innerproduct_2()
+           || test_innerproduct_4();
+#endif
 }
