@@ -6,11 +6,11 @@
 nihui的bilibili直播间：https://live.bilibili.com/1264617
 # 编译
 
-## 怎样下载源码？
+## 怎样下载完整源码？
 
-github
-gitee
-full-source.zip
+git clone --recursive https://github.com/Tencent/ncnn/
+或者
+https://github.com/Tencent/ncnn/releases  下载 ncnn-xxxxx-full-source.zip
 
 ## 怎么交叉编译？
 
@@ -18,7 +18,7 @@ cmake 工具链怎么设置啊？
 
 ## The submodules were not downloaded! Please update submodules with "git submodule update --init" and try again
 
-执行 git submodule update --init 之后继续操作
+如上，下载完整源码。或者按提示执行 git submodule update --init。
 
 ## Could NOT find Protobuf (missing: Protobuf_INCLUDE_DIR)
 
@@ -30,11 +30,13 @@ https://github.com/Tencent/ncnn/issues/1873
 
 ## Could not find a package configuration file provided by "OpenCV" with any of the following names: OpenCVConfig.cmake opencv-config.cmake
 
-set(OpenCV_DIR)
+sudo apt-get install libopencv-dev
+
+或者自行编译安装，set(OpenCV_DIR {OpenCVConfig.cmake所在目录})
 
 ## Could not find a package configuration file provided by "ncnn" with any of the following names: ncnnConfig.cmake ncnn-config.cmake
 
-set(ncnn_DIR)
+set(ncnn_DIR {ncnnConfig.cmake所在目录})
 
 ## 找不到 Vulkan
 
@@ -67,6 +69,12 @@ opencv rtti -> opencv-mobile
 
 
 ## 为啥自己编译的ncnn android库特别大？
+
+https://github.com/Tencent/ncnn/wiki/build-for-android.zh 以及见 如何裁剪更小的 ncnn 库
+
+## ncnnoptimize和自定义层
+
+先ncnnoptimize再增加自定义层，避免ncnnoptimize不能处理自定义层保存。
 
 
 ## rtti/exceptions冲突
@@ -456,6 +464,8 @@ https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result
 [Post Training Quantization Tools](https://github.com/Tencent/ncnn/tree/master/tools/quantize)
 
 ## 如何设置线程数？
+
+opt.num_threads
 
 ## 如何降低CPU占用率？
 
