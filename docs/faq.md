@@ -252,6 +252,47 @@ https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx
 get_affine_transform
 warpaffine_bilinear_c3
 
+```c
+// 计算变换矩阵 并且求逆变换
+int type = 0;       // 0->区域外填充为v[0],v[1],v[2], -233->区域外不处理
+unsigned int v = 0;
+float tm[6];
+float tm_inv[6];
+// 人脸区域在原图上的坐标和宽高
+float src_x = target->det.rect.x / target->det.w * pIveImageU8C3->u32Width;
+float src_y = target->det.rect.y / target->det.h * pIveImageU8C3->u32Height;
+float src_w = target->det.rect.w / target->det.w * pIveImageU8C3->u32Width;
+float src_h = target->det.rect.h / target->det.h * pIveImageU8C3->u32Height;
+float point_src[10] = {
+src_x + src_w * target->attr.land[0][0], src_x + src_w * target->attr.land[0][1],
+src_x + src_w * target->attr.land[1][0], src_x + src_w * target->attr.land[1][1],
+src_x + src_w * target->attr.land[2][0], src_x + src_w * target->attr.land[2][1],
+src_x + src_w * target->attr.land[3][0], src_x + src_w * target->attr.land[3][1],
+src_x + src_w * target->attr.land[4][0], src_x + src_w * target->attr.land[4][1],
+};
+float point_dst[10] = { // +8 是因为我们处理112*112的图
+30.2946f + 8.0f, 51.6963f,
+65.5318f + 8.0f, 51.5014f,
+48.0252f + 8.0f, 71.7366f,
+33.5493f + 8.0f, 92.3655f,
+62.7299f + 8.0f, 92.2041f,
+};
+// 第一种方式：先计算变换在求逆
+AffineTrans::get_affine_transform(point_src, point_dst, 5, tm);
+AffineTrans::invert_affine_transform(tm, tm_inv);
+// 第二种方式：直接拿到求逆的结果
+// AffineTrans::get_affine_transform(point_dst, point_src, 5, tm_inv);
+// rgb 分离的，所以要单独处理
+for(int c = 0; c < 3; c++)
+{
+    unsigned char* pSrc = malloc(xxx);
+    unsigned char* pDst = malloc(xxx);
+    ncnn::warpaffine_bilinear_c1(pSrc, SrcWidth, SrcHeight, SrcStride[c], pDst, DstWidth, DstHeight, DstStride[c], tm_inv, type, v);
+}
+// rgb packed则可以一次处理
+ncnn::warpaffine_bilinear_c3(pSrc, SrcWidth, SrcHeight, SrcStride, pDst, DstWidth, DstHeight, DstStride, tm_inv, type, v);
+```
+
 ## 如何获得中间层的blob输出
 
     ncnn::Mat output;
