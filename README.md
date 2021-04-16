@@ -106,7 +106,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 
 * Supports convolutional neural networks, supports multiple input and multi-branch structure, can calculate part of the branch
 * No third-party library dependencies, does not rely on BLAS / NNPACK or any other computing framework
-* Pure C ++ implementation, cross-platform, supports android, ios and so on
+* Pure C++ implementation, cross-platform, supports android, ios and so on
 * ARM NEON assembly level of careful optimization, calculation speed is extremely high
 * Sophisticated memory management and data structure design, very low memory footprint
 * Supports multi-core parallel computing acceleration, ARM big.LITTLE cpu scheduling optimization
