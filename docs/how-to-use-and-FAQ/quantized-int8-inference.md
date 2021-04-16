@@ -1,45 +1,51 @@
-under construction ...
+# Post Training Quantization Tools
 
-## caffe-int8-convert-tools
-https://github.com/BUG1989/caffe-int8-convert-tools
+To support int8 model deployment on mobile devices,we provide the universal post training quantization tools which can convert the float32 model to int8 model.
 
-## convert caffe model to ncnn quantized int8 model
-### the offline way, reduce model binary size down to 25%
+## User Guide
 
-|sample model binary|size|
-|---|---|
-|squeezenet.bin|4.7M|
-|squeezenet-int8.bin|1.2M|
-|mobilenet_ssd_voc.bin|22.1M|
-|mobilenet_ssd_voc-int8.bin|5.6M|
+Example with mobilenet, just need three steps.
+
+### 1. Optimize model
 
 ```
-./caffe2ncnn resnet.prototxt resnet.caffemodel resnet-int8.param resnet-int8.bin 256 resnet.table
+./ncnnoptimize mobilenet.param mobilenet.bin mobilenet-opt.param mobilenet-opt.bin 0
 ```
-### the runtime way, no model binary reduction
+
+### 2. Create the calibration table file
+
+We suggest that using the verification dataset for calibration, which is more than 5000 images.
+
+Some imagenet sample images here https://github.com/nihui/imagenet-sample-images
+
 ```
-./caffe2ncnn resnet.prototxt resnet.caffemodel resnet-fp32-int8.param resnet-fp32-int8.bin 0 resnet.table
+./ncnn2table --param=mobilenet-opt.param --bin=mobilenet-opt.bin --images=images/ --output=mobilenet.table --mean=104,117,123 --norm=0.017,0.017,0.017 --size=224,224
+```
+
+### 3. Quantize model
+
+```
+./ncnn2int8 mobilenet-opt.param mobilenet-opt.bin mobilenet-int8.param mobilenet-int8.bin mobilenet.table
 ```
 
 ## use ncnn int8 inference
+
 the ncnn library would use int8 inference automatically, nothing changed in your code
+
 ```cpp
-ncnn::Net resnet;
-resnet.load_param("resnet-int8.param");
-resnet.load_model("resnet-int8.bin");
-```
-### turn off int8 inference, the runtime model only
-```cpp
-ncnn::Net resnet;
-resnet.use_int8_inference = 0;// set the switch before loading, force int8 inference off
-resnet.load_param("resnet-fp32-int8.param");
-resnet.load_model("resnet-fp32-int8.bin");
+ncnn::Net mobilenet;
+mobilenet.load_param("mobilenet-int8.param");
+mobilenet.load_model("mobilenet-int8.bin");
 ```
 
 ## mixed precision inference
-before converting your model files, delete the layer weight scale line in table file, and that layer will do the float32 inference
+
+Before quantize your model, comment the layer weight scale line in table file, then the layer will do the float32 inference
+
 ```
 conv1_param_0 156.639840536
 ```
+
 ```
+#conv1_param_0 156.639840536
 ```
