@@ -16,6 +16,8 @@ https://github.com/Tencent/ncnn/releases  下载 ncnn-xxxxx-full-source.zip
 
 cmake 工具链怎么设置啊？
 
+参见 https://github.com/Tencent/ncnn/wiki/how-to-build
+
 ## The submodules were not downloaded! Please update submodules with "git submodule update --init" and try again
 
 如上，下载完整源码。或者按提示执行 git submodule update --init。
@@ -45,13 +47,23 @@ cmake版本 3.10，否则没有带 FindVulkan.cmake
 android-api >= 24
 macos 要先执行安装脚本
 
-## undefined reference to __kmpc_for_static_init_4 __kmpc_for_static_fini __kmpc_fork_call ...
+## 找不到库（需要根据系统/编译器指定）
 
-## undefined reference to vkEnumerateInstanceExtensionProperties vkGetInstanceProcAddr vkQueueSubmit ...
+undefined reference to __kmpc_for_static_init_4 __kmpc_for_static_fini __kmpc_fork_call ...
 
-## undefined reference to glslang::InitializeProcess() glslang::TShader::TShader(EShLanguage) ...
+需要链接openmp库 
 
-## undefined reference to AAssetManager_fromJava AAssetManager_open AAsset_seek ...
+undefined reference to vkEnumerateInstanceExtensionProperties vkGetInstanceProcAddr vkQueueSubmit ...
+
+需要 vulkan-1.lib
+
+undefined reference to glslang::InitializeProcess() glslang::TShader::TShader(EShLanguage) ...
+
+需要 glslang.lib OGLCompiler.lib SPIRV.lib OSDependent.lib
+
+undefined reference to AAssetManager_fromJava AAssetManager_open AAsset_seek ...
+
+find_library和target_like_libraries中增加 android 
 
 find_package(ncnn)
 
