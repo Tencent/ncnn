@@ -507,6 +507,24 @@ https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result
 ## fp32 fp16
 
 ## 大小核绑定
+ncnn::set_cpu_powersave(int)绑定大核或小核
+注意windows系统不支持绑核。
+ncnn支持不同的模型运行在不同的核心。假设硬件平台有2个大核，4个小核，你想把netA运行在大核，netB运行在小核。
+可以通过std::thread or pthread创建两个线程，运行如下代码：
+```
+   void thread_1()
+   {
+      ncnn::set_cpu_powersave(2); // bind to big cores
+      netA.opt.num_threads = 2;
+   }
+
+   void thread_2()
+   {
+      ncnn::set_cpu_powersave(1); // bind to little cores
+      netB.opt.num_threads = 4;
+   }
+```
+https://github.com/seiyaa/ncnn/blob/master/docs/how-to-use-and-FAQ/openmp-best-practice.zh.md
 
 ## get_cpu_count get_gpu_count
 
