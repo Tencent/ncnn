@@ -716,23 +716,23 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
 
-    int out_elempack = 1;
-#if __SSE2__
-    if (opt.use_packing_layout)
-    {
-        out_elempack = num_output % 8 == 0 ? 8 : 1;
-    }
-#endif // __SSE2__
-    bool use_int8_requantize = int8_scale_term > 100;
-    size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
-
-    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
     // depth-wise
     if (channels * elempack == group && group == num_output)
     {
+        int out_elempack = 1;
+#if __SSE2__
+        if (opt.use_packing_layout)
+        {
+            out_elempack = num_output % 8 == 0 ? 8 : 1;
+        }
+#endif // __SSE2__
+        bool use_int8_requantize = int8_scale_term > 100;
+        size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+
+        top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
 #if __SSE2__
         if (elempack == 8)
         {
@@ -1011,6 +1011,20 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
         return 0;
     }
 
+    int out_elempack = 1;
+#if __SSE2__
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif // __SSE2__
+    bool use_int8_requantize = int8_scale_term > 100;
+    size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
     // group convolution
     const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
@@ -1021,7 +1035,7 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
     if (opt.use_packing_layout)
     {
         g_elempack = channels_g % 8 == 0 ? 8 : 1;
-        out_g_elempack = num_output_g % 8 == 0 ? 8 : 1;
+        out_g_elempack = num_output_g % 4 == 0 ? 4 : 1;
     }
 #endif // __SSE2__
 
