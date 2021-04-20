@@ -183,8 +183,7 @@ int main(int argc, char** argv)
                      "efficientnet_b0", "224", "regnety_400m", "224", "blazeface", "128", "googlenet", "224", "googlenet_int8", "224",
                      "resnet18", "224", "resnet18_int8", "224", "alexnet", "227", "vgg16", "224", "vgg16_int8", "224", "resnet50", "224", "resnet50_int8", "224",
                      "squeezenet_ssd", "300", "squeezenet_ssd_int8", "300", "mobilenet_ssd", "300", "mobilenet_ssd_int8", "300",
-                     "mobilenet_yolo", "416", "mobilenetv2_yolov3", "352", "yolov4-tiny", "416"
-                    };
+                     "mobilenet_yolo", "416", "mobilenetv2_yolov3", "352", "yolov4-tiny", "416"};
 
     int modellen = sizeof(model) / sizeof(model[0]);
     for (int i = 0; i < modellen; i++)
