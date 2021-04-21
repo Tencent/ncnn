@@ -24,7 +24,7 @@ HardSwish::HardSwish()
 
 int HardSwish::load_param(const ParamDict& pd)
 {
-    alpha = pd.get(0, 1.f/6);
+    alpha = pd.get(0, 1.f / 6);
     beta = pd.get(1, 0.5f);
     lower = -beta / alpha;
     upper = (1.f / alpha) + lower;
@@ -39,7 +39,7 @@ int HardSwish::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int channels = bottom_top_blob.c;
     int size = w * h;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
