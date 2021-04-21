@@ -24,7 +24,7 @@ HardSwish::HardSwish()
 
 int HardSwish::load_param(const ParamDict& pd)
 {
-    alpha = pd.get(0, 0.2f);
+    alpha = pd.get(0, 1.f/6);
     beta = pd.get(1, 0.5f);
     lower = -beta / alpha;
     upper = (1.f / alpha) + lower;
