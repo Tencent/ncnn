@@ -605,7 +605,7 @@ static size_t emptydr_read(ncnn_datareader_t /*dr*/, void* buf, size_t size)
 ncnn_datareader_t ncnn_DataReader_read_empty()
 {
     ncnn_datareader_t dr = (ncnn_datareader_t)malloc(sizeof(struct __ncnn_datareader_t));
-     dr->pthis = (void*)(new DataReader_c_api(dr));
+    dr->pthis = (void*)(new DataReader_c_api(dr));
 #if NCNN_STRING
     dr->scan = __ncnn_DataReaderFromMemory_scan;
 #endif /* NCNN_STRING */
