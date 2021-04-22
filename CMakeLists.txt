@@ -55,7 +55,7 @@ if(MSVC AND NOT CMAKE_VERSION VERSION_LESS "3.15")
     endif()
 endif()
 
-option(NCNN_SHARED_LIB "shared library support" OFF)
+option(NCNN_SHARED_LIB "shared library support" ON)
 option(NCNN_ENABLE_LTO "enable link-time optimization" OFF)
 option(NCNN_OPENMP "openmp support" ON)
 option(NCNN_STDIO "load model from external file" ON)

@@ -54,6 +54,7 @@ NCNN_EXPORT void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_v
 /* mat api */
 typedef struct __ncnn_mat_t* ncnn_mat_t;
 
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create(int w, int h, int c);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d(int w, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d(int w, int h, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c, ncnn_allocator_t allocator);
@@ -150,9 +151,11 @@ struct NCNN_EXPORT __ncnn_datareader_t
 };
 
 NCNN_EXPORT ncnn_datareader_t ncnn_datareader_create();
+
 #if NCNN_STDIO
 NCNN_EXPORT ncnn_datareader_t ncnn_datareader_create_from_stdio(FILE* fp);
 #endif /* NCNN_STDIO */
+NCNN_EXPORT ncnn_datareader_t ncnn_DataReader_read_empty();
 NCNN_EXPORT ncnn_datareader_t ncnn_datareader_create_from_memory(const unsigned char** mem);
 NCNN_EXPORT void ncnn_datareader_destroy(ncnn_datareader_t dr);
 
