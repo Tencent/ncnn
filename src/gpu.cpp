@@ -2656,7 +2656,7 @@ VkImageMat VulkanDevice::get_dummy_image() const
 VkImageMat VulkanDevice::get_dummy_image_readonly() const
 {
 #if __APPLE__
-    if (vkdev->info.vendor_id() == 0x8086)
+    if (info.vendor_id() == 0x8086)
         return d->dummy_image;
 #endif
     return d->dummy_image_readonly;
