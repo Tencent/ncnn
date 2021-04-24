@@ -110,16 +110,16 @@ int PixelShuffle_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     float32x4_t _p31 = vld1q_f32(sptr3 + 4);
 
                     float32x4x4_t _s0;
-                    _s0.val[0] = vcombine_s32(vget_low_f32(_p00), vget_low_f32(_p01));
-                    _s0.val[1] = vcombine_s32(vget_low_f32(_p10), vget_low_f32(_p11));
-                    _s0.val[2] = vcombine_s32(vget_low_f32(_p20), vget_low_f32(_p21));
-                    _s0.val[3] = vcombine_s32(vget_low_f32(_p30), vget_low_f32(_p31));
+                    _s0.val[0] = vcombine_f32(vget_low_f32(_p00), vget_low_f32(_p01));
+                    _s0.val[1] = vcombine_f32(vget_low_f32(_p10), vget_low_f32(_p11));
+                    _s0.val[2] = vcombine_f32(vget_low_f32(_p20), vget_low_f32(_p21));
+                    _s0.val[3] = vcombine_f32(vget_low_f32(_p30), vget_low_f32(_p31));
 
                     float32x4x4_t _s1;
-                    _s1.val[0] = vcombine_s32(vget_high_f32(_p00), vget_high_f32(_p01));
-                    _s1.val[1] = vcombine_s32(vget_high_f32(_p10), vget_high_f32(_p11));
-                    _s1.val[2] = vcombine_s32(vget_high_f32(_p20), vget_high_f32(_p21));
-                    _s1.val[3] = vcombine_s32(vget_high_f32(_p30), vget_high_f32(_p31));
+                    _s1.val[0] = vcombine_f32(vget_high_f32(_p00), vget_high_f32(_p01));
+                    _s1.val[1] = vcombine_f32(vget_high_f32(_p10), vget_high_f32(_p11));
+                    _s1.val[2] = vcombine_f32(vget_high_f32(_p20), vget_high_f32(_p21));
+                    _s1.val[3] = vcombine_f32(vget_high_f32(_p30), vget_high_f32(_p31));
 
                     vst4q_f32(outptr0, _s0);
                     vst4q_f32(outptr1, _s1);
@@ -186,8 +186,8 @@ int PixelShuffle_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     float32x4_t _p0 = vld1q_f32(sptr);
                     float32x4_t _p1 = vld1q_f32(sptr + 4);
 
-                    float32x4_t _s0 = vcombine_s32(vget_low_f32(_p0), vget_low_f32(_p1));
-                    float32x4_t _s1 = vcombine_s32(vget_high_f32(_p0), vget_high_f32(_p1));
+                    float32x4_t _s0 = vcombine_f32(vget_low_f32(_p0), vget_low_f32(_p1));
+                    float32x4_t _s1 = vcombine_f32(vget_high_f32(_p0), vget_high_f32(_p1));
 
                     vst1q_f32(outptr0, _s0);
                     vst1q_f32(outptr1, _s1);
