@@ -90,8 +90,7 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv()
 
 #define AT_HWCAP  16
 #define AT_HWCAP2 26
-#if __aarch64__
-
+#if __aarch64__ || __riscv_xlen == 64
     struct
     {
         uint64_t tag;
@@ -138,6 +137,11 @@ static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
 // from arch/arm/include/uapi/asm/hwcap.h
 #define HWCAP_NEON  (1 << 12)
 #define HWCAP_VFPv4 (1 << 16)
+#endif
+
+#if __riscv
+// from arch/riscv/include/uapi/asm/hwcap.h
+#define COMPAT_HWCAP_ISA_V (1 << ('V' - 'A'))
 #endif
 
 #endif // defined __ANDROID__ || defined __linux__
@@ -366,6 +370,19 @@ int cpu_support_x86_avx2()
 #else
     // TODO: other x86 compilers checking avx2 here
     NCNN_LOGE("AVX2 detection method is unknown for current compiler");
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_riscv_v()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    return g_hwcaps & COMPAT_HWCAP_ISA_V;
+#else
     return 0;
 #endif
 #else
