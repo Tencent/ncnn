@@ -524,7 +524,7 @@ ncnn支持不同的模型运行在不同的核心。假设硬件平台有2个大
       netB.opt.num_threads = 4;
    }
 ```
-https://github.com/seiyaa/ncnn/blob/master/docs/how-to-use-and-FAQ/openmp-best-practice.zh.md
+https://github.com/Tencent/ncnn/blob/master/docs/how-to-use-and-FAQ/openmp-best-practice.zh.md
 
 ## get_cpu_count get_gpu_count
 
