@@ -27,7 +27,7 @@ int Clip_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int channels = bottom_top_blob.c;
     int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
@@ -55,11 +55,11 @@ int Clip_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             "sub        %1, %1, t0      \n"
             "bnez       %1, L0          \n"
             : "=r"(ptr),   // %0
-              "=r"(remain) // %1
+            "=r"(remain) // %1
             : "0"(ptr),
-              "1"(remain),
-              "f"(min), // %4
-              "f"(max)  // %5
+            "1"(remain),
+            "f"(min), // %4
+            "f"(max)  // %5
             : "cc", "memory", "t0", "t1", "v0");
 #else  // __riscv_vector
         for (; remain > 0; remain--)
