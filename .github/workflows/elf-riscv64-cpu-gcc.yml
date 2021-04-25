@@ -54,7 +54,7 @@ jobs:
         cd riscv-gnu-toolchain
         sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
         ./configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install --with-arch=rv64gcv
-        make -j2
+        make
 
     - name: checkout-riscv-pk
       if: steps.cache-riscv.outputs.cache-hit != 'true'
