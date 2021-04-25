@@ -91,6 +91,9 @@ https://github.com/Tencent/ncnn/wiki/build-for-android.zh 以及见 如何裁剪
 
 ## rtti/exceptions冲突
 
+产生原因是项目工程中使用的库配置不一样导致冲突，根据自己的实际情况分析是需要开启还是关闭。ncnn默认是ON，在重新编译ncnn时增加以下2个参数即可：
+ - 开启：-DNCNN_DISABLE_RTTI=OFF -DNCNN_DISABLE_EXCEPTION=OFF
+ - 关闭：-DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON
 
 # 怎样添加ncnn库到项目中？cmake方式怎么用？
 
@@ -529,6 +532,16 @@ https://github.com/Tencent/ncnn/blob/master/docs/how-to-use-and-FAQ/openmp-best-
 ## get_cpu_count get_gpu_count
 
 ## ncnnoptimize
+
+使用方式一：
+ - ./ncnnoptimize ncnn.param ncnn.bin new.param new.bin flag
+ <br/>注意这里的flag指的是fp32和fp16，其中0指的是fp32，1指的是fp16
+
+使用方式二：
+ - ./ncnnoptimize ncnn.param ncnn.bin new.param new.bin flag cutstartname cutendname
+ <br/>cutstartname: 模型截取的起点
+ <br/>cutendname: 模型截取的终点
+
 
 ## 如何使用量化工具？
 
