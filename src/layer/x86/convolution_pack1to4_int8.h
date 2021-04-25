@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void convolution_pack1to8_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_int8, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
+static void convolution_pack1to4_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_int8, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
 {
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
@@ -53,7 +53,6 @@ static void convolution_pack1to8_int8_neon(const Mat& bottom_blob, Mat& top_blob
             for (int j = 0; j < outw; j++)
             {
                 __m128i _sum0 = _mm_setzero_si128();
-                __m128i _sum1 = _mm_setzero_si128();
 
                 const signed char* kptr = weight_data_int8.channel(p);
 
@@ -74,20 +73,17 @@ static void convolution_pack1to8_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         __m128i _sl = _mm_mullo_epi16(_val, _w);
                         __m128i _sh = _mm_mulhi_epi16(_val, _w);
                         __m128i _s0 = _mm_unpacklo_epi16(_sl, _sh);
-                        __m128i _s1 = _mm_unpackhi_epi16(_sl, _sh);
 
                         _sum0 = _mm_add_epi32(_sum0, _s0);
-                        _sum1 = _mm_add_epi32(_sum1, _s1);
 
-                        kptr += 8;
+                        kptr += 4;
                     }
                 }
 
-                _mm_storeu_si128((__m128i*)(outptr + j * 8), _sum0);
-                _mm_storeu_si128((__m128i*)(outptr + j * 8 + 4), _sum1);
+                _mm_storeu_si128((__m128i*)(outptr + j * 4), _sum0);
             }
 
-            outptr += outw * 8;
+            outptr += outw * 4;
         }
     }
 }

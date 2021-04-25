@@ -4,6 +4,9 @@ enabled: true
 
 pull_requests: true
 
+commit_template: |
+  [skip ci] Restyled by ${restyler.name}
+
 statuses:
   differences: true
   no_differences: true

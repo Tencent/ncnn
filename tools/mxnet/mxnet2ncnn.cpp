@@ -994,6 +994,26 @@ int main(int argc, char** argv)
     // weight node
     std::vector<int> weight_nodes;
 
+    // sometimes mxnet produce non-unique name for activation op
+    {
+        std::set<std::string> known_names;
+        for (size_t i = 0; i < node_count; i++)
+        {
+            MXNetNode& n = nodes[i];
+
+            if (known_names.find(n.name) == known_names.end())
+            {
+                known_names.insert(n.name);
+                continue;
+            }
+
+            // non-unique name detected, append index as suffix
+            char suffix[32];
+            sprintf(suffix, "_%d", (int)i);
+            n.name = n.name + std::string(suffix);
+        }
+    }
+
     // global definition line
     // [layer count] [blob count]
     std::set<std::string> blob_names;

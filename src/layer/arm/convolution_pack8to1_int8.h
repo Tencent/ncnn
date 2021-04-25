@@ -52,7 +52,8 @@ static void convolution_pack8to1_int8_neon(const Mat& bottom_blob, Mat& top_blob
         {
             for (int j = 0; j < outw; j++)
             {
-                int sum = 0;
+                int32x4_t _sum0 = vdupq_n_s32(0);
+                int32x4_t _sum1 = vdupq_n_s32(0);
 
                 const signed char* kptr = weight_data_int8.channel(p);
 
@@ -68,18 +69,21 @@ static void convolution_pack8to1_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         int8x8_t _w = vld1_s8(kptr);
                         int16x8_t _s8 = vmull_s8(_val, _w);
 
-                        int32x4_t _s4 = vaddl_s16(vget_low_s16(_s8), vget_high_s16(_s8));
-#if __aarch64__
-                        sum += vaddvq_s32(_s4); // dot
-#else
-                        int32x2_t _ss = vadd_s32(vget_low_s32(_s4), vget_high_s32(_s4));
-                        _ss = vpadd_s32(_ss, _ss);
-                        sum += vget_lane_s32(_ss, 0);
-#endif
+                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_s8));
+                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_s8));
 
                         kptr += 8;
                     }
                 }
+
+                int32x4_t _sum = vaddq_s32(_sum0, _sum1);
+#if __aarch64__
+                int sum = vaddvq_s32(_sum); // dot
+#else
+                int32x2_t _ss = vadd_s32(vget_low_s32(_sum), vget_high_s32(_sum));
+                _ss = vpadd_s32(_ss, _ss);
+                int sum = vget_lane_s32(_ss, 0);
+#endif
 
                 outptr[j] = sum;
             }

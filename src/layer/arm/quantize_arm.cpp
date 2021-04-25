@@ -259,8 +259,79 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         const float* ptr1 = bottom_blob.channel(q * 2 + 1);
                         signed char* outptr = top_blob.channel(q);
 
-                        for (int i = 0; i < size; i++)
+                        int i = 0;
+                        for (; i + 1 < size; i += 2)
                         {
+#if __aarch64__
+                            float32x4_t _v0 = vld1q_f32(ptr0);
+                            float32x4_t _v1 = vld1q_f32(ptr0 + 4);
+                            float32x4_t _v2 = vld1q_f32(ptr1);
+                            float32x4_t _v3 = vld1q_f32(ptr1 + 4);
+                            _v0 = vmulq_f32(_v0, _scale);
+                            _v1 = vmulq_f32(_v1, _scale);
+                            _v2 = vmulq_f32(_v2, _scale);
+                            _v3 = vmulq_f32(_v3, _scale);
+                            vst1_s8(outptr, float2int8(_v0, _v2));
+                            vst1_s8(outptr + 8, float2int8(_v1, _v3));
+
+                            ptr0 += 8;
+                            ptr1 += 8;
+                            outptr += 16;
+#else  // __aarch64__
+                            asm volatile(
+                                "pld            [%0, #256]      \n"
+                                "vld1.f32       {d8-d11}, [%0 :128]! \n"
+                                "pld            [%1, #256]      \n"
+                                "vld1.f32       {d12-d15}, [%1 :128]! \n"
+
+                                "vmov.s8        q8, #0x81       \n" // _vm127
+
+                                "vmul.f32       q0, q4, %q6     \n"
+                                "vmul.f32       q1, q5, %q6     \n"
+                                "vmul.f32       q2, q6, %q6     \n"
+                                "vmul.f32       q3, q7, %q6     \n"
+
+                                "vcvtr.s32.f32  s0, s0          \n"
+                                "vcvtr.s32.f32  s1, s1          \n"
+                                "vcvtr.s32.f32  s2, s2          \n"
+                                "vcvtr.s32.f32  s3, s3          \n"
+                                "vcvtr.s32.f32  s4, s4          \n"
+                                "vcvtr.s32.f32  s5, s5          \n"
+                                "vcvtr.s32.f32  s6, s6          \n"
+                                "vcvtr.s32.f32  s7, s7          \n"
+                                "vcvtr.s32.f32  s8, s8          \n"
+                                "vcvtr.s32.f32  s9, s9          \n"
+                                "vcvtr.s32.f32  s10, s10        \n"
+                                "vcvtr.s32.f32  s11, s11        \n"
+                                "vcvtr.s32.f32  s12, s12        \n"
+                                "vcvtr.s32.f32  s13, s13        \n"
+                                "vcvtr.s32.f32  s14, s14        \n"
+                                "vcvtr.s32.f32  s15, s15        \n"
+
+                                "vqmovn.s32     d8, q0          \n"
+                                "vqmovn.s32     d10, q1         \n"
+                                "vqmovn.s32     d9, q2          \n"
+                                "vqmovn.s32     d11, q3         \n"
+                                "vqmovn.s16     d8, q4          \n"
+                                "vqmovn.s16     d9, q5          \n"
+
+                                "vmax.s8        q4, q4, q8      \n"
+
+                                "vst1.s8        {d8-d9}, [%2 :64]! \n"
+
+                                : "=r"(ptr0),
+                                "=r"(ptr1),
+                                "=r"(outptr)
+                                : "0"(ptr0),
+                                "1"(ptr1),
+                                "2"(outptr),
+                                "w"(_scale) // %6
+                                : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8");
+#endif // __aarch64__
+                        }
+                        for (; i < size; i++)
+                        {
+#if __aarch64__
                             float32x4_t _vlow = vld1q_f32(ptr0);
                             float32x4_t _vhigh = vld1q_f32(ptr1);
                             _vlow = vmulq_f32(_vlow, _scale);
@@ -271,6 +342,44 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                             ptr0 += 4;
                             ptr1 += 4;
                             outptr += 8;
+#else  // __aarch64__
+                            asm volatile(
+                                "pld            [%0, #128]      \n"
+                                "vld1.f32       {d4-d5}, [%0 :128]! \n"
+                                "pld            [%1, #128]      \n"
+                                "vld1.f32       {d6-d7}, [%1 :128]! \n"
+
+                                "vmov.s8        d8, #0x81       \n" // _vm127
+
+                                "vmul.f32       q0, q2, %q6     \n"
+                                "vmul.f32       q1, q3, %q6     \n"
+
+                                "vcvtr.s32.f32  s0, s0          \n"
+                                "vcvtr.s32.f32  s1, s1          \n"
+                                "vcvtr.s32.f32  s2, s2          \n"
+                                "vcvtr.s32.f32  s3, s3          \n"
+                                "vcvtr.s32.f32  s4, s4          \n"
+                                "vcvtr.s32.f32  s5, s5          \n"
+                                "vcvtr.s32.f32  s6, s6          \n"
+                                "vcvtr.s32.f32  s7, s7          \n"
+
+                                "vqmovn.s32     d4, q0          \n"
+                                "vqmovn.s32     d5, q1          \n"
+                                "vqmovn.s16     d4, q2          \n"
+
+                                "vmax.s8        d4, d4, d8      \n"
+
+                                "vst1.s8        {d4}, [%2 :64]! \n"
+
+                                : "=r"(ptr0),
+                                "=r"(ptr1),
+                                "=r"(outptr)
+                                : "0"(ptr0),
+                                "1"(ptr1),
+                                "2"(outptr),
+                                "w"(_scale) // %6
+                                : "memory", "q0", "q1", "q2", "q3", "q4");
+#endif // __aarch64__
                         }
                     }
                 }
@@ -286,8 +395,10 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         float32x4_t _scale0 = vld1q_f32((const float*)scale_data + q * 8);
                         float32x4_t _scale1 = vld1q_f32((const float*)scale_data + q * 8 + 4);
 
-                        for (int i = 0; i < size; i++)
+                        int i = 0;
+                        for (; i < size; i++)
                         {
+#if __aarch64__
                             float32x4_t _vlow = vld1q_f32(ptr0);
                             float32x4_t _vhigh = vld1q_f32(ptr1);
                             _vlow = vmulq_f32(_vlow, _scale0);
@@ -298,6 +409,45 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                             ptr0 += 4;
                             ptr1 += 4;
                             outptr += 8;
+#else  // __aarch64__
+                            asm volatile(
+                                "pld            [%0, #128]      \n"
+                                "vld1.f32       {d4-d5}, [%0 :128]! \n"
+                                "pld            [%1, #128]      \n"
+                                "vld1.f32       {d6-d7}, [%1 :128]! \n"
+
+                                "vmov.s8        d8, #0x81       \n" // _vm127
+
+                                "vmul.f32       q0, q2, %q6     \n"
+                                "vmul.f32       q1, q3, %q7     \n"
+
+                                "vcvtr.s32.f32  s0, s0          \n"
+                                "vcvtr.s32.f32  s1, s1          \n"
+                                "vcvtr.s32.f32  s2, s2          \n"
+                                "vcvtr.s32.f32  s3, s3          \n"
+                                "vcvtr.s32.f32  s4, s4          \n"
+                                "vcvtr.s32.f32  s5, s5          \n"
+                                "vcvtr.s32.f32  s6, s6          \n"
+                                "vcvtr.s32.f32  s7, s7          \n"
+
+                                "vqmovn.s32     d4, q0          \n"
+                                "vqmovn.s32     d5, q1          \n"
+                                "vqmovn.s16     d4, q2          \n"
+
+                                "vmax.s8        d4, d4, d8      \n"
+
+                                "vst1.s8        {d4}, [%2 :64]! \n"
+
+                                : "=r"(ptr0),
+                                "=r"(ptr1),
+                                "=r"(outptr)
+                                : "0"(ptr0),
+                                "1"(ptr1),
+                                "2"(outptr),
+                                "w"(_scale0), // %6
+                                "w"(_scale1)  // %7
+                                : "memory", "q0", "q1", "q2", "q3", "q4");
+#endif // __aarch64__
                         }
                     }
                 }
@@ -444,103 +594,125 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
             const float scale = scale_data_size == 1 ? scale_data[0] : scale_data[q];
 
-            for (int i = 0; i < size; i++)
+            int i = 0;
+#if __ARM_NEON
+            float32x4_t _scale = vdupq_n_f32(scale);
+            for (; i + 15 < size; i += 16)
+            {
+#if __aarch64__
+                float32x4_t _v0 = vld1q_f32(ptr);
+                float32x4_t _v1 = vld1q_f32(ptr + 4);
+                float32x4_t _v2 = vld1q_f32(ptr + 8);
+                float32x4_t _v3 = vld1q_f32(ptr + 12);
+                _v0 = vmulq_f32(_v0, _scale);
+                _v1 = vmulq_f32(_v1, _scale);
+                _v2 = vmulq_f32(_v2, _scale);
+                _v3 = vmulq_f32(_v3, _scale);
+                vst1_s8(outptr, float2int8(_v0, _v1));
+                vst1_s8(outptr + 8, float2int8(_v2, _v3));
+
+                ptr += 16;
+                outptr += 16;
+#else  // __aarch64__
+                asm volatile(
+                    "pld            [%0, #512]      \n"
+                    "vldm           %0!, {d8-d15}   \n"
+
+                    "vmov.s8        q8, #0x81       \n" // _vm127
+
+                    "vmul.f32       q0, q4, %q4     \n"
+                    "vmul.f32       q1, q5, %q4     \n"
+                    "vmul.f32       q2, q6, %q4     \n"
+                    "vmul.f32       q3, q7, %q4     \n"
+
+                    "vcvtr.s32.f32  s0, s0          \n"
+                    "vcvtr.s32.f32  s1, s1          \n"
+                    "vcvtr.s32.f32  s2, s2          \n"
+                    "vcvtr.s32.f32  s3, s3          \n"
+                    "vcvtr.s32.f32  s4, s4          \n"
+                    "vcvtr.s32.f32  s5, s5          \n"
+                    "vcvtr.s32.f32  s6, s6          \n"
+                    "vcvtr.s32.f32  s7, s7          \n"
+                    "vcvtr.s32.f32  s8, s8          \n"
+                    "vcvtr.s32.f32  s9, s9          \n"
+                    "vcvtr.s32.f32  s10, s10        \n"
+                    "vcvtr.s32.f32  s11, s11        \n"
+                    "vcvtr.s32.f32  s12, s12        \n"
+                    "vcvtr.s32.f32  s13, s13        \n"
+                    "vcvtr.s32.f32  s14, s14        \n"
+                    "vcvtr.s32.f32  s15, s15        \n"
+
+                    "vqmovn.s32     d8, q0          \n"
+                    "vqmovn.s32     d9, q1          \n"
+                    "vqmovn.s32     d10, q2         \n"
+                    "vqmovn.s32     d11, q3         \n"
+                    "vqmovn.s16     d8, q4          \n"
+                    "vqmovn.s16     d9, q5          \n"
+
+                    "vmax.s8        q4, q4, q8      \n"
+
+                    "vst1.s8        {d8-d9}, [%1 :64]! \n"
+
+                    : "=r"(ptr),
+                    "=r"(outptr)
+                    : "0"(ptr),
+                    "1"(outptr),
+                    "w"(_scale) // %4
+                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8");
+#endif // __aarch64__
+            }
+            for (; i + 7 < size; i += 8)
+            {
+#if __aarch64__
+                float32x4_t _v0 = vld1q_f32(ptr);
+                float32x4_t _v1 = vld1q_f32(ptr + 4);
+                _v0 = vmulq_f32(_v0, _scale);
+                _v1 = vmulq_f32(_v1, _scale);
+                int8x8_t _v = float2int8(_v0, _v1);
+                vst1_s8(outptr, _v);
+
+                ptr += 8;
+                outptr += 8;
+#else  // __aarch64__
+                asm volatile(
+                    "pld            [%0, #256]      \n"
+                    "vld1.f32       {d4-d7}, [%0 :128]! \n"
+
+                    "vmov.s8        d8, #0x81       \n" // _vm127
+
+                    "vmul.f32       q0, q2, %q4     \n"
+                    "vmul.f32       q1, q3, %q4     \n"
+
+                    "vcvtr.s32.f32  s0, s0          \n"
+                    "vcvtr.s32.f32  s1, s1          \n"
+                    "vcvtr.s32.f32  s2, s2          \n"
+                    "vcvtr.s32.f32  s3, s3          \n"
+                    "vcvtr.s32.f32  s4, s4          \n"
+                    "vcvtr.s32.f32  s5, s5          \n"
+                    "vcvtr.s32.f32  s6, s6          \n"
+                    "vcvtr.s32.f32  s7, s7          \n"
+
+                    "vqmovn.s32     d4, q0          \n"
+                    "vqmovn.s32     d5, q1          \n"
+                    "vqmovn.s16     d4, q2          \n"
+
+                    "vmax.s8        d4, d4, d8      \n"
+
+                    "vst1.s8        {d4}, [%1 :64]! \n"
+
+                    : "=r"(ptr),
+                    "=r"(outptr)
+                    : "0"(ptr),
+                    "1"(outptr),
+                    "w"(_scale) // %4
+                    : "memory", "q0", "q1", "q2", "q3", "q4");
+#endif // __aarch64__
+            }
+#endif // __ARM_NEON
+            for (; i < size; i++)
             {
                 *outptr++ = float2int8(*ptr++ * scale);
             }
-
-            // #if __ARM_NEON
-            //                 int nn = size >> 3;
-            //                 int remain = size & 7;
-            // #else
-            //                 int remain = size;
-            // #endif // __ARM_NEON
-            //
-            // #if __ARM_NEON
-            // #if __aarch64__
-            //                 if (nn > 0)
-            //                 {
-            //                     asm volatile(
-            //                         "dup    v2.4s, %w6                   \n" //scale
-            //                         "0:                                  \n"
-            //                         "prfm   pldl1keep, [%1, #128]        \n"
-            //                         "ld1    {v0.4s, v1.4s}, [%1], #32    \n" //data
-            //                         // bottom_f32 = bottom_f32 * scale
-            //                         "fmul   v3.4s, v0.4s, v2.4s          \n"
-            //                         "fmul   v4.4s, v1.4s, v2.4s          \n"
-            //                         // top_f32 -> top_s32
-            //                         "fcvtas v5.4s, v3.4s                 \n"
-            //                         "fcvtas v6.4s, v4.4s                 \n"
-            //                         // top_s32 -> top_s16
-            //                         "sqxtn  v7.4h, v5.4s                 \n"
-            //                         "sqxtn2 v7.8h, v6.4s                 \n"
-            //                         // top_s16 -> top_s8
-            //                         "sqxtn  v8.8b, v7.8h                 \n"
-            //                         // save top_s8
-            //                         "st1    {v8.8b}, [%2], #8            \n"
-            //                         "subs   %w0, %w0, #1                 \n"
-            //                         "bne    0b                           \n"
-            //                         : "=r"(nn),    // %0
-            //                         "=r"(ptr),   // %1
-            //                         "=r"(outptr) // %2
-            //                         : "0"(nn),
-            //                         "1"(ptr),
-            //                         "2"(outptr),
-            //                         "r"(scale) // %6
-            //                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8");
-            //                 }
-            // #else
-            //                 if (nn > 0)
-            //                 {
-            //                     asm volatile(
-            //                         "pld        [%1, #256]          \n"
-            //                         "vld1.f32   {d0-d3}, [%1]!      \n"
-            //                         "vdup.32    q10, %6             \n"
-            //
-            //                         "0:                             \n"
-            //                         "vmul.f32   q0,q0,q10           \n"
-            //                         "vmul.f32   q1,q1,q10           \n"
-            //
-            //                         "vcvtr.s32.f32 s0,s0            \n"
-            //                         "vcvtr.s32.f32 s1,s1            \n"
-            //                         "vcvtr.s32.f32 s2,s2            \n"
-            //                         "vcvtr.s32.f32 s3,s3            \n"
-            //                         "vcvtr.s32.f32 s4,s4            \n"
-            //                         "vcvtr.s32.f32 s5,s5            \n"
-            //                         "vcvtr.s32.f32 s6,s6            \n"
-            //                         "vcvtr.s32.f32 s7,s7            \n"
-            //
-            //                         "vqmovn.s32 d4,q0               \n"
-            //                         "vqmovn.s32 d5,q1               \n"
-            //
-            //                         "pld        [%1, #256]          \n"
-            //                         "vld1.f32   {d0-d3}, [%1]!      \n"
-            //
-            //                         "vqmovn.s16 d4, q2              \n"
-            //                         "vst1.8     {d4}, [%2]!         \n"
-            //
-            //                         "subs       %0, #1              \n"
-            //                         "bne        0b                  \n"
-            //
-            //                         "sub        %1, #32             \n"
-            //                         : "=r"(nn),    // %0
-            //                         "=r"(ptr),   // %1
-            //                         "=r"(outptr) // %2
-            //                         : "0"(nn),
-            //                         "1"(ptr),
-            //                         "2"(outptr),
-            //                         "r"(scale) // %6
-            //                         : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q10", "q11");
-            //                 }
-            // #endif // __aarch64__
-            // #endif // __ARM_NEON
-            //                 for (; remain > 0; remain--)
-            //                 {
-            //                     *outptr = float2int8(*ptr * scale);
-            //
-            //                     ptr++;
-            //                     outptr++;
-            //                 }
         }
     }
 

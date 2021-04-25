@@ -1019,7 +1019,7 @@ int test_layer(int typeindex, const ncnn::ParamDict& pd, const std::vector<ncnn:
 template<typename T>
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& a, int top_blob_count = 1, float epsilon = 0.001, void (*func)(T*) = 0, int flag = 0)
 {
-    ncnn::Option opts[4];
+    ncnn::Option opts[5];
 
     opts[0].use_packing_layout = false;
     opts[0].use_fp16_packed = false;
@@ -1030,34 +1030,43 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_image_storage = false;
     opts[0].use_weight_fp16_storage = false;
 
-    opts[1].use_packing_layout = true;
+    opts[1].use_packing_layout = false;
     opts[1].use_fp16_packed = true;
-    opts[1].use_fp16_storage = false;
-    opts[1].use_fp16_arithmetic = false;
-    opts[1].use_bf16_storage = false;
-    opts[1].use_shader_pack8 = true;
+    opts[1].use_fp16_storage = true;
+    opts[1].use_fp16_arithmetic = true;
+    opts[1].use_bf16_storage = true;
+    opts[1].use_shader_pack8 = false;
     opts[1].use_image_storage = false;
     opts[1].use_weight_fp16_storage = false;
 
     opts[2].use_packing_layout = true;
     opts[2].use_fp16_packed = true;
-    opts[2].use_fp16_storage = true;
+    opts[2].use_fp16_storage = false;
     opts[2].use_fp16_arithmetic = false;
-    opts[2].use_bf16_storage = true;
+    opts[2].use_bf16_storage = false;
     opts[2].use_shader_pack8 = true;
-    opts[2].use_image_storage = true;
-    opts[2].use_weight_fp16_storage = true;
+    opts[2].use_image_storage = false;
+    opts[2].use_weight_fp16_storage = false;
 
     opts[3].use_packing_layout = true;
     opts[3].use_fp16_packed = true;
     opts[3].use_fp16_storage = true;
-    opts[3].use_fp16_arithmetic = true;
-    opts[3].use_bf16_storage = false;
+    opts[3].use_fp16_arithmetic = false;
+    opts[3].use_bf16_storage = true;
     opts[3].use_shader_pack8 = true;
     opts[3].use_image_storage = true;
     opts[3].use_weight_fp16_storage = true;
 
-    for (int i = 0; i < 4; i++)
+    opts[4].use_packing_layout = true;
+    opts[4].use_fp16_packed = true;
+    opts[4].use_fp16_storage = true;
+    opts[4].use_fp16_arithmetic = true;
+    opts[4].use_bf16_storage = false;
+    opts[4].use_shader_pack8 = true;
+    opts[4].use_image_storage = true;
+    opts[4].use_weight_fp16_storage = true;
+
+    for (int i = 0; i < 5; i++)
     {
         const ncnn::Option& opt = opts[i];
 
@@ -1133,7 +1142,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 template<typename T>
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Mat& a, float epsilon = 0.001, void (*func)(T*) = 0, int flag = 0)
 {
-    ncnn::Option opts[4];
+    ncnn::Option opts[5];
 
     opts[0].use_packing_layout = false;
     opts[0].use_fp16_packed = false;
@@ -1144,34 +1153,43 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_image_storage = false;
     opts[0].use_weight_fp16_storage = false;
 
-    opts[1].use_packing_layout = true;
+    opts[1].use_packing_layout = false;
     opts[1].use_fp16_packed = true;
-    opts[1].use_fp16_storage = false;
-    opts[1].use_fp16_arithmetic = false;
-    opts[1].use_bf16_storage = false;
-    opts[1].use_shader_pack8 = true;
+    opts[1].use_fp16_storage = true;
+    opts[1].use_fp16_arithmetic = true;
+    opts[1].use_bf16_storage = true;
+    opts[1].use_shader_pack8 = false;
     opts[1].use_image_storage = false;
     opts[1].use_weight_fp16_storage = false;
 
     opts[2].use_packing_layout = true;
     opts[2].use_fp16_packed = true;
-    opts[2].use_fp16_storage = true;
+    opts[2].use_fp16_storage = false;
     opts[2].use_fp16_arithmetic = false;
-    opts[2].use_bf16_storage = true;
+    opts[2].use_bf16_storage = false;
     opts[2].use_shader_pack8 = true;
-    opts[2].use_image_storage = true;
-    opts[2].use_weight_fp16_storage = true;
+    opts[2].use_image_storage = false;
+    opts[2].use_weight_fp16_storage = false;
 
     opts[3].use_packing_layout = true;
     opts[3].use_fp16_packed = true;
     opts[3].use_fp16_storage = true;
-    opts[3].use_fp16_arithmetic = true;
-    opts[3].use_bf16_storage = false;
+    opts[3].use_fp16_arithmetic = false;
+    opts[3].use_bf16_storage = true;
     opts[3].use_shader_pack8 = true;
     opts[3].use_image_storage = true;
     opts[3].use_weight_fp16_storage = true;
 
-    for (int i = 0; i < 4; i++)
+    opts[4].use_packing_layout = true;
+    opts[4].use_fp16_packed = true;
+    opts[4].use_fp16_storage = true;
+    opts[4].use_fp16_arithmetic = true;
+    opts[4].use_bf16_storage = false;
+    opts[4].use_shader_pack8 = true;
+    opts[4].use_image_storage = true;
+    opts[4].use_weight_fp16_storage = true;
+
+    for (int i = 0; i < 5; i++)
     {
         const ncnn::Option& opt = opts[i];
         // fp16 representation

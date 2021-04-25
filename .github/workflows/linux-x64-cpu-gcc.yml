@@ -1,5 +1,11 @@
 name: linux-x64-cpu-gcc
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths-ignore: ['**.md']
+  pull_request:
+    branches: [master]
+    paths-ignore: ['**.md']
 jobs:
   linux-gcc:
     runs-on: ubuntu-16.04
@@ -32,6 +38,13 @@ jobs:
         cmake --build . -j 2
     - name: test-avx2
       run: cd build-avx2 && ctest --output-on-failure -j 2
+    - name: build-noint8
+      run: |
+        mkdir build-noint8 && cd build-noint8
+        cmake -DNCNN_INT8=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-noint8
+      run: cd build-noint8 && ctest --output-on-failure -j 2
 
   linux-gcc-cpp03-nostdio-nostring-simplestl:
     runs-on: ubuntu-16.04

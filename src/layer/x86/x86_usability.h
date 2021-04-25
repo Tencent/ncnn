@@ -249,6 +249,29 @@ static inline __m128i float2int8_avx(const __m256& _v0, const __m256& _v1)
 
     return _mm256_extractf128_si256(_v8, 0);
 }
+
+static inline void _mm256_fmadd_ps4(__m256& _sum,
+                                    const __m256& _w0, const __m256& _w1, const __m256& _w2, const __m256& _w3,
+                                    const __m256& _v0, const __m256& _v1, const __m256& _v2, const __m256& _v3)
+{
+    __m256 _mul0 = _mm256_mul_ps(_w0, _v0);
+    __m256 _mul1 = _mm256_mul_ps(_w1, _v1);
+    __m256 _sum01 = _mm256_add_ps(_mul0, _mul1);
+    __m256 _mul2 = _mm256_mul_ps(_w2, _v2);
+    __m256 _mul3 = _mm256_mul_ps(_w3, _v3);
+    __m256 _sum23 = _mm256_add_ps(_mul2, _mul3);
+    __m256 _sum0123 = _mm256_add_ps(_sum01, _sum23);
+    _sum = _mm256_add_ps(_sum, _sum0123);
+}
+
+static inline void _mm256_fmadd_ps8(__m256& _sum,
+                                    const __m256& _w0, const __m256& _w1, const __m256& _w2, const __m256& _w3, const __m256& _w4, const __m256& _w5, const __m256& _w6, const __m256& _w7,
+                                    const __m256& _v0, const __m256& _v1, const __m256& _v2, const __m256& _v3, const __m256& _v4, const __m256& _v5, const __m256& _v6, const __m256& _v7)
+{
+    _mm256_fmadd_ps4(_sum, _w0, _w1, _w2, _w3, _v0, _v1, _v2, _v3);
+
+    _mm256_fmadd_ps4(_sum, _w4, _w5, _w6, _w7, _v4, _v5, _v6, _v7);
+}
 #endif // __AVX__
 #endif // __SSE2__
 
