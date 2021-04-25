@@ -535,12 +535,12 @@ https://github.com/Tencent/ncnn/blob/master/docs/how-to-use-and-FAQ/openmp-best-
 
 使用方式一：
  - ./ncnnoptimize ncnn.param ncnn.bin new.param new.bin flag
- <br/>注意这里的flag指的是fp32和fp16，其中0指的的是fp32，1指的是fp16
+ <br/>注意这里的flag指的是fp32和fp16，其中0指的是fp32，1指的是fp16
 
 使用方式二：
  - ./ncnnoptimize ncnn.param ncnn.bin new.param new.bin flag cutstartname cutendname
- <br/>cutstartname:模型截取的起点
- <br/>cutendname:模型截取的终点
+ <br/>cutstartname: 模型截取的起点
+ <br/>cutendname: 模型截取的终点
 
 
 ## 如何使用量化工具？
