@@ -97,6 +97,7 @@ https://github.com/Tencent/ncnn/wiki/build-for-android.zh 以及见 如何裁剪
 
 # 怎样添加ncnn库到项目中？cmake方式怎么用？
 
+编译ncnn，make install。linux/windows set/export ncnn_DIR 指向 isntall目录下下包含ncnnConfig.cmake 的目录
 
 ## android
 
@@ -194,7 +195,6 @@ ONNX_ATEN_FALLBACK
 ## vkCreateInstance failed -9
 
 驱动
-opengl
 
 ## ModuleNotFoundError: No module named 'ncnn.ncnn'
 
@@ -233,12 +233,14 @@ you may find more info on use-ncnn-with-alexnet
 ## 多个blob输入，多个blob输出，怎么做？
 多次执行`ex.input()` 和 `ex.extract()`
 ```
-ex.input();
-ex.input();
-ex.extract();
-ex.extract();
+ex.input("data1", in);
+ex.input("data2", in);
+ex.extract("output1", out);
+ex.extract("output2", out);
 ```
 ## Extractor extract 多次会重复计算吗？
+
+不会
 
 ## 如何看每一层的耗时？
 
@@ -257,6 +259,10 @@ https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx
 `mat.fill(0.f);`
 
 ## 如何转换 yuv 数据
+
+yuv420sp2rgb yuv420sp2rgb_nv12
+
+**[@zz大佬](https://github.com/zchrissirhcz/xxYUV)**
 
 ## 如何 resize crop rotate 图片
 
