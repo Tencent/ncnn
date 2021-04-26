@@ -41,12 +41,12 @@ int Clip_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #ifdef RVV_SPEC_0_7
             "vle.v      v0, (%0)        \n"
 #else
-	    "vle32.v    v0, (%0)        \n"
+            "vle32.v    v0, (%0)        \n"
 #endif
             "vfmax.vf   v0, v0, %4      \n"
             "vfmin.vf   v0, v0, %5      \n"
 #ifdef RVV_SPEC_0_7
-	    "vse.v      v0, (%0)        \n"
+            "vse.v      v0, (%0)        \n"
 #else
             "vse32.v    v0, (%0)        \n"
 #endif
