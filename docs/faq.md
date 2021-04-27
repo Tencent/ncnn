@@ -265,6 +265,14 @@ https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx
 
 `mat.fill(0.f);`
 
+## 如何查看／获取版本号
+
+cmake时会打印
+
+c_api.h ncnn_version()
+
+（自己拼 1.0+yyyymmdd
+
 ## 如何转换 yuv 数据
 
 yuv420sp2rgb yuv420sp2rgb_nv12
