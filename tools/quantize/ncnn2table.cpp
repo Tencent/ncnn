@@ -85,9 +85,11 @@ public:
 
 public:
     int init();
+    void print_quant_info() const;
     int save_table(const char* tablepath);
     int quantize_KL();
     int quantize_ACIQ();
+    int quantize_EQ();
 
 public:
     std::vector<int> input_blobs;
@@ -95,6 +97,7 @@ public:
     std::vector<int> conv_bottom_blobs;
 
     // result
+    std::vector<QuantBlobStat> quant_blob_stats;
     std::vector<ncnn::Mat> weight_scales;
     std::vector<ncnn::Mat> bottom_blobs_scales;
 };
@@ -131,6 +134,7 @@ int QuantNet::init()
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
 
+    quant_blob_stats.resize(conv_bottom_blob_count);
     weight_scales.resize(conv_layer_count);
     bottom_blobs_scales.resize(conv_bottom_blob_count);
 
@@ -178,6 +182,18 @@ int QuantNet::save_table(const char* tablepath)
     fprintf(stderr, "ncnn int8 calibration table create success, best wish for your int8 inference has a low accuracy loss...\\(^0^)/...233...\n");
 
     return 0;
+}
+
+void QuantNet::print_quant_info() const
+{
+    for (int i = 0; i < (int)conv_bottom_blobs.size(); i++)
+    {
+        const QuantBlobStat& stat = quant_blob_stats[i];
+
+        float scale = 127 / stat.threshold;
+
+        fprintf(stderr, "%-40s : max = %-15f  threshold = %-15f  scale = %-15f\n", layers[conv_layers[i]]->name.c_str(), stat.absmax, stat.threshold, scale);
+    }
 }
 
 static float compute_kl_divergence(const std::vector<float>& a, const std::vector<float>& b)
@@ -237,7 +253,7 @@ int QuantNet::quantize_KL()
                 float absmax = 0.f;
                 for (int k = 0; k < weight_data_size_output; k++)
                 {
-                    absmax = std::max(absmax, fabs(weight_data_n[k]));
+                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
                 }
 
                 if (quant_6bit)
@@ -269,7 +285,7 @@ int QuantNet::quantize_KL()
                 float absmax = 0.f;
                 for (int k = 0; k < weight_data_size_output; k++)
                 {
-                    absmax = std::max(absmax, fabs(weight_data_n[k]));
+                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
                 }
 
                 weight_scales[i][n] = 127 / absmax;
@@ -292,7 +308,7 @@ int QuantNet::quantize_KL()
                 float absmax = 0.f;
                 for (int k = 0; k < weight_data_size_output; k++)
                 {
-                    absmax = std::max(absmax, fabs(weight_data_n[k]));
+                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
                 }
 
                 weight_scales[i][n] = 127 / absmax;
@@ -301,7 +317,6 @@ int QuantNet::quantize_KL()
     }
 
     // count the absmax
-    std::vector<QuantBlobStat> quant_blob_stats(conv_bottom_blob_count);
     #pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < image_count; i++)
     {
@@ -348,7 +363,7 @@ int QuantNet::quantize_KL()
                     const float* ptr = out.channel(p);
                     for (int k = 0; k < outsize; k++)
                     {
-                        absmax = std::max(absmax, fabs(ptr[k]));
+                        absmax = std::max(absmax, (float)fabs(ptr[k]));
                     }
                 }
 
@@ -633,16 +648,6 @@ int QuantNet::quantize_KL()
         bottom_blobs_scales[i][0] = scale;
     }
 
-    // some info
-    for (int i = 0; i < conv_bottom_blob_count; i++)
-    {
-        const QuantBlobStat& stat = quant_blob_stats[i];
-
-        float scale = 127 / stat.threshold;
-
-        fprintf(stderr, "%-40s : max = %-15f  threshold = %-15f  scale = %-15f\n", layers[conv_layers[i]]->name.c_str(), stat.absmax, stat.threshold, scale);
-    }
-
     return 0;
 }
 
@@ -699,7 +704,7 @@ int QuantNet::quantize_ACIQ()
                 float absmax = 0.f;
                 for (int k = 0; k < weight_data_size_output; k++)
                 {
-                    absmax = std::max(absmax, fabs(weight_data_n[k]));
+                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
                 }
 
                 if (quant_6bit)
@@ -733,7 +738,7 @@ int QuantNet::quantize_ACIQ()
                 float absmax = 0.f;
                 for (int k = 0; k < weight_data_size_output; k++)
                 {
-                    absmax = std::max(absmax, fabs(weight_data_n[k]));
+                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
                 }
 
                 const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output);
@@ -757,7 +762,7 @@ int QuantNet::quantize_ACIQ()
                 float absmax = 0.f;
                 for (int k = 0; k < weight_data_size_output; k++)
                 {
-                    absmax = std::max(absmax, fabs(weight_data_n[k]));
+                    absmax = std::max(absmax, (float)fabs(weight_data_n[k]));
                 }
 
                 const float threshold = compute_aciq_gaussian_clip(absmax, weight_data_size_output);
@@ -767,7 +772,6 @@ int QuantNet::quantize_ACIQ()
     }
 
     // count the absmax abssum
-    std::vector<QuantBlobStat> quant_blob_stats(conv_bottom_blob_count);
     #pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < image_count; i++)
     {
@@ -814,7 +818,7 @@ int QuantNet::quantize_ACIQ()
                     const float* ptr = out.channel(p);
                     for (int k = 0; k < outsize; k++)
                     {
-                        absmax = std::max(absmax, fabs(ptr[k]));
+                        absmax = std::max(absmax, (float)fabs(ptr[k]));
                     }
                 }
 
@@ -841,14 +845,120 @@ int QuantNet::quantize_ACIQ()
         bottom_blobs_scales[i][0] = scale;
     }
 
-    // some info
-    for (int i = 0; i < conv_bottom_blob_count; i++)
+    return 0;
+}
+
+int QuantNet::quantize_EQ()
+{
+    const int input_blob_count = (int)input_blobs.size();
+    const int conv_layer_count = (int)conv_layers.size();
+    const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+    const int image_count = (int)listspaths[0].size();
+
+    // find the initial scale via KL
+    quantize_KL();
+
+    const float scale_range_lower = 0.5f;
+    const float scale_range_upper = 2.f;
+    const int search_steps = 100;
+
+    for (int i = 0; i < conv_layer_count; i++)
     {
-        const QuantBlobStat& stat = quant_blob_stats[i];
+        ncnn::Mat& weight_scale = weight_scales[i];
 
-        float scale = 127 / stat.threshold;
+        // search weight scale
+        for (int j = 0; j < weight_scale.w; j++)
+        {
+            const float scale = weight_scale[j];
+            const float scale_lower = scale * scale_range_lower;
+            const float scale_upper = scale * scale_range_upper;
+            const float scale_step = (scale_upper - scale_lower) / search_steps;
 
-        fprintf(stderr, "%-40s : max = %-15f  threshold = %-15f  scale = %-15f\n", layers[conv_layers[i]]->name.c_str(), stat.absmax, stat.threshold, scale);
+            float min_cosine_distance = FLT_MAX;
+            float new_scale = scale;
+
+            #pragma omp parallel for num_threads(quantize_num_threads)
+            for (int k = 0; k < search_steps; k++)
+            {
+                ncnn::Mat new_weight_scale = weight_scale.clone();
+                new_weight_scale[j] = scale_lower + k * scale_step;
+
+                // create pipeline fp32
+
+                // foreach image
+                {
+                    // extract
+                }
+
+                // apply weight scale to layer
+
+                // create pipeline int8
+
+                // foreach image
+                {
+                    // extract
+                }
+
+                // cosine distance
+
+                // find the scale with min cosine distance
+                #pragma omp critical
+                {
+                }
+            }
+
+            // reset layer
+
+            // update weight_scales
+        }
+
+        ncnn::Mat& bottom_blobs_scale = bottom_blobs_scales[i];
+
+        // search bottom blob scale
+        for (int j = 0; j < bottom_blobs_scale.w; j++)
+        {
+            const float scale = bottom_blobs_scale[j];
+            const float scale_lower = scale * scale_range_lower;
+            const float scale_upper = scale * scale_range_upper;
+            const float scale_step = (scale_upper - scale_lower) / search_steps;
+
+            float min_cosine_distance = FLT_MAX;
+            float new_scale = scale;
+
+            #pragma omp parallel for num_threads(quantize_num_threads)
+            for (int k = 0; k < search_steps; k++)
+            {
+                ncnn::Mat new_bottom_blobs_scale = bottom_blobs_scale.clone();
+                new_bottom_blobs_scale[j] = scale_lower + k * scale_step;
+
+                // create pipeline fp32
+
+                // foreach image
+                {
+                    // extract
+                }
+
+                // apply bottom blob scale to layer
+
+                // create pipeline int8
+
+                // foreach image
+                {
+                    // extract
+                }
+
+                // cosine distance
+
+                // find the scale with min cosine distance
+                #pragma omp critical
+                {
+                }
+            }
+
+            // reset layer
+
+            // update bottom_blobs_scale
+        }
     }
 
     return 0;
@@ -1083,19 +1193,33 @@ static std::vector<int> parse_comma_pixel_type_list(char* s)
     return aps;
 }
 
+static void show_usage()
+{
+    fprintf(stderr, "Usage: ncnn2table [ncnnparam] [ncnnbin] [list,...] [ncnntable] [(key=value)...]\n");
+    fprintf(stderr, "  mean=[104.0,117.0,123.0],...\n");
+    fprintf(stderr, "  norm=[1.0,1.0,1.0],...\n");
+    fprintf(stderr, "  shape=[224,224,3],...\n");
+    fprintf(stderr, "  pixel=RAW/RGB/BGR/GRAY/RGBA/BGRA,...\n");
+    fprintf(stderr, "  thread=8\n");
+    fprintf(stderr, "  method=kl/aciq/eq\n");
+    fprintf(stderr, "Sample usage: ncnn2table squeezenet.param squeezenet.bin imagelist.txt squeezenet.table mean=[104.0,117.0,123.0] norm=[1.0,1.0,1.0] shape=[227,227,3] pixel=BGR method=kl\n");
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 5)
     {
-        fprintf(stderr, "Usage: %s [ncnnparam] [ncnnbin] [list,...] [ncnntable] [(key=value)...]\n", argv[0]);
-        fprintf(stderr, "  mean=[104.0,117.0,123.0],...\n");
-        fprintf(stderr, "  norm=[1.0,1.0,1.0],...\n");
-        fprintf(stderr, "  shape=[224,224,3],...\n");
-        fprintf(stderr, "  pixel=RAW/RGB/BGR/GRAY/RGBA/BGRA,...\n");
-        fprintf(stderr, "  thread=8\n");
-        fprintf(stderr, "  method=kl/aciq/eq\n");
-        fprintf(stderr, "Sample usage: %s squeezenet.param squeezenet.bin imagelist.txt squeezenet.table mean=[104.0,117.0,123.0] norm=[1.0,1.0,1.0] shape=[227,227,3] pixel=BGR method=kl\n", argv[0]);
+        show_usage();
         return -1;
+    }
+
+    for (int i = 1; i < argc; i++)
+    {
+        if (argv[i][0] == '-')
+        {
+            show_usage();
+            return -1;
+        }
     }
 
     const char* inparam = argv[1];
@@ -1196,12 +1320,18 @@ int main(int argc, char** argv)
     {
         net.quantize_ACIQ();
     }
+    else if (method == "eq")
+    {
+        net.quantize_EQ();
+    }
     else
     {
         fprintf(stderr, "not implemented yet !\n");
         fprintf(stderr, "unknown method %s, expect kl / aciq / eq\n", method.c_str());
         return -1;
     }
+
+    net.print_quant_info();
 
     net.save_table(outtable);
 
