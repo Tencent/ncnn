@@ -95,6 +95,13 @@ https://github.com/Tencent/ncnn/wiki/build-for-android.zh 以及见 如何裁剪
  - 开启：-DNCNN_DISABLE_RTTI=OFF -DNCNN_DISABLE_EXCEPTION=OFF
  - 关闭：-DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON
 
+
+## error: undefined symbol: ncnn::Extractor::extract(char const*, ncnn::Mat&)
+
+可能的情况：
+ - 尝试升级 Android Studio 的 NDK 版本
+
+
 # 怎样添加ncnn库到项目中？cmake方式怎么用？
 
 编译ncnn，make install。linux/windows set/export ncnn_DIR 指向 isntall目录下下包含ncnnConfig.cmake 的目录
