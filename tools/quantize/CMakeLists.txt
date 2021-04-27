@@ -11,9 +11,12 @@ if(NOT OpenCV_FOUND)
 endif()
 
 if(OpenCV_FOUND)
+    if(${OpenCV_VERSION_MAJOR} GREATER 3)
+        set(CMAKE_CXX_STANDARD 11)
+    endif()
+
     if(NCNN_PIXEL)
         add_executable(ncnn2table ncnn2table.cpp)
-        target_compile_definitions(ncnn2table PRIVATE -DOpenCV_VERSION_MAJOR=${OpenCV_VERSION_MAJOR})
         target_include_directories(ncnn2table PRIVATE ${OpenCV_INCLUDE_DIRS})
         target_link_libraries(ncnn2table PRIVATE ncnn ${OpenCV_LIBS})
 
