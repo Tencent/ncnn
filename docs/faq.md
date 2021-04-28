@@ -151,7 +151,7 @@
 
 - ## Shape not supported yet! Gather not supported yet! Cast not supported yet!
 
-onnx-simplifier 静态shape
+   onnx-simplifier 静态shape
 
 - ## convertmodel
 
