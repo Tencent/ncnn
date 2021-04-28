@@ -95,17 +95,18 @@ public:
     std::vector<int> input_blobs;
     std::vector<int> conv_layers;
     std::vector<int> conv_bottom_blobs;
+    std::vector<int> conv_top_blobs;
 
     // result
     std::vector<QuantBlobStat> quant_blob_stats;
     std::vector<ncnn::Mat> weight_scales;
-    std::vector<ncnn::Mat> bottom_blobs_scales;
+    std::vector<ncnn::Mat> bottom_blob_scales;
 };
 
 QuantNet::QuantNet()
     : blobs(mutable_blobs()), layers(mutable_layers())
 {
-    quantize_num_threads = 8;
+    quantize_num_threads = ncnn::get_cpu_count();
 }
 
 int QuantNet::init()
@@ -128,6 +129,7 @@ int QuantNet::init()
         {
             conv_layers.push_back(i);
             conv_bottom_blobs.push_back(layer->bottoms[0]);
+            conv_top_blobs.push_back(layer->tops[0]);
         }
     }
 
@@ -136,7 +138,7 @@ int QuantNet::init()
 
     quant_blob_stats.resize(conv_bottom_blob_count);
     weight_scales.resize(conv_layer_count);
-    bottom_blobs_scales.resize(conv_bottom_blob_count);
+    bottom_blob_scales.resize(conv_bottom_blob_count);
 
     return 0;
 }
@@ -167,12 +169,12 @@ int QuantNet::save_table(const char* tablepath)
 
     for (int i = 0; i < conv_bottom_blob_count; i++)
     {
-        const ncnn::Mat& bottom_blobs_scale = bottom_blobs_scales[i];
+        const ncnn::Mat& bottom_blob_scale = bottom_blob_scales[i];
 
         fprintf(fp, "%s ", layers[conv_layers[i]]->name.c_str());
-        for (int j = 0; j < bottom_blobs_scale.w; j++)
+        for (int j = 0; j < bottom_blob_scale.w; j++)
         {
-            fprintf(fp, "%f ", bottom_blobs_scale[j]);
+            fprintf(fp, "%f ", bottom_blob_scale[j]);
         }
         fprintf(fp, "\n");
     }
@@ -226,7 +228,7 @@ int QuantNet::quantize_KL()
 
         if (layer->type == "Convolution")
         {
-            const ncnn::Convolution* convolution = (const ncnn::Convolution*)(layer);
+            const ncnn::Convolution* convolution = (const ncnn::Convolution*)layer;
 
             const int num_output = convolution->num_output;
             const int kernel_w = convolution->kernel_w;
@@ -269,7 +271,7 @@ int QuantNet::quantize_KL()
 
         if (layer->type == "ConvolutionDepthWise")
         {
-            const ncnn::ConvolutionDepthWise* convolutiondepthwise = static_cast<const ncnn::ConvolutionDepthWise*>(layer);
+            const ncnn::ConvolutionDepthWise* convolutiondepthwise = (const ncnn::ConvolutionDepthWise*)layer;
 
             const int group = convolutiondepthwise->group;
             const int weight_data_size_output = convolutiondepthwise->weight_data_size / group;
@@ -294,7 +296,7 @@ int QuantNet::quantize_KL()
 
         if (layer->type == "InnerProduct")
         {
-            const ncnn::InnerProduct* innerproduct = static_cast<const ncnn::InnerProduct*>(layer);
+            const ncnn::InnerProduct* innerproduct = (const ncnn::InnerProduct*)layer;
 
             const int num_output = innerproduct->num_output;
             const int weight_data_size_output = innerproduct->weight_data_size / num_output;
@@ -644,8 +646,8 @@ int QuantNet::quantize_KL()
         stat.threshold = (target_threshold + 0.5f) * stat.absmax / num_histogram_bins;
         float scale = 127 / stat.threshold;
 
-        bottom_blobs_scales[i].create(1);
-        bottom_blobs_scales[i][0] = scale;
+        bottom_blob_scales[i].create(1);
+        bottom_blob_scales[i][0] = scale;
     }
 
     return 0;
@@ -677,7 +679,7 @@ int QuantNet::quantize_ACIQ()
 
         if (layer->type == "Convolution")
         {
-            const ncnn::Convolution* convolution = (const ncnn::Convolution*)(layer);
+            const ncnn::Convolution* convolution = (const ncnn::Convolution*)layer;
 
             const int num_output = convolution->num_output;
             const int kernel_w = convolution->kernel_w;
@@ -722,7 +724,7 @@ int QuantNet::quantize_ACIQ()
 
         if (layer->type == "ConvolutionDepthWise")
         {
-            const ncnn::ConvolutionDepthWise* convolutiondepthwise = static_cast<const ncnn::ConvolutionDepthWise*>(layer);
+            const ncnn::ConvolutionDepthWise* convolutiondepthwise = (const ncnn::ConvolutionDepthWise*)layer;
 
             const int group = convolutiondepthwise->group;
             const int weight_data_size_output = convolutiondepthwise->weight_data_size / group;
@@ -748,7 +750,7 @@ int QuantNet::quantize_ACIQ()
 
         if (layer->type == "InnerProduct")
         {
-            const ncnn::InnerProduct* innerproduct = static_cast<const ncnn::InnerProduct*>(layer);
+            const ncnn::InnerProduct* innerproduct = (const ncnn::InnerProduct*)layer;
 
             const int num_output = innerproduct->num_output;
             const int weight_data_size_output = innerproduct->weight_data_size / num_output;
@@ -841,8 +843,134 @@ int QuantNet::quantize_ACIQ()
         stat.threshold = compute_aciq_gaussian_clip(stat.absmax, stat.total);
         float scale = 127 / stat.threshold;
 
-        bottom_blobs_scales[i].create(1);
-        bottom_blobs_scales[i][0] = scale;
+        bottom_blob_scales[i].create(1);
+        bottom_blob_scales[i][0] = scale;
+    }
+
+    return 0;
+}
+
+static float cosine_similarity(const ncnn::Mat& a, const ncnn::Mat& b)
+{
+    const int chanenls = a.c;
+    const int size = a.w * a.h;
+
+    float sa = 0;
+    float sb = 0;
+    float sum = 0;
+
+    for (int p = 0; p < chanenls; p++)
+    {
+        const float* pa = a.channel(p);
+        const float* pb = b.channel(p);
+
+        for (int i = 0; i < size; i++)
+        {
+            sa += pa[i] * pa[i];
+            sb += pb[i] * pb[i];
+            sum += pa[i] * pb[i];
+        }
+    }
+
+    float sim = (float)sum / sqrt(sa) / sqrt(sb);
+
+    return sim;
+}
+
+static int get_layer_param(const ncnn::Layer* layer, ncnn::ParamDict& pd)
+{
+    if (layer->type == "Convolution")
+    {
+        ncnn::Convolution* convolution = (ncnn::Convolution*)layer;
+
+        pd.set(0, convolution->num_output);
+        pd.set(1, convolution->kernel_w);
+        pd.set(11, convolution->kernel_h);
+        pd.set(2, convolution->dilation_w);
+        pd.set(12, convolution->dilation_h);
+        pd.set(3, convolution->stride_w);
+        pd.set(13, convolution->stride_h);
+        pd.set(4, convolution->pad_left);
+        pd.set(15, convolution->pad_right);
+        pd.set(14, convolution->pad_top);
+        pd.set(16, convolution->pad_bottom);
+        pd.set(18, convolution->pad_value);
+        pd.set(5, convolution->bias_term);
+        pd.set(6, convolution->weight_data_size);
+        pd.set(8, convolution->int8_scale_term);
+        pd.set(9, convolution->activation_type);
+        pd.set(10, convolution->activation_params);
+    }
+    else if (layer->type == "ConvolutionDepthWise")
+    {
+        ncnn::ConvolutionDepthWise* convolutiondepthwise = (ncnn::ConvolutionDepthWise*)layer;
+
+        pd.set(0, convolutiondepthwise->num_output);
+        pd.set(1, convolutiondepthwise->kernel_w);
+        pd.set(11, convolutiondepthwise->kernel_h);
+        pd.set(2, convolutiondepthwise->dilation_w);
+        pd.set(12, convolutiondepthwise->dilation_h);
+        pd.set(3, convolutiondepthwise->stride_w);
+        pd.set(13, convolutiondepthwise->stride_h);
+        pd.set(4, convolutiondepthwise->pad_left);
+        pd.set(15, convolutiondepthwise->pad_right);
+        pd.set(14, convolutiondepthwise->pad_top);
+        pd.set(16, convolutiondepthwise->pad_bottom);
+        pd.set(18, convolutiondepthwise->pad_value);
+        pd.set(5, convolutiondepthwise->bias_term);
+        pd.set(6, convolutiondepthwise->weight_data_size);
+        pd.set(7, convolutiondepthwise->group);
+        pd.set(8, convolutiondepthwise->int8_scale_term);
+        pd.set(9, convolutiondepthwise->activation_type);
+        pd.set(10, convolutiondepthwise->activation_params);
+    }
+    else if (layer->type == "InnerProduct")
+    {
+        ncnn::InnerProduct* innerproduct = (ncnn::InnerProduct*)layer;
+
+        pd.set(0, innerproduct->num_output);
+        pd.set(1, innerproduct->bias_term);
+        pd.set(2, innerproduct->weight_data_size);
+        pd.set(8, innerproduct->int8_scale_term);
+        pd.set(9, innerproduct->activation_type);
+        pd.set(10, innerproduct->activation_params);
+    }
+    else
+    {
+        fprintf(stderr, "unexpected layer type %s in get_layer_param\n", layer->type.c_str());
+        return -1;
+    }
+
+    return 0;
+}
+
+static int get_layer_weights(const ncnn::Layer* layer, std::vector<ncnn::Mat>& weights)
+{
+    if (layer->type == "Convolution")
+    {
+        ncnn::Convolution* convolution = (ncnn::Convolution*)layer;
+        weights.push_back(convolution->weight_data);
+        if (convolution->bias_term)
+            weights.push_back(convolution->bias_data);
+    }
+    else if (layer->type == "ConvolutionDepthWise")
+    {
+        ncnn::ConvolutionDepthWise* convolutiondepthwise = (ncnn::ConvolutionDepthWise*)layer;
+        weights.push_back(convolutiondepthwise->weight_data);
+        if (convolutiondepthwise->bias_term)
+            weights.push_back(convolutiondepthwise->bias_data);
+    }
+    else if (layer->type == "InnerProduct")
+    {
+        ncnn::InnerProduct* innerproduct = (ncnn::InnerProduct*)layer;
+        weights.push_back(innerproduct->weight_data);
+        if (innerproduct->bias_term)
+            weights.push_back(innerproduct->bias_data);
+    }
+    else
+    {
+        fprintf(stderr, "unexpected layer type %s in get_layer_weights\n", layer->type.c_str());
+        return -1;
     }
 
     return 0;
@@ -850,21 +978,28 @@ int QuantNet::quantize_ACIQ()
 
 int QuantNet::quantize_EQ()
 {
-    const int input_blob_count = (int)input_blobs.size();
-    const int conv_layer_count = (int)conv_layers.size();
-    const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
-    const int image_count = (int)listspaths[0].size();
-
     // find the initial scale via KL
     quantize_KL();
 
+    print_quant_info();
+
+    const int input_blob_count = (int)input_blobs.size();
+    const int conv_layer_count = (int)conv_layers.size();
+    const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
+
+    // max 50 images for EQ
+    const int image_count = std::min((int)listspaths[0].size(), 50);
+
     const float scale_range_lower = 0.5f;
-    const float scale_range_upper = 2.f;
+    const float scale_range_upper = 2.0f;
     const int search_steps = 100;
 
     for (int i = 0; i < conv_layer_count; i++)
     {
         ncnn::Mat& weight_scale = weight_scales[i];
+        ncnn::Mat& bottom_blob_scale = bottom_blob_scales[i];
+
+        const ncnn::Layer* layer = layers[conv_layers[i]];
 
         // search weight scale
         for (int j = 0; j < weight_scale.w; j++)
@@ -874,90 +1009,208 @@ int QuantNet::quantize_EQ()
             const float scale_upper = scale * scale_range_upper;
             const float scale_step = (scale_upper - scale_lower) / search_steps;
 
-            float min_cosine_distance = FLT_MAX;
-            float new_scale = scale;
+            std::vector<double> avgsims(search_steps, 0.0);
 
             #pragma omp parallel for num_threads(quantize_num_threads)
-            for (int k = 0; k < search_steps; k++)
+            for (int ii = 0; ii < image_count; ii++)
             {
-                ncnn::Mat new_weight_scale = weight_scale.clone();
-                new_weight_scale[j] = scale_lower + k * scale_step;
+                ncnn::Extractor ex = create_extractor();
 
-                // create pipeline fp32
-
-                // foreach image
+                for (int jj = 0; jj < input_blob_count; jj++)
                 {
-                    // extract
+                    const std::string& imagepath = listspaths[jj][ii];
+                    const std::vector<int>& shape = shapes[jj];
+                    const int type_to_pixel = type_to_pixels[jj];
+                    const std::vector<float>& mean_vals = means[jj];
+                    const std::vector<float>& norm_vals = norms[jj];
+
+                    int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
+                    if (type_to_pixel != pixel_convert_type)
+                    {
+                        pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                    }
+                    const int target_w = shape[0];
+                    const int target_h = shape[1];
+
+                    cv::Mat bgr = cv::imread(imagepath, 1);
+
+                    ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
+
+                    in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
+
+                    ex.input(input_blobs[jj], in);
                 }
 
-                // apply weight scale to layer
+                ncnn::Mat in;
+                ex.extract(conv_bottom_blobs[i], in);
 
-                // create pipeline int8
+                ncnn::Mat out;
+                ex.extract(conv_top_blobs[i], out);
 
-                // foreach image
+                ncnn::Layer* layer_int8 = ncnn::create_layer(layer->typeindex);
+
+                ncnn::ParamDict pd;
+                get_layer_param(layer, pd);
+                pd.set(8, 1); //int8_scale_term
+                layer_int8->load_param(pd);
+
+                std::vector<float> sims(search_steps);
+                for (int k = 0; k < search_steps; k++)
                 {
-                    // extract
+                    ncnn::Mat new_weight_scale = weight_scale.clone();
+                    new_weight_scale[j] = scale_lower + k * scale_step;
+
+                    std::vector<ncnn::Mat> weights;
+                    get_layer_weights(layer, weights);
+                    weights.push_back(new_weight_scale);
+                    weights.push_back(bottom_blob_scale);
+                    layer_int8->load_model(ncnn::ModelBinFromMatArray(weights.data()));
+
+                    ncnn::Option opt_int8;
+                    opt_int8.use_packing_layout = false;
+
+                    layer_int8->create_pipeline(opt_int8);
+
+                    ncnn::Mat out_int8;
+                    layer_int8->forward(in, out_int8, opt_int8);
+
+                    layer_int8->destroy_pipeline(opt_int8);
+
+                    sims[k] = cosine_similarity(out, out_int8);
                 }
 
-                // cosine distance
+                delete layer_int8;
 
-                // find the scale with min cosine distance
                 #pragma omp critical
                 {
+                    for (int k = 0; k < search_steps; k++)
+                    {
+                        avgsims[k] += sims[k];
+                    }
                 }
             }
 
-            // reset layer
+            double max_avgsim = 0.0;
+            float new_scale = scale;
 
-            // update weight_scales
+            // find the scale with min cosine distance
+            for (int k = 0; k < search_steps; k++)
+            {
+                if (max_avgsim < avgsims[k])
+                {
+                    max_avgsim = avgsims[k];
+                    new_scale = scale_lower + k * scale_step;
+                }
+            }
+
+            fprintf(stderr, "%s w %d  = %f -> %f\n", layer->name.c_str(), j, scale, new_scale);
+            weight_scale[j] = new_scale;
         }
 
-        ncnn::Mat& bottom_blobs_scale = bottom_blobs_scales[i];
-
         // search bottom blob scale
-        for (int j = 0; j < bottom_blobs_scale.w; j++)
+        for (int j = 0; j < bottom_blob_scale.w; j++)
         {
-            const float scale = bottom_blobs_scale[j];
+            const float scale = bottom_blob_scale[j];
             const float scale_lower = scale * scale_range_lower;
             const float scale_upper = scale * scale_range_upper;
             const float scale_step = (scale_upper - scale_lower) / search_steps;
 
-            float min_cosine_distance = FLT_MAX;
-            float new_scale = scale;
+            std::vector<double> avgsims(search_steps, 0.0);
 
             #pragma omp parallel for num_threads(quantize_num_threads)
-            for (int k = 0; k < search_steps; k++)
+            for (int ii = 0; ii < image_count; ii++)
             {
-                ncnn::Mat new_bottom_blobs_scale = bottom_blobs_scale.clone();
-                new_bottom_blobs_scale[j] = scale_lower + k * scale_step;
+                ncnn::Extractor ex = create_extractor();
 
-                // create pipeline fp32
-
-                // foreach image
+                for (int jj = 0; jj < input_blob_count; jj++)
                 {
-                    // extract
+                    const std::string& imagepath = listspaths[jj][ii];
+                    const std::vector<int>& shape = shapes[jj];
+                    const int type_to_pixel = type_to_pixels[jj];
+                    const std::vector<float>& mean_vals = means[jj];
+                    const std::vector<float>& norm_vals = norms[jj];
+
+                    int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
+                    if (type_to_pixel != pixel_convert_type)
+                    {
+                        pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
+                    }
+                    const int target_w = shape[0];
+                    const int target_h = shape[1];
+
+                    cv::Mat bgr = cv::imread(imagepath, 1);
+
+                    ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
+
+                    in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
+
+                    ex.input(input_blobs[jj], in);
                 }
 
-                // apply bottom blob scale to layer
+                ncnn::Mat in;
+                ex.extract(conv_bottom_blobs[i], in);
 
-                // create pipeline int8
+                ncnn::Mat out;
+                ex.extract(conv_top_blobs[i], out);
 
-                // foreach image
+                ncnn::Layer* layer_int8 = ncnn::create_layer(layer->typeindex);
+
+                ncnn::ParamDict pd;
+                get_layer_param(layer, pd);
+                pd.set(8, 1); //int8_scale_term
+                layer_int8->load_param(pd);
+
+                std::vector<float> sims(search_steps);
+                for (int k = 0; k < search_steps; k++)
                 {
-                    // extract
+                    ncnn::Mat new_bottom_blob_scale = bottom_blob_scale.clone();
+                    new_bottom_blob_scale[j] = scale_lower + k * scale_step;
+
+                    std::vector<ncnn::Mat> weights;
+                    get_layer_weights(layer, weights);
+                    weights.push_back(weight_scale);
+                    weights.push_back(new_bottom_blob_scale);
+                    layer_int8->load_model(ncnn::ModelBinFromMatArray(weights.data()));
+
+                    ncnn::Option opt_int8;
+                    opt_int8.use_packing_layout = false;
+
+                    layer_int8->create_pipeline(opt_int8);
+
+                    ncnn::Mat out_int8;
+                    layer_int8->forward(in, out_int8, opt_int8);
+
+                    layer_int8->destroy_pipeline(opt_int8);
+
+                    sims[k] = cosine_similarity(out, out_int8);
                 }
 
-                // cosine distance
+                delete layer_int8;
 
-                // find the scale with min cosine distance
                 #pragma omp critical
                 {
+                    for (int k = 0; k < search_steps; k++)
+                    {
+                        avgsims[k] += sims[k];
+                    }
                 }
             }
 
-            // reset layer
+            double max_avgsim = 0.0;
+            float new_scale = scale;
 
-            // update bottom_blobs_scale
+            // find the scale with min cosine distance
+            for (int k = 0; k < search_steps; k++)
+            {
+                if (max_avgsim < avgsims[k])
+                {
+                    max_avgsim = avgsims[k];
+                    new_scale = scale_lower + k * scale_step;
+                }
+            }
+
+            fprintf(stderr, "%s b %d  = %f -> %f\n", layer->name.c_str(), j, scale, new_scale);
+            bottom_blob_scale[j] = new_scale;
         }
     }
 
@@ -984,8 +1237,8 @@ static std::vector<std::vector<std::string> > parse_comma_path_list(char* s)
         char line[1024];
         while (!feof(fp))
         {
-            char* s = fgets(line, 1024, fp);
-            if (!s)
+            char* ss = fgets(line, 1024, fp);
+            if (!ss)
                 break;
 
             char filepath[256];
