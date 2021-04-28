@@ -3,290 +3,296 @@
 # 如何加入技术交流QQ群？
 
 # 如何看作者b站直播？
-nihui的bilibili直播间：https://live.bilibili.com/1264617
+   
+- nihui的bilibili直播间：[水竹院落](https://live.bilibili.com/1264617)
+
 # 编译
 
-## 怎样下载完整源码？
+- ## 怎样下载完整源码？
 
-git clone --recursive https://github.com/Tencent/ncnn/
-或者
-https://github.com/Tencent/ncnn/releases  下载 ncnn-xxxxx-full-source.zip
+   git clone --recursive https://github.com/Tencent/ncnn/
+   
+   或者
+   
+   下载 [ncnn-xxxxx-full-source.zip](https://github.com/Tencent/ncnn/releases)
 
-## 怎么交叉编译？
+- ## 怎么交叉编译？cmake 工具链怎么设置啊？
+   
+   参见 https://github.com/Tencent/ncnn/wiki/how-to-build
 
-cmake 工具链怎么设置啊？
+- ## The submodules were not downloaded! Please update submodules with "git submodule update --init" and try again
 
-参见 https://github.com/Tencent/ncnn/wiki/how-to-build
+   如上，下载完整源码。或者按提示执行: git submodule update --init
 
-## The submodules were not downloaded! Please update submodules with "git submodule update --init" and try again
+- ## Could NOT find Protobuf (missing: Protobuf_INCLUDE_DIR)
+   
+   sudo apt-get install libprotobuf-dev protobuf-compiler
 
-如上，下载完整源码。或者按提示执行 git submodule update --init。
+- ## Could NOT find CUDA (missing: CUDA_TOOLKIT_ROOT_DIR CUDA_INCLUDE_DIRS CUDA_CUDART_LIBRARY)
 
-## Could NOT find Protobuf (missing: Protobuf_INCLUDE_DIR)
+   https://github.com/Tencent/ncnn/issues/1873
 
-sudo apt-get install libprotobuf-dev protobuf-compiler
+- ## Could not find a package configuration file provided by "OpenCV" with any of the following names: OpenCVConfig.cmake opencv-config.cmake
 
-## Could NOT find CUDA (missing: CUDA_TOOLKIT_ROOT_DIR CUDA_INCLUDE_DIRS CUDA_CUDART_LIBRARY)
+   sudo apt-get install libopencv-dev
 
-https://github.com/Tencent/ncnn/issues/1873
+   或者自行编译安装，set(OpenCV_DIR {OpenCVConfig.cmake所在目录})
 
-## Could not find a package configuration file provided by "OpenCV" with any of the following names: OpenCVConfig.cmake opencv-config.cmake
+- ## Could not find a package configuration file provided by "ncnn" with any of the following names: ncnnConfig.cmake ncnn-config.cmake
 
-sudo apt-get install libopencv-dev
+   set(ncnn_DIR {ncnnConfig.cmake所在目录})
 
-或者自行编译安装，set(OpenCV_DIR {OpenCVConfig.cmake所在目录})
+- ## 找不到 Vulkan, 
 
-## Could not find a package configuration file provided by "ncnn" with any of the following names: ncnnConfig.cmake ncnn-config.cmake
+   cmake版本 3.10，否则没有带 FindVulkan.cmake
 
-set(ncnn_DIR {ncnnConfig.cmake所在目录})
+   android-api >= 24
 
-## 找不到 Vulkan
+   macos 要先执行安装脚本
 
-如何安装 vulkan sdk
-cmake版本 3.10，否则没有带 FindVulkan.cmake
-android-api >= 24
-macos 要先执行安装脚本
+- ## 如何安装 vulkan sdk
 
-## 找不到库（需要根据系统/编译器指定）
+- ## 找不到库（需要根据系统/编译器指定）
 
-undefined reference to __kmpc_for_static_init_4 __kmpc_for_static_fini __kmpc_fork_call ...
+   undefined reference to __kmpc_for_static_init_4 __kmpc_for_static_fini __kmpc_fork_call ...
 
-需要链接openmp库 
+   需要链接openmp库 
 
-undefined reference to vkEnumerateInstanceExtensionProperties vkGetInstanceProcAddr vkQueueSubmit ...
+   undefined reference to vkEnumerateInstanceExtensionProperties vkGetInstanceProcAddr vkQueueSubmit ...
 
-需要 vulkan-1.lib
+   需要 vulkan-1.lib
 
-undefined reference to glslang::InitializeProcess() glslang::TShader::TShader(EShLanguage) ...
+   undefined reference to glslang::InitializeProcess() glslang::TShader::TShader(EShLanguage) ...
 
-需要 glslang.lib OGLCompiler.lib SPIRV.lib OSDependent.lib
+   需要 glslang.lib OGLCompiler.lib SPIRV.lib OSDependent.lib
 
-undefined reference to AAssetManager_fromJava AAssetManager_open AAsset_seek ...
+   undefined reference to AAssetManager_fromJava AAssetManager_open AAsset_seek ...
 
-find_library和target_like_libraries中增加 android 
+   find_library和target_like_libraries中增加 android 
 
-find_package(ncnn)
+   find_package(ncnn)
 
-## undefined reference to typeinfo for ncnn::Layer
+- ## undefined reference to typeinfo for ncnn::Layer
 
-opencv rtti -> opencv-mobile
+   opencv rtti -> opencv-mobile
 
-## undefined reference to __cpu_model
+- ## undefined reference to __cpu_model
 
-升级编译器 / libgcc_s libgcc
+   升级编译器 / libgcc_s libgcc
 
-## unrecognized command line option "-mavx2"
+- ## unrecognized command line option "-mavx2"
 
-升级 gcc
+   升级 gcc
 
+- ## 为啥自己编译的ncnn android库特别大？
 
-## 为啥自己编译的ncnn android库特别大？
+   https://github.com/Tencent/ncnn/wiki/build-for-android.zh 以及见 如何裁剪更小的 ncnn 库
 
-https://github.com/Tencent/ncnn/wiki/build-for-android.zh 以及见 如何裁剪更小的 ncnn 库
+- ## ncnnoptimize和自定义层
 
-## ncnnoptimize和自定义层
-
-先ncnnoptimize再增加自定义层，避免ncnnoptimize不能处理自定义层保存。
-
-
-## rtti/exceptions冲突
-
-产生原因是项目工程中使用的库配置不一样导致冲突，根据自己的实际情况分析是需要开启还是关闭。ncnn默认是ON，在重新编译ncnn时增加以下2个参数即可：
- - 开启：-DNCNN_DISABLE_RTTI=OFF -DNCNN_DISABLE_EXCEPTION=OFF
- - 关闭：-DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON
+   先ncnnoptimize再增加自定义层，避免ncnnoptimize不能处理自定义层保存。
 
 
-## error: undefined symbol: ncnn::Extractor::extract(char const*, ncnn::Mat&)
+- ## rtti/exceptions冲突
 
-可能的情况：
- - 尝试升级 Android Studio 的 NDK 版本
+   产生原因是项目工程中使用的库配置不一样导致冲突，根据自己的实际情况分析是需要开启还是关闭。ncnn默认是ON，在重新编译ncnn时增加以下2个参数即可：
+   - 开启：-DNCNN_DISABLE_RTTI=OFF -DNCNN_DISABLE_EXCEPTION=OFF
+   - 关闭：-DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON
+
+
+- ## error: undefined symbol: ncnn::Extractor::extract(char const*, ncnn::Mat&)
+
+   可能的情况：
+   - 尝试升级 Android Studio 的 NDK 版本
 
 
 # 怎样添加ncnn库到项目中？cmake方式怎么用？
 
 编译ncnn，make install。linux/windows set/export ncnn_DIR 指向 isntall目录下下包含ncnnConfig.cmake 的目录
 
-## android
+- ## android
 
-## ios
+- ## ios
 
-## linux
+- ## linux
 
-## windows
+- ## windows
 
-## macos
+- ## macos
 
-## arm linux
+- ## arm linux
 
 
 # 转模型问题
 
-## caffe
+- ## caffe
 
-`./caffe2ncnn caffe.prototxt caffe.caffemodel ncnn.param ncnn.bin`
+   `./caffe2ncnn caffe.prototxt caffe.caffemodel ncnn.param ncnn.bin`
 
-## mxnet
+- ## mxnet
 
-` ./mxnet2ncnn mxnet-symbol.json mxnet.params ncnn.param ncnn.bin`
+   ` ./mxnet2ncnn mxnet-symbol.json mxnet.params ncnn.param ncnn.bin`
 
-## darknet
+- ## darknet
 
-[https://github.com/xiangweizeng/darknet2ncnn](https://github.com/xiangweizeng/darknet2ncnn)
+   [https://github.com/xiangweizeng/darknet2ncnn](https://github.com/xiangweizeng/darknet2ncnn)
 
-## pytorch - onnx
+- ## pytorch - onnx
 
-[use ncnn with pytorch or onnx](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx)
+   [use ncnn with pytorch or onnx](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx)
 
-## tensorflow 1.x/2.x - keras
+- ## tensorflow 1.x/2.x - keras
 
-[https://github.com/MarsTechHAN/keras2ncnn](https://github.com/MarsTechHAN/keras2ncnn) **[@MarsTechHAN](https://github.com/MarsTechHAN)**
+   [https://github.com/MarsTechHAN/keras2ncnn](https://github.com/MarsTechHAN/keras2ncnn) **[@MarsTechHAN](https://github.com/MarsTechHAN)**
 
-## tensorflow 2.x - mlir
+- ## tensorflow 2.x - mlir
 
-[通过MLIR将tensorflow2模型转换到ncnn](https://zhuanlan.zhihu.com/p/152535430) **@[nihui](https://www.zhihu.com/people/nihui-2)**
+   [通过MLIR将tensorflow2模型转换到ncnn](https://zhuanlan.zhihu.com/p/152535430) **@[nihui](https://www.zhihu.com/people/nihui-2)**
 
-## Shape not supported yet! Gather not supported yet! Cast not supported yet!
+- ## Shape not supported yet! Gather not supported yet! Cast not supported yet!
 
-onnx-simplifier 静态shape
+   onnx-simplifier 静态shape
 
-## convertmodel
+- ## convertmodel
 
-[https://convertmodel.com/](https://convertmodel.com/) **[@大老师](https://github.com/daquexian)**
+   [https://convertmodel.com/](https://convertmodel.com/) **[@大老师](https://github.com/daquexian)**
 
-## netron
+- ## netron
 
-[https://github.com/lutzroeder/netron](https://github.com/lutzroeder/netron)
+   [https://github.com/lutzroeder/netron](https://github.com/lutzroeder/netron)
 
-## 怎么生成有固定 shape 信息的模型？
+- ## 怎么生成有固定 shape 信息的模型？
 
-Input      0=w 1=h 2=c
+   Input      0=w 1=h 2=c
 
-why gpu能更快
+- ## why gpu能更快
 
-## ncnnoptimize 怎么转成 fp16 模型
+- ## ncnnoptimize 怎么转成 fp16 模型
 
-`ncnnoptimize model.param model.bin yolov5s-opt.param yolov5s-opt.bin 65536`
+   `ncnnoptimize model.param model.bin yolov5s-opt.param yolov5s-opt.bin 65536`
 
-## ncnnoptimize 怎样查看模型的 FLOPS / 内存占用情况
+- ## ncnnoptimize 怎样查看模型的 FLOPS / 内存占用情况
 
-## 怎么修改模型支持动态 shape？
+- ## 怎么修改模型支持动态 shape？
 
-Interp Reshape
+   Interp Reshape
 
-## 如何将模型转换为代码内嵌到程序里？
+- ## 如何将模型转换为代码内嵌到程序里？
 
-ncnn2mem
+   ncnn2mem
 
-## 如何加密模型？
+- ## 如何加密模型？
 
-https://zhuanlan.zhihu.com/p/268327784
+   https://zhuanlan.zhihu.com/p/268327784
 
-## Linux下转的ncnn模型，Windows/MacOS/Android/.. 也能直接用吗？
+- ## Linux下转的ncnn模型，Windows/MacOS/Android/.. 也能直接用吗？
 
-Yes，全平台通用
+   Yes，全平台通用
 
-## 如何去掉后处理，再导出 onnx？
+- ## 如何去掉后处理，再导出 onnx？
 
-检测
-参考up的一篇文章(https://zhuanlan.zhihu.com/p/128974102)，步骤三就是去掉后处理,再导出onnx,其中去掉后处理可以是项目内测试时去掉后续步骤的结果。
+   检测：
 
-## pytorch 有的层导不出 onnx 怎么办？
+   参考up的一篇文章(https://zhuanlan.zhihu.com/p/128974102)，步骤三就是去掉后处理,再导出onnx,其中去掉后处理可以是项目内测试时去掉后续步骤的结果。
 
-ONNX_ATEN_FALLBACK
+- ## pytorch 有的层导不出 onnx 怎么办？
+
+   ONNX_ATEN_FALLBACK
 完全自定义的op，先改成能导出的（如 concat slice），转到 ncnn 后再修改 param
 
 # 使用
 
-## vkEnumeratePhysicalDevices failed -3
+- ## vkEnumeratePhysicalDevices failed -3
 
-## vkCreateInstance failed -9
+- ## vkCreateInstance failed -9
 
-驱动
+   驱动
 
-## ModuleNotFoundError: No module named 'ncnn.ncnn'
+- ## ModuleNotFoundError: No module named 'ncnn.ncnn'
 
-python setup.py develop
+   python setup.py develop
 
-## fopen nanodet-m.param failed
+- ## fopen nanodet-m.param failed
 
-文件路径
-working dir
+   文件路径 working dir
 
-File not found or not readable. Make sure that XYZ.param/XYZ.bin is accessible.
+   File not found or not readable. Make sure that XYZ.param/XYZ.bin is accessible.
 
-## find_blob_index_by_name data / output / ... failed
+- ## find_blob_index_by_name data / output / ... failed
 
-layer name vs blob name
-param.bin 应该用 xxx.id.h 的枚举
+   layer name vs blob name
+   
+   param.bin 应该用 xxx.id.h 的枚举
 
-## parse magic failed
+- ## parse magic failed
 
-## param is too old, please regenerate
+- ## param is too old, please regenerate
 
-模型本身有问题
+   模型本身有问题
 
-Your model file is being the old format converted by an old caffe2ncnn tool.
+   Your model file is being the old format converted by an old caffe2ncnn tool.
 
-Checkout the latest ncnn code, build it and regenerate param and model binary files, and that should work.
+   Checkout the latest ncnn code, build it and regenerate param and model binary files, and that should work.
 
-Make sure that your param file starts with the magic number 7767517.
+   Make sure that your param file starts with the magic number 7767517.
 
-you may find more info on use-ncnn-with-alexnet
+   you may find more info on use-ncnn-with-alexnet
 
-## set_vulkan_compute failed, network use_vulkan_compute disabled
+- ## set_vulkan_compute failed, network use_vulkan_compute disabled
 
-你应该在 load_param / load_model 之前设置 net.opt.use_vulkan_compute = true;
+   你应该在 load_param / load_model 之前设置 net.opt.use_vulkan_compute = true;
 
-## 多个blob输入，多个blob输出，怎么做？
-多次执行`ex.input()` 和 `ex.extract()`
+- ## 多个blob输入，多个blob输出，怎么做？
+   多次执行`ex.input()` 和 `ex.extract()`
 ```
 ex.input("data1", in);
 ex.input("data2", in);
 ex.extract("output1", out);
 ex.extract("output2", out);
 ```
-## Extractor extract 多次会重复计算吗？
+- ## Extractor extract 多次会重复计算吗？
 
-不会
+   不会
 
-## 如何看每一层的耗时？
+- ## 如何看每一层的耗时？
 
-cmake -DNCNN_BENCHMARK=ON ..
+   cmake -DNCNN_BENCHMARK=ON ..
 
-## 如何转换 cv::Mat CV_8UC3 BGR 图片
+- ## 如何转换 cv::Mat CV_8UC3 BGR 图片
 
-from_pixels to_pixels
+   from_pixels to_pixels
 
-## 如何转换 float 数据为 ncnn::Mat
+- ## 如何转换 float 数据为 ncnn::Mat
 
-https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx
+   [use-ncnn-with-pytorch-or-onnx](https://github.com/Tencent/ncnn/wiki/use-ncnn-with-pytorch-or-onnx)
 
-## 如何初始化 ncnn::Mat 为全 0
+- ## 如何初始化 ncnn::Mat 为全 0
 
-`mat.fill(0.f);`
+   `mat.fill(0.f);`
 
-## 如何查看／获取版本号
+- ## 如何查看／获取版本号
 
-cmake时会打印
+   cmake时会打印
 
-c_api.h ncnn_version()
+   c_api.h ncnn_version()
 
-（自己拼 1.0+yyyymmdd
+   自己拼 1.0+yyyymmdd
 
-## 如何转换 yuv 数据
+- ## 如何转换 yuv 数据
 
-yuv420sp2rgb yuv420sp2rgb_nv12
+   yuv420sp2rgb yuv420sp2rgb_nv12
 
-**[@zz大佬](https://github.com/zchrissirhcz/xxYUV)**
+   **[@zz大佬](https://github.com/zchrissirhcz/xxYUV)**
 
-## 如何 resize crop rotate 图片
+- ## 如何 resize crop rotate 图片
 
-[efficient roi resize rotate](https://github.com/Tencent/ncnn/wiki/efficient-roi-resize-rotate)
+   [efficient roi resize rotate](https://github.com/Tencent/ncnn/wiki/efficient-roi-resize-rotate)
 
-## 如何人脸5点对齐
+- ## 如何人脸5点对齐
 
-get_affine_transform
-warpaffine_bilinear_c3
+   get_affine_transform
+
+   warpaffine_bilinear_c3
 
 ```c
 // 计算变换矩阵 并且求逆变换
@@ -329,23 +335,25 @@ for(int c = 0; c < 3; c++)
 ncnn::warpaffine_bilinear_c3(pSrc, SrcWidth, SrcHeight, SrcStride, pDst, DstWidth, DstHeight, DstStride, tm_inv, type, v);
 ```
 
-## 如何获得中间层的blob输出
+- ## 如何获得中间层的blob输出
+   
+   ncnn::Mat output;
+   
+   ex.extract("your_blob_name", output);
 
-    ncnn::Mat output;
-    ex.extract("your_blob_name", output);
+- ## 为什么我使用GPU，但是GPU占用为0
 
-## 为什么我使用GPU，但是GPU占用为0
+   windows 10 任务管理器 - 性能选项卡 - GPU - 选择其中一个视图左上角的下拉箭头切换到 Compute_0 / Compute_1 / Cuda
 
-windows 10 任务管理器 - 性能选项卡 - GPU - 选择其中一个视图左上角的下拉箭头切换到 Compute_0 / Compute_1 / Cuda
-你还可以安装软件：GPU-Z 
+   你还可以安装软件：GPU-Z 
 
-## layer XYZ not exists or registered
+- ## layer XYZ not exists or registered
 
-Your network contains some operations that are not implemented in ncnn.
+   Your network contains some operations that are not implemented in ncnn.
 
-You may implement them as custom layer followed in how-to-implement-custom-layer-step-by-step.
+   You may implement them as custom layer followed in how-to-implement-custom-layer-step-by-step.
 
-Or you could simply register them as no-op if you are sure those operations make no sense.
+   Or you could simply register them as no-op if you are sure those operations make no sense.
 
 ```
 class Noop : public ncnn::Layer {};
@@ -355,68 +363,68 @@ net.register_custom_layer("LinearRegressionOutput", Noop_layer_creator);
 net.register_custom_layer("MAERegressionOutput", Noop_layer_creator);
 ```
 
-## network graph not ready
+- ## network graph not ready
 
-You shall call Net::load_param() first, then Net::load_model().
+   You shall call Net::load_param() first, then Net::load_model().
 
-This error may also happens when Net::load_param() failed, but not properly handled.
+   This error may also happens when Net::load_param() failed, but not properly handled.
 
-For more information about the ncnn model load api, see ncnn-load-model
+   For more information about the ncnn model load api, see ncnn-load-model
 
-## memory not 32-bit aligned at XYZ
+- ## memory not 32-bit aligned at XYZ
 
-The pointer passed to Net::load_param() or Net::load_model() is not 32bit aligned.
+   The pointer passed to Net::load_param() or Net::load_model() is not 32bit aligned.
 
-In practice, the head pointer of std::vector is not guaranteed to be 32bit aligned.
+   In practice, the head pointer of std::vector is not guaranteed to be 32bit aligned.
 
-you can store your binary buffer in ncnn::Mat structure, its internal memory is aligned.
+   you can store your binary buffer in ncnn::Mat structure, its internal memory is aligned.
 
-## crash on android with '__kmp_abort_process'
+- ## crash on android with '__kmp_abort_process'
 
-This usually happens if you bundle multiple shared library with openmp linked
+   This usually happens if you bundle multiple shared library with openmp linked
 
-It is actually an issue of the android ndk https://github.com/android/ndk/issues/1028
+   It is actually an issue of the android ndk https://github.com/android/ndk/issues/1028
 
-On old android ndk, modify the link flags as
+   On old android ndk, modify the link flags as
 
--Wl,-Bstatic -lomp -Wl,-Bdynamic
+   -Wl,-Bstatic -lomp -Wl,-Bdynamic
 
-For recent ndk >= 21
+   For recent ndk >= 21
 
--fstatic-openmp
+   -fstatic-openmp
 
-## dlopen failed: library "libomp.so" not found
-Newer android ndk defaults to dynamic openmp runtime
+- ## dlopen failed: library "libomp.so" not found
+   Newer android ndk defaults to dynamic openmp runtime
 
-modify the link flags as
+   modify the link flags as
 
--fstatic-openmp -fopenmp
+   -fstatic-openmp -fopenmp
 
-## crash when freeing a ncnn dynamic library(.dll/.so) built with openMP
+- ## crash when freeing a ncnn dynamic library(.dll/.so) built with openMP
 
-for optimal performance, the openmp threadpool spin waits for about a second prior to shutting down in case more work becomes available.
+   for optimal performance, the openmp threadpool spin waits for about a second prior to shutting down in case more work becomes available.
 
-If you unload a dynamic library that's in the process of spin-waiting, it will crash in the manner you see (most of the time).
+   If you unload a dynamic library that's in the process of spin-waiting, it will crash in the manner you see (most of the time).
 
-Just set OMP_WAIT_POLICY=passive in your environment, before calling loadlibrary. or Just wait a few seconds before calling freelibrary.
+   Just set OMP_WAIT_POLICY=passive in your environment, before calling loadlibrary. or Just wait a few seconds before calling freelibrary.
 
-You can also use the following method to set environment variables in your code:
+   You can also use the following method to set environment variables in your code:
 
-for msvc++:
+   for msvc++:
 
-    SetEnvironmentVariable(_T("OMP_WAIT_POLICY"), _T("passive"));
+      SetEnvironmentVariable(_T("OMP_WAIT_POLICY"), _T("passive"));
 
-for g++:
+   for g++:
 
-    setenv("OMP_WAIT_POLICY", "passive", 1)
+      setenv("OMP_WAIT_POLICY", "passive", 1)
     
-    reference: https://stackoverflow.com/questions/34439956/vc-crash-when-freeing-a-dll-built-with-openmp
+      reference: https://stackoverflow.com/questions/34439956/vc-crash-when-freeing-a-dll-built-with-openmp
 
 # 跑出来的结果对不上
 
 [ncnn-produce-wrong-result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result)
 
-## 如何打印 ncnn::Mat 的值？
+- ## 如何打印 ncnn::Mat 的值？
 
 ```C++
 void pretty_print(const ncnn::Mat& m)
@@ -456,7 +464,7 @@ void pretty_print(const ncnn::Mat& m)
 }
 ```
 
-## 如何可视化 ncnn::Mat 的值？
+- ## 如何可视化 ncnn::Mat 的值？
 
 ```
 void visualize(const char* title, const ncnn::Mat& m)
@@ -511,30 +519,33 @@ void visualize(const char* title, const ncnn::Mat& m)
 }
 ```
 
+- ## 总是输出第一张图的结果
 
+   复用 Extractor？！
 
+- ## 启用fp16时的精度有差异
 
-## 总是输出第一张图的结果
-复用 Extractor？！
+   net.opt.use_fp16_packed = false;
 
-## 启用fp16时的精度差异
+   net.opt.use_fp16_storage = false;
 
-net.opt.use_fp16_packed = false;
-net.opt.use_fp16_storage = false;
-net.opt.use_fp16_arithmetic = false;
+   net.opt.use_fp16_arithmetic = false;
 
-https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result
+   [ncnn-produce-wrong-result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result)
 
 
 # 如何跑得更快？内存占用更少？库体积更小？
 
-## fp32 fp16
+- ## fp32 fp16
 
-## 大小核绑定
-ncnn::set_cpu_powersave(int)绑定大核或小核
-注意windows系统不支持绑核。
-ncnn支持不同的模型运行在不同的核心。假设硬件平台有2个大核，4个小核，你想把netA运行在大核，netB运行在小核。
-可以通过std::thread or pthread创建两个线程，运行如下代码：
+- ## 大小核绑定
+   ncnn::set_cpu_powersave(int)绑定大核或小核
+   注意windows系统不支持绑核。
+   ncnn支持不同的模型运行在不同的核心。假设硬件平台有2个大核，4个小核，你想把netA运行在大核，netB运行在小核。
+   可以通过std::thread or pthread创建两个线程，运行如下代码：
+   0:全部
+   1:小核
+   2:大核
 ```
    void thread_1()
    {
@@ -548,73 +559,78 @@ ncnn支持不同的模型运行在不同的核心。假设硬件平台有2个大
       netB.opt.num_threads = 4;
    }
 ```
-https://github.com/Tencent/ncnn/blob/master/docs/how-to-use-and-FAQ/openmp-best-practice.zh.md
 
-## get_cpu_count get_gpu_count
+   [openmp-best-practice.zh.md](https://github.com/Tencent/ncnn/blob/master/docs/how-to-use-and-FAQ/openmp-best-practice.zh.md)
 
-## ncnnoptimize
+- ## 查看 CPU 或 GPU 数量
+   get_cpu_count
+   
+   get_gpu_count
 
-使用方式一：
- - ./ncnnoptimize ncnn.param ncnn.bin new.param new.bin flag
- <br/>注意这里的flag指的是fp32和fp16，其中0指的是fp32，1指的是fp16
+- ## ncnnoptimize
 
-使用方式二：
- - ./ncnnoptimize ncnn.param ncnn.bin new.param new.bin flag cutstartname cutendname
- <br/>cutstartname: 模型截取的起点
- <br/>cutendname: 模型截取的终点
+   使用方式一：
+    - ./ncnnoptimize ncnn.param ncnn.bin new.param new.bin flag
+    <br/>注意这里的flag指的是fp32和fp16，其中0指的是fp32，1指的是fp16
+
+   使用方式二：
+    - ./ncnnoptimize ncnn.param ncnn.bin new.param new.bin flag cutstartname cutendname
+    <br/>cutstartname：模型截取的起点
+    <br/>cutendname：模型截取的终点
 
 
-## 如何使用量化工具？
+- ## 如何使用量化工具？
 
-[Post Training Quantization Tools](https://github.com/Tencent/ncnn/tree/master/tools/quantize)
+   [Post Training Quantization Tools](https://github.com/Tencent/ncnn/tree/master/tools/quantize)
 
-## 如何设置线程数？
+- ## 如何设置线程数？
 
-opt.num_threads
+   opt.num_threads
 
-## 如何降低CPU占用率？
+- ## 如何降低CPU占用率？
 
-net.opt.openmp_blocktime = 0;
-OMP_WAIT_POLICY=passive
+   net.opt.openmp_blocktime = 0;
+   
+   OMP_WAIT_POLICY=passive
 
-## 如何 batch inference？
+- ## 如何 batch inference？
 
-## partial graph inference
+- ## partial graph inference
 
-先 extract 分类，判断后，再 extract bbox
+   先 extract 分类，判断后，再 extract bbox
 
-## 如何启用 bf16s 加速？
+- ## 如何启用 bf16s 加速？
 
 ```
 net.opt.use_packing_layout = true;
 net.opt.use_bf16_storage = true;
 ```
 
-[用bf16加速ncnn](https://zhuanlan.zhihu.com/p/112564372) **@[nihui](https://www.zhihu.com/people/nihui-2)**
+   [用bf16加速ncnn](https://zhuanlan.zhihu.com/p/112564372) **@[nihui](https://www.zhihu.com/people/nihui-2)**
 
-A53
+   A53
 
-## 如何裁剪更小的 ncnn 库？
+- ## 如何裁剪更小的 ncnn 库？
 
-https://github.com/Tencent/ncnn/wiki/build-minimal-library
+   [build-minimal-library](https://github.com/Tencent/ncnn/wiki/build-minimal-library)
 
-## net.opt sgemm winograd fp16_storage 各是有什么作用？
+- ## net.opt sgemm winograd fp16_storage 各是有什么作用？
 
-对内存消耗的影响
+   对内存消耗的影响
 
 # 白嫖项目
 
-## nanodet
+- ## nanodet
 
 # 其他
 
-## up主用的什么系统/编辑器/开发环境？
+- ## up主用的什么系统/编辑器/开发环境？
 
-| 软件类型     |   软件名称  |
-| ------------| ----------- |
-| 系统        | Fedora       |
-| 桌面环境     | KDE         |
-| 编辑器       | Kate        |
-| 画草图       | kolourpaint |
-| 画函数图像   | kmplot      |
-| bilibili直播 |  OBS         |
+   | 软件类型     |   软件名称  |
+   | ------------| ----------- |
+   | 系统        | Fedora       |
+   | 桌面环境     | KDE         |
+   | 编辑器       | Kate        |
+   | 画草图       | kolourpaint |
+   | 画函数图像   | kmplot      |
+   | bilibili直播 |  OBS         |
