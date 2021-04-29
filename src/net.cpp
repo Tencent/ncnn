@@ -1702,11 +1702,7 @@ int Net::load_model(const DataReader& dr)
         //Here we found inconsistent content in the parameter file.
         if (!layer)
         {
-#if NCNN_STRING
-            NCNN_LOGE("load_model error at layer %d %s, parameter file has inconsistent content.", i, layer->name.c_str());
-#else
             NCNN_LOGE("load_model error at layer %d, parameter file has inconsistent content.", i);
-#endif
             ret = -1;
             break;
         }
@@ -1745,18 +1741,6 @@ int Net::load_model(const DataReader& dr)
     for (int i = 0; i < layer_count; i++)
     {
         Layer* layer = d->layers[i];
-
-        //Here we found inconsistent content in the parameter file.
-        if (!layer)
-        {
-#if NCNN_STRING
-            NCNN_LOGE("load_model error at layer %d %s, parameter file has inconsistent content.", i, layer->name.c_str());
-#else
-            NCNN_LOGE("load_model error at layer %d, parameter file has inconsistent content.", i);
-#endif
-            ret = -1;
-            break;
-        }
 
         Option opt1 = opt;
 #if NCNN_VULKAN

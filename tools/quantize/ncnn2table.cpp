@@ -1212,6 +1212,10 @@ int QuantNet::quantize_EQ()
             fprintf(stderr, "%s b %d  = %f -> %f\n", layer->name.c_str(), j, scale, new_scale);
             bottom_blob_scale[j] = new_scale;
         }
+
+        // update quant info
+        QuantBlobStat& stat = quant_blob_stats[i];
+        stat.threshold = 127 / bottom_blob_scale[0];
     }
 
     return 0;
