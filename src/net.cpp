@@ -2283,7 +2283,22 @@ int Extractor::input(const char* blob_name, const Mat& in)
 {
     int blob_index = d->net->find_blob_index_by_name(blob_name);
     if (blob_index == -1)
+    {
+        NCNN_LOGE("Try");
+        const std::vector<Blob>& blobs = d->net->blobs();
+        const std::vector<Layer*>& layers = d->net->layers();
+        int in_index = 0;
+        for (size_t i = 0; i < layers.size(); i++)
+        {
+            if (layers[i]->type != "Input")
+                continue;
+
+            int input_blob_index = layers[i]->tops[0];
+            NCNN_LOGE("    ex.input(\"%s\", in%d);", blobs[input_blob_index].name.c_str(), in_index++);
+        }
+
         return -1;
+    }
 
     return input(blob_index, in);
 }
@@ -2292,7 +2307,20 @@ int Extractor::extract(const char* blob_name, Mat& feat, int type)
 {
     int blob_index = d->net->find_blob_index_by_name(blob_name);
     if (blob_index == -1)
+    {
+        NCNN_LOGE("Try");
+        const std::vector<Blob>& blobs = d->net->blobs();
+        int out_index = 0;
+        for (size_t i = 0; i < blobs.size(); i++)
+        {
+            if (blobs[i].producer == -1 || blobs[i].consumer != -1)
+                continue;
+
+            NCNN_LOGE("    ex.extract(\"%s\", out%d);", blobs[i].name.c_str(), out_index++);
+        }
+
         return -1;
+    }
 
     return extract(blob_index, feat, type);
 }
@@ -2474,7 +2502,22 @@ int Extractor::input(const char* blob_name, const VkMat& in)
 {
     int blob_index = d->net->find_blob_index_by_name(blob_name);
     if (blob_index == -1)
+    {
+        NCNN_LOGE("Try");
+        const std::vector<Blob>& blobs = d->net->blobs();
+        const std::vector<Layer*>& layers = d->net->layers();
+        int in_index = 0;
+        for (size_t i = 0; i < layers.size(); i++)
+        {
+            if (layers[i]->type != "Input")
+                continue;
+
+            int input_blob_index = layers[i]->tops[0];
+            NCNN_LOGE("    ex.input(\"%s\", in%d);", blobs[input_blob_index].name.c_str(), in_index++);
+        }
+
         return -1;
+    }
 
     return input(blob_index, in);
 }
@@ -2483,7 +2526,20 @@ int Extractor::extract(const char* blob_name, VkMat& feat, VkCompute& cmd)
 {
     int blob_index = d->net->find_blob_index_by_name(blob_name);
     if (blob_index == -1)
+    {
+        NCNN_LOGE("Try");
+        const std::vector<Blob>& blobs = d->net->blobs();
+        int out_index = 0;
+        for (size_t i = 0; i < blobs.size(); i++)
+        {
+            if (blobs[i].producer == -1 || blobs[i].consumer != -1)
+                continue;
+
+            NCNN_LOGE("    ex.extract(\"%s\", out%d);", blobs[i].name.c_str(), out_index++);
+        }
+
         return -1;
+    }
 
     return extract(blob_index, feat, cmd);
 }
@@ -2492,7 +2548,22 @@ int Extractor::input(const char* blob_name, const VkImageMat& in)
 {
     int blob_index = d->net->find_blob_index_by_name(blob_name);
     if (blob_index == -1)
+    {
+        NCNN_LOGE("Try");
+        const std::vector<Blob>& blobs = d->net->blobs();
+        const std::vector<Layer*>& layers = d->net->layers();
+        int in_index = 0;
+        for (size_t i = 0; i < layers.size(); i++)
+        {
+            if (layers[i]->type != "Input")
+                continue;
+
+            int input_blob_index = layers[i]->tops[0];
+            NCNN_LOGE("    ex.input(\"%s\", in%d);", blobs[input_blob_index].name.c_str(), in_index++);
+        }
+
         return -1;
+    }
 
     return input(blob_index, in);
 }
@@ -2501,7 +2572,20 @@ int Extractor::extract(const char* blob_name, VkImageMat& feat, VkCompute& cmd)
 {
     int blob_index = d->net->find_blob_index_by_name(blob_name);
     if (blob_index == -1)
+    {
+        NCNN_LOGE("Try");
+        const std::vector<Blob>& blobs = d->net->blobs();
+        int out_index = 0;
+        for (size_t i = 0; i < blobs.size(); i++)
+        {
+            if (blobs[i].producer == -1 || blobs[i].consumer != -1)
+                continue;
+
+            NCNN_LOGE("    ex.extract(\"%s\", out%d);", blobs[i].name.c_str(), out_index++);
+        }
+
         return -1;
+    }
 
     return extract(blob_index, feat, cmd);
 }
