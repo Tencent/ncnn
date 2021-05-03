@@ -21,6 +21,85 @@
 #include <riscv_vector.h>
 #endif
 
+#define c_inv_mant_mask ~0x7f800000u
+#define c_cephes_SQRTHF 0.707106781186547524
+#define c_cephes_log_p0 7.0376836292E-2
+#define c_cephes_log_p1 -1.1514610310E-1
+#define c_cephes_log_p2 1.1676998740E-1
+#define c_cephes_log_p3 -1.2420140846E-1
+#define c_cephes_log_p4 +1.4249322787E-1
+#define c_cephes_log_p5 -1.6668057665E-1
+#define c_cephes_log_p6 +2.0000714765E-1
+#define c_cephes_log_p7 -2.4999993993E-1
+#define c_cephes_log_p8 +3.3333331174E-1
+#define c_cephes_log_q1 -2.12194440e-4
+#define c_cephes_log_q2 0.693359375
+
+static inline vfloat32m8_t log_ps(vfloat32m8_t x, word_type vl)
+{
+    x = vfmax_vf_f32m8(x, 0.f, vl); /* force flush to zero on denormal values */
+    vbool4_t invalid_mask = vmfle_vf_f32m8_b4(x, 0.f, vl);
+
+    vint32m8_t ux = vreinterpret_v_f32m8_i32m8(x);
+
+    vint32m8_t emm0 = vsra_vx_i32m8(ux, 23, vl);
+
+    /* keep only the fractional part */
+    ux = vand_vx_i32m8(ux, c_inv_mant_mask, vl);
+    ux = vor_vx_i32m8(ux, 1056964608 /* reinterpret_cast<int>(0.5) */, vl);
+    x = vreinterpret_v_i32m8_f32m8(ux);
+
+    emm0 = vsub_vx_i32m8(emm0, 0x7f, vl);
+    vfloat32m8_t e = vfcvt_f_x_v_f32m8(emm0, vl);
+
+    e = vfadd_vf_f32m8(e, 1.f, vl);
+
+    /* part2:
+     *     if( x < SQRTHF ) {
+     *       e -= 1;
+     *       x = x + x - 1.0;
+     *     } else { x = x - 1.0; }
+     */
+    vbool4_t mask = vmflt_vf_f32m8_b4(x, c_cephes_SQRTHF, vl);
+    x = vfadd_vv_f32m8_m(mask, x, x, x, vl);
+    x = vfsub_vf_f32m8(x, 1.f, vl);
+    e = vfsub_vf_f32m8_m(mask, e, e, 1.f, vl);
+
+    vfloat32m8_t z = vfmul_vv_f32m8(x, x, vl);
+
+    vfloat32m8_t y = vfmul_vf_f32m8(x, c_cephes_log_p0, vl);
+    y = vfadd_vf_f32m8(y, c_cephes_log_p1, vl);
+    y = vfmul_vv_f32m8(y, x, vl);
+    y = vfadd_vf_f32m8(y, c_cephes_log_p2, vl);
+    y = vfmul_vv_f32m8(y, x, vl);
+    y = vfadd_vf_f32m8(y, c_cephes_log_p3, vl);
+    y = vfmul_vv_f32m8(y, x, vl);
+    y = vfadd_vf_f32m8(y, c_cephes_log_p4, vl);
+    y = vfmul_vv_f32m8(y, x, vl);
+    y = vfadd_vf_f32m8(y, c_cephes_log_p5, vl);
+    y = vfmul_vv_f32m8(y, x, vl);
+    y = vfadd_vf_f32m8(y, c_cephes_log_p6, vl);
+    y = vfmul_vv_f32m8(y, x, vl);
+    y = vfadd_vf_f32m8(y, c_cephes_log_p7, vl);
+    y = vfmul_vv_f32m8(y, x, vl);
+    y = vfadd_vf_f32m8(y, c_cephes_log_p8, vl);
+    y = vfmul_vv_f32m8(y, x, vl);
+
+    y = vfmul_vv_f32m8(y, z, vl);
+
+    vfloat32m8_t tmp = vfmul_vf_f32m8(e, c_cephes_log_q1, vl);
+    y = vfadd_vv_f32m8(y, tmp, vl);
+
+    tmp = vfmul_vf_f32m8(z, 0.5f, vl);
+    y = vfsub_vv_f32m8(y, tmp, vl);
+
+    tmp = vfmul_vf_f32m8(e, c_cephes_log_q2, vl);
+    x = vfadd_vv_f32m8(x, y, vl);
+    x = vfadd_vv_f32m8(x, tmp, vl);
+    x = vreinterpret_v_u32m8_f32m8(vor_vx_u32m8_m(invalid_mask, vreinterpret_v_f32m8_u32m8(x), vreinterpret_v_f32m8_u32m8(x), 0xffffffff, vl)); // negative arg will be NAN
+    return x;
+}
+
 #define c_exp_hi 88.3762626647949f
 #define c_exp_lo -88.3762626647949f
 
@@ -84,12 +163,172 @@ static inline vfloat32m8_t exp_ps(vfloat32m8_t x, word_type vl)
     return y;
 }
 
+#define c_minus_cephes_DP1 -0.78515625
+#define c_minus_cephes_DP2 -2.4187564849853515625e-4
+#define c_minus_cephes_DP3 -3.77489497744594108e-8
+#define c_sincof_p0        -1.9515295891E-4
+#define c_sincof_p1        8.3321608736E-3
+#define c_sincof_p2        -1.6666654611E-1
+#define c_coscof_p0        2.443315711809948E-005
+#define c_coscof_p1        -1.388731625493765E-003
+#define c_coscof_p2        4.166664568298827E-002
+#define c_cephes_FOPI      1.27323954473516 // 4 / M_PI
+
+static inline void sincos_ps(vfloat32m8_t x, vfloat32m8_t* ysin, vfloat32m8_t* ycos, word_type vl)
+{
+    // any x
+    vfloat32m8_t xmm1, xmm2, xmm3, y;
+
+    vuint32m8_t emm2;
+
+    vbool4_t sign_mask_sin, sign_mask_cos;
+    sign_mask_sin = vmflt_vf_f32m8_b4(x, 0.f, vl);
+    x = vfsgnj_vf_f32m8(x, 1.f, vl);
+
+    /* scale by 4/Pi */
+    y = vfmul_vf_f32m8(x, c_cephes_FOPI, vl);
+
+    /* store the integer part of y in mm0 */
+    emm2 = vfcvt_xu_f_v_u32m8(y, vl);
+    /* j=(j+1) & (~1) (see the cephes sources) */
+    emm2 = vadd_vx_u32m8(emm2, 1, vl);
+    emm2 = vand_vx_u32m8(emm2, ~1, vl);
+    y = vfcvt_f_xu_v_f32m8(emm2, vl);
+
+    /* get the polynom selection mask
+     *     there is one polynom for 0 <= x <= Pi/4
+     *     and another one for Pi/4<x<=Pi/2
+     *
+     *     Both branches will be computed.
+     */
+    vbool4_t poly_mask = vmsne_vx_u32m8_b4(vand_vx_u32m8(emm2, 2, vl), 0, vl);
+
+    /* The magic pass: "Extended precision modular arithmetic"
+     *     x = ((x - y * DP1) - y * DP2) - y * DP3; */
+    xmm1 = vfmul_vf_f32m8(y, c_minus_cephes_DP1, vl);
+    xmm2 = vfmul_vf_f32m8(y, c_minus_cephes_DP2, vl);
+    xmm3 = vfmul_vf_f32m8(y, c_minus_cephes_DP3, vl);
+    x = vfadd_vv_f32m8(x, xmm1, vl);
+    x = vfadd_vv_f32m8(x, xmm2, vl);
+    x = vfadd_vv_f32m8(x, xmm3, vl);
+
+    sign_mask_sin = vmxor_mm_b4(sign_mask_sin, vmsne_vx_u32m8_b4(vand_vx_u32m8(emm2, 4, vl), 0, vl), vl);
+    sign_mask_cos = vmsne_vx_u32m8_b4(vand_vx_u32m8(vsub_vx_u32m8(emm2, 2, vl), 4, vl), 0, vl);
+
+    /* Evaluate the first polynom  (0 <= x <= Pi/4) in y1,
+     *     and the second polynom      (Pi/4 <= x <= 0) in y2 */
+    vfloat32m8_t z = vfmul_vv_f32m8(x, x, vl);
+    vfloat32m8_t y1, y2;
+
+    y1 = vfmul_vf_f32m8(z, c_coscof_p0, vl);
+    y2 = vfmul_vf_f32m8(z, c_sincof_p0, vl);
+    y1 = vfadd_vf_f32m8(y1, c_coscof_p1, vl);
+    y2 = vfadd_vf_f32m8(y2, c_sincof_p1, vl);
+    y1 = vfmul_vv_f32m8(y1, z, vl);
+    y2 = vfmul_vv_f32m8(y2, z, vl);
+    y1 = vfadd_vf_f32m8(y1, c_coscof_p2, vl);
+    y2 = vfadd_vf_f32m8(y2, c_sincof_p2, vl);
+    y1 = vfmul_vv_f32m8(y1, z, vl);
+    y2 = vfmul_vv_f32m8(y2, z, vl);
+    y1 = vfmul_vv_f32m8(y1, z, vl);
+    y2 = vfmul_vv_f32m8(y2, x, vl);
+    y1 = vfsub_vv_f32m8(y1, vfmul_vf_f32m8(z, 0.5f, vl), vl);
+    y2 = vfadd_vv_f32m8(y2, x, vl);
+    y1 = vfadd_vf_f32m8(y1, 1.f, vl);
+
+    /* select the correct result from the two polynoms */
+    vfloat32m8_t ys = vmerge_vvm_f32m8(poly_mask, y2, y1, vl);
+    vfloat32m8_t yc = vmerge_vvm_f32m8(poly_mask, y1, y2, vl);
+    *ysin = vmerge_vvm_f32m8(sign_mask_sin, ys, vfneg_v_f32m8(ys, vl), vl);
+    *ycos = vmerge_vvm_f32m8(sign_mask_cos, vfneg_v_f32m8(yc, vl), yc, vl);
+}
+
+static inline vfloat32m8_t sin_ps(vfloat32m8_t x, word_type vl)
+{
+    vfloat32m8_t ysin, ycos;
+    sincos_ps(x, &ysin, &ycos, vl);
+    return ysin;
+}
+
+static inline vfloat32m8_t cos_ps(vfloat32m8_t x, word_type vl)
+{
+    vfloat32m8_t ysin, ycos;
+    sincos_ps(x, &ysin, &ycos, vl);
+    return ycos;
+}
+
+#define c_cephes_HALFMAXLOGF 44.014845935754205f
+#define c_cephes_tanh_C1     0.625f
+
+#define c_cephes_tanh_p0 -5.70498872745E-3
+#define c_cephes_tanh_p1 +2.06390887954E-2
+#define c_cephes_tanh_p2 -5.37397155531E-2
+#define c_cephes_tanh_p3 +1.33314422036E-1
+#define c_cephes_tanh_p4 -3.33332819422E-1
+
+static inline vfloat32m8_t tanh_ps(vfloat32m8_t x, word_type vl)
+{
+    vfloat32m8_t x2 = vfsgnj_vf_f32m8(x, 1.f, vl);
+
+    vbool4_t mask_l = vmfge_vf_f32m8_b4(x2, c_cephes_tanh_C1, vl);
+    vbool4_t mask_l2 = vmfgt_vf_f32m8_b4(x2, c_cephes_HALFMAXLOGF, vl);
+
+    // abs(x) >= 0.625
+    // tanh(x) = 1 − 2 / (exp(2x) + 1)
+    vfloat32m8_t exp_x_x = exp_ps(vfadd_vv_f32m8(x, x, vl), vl);
+    vfloat32m8_t y0 = vfrsub_vf_f32m8(vfrdiv_vf_f32m8(vfadd_vf_f32m8(exp_x_x, 1.f, vl), 2.f, vl), 1.f, vl);
+
+    // abs(x) < 0.625
+    /*
+        z = x2 * x2;
+        z =
+        (((( -5.70498872745E-3 * z
+        + 2.06390887954E-2) * z
+        - 5.37397155531E-2) * z
+        + 1.33314422036E-1) * z
+        - 3.33332819422E-1) * z * x
+        + x;
+    */
+    vfloat32m8_t z = vfmul_vv_f32m8(x, x, vl);
+
+    vfloat32m8_t y = vfmul_vf_f32m8(z, c_cephes_tanh_p0, vl);
+    y = vfadd_vf_f32m8(y, c_cephes_tanh_p1, vl);
+    y = vfmul_vv_f32m8(y, z, vl);
+    y = vfadd_vf_f32m8(y, c_cephes_tanh_p2, vl);
+    y = vfmul_vv_f32m8(y, z, vl);
+    y = vfadd_vf_f32m8(y, c_cephes_tanh_p3, vl);
+    y = vfmul_vv_f32m8(y, z, vl);
+    y = vfadd_vf_f32m8(y, c_cephes_tanh_p4, vl);
+
+    y = vfmul_vv_f32m8(y, z, vl);
+    y = vfmul_vv_f32m8(y, x, vl);
+    y = vfadd_vv_f32m8(y, x, vl);
+
+    // abs(x) > HALFMAXLOGF
+    // return 1.0 or -1.0
+    vbool4_t mask_pos = vmfgt_vf_f32m8_b4(x, 0.f, vl);
+    vfloat32m8_t y1 = vfmerge_vfm_f32m8(mask_pos, vfmv_v_f_f32m8(1.f, vl), -1.f, vl);
+
+    y = vmerge_vvm_f32m8(mask_l, y, y0, vl);
+    y = vmerge_vvm_f32m8(mask_l2, y, y1, vl);
+    return y;
+}
+
+static inline vfloat32m8_t pow_ps(vfloat32m8_t a, vfloat32m8_t b, word_type vl)
+{
+    // pow(x, m) = exp(m * log(x))
+    return exp_ps(vfmul_vv_f32m8(b, log_ps(a, vl), vl), vl);
+}
+
 static inline vfloat32m8_t sigmoid_ps(vfloat32m8_t _v, word_type vl)
 {
     _v = vfneg_v_f32m8(_v, vl);
     _v = exp_ps(_v, vl);
     _v = vfadd_vf_f32m8(_v, 1.f, vl);
-    return vfrdiv_vf_f32m8(_v, 1.f, vl);
+    vfloat32m8_t _reciprocal = vfrec7_v_f32m8(_v, vl);
+    _reciprocal = vfmul_vv_f32m8(vfrsub_vf_f32m8(vfmul_vv_f32m8(_v, _reciprocal, vl), 2.f, vl), _reciprocal, vl);
+    // _reciprocal = vfmul_vv_f32m8(vfrsub_vf_f32m8(vfmul_vv_f32m8(_v, _reciprocal, vl), 2.f, vl), _reciprocal, vl);
+    return _reciprocal;
 }
 
 #endif // RVV_MATHFUN_H

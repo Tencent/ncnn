@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "sigmoid_riscv.h"
+#include "mish_riscv.h"
 
 #if __riscv_vector
 #ifdef RVV_SPEC_0_7
@@ -28,7 +28,7 @@
 
 namespace ncnn {
 
-Sigmoid_riscv::Sigmoid_riscv()
+Mish_riscv::Mish_riscv()
 {
 #if __riscv_vector
     support_packing = true;
@@ -36,7 +36,7 @@ Sigmoid_riscv::Sigmoid_riscv()
 #endif // __riscv_vector
 }
 
-int Sigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+int Mish_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int elembits = bottom_top_blob.elembits();
 
@@ -68,7 +68,7 @@ int Sigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             word_type vl = vsetvl_e32m8(n);
 
             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-            _p = sigmoid_ps(_p, vl);
+            _p = vfmul_vv_f32m8(_p, tanh_ps(log_ps(vfadd_vf_f32m8(exp_ps(_p, vl), 1.f, vl), vl), vl), vl);
             vse32_v_f32m8(ptr, _p, vl);
 
             ptr += vl;
@@ -77,8 +77,7 @@ int Sigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #else  // __riscv_vector
         for (int i = 0; i < size; i++)
         {
-            *ptr = 1.f / (1.f + exp(-*ptr));
-
+            *ptr = *ptr * tanh(log(exp(*ptr) + 1.f));
             ptr++;
         }
 #endif // __riscv_vector
@@ -88,7 +87,7 @@ int Sigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 }
 
 #if __riscv_vector
-int Sigmoid_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
+int Mish_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -107,7 +106,7 @@ int Sigmoid_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
             word_type vl = vsetvl_e16m4(n);
 
             vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
-            _p = sigmoid_ps(_p, vl);
+            _p = vfmul_vv_f32m8(_p, tanh_ps(log_ps(vfadd_vf_f32m8(exp_ps(_p, vl), 1.f, vl), vl), vl), vl);
             vse16_v_f16m4(ptr, vfncvt_f_f_w_f16m4(_p, vl), vl);
 
             ptr += vl;
@@ -118,7 +117,7 @@ int Sigmoid_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
     return 0;
 }
 
-int Sigmoid_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
+int Mish_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -137,7 +136,7 @@ int Sigmoid_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
             word_type vl = vsetvl_e16m8(n);
 
             vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-            _p = sigmoid_ps(_p, vl);
+            _p = vfmul_vv_f16m8(_p, tanh_ps(log_ps(vfadd_vf_f16m8(exp_ps(_p, vl), 1.f, vl), vl), vl), vl);
             vse16_v_f16m8(ptr, _p, vl);
 
             ptr += vl;

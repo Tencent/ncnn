@@ -12,17 +12,17 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_SIGMOID_RISCV_H
-#define LAYER_SIGMOID_RISCV_H
+#ifndef LAYER_MISH_RISCV_H
+#define LAYER_MISH_RISCV_H
 
-#include "sigmoid.h"
+#include "mish.h"
 
 namespace ncnn {
 
-class Sigmoid_riscv : virtual public Sigmoid
+class Mish_riscv : virtual public Mish
 {
 public:
-    Sigmoid_riscv();
+    Mish_riscv();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
@@ -35,4 +35,4 @@ protected:
 
 } // namespace ncnn
 
-#endif // LAYER_SIGMOID_RISCV_H
+#endif // LAYER_MISH_RISCV_H

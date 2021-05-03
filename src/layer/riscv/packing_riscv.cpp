@@ -35,10 +35,8 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 {
     int elembits = bottom_blob.elembits();
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
-#endif
 
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
@@ -613,7 +611,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                     word_type vl = vsetvl_e16m1(n);
 
                     vuint16m1x4_t _p0 = vlseg4e16_v_u16m1x4(r0, vl);
-                    vuint16m1x4_t _p1 = vlseg4e16_v_u16m1x4(r0, vl);
+                    vuint16m1x4_t _p1 = vlseg4e16_v_u16m1x4(r1, vl);
 
                     vuint16m1x8_t _p = vuint16m1x8_t();
                     _p = vset_u16m1x8(_p, 0, vget_u16m1x4_u16m1(_p0, 0));
@@ -626,9 +624,9 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                     _p = vset_u16m1x8(_p, 7, vget_u16m1x4_u16m1(_p1, 3));
                     vsseg8e16_v_u16m1x8(outptr, _p, vl);
 
-                    r0 += vl;
-                    r1 += vl;
-                    outptr += vl * 2;
+                    r0 += vl * 4;
+                    r1 += vl * 4;
+                    outptr += vl * 8;
                     n -= vl;
                 }
 #else  // __riscv_vector
@@ -681,9 +679,9 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                     vsseg4e16_v_u16m1x4(outptr0, _p0, vl);
                     vsseg4e16_v_u16m1x4(outptr1, _p1, vl);
 
-                    r0 += vl * 2;
-                    outptr0 += vl;
-                    outptr1 += vl;
+                    r0 += vl * 8;
+                    outptr0 += vl * 4;
+                    outptr1 += vl * 4;
                     n -= vl;
                 }
 #else  // __riscv_vector
@@ -946,7 +944,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                     word_type vl = vsetvl_e16m1(n);
 
                     vuint16m1x4_t _p0 = vlseg4e16_v_u16m1x4(r0, vl);
-                    vuint16m1x4_t _p1 = vlseg4e16_v_u16m1x4(r0, vl);
+                    vuint16m1x4_t _p1 = vlseg4e16_v_u16m1x4(r1, vl);
 
                     vuint16m1x8_t _p = vuint16m1x8_t();
                     _p = vset_u16m1x8(_p, 0, vget_u16m1x4_u16m1(_p0, 0));
@@ -959,9 +957,9 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                     _p = vset_u16m1x8(_p, 7, vget_u16m1x4_u16m1(_p1, 3));
                     vsseg8e16_v_u16m1x8(outptr, _p, vl);
 
-                    r0 += vl;
-                    r1 += vl;
-                    outptr += vl * 2;
+                    r0 += vl * 4;
+                    r1 += vl * 4;
+                    outptr += vl * 8;
                     n -= vl;
                 }
 #else  // __riscv_vector
@@ -1014,9 +1012,9 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                     vsseg4e16_v_u16m1x4(outptr0, _p0, vl);
                     vsseg4e16_v_u16m1x4(outptr1, _p1, vl);
 
-                    r0 += vl * 2;
-                    outptr0 += vl;
-                    outptr1 += vl;
+                    r0 += vl * 8;
+                    outptr0 += vl * 4;
+                    outptr1 += vl * 4;
                     n -= vl;
                 }
 #else  // __riscv_vector
