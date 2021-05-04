@@ -53,3 +53,101 @@ jobs:
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/riscv64-linux-gnu" ctest --output-on-failure -j 2
+
+  linux-gcc-riscv64-rvv:
+    runs-on: ubuntu-20.04
+    steps:
+    - name: cancel-previous-runs
+      uses: styfle/cancel-workflow-action@0.7.0
+      with:
+        access_token: ${{ secrets.GITHUB_TOKEN }}
+    - uses: actions/checkout@v2
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: actions/cache@v1
+      with:
+        path: qemu-install
+        key: qemu-riscv64-rvv-install-20210504
+
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
+
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: sifive/qemu
+        path: qemu
+        ref: 6498588f9d2d8a97e3f3b6202262e1129b426be6
+    - name: qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        wget https://download.qemu.org/qemu-5.2.0.tar.xz
+        tar -xf qemu-5.2.0.tar.xz
+        cp -r qemu/fpu qemu-5.2.0/
+        cp -r qemu/target/riscv qemu-5.2.0/target/
+        cp qemu/include/tcg/tcg-op.h qemu-5.2.0/include/tcg/
+        cd qemu-5.2.0
+        mkdir build
+        cd build
+        ../configure --prefix=`pwd`/install --target-list=riscv64-linux-user --disable-system
+        make -j2
+        make install
+        cp -r install $GITHUB_WORKSPACE/qemu-install
+
+    - name: cache-riscv
+      id: cache-riscv
+      uses: actions/cache@v1
+      with:
+        path: rv64gcv-install
+        key: rv64gcv-linux-install-20210504
+
+    - name: install-riscv-build-deps
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
+
+    - name: checkout-riscv-gnu-toolchain
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: riscv/riscv-gnu-toolchain
+        path: riscv-gnu-toolchain
+        ref: 28271f03bb538d926ad2889dc8ad1b0cb1b3b45c
+    - name: checkout-riscv-gnu-toolchain-submodules
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        cd riscv-gnu-toolchain
+        git submodule update --init --recursive --depth 1 riscv-binutils
+        git submodule update --init --recursive --depth 1 riscv-gcc
+        git submodule update --init --recursive --depth 1 riscv-glibc
+        git submodule update --init --recursive --depth 1 riscv-dejagnu
+        git submodule update --init --recursive --depth 1 riscv-newlib
+        git submodule update --init --recursive --depth 1 riscv-gdb
+    - name: riscv-gnu-toolchain
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        cd riscv-gnu-toolchain
+        sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
+        ./configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install --with-arch=rv64gcv_zfh
+        make linux
+
+    - name: riscv-strip-install
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: find $GITHUB_WORKSPACE/rv64gcv-install -type f | xargs -i strip -g {} || true
+
+    - name: configure
+      run: export RISCV_ROOT_PATH=$GITHUB_WORKSPACE/rv64gcv-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j 2
+
+    - name: test
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,x-v=true,x-k=true,vlen=256,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
