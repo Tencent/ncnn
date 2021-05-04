@@ -15,15 +15,13 @@ jobs:
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
-      with:
-        submodules: true
 
     - name: cache-riscv
       id: cache-riscv
       uses: actions/cache@v1
       with:
         path: rv64gcv-install
-        key: rv64gcv-newlib-install-20210425
+        key: rv64gcv-newlib-install-20210504
 
     - name: install-riscv-build-deps
       if: steps.cache-riscv.outputs.cache-hit != 'true'
@@ -53,7 +51,7 @@ jobs:
       run: |
         cd riscv-gnu-toolchain
         sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
-        ./configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install --with-arch=rv64gcv
+        ./configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install --with-arch=rv64gcv_zfh
         make
 
     - name: checkout-riscv-pk
@@ -116,8 +114,6 @@ jobs:
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
-      with:
-        submodules: true
 
     - name: cache-riscv
       id: cache-riscv

@@ -15,8 +15,6 @@ jobs:
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
-      with:
-        submodules: true
 
     - name: cache-riscv
       id: cache-riscv
