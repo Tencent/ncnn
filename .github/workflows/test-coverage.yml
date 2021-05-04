@@ -510,6 +510,9 @@ jobs:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
 
+    - name: lcov
+      run: sudo apt-get install lcov
+
     - name: cache-qemu
       id: cache-qemu
       uses: actions/cache@v1
@@ -568,6 +571,9 @@ jobs:
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
+
+    - name: lcov
+      run: sudo apt-get install lcov
 
     - name: cache-qemu
       id: cache-qemu
