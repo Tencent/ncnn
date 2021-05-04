@@ -83,7 +83,7 @@ jobs:
         tar -xf qemu-5.2.0.tar.xz
         cp -r qemu/fpu qemu-5.2.0/
         cp -r qemu/target/riscv qemu-5.2.0/target/
-        cp qemu/include/tcg/tcg-op.h qemu-5.2.0/target/include/tcg/
+        cp qemu/include/tcg/tcg-op.h qemu-5.2.0/include/tcg/
         cd qemu-5.2.0
         ./configure --prefix=install --target-list=riscv64-linux-user --disable-system
         make -j2
@@ -141,4 +141,4 @@ jobs:
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,x-v=true,x-k=true,vlen=256,elen=64,vext_spec=v1.0;-L;/usr/riscv64-linux-gnu" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,x-v=true,x-k=true,vlen=256,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
