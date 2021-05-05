@@ -226,6 +226,78 @@ macro(ncnn_add_layer class)
         endif()
     endif()
 
+    if(NCNN_RUNTIME_CPU AND NCNN_RVV AND NCNN_TARGET_ARCH STREQUAL "riscv")
+        # enable rvv+fp16
+        set(NCNN_RISCV_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.h)
+        set(NCNN_RISCV_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.cpp)
+
+        if(WITH_LAYER_${name} AND EXISTS ${NCNN_RISCV_HEADER} AND EXISTS ${NCNN_RISCV_SOURCE})
+
+            set(NCNN_RVV_HEADER ${CMAKE_CURRENT_BINARY_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}_rvv.h)
+            set(NCNN_RVV_SOURCE ${CMAKE_CURRENT_BINARY_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}_rvv.cpp)
+
+            add_custom_command(
+                OUTPUT ${NCNN_RVV_HEADER}
+                COMMAND ${CMAKE_COMMAND} -DSRC=${NCNN_RISCV_HEADER} -DDST=${NCNN_RVV_HEADER} -DCLASS=${class} -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_rvv_source.cmake"
+                DEPENDS ${NCNN_RISCV_HEADER}
+                COMMENT "Generating source ${name}_${NCNN_TARGET_ARCH}_rvv.h"
+                VERBATIM
+            )
+            set_source_files_properties(${NCNN_RVV_HEADER} PROPERTIES GENERATED TRUE)
+
+            add_custom_command(
+                OUTPUT ${NCNN_RVV_SOURCE}
+                COMMAND ${CMAKE_COMMAND} -DSRC=${NCNN_RISCV_SOURCE} -DDST=${NCNN_RVV_SOURCE} -DCLASS=${class} -P "${CMAKE_CURRENT_SOURCE_DIR}/../cmake/ncnn_generate_rvv_source.cmake"
+                DEPENDS ${NCNN_RISCV_SOURCE}
+                COMMENT "Generating source ${name}_${NCNN_TARGET_ARCH}_rvv.cpp"
+                VERBATIM
+            )
+            set_source_files_properties(${NCNN_RVV_SOURCE} PROPERTIES GENERATED TRUE)
+
+            if(NCNN_COMPILER_SUPPORT_RVV_FP16)
+                set_source_files_properties(${NCNN_RVV_SOURCE} PROPERTIES COMPILE_FLAGS "-march=rv64gcv_zfh")
+            elseif(NCNN_COMPILER_SUPPORT_RVV)
+                set_source_files_properties(${NCNN_RVV_SOURCE} PROPERTIES COMPILE_FLAGS "-march=rv64gcv")
+            endif()
+
+            list(APPEND ncnn_SRCS ${NCNN_RVV_HEADER} ${NCNN_RVV_SOURCE})
+
+            # generate layer_declaration and layer_registry_rvv file
+            set(layer_declaration "${layer_declaration}#include \"layer/${name}.h\"\n")
+            set(layer_declaration_class "class ${class}_final_rvv : virtual public ${class}")
+            set(create_pipeline_content "        { int ret = ${class}::create_pipeline(opt); if (ret) return ret; }\n")
+            set(destroy_pipeline_content "        { int ret = ${class}::destroy_pipeline(opt); if (ret) return ret; }\n")
+
+            set(layer_declaration "${layer_declaration}#include \"layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}_rvv.h\"\n")
+            set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_${NCNN_TARGET_ARCH}_rvv")
+            set(create_pipeline_content "${create_pipeline_content}        { int ret = ${class}_${NCNN_TARGET_ARCH}_rvv::create_pipeline(opt); if (ret) return ret; }\n")
+            set(destroy_pipeline_content "        { int ret = ${class}_${NCNN_TARGET_ARCH}_rvv::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
+
+            if(WITH_LAYER_${name}_vulkan)
+                set(layer_declaration "${layer_declaration}#include \"layer/vulkan/${name}_vulkan.h\"\n")
+                set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_vulkan")
+                set(create_pipeline_content "${create_pipeline_content}        if (vkdev) { int ret = ${class}_vulkan::create_pipeline(opt); if (ret) return ret; }\n")
+                set(destroy_pipeline_content "        if (vkdev) { int ret = ${class}_vulkan::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
+            endif()
+
+            set(layer_declaration "${layer_declaration}namespace ncnn {\n${layer_declaration_class}\n{\n")
+            set(layer_declaration "${layer_declaration}public:\n")
+            set(layer_declaration "${layer_declaration}    virtual int create_pipeline(const Option& opt) {\n${create_pipeline_content}        return 0;\n    }\n")
+            set(layer_declaration "${layer_declaration}    virtual int destroy_pipeline(const Option& opt) {\n${destroy_pipeline_content}        return 0;\n    }\n")
+            set(layer_declaration "${layer_declaration}};\n")
+            set(layer_declaration "${layer_declaration}DEFINE_LAYER_CREATOR(${class}_final_rvv)\n} // namespace ncnn\n\n")
+
+            set(layer_registry_rvv "${layer_registry_rvv}#if NCNN_STRING\n{\"${class}\", ${class}_final_rvv_layer_creator},\n#else\n{${class}_final_rvv_layer_creator},\n#endif\n")
+        else()
+            # no arm optimized version
+            if(WITH_LAYER_${name})
+                set(layer_registry_rvv "${layer_registry_rvv}#if NCNN_STRING\n{\"${class}\", ${class}_final_layer_creator},\n#else\n{${class}_final_layer_creator},\n#endif\n")
+            else()
+                set(layer_registry_rvv "${layer_registry_rvv}#if NCNN_STRING\n{\"${class}\", 0},\n#else\n{0},\n#endif\n")
+            endif()
+        endif()
+    endif()
+
     # generate layer_type_enum file
     set(layer_type_enum "${layer_type_enum}${class} = ${__LAYER_TYPE_ENUM_INDEX},\n")
     math(EXPR __LAYER_TYPE_ENUM_INDEX "${__LAYER_TYPE_ENUM_INDEX}+1")

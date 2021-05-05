@@ -32,7 +32,9 @@ UnaryOp_riscv::UnaryOp_riscv()
 {
 #if __riscv_vector
     support_packing = true;
+#if __riscv_zfh
     support_fp16_storage = true;
+#endif
 #endif // __riscv_vector
 }
 
@@ -249,7 +251,7 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 {
     int elembits = bottom_top_blob.elembits();
 
-#if __riscv_vector
+#if __riscv_vector && __riscv_zfh
     if (opt.use_fp16_storage && elembits == 16)
         return forward_inplace_fp16s(bottom_top_blob, opt);
 #endif
@@ -312,7 +314,7 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #endif // __riscv_vector
 }
 
-#if __riscv_vector
+#if __riscv_vector && __riscv_zfh
 template<typename Op>
 static int unary_op_inplace_fp16s(Mat& a, const Option& opt)
 {
@@ -575,6 +577,6 @@ int UnaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
 
     return 0;
 }
-#endif // __riscv_vector
+#endif // __riscv_vector && __riscv_zfh
 
 } // namespace ncnn

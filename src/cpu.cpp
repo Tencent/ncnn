@@ -390,6 +390,32 @@ int cpu_support_riscv_v()
 #endif
 }
 
+int cpu_support_riscv_zfh()
+{
+#if __riscv
+#if __riscv_zfh
+    // https://github.com/riscv/riscv-zfinx/blob/master/Zfinx_spec.adoc#5-discovery
+    __fp16 a = 0;
+    asm volatile(
+        "fneg.h     %0, %0          \n"
+        : "=f"(a)
+        : "0"(a)
+        :);
+    union
+    {
+        __fp16 a;
+        unsigned short u;
+    } tmp;
+    tmp.a = a;
+    return tmp.u != 0 ? 1 : 0;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
 static int get_cpucount()
 {
     int count = 0;

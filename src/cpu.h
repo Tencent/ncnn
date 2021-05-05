@@ -57,6 +57,8 @@ NCNN_EXPORT int cpu_support_x86_avx2();
 
 // v = riscv vector
 NCNN_EXPORT int cpu_support_riscv_v();
+// zfh = riscv half-precision float
+NCNN_EXPORT int cpu_support_riscv_zfh();
 
 // cpu info
 NCNN_EXPORT int get_cpu_count();

@@ -12,27 +12,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_SWISH_RISCV_H
-#define LAYER_SWISH_RISCV_H
+#ifndef LAYER_CAST_RISCV_H
+#define LAYER_CAST_RISCV_H
 
-#include "swish.h"
+#include "cast.h"
 
 namespace ncnn {
 
-class Swish_riscv : virtual public Swish
+class Cast_riscv : virtual public Cast
 {
 public:
-    Swish_riscv();
+    Cast_riscv();
 
-    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
-
-protected:
-#if __riscv_vector && __riscv_zfh
-    int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
-    int forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const;
-#endif
+    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_SWISH_RISCV_H
+#endif // LAYER_CAST_RISCV_H

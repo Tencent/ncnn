@@ -32,7 +32,9 @@ Sigmoid_riscv::Sigmoid_riscv()
 {
 #if __riscv_vector
     support_packing = true;
+#if __riscv_zfh
     support_fp16_storage = true;
+#endif
 #endif // __riscv_vector
 }
 
@@ -40,7 +42,7 @@ int Sigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 {
     int elembits = bottom_top_blob.elembits();
 
-#if __riscv_vector
+#if __riscv_vector && __riscv_zfh
     if (opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
@@ -87,7 +89,7 @@ int Sigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     return 0;
 }
 
-#if __riscv_vector
+#if __riscv_vector && __riscv_zfh
 int Sigmoid_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
@@ -147,6 +149,6 @@ int Sigmoid_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
 
     return 0;
 }
-#endif // __riscv_vector
+#endif // __riscv_vector && __riscv_zfh
 
 } // namespace ncnn
