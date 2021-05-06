@@ -644,13 +644,10 @@ int main(int argc, char** argv)
             {
                 fprintf(pp, " 0=%zd", size_t(bs.dim(2)));
                 fprintf(pp, " 1=%zd", size_t(bs.dim(1)));
-                fprintf(pp, " 2=-233");
             }
             else if (bs.dim_size() == 2)
             {
                 fprintf(pp, " 0=%zd", size_t(bs.dim(1)));
-                fprintf(pp, " 1=-233");
-                fprintf(pp, " 2=-233");
             }
         }
         else if (layer.type() == "Interp")
