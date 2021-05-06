@@ -2047,6 +2047,62 @@ Extractor Net::create_extractor() const
     return Extractor(this, d->blobs.size());
 }
 
+const std::vector<int> Net::input_indexes() const
+{
+    std::vector<int> indexes;
+    for (size_t i = 0; i < d->layers.size(); i++)
+    {
+        if (d->layers[i]->typeindex == 16)
+        {
+            for (size_t j = 0; j < d->layers[i]->tops.size(); j++)
+            {
+                size_t blob_index = d->layers[i]->tops[j];
+                indexes.push_back(blob_index);
+            }
+        }
+    }
+    return indexes;
+}
+
+const std::vector<int> Net::output_indexes() const
+{
+    std::vector<int> indexes;
+    for (size_t i = 0; i < d->blobs.size(); i++)
+    {
+        if (d->blobs[i].consumer == -1)
+        {
+            indexes.push_back(i);
+        }
+    }
+    return indexes;
+}
+
+#if NCNN_STRING
+const std::vector<const char*> Net::input_names() const
+{
+    std::vector<const char*> names;
+    const std::vector<int> indexes = input_indexes();
+    for (size_t i = 0; i < indexes.size(); i++)
+    {
+        size_t blob_index = indexes[i];
+        names.push_back(d->blobs[blob_index].name.c_str());
+    }
+    return names;
+}
+
+const std::vector<const char*> Net::output_names() const
+{
+    std::vector<const char*> names;
+    const std::vector<int> indexes = output_indexes();
+    for (size_t i = 0; i < indexes.size(); i++)
+    {
+        size_t blob_index = indexes[i];
+        names.push_back(d->blobs[blob_index].name.c_str());
+    }
+    return names;
+}
+#endif
+
 const std::vector<Blob>& Net::blobs() const
 {
     return d->blobs;
