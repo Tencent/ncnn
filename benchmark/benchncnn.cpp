@@ -126,7 +126,7 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     for (int i = 0; i < g_warmup_loop_count; i++)
     {
         ncnn::Extractor ex = net.create_extractor();
-	    ex.input(input_names[0], in);
+        ex.input(input_names[0], in);
         ex.extract(output_names[0], out);
     }
 
@@ -140,7 +140,7 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
 
         {
             ncnn::Extractor ex = net.create_extractor();
-		    ex.input(input_names[0], in);
+            ex.input(input_names[0], in);
             ex.extract(output_names[0], out);
         }
 
