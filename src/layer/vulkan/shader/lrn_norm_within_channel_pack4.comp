@@ -75,14 +75,14 @@ void main()
 
     // support region_type == 1 only
 
-    afpvec4 sum = afpvec4(0.f);
+    vec4 sum = vec4(0.f);
 
 #if NCNN_image_shader
     for (int y = 0; y < local_size; y++)
     {
         for (int x = 0; x < local_size; x++)
         {
-            sum += afpvec4(texelFetch(square_workspace, ivec3(gx + x, gy + y, gz), 0));
+            sum += texelFetch(square_workspace, ivec3(gx + x, gy + y, gz), 0);
         }
     }
 #else
@@ -92,15 +92,15 @@ void main()
     {
         for (int x = 0; x < local_size; x++)
         {
-            sum += afpvec4(square_workspace_data[v_offset + x]);
+            sum += square_workspace_data[v_offset + x];
         }
 
         v_offset += psc(w);
     }
 #endif
 
-    const afp alpha_div_size = afp(alpha / (local_size * local_size));
-    afpvec4 scale = pow(afp(bias_constant) + alpha_div_size * sum, afpvec4(-beta));
+    const float alpha_div_size = alpha / (local_size * local_size);
+    afpvec4 scale = afpvec4(pow(bias_constant + alpha_div_size * sum, vec4(-beta)));
 
 #if NCNN_image_shader
     afpvec4 v = image3d_ld4(bottom_blob, ivec3(gx, gy, gz));
