@@ -3,9 +3,6 @@ on:
   push:
     tags:
       - '*'
-  pull_request:
-    branches: [master]
-    paths-ignore: ['**.md']
 jobs:
   build_sdist:
     name: Build SDist
