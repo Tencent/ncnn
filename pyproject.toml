@@ -2,7 +2,7 @@
 requires = [
     "setuptools>=42",
     "wheel",
-    "ninja; sys_platform != 'win32'",
-    "cmake>=3.12",
+    "ninja; sys_platform != 'win32' and platform_machine != 's390x'",
+    "cmake>=3.12; platform_machine != 's390x'",
 ]
 build-backend = "setuptools.build_meta"
