@@ -245,7 +245,7 @@ make -j$(nproc)
 ***
 
 ### Build for Hisilicon platform with cross-compiling
-Download and install Hisilicon SDK. The oolchain should be in `/opt/hisi-linux/x86-arm`
+Download and install Hisilicon SDK. The toolchain should be in `/opt/hisi-linux/x86-arm`
 
 ```shell
 cd <ncnn-root-dir>
