@@ -8,33 +8,33 @@ More model networks may be added later.
 
 ---
 Build
-```
+```shell
 # assume you have already build ncnn library successfully
 # uncomment the following line in <ncnn-root-dir>/CMakeLists.txt with your favorite editor
 
 # add_subdirectory(benchmark)
 
-$ cd <ncnn-root-dir>/<your-build-dir>
-$ make -j4
+cd <ncnn-root-dir>/<your-build-dir>
+make -j4
 
 # you can find benchncnn binary in <ncnn-root-dir>/<your-build-dir>/benchmark
 ```
 
 Usage
-```
+```shell
 # copy all param files to the current directory
-$ ./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down]
+./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down]
 ```
 run benchncnn on android device
-```
+```shell
 # for running on android device, upload to /data/local/tmp/ folder
-$ adb push benchncnn /data/local/tmp/
-$ adb push <ncnn-root-dir>/benchmark/*.param /data/local/tmp/
-$ adb shell
+adb push benchncnn /data/local/tmp/
+adb push <ncnn-root-dir>/benchmark/*.param /data/local/tmp/
+adb shell
 
 # executed in android adb shell
-$ cd /data/local/tmp/
-$ ./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down]
+cd /data/local/tmp/
+./benchncnn [loop count] [num threads] [powersave] [gpu device] [cooling down]
 ```
 
 Parameter
@@ -51,7 +51,8 @@ Parameter
 
 Typical output (executed in android adb shell)
 
-AMD Ryzen Threadripper 3970X 32-Core Processor
+
+### AMD Ryzen Threadripper 3970X 32-Core Processor
 ```
 i@s:~/qtang/ncnn/benchmark$ ../build-vulkan/benchmark/benchncnn 10 1 0 -1 0
 loop_count = 10
@@ -82,7 +83,7 @@ cooling_down = 0
          yolov4-tiny  min =   85.65  max =   85.97  avg =   85.79
 ```
 
-Quadro RTX 8000
+### Quadro RTX 8000
 ```
 i@s:~/qtang/ncnn/benchmark$ ../build-vulkan/benchmark/benchncnn 256 1 0 1 0
 [0 Quadro RTX 8000]  queueC=2[8]  queueG=0[16]  queueT=1[2]
@@ -122,83 +123,79 @@ cooling_down = 0
 
 ```
 
-Qualcomm SM8150-AC Snapdragon 855+ (Kyro485 2.96 GHz + 2.42 GHz x 3 + 1.80 GHz x 4 + Adreno 640)
+### Qualcomm SM8150-AC Snapdragon 855+ (Kyro485 2.96 GHz + 2.42 GHz x 3 + 1.80 GHz x 4 + Adreno 640)
 ```
 OnePlus7T:/data/local/tmp $ ./benchncnn 8 4 2 -1 1
-[0 Adreno (TM) 640]  queueC=0[3]  queueG=0[3]  queueT=0[3]
-[0 Adreno (TM) 640]  buglssc=0  bugsbn1=0  buglbia=0  bugihfa=1
-[0 Adreno (TM) 640]  fp16p=1  fp16s=0  fp16a=1  int8s=0  int8a=0
 loop_count = 8
 num_threads = 4
 powersave = 2
 gpu_device = -1
 cooling_down = 1
-          squeezenet  min =    8.84  max =    8.89  avg =    8.87
-     squeezenet_int8  min =   11.86  max =   11.98  avg =   11.89
-           mobilenet  min =   11.36  max =   11.46  avg =   11.40
-      mobilenet_int8  min =   26.63  max =   26.76  avg =   26.70
-        mobilenet_v2  min =    9.67  max =    9.79  avg =    9.72
-        mobilenet_v3  min =    9.14  max =    9.40  avg =    9.22
-          shufflenet  min =    6.69  max =    6.89  avg =    6.79
-       shufflenet_v2  min =    5.16  max =    5.41  avg =    5.25
-             mnasnet  min =    8.62  max =    8.73  avg =    8.69
-     proxylessnasnet  min =   10.16  max =   10.26  avg =   10.22
-     efficientnet_b0  min =   16.94  max =   17.10  avg =   17.02
-        regnety_400m  min =   16.77  max =   16.99  avg =   16.90
-           blazeface  min =    1.88  max =    2.36  avg =    2.04
-           googlenet  min =   27.83  max =   28.06  avg =   27.95
-      googlenet_int8  min =   38.19  max =   38.38  avg =   38.29
-            resnet18  min =   29.89  max =   29.98  avg =   29.92
-       resnet18_int8  min =   36.57  max =   36.71  avg =   36.62
-             alexnet  min =   30.67  max =   30.91  avg =   30.81
-               vgg16  min =  159.45  max =  164.00  avg =  162.05
-          vgg16_int8  min =  249.24  max =  250.14  avg =  249.64
-            resnet50  min =   64.06  max =   64.82  avg =   64.24
-       resnet50_int8  min =   77.52  max =   77.85  avg =   77.62
-      squeezenet_ssd  min =   28.52  max =   28.84  avg =   28.64
- squeezenet_ssd_int8  min =   36.10  max =   36.31  avg =   36.21
-       mobilenet_ssd  min =   24.05  max =   24.29  avg =   24.19
-  mobilenet_ssd_int8  min =   39.57  max =   40.00  avg =   39.70
-      mobilenet_yolo  min =   54.10  max =   55.55  avg =   54.86
-  mobilenetv2_yolov3  min =   30.92  max =   31.09  avg =   30.98
+          squeezenet  min =    4.46  max =    4.58  avg =    4.51
+     squeezenet_int8  min =    5.17  max =    5.29  avg =    5.21
+           mobilenet  min =    5.94  max =    6.04  avg =    5.99
+      mobilenet_int8  min =    5.08  max =    5.17  avg =    5.12
+        mobilenet_v2  min =    5.08  max =    5.19  avg =    5.13
+        mobilenet_v3  min =    4.93  max =    5.12  avg =    5.02
+          shufflenet  min =    4.34  max =    4.50  avg =    4.40
+       shufflenet_v2  min =    3.46  max =    3.57  avg =    3.52
+             mnasnet  min =    4.62  max =    4.76  avg =    4.69
+     proxylessnasnet  min =    5.48  max =    5.67  avg =    5.59
+     efficientnet_b0  min =   10.01  max =   10.29  avg =   10.09
+        regnety_400m  min =    8.26  max =    8.46  avg =    8.33
+           blazeface  min =    1.92  max =    2.36  avg =    2.04
+           googlenet  min =   17.38  max =   17.55  avg =   17.49
+      googlenet_int8  min =   18.57  max =   18.69  avg =   18.63
+            resnet18  min =   11.54  max =   11.80  avg =   11.63
+       resnet18_int8  min =   18.13  max =   18.62  avg =   18.27
+             alexnet  min =   16.53  max =   16.61  avg =   16.58
+               vgg16  min =   65.81  max =   67.11  avg =   66.40
+          vgg16_int8  min =  145.95  max =  148.61  avg =  147.95
+            resnet50  min =   28.28  max =   28.36  avg =   28.32
+       resnet50_int8  min =   34.74  max =   34.98  avg =   34.88
+      squeezenet_ssd  min =   22.87  max =   23.42  avg =   23.05
+ squeezenet_ssd_int8  min =   26.83  max =   26.94  avg =   26.89
+       mobilenet_ssd  min =   16.71  max =   16.92  avg =   16.77
+  mobilenet_ssd_int8  min =   14.55  max =   15.03  avg =   14.70
+      mobilenet_yolo  min =   28.60  max =   29.43  avg =   28.84
+  mobilenetv2_yolov3  min =   19.43  max =   19.84  avg =   19.61
+         yolov4-tiny  min =   29.16  max =   29.57  avg =   29.38
 
 OnePlus7T:/data/local/tmp $ ./benchncnn 8 1 2 -1 1
-[0 Adreno (TM) 640]  queueC=0[3]  queueG=0[3]  queueT=0[3]
-[0 Adreno (TM) 640]  buglssc=0  bugsbn1=0  buglbia=0  bugihfa=1
-[0 Adreno (TM) 640]  fp16p=1  fp16s=0  fp16a=1  int8s=0  int8a=0
 loop_count = 8
 num_threads = 1
 powersave = 2
 gpu_device = -1
 cooling_down = 1
-          squeezenet  min =   18.12  max =   18.30  avg =   18.22
-     squeezenet_int8  min =   27.24  max =   27.37  avg =   27.30
-           mobilenet  min =   29.91  max =   30.11  avg =   29.98
-      mobilenet_int8  min =   63.81  max =   64.10  avg =   63.96
-        mobilenet_v2  min =   20.77  max =   20.99  avg =   20.86
-        mobilenet_v3  min =   18.65  max =   18.78  avg =   18.72
-          shufflenet  min =   11.64  max =   11.77  avg =   11.70
-       shufflenet_v2  min =   10.08  max =   10.16  avg =   10.12
-             mnasnet  min =   19.25  max =   19.49  avg =   19.36
-     proxylessnasnet  min =   24.15  max =   24.36  avg =   24.27
-     efficientnet_b0  min =   42.89  max =   43.14  avg =   43.00
-        regnety_400m  min =   26.08  max =   26.23  avg =   26.15
-           blazeface  min =    3.74  max =    3.96  avg =    3.83
-           googlenet  min =   63.38  max =   63.54  avg =   63.45
-      googlenet_int8  min =   90.35  max =   90.65  avg =   90.48
-            resnet18  min =   56.61  max =   57.02  avg =   56.75
-       resnet18_int8  min =   89.95  max =   90.08  avg =   90.02
-             alexnet  min =   70.55  max =   70.69  avg =   70.62
-               vgg16  min =  306.45  max =  306.91  avg =  306.62
-          vgg16_int8  min =  526.03  max =  526.50  avg =  526.28
-            resnet50  min =  145.12  max =  145.78  avg =  145.38
-       resnet50_int8  min =  195.47  max =  196.43  avg =  195.93
-      squeezenet_ssd  min =   45.31  max =   45.65  avg =   45.52
- squeezenet_ssd_int8  min =   71.72  max =   71.96  avg =   71.89
-       mobilenet_ssd  min =   61.36  max =   61.68  avg =   61.45
-  mobilenet_ssd_int8  min =   99.53  max =   99.81  avg =   99.70
-      mobilenet_yolo  min =  134.94  max =  135.08  avg =  135.02
-  mobilenetv2_yolov3  min =   71.09  max =   71.24  avg =   71.16
+          squeezenet  min =    9.69  max =    9.75  avg =    9.72
+     squeezenet_int8  min =   10.24  max =   10.40  avg =   10.30
+           mobilenet  min =   15.19  max =   15.29  avg =   15.23
+      mobilenet_int8  min =   12.28  max =   12.37  avg =   12.31
+        mobilenet_v2  min =   10.56  max =   10.66  avg =   10.61
+        mobilenet_v3  min =    9.10  max =    9.25  avg =    9.14
+          shufflenet  min =    6.95  max =    7.11  avg =    7.02
+       shufflenet_v2  min =    6.66  max =    6.81  avg =    6.73
+             mnasnet  min =    9.97  max =   10.13  avg =   10.03
+     proxylessnasnet  min =   12.32  max =   12.47  avg =   12.37
+     efficientnet_b0  min =   23.32  max =   23.45  avg =   23.37
+        regnety_400m  min =   12.40  max =   12.50  avg =   12.44
+           blazeface  min =    3.86  max =    4.23  avg =    3.96
+           googlenet  min =   43.45  max =   43.59  avg =   43.52
+      googlenet_int8  min =   42.83  max =   43.21  avg =   43.04
+            resnet18  min =   23.57  max =   23.92  avg =   23.73
+       resnet18_int8  min =   46.70  max =   47.05  avg =   46.91
+             alexnet  min =   37.83  max =   37.95  avg =   37.89
+               vgg16  min =  138.18  max =  138.84  avg =  138.53
+          vgg16_int8  min =  368.28  max =  368.97  avg =  368.55
+            resnet50  min =   68.52  max =   68.78  avg =   68.69
+       resnet50_int8  min =   87.54  max =   88.07  avg =   87.92
+      squeezenet_ssd  min =   36.45  max =   37.45  avg =   36.70
+ squeezenet_ssd_int8  min =   47.19  max =   47.43  avg =   47.30
+       mobilenet_ssd  min =   38.27  max =   38.39  avg =   38.36
+  mobilenet_ssd_int8  min =   32.20  max =   33.01  avg =   32.49
+      mobilenet_yolo  min =   69.79  max =   70.12  avg =   69.94
+  mobilenetv2_yolov3  min =   38.65  max =   38.85  avg =   38.78
+         yolov4-tiny  min =   52.62  max =   52.96  avg =   52.74
 
 OnePlus7T:/data/local/tmp $ ./benchncnn 8 1 2 0 1
 [0 Adreno (TM) 640]  queueC=0[3]  queueG=0[3]  queueT=0[3]
@@ -231,7 +228,7 @@ cooling_down = 1
   mobilenetv2_yolov3  min =   28.68  max =   28.92  avg =   28.79
 ```
 
-Qualcomm MSM6150 Snapdragon 675 (Kyro460 2.0GHz x 2 + Kyro460 1.7GHz x 6 + Adreno 612)
+### Qualcomm MSM6150 Snapdragon 675 (Kyro460 2.0GHz x 2 + Kyro460 1.7GHz x 6 + Adreno 612)
 ```
 violet:/data/local/tmp/ncnn $ ./benchncnn 8 2 0
 loop_count = 8
@@ -292,7 +289,7 @@ gpu_device = -1
     mobilenet_yolov3  min =  242.10  max =  242.91  avg =  242.47  
 ```
 
-Kirin 970 (Cortex-A73 2.4GHz x 4 + Cortex-A53 1.8GHz x 4)
+### Kirin 970 (Cortex-A73 2.4GHz x 4 + Cortex-A53 1.8GHz x 4)
 ```
 HWEML:/data/local/tmp/ncnnbench $ ./benchncnn 8 4 2 -1 1
 [0 Mali-G72]  queueC=0[2]  queueG=0[2]  queueT=0[2]
@@ -401,7 +398,7 @@ cooling_down = 1
   mobilenetv2_yolov3  min =   53.11  max =   54.81  avg =   54.11
 ```
 
-Qualcomm MSM8998 Snapdragon 835 (Kyro 2.45GHz x 4 + Kyro 1.9GHz x 4 + Adreno 540)
+### Qualcomm MSM8998 Snapdragon 835 (Kyro 2.45GHz x 4 + Kyro 1.9GHz x 4 + Adreno 540)
 ```
 taimen:/data/local/tmp/ncnnbench $ ./benchncnn 8 4 2 -1 0
 [0 Adreno (TM) 540]  queueC=0[3]  queueG=0[3]  queueT=0[3]
@@ -510,7 +507,7 @@ cooling_down = 1
   mobilenetv2_yolov3  min =   57.49  max =   61.15  avg =   58.74
 ```
 
-Qualcomm SDM660 Snapdragon 660 (Kyro260 2.2GHz x 4 + Kyro260 1.84GHz x 4 + Adreno 512)
+### Qualcomm SDM660 Snapdragon 660 (Kyro260 2.2GHz x 4 + Kyro260 1.84GHz x 4 + Adreno 512)
 ```
 lavender:/data/local/tmp/ncnnbench $ ./benchncnn 8 8 0 -1 1
 [0 Adreno (TM) 512]  queueC=0[3]  queueG=0[3]  queueT=0[3]
@@ -619,7 +616,7 @@ cooling_down = 1
   mobilenetv2_yolov3  min =  121.48  max =  125.22  avg =  122.53
 ```
 
-Qualcomm MSM8996 Snapdragon 820 (Kyro 2.15GHz x 2 + Kyro 1.6GHz x 2)
+### Qualcomm MSM8996 Snapdragon 820 (Kyro 2.15GHz x 2 + Kyro 1.6GHz x 2)
 ```
 root@msm8996:/data/local/tmp/ncnn # ./benchncnn 8 4 0
 loop_count = 8
@@ -637,7 +634,7 @@ powersave = 0
    mobilenet-ssd  min =   68.95  max =   74.24  avg =   71.39
   mobilenet-yolo  min =  142.52  max =  149.72  avg =  148.23
 
-root@msm8996:/data/local/tmp/ncnn # ./benchncnn 8 1 2            
+root@msm8996:/data/local/tmp/ncnn # ./benchncnn 8 1 2
 loop_count = 8
 num_threads = 1
 powersave = 2
@@ -654,7 +651,7 @@ powersave = 2
   mobilenet-yolo  min =  366.91  max =  369.87  avg =  368.40
 ```
 
-Qualcomm MSM8994 Snapdragon 810 (Cortex-A57 2.0GHz x 4 + Cortex-A53 1.55GHz x 4)
+### Qualcomm MSM8994 Snapdragon 810 (Cortex-A57 2.0GHz x 4 + Cortex-A53 1.55GHz x 4)
 ```
 angler:/data/local/tmp $ ./benchncnn 8 8 0 -1 1
 [0 Adreno (TM) 430]  queueC=0[3]  queueG=0[3]  queueT=0[3]
@@ -763,7 +760,7 @@ cooling_down = 1
   mobilenetv2_yolov3  min =  140.28  max =  148.62  avg =  144.83
 ```
 
-Qualcomm MSM8916 Snapdragon 410 (Cortex-A53 1.2GHz x 4)
+### Qualcomm MSM8916 Snapdragon 410 (Cortex-A53 1.2GHz x 4)
 ```
 HM2014812:/data/local/tmp # ./benchncnn 8 4 0 -1 1
 no vulkan device
@@ -837,7 +834,8 @@ cooling_down = 1
       mobilenet_yolo  min = 1130.78  max = 1135.02  avg = 1132.42
   mobilenetv2_yolov3  min =  600.01  max =  602.18  avg =  600.88
 ```
-Raspberry Pi 3 Model B+ Broadcom BCM2837B0, Cortex-A53 (ARMv8) (1.4GHz x 4 )
+
+### Raspberry Pi 3 Model B+ Broadcom BCM2837B0, Cortex-A53 (ARMv8) (1.4GHz x 4)
 ```
 pi@raspberrypi:~ $ ./benchncnn 8 4 0
 loop_count = 8
@@ -856,7 +854,8 @@ powersave = 0
   mobilenet-yolo  min =  638.73  max =  641.27  avg =  639.87
 
 ```
-Raspberry Pi 4 Model B Broadcom BCM2711B0, Cortex-A72 (ARMv8) (1.5GHz x 4 )
+
+### Raspberry Pi 4 Model B Broadcom BCM2711B0, Cortex-A72 (ARMv8) (1.5GHz x 4)
 ```
 pi@raspberrypi:~ $ ./benchncnn 8 4 0
 loop_count = 8
@@ -891,9 +890,9 @@ cooling_down = 1
   mobilenetv2_yolov3  min =  241.08  max =  283.54  avg =  248.69
 ```
 
-Rockchip RK3399 (Cortex-A72 1.8GHz x 2 + Cortex-A53 1.5GHz x 4)
+### Rockchip RK3399 (Cortex-A72 1.8GHz x 2 + Cortex-A53 1.5GHz x 4)
 ```
-rk3399_firefly_box:/data/local/tmp/ncnn/benchmark # ./benchncnn 8 2 2          
+rk3399_firefly_box:/data/local/tmp/ncnn/benchmark # ./benchncnn 8 2 2
 loop_count = 8
 num_threads = 2
 powersave = 2
@@ -922,7 +921,7 @@ gpu_device = -1
       mobilenet_yolo  min =  387.88  max =  428.71  avg =  402.07
     mobilenet_yolov3  min =  409.21  max =  441.15  avg =  423.70
 
-rk3399_firefly_box:/data/local/tmp/ncnn/benchmark # ./benchncnn 8 1 2          
+rk3399_firefly_box:/data/local/tmp/ncnn/benchmark # ./benchncnn 8 1 2
 loop_count = 8
 num_threads = 1
 powersave = 2
@@ -951,7 +950,7 @@ gpu_device = -1
       mobilenet_yolo  min =  627.36  max =  636.86  avg =  632.40
     mobilenet_yolov3  min =  669.06  max =  682.47  avg =  676.11
 
-rk3399_firefly_box:/data/local/tmp/ncnn/benchmark # ./benchncnn 8 4 1          
+rk3399_firefly_box:/data/local/tmp/ncnn/benchmark # ./benchncnn 8 4 1
 loop_count = 8
 num_threads = 4
 powersave = 1
@@ -980,7 +979,7 @@ gpu_device = -1
       mobilenet_yolo  min =  349.75  max =  379.45  avg =  357.83
     mobilenet_yolov3  min =  363.76  max =  380.45  avg =  371.56
 
-rk3399_firefly_box:/data/local/tmp/ncnn/benchmark # ./benchncnn 8 1 1          
+rk3399_firefly_box:/data/local/tmp/ncnn/benchmark # ./benchncnn 8 1 1
 loop_count = 8
 num_threads = 1
 powersave = 1
@@ -1010,9 +1009,9 @@ gpu_device = -1
     mobilenet_yolov3  min = 1178.09  max = 1186.41  avg = 1181.39
 ```
 
-Rockchip RK3288 (Cortex-A17 1.8GHz x 4)
+### Rockchip RK3288 (Cortex-A17 1.8GHz x 4)
 ```
-root@rk3288:/data/local/tmp/ncnn # ./benchncnn 8 4 0 
+root@rk3288:/data/local/tmp/ncnn # ./benchncnn 8 4 0
 loop_count = 8
 num_threads = 4
 powersave = 0
@@ -1045,9 +1044,9 @@ powersave = 0
   mobilenet-yolo  min =  997.95  max = 1012.45  avg = 1002.32
 ```
 
-HiSilicon Hi3519V101 (Cortex-A17 1.2GHz x 1)
+### HiSilicon Hi3519V101 (Cortex-A17 1.2GHz x 1)
 ```
-root@Hi3519:/ncnn-benchmark # taskset 2 ./benchncnn 8 1 0 
+root@Hi3519:/ncnn-benchmark # taskset 2 ./benchncnn 8 1 0
 loop_count = 8
 num_threads = 1
 powersave = 0
@@ -1064,7 +1063,7 @@ powersave = 0
   mobilenet-yolo  min = 1867.78  max = 1880.08  avg = 1873.89
 ```
 
-iPhone 5S (Apple A7 1.3GHz x 2)
+### iPhone 5S (Apple A7 1.3GHz x 2)
 ```
 iPhone:~ root# ./benchncnn 8 2 0 -1
 [0 Apple A7 GPU]  queueC=0[8]  queueT=0[8]  memU=1  memDL=1  memHV=1
@@ -1157,7 +1156,7 @@ gpu_device = 0
   mobilenetv2_yolov3  min = 1047.24  max = 1060.97  avg = 1052.86
 ```
 
-Freescale i.MX7 Dual (Cortex A7 1.0GHz x 2)
+### Freescale i.MX7 Dual (Cortex A7 1.0GHz x 2)
 ```
 imx7d_pico:/data/local/tmp $ ./benchncnn 8 2 0 -1
 no vulkan device
@@ -1216,7 +1215,7 @@ gpu_device = -1
   mobilenetv2_yolov3  min = 1640.18  max = 1661.04  avg = 1652.19
 ```
 
-nVIDIA RTX2060 of Notebook
+### nVIDIA RTX2060 of Notebook
 ```
 C:\Users\ai\AppData\Local\Temp\benchmark>benchncnn.exe 64 1 0 0 0
 [0 GeForce RTX 2060]  queueC=2[8]  queueG=0[16]  queueT=1[2]
@@ -1246,7 +1245,7 @@ cooling_down = 0
   mobilenetv2_yolov3  min =    3.69  max =    5.14  avg =    3.91
 ```
 
-nVIDIA RTX2080 of Desktop
+### nVIDIA RTX2080 of Desktop
 ```
 E:\projects\framework\ncnn\benchmark>benchncnn.exe 4096 1 0 0 0
 [0 GeForce RTX 2080]  queueC=2[8]  queueG=0[16]  queueT=1[2]
@@ -1276,7 +1275,7 @@ cooling_down = 0
   mobilenetv2_yolov3  min =    3.04  max =    9.13  avg =    3.28
 ```
 
-NVIDIA Jetson AGX Xavier 
+### NVIDIA Jetson AGX Xavier
 ```
 $ ./benchncnn 8 4 2 -1 1
 loop_count = 8
@@ -1432,8 +1431,7 @@ cooling_down = 1
          yolov4-tiny  min =   10.48  max =   11.38  avg =   10.90
 ```
 
-
-MacBook Pro (13-inch, M1, 2020)
+### MacBook Pro (13-inch, M1, 2020)
 ```
 MacBook-Pro benchmark % ./benchncnn 10 1 0 -1 0
 loop_count = 10

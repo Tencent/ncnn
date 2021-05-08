@@ -8,7 +8,7 @@ Example with mobilenet, just need three steps.
 
 ### 1. Optimize model
 
-```
+```shell
 ./ncnnoptimize mobilenet.param mobilenet.bin mobilenet-opt.param mobilenet-opt.bin 0
 ```
 
@@ -18,13 +18,26 @@ We suggest that using the verification dataset for calibration, which is more th
 
 Some imagenet sample images here https://github.com/nihui/imagenet-sample-images
 
+```shell
+find images/ -type f > imagelist.txt
+./ncnn2table mobilenet-opt.param mobilenet-opt.bin imagelist.txt mobilenet.table mean=[104,117,123] norm=[0.017,0.017,0.017] shape=[224,224,3] pixel=BGR thread=8 method=kl
 ```
-./ncnn2table --param=mobilenet-opt.param --bin=mobilenet-opt.bin --images=images/ --output=mobilenet.table --mean=104,117,123 --norm=0.017,0.017,0.017 --size=224,224
+
+* mean and norm are the values you passed to ```Mat::substract_mean_normalize()```
+* shape is the blob shape of your model
+* pixel is the pixel format of your model, image pixels will be converted to this type before ```Extractor::input()```
+* thread is the CPU thread count that could be used for parallel inference
+* method is the post training quantization algorithm, kl and aciq are currently supported
+
+If your model has multiple input nodes, you can use multiple list files and other parameters
+
+```shell
+./ncnn2table mobilenet-opt.param mobilenet-opt.bin imagelist-bgr.txt,imagelist-depth.txt mobilenet.table mean=[104,117,123],[128] norm=[0.017,0.017,0.017],[0.0078125] shape=[224,224,3],[224,224,1] pixel=BGR,GRAY thread=8 method=kl
 ```
 
 ### 3. Quantize model
 
-```
+```shell
 ./ncnn2int8 mobilenet-opt.param mobilenet-opt.bin mobilenet-int8.param mobilenet-int8.bin mobilenet.table
 ```
 

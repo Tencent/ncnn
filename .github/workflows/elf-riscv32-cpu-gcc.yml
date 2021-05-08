@@ -15,15 +15,13 @@ jobs:
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
-      with:
-        submodules: true
 
     - name: cache-riscv
       id: cache-riscv
       uses: actions/cache@v1
       with:
         path: rv32imc-install
-        key: rv32imc-newlib-install
+        key: rv32imc-newlib-install-20210425
 
     - name: install-riscv-build-deps
       if: steps.cache-riscv.outputs.cache-hit != 'true'
@@ -37,7 +35,7 @@ jobs:
       with:
         repository: riscv/riscv-gnu-toolchain
         path: riscv-gnu-toolchain
-        ref: 256a4108922f76403a63d6567501c479971d5575
+        ref: b715e4f01b43efef487166f75d5d85d3c33fa7ef
     - name: checkout-riscv-gnu-toolchain-submodules
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       run: |
@@ -61,7 +59,7 @@ jobs:
       with:
         repository: riscv/riscv-pk
         path: riscv-pk
-        ref: 5d9ed238e1cabfbca3c47f50d32894ce94bfc304
+        ref: ef7bebaf9bf24d3e90bcaae96387ce418e136b6d
     - name: riscv-pk
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       run: |
@@ -79,7 +77,7 @@ jobs:
       with:
         repository: riscv/riscv-isa-sim
         path: riscv-isa-sim
-        ref: ecc039ef5726315b7e37e8a9c7b682bbe09c9cf5
+        ref: 9d4f45c2ebf105503974fc80a42590ca1584c354
     - name: riscv-isa-sim
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       run: |

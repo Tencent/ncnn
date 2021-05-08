@@ -969,10 +969,16 @@ static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vecto
 
 int main(int argc, char** argv)
 {
+    if (!(argc == 3 || argc == 5))
+    {
+        fprintf(stderr, "Usage: %s [mxnetjson] [mxnetparam] [ncnnparam] [ncnnbin]\n", argv[0]);
+        return -1;
+    }
+
     const char* jsonpath = argv[1];
     const char* parampath = argv[2];
-    const char* ncnn_prototxt = argc >= 5 ? argv[3] : "ncnn.param";
-    const char* ncnn_modelbin = argc >= 5 ? argv[4] : "ncnn.bin";
+    const char* ncnn_prototxt = argc == 5 ? argv[3] : "ncnn.param";
+    const char* ncnn_modelbin = argc == 5 ? argv[4] : "ncnn.bin";
 
     std::vector<MXNetNode> nodes;
     std::vector<MXNetParam> params;
