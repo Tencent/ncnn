@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void convolution_pack1to8_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_int8, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
+static void convolution_pack1to4_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_int8, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
 {
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
@@ -53,7 +53,6 @@ static void convolution_pack1to8_int8_neon(const Mat& bottom_blob, Mat& top_blob
             for (int j = 0; j < outw; j++)
             {
                 int32x4_t _sum0 = vdupq_n_s32(0);
-                int32x4_t _sum1 = vdupq_n_s32(0);
 
                 const signed char* kptr = weight_data_int8.channel(p);
 
@@ -69,17 +68,15 @@ static void convolution_pack1to8_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         int8x8_t _w = vld1_s8(kptr);
                         int16x8_t _s0 = vmull_s8(_val, _w);
                         _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
-                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
 
                         kptr += 8;
                     }
                 }
 
-                vst1q_s32(outptr + j * 8, _sum0);
-                vst1q_s32(outptr + j * 8 + 4, _sum1);
+                vst1q_s32(outptr + j * 4, _sum0);
             }
 
-            outptr += outw * 8;
+            outptr += outw * 4;
         }
     }
 }

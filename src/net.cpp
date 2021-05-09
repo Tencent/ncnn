@@ -391,7 +391,11 @@ IMAGE_ALLOCATION_FAILED:
 
     if (image_allocation_failed)
     {
+#if NCNN_STRING
         NCNN_LOGE("forward_layer %d %s image allocation failed, fallback to cpu", layer_index, layer->name.c_str());
+#else
+        NCNN_LOGE("forward_layer %d image allocation failed, fallback to cpu", layer_index);
+#endif
     }
 
     if (layer->one_blob_only)
@@ -732,6 +736,24 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
     }
     else
 #endif // NCNN_ARM82
+#if NCNN_RVV
+    if (opt.use_fp16_storage && cpu_support_riscv_v() && cpu_support_riscv_zfh())
+    {
+        if (bottom_blob.elembits() == 32 && layer->support_fp16_storage)
+        {
+            Mat bottom_blob_fp16;
+            cast_float32_to_float16(bottom_blob, bottom_blob_fp16, opt);
+            bottom_blob = bottom_blob_fp16;
+        }
+        if (bottom_blob.elembits() == 16 && !layer->support_fp16_storage)
+        {
+            Mat bottom_blob_fp32;
+            cast_float16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            bottom_blob = bottom_blob_fp32;
+        }
+    }
+    else
+#endif // NCNN_RVV
     if (opt.use_bf16_storage)
     {
         if (bottom_blob.elembits() == 32 && layer->support_bf16_storage)
@@ -771,6 +793,9 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
+#elif NCNN_RVV
+                if (elemcount % 4 == 0)
+                    dst_elempack = 4;
 #else
                 if (elemcount % 4 == 0)
                     dst_elempack = 4;
@@ -779,6 +804,11 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             if (elembits == 16)
             {
 #if NCNN_ARM82
+                if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && layer->support_fp16_storage)
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
+#elif NCNN_RVV
                 if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && layer->support_fp16_storage)
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
@@ -1413,7 +1443,7 @@ int Net::load_param(const DataReader& dr)
         int pdlr = pd.load_param(dr);
         if (pdlr != 0)
         {
-            NCNN_LOGE("ParamDict load_param failed");
+            NCNN_LOGE("ParamDict load_param %d %s failed", i, layer->name.c_str());
             continue;
         }
 
@@ -1466,7 +1496,7 @@ int Net::load_param(const DataReader& dr)
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
-            NCNN_LOGE("layer load_param failed");
+            NCNN_LOGE("layer load_param %d %s failed", i, layer->name.c_str());
             continue;
         }
 
@@ -1605,7 +1635,11 @@ int Net::load_param_bin(const DataReader& dr)
         int pdlr = pd.load_param_bin(dr);
         if (pdlr != 0)
         {
-            NCNN_LOGE("ParamDict load_param failed");
+#if NCNN_STRING
+            NCNN_LOGE("ParamDict load_param %d %s failed", i, layer->name.c_str());
+#else
+            NCNN_LOGE("ParamDict load_param %d failed", i);
+#endif
             continue;
         }
 
@@ -1658,7 +1692,11 @@ int Net::load_param_bin(const DataReader& dr)
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
-            NCNN_LOGE("layer load_param failed");
+#if NCNN_STRING
+            NCNN_LOGE("layer load_param %d %s failed", i, layer->name.c_str());
+#else
+            NCNN_LOGE("layer load_param %d failed", i);
+#endif
             continue;
         }
 
@@ -1677,18 +1715,20 @@ int Net::load_model(const DataReader& dr)
         return -1;
     }
 
+    int layer_count = (int)d->layers.size();
+
     // load file
     int ret = 0;
 
     ModelBinFromDataReader mb(dr);
-    for (size_t i = 0; i < d->layers.size(); i++)
+    for (int i = 0; i < layer_count; i++)
     {
         Layer* layer = d->layers[i];
 
         //Here we found inconsistent content in the parameter file.
         if (!layer)
         {
-            NCNN_LOGE("load_model error at layer %d, parameter file has inconsistent content.", (int)i);
+            NCNN_LOGE("load_model error at layer %d, parameter file has inconsistent content.", i);
             ret = -1;
             break;
         }
@@ -1696,7 +1736,11 @@ int Net::load_model(const DataReader& dr)
         int lret = layer->load_model(mb);
         if (lret != 0)
         {
-            NCNN_LOGE("layer load_model %d failed", (int)i);
+#if NCNN_STRING
+            NCNN_LOGE("layer load_model %d %s failed", i, layer->name.c_str());
+#else
+            NCNN_LOGE("layer load_model %d failed", i);
+#endif
             ret = -1;
             break;
         }
@@ -1720,17 +1764,9 @@ int Net::load_model(const DataReader& dr)
     }
 #endif // NCNN_VULKAN
 
-    for (size_t i = 0; i < d->layers.size(); i++)
+    for (int i = 0; i < layer_count; i++)
     {
         Layer* layer = d->layers[i];
-
-        //Here we found inconsistent content in the parameter file.
-        if (!layer)
-        {
-            NCNN_LOGE("load_model error at layer %d, parameter file has inconsistent content.", (int)i);
-            ret = -1;
-            break;
-        }
 
         Option opt1 = opt;
 #if NCNN_VULKAN
@@ -1743,7 +1779,11 @@ int Net::load_model(const DataReader& dr)
         int cret = layer->create_pipeline(opt1);
         if (cret != 0)
         {
-            NCNN_LOGE("layer create_pipeline %d failed", (int)i);
+#if NCNN_STRING
+            NCNN_LOGE("layer create_pipeline %d %s failed", i, layer->name.c_str());
+#else
+            NCNN_LOGE("layer create_pipeline %d failed", i);
+#endif
             ret = -1;
             break;
         }
@@ -2269,7 +2309,22 @@ int Extractor::input(const char* blob_name, const Mat& in)
 {
     int blob_index = d->net->find_blob_index_by_name(blob_name);
     if (blob_index == -1)
+    {
+        NCNN_LOGE("Try");
+        const std::vector<Blob>& blobs = d->net->blobs();
+        const std::vector<Layer*>& layers = d->net->layers();
+        int in_index = 0;
+        for (size_t i = 0; i < layers.size(); i++)
+        {
+            if (layers[i]->type != "Input")
+                continue;
+
+            int input_blob_index = layers[i]->tops[0];
+            NCNN_LOGE("    ex.input(\"%s\", in%d);", blobs[input_blob_index].name.c_str(), in_index++);
+        }
+
         return -1;
+    }
 
     return input(blob_index, in);
 }
@@ -2278,7 +2333,20 @@ int Extractor::extract(const char* blob_name, Mat& feat, int type)
 {
     int blob_index = d->net->find_blob_index_by_name(blob_name);
     if (blob_index == -1)
+    {
+        NCNN_LOGE("Try");
+        const std::vector<Blob>& blobs = d->net->blobs();
+        int out_index = 0;
+        for (size_t i = 0; i < blobs.size(); i++)
+        {
+            if (blobs[i].producer == -1 || blobs[i].consumer != -1)
+                continue;
+
+            NCNN_LOGE("    ex.extract(\"%s\", out%d);", blobs[i].name.c_str(), out_index++);
+        }
+
         return -1;
+    }
 
     return extract(blob_index, feat, type);
 }
@@ -2460,7 +2528,22 @@ int Extractor::input(const char* blob_name, const VkMat& in)
 {
     int blob_index = d->net->find_blob_index_by_name(blob_name);
     if (blob_index == -1)
+    {
+        NCNN_LOGE("Try");
+        const std::vector<Blob>& blobs = d->net->blobs();
+        const std::vector<Layer*>& layers = d->net->layers();
+        int in_index = 0;
+        for (size_t i = 0; i < layers.size(); i++)
+        {
+            if (layers[i]->type != "Input")
+                continue;
+
+            int input_blob_index = layers[i]->tops[0];
+            NCNN_LOGE("    ex.input(\"%s\", in%d);", blobs[input_blob_index].name.c_str(), in_index++);
+        }
+
         return -1;
+    }
 
     return input(blob_index, in);
 }
@@ -2469,7 +2552,20 @@ int Extractor::extract(const char* blob_name, VkMat& feat, VkCompute& cmd)
 {
     int blob_index = d->net->find_blob_index_by_name(blob_name);
     if (blob_index == -1)
+    {
+        NCNN_LOGE("Try");
+        const std::vector<Blob>& blobs = d->net->blobs();
+        int out_index = 0;
+        for (size_t i = 0; i < blobs.size(); i++)
+        {
+            if (blobs[i].producer == -1 || blobs[i].consumer != -1)
+                continue;
+
+            NCNN_LOGE("    ex.extract(\"%s\", out%d);", blobs[i].name.c_str(), out_index++);
+        }
+
         return -1;
+    }
 
     return extract(blob_index, feat, cmd);
 }
@@ -2478,7 +2574,22 @@ int Extractor::input(const char* blob_name, const VkImageMat& in)
 {
     int blob_index = d->net->find_blob_index_by_name(blob_name);
     if (blob_index == -1)
+    {
+        NCNN_LOGE("Try");
+        const std::vector<Blob>& blobs = d->net->blobs();
+        const std::vector<Layer*>& layers = d->net->layers();
+        int in_index = 0;
+        for (size_t i = 0; i < layers.size(); i++)
+        {
+            if (layers[i]->type != "Input")
+                continue;
+
+            int input_blob_index = layers[i]->tops[0];
+            NCNN_LOGE("    ex.input(\"%s\", in%d);", blobs[input_blob_index].name.c_str(), in_index++);
+        }
+
         return -1;
+    }
 
     return input(blob_index, in);
 }
@@ -2487,7 +2598,20 @@ int Extractor::extract(const char* blob_name, VkImageMat& feat, VkCompute& cmd)
 {
     int blob_index = d->net->find_blob_index_by_name(blob_name);
     if (blob_index == -1)
+    {
+        NCNN_LOGE("Try");
+        const std::vector<Blob>& blobs = d->net->blobs();
+        int out_index = 0;
+        for (size_t i = 0; i < blobs.size(); i++)
+        {
+            if (blobs[i].producer == -1 || blobs[i].consumer != -1)
+                continue;
+
+            NCNN_LOGE("    ex.extract(\"%s\", out%d);", blobs[i].name.c_str(), out_index++);
+        }
+
         return -1;
+    }
 
     return extract(blob_index, feat, cmd);
 }
@@ -2508,21 +2632,37 @@ int Extractor::extract(int blob_index, VkMat& feat, VkCompute& cmd)
     if (blob_index < 0 || blob_index >= (int)d->blob_mats.size())
         return -1;
 
+    int old_blocktime = get_kmp_blocktime();
+    set_kmp_blocktime(d->opt.openmp_blocktime);
+
+    int old_flush_denormals = get_flush_denormals();
+    set_flush_denormals(d->opt.flush_denormals);
+
     int ret = 0;
 
     if (d->blob_mats_gpu[blob_index].dims == 0)
     {
-        int layer_index = d->net->blobs()[blob_index].producer;
-        ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->blob_mats_gpu, cmd, d->opt);
-    }
-
-    if (d->blob_mats_gpu[blob_index].dims == 0 && d->blob_mats_gpu_image[blob_index].dims != 0)
-    {
-        // image to buffer
-        cmd.record_image_to_buffer(d->blob_mats_gpu_image[blob_index], d->blob_mats_gpu[blob_index], d->opt);
+        if (d->blob_mats_gpu_image[blob_index].dims != 0)
+        {
+            // image to buffer
+            cmd.record_image_to_buffer(d->blob_mats_gpu_image[blob_index], d->blob_mats_gpu[blob_index], d->opt);
+        }
+        else if (d->blob_mats[blob_index].dims != 0)
+        {
+            // host to buffer
+            cmd.record_upload(d->blob_mats[blob_index], d->blob_mats_gpu[blob_index], d->opt);
+        }
+        else
+        {
+            int layer_index = d->net->blobs()[blob_index].producer;
+            ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->blob_mats_gpu, cmd, d->opt);
+        }
     }
 
     feat = d->blob_mats_gpu[blob_index];
+
+    set_kmp_blocktime(old_blocktime);
+    set_flush_denormals(old_flush_denormals);
 
     return ret;
 }
@@ -2545,23 +2685,40 @@ int Extractor::extract(int blob_index, VkImageMat& feat, VkCompute& cmd)
     int old_blocktime = get_kmp_blocktime();
     set_kmp_blocktime(d->opt.openmp_blocktime);
 
+    int old_flush_denormals = get_flush_denormals();
+    set_flush_denormals(d->opt.flush_denormals);
+
     int ret = 0;
 
     if (d->blob_mats_gpu_image[blob_index].dims == 0)
     {
-        int layer_index = d->net->blobs()[blob_index].producer;
-        ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->blob_mats_gpu, d->blob_mats_gpu_image, cmd, d->opt);
-    }
-
-    if (d->blob_mats_gpu_image[blob_index].dims == 0 && d->blob_mats_gpu[blob_index].dims != 0)
-    {
-        // buffer to image
-        cmd.record_buffer_to_image(d->blob_mats_gpu[blob_index], d->blob_mats_gpu_image[blob_index], d->opt);
+        if (d->blob_mats_gpu[blob_index].dims != 0)
+        {
+            // buffer to image
+            cmd.record_buffer_to_image(d->blob_mats_gpu[blob_index], d->blob_mats_gpu_image[blob_index], d->opt);
+        }
+        else if (d->blob_mats[blob_index].dims != 0)
+        {
+            // host to image
+            cmd.record_upload(d->blob_mats[blob_index], d->blob_mats_gpu_image[blob_index], d->opt);
+        }
+        else
+        {
+            int layer_index = d->net->blobs()[blob_index].producer;
+            ret = d->net->d->forward_layer(layer_index, d->blob_mats, d->blob_mats_gpu, d->blob_mats_gpu_image, cmd, d->opt);
+        }
     }
 
     feat = d->blob_mats_gpu_image[blob_index];
 
+    if (feat.empty())
+    {
+        NCNN_LOGE("extract %d image allocation failed", blob_index);
+        ret = -100;
+    }
+
     set_kmp_blocktime(old_blocktime);
+    set_flush_denormals(old_flush_denormals);
 
     return ret;
 }

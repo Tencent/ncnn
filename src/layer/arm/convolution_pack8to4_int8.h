@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_int8, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
+static void convolution_pack8to4_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_int8, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
 {
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
@@ -54,8 +54,6 @@ static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
             {
                 int32x4_t _sum01 = vdupq_n_s32(0);
                 int32x4_t _sum23 = vdupq_n_s32(0);
-                int32x4_t _sum45 = vdupq_n_s32(0);
-                int32x4_t _sum67 = vdupq_n_s32(0);
 
                 const signed char* kptr = weight_data_int8.channel(p);
 
@@ -73,46 +71,30 @@ static void convolution_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                         int8x8_t _w1 = vld1_s8(kptr + 8);
                         int8x8_t _w2 = vld1_s8(kptr + 16);
                         int8x8_t _w3 = vld1_s8(kptr + 24);
-                        int8x8_t _w4 = vld1_s8(kptr + 32);
-                        int8x8_t _w5 = vld1_s8(kptr + 40);
-                        int8x8_t _w6 = vld1_s8(kptr + 48);
-                        int8x8_t _w7 = vld1_s8(kptr + 56);
 
                         int16x8_t _wv0 = vmull_s8(_val, _w0);
                         int16x8_t _wv1 = vmull_s8(_val, _w1);
                         int16x8_t _wv2 = vmull_s8(_val, _w2);
                         int16x8_t _wv3 = vmull_s8(_val, _w3);
-                        int16x8_t _wv4 = vmull_s8(_val, _w4);
-                        int16x8_t _wv5 = vmull_s8(_val, _w5);
-                        int16x8_t _wv6 = vmull_s8(_val, _w6);
-                        int16x8_t _wv7 = vmull_s8(_val, _w7);
 
                         int16x4_t _wv00 = vpadd_s16(vget_low_s16(_wv0), vget_high_s16(_wv0));
                         int16x4_t _wv11 = vpadd_s16(vget_low_s16(_wv1), vget_high_s16(_wv1));
                         int16x4_t _wv22 = vpadd_s16(vget_low_s16(_wv2), vget_high_s16(_wv2));
                         int16x4_t _wv33 = vpadd_s16(vget_low_s16(_wv3), vget_high_s16(_wv3));
-                        int16x4_t _wv44 = vpadd_s16(vget_low_s16(_wv4), vget_high_s16(_wv4));
-                        int16x4_t _wv55 = vpadd_s16(vget_low_s16(_wv5), vget_high_s16(_wv5));
-                        int16x4_t _wv66 = vpadd_s16(vget_low_s16(_wv6), vget_high_s16(_wv6));
-                        int16x4_t _wv77 = vpadd_s16(vget_low_s16(_wv7), vget_high_s16(_wv7));
 
                         _sum01 = vpadalq_s16(_sum01, vcombine_s16(_wv00, _wv11));
                         _sum23 = vpadalq_s16(_sum23, vcombine_s16(_wv22, _wv33));
-                        _sum45 = vpadalq_s16(_sum45, vcombine_s16(_wv44, _wv55));
-                        _sum67 = vpadalq_s16(_sum67, vcombine_s16(_wv66, _wv77));
 
-                        kptr += 64;
+                        kptr += 32;
                     }
                 }
 
                 int32x4_t _sum0 = vcombine_s32(vpadd_s32(vget_low_s32(_sum01), vget_high_s32(_sum01)), vpadd_s32(vget_low_s32(_sum23), vget_high_s32(_sum23)));
-                int32x4_t _sum1 = vcombine_s32(vpadd_s32(vget_low_s32(_sum45), vget_high_s32(_sum45)), vpadd_s32(vget_low_s32(_sum67), vget_high_s32(_sum67)));
 
-                vst1q_s32(outptr + j * 8, _sum0);
-                vst1q_s32(outptr + j * 8 + 4, _sum1);
+                vst1q_s32(outptr + j * 4, _sum0);
             }
 
-            outptr += outw * 8;
+            outptr += outw * 4;
         }
     }
 }

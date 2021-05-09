@@ -114,6 +114,10 @@ static int test_convolution_0()
     }
 
     return 0
+           || test_convolution(7, 5, 1, 4, 3, 1, 1, 1, 1)
+           || test_convolution(14, 5, 1, 4, 3, 1, 2, 1, 1)
+           || test_convolution(15, 11, 4, 4, 3, 1, 1, 1, 1)
+           || test_convolution(15, 11, 8, 8, 3, 1, 1, 1, 1)
            || test_convolution(11, 11, 8, 16, 3, 1, 1, 1, 1)
            || test_convolution(13, 16, 16, 24, 3, 1, 1, 1, 1)
            || test_convolution(8, 8, 16, 24, 3, 1, 1, 1, 0)

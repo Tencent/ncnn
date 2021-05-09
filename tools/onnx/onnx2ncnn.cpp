@@ -2830,9 +2830,15 @@ static void fuse_binaryop_with_scalar(onnx::GraphProto* mutable_graph, std::map<
 
 int main(int argc, char** argv)
 {
+    if (!(argc == 2 || argc == 4))
+    {
+        fprintf(stderr, "Usage: %s [onnxpb] [ncnnparam] [ncnnbin]\n", argv[0]);
+        return -1;
+    }
+
     const char* onnxpb = argv[1];
-    const char* ncnn_prototxt = argc >= 4 ? argv[2] : "ncnn.param";
-    const char* ncnn_modelbin = argc >= 4 ? argv[3] : "ncnn.bin";
+    const char* ncnn_prototxt = argc == 4 ? argv[2] : "ncnn.param";
+    const char* ncnn_modelbin = argc == 4 ? argv[3] : "ncnn.bin";
 
     onnx::ModelProto model;
 

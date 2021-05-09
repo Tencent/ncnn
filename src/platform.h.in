@@ -30,6 +30,7 @@
 #cmakedefine01 NCNN_RUNTIME_CPU
 #cmakedefine01 NCNN_AVX2
 #cmakedefine01 NCNN_ARM82
+#cmakedefine01 NCNN_RVV
 #cmakedefine01 NCNN_INT8
 
 #cmakedefine NCNN_VERSION_STRING "@NCNN_VERSION_STRING@"

@@ -59,7 +59,7 @@ jobs:
         CIBW_SKIP: "cp27-* pp27-*"  # skip Python 2.7 wheels
         # configure cibuildwheel to build native archs ('auto'), and some
         # emulated ones
-        CIBW_ARCHS_LINUX: auto aarch64 s390x
+        CIBW_ARCHS_LINUX: auto aarch64
 
     - name: Show files
       run: ls -lh wheelhouse

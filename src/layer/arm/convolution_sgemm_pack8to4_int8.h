@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
+static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
     // Mat bottom_im2col(size, maxk, inch, 8u, 8, opt.workspace_allocator);
 
@@ -1103,7 +1103,7 @@ static void im2col_sgemm_pack8_int8_neon(const Mat& bottom_im2col, Mat& top_blob
     }
 }
 
-static void convolution_im2col_sgemm_transform_kernel_pack8_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
+static void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
     const int maxk = kernel_w * kernel_h;
 
@@ -1163,7 +1163,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8_int8_neon(const Mat&
     }
 }
 
-static void convolution_im2col_sgemm_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
+static void convolution_im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -1234,5 +1234,5 @@ static void convolution_im2col_sgemm_pack8_int8_neon(const Mat& bottom_blob, Mat
         }
     }
 
-    im2col_sgemm_pack8_int8_neon(bottom_im2col, top_blob, kernel, opt);
+    im2col_sgemm_pack8to4_int8_neon(bottom_im2col, top_blob, kernel, opt);
 }

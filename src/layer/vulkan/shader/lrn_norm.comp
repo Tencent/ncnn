@@ -77,37 +77,37 @@ void main()
 
     if (region_type == 0)
     {
-        afp sum = afp(0.f);
+        float sum = 0.f;
 
 #if NCNN_image_shader
         for (int z = 0; z < local_size; z++)
         {
-            sum += afp(texelFetch(square_workspace, ivec3(gx, gy, gz + z), 0).r);
+            sum += float(texelFetch(square_workspace, ivec3(gx, gy, gz + z), 0).r);
         }
 #else
         int v_offset = gz * psc(cstep) + gy * psc(w) + gx;
 
         for (int z = 0; z < local_size; z++)
         {
-            sum += afp(square_workspace_data[v_offset]);
+            sum += float(square_workspace_data[v_offset]);
 
             v_offset += psc(cstep);
         }
 #endif
 
-        const afp alpha_div_size = afp(alpha / local_size);
-        scale = pow(afp(bias_constant) + alpha_div_size * sum, afp(-beta));
+        const float alpha_div_size = alpha / local_size;
+        scale = afp(pow(bias_constant + alpha_div_size * sum, -beta));
     }
     else
     {
-        afp sum = afp(0.f);
+        float sum = 0.f;
 
 #if NCNN_image_shader
         for (int y = 0; y < local_size; y++)
         {
             for (int x = 0; x < local_size; x++)
             {
-                sum += afp(texelFetch(square_workspace, ivec3(gx + x, gy + y, gz), 0).r);
+                sum += float(texelFetch(square_workspace, ivec3(gx + x, gy + y, gz), 0).r);
             }
         }
 #else
@@ -117,15 +117,15 @@ void main()
         {
             for (int x = 0; x < local_size; x++)
             {
-                sum += afp(square_workspace_data[v_offset + x]);
+                sum += float(square_workspace_data[v_offset + x]);
             }
 
             v_offset += psc(w);
         }
 #endif
 
-        const afp alpha_div_size = afp(alpha / (local_size * local_size));
-        scale = pow(afp(bias_constant) + alpha_div_size * sum, afp(-beta));
+        const float alpha_div_size = alpha / (local_size * local_size);
+        scale = afp(pow(bias_constant + alpha_div_size * sum, -beta));
     }
 
 #if NCNN_image_shader
