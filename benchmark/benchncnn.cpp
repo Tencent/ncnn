@@ -100,8 +100,8 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     DataReaderFromEmpty dr;
     net.load_model(dr);
 
-    const std::vector<const char*> input_names = net.input_names();
-    const std::vector<const char*> output_names = net.output_names();
+    const std::vector<const char*>& input_names = net.input_names();
+    const std::vector<const char*>& output_names = net.output_names();
 
     if (g_enable_cooling_down)
     {
