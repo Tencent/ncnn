@@ -1636,13 +1636,23 @@ int VulkanDevicePrivate::create_dummy_buffer_image()
 
     dummy_buffer.create(1, 4u, dummy_allocator);
     dummy_image.create(1, 4u, dummy_allocator);
+#if __APPLE__
+    if (vkdev->info.vendor_id() != 0x8086)
+        dummy_image_readonly.create(1, 4u, dummy_allocator);
+#else
     dummy_image_readonly.create(1, 4u, dummy_allocator);
+#endif
 
     VkDummyCompute cmd(vkdev);
 
     cmd.record_dummy(dummy_buffer);
     cmd.record_dummy(dummy_image);
+#if __APPLE__
+    if (vkdev->info.vendor_id() != 0x8086)
+        cmd.record_dummy_readonly(dummy_image_readonly);
+#else
     cmd.record_dummy_readonly(dummy_image_readonly);
+#endif
 
     cmd.submit_and_wait();
 
@@ -1653,7 +1663,12 @@ void VulkanDevicePrivate::destroy_dummy_buffer_image()
 {
     dummy_buffer.release();
     dummy_image.release();
+#if __APPLE__
+    if (vkdev->info.vendor_id() != 0x8086)
+        dummy_image_readonly.release();
+#else
     dummy_image_readonly.release();
+#endif
 
     delete dummy_allocator;
 }
@@ -2640,6 +2655,10 @@ VkImageMat VulkanDevice::get_dummy_image() const
 
 VkImageMat VulkanDevice::get_dummy_image_readonly() const
 {
+#if __APPLE__
+    if (info.vendor_id() == 0x8086)
+        return d->dummy_image;
+#endif
     return d->dummy_image_readonly;
 }
 

@@ -244,9 +244,15 @@ static std::vector<float> get_operation_attr_af(const mlir::Operation& _operatio
 
 int main(int argc, char** argv)
 {
+    if (!(argc == 2 || argc == 4))
+    {
+        fprintf(stderr, "Usage: %s [mlir] [ncnnparam] [ncnnbin]\n", argv[0]);
+        return -1;
+    }
+
     const char* mlirpath = argv[1];
-    const char* ncnn_prototxt = argc >= 4 ? argv[2] : "ncnn.param";
-    const char* ncnn_modelbin = argc >= 4 ? argv[3] : "ncnn.bin";
+    const char* ncnn_prototxt = argc == 4 ? argv[2] : "ncnn.param";
+    const char* ncnn_modelbin = argc == 4 ? argv[3] : "ncnn.bin";
 
     mlir::MLIRContext context;
 

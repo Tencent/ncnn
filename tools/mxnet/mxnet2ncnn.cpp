@@ -969,10 +969,16 @@ static void fuse_hardsigmoid_hardswish(std::vector<MXNetNode>& nodes, std::vecto
 
 int main(int argc, char** argv)
 {
+    if (!(argc == 3 || argc == 5))
+    {
+        fprintf(stderr, "Usage: %s [mxnetjson] [mxnetparam] [ncnnparam] [ncnnbin]\n", argv[0]);
+        return -1;
+    }
+
     const char* jsonpath = argv[1];
     const char* parampath = argv[2];
-    const char* ncnn_prototxt = argc >= 5 ? argv[3] : "ncnn.param";
-    const char* ncnn_modelbin = argc >= 5 ? argv[4] : "ncnn.bin";
+    const char* ncnn_prototxt = argc == 5 ? argv[3] : "ncnn.param";
+    const char* ncnn_modelbin = argc == 5 ? argv[4] : "ncnn.bin";
 
     std::vector<MXNetNode> nodes;
     std::vector<MXNetParam> params;
@@ -993,6 +999,26 @@ int main(int argc, char** argv)
 
     // weight node
     std::vector<int> weight_nodes;
+
+    // sometimes mxnet produce non-unique name for activation op
+    {
+        std::set<std::string> known_names;
+        for (size_t i = 0; i < node_count; i++)
+        {
+            MXNetNode& n = nodes[i];
+
+            if (known_names.find(n.name) == known_names.end())
+            {
+                known_names.insert(n.name);
+                continue;
+            }
+
+            // non-unique name detected, append index as suffix
+            char suffix[32];
+            sprintf(suffix, "_%d", (int)i);
+            n.name = n.name + std::string(suffix);
+        }
+    }
 
     // global definition line
     // [layer count] [blob count]
