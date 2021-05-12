@@ -416,6 +416,13 @@ int cpu_support_riscv_zfh()
 #endif
 }
 
+int cpu_riscv_vlenb()
+{
+    int a = 0;
+    asm volatile("csrr %0, vlenb" : "=r"(a) : : "memory");
+    return a;
+}
+
 static int get_cpucount()
 {
     int count = 0;

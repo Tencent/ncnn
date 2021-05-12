@@ -794,8 +794,9 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
 #elif NCNN_RVV
-                if (elemcount % 4 == 0)
-                    dst_elempack = 4;
+                const int packn = ncnn::cpu_riscv_vlenb() / 4;
+                if (elemcount % packn == 0)
+                    dst_elempack = packn;
 #else
                 if (elemcount % 4 == 0)
                     dst_elempack = 4;
@@ -809,10 +810,9 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
 #elif NCNN_RVV
-                if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && layer->support_fp16_storage)
-                    dst_elempack = 8;
-                else if (elemcount % 4 == 0)
-                    dst_elempack = 4;
+                const int packn = ncnn::cpu_riscv_vlenb() / 2;
+                if (elemcount % packn == 0)
+                    dst_elempack = packn;
 #else
                 if (elemcount % 4 == 0)
                     dst_elempack = 4;

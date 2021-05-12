@@ -112,6 +112,16 @@ typedef uint16x8xm1_t vuint16m1x8_t;
 #define vset_f32m2x4       vseg_element_set_float32x4xm2
 #define vget_f32m2x4_f32m2 vseg_element_get_float32x4xm2
 
+#define vfmv_s_f_f32m1 vfmvsf_float32xm1
+#define vfmv_s_f_f32m2 vfmvsf_float32xm2
+#define vfmv_s_f_f32m4 vfmvsf_float32xm4
+#define vfmv_s_f_f32m8 vfmvsf_float32xm8
+
+#define vfmv_f_s_f32m1_f32(x) vfmvfs_float32xm1(x, vl)
+#define vfmv_f_s_f32m2_f32(x) vfmvfs_float32xm2(x, vl)
+#define vfmv_f_s_f32m4_f32(x) vfmvfs_float32xm4(x, vl)
+#define vfmv_f_s_f32m8_f32(x) vfmvfs_float32xm8(x, vl)
+
 #define vfmv_v_f_f32m1 vfmvvf_float32xm1
 #define vfmv_v_f_f32m2 vfmvvf_float32xm2
 #define vfmv_v_f_f32m4 vfmvvf_float32xm4
