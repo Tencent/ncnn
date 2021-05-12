@@ -112,6 +112,16 @@ typedef uint16x8xm1_t vuint16m1x8_t;
 #define vset_f32m2x4       vseg_element_set_float32x4xm2
 #define vget_f32m2x4_f32m2 vseg_element_get_float32x4xm2
 
+static inline vfloat32m2x4_t vcreate_f32m2x4(vfloat32m2_t v0, vfloat32m2_t v1, vfloat32m2_t v2, vfloat32m2_t v3)
+{
+    vfloat32m2x4_t p;
+    p = vset_f32m2x4(p, 0, v0);
+    p = vset_f32m2x4(p, 1, v1);
+    p = vset_f32m2x4(p, 2, v2);
+    p = vset_f32m2x4(p, 3, v3);
+    return p;
+}
+
 #define vfmv_s_f_f32m1 vfmvsf_float32xm1
 #define vfmv_s_f_f32m2 vfmvsf_float32xm2
 #define vfmv_s_f_f32m4 vfmvsf_float32xm4
@@ -1108,6 +1118,40 @@ typedef uint16x8xm1_t vuint16m1x8_t;
 
 #define vset_u16m1x4       vseg_element_set_uint16x4xm1
 #define vget_u16m1x4_u16m1 vseg_element_get_uint16x4xm1
+
+static inline vuint16m1x4_t vcreate_u16m1x4(vuint16m1_t v0, vuint16m1_t v1, vuint16m1_t v2, vuint16m1_t v3)
+{
+    vuint16m1x4_t p;
+    p = vset_u16m1x4(p, 0, v0);
+    p = vset_u16m1x4(p, 1, v1);
+    p = vset_u16m1x4(p, 2, v2);
+    p = vset_u16m1x4(p, 3, v3);
+    return p;
+}
+
+static inline vuint16m2x4_t vcreate_u16m2x4(vuint16m2_t v0, vuint16m2_t v1, vuint16m2_t v2, vuint16m2_t v3)
+{
+    vuint16m2x4_t p;
+    p = vset_u16m2x4(p, 0, v0);
+    p = vset_u16m2x4(p, 1, v1);
+    p = vset_u16m2x4(p, 2, v2);
+    p = vset_u16m2x4(p, 3, v3);
+    return p;
+}
+
+static inline vuint16m1x8_t vcreate_u16m1x8(vuint16m1_t v0, vuint16m1_t v1, vuint16m1_t v2, vuint16m1_t v3, vuint16m1_t v4, vuint16m1_t v5, vuint16m1_t v6, vuint16m1_t v7)
+{
+    vuint16m1x8_t p;
+    p = vset_u16m1x8(p, 0, v0);
+    p = vset_u16m1x8(p, 1, v1);
+    p = vset_u16m1x8(p, 2, v2);
+    p = vset_u16m1x8(p, 3, v3);
+    p = vset_u16m1x8(p, 4, v4);
+    p = vset_u16m1x8(p, 5, v5);
+    p = vset_u16m1x8(p, 6, v6);
+    p = vset_u16m1x8(p, 7, v7);
+    return p;
+}
 
 #define vadd_vv_u16m1                           vaddvv_uint16xm1
 #define vadd_vv_u16m2                           vaddvv_uint16xm2

@@ -397,7 +397,7 @@ int cpu_support_riscv_zfh()
     // https://github.com/riscv/riscv-zfinx/blob/master/Zfinx_spec.adoc#5-discovery
     __fp16 a = 0;
     asm volatile(
-        "fneg.h     %0, %0          \n"
+        "fneg.h     %0, %0  \n"
         : "=f"(a)
         : "0"(a)
         :);
@@ -418,9 +418,21 @@ int cpu_support_riscv_zfh()
 
 int cpu_riscv_vlenb()
 {
+#if __riscv
+    if (!cpu_support_riscv_v())
+        return 0;
+
+    // TODO asm word for riscv without v
     int a = 0;
-    asm volatile("csrr %0, vlenb" : "=r"(a) : : "memory");
+    asm volatile(
+        "csrr   %0, vlenb   \n"
+        : "=r"(a)
+        :
+        : "memory");
     return a;
+#else
+    return 0;
+#endif
 }
 
 static int get_cpucount()
