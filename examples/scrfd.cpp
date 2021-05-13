@@ -252,7 +252,7 @@ static int detect_scrfd(const cv::Mat& bgr, std::vector<FaceObject>& faceobjects
         w = w * scale;
     }
 
-    ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, width, height, w, h);
+    ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR2RGB, width, height, w, h);
 
     // pad to target_size rectangle
     int wpad = (w + 31) / 32 * 32 - w;
@@ -261,7 +261,7 @@ static int detect_scrfd(const cv::Mat& bgr, std::vector<FaceObject>& faceobjects
     ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, ncnn::BORDER_CONSTANT, 0.f);
 
     const float mean_vals[3] = {127.5f, 127.5f, 127.5f};
-    const float norm_vals[3] = {1/128.f, 1/128.f, 1/128.f};
+    const float norm_vals[3] = {1 / 128.f, 1 / 128.f, 1 / 128.f};
     in_pad.substract_mean_normalize(mean_vals, norm_vals);
 
     ncnn::Extractor ex = scrfd.create_extractor();
