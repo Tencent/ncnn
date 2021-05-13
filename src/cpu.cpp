@@ -422,13 +422,13 @@ int cpu_riscv_vlenb()
     if (!cpu_support_riscv_v())
         return 0;
 
-    // TODO asm word for riscv without v
     int a = 0;
     asm volatile(
-        "csrr   %0, vlenb   \n"
+        ".word  0xc22026f3  \n" // csrr  a3, vlenb
+        "mv     %0, a3      \n"
         : "=r"(a)
         :
-        : "memory");
+        : "memory", "a3");
     return a;
 #else
     return 0;
