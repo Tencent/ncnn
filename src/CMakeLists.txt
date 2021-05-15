@@ -27,6 +27,7 @@ set(ncnn_SRCS
     mat.cpp
     mat_pixel.cpp
     mat_pixel_affine.cpp
+    mat_pixel_drawing.cpp
     mat_pixel_resize.cpp
     mat_pixel_rotate.cpp
     modelbin.cpp
