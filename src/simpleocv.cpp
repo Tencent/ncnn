@@ -318,6 +318,33 @@ void circle(Mat& img, Point center, int radius, const Scalar& _color, int thickn
     }
 }
 
+void line(Mat& img, Point p0, Point p1, const Scalar& _color, int thickness)
+{
+    unsigned int color = 0;
+    unsigned char* border_color = (unsigned char*)&color;
+
+    if (img.c == 1)
+    {
+        border_color[0] = _color[0];
+        ncnn::draw_line_c1(img.data, img.cols, img.rows, p0.x, p0.y, p1.x, p1.y, color, thickness);
+    }
+    else if (img.c == 3)
+    {
+        border_color[0] = _color[0];
+        border_color[1] = _color[1];
+        border_color[2] = _color[2];
+        ncnn::draw_line_c3(img.data, img.cols, img.rows, p0.x, p0.y, p1.x, p1.y, color, thickness);
+    }
+    else if (img.c == 4)
+    {
+        border_color[0] = _color[0];
+        border_color[1] = _color[1];
+        border_color[2] = _color[2];
+        border_color[3] = _color[3];
+        ncnn::draw_line_c4(img.data, img.cols, img.rows, p0.x, p0.y, p1.x, p1.y, color, thickness);
+    }
+}
+
 void putText(Mat& img, const std::string& text, Point org, int fontFace, double fontScale, Scalar _color, int thickness)
 {
     const int fontpixelsize = 20 * fontScale;

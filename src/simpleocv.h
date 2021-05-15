@@ -454,6 +454,8 @@ NCNN_EXPORT void rectangle(Mat& img, Rect rec, const Scalar& color, int thicknes
 
 NCNN_EXPORT void circle(Mat& img, Point center, int radius, const Scalar& color, int thickness = 1);
 
+NCNN_EXPORT void line(Mat& img, Point p0, Point p1, const Scalar& color, int thickness = 1);
+
 enum
 {
     FONT_HERSHEY_SIMPLEX = 0

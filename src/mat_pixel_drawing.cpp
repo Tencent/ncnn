@@ -15,6 +15,7 @@
 #include "mat.h"
 
 #include <ctype.h>
+#include <float.h>
 #include <math.h>
 
 #include "platform.h"
@@ -687,6 +688,165 @@ void draw_circle_c4(unsigned char* src, int srcw, int srch, int srcstride, int c
             // distance from cx cy
             float dis = distance(x, y, cx, cy);
             if (dis >= radius - t0 && dis < radius + t1)
+            {
+                p[x * 4 + 0] = border_color[0];
+                p[x * 4 + 1] = border_color[1];
+                p[x * 4 + 2] = border_color[2];
+                p[x * 4 + 3] = border_color[3];
+            }
+        }
+    }
+}
+
+static inline float distance(int x, int y, int x0, int y0, int x1, int y1)
+{
+    int dx01 = x1 - x0;
+    int dy01 = y1 - y0;
+    int dx0 = x - x0;
+    int dy0 = y - y0;
+
+    float r = (float)(dx0 * dx01 + dy0 * dy01) / (dx01 * dx01 + dy01 * dy01);
+
+    if (r < 0 || r > 1)
+        return FLT_MAX;
+
+    float px = x0 + dx01 * r;
+    float py = y0 + dy01 * r;
+    float dx = x - px;
+    float dy = y - py;
+    return (float)sqrt(dx * dx + dy * dy);
+}
+
+void draw_line_c1(unsigned char* src, int srcw, int srch, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    draw_line_c1(src, srcw, srch, srcw, x0, y0, x1, y1, color, thickness);
+}
+
+void draw_line_c3(unsigned char* src, int srcw, int srch, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    draw_line_c3(src, srcw, srch, srcw * 3, x0, y0, x1, y1, color, thickness);
+}
+
+void draw_line_c4(unsigned char* src, int srcw, int srch, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    draw_line_c4(src, srcw, srch, srcw * 4, x0, y0, x1, y1, color, thickness);
+}
+
+void draw_line_c1(unsigned char* src, int srcw, int srch, int srcstride, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    const unsigned char* border_color = (const unsigned char*)&color;
+
+    const float t0 = thickness / 2.f;
+    const float t1 = thickness - t0;
+
+    int x_min = std::min(x0, x1);
+    int x_max = std::max(x0, x1);
+    int y_min = std::min(y0, y1);
+    int y_max = std::max(y0, y1);
+
+    for (int y = y_min - t0; y < y_max + t1; y++)
+    {
+        if (y < 0)
+            continue;
+
+        if (y >= srch)
+            break;
+
+        unsigned char* p = src + srcstride * y;
+
+        for (int x = x_min - t0; x < x_max + t1; x++)
+        {
+            if (x < 0)
+                continue;
+
+            if (x >= srcw)
+                break;
+
+            // distance from line
+            float dis = distance(x, y, x0, y0, x1, y1);
+            if (dis < t1)
+            {
+                p[x] = border_color[0];
+            }
+        }
+    }
+}
+
+void draw_line_c3(unsigned char* src, int srcw, int srch, int srcstride, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    const unsigned char* border_color = (const unsigned char*)&color;
+
+    const float t0 = thickness / 2.f;
+    const float t1 = thickness - t0;
+
+    int x_min = std::min(x0, x1);
+    int x_max = std::max(x0, x1);
+    int y_min = std::min(y0, y1);
+    int y_max = std::max(y0, y1);
+
+    for (int y = y_min - t0; y < y_max + t1; y++)
+    {
+        if (y < 0)
+            continue;
+
+        if (y >= srch)
+            break;
+
+        unsigned char* p = src + srcstride * y;
+
+        for (int x = x_min - t0; x < x_max + t1; x++)
+        {
+            if (x < 0)
+                continue;
+
+            if (x >= srcw)
+                break;
+
+            // distance from line
+            float dis = distance(x, y, x0, y0, x1, y1);
+            if (dis < t1)
+            {
+                p[x * 3 + 0] = border_color[0];
+                p[x * 3 + 1] = border_color[1];
+                p[x * 3 + 2] = border_color[2];
+            }
+        }
+    }
+}
+
+void draw_line_c4(unsigned char* src, int srcw, int srch, int srcstride, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    const unsigned char* border_color = (const unsigned char*)&color;
+
+    const float t0 = thickness / 2.f;
+    const float t1 = thickness - t0;
+
+    int x_min = std::min(x0, x1);
+    int x_max = std::max(x0, x1);
+    int y_min = std::min(y0, y1);
+    int y_max = std::max(y0, y1);
+
+    for (int y = y_min - t0; y < y_max + t1; y++)
+    {
+        if (y < 0)
+            continue;
+
+        if (y >= srch)
+            break;
+
+        unsigned char* p = src + srcstride * y;
+
+        for (int x = x_min - t0; x < x_max + t1; x++)
+        {
+            if (x < 0)
+                continue;
+
+            if (x >= srcw)
+                break;
+
+            // distance from line
+            float dis = distance(x, y, x0, y0, x1, y1);
+            if (dis < t1)
             {
                 p[x * 4 + 0] = border_color[0];
                 p[x * 4 + 1] = border_color[1];

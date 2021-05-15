@@ -616,6 +616,13 @@ NCNN_EXPORT void draw_circle_c1(unsigned char* src, int srcw, int srch, int srcs
 NCNN_EXPORT void draw_circle_c3(unsigned char* src, int srcw, int srch, int srcstride, int cx, int cy, int radius, unsigned int color, int thickness);
 NCNN_EXPORT void draw_circle_c4(unsigned char* src, int srcw, int srch, int srcstride, int cx, int cy, int radius, unsigned int color, int thickness);
 
+NCNN_EXPORT void draw_line_c1(unsigned char* src, int srcw, int srch, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void draw_line_c3(unsigned char* src, int srcw, int srch, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void draw_line_c4(unsigned char* src, int srcw, int srch, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void draw_line_c1(unsigned char* src, int srcw, int srch, int srcstride, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void draw_line_c3(unsigned char* src, int srcw, int srch, int srcstride, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void draw_line_c4(unsigned char* src, int srcw, int srch, int srcstride, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+
 NCNN_EXPORT void get_text_drawing_size(const char* text, int fontpixelsize, int* w, int* h);
 NCNN_EXPORT void draw_text_c1(unsigned char* src, int srcw, int srch, const char* text, int x, int y, int fontpixelsize, unsigned int color);
 NCNN_EXPORT void draw_text_c3(unsigned char* src, int srcw, int srch, const char* text, int x, int y, int fontpixelsize, unsigned int color);
