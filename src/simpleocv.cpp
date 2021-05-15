@@ -355,7 +355,7 @@ Size getTextSize(const std::string& text, int fontFace, double fontScale, int th
     int h;
     ncnn::get_text_drawing_size(text.c_str(), fontpixelsize, &w, &h);
 
-    *baseLine = 10 * fontScale;
+    *baseLine = 0;
 
     return Size(w, h);
 }
