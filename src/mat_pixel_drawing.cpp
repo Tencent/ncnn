@@ -976,8 +976,6 @@ void draw_text_c3(unsigned char* src, int srcw, int srch, int srcstride, const c
     {
         char ch = text[i];
 
-        fprintf(stderr, "cc %c\n", ch);
-
         if (ch == '\n')
         {
             // newline
@@ -989,8 +987,6 @@ void draw_text_c3(unsigned char* src, int srcw, int srch, int srcstride, const c
         {
             int font_bitmap_index = ch - ' ';
             const unsigned char* font_bitmap = mono_font_data[font_bitmap_index];
-
-            fprintf(stderr, "font_bitmap_index %d\n", font_bitmap_index);
 
             // draw resized character
             resize_bilinear_c1(font_bitmap, 20, 40, resized_font_bitmap, fontpixelsize, fontpixelsize * 2);
