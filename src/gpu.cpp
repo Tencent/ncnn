@@ -1598,7 +1598,15 @@ public:
     mutable std::vector<VkQueue> compute_queues;
     mutable std::vector<VkQueue> graphics_queues;
     mutable std::vector<VkQueue> transfer_queues;
-    mutable Mutex queue_lock;
+    mutable int free_compute_queue_count;
+    mutable int free_graphics_queue_count;
+    mutable int free_transfer_queue_count;
+    mutable Mutex compute_queue_lock;
+    mutable Mutex graphics_queue_lock;
+    mutable Mutex transfer_queue_lock;
+    mutable ConditionVariable compute_queue_condition;
+    mutable ConditionVariable graphics_queue_condition;
+    mutable ConditionVariable transfer_queue_condition;
 
     // default blob allocator for each queue
     mutable std::vector<VkAllocator*> blob_allocators;
@@ -1974,6 +1982,11 @@ VulkanDevice::VulkanDevice(int device_index)
 
     init_device_extension();
 
+    d->free_compute_queue_count = 0;
+    d->free_graphics_queue_count = 0;
+    d->free_transfer_queue_count = 0;
+
+    d->free_compute_queue_count = info.compute_queue_count();
     d->compute_queues.resize(info.compute_queue_count());
     d->blob_allocators.resize(info.compute_queue_count());
     d->staging_allocators.resize(info.compute_queue_count());
@@ -1985,6 +1998,7 @@ VulkanDevice::VulkanDevice(int device_index)
     }
     if (info.compute_queue_family_index() != info.graphics_queue_family_index())
     {
+        d->free_graphics_queue_count = info.graphics_queue_count();
         d->graphics_queues.resize(info.graphics_queue_count());
         for (uint32_t i = 0; i < info.graphics_queue_count(); i++)
         {
@@ -1993,6 +2007,7 @@ VulkanDevice::VulkanDevice(int device_index)
     }
     if (info.compute_queue_family_index() != info.transfer_queue_family_index() && info.graphics_queue_family_index() != info.transfer_queue_family_index())
     {
+        d->free_transfer_queue_count = info.transfer_queue_count();
         d->transfer_queues.resize(info.transfer_queue_count());
         for (uint32_t i = 0; i < info.transfer_queue_count(); i++)
         {
@@ -2518,23 +2533,53 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
         return 0;
     }
 
-    MutexLockGuard lock(d->queue_lock);
+    Mutex& queue_lock = queue_family_index == info.compute_queue_family_index() ? d->compute_queue_lock
+                        : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queue_lock
+                        : d->transfer_queue_lock;
+
+    queue_lock.lock();
+
+    ConditionVariable& queue_condition = queue_family_index == info.compute_queue_family_index() ? d->compute_queue_condition
+                                         : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queue_condition
+                                         : d->transfer_queue_condition;
+
+    int& free_queue_count = queue_family_index == info.compute_queue_family_index() ? d->free_compute_queue_count
+                            : queue_family_index == info.graphics_queue_family_index() ? d->free_graphics_queue_count
+                            : d->free_transfer_queue_count;
+
+    while (free_queue_count == 0)
+    {
+        // no free queues, wait for recleams from other threads
+        queue_condition.wait(queue_lock);
+    }
 
     std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index() ? d->compute_queues
                                    : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queues
                                    : d->transfer_queues;
-    for (int i = 0; i < (int)queues.size(); i++)
+
+    VkQueue queue = 0;
+    for (size_t i = 0; i < queues.size(); i++)
     {
-        VkQueue queue = queues[i];
-        if (queue)
+        if (queues[i])
         {
+            queue = queues[i];
             queues[i] = 0;
-            return queue;
+            break;
         }
     }
 
-    NCNN_LOGE("out of hardware queue %u", queue_family_index);
-    return 0;
+    if (!queue)
+    {
+        NCNN_LOGE("FATAL ERROR! out of hardware queue %u", queue_family_index);
+    }
+
+    free_queue_count -= 1;
+
+    queue_lock.unlock();
+
+    queue_condition.signal();
+
+    return queue;
 }
 
 void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) const
@@ -2547,21 +2592,44 @@ void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) con
         return;
     }
 
-    MutexLockGuard lock(d->queue_lock);
+    Mutex& queue_lock = queue_family_index == info.compute_queue_family_index() ? d->compute_queue_lock
+                        : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queue_lock
+                        : d->transfer_queue_lock;
+
+    queue_lock.lock();
+
+    ConditionVariable& queue_condition = queue_family_index == info.compute_queue_family_index() ? d->compute_queue_condition
+                                         : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queue_condition
+                                         : d->transfer_queue_condition;
+
+    int& free_queue_count = queue_family_index == info.compute_queue_family_index() ? d->free_compute_queue_count
+                            : queue_family_index == info.graphics_queue_family_index() ? d->free_graphics_queue_count
+                            : d->free_transfer_queue_count;
 
     std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index() ? d->compute_queues
                                    : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queues
                                    : d->transfer_queues;
-    for (int i = 0; i < (int)queues.size(); i++)
+
+    size_t i = 0;
+    for (; i < queues.size(); i++)
     {
         if (!queues[i])
         {
             queues[i] = queue;
-            return;
+            break;
         }
     }
 
-    NCNN_LOGE("FATAL ERROR! reclaim_queue get wild queue %u %p", queue_family_index, queue);
+    if (i == queues.size())
+    {
+        NCNN_LOGE("FATAL ERROR! reclaim_queue get wild queue %u %p", queue_family_index, queue);
+    }
+
+    free_queue_count += 1;
+
+    queue_lock.unlock();
+
+    queue_condition.signal();
 }
 
 VkAllocator* VulkanDevice::acquire_blob_allocator() const
