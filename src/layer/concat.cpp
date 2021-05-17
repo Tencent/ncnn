@@ -220,7 +220,7 @@ int Concat::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         int h = bottom_blobs[0].h;
         int channels = bottom_blobs[0].c;
 
-        // total height
+        // total width
         int top_w = 0;
         for (size_t b = 0; b < bottom_blobs.size(); b++)
         {
