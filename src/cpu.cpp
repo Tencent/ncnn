@@ -133,6 +133,7 @@ static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
 // from arch/arm64/include/uapi/asm/hwcap.h
 #define HWCAP_ASIMD   (1 << 1)
 #define HWCAP_ASIMDHP (1 << 10)
+#define HWCAP_ASIMDDP (1 << 20)
 #else
 // from arch/arm/include/uapi/asm/hwcap.h
 #define HWCAP_NEON  (1 << 12)
@@ -322,6 +323,25 @@ int cpu_support_arm_asimdhp()
 #if defined __ANDROID__ || defined __linux__
 #if __aarch64__
     return g_hwcaps & HWCAP_ASIMDHP;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_asimddp()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps & HWCAP_ASIMDDP;
 #else
     return 0;
 #endif

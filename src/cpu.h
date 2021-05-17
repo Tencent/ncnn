@@ -51,6 +51,8 @@ NCNN_EXPORT int cpu_support_arm_neon();
 NCNN_EXPORT int cpu_support_arm_vfpv4();
 // asimdhp = aarch64 asimd half precision
 NCNN_EXPORT int cpu_support_arm_asimdhp();
+// asimddp = aarch64 asimd dot product
+NCNN_EXPORT int cpu_support_arm_asimddp();
 
 // avx2 = x86_64 avx2 + fma + f16c
 NCNN_EXPORT int cpu_support_x86_avx2();
