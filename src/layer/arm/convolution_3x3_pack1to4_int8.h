@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_pack1to8_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
+static void conv3x3s1_pack1to4_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -76,10 +76,10 @@ static void conv3x3s1_pack1to8_int8_neon(const Mat& bottom_blob, Mat& top_blob, 
         }
     }
 
-    im2col_sgemm_pack1to8_int8_neon(bottom_im2col, top_blob, kernel, opt);
+    im2col_sgemm_pack1to4_int8_neon(bottom_im2col, top_blob, kernel, opt);
 }
 
-static void conv3x3s2_pack1to8_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
+static void conv3x3s2_pack1to4_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -143,5 +143,5 @@ static void conv3x3s2_pack1to8_int8_neon(const Mat& bottom_blob, Mat& top_blob, 
         }
     }
 
-    im2col_sgemm_pack1to8_int8_neon(bottom_im2col, top_blob, kernel, opt);
+    im2col_sgemm_pack1to4_int8_neon(bottom_im2col, top_blob, kernel, opt);
 }

@@ -214,6 +214,18 @@ static const layer_registry_entry layer_registry_arm82[] = {
 };
 #endif // NCNN_RUNTIME_CPU && NCNN_ARM82
 
+#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT
+static const layer_registry_entry layer_registry_arm82dot[] = {
+#include "layer_registry_arm82dot.h"
+};
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM82DOT
+
+#if NCNN_RUNTIME_CPU && NCNN_RVV
+static const layer_registry_entry layer_registry_rvv[] = {
+#include "layer_registry_rvv.h"
+};
+#endif // NCNN_RUNTIME_CPU && NCNN_RVV
+
 static const int layer_registry_entry_count = sizeof(layer_registry) / sizeof(layer_registry_entry);
 
 #if NCNN_STRING
@@ -253,6 +265,13 @@ Layer* create_layer(int index)
     }
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_AVX2
+#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT
+    if (ncnn::cpu_support_arm_asimdhp() && ncnn::cpu_support_arm_asimddp())
+    {
+        layer_creator = layer_registry_arm82dot[index].creator;
+    }
+    else
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM82DOT
 #if NCNN_RUNTIME_CPU && NCNN_ARM82
     if (ncnn::cpu_support_arm_asimdhp())
     {
@@ -260,6 +279,13 @@ Layer* create_layer(int index)
     }
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_ARM82
+#if NCNN_RUNTIME_CPU && NCNN_RVV
+    if (ncnn::cpu_support_riscv_v())
+    {
+        layer_creator = layer_registry_rvv[index].creator;
+    }
+    else
+#endif // NCNN_RUNTIME_CPU && NCNN_RVV
     {
         layer_creator = layer_registry[index].creator;
     }

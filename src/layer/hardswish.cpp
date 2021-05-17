@@ -24,6 +24,8 @@ HardSwish::HardSwish()
 
 int HardSwish::load_param(const ParamDict& pd)
 {
+    // Note that tensorflow/pytorch use alpha,beta = 1/6, 0.5, not the default value here.
+    // You can setup them manually in .param file.
     alpha = pd.get(0, 0.2f);
     beta = pd.get(1, 0.5f);
     lower = -beta / alpha;

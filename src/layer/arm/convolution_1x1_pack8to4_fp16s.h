@@ -227,7 +227,7 @@ static void conv1x1s1_sgemm_pack8to4_fp16sa_neon(const Mat& bottom_blob, Mat& to
         __fp16* outptr1 = top_blob.channel(p + 1);
 
         const __fp16 zeros[8] = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
-        const __fp16* biasptr = bias ? bias + p : zeros;
+        const __fp16* biasptr = bias ? bias + p * 4 : zeros;
         float16x8_t _bias0 = vld1q_f16(biasptr);
 
         int i = 0;

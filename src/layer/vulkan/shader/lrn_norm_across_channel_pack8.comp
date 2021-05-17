@@ -76,7 +76,7 @@ void main()
 
     // support region_type == 0 only
 
-    afpvec8 sum = afpvec8(afpvec4(0.f), afpvec4(0.f));
+    mat2x4 sum = mat2x4(0.f);
 
 #if NCNN_image_shader
     ivec4 z4 = gz * 8 + ivec4(0, 1, 2, 3);
@@ -84,14 +84,14 @@ void main()
 
     for (int z = 0; z < local_size; z++)
     {
-        sum[0].r += afp(texelFetch(square_workspace, ivec3(gx, gy, z4.r), 0).r);
-        sum[0].g += afp(texelFetch(square_workspace, ivec3(gx, gy, z4.g), 0).r);
-        sum[0].b += afp(texelFetch(square_workspace, ivec3(gx, gy, z4.b), 0).r);
-        sum[0].a += afp(texelFetch(square_workspace, ivec3(gx, gy, z4.a), 0).r);
-        sum[1].r += afp(texelFetch(square_workspace, ivec3(gx, gy, zz4.r), 0).r);
-        sum[1].g += afp(texelFetch(square_workspace, ivec3(gx, gy, zz4.g), 0).r);
-        sum[1].b += afp(texelFetch(square_workspace, ivec3(gx, gy, zz4.b), 0).r);
-        sum[1].a += afp(texelFetch(square_workspace, ivec3(gx, gy, zz4.a), 0).r);
+        sum[0].r += texelFetch(square_workspace, ivec3(gx, gy, z4.r), 0).r;
+        sum[0].g += texelFetch(square_workspace, ivec3(gx, gy, z4.g), 0).r;
+        sum[0].b += texelFetch(square_workspace, ivec3(gx, gy, z4.b), 0).r;
+        sum[0].a += texelFetch(square_workspace, ivec3(gx, gy, z4.a), 0).r;
+        sum[1].r += texelFetch(square_workspace, ivec3(gx, gy, zz4.r), 0).r;
+        sum[1].g += texelFetch(square_workspace, ivec3(gx, gy, zz4.g), 0).r;
+        sum[1].b += texelFetch(square_workspace, ivec3(gx, gy, zz4.b), 0).r;
+        sum[1].a += texelFetch(square_workspace, ivec3(gx, gy, zz4.a), 0).r;
 
         z4 += 1;
         zz4 += 1;
@@ -104,24 +104,24 @@ void main()
 
     for (int z = 0; z < local_size; z++)
     {
-        sum[0].r += afp(square_workspace_data[v_offset.r]);
-        sum[0].g += afp(square_workspace_data[v_offset.g]);
-        sum[0].b += afp(square_workspace_data[v_offset.b]);
-        sum[0].a += afp(square_workspace_data[v_offset.a]);
-        sum[1].r += afp(square_workspace_data[vv_offset.r]);
-        sum[1].g += afp(square_workspace_data[vv_offset.g]);
-        sum[1].b += afp(square_workspace_data[vv_offset.b]);
-        sum[1].a += afp(square_workspace_data[vv_offset.a]);
+        sum[0].r += square_workspace_data[v_offset.r];
+        sum[0].g += square_workspace_data[v_offset.g];
+        sum[0].b += square_workspace_data[v_offset.b];
+        sum[0].a += square_workspace_data[v_offset.a];
+        sum[1].r += square_workspace_data[vv_offset.r];
+        sum[1].g += square_workspace_data[vv_offset.g];
+        sum[1].b += square_workspace_data[vv_offset.b];
+        sum[1].a += square_workspace_data[vv_offset.a];
 
         v_offset += psc(cstep);
         vv_offset += psc(cstep);
     }
 #endif
 
-    const afp alpha_div_size = afp(alpha / local_size);
+    const float alpha_div_size = alpha / local_size;
     afpvec8 scale;
-    scale[0] = pow(afp(bias_constant) + alpha_div_size * sum[0], afpvec4(-beta));
-    scale[1] = pow(afp(bias_constant) + alpha_div_size * sum[1], afpvec4(-beta));
+    scale[0] = afpvec4(pow(bias_constant + alpha_div_size * sum[0], vec4(-beta)));
+    scale[1] = afpvec4(pow(bias_constant + alpha_div_size * sum[1], vec4(-beta)));
 
 #if NCNN_image_shader
     afpvec8 v = image3d_ld8(bottom_blob, ivec3(gx, gy, gz));
