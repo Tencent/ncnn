@@ -2396,7 +2396,7 @@ int Extractor::input(const char* blob_name, const Mat& in)
         const std::vector<const char*>& input_names = d->net->input_names();
         for (size_t i = 0; i < input_names.size(); i++)
         {
-            NCNN_LOGE("    ex.input(\"%s\", in%d);", input_names[i], i);
+            NCNN_LOGE("    ex.input(\"%s\", in%d);", input_names[i], (int)i);
         }
 
         return -1;
@@ -2414,7 +2414,7 @@ int Extractor::extract(const char* blob_name, Mat& feat, int type)
         const std::vector<const char*>& output_names = d->net->output_names();
         for (size_t i = 0; i < output_names.size(); i++)
         {
-            NCNN_LOGE("    ex.extract(\"%s\", out%d);", output_names[i], i);
+            NCNN_LOGE("    ex.extract(\"%s\", out%d);", output_names[i], (int)i);
         }
 
         return -1;
@@ -2605,7 +2605,7 @@ int Extractor::input(const char* blob_name, const VkMat& in)
         const std::vector<const char*>& input_names = d->net->input_names();
         for (size_t i = 0; i < input_names.size(); i++)
         {
-            NCNN_LOGE("    ex.input(\"%s\", in%d);", input_names[i], i);
+            NCNN_LOGE("    ex.input(\"%s\", in%d);", input_names[i], (int)i);
         }
 
         return -1;
@@ -2623,7 +2623,7 @@ int Extractor::extract(const char* blob_name, VkMat& feat, VkCompute& cmd)
         const std::vector<const char*>& output_names = d->net->output_names();
         for (size_t i = 0; i < output_names.size(); i++)
         {
-            NCNN_LOGE("    ex.extract(\"%s\", out%d);", output_names[i], i);
+            NCNN_LOGE("    ex.extract(\"%s\", out%d);", output_names[i], (int)i);
         }
 
         return -1;
@@ -2641,7 +2641,7 @@ int Extractor::input(const char* blob_name, const VkImageMat& in)
         const std::vector<const char*>& input_names = d->net->input_names();
         for (size_t i = 0; i < input_names.size(); i++)
         {
-            NCNN_LOGE("    ex.input(\"%s\", in%d);", input_names[i], i);
+            NCNN_LOGE("    ex.input(\"%s\", in%d);", input_names[i], (int)i);
         }
 
         return -1;
@@ -2659,7 +2659,7 @@ int Extractor::extract(const char* blob_name, VkImageMat& feat, VkCompute& cmd)
         const std::vector<const char*>& output_names = d->net->output_names();
         for (size_t i = 0; i < output_names.size(); i++)
         {
-            NCNN_LOGE("    ex.extract(\"%s\", out%d);", output_names[i], i);
+            NCNN_LOGE("    ex.extract(\"%s\", out%d);", output_names[i], (int)i);
         }
 
         return -1;
