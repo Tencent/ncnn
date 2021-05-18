@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "net.h"
+#include "benchmark.h"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -26,12 +27,8 @@
 
 #include <stdio.h>
 
-#define NCNN_PROFILING
 #define YOLOV4_TINY //Using yolov4_tiny, if undef, using original yolov4
 
-#ifdef NCNN_PROFILING
-#include "benchmark.h"
-#endif
 
 struct Object
 {
@@ -40,22 +37,24 @@ struct Object
     float prob;
 };
 
-static int init_yolov4(ncnn::Net* yolov4, int* target_size)
+ncnn::Net yolov4;
+
+static int init_yolov4(int* target_size)
 {
     /* --> Set the params you need for the ncnn inference <-- */
 
-    yolov4->opt.num_threads = 4; //You need to compile with libgomp for multi thread support
+    yolov4.opt.num_threads = 4; //You need to compile with libgomp for multi thread support
 
-    yolov4->opt.use_vulkan_compute = true; //You need to compile with libvulkan for gpu support
+    yolov4.opt.use_vulkan_compute = true; //You need to compile with libvulkan for gpu support
 
-    yolov4->opt.use_winograd_convolution = true;
-    yolov4->opt.use_sgemm_convolution = true;
-    yolov4->opt.use_fp16_packed = true;
-    yolov4->opt.use_fp16_storage = true;
-    yolov4->opt.use_fp16_arithmetic = true;
-    yolov4->opt.use_packing_layout = true;
-    yolov4->opt.use_shader_pack8 = false;
-    yolov4->opt.use_image_storage = false;
+    yolov4.opt.use_winograd_convolution = true;
+    yolov4.opt.use_sgemm_convolution = true;
+    yolov4.opt.use_fp16_packed = true;
+    yolov4.opt.use_fp16_storage = true;
+    yolov4.opt.use_fp16_arithmetic = true;
+    yolov4.opt.use_packing_layout = true;
+    yolov4.opt.use_shader_pack8 = false;
+    yolov4.opt.use_image_storage = false;
 
     /* --> End of setting params <-- */
     int ret = 0;
@@ -73,13 +72,13 @@ static int init_yolov4(ncnn::Net* yolov4, int* target_size)
     *target_size = 608;
 #endif
 
-    ret = yolov4->load_param(yolov4_param);
+    ret = yolov4.load_param(yolov4_param);
     if (ret != 0)
     {
         return ret;
     }
 
-    ret = yolov4->load_model(yolov4_model);
+    ret = yolov4.load_model(yolov4_model);
     if (ret != 0)
     {
         return ret;
@@ -88,7 +87,7 @@ static int init_yolov4(ncnn::Net* yolov4, int* target_size)
     return 0;
 }
 
-static int detect_yolov4(const cv::Mat& bgr, std::vector<Object>& objects, int target_size, ncnn::Net* yolov4)
+static int detect_yolov4(const cv::Mat& bgr, std::vector<Object>& objects, int target_size)
 {
     int img_w = bgr.cols;
     int img_h = bgr.rows;
@@ -145,8 +144,6 @@ static int draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects, 
                                         "teddy bear", "hair drier", "toothbrush"
                                        };
 
-    cv::Mat image = bgr.clone();
-
     for (size_t i = 0; i < objects.size(); i++)
     {
         const Object& obj = objects[i];
@@ -154,7 +151,7 @@ static int draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects, 
         fprintf(stderr, "%d = %.5f at %.2f %.2f %.2f x %.2f\n", obj.label, obj.prob,
                 obj.rect.x, obj.rect.y, obj.rect.width, obj.rect.height);
 
-        cv::rectangle(image, obj.rect, cv::Scalar(255, 0, 0));
+        cv::rectangle(bgr, obj.rect, cv::Scalar(255, 0, 0));
 
         char text[256];
         sprintf(text, "%s %.1f%%", class_names[obj.label], obj.prob * 100);
@@ -166,146 +163,161 @@ static int draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects, 
         int y = obj.rect.y - label_size.height - baseLine;
         if (y < 0)
             y = 0;
-        if (x + label_size.width > image.cols)
-            x = image.cols - label_size.width;
+        if (x + label_size.width > bgr.cols)
+            x = bgr.cols - label_size.width;
 
-        cv::rectangle(image, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
+        cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
                       cv::Scalar(255, 255, 255), -1);
 
-        cv::putText(image, text, cv::Point(x, y + label_size.height),
+        cv::putText(bgr, text, cv::Point(x, y + label_size.height),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
     }
+    return 0;
+}
 
-    cv::imshow("image", image);
+static int draw_fps(cv::Mat& bgr)
+{
+    // resolve moving average
+    float avg_fps = 0.f;
+    {
+        static double t0 = 0.f;
+        static float fps_history[10] = { 0.f };
 
-    if (is_streaming)
-    {
-        cv::waitKey(1);
+        double t1 = ncnn::get_current_time();
+        if (t0 == 0.f)
+        {
+            t0 = t1;
+            return 0;
+        }
+
+        float fps = 1000.f / (t1 - t0);
+        t0 = t1;
+
+        for (int i = 9; i >= 1; i--)
+        {
+            fps_history[i] = fps_history[i - 1];
+        }
+        fps_history[0] = fps;
+
+        if (fps_history[9] == 0.f)
+        {
+            return 0;
+        }
+
+        for (int i = 0; i < 10; i++)
+        {
+            avg_fps += fps_history[i];
+        }
+        avg_fps /= 10.f;
     }
-    else
-    {
-        cv::waitKey(0);
-    }
+
+    char text[32];
+    sprintf(text, "FPS=%.2f", avg_fps);
+
+    int baseLine = 0;
+    cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
+
+    int y = 0;
+    int x = bgr.cols - label_size.width;
+
+    cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
+        cv::Scalar(255, 255, 255), -1);
+
+    cv::putText(bgr, text, cv::Point(x, y + label_size.height),
+        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
     return 0;
 }
 
+
 int main(int argc, char** argv)
 {
-    cv::Mat frame;
-    std::vector<Object> objects;
-
-    cv::VideoCapture cap;
-
-    ncnn::Net yolov4;
-
-    const char* devicepath;
-
     int target_size = 0;
-    int is_streaming = 0;
+    
 
-    if (argc < 2)
+    if (argc != 3)
     {
-        fprintf(stderr, "Usage: %s [v4l input device or image]\n", argv[0]);
+        fprintf(stderr, "Usage:(1) %s image [imagepath]\n", argv[0]);
+        fprintf(stderr, "      (2) %s video [videopath]\n", argv[0]);
+        fprintf(stderr, "      (3) %s capture [id]\n", argv[0]);
         return -1;
     }
 
-    devicepath = argv[1];
-
-#ifdef NCNN_PROFILING
-    double t_load_start = ncnn::get_current_time();
-#endif
-
-    int ret = init_yolov4(&yolov4, &target_size); //We load model and param first!
+    int ret = init_yolov4(&target_size); //We load model and param first!
     if (ret != 0)
     {
         fprintf(stderr, "Failed to load model or param, error %d", ret);
         return -1;
     }
 
-#ifdef NCNN_PROFILING
-    double t_load_end = ncnn::get_current_time();
-    fprintf(stdout, "NCNN Init time %.02lfms\n", t_load_end - t_load_start);
-#endif
-
-    if (strstr(devicepath, "/dev/video") == NULL)
+    const char* type = argv[1];
+    if (0 == strcmp(type, "image"))
     {
-        frame = cv::imread(argv[1], 1);
-        if (frame.empty())
+        const char* imagepath = argv[2];
+
+        cv::Mat m = cv::imread(imagepath, 1);
+        if (m.empty())
         {
-            fprintf(stderr, "Failed to read image %s.\n", argv[1]);
+            fprintf(stderr, "cv::imread %s failed\n", imagepath);
             return -1;
         }
-    }
-    else
-    {
-        cap.open(devicepath);
+        std::vector<Object> objects;
+        detect_yolov4(m, objects,target_size);
 
+        draw_objects(m, objects);
+        cv::imshow("image", m);
+        cv::waitKey(0);
+    }
+    else if (0 == strcmp(type, "video"))
+    {
+        const char* videopath = argv[2];
+        cv::Mat frame;
+        cv::VideoCapture cap(videopath);
         if (!cap.isOpened())
         {
-            fprintf(stderr, "Failed to open %s", devicepath);
+            fprintf(stderr, "cv::VideoCapture %s failed\n", videopath);
             return -1;
         }
-
-        cap >> frame;
-
-        if (frame.empty())
+        while (true)
         {
-            fprintf(stderr, "Failed to read from device %s.\n", devicepath);
-            return -1;
-        }
-
-        is_streaming = 1;
-    }
-
-    while (1)
-    {
-        if (is_streaming)
-        {
-#ifdef NCNN_PROFILING
-            double t_capture_start = ncnn::get_current_time();
-#endif
-
             cap >> frame;
+            std::vector<Object> objects;
+            detect_yolov4(frame, objects,target_size);
 
-#ifdef NCNN_PROFILING
-            double t_capture_end = ncnn::get_current_time();
-            fprintf(stdout, "NCNN OpenCV capture time %.02lfms\n", t_capture_end - t_capture_start);
-#endif
-            if (frame.empty())
+            draw_objects(frame, objects);
+            draw_fps(frame);
+            cv::imshow("video", frame);
+            if (cv::waitKey(10) == 27)
             {
-                fprintf(stderr, "OpenCV Failed to Capture from device %s\n", devicepath);
-                return -1;
+                break;
             }
         }
+    }
+    else if (0 == strcmp(type, "capture"))
+    {
+        int id = atoi(argv[2]);
+        cv::Mat frame;
+        cv::VideoCapture cap(id);
+        if (!cap.isOpened())
+        {
+            fprintf(stderr, "cv::VideoCapture %d failed\n", id);
+            return -1;
+        }
+        while (true)
+        {
+            cap >> frame;
+            std::vector<Object> objects;
+            detect_yolov4(frame, objects,target_size);
 
-#ifdef NCNN_PROFILING
-        double t_detect_start = ncnn::get_current_time();
-#endif
-
-        detect_yolov4(frame, objects, target_size, &yolov4); //Create an extractor and run detection
-
-#ifdef NCNN_PROFILING
-        double t_detect_end = ncnn::get_current_time();
-        fprintf(stdout, "NCNN detection time %.02lfms\n", t_detect_end - t_detect_start);
-#endif
-
-#ifdef NCNN_PROFILING
-        double t_draw_start = ncnn::get_current_time();
-#endif
-
-        draw_objects(frame, objects, is_streaming); //Draw detection results on opencv image
-
-#ifdef NCNN_PROFILING
-        double t_draw_end = ncnn::get_current_time();
-        fprintf(stdout, "NCNN OpenCV draw result time %.02lfms\n", t_draw_end - t_draw_start);
-#endif
-
-        if (!is_streaming)
-        {   //If it is a still image, exit!
-            return 0;
+            draw_objects(frame, objects);
+            draw_fps(frame);
+            cv::imshow("capture", frame);
+            if (cv::waitKey(10) == 27)
+            {
+                break;
+            }
         }
     }
-
+    
     return 0;
 }

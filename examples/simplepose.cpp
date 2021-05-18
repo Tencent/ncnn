@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "net.h"
+#include "benchmark.h"
 
 #include <algorithm>
 #include <opencv2/core/core.hpp>
@@ -27,11 +28,28 @@ struct KeyPoint
     float prob;
 };
 
-static int detect_posenet(const cv::Mat& bgr, std::vector<KeyPoint>& keypoints)
-{
-    ncnn::Net posenet;
+ncnn::Net posenet;
 
-    posenet.opt.use_vulkan_compute = true;
+static int init_posenet()
+{
+
+    /* --> Set the params you need for the ncnn inference <-- */
+
+    posenet.opt.num_threads = 4; //You need to compile with libgomp for multi thread support
+
+    posenet.opt.use_vulkan_compute = true; //You need to compile with libvulkan for gpu support
+
+    posenet.opt.use_winograd_convolution = true;
+    posenet.opt.use_sgemm_convolution = true;
+    posenet.opt.use_fp16_packed = true;
+    posenet.opt.use_fp16_storage = true;
+    posenet.opt.use_fp16_arithmetic = true;
+    posenet.opt.use_packing_layout = true;
+    posenet.opt.use_shader_pack8 = false;
+    posenet.opt.use_image_storage = false;
+
+    /* --> End of setting params <-- */
+    int ret = 0;
 
     // the simple baseline human pose estimation from gluon-cv
     // https://gluon-cv.mxnet.io/build/examples_pose/demo_simple_pose.html
@@ -40,8 +58,27 @@ static int detect_posenet(const cv::Mat& bgr, std::vector<KeyPoint>& keypoints)
     //      pose_net.export('pose')
     // then mxnet2ncnn
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    posenet.load_param("pose.param");
-    posenet.load_model("pose.bin");
+    const char* posenet_param = "pose.param";
+    const char* posenet_model = "pose.bin";
+
+
+    ret = posenet.load_param(posenet_param);
+    if (ret != 0)
+    {
+        return ret;
+    }
+
+    ret = posenet.load_model(posenet_model);
+    if (ret != 0)
+    {
+        return ret;
+    }
+
+    return 0;
+}
+
+static int detect_posenet(const cv::Mat& bgr, std::vector<KeyPoint>& keypoints)
+{
 
     int w = bgr.cols;
     int h = bgr.rows;
@@ -100,8 +137,6 @@ static int detect_posenet(const cv::Mat& bgr, std::vector<KeyPoint>& keypoints)
 
 static void draw_pose(const cv::Mat& bgr, const std::vector<KeyPoint>& keypoints)
 {
-    cv::Mat image = bgr.clone();
-
     // draw bone
     static const int joint_pairs[16][2] = {
         {0, 1}, {1, 3}, {0, 2}, {2, 4}, {5, 6}, {5, 7}, {7, 9}, {6, 8}, {8, 10}, {5, 11}, {6, 12}, {11, 12}, {11, 13}, {12, 14}, {13, 15}, {14, 16}
@@ -115,7 +150,7 @@ static void draw_pose(const cv::Mat& bgr, const std::vector<KeyPoint>& keypoints
         if (p1.prob < 0.2f || p2.prob < 0.2f)
             continue;
 
-        cv::line(image, p1.p, p2.p, cv::Scalar(255, 0, 0), 2);
+        cv::line(bgr, p1.p, p2.p, cv::Scalar(255, 0, 0), 2);
     }
 
     // draw joint
@@ -128,34 +163,150 @@ static void draw_pose(const cv::Mat& bgr, const std::vector<KeyPoint>& keypoints
         if (keypoint.prob < 0.2f)
             continue;
 
-        cv::circle(image, keypoint.p, 3, cv::Scalar(0, 255, 0), -1);
+        cv::circle(bgr, keypoint.p, 3, cv::Scalar(0, 255, 0), -1);
     }
 
-    cv::imshow("image", image);
-    cv::waitKey(0);
 }
+
+static int draw_fps(cv::Mat& bgr)
+{
+    // resolve moving average
+    float avg_fps = 0.f;
+    {
+        static double t0 = 0.f;
+        static float fps_history[10] = { 0.f };
+
+        double t1 = ncnn::get_current_time();
+        if (t0 == 0.f)
+        {
+            t0 = t1;
+            return 0;
+        }
+
+        float fps = 1000.f / (t1 - t0);
+        t0 = t1;
+
+        for (int i = 9; i >= 1; i--)
+        {
+            fps_history[i] = fps_history[i - 1];
+        }
+        fps_history[0] = fps;
+
+        if (fps_history[9] == 0.f)
+        {
+            return 0;
+        }
+
+        for (int i = 0; i < 10; i++)
+        {
+            avg_fps += fps_history[i];
+        }
+        avg_fps /= 10.f;
+    }
+
+    char text[32];
+    sprintf(text, "FPS=%.2f", avg_fps);
+
+    int baseLine = 0;
+    cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
+
+    int y = 0;
+    int x = bgr.cols - label_size.width;
+
+    cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
+        cv::Scalar(255, 255, 255), -1);
+
+    cv::putText(bgr, text, cv::Point(x, y + label_size.height),
+        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+
+    return 0;
+}
+
 
 int main(int argc, char** argv)
 {
-    if (argc != 2)
+    if (argc != 3)
     {
-        fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
+        fprintf(stderr, "Usage:(1) %s image [imagepath]\n", argv[0]);
+        fprintf(stderr, "      (2) %s video [videopath]\n", argv[0]);
+        fprintf(stderr, "      (3) %s capture [id]\n", argv[0]);
         return -1;
     }
 
-    const char* imagepath = argv[1];
-
-    cv::Mat m = cv::imread(imagepath, 1);
-    if (m.empty())
+    int ret = init_posenet(); //We load model and param first!
+    if (ret != 0)
     {
-        fprintf(stderr, "cv::imread %s failed\n", imagepath);
+        fprintf(stderr, "Failed to load model or param, error %d", ret);
         return -1;
     }
 
-    std::vector<KeyPoint> keypoints;
-    detect_posenet(m, keypoints);
+    const char* type = argv[1];
+    if (0 == strcmp(type, "image"))
+    {
+        const char* imagepath = argv[2];
 
-    draw_pose(m, keypoints);
+        cv::Mat m = cv::imread(imagepath, 1);
+        if (m.empty())
+        {
+            fprintf(stderr, "cv::imread %s failed\n", imagepath);
+            return -1;
+        }
+        std::vector<KeyPoint> keypoints;
+        detect_posenet(m, keypoints);
 
+        draw_pose(m, keypoints);
+        cv::waitKey(0);
+    }
+    else if (0 == strcmp(type, "video"))
+    {
+        const char* videopath = argv[2];
+        cv::Mat frame;
+        cv::VideoCapture cap(videopath);
+        if (!cap.isOpened())
+        {
+            fprintf(stderr, "cv::VideoCapture %s failed\n", videopath);
+            return -1;
+        }
+        while (true)
+        {
+            cap >> frame;
+            std::vector<KeyPoint> keypoints;
+            detect_posenet(frame, keypoints);
+
+            draw_pose(frame, keypoints);
+            draw_fps(frame);
+            cv::imshow("video", frame);
+            if (cv::waitKey(10) == 27)
+            {
+                break;
+            }
+        }
+    }
+    else if (0 == strcmp(type, "capture"))
+    {
+        int id = atoi(argv[2]);
+        cv::Mat frame;
+        cv::VideoCapture cap(id);
+        if (!cap.isOpened())
+        {
+            fprintf(stderr, "cv::VideoCapture %d failed\n", id);
+            return -1;
+        }
+        while (true)
+        {
+            cap >> frame;
+            std::vector<KeyPoint> keypoints;
+            detect_posenet(frame, keypoints);
+
+            draw_pose(frame, keypoints);
+            draw_fps(frame);
+            cv::imshow("capture", frame);
+            if (cv::waitKey(10) == 27)
+            {
+                break;
+            }
+        }
+    }
     return 0;
+
 }

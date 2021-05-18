@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "net.h"
+#include "benchmark.h"
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -28,6 +29,8 @@ struct Object
     std::vector<float> maskdata;
     cv::Mat mask;
 };
+
+ncnn::Net yolact;
 
 static inline float intersection_area(const Object& a, const Object& b)
 {
@@ -114,17 +117,51 @@ static void nms_sorted_bboxes(const std::vector<Object>& objects, std::vector<in
     }
 }
 
-static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
+static int init_yolact()
 {
-    ncnn::Net yolact;
 
-    yolact.opt.use_vulkan_compute = true;
+    /* --> Set the params you need for the ncnn inference <-- */
+
+    yolact.opt.num_threads = 4; //You need to compile with libgomp for multi thread support
+
+    yolact.opt.use_vulkan_compute = true; //You need to compile with libvulkan for gpu support
+
+    yolact.opt.use_winograd_convolution = true;
+    yolact.opt.use_sgemm_convolution = true;
+    yolact.opt.use_fp16_packed = true;
+    yolact.opt.use_fp16_storage = true;
+    yolact.opt.use_fp16_arithmetic = true;
+    yolact.opt.use_packing_layout = true;
+    yolact.opt.use_shader_pack8 = false;
+    yolact.opt.use_image_storage = false;
+
+    /* --> End of setting params <-- */
+    int ret = 0;
 
     // original model converted from https://github.com/dbolya/yolact
     // yolact_resnet50_54_800000.pth
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    yolact.load_param("yolact.param");
-    yolact.load_model("yolact.bin");
+    const char* yolact_param = "yolact.param";
+    const char* yolact_model = "yolact.bin";
+
+
+    ret = yolact.load_param(yolact_param);
+    if (ret != 0)
+    {
+        return ret;
+    }
+
+    ret = yolact.load_model(yolact_model);
+    if (ret != 0)
+    {
+        return ret;
+    }
+
+    return 0;
+}
+
+static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
+{
 
     const int target_size = 550;
 
@@ -453,8 +490,6 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         {245, 255, 0}
     };
 
-    cv::Mat image = bgr.clone();
-
     int color_index = 0;
 
     for (size_t i = 0; i < objects.size(); i++)
@@ -470,7 +505,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         const unsigned char* color = colors[color_index % 81];
         color_index++;
 
-        cv::rectangle(image, obj.rect, cv::Scalar(color[0], color[1], color[2]));
+        cv::rectangle(bgr, obj.rect, cv::Scalar(color[0], color[1], color[2]));
 
         char text[256];
         sprintf(text, "%s %.1f%%", class_names[obj.label], obj.prob * 100);
@@ -482,21 +517,21 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         int y = obj.rect.y - label_size.height - baseLine;
         if (y < 0)
             y = 0;
-        if (x + label_size.width > image.cols)
-            x = image.cols - label_size.width;
+        if (x + label_size.width > bgr.cols)
+            x = bgr.cols - label_size.width;
 
-        cv::rectangle(image, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
+        cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
                       cv::Scalar(255, 255, 255), -1);
 
-        cv::putText(image, text, cv::Point(x, y + label_size.height),
+        cv::putText(bgr, text, cv::Point(x, y + label_size.height),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
         // draw mask
-        for (int y = 0; y < image.rows; y++)
+        for (int y = 0; y < bgr.rows; y++)
         {
             const uchar* mp = obj.mask.ptr(y);
-            uchar* p = image.ptr(y);
-            for (int x = 0; x < image.cols; x++)
+            uchar* p = bgr.ptr(y);
+            for (int x = 0; x < bgr.cols; x++)
             {
                 if (mp[x] == 255)
                 {
@@ -509,32 +544,152 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         }
     }
 
-    cv::imwrite("result.png", image);
-    cv::imshow("image", image);
-    cv::waitKey(0);
+    
+}
+
+
+static int draw_fps(cv::Mat& bgr)
+{
+    // resolve moving average
+    float avg_fps = 0.f;
+    {
+        static double t0 = 0.f;
+        static float fps_history[10] = { 0.f };
+
+        double t1 = ncnn::get_current_time();
+        if (t0 == 0.f)
+        {
+            t0 = t1;
+            return 0;
+        }
+
+        float fps = 1000.f / (t1 - t0);
+        t0 = t1;
+
+        for (int i = 9; i >= 1; i--)
+        {
+            fps_history[i] = fps_history[i - 1];
+        }
+        fps_history[0] = fps;
+
+        if (fps_history[9] == 0.f)
+        {
+            return 0;
+        }
+
+        for (int i = 0; i < 10; i++)
+        {
+            avg_fps += fps_history[i];
+        }
+        avg_fps /= 10.f;
+    }
+
+    char text[32];
+    sprintf(text, "FPS=%.2f", avg_fps);
+
+    int baseLine = 0;
+    cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
+
+    int y = 0;
+    int x = bgr.cols - label_size.width;
+
+    cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
+        cv::Scalar(255, 255, 255), -1);
+
+    cv::putText(bgr, text, cv::Point(x, y + label_size.height),
+        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+
+    return 0;
 }
 
 int main(int argc, char** argv)
 {
-    if (argc != 2)
+    if (argc != 3)
     {
-        fprintf(stderr, "Usage: %s [imagepath]\n", argv[0]);
+        fprintf(stderr, "Usage:(1) %s image [imagepath]\n", argv[0]);
+        fprintf(stderr, "      (2) %s video [videopath]\n", argv[0]);
+        fprintf(stderr, "      (3) %s capture [id]\n", argv[0]);
         return -1;
     }
 
-    const char* imagepath = argv[1];
-
-    cv::Mat m = cv::imread(imagepath, 1);
-    if (m.empty())
+    int ret = init_yolact(); //We load model and param first!
+    if (ret != 0)
     {
-        fprintf(stderr, "cv::imread %s failed\n", imagepath);
+        fprintf(stderr, "Failed to load model or param, error %d", ret);
         return -1;
     }
 
-    std::vector<Object> objects;
-    detect_yolact(m, objects);
+    const char* type = argv[1];
+    if (0 == strcmp(type, "image"))
+    {
+        const char* imagepath = argv[2];
 
-    draw_objects(m, objects);
+        cv::Mat m = cv::imread(imagepath, 1);
+        if (m.empty())
+        {
+            fprintf(stderr, "cv::imread %s failed\n", imagepath);
+            return -1;
+        }
+        std::vector<Object> objects;
+        detect_yolact(m, objects);
 
+        draw_objects(m, objects);
+        cv::imwrite("result.png", m);
+        cv::imshow("image", m);
+        cv::waitKey(0);
+    }
+    else if (0 == strcmp(type, "video"))
+    {
+        const char* videopath = argv[2];
+        cv::Mat frame;
+        cv::VideoCapture cap(videopath);
+        if (!cap.isOpened())
+        {
+            fprintf(stderr, "cv::VideoCapture %s failed\n", videopath);
+            return -1;
+        }
+        while (true)
+        {
+            cap >> frame;
+            std::vector<Object> objects;
+            detect_yolact(frame, objects);
+
+            draw_objects(frame, objects);
+            draw_fps(frame);
+            cv::imwrite("result.png", frame);
+            cv::imshow("video", frame);
+            if (cv::waitKey(10) == 27)
+            {
+                break;
+            }
+        }
+    }
+    else if (0 == strcmp(type, "capture"))
+    {
+        int id = atoi(argv[2]);
+        cv::Mat frame;
+        cv::VideoCapture cap(id);
+        if (!cap.isOpened())
+        {
+            fprintf(stderr, "cv::VideoCapture %d failed\n", id);
+            return -1;
+        }
+        while (true)
+        {
+            cap >> frame;
+            std::vector<Object> objects;
+            detect_yolact(frame, objects);
+
+            draw_objects(frame, objects);
+            draw_fps(frame);
+            cv::imwrite("result.png", frame);
+            cv::imshow("capture", frame);
+            if (cv::waitKey(10) == 27)
+            {
+                break;
+            }
+        }
+    }
+    
     return 0;
 }
