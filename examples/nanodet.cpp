@@ -62,13 +62,13 @@ static void qsort_descent_inplace(std::vector<Object>& faceobjects, int left, in
         }
     }
 
-    #pragma omp parallel sections
+#pragma omp parallel sections
     {
-        #pragma omp section
+#pragma omp section
         {
             if (left < j) qsort_descent_inplace(faceobjects, left, j);
         }
-        #pragma omp section
+#pragma omp section
         {
             if (i < right) qsort_descent_inplace(faceobjects, i, right);
         }
@@ -218,7 +218,6 @@ static void generate_proposals(const ncnn::Mat& cls_pred, const ncnn::Mat& dis_p
 
 static int init_nanodet()
 {
-
     /* --> Set the params you need for the ncnn inference <-- */
 
     nanodet.opt.num_threads = 4; //You need to compile with libgomp for multi thread support
@@ -242,7 +241,6 @@ static int init_nanodet()
     const char* nanodet_param = "nanodet_m.param";
     const char* nanodet_model = "nanodet_m.bin";
 
-
     ret = nanodet.load_param(nanodet_param);
     if (ret != 0)
     {
@@ -260,7 +258,6 @@ static int init_nanodet()
 
 static int detect_nanodet(const cv::Mat& bgr, std::vector<Object>& objects)
 {
-
     int width = bgr.cols;
     int height = bgr.rows;
 
@@ -388,8 +385,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake", "chair", "couch",
         "potted plant", "bed", "dining table", "toilet", "tv", "laptop", "mouse", "remote", "keyboard", "cell phone",
         "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear",
-        "hair drier", "toothbrush"
-    };
+        "hair drier", "toothbrush"};
 
     for (size_t i = 0; i < objects.size(); i++)
     {
@@ -419,10 +415,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         cv::putText(bgr, text, cv::Point(x, y + label_size.height),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
     }
-
-    
 }
-
 
 static int draw_fps(cv::Mat& bgr)
 {
@@ -430,7 +423,7 @@ static int draw_fps(cv::Mat& bgr)
     float avg_fps = 0.f;
     {
         static double t0 = 0.f;
-        static float fps_history[10] = { 0.f };
+        static float fps_history[10] = {0.f};
 
         double t1 = ncnn::get_current_time();
         if (t0 == 0.f)
@@ -470,10 +463,10 @@ static int draw_fps(cv::Mat& bgr)
     int x = bgr.cols - label_size.width;
 
     cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-        cv::Scalar(255, 255, 255), -1);
+                  cv::Scalar(255, 255, 255), -1);
 
     cv::putText(bgr, text, cv::Point(x, y + label_size.height),
-        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
     return 0;
 }
@@ -563,5 +556,4 @@ int main(int argc, char** argv)
         }
     }
     return 0;
-    
 }

@@ -32,7 +32,6 @@ ncnn::Net peleenet;
 
 static int init_peleenet()
 {
-
     /* --> Set the params you need for the ncnn inference <-- */
 
     peleenet.opt.num_threads = 4; //You need to compile with libgomp for multi thread support
@@ -57,7 +56,6 @@ static int init_peleenet()
     const char* peleenet_param = "pelee.param";
     const char* peleenet_model = "pelee.bin";
 
-
     ret = peleenet.load_param(peleenet_param);
     if (ret != 0)
     {
@@ -75,7 +73,6 @@ static int init_peleenet()
 
 static int detect_peleenet(const cv::Mat& bgr, std::vector<Object>& objects, ncnn::Mat& resized)
 {
-
     const int target_size = 304;
 
     int img_w = bgr.cols;
@@ -122,8 +119,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects,
     static const char* class_names[] = {"background",
                                         "person", "rider", "car", "bus",
                                         "truck", "bike", "motor",
-                                        "traffic light", "traffic sign", "train"
-                                       };
+                                        "traffic light", "traffic sign", "train"};
 
     const int color[] = {128, 255, 128, 244, 35, 232};
     const int color_count = sizeof(color) / sizeof(int);
@@ -197,9 +193,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects,
             img_index2++;
         }
     }
-
 }
-
 
 static int draw_fps(cv::Mat& bgr)
 {
@@ -207,7 +201,7 @@ static int draw_fps(cv::Mat& bgr)
     float avg_fps = 0.f;
     {
         static double t0 = 0.f;
-        static float fps_history[10] = { 0.f };
+        static float fps_history[10] = {0.f};
 
         double t1 = ncnn::get_current_time();
         if (t0 == 0.f)
@@ -247,10 +241,10 @@ static int draw_fps(cv::Mat& bgr)
     int x = bgr.cols - label_size.width;
 
     cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-        cv::Scalar(255, 255, 255), -1);
+                  cv::Scalar(255, 255, 255), -1);
 
     cv::putText(bgr, text, cv::Point(x, y + label_size.height),
-        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
     return 0;
 }
@@ -344,5 +338,4 @@ int main(int argc, char** argv)
         }
     }
     return 0;
-
 }

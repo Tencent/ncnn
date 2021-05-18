@@ -32,7 +32,6 @@ ncnn::Net squeezenet;
 
 static int init_squeezenet()
 {
-
     /* --> Set the params you need for the ncnn inference <-- */
 
     squeezenet.opt.num_threads = 4; //You need to compile with libgomp for multi thread support
@@ -58,7 +57,6 @@ static int init_squeezenet()
     const char* squeezenet_param = "squeezenet_ssd_voc.param";
     const char* squeezenet_model = "squeezenet_ssd_voc.bin";
 
-
     ret = squeezenet.load_param(squeezenet_param);
     if (ret != 0)
     {
@@ -76,7 +74,6 @@ static int init_squeezenet()
 
 static int detect_squeezenet(const cv::Mat& bgr, std::vector<Object>& objects)
 {
-
     const int target_size = 300;
 
     int img_w = bgr.cols;
@@ -121,8 +118,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
                                         "bottle", "bus", "car", "cat", "chair",
                                         "cow", "diningtable", "dog", "horse",
                                         "motorbike", "person", "pottedplant",
-                                        "sheep", "sofa", "train", "tvmonitor"
-                                       };
+                                        "sheep", "sofa", "train", "tvmonitor"};
 
     for (size_t i = 0; i < objects.size(); i++)
     {
@@ -154,14 +150,13 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
     }
 }
 
-
 static int draw_fps(cv::Mat& bgr)
 {
     // resolve moving average
     float avg_fps = 0.f;
     {
         static double t0 = 0.f;
-        static float fps_history[10] = { 0.f };
+        static float fps_history[10] = {0.f};
 
         double t1 = ncnn::get_current_time();
         if (t0 == 0.f)
@@ -201,10 +196,10 @@ static int draw_fps(cv::Mat& bgr)
     int x = bgr.cols - label_size.width;
 
     cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-        cv::Scalar(255, 255, 255), -1);
+                  cv::Scalar(255, 255, 255), -1);
 
     cv::putText(bgr, text, cv::Point(x, y + label_size.height),
-        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
     return 0;
 }
@@ -294,6 +289,6 @@ int main(int argc, char** argv)
             }
         }
     }
-    
+
     return 0;
 }

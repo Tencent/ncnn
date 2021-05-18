@@ -62,13 +62,13 @@ static void qsort_descent_inplace(std::vector<Object>& objects, int left, int ri
         }
     }
 
-    #pragma omp parallel sections
+#pragma omp parallel sections
     {
-        #pragma omp section
+#pragma omp section
         {
             if (left < j) qsort_descent_inplace(objects, left, j);
         }
-        #pragma omp section
+#pragma omp section
         {
             if (i < right) qsort_descent_inplace(objects, i, right);
         }
@@ -119,7 +119,6 @@ static void nms_sorted_bboxes(const std::vector<Object>& objects, std::vector<in
 
 static int init_yolact()
 {
-
     /* --> Set the params you need for the ncnn inference <-- */
 
     yolact.opt.num_threads = 4; //You need to compile with libgomp for multi thread support
@@ -144,7 +143,6 @@ static int init_yolact()
     const char* yolact_param = "yolact.param";
     const char* yolact_model = "yolact.bin";
 
-
     ret = yolact.load_param(yolact_param);
     if (ret != 0)
     {
@@ -162,7 +160,6 @@ static int init_yolact()
 
 static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
 {
-
     const int target_size = 550;
 
     int img_w = bgr.cols;
@@ -403,8 +400,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
                                         "potted plant", "bed", "dining table", "toilet", "tv", "laptop",
                                         "mouse", "remote", "keyboard", "cell phone", "microwave", "oven",
                                         "toaster", "sink", "refrigerator", "book", "clock", "vase",
-                                        "scissors", "teddy bear", "hair drier", "toothbrush"
-                                       };
+                                        "scissors", "teddy bear", "hair drier", "toothbrush"};
 
     static const unsigned char colors[81][3] = {
         {56, 0, 255},
@@ -487,8 +483,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         {0, 255, 75},
         {0, 255, 151},
         {255, 56, 0},
-        {245, 255, 0}
-    };
+        {245, 255, 0}};
 
     int color_index = 0;
 
@@ -543,10 +538,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
             }
         }
     }
-
-    
 }
-
 
 static int draw_fps(cv::Mat& bgr)
 {
@@ -554,7 +546,7 @@ static int draw_fps(cv::Mat& bgr)
     float avg_fps = 0.f;
     {
         static double t0 = 0.f;
-        static float fps_history[10] = { 0.f };
+        static float fps_history[10] = {0.f};
 
         double t1 = ncnn::get_current_time();
         if (t0 == 0.f)
@@ -594,10 +586,10 @@ static int draw_fps(cv::Mat& bgr)
     int x = bgr.cols - label_size.width;
 
     cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-        cv::Scalar(255, 255, 255), -1);
+                  cv::Scalar(255, 255, 255), -1);
 
     cv::putText(bgr, text, cv::Point(x, y + label_size.height),
-        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
     return 0;
 }
@@ -690,6 +682,6 @@ int main(int argc, char** argv)
             }
         }
     }
-    
+
     return 0;
 }

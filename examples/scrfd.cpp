@@ -59,13 +59,13 @@ static void qsort_descent_inplace(std::vector<FaceObject>& faceobjects, int left
         }
     }
 
-    #pragma omp parallel sections
+#pragma omp parallel sections
     {
-        #pragma omp section
+#pragma omp section
         {
             if (left < j) qsort_descent_inplace(faceobjects, left, j);
         }
-        #pragma omp section
+#pragma omp section
         {
             if (i < right) qsort_descent_inplace(faceobjects, i, right);
         }
@@ -220,7 +220,6 @@ static void generate_proposals(const ncnn::Mat& anchors, int feat_stride, const 
 
 static int init_scrfd()
 {
-
     /* --> Set the params you need for the ncnn inference <-- */
 
     scrfd.opt.num_threads = 4; //You need to compile with libgomp for multi thread support
@@ -245,7 +244,6 @@ static int init_scrfd()
     const char* scrfd_param = "scrfd_500m-opt2.param";
     const char* scrfd_model = "scrfd_500m-opt2.bin";
 
-
     ret = scrfd.load_param(scrfd_param);
     if (ret != 0)
     {
@@ -260,7 +258,6 @@ static int init_scrfd()
 
     return 0;
 }
-
 
 static int detect_scrfd(const cv::Mat& bgr, std::vector<FaceObject>& faceobjects)
 {
@@ -406,7 +403,6 @@ static int detect_scrfd(const cv::Mat& bgr, std::vector<FaceObject>& faceobjects
 
 static void draw_faceobjects(const cv::Mat& bgr, const std::vector<FaceObject>& faceobjects)
 {
-
     for (size_t i = 0; i < faceobjects.size(); i++)
     {
         const FaceObject& obj = faceobjects[i];
@@ -435,7 +431,6 @@ static void draw_faceobjects(const cv::Mat& bgr, const std::vector<FaceObject>& 
         cv::putText(bgr, text, cv::Point(x, y + label_size.height),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
     }
-
 }
 
 static int draw_fps(cv::Mat& bgr)
@@ -444,7 +439,7 @@ static int draw_fps(cv::Mat& bgr)
     float avg_fps = 0.f;
     {
         static double t0 = 0.f;
-        static float fps_history[10] = { 0.f };
+        static float fps_history[10] = {0.f};
 
         double t1 = ncnn::get_current_time();
         if (t0 == 0.f)
@@ -484,10 +479,10 @@ static int draw_fps(cv::Mat& bgr)
     int x = bgr.cols - label_size.width;
 
     cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-        cv::Scalar(255, 255, 255), -1);
+                  cv::Scalar(255, 255, 255), -1);
 
     cv::putText(bgr, text, cv::Point(x, y + label_size.height),
-        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
     return 0;
 }

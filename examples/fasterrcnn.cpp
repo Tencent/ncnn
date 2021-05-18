@@ -60,13 +60,13 @@ static void qsort_descent_inplace(std::vector<Object>& objects, int left, int ri
         }
     }
 
-    #pragma omp parallel sections
+#pragma omp parallel sections
     {
-        #pragma omp section
+#pragma omp section
         {
             if (left < j) qsort_descent_inplace(objects, left, j);
         }
-        #pragma omp section
+#pragma omp section
         {
             if (i < right) qsort_descent_inplace(objects, i, right);
         }
@@ -143,7 +143,6 @@ static int init_fasterrcnn()
     const char* fasterrcnn_param = "ZF_faster_rcnn_final.param";
     const char* fasterrcnn_model = "ZF_faster_rcnn_final.bin";
 
-
     ret = fasterrcnn.load_param(fasterrcnn_param);
     if (ret != 0)
     {
@@ -161,7 +160,6 @@ static int init_fasterrcnn()
 
 static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
 {
-
     // hyper parameters taken from
     // py-faster-rcnn/lib/fast_rcnn/config.py
     // py-faster-rcnn/lib/fast_rcnn/test.py
@@ -326,8 +324,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
                                         "bottle", "bus", "car", "cat", "chair",
                                         "cow", "diningtable", "dog", "horse",
                                         "motorbike", "person", "pottedplant",
-                                        "sheep", "sofa", "train", "tvmonitor"
-                                       };
+                                        "sheep", "sofa", "train", "tvmonitor"};
 
     for (size_t i = 0; i < objects.size(); i++)
     {
@@ -357,8 +354,6 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         cv::putText(bgr, text, cv::Point(x, y + label_size.height),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
     }
-
-    
 }
 
 static int draw_fps(cv::Mat& bgr)
@@ -367,7 +362,7 @@ static int draw_fps(cv::Mat& bgr)
     float avg_fps = 0.f;
     {
         static double t0 = 0.f;
-        static float fps_history[10] = { 0.f };
+        static float fps_history[10] = {0.f};
 
         double t1 = ncnn::get_current_time();
         if (t0 == 0.f)
@@ -407,10 +402,10 @@ static int draw_fps(cv::Mat& bgr)
     int x = bgr.cols - label_size.width;
 
     cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-        cv::Scalar(255, 255, 255), -1);
+                  cv::Scalar(255, 255, 255), -1);
 
     cv::putText(bgr, text, cv::Point(x, y + label_size.height),
-        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
     return 0;
 }

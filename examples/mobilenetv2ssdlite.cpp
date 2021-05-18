@@ -63,7 +63,6 @@ static int init_mobilenetv2()
     const char* mobilenetv2_param = "mobilenetv2_ssdlite_voc.param";
     const char* mobilenetv2_model = "mobilenetv2_ssdlite_voc.bin";
 
-
     ret = mobilenetv2.load_param(mobilenetv2_param);
     if (ret != 0)
     {
@@ -81,7 +80,6 @@ static int init_mobilenetv2()
 
 static int detect_mobilenetv2(const cv::Mat& bgr, std::vector<Object>& objects)
 {
-    
     const int target_size = 300;
 
     int img_w = bgr.cols;
@@ -127,8 +125,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
                                         "bottle", "bus", "car", "cat", "chair",
                                         "cow", "diningtable", "dog", "horse",
                                         "motorbike", "person", "pottedplant",
-                                        "sheep", "sofa", "train", "tvmonitor"
-                                       };
+                                        "sheep", "sofa", "train", "tvmonitor"};
 
     for (size_t i = 0; i < objects.size(); i++)
     {
@@ -158,7 +155,6 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         cv::putText(bgr, text, cv::Point(x, y + label_size.height),
                     cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
     }
-
 }
 
 static int draw_fps(cv::Mat& bgr)
@@ -167,7 +163,7 @@ static int draw_fps(cv::Mat& bgr)
     float avg_fps = 0.f;
     {
         static double t0 = 0.f;
-        static float fps_history[10] = { 0.f };
+        static float fps_history[10] = {0.f};
 
         double t1 = ncnn::get_current_time();
         if (t0 == 0.f)
@@ -207,10 +203,10 @@ static int draw_fps(cv::Mat& bgr)
     int x = bgr.cols - label_size.width;
 
     cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-        cv::Scalar(255, 255, 255), -1);
+                  cv::Scalar(255, 255, 255), -1);
 
     cv::putText(bgr, text, cv::Point(x, y + label_size.height),
-        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
     return 0;
 }
@@ -298,6 +294,6 @@ int main(int argc, char** argv)
             }
         }
     }
-    
+
     return 0;
 }

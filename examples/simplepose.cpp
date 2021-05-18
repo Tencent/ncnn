@@ -32,7 +32,6 @@ ncnn::Net posenet;
 
 static int init_posenet()
 {
-
     /* --> Set the params you need for the ncnn inference <-- */
 
     posenet.opt.num_threads = 4; //You need to compile with libgomp for multi thread support
@@ -61,7 +60,6 @@ static int init_posenet()
     const char* posenet_param = "pose.param";
     const char* posenet_model = "pose.bin";
 
-
     ret = posenet.load_param(posenet_param);
     if (ret != 0)
     {
@@ -79,7 +77,6 @@ static int init_posenet()
 
 static int detect_posenet(const cv::Mat& bgr, std::vector<KeyPoint>& keypoints)
 {
-
     int w = bgr.cols;
     int h = bgr.rows;
 
@@ -139,8 +136,7 @@ static void draw_pose(const cv::Mat& bgr, const std::vector<KeyPoint>& keypoints
 {
     // draw bone
     static const int joint_pairs[16][2] = {
-        {0, 1}, {1, 3}, {0, 2}, {2, 4}, {5, 6}, {5, 7}, {7, 9}, {6, 8}, {8, 10}, {5, 11}, {6, 12}, {11, 12}, {11, 13}, {12, 14}, {13, 15}, {14, 16}
-    };
+        {0, 1}, {1, 3}, {0, 2}, {2, 4}, {5, 6}, {5, 7}, {7, 9}, {6, 8}, {8, 10}, {5, 11}, {6, 12}, {11, 12}, {11, 13}, {12, 14}, {13, 15}, {14, 16}};
 
     for (int i = 0; i < 16; i++)
     {
@@ -165,7 +161,6 @@ static void draw_pose(const cv::Mat& bgr, const std::vector<KeyPoint>& keypoints
 
         cv::circle(bgr, keypoint.p, 3, cv::Scalar(0, 255, 0), -1);
     }
-
 }
 
 static int draw_fps(cv::Mat& bgr)
@@ -174,7 +169,7 @@ static int draw_fps(cv::Mat& bgr)
     float avg_fps = 0.f;
     {
         static double t0 = 0.f;
-        static float fps_history[10] = { 0.f };
+        static float fps_history[10] = {0.f};
 
         double t1 = ncnn::get_current_time();
         if (t0 == 0.f)
@@ -214,14 +209,13 @@ static int draw_fps(cv::Mat& bgr)
     int x = bgr.cols - label_size.width;
 
     cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-        cv::Scalar(255, 255, 255), -1);
+                  cv::Scalar(255, 255, 255), -1);
 
     cv::putText(bgr, text, cv::Point(x, y + label_size.height),
-        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
     return 0;
 }
-
 
 int main(int argc, char** argv)
 {
@@ -308,5 +302,4 @@ int main(int argc, char** argv)
         }
     }
     return 0;
-
 }

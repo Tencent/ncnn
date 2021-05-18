@@ -29,7 +29,6 @@
 
 #define YOLOV4_TINY //Using yolov4_tiny, if undef, using original yolov4
 
-
 struct Object
 {
     cv::Rect_<float> rect;
@@ -141,8 +140,7 @@ static int draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects, 
                                         "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard",
                                         "cell phone", "microwave", "oven", "toaster", "sink",
                                         "refrigerator", "book", "clock", "vase", "scissors",
-                                        "teddy bear", "hair drier", "toothbrush"
-                                       };
+                                        "teddy bear", "hair drier", "toothbrush"};
 
     for (size_t i = 0; i < objects.size(); i++)
     {
@@ -181,7 +179,7 @@ static int draw_fps(cv::Mat& bgr)
     float avg_fps = 0.f;
     {
         static double t0 = 0.f;
-        static float fps_history[10] = { 0.f };
+        static float fps_history[10] = {0.f};
 
         double t1 = ncnn::get_current_time();
         if (t0 == 0.f)
@@ -221,19 +219,17 @@ static int draw_fps(cv::Mat& bgr)
     int x = bgr.cols - label_size.width;
 
     cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-        cv::Scalar(255, 255, 255), -1);
+                  cv::Scalar(255, 255, 255), -1);
 
     cv::putText(bgr, text, cv::Point(x, y + label_size.height),
-        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
     return 0;
 }
 
-
 int main(int argc, char** argv)
 {
     int target_size = 0;
-    
 
     if (argc != 3)
     {
@@ -262,7 +258,7 @@ int main(int argc, char** argv)
             return -1;
         }
         std::vector<Object> objects;
-        detect_yolov4(m, objects,target_size);
+        detect_yolov4(m, objects, target_size);
 
         draw_objects(m, objects);
         cv::imshow("image", m);
@@ -282,7 +278,7 @@ int main(int argc, char** argv)
         {
             cap >> frame;
             std::vector<Object> objects;
-            detect_yolov4(frame, objects,target_size);
+            detect_yolov4(frame, objects, target_size);
 
             draw_objects(frame, objects);
             draw_fps(frame);
@@ -307,7 +303,7 @@ int main(int argc, char** argv)
         {
             cap >> frame;
             std::vector<Object> objects;
-            detect_yolov4(frame, objects,target_size);
+            detect_yolov4(frame, objects, target_size);
 
             draw_objects(frame, objects);
             draw_fps(frame);
@@ -318,6 +314,6 @@ int main(int argc, char** argv)
             }
         }
     }
-    
+
     return 0;
 }

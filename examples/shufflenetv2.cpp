@@ -25,7 +25,6 @@ ncnn::Net shufflenetv2;
 
 static int init_shufflenetv2()
 {
-
     /* --> Set the params you need for the ncnn inference <-- */
 
     shufflenetv2.opt.num_threads = 4; //You need to compile with libgomp for multi thread support
@@ -49,7 +48,6 @@ static int init_shufflenetv2()
     const char* shufflenetv2_param = "shufflenet_v2_x0.5.param";
     const char* shufflenetv2_model = "shufflenet_v2_x0.5.bin";
 
-
     ret = shufflenetv2.load_param(shufflenetv2_param);
     if (ret != 0)
     {
@@ -65,10 +63,8 @@ static int init_shufflenetv2()
     return 0;
 }
 
-
 static int detect_shufflenetv2(const cv::Mat& bgr, std::vector<float>& cls_scores)
 {
-
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, 224, 224);
 
     const float norm_vals[3] = {1 / 255.f, 1 / 255.f, 1 / 255.f};
@@ -137,7 +133,7 @@ static int draw_fps(cv::Mat& bgr)
     float avg_fps = 0.f;
     {
         static double t0 = 0.f;
-        static float fps_history[10] = { 0.f };
+        static float fps_history[10] = {0.f};
 
         double t1 = ncnn::get_current_time();
         if (t0 == 0.f)
@@ -177,10 +173,10 @@ static int draw_fps(cv::Mat& bgr)
     int x = bgr.cols - label_size.width;
 
     cv::rectangle(bgr, cv::Rect(cv::Point(x, y), cv::Size(label_size.width, label_size.height + baseLine)),
-        cv::Scalar(255, 255, 255), -1);
+                  cv::Scalar(255, 255, 255), -1);
 
     cv::putText(bgr, text, cv::Point(x, y + label_size.height),
-        cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
+                cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 0));
 
     return 0;
 }
