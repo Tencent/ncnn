@@ -119,7 +119,8 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects,
     static const char* class_names[] = {"background",
                                         "person", "rider", "car", "bus",
                                         "truck", "bike", "motor",
-                                        "traffic light", "traffic sign", "train"};
+                                        "traffic light", "traffic sign", "train"
+                                       };
 
     const int color[] = {128, 255, 128, 244, 35, 232};
     const int color_count = sizeof(color) / sizeof(int);

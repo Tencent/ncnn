@@ -134,7 +134,8 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
                                         "bottle", "bus", "car", "cat", "chair",
                                         "cow", "diningtable", "dog", "horse",
                                         "motorbike", "person", "pottedplant",
-                                        "sheep", "sofa", "train", "tvmonitor"};
+                                        "sheep", "sofa", "train", "tvmonitor"
+                                       };
 
     for (size_t i = 0; i < objects.size(); i++)
     {
