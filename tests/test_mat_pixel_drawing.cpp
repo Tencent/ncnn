@@ -51,10 +51,21 @@ static int test_mat_pixel_drawing_c1(int w, int h)
     ncnn::draw_rectangle_c1(a, a.w, a.h, rx, ry, rw, rh, _color, 3);
     ncnn::draw_rectangle_c1(b, b.w, b.h, ry, rx, rh, rw, _color, 3);
 
+    // draw filled rectangle out of image
+    color[0] = 144;
+    ncnn::draw_rectangle_c1(a, a.w, a.h, a.w - 10, -10, 20, 30, _color, -1);
+    ncnn::draw_rectangle_c1(b, b.w, b.h, -10, a.w - 10, 30, 20, _color, -1);
+    color[0] = 166;
+    ncnn::draw_rectangle_c1(a, a.w, a.h, -rw / 2, -rh / 3, rw, rh, _color, 7);
+    ncnn::draw_rectangle_c1(b, b.w, b.h, -rh / 3, -rw / 2, rh, rw, _color, 7);
+
     // draw rectangle out of image
     color[0] = 44;
     ncnn::draw_rectangle_c1(a, a.w, a.h, rx + a.w / 2, ry + a.h / 2, rw, rh, _color, 1);
     ncnn::draw_rectangle_c1(b, b.w, b.h, ry + b.w / 2, rx + b.h / 2, rh, rw, _color, 1);
+    color[0] = 66;
+    ncnn::draw_rectangle_c1(a, a.w, a.h, -rw / 2, -rh / 3, rw, rh, _color, 7);
+    ncnn::draw_rectangle_c1(b, b.w, b.h, -rh / 3, -rw / 2, rh, rw, _color, 7);
 
     // draw filled circle
     int cx = RandomInt(0, a.w);
@@ -63,6 +74,11 @@ static int test_mat_pixel_drawing_c1(int w, int h)
     color[0] = 20;
     ncnn::draw_circle_c1(a, a.w, a.h, cx, cy, radius, _color, -1);
     ncnn::draw_circle_c1(b, b.w, b.h, cy, cx, radius, _color, -1);
+
+    // draw filled circle out of image
+    color[0] = 230;
+    ncnn::draw_circle_c1(a, a.w, a.h, 10, -4, 6, _color, -1);
+    ncnn::draw_circle_c1(b, b.w, b.h, -4, 10, 6, _color, -1);
 
     // draw circle out of image
     color[0] = 130;
@@ -109,6 +125,15 @@ static int test_mat_pixel_drawing_c1(int w, int h)
         ncnn::draw_text_c1(c, c.w, c.h, ch, tx + tw / 8 * (i - 9), ty + th / 2, fontpixelsize, _color);
     }
 
+    // draw text out of image
+    fontpixelsize = std::max(a.w, a.h) / 2;
+    color[0] = 228;
+    ncnn::draw_text_c1(a, a.w, a.h, "QAQ", -3, -5, fontpixelsize, _color);
+    ncnn::get_text_drawing_size("QAQ", fontpixelsize, &tw, &th);
+    ncnn::draw_text_c1(c, c.w, c.h, "Q", -3, -5, fontpixelsize, _color);
+    ncnn::draw_text_c1(c, c.w, c.h, "A", -3 + tw / 3, -5, fontpixelsize, _color);
+    ncnn::draw_text_c1(c, c.w, c.h, "Q", -3 + tw / 3 * 2, -5, fontpixelsize, _color);
+
     if (memcmp(a, c, w * h) != 0)
     {
         fprintf(stderr, "test_mat_pixel_drawing_c1 failed w=%d h=%d\n", w, h);
@@ -144,12 +169,29 @@ static int test_mat_pixel_drawing_c3(int w, int h)
     ncnn::draw_rectangle_c3(a, a.w, a.h, rx, ry, rw, rh, _color, 3);
     ncnn::draw_rectangle_c3(b, b.w, b.h, ry, rx, rh, rw, _color, 3);
 
+    // draw filled rectangle out of image
+    color[0] = 144;
+    color[1] = 133;
+    color[2] = 122;
+    ncnn::draw_rectangle_c3(a, a.w, a.h, a.w - 10, -10, 20, 30, _color, -1);
+    ncnn::draw_rectangle_c3(b, b.w, b.h, -10, a.w - 10, 30, 20, _color, -1);
+    color[0] = 166;
+    color[1] = 133;
+    color[2] = 122;
+    ncnn::draw_rectangle_c3(a, a.w, a.h, -rw / 2, -rh / 3, rw, rh, _color, 7);
+    ncnn::draw_rectangle_c3(b, b.w, b.h, -rh / 3, -rw / 2, rh, rw, _color, 7);
+
     // draw rectangle out of image
     color[0] = 44;
     color[1] = 33;
     color[2] = 22;
     ncnn::draw_rectangle_c3(a, a.w, a.h, rx + a.w / 2, ry + a.h / 2, rw, rh, _color, 1);
     ncnn::draw_rectangle_c3(b, b.w, b.h, ry + b.w / 2, rx + b.h / 2, rh, rw, _color, 1);
+    color[0] = 66;
+    color[1] = 44;
+    color[2] = 33;
+    ncnn::draw_rectangle_c3(a, a.w, a.h, -rw / 2, -rh / 3, rw, rh, _color, 7);
+    ncnn::draw_rectangle_c3(b, b.w, b.h, -rh / 3, -rw / 2, rh, rw, _color, 7);
 
     // draw filled circle
     int cx = RandomInt(0, a.w);
@@ -160,6 +202,13 @@ static int test_mat_pixel_drawing_c3(int w, int h)
     color[2] = 220;
     ncnn::draw_circle_c3(a, a.w, a.h, cx, cy, radius, _color, -1);
     ncnn::draw_circle_c3(b, b.w, b.h, cy, cx, radius, _color, -1);
+
+    // draw filled circle out of image
+    color[0] = 230;
+    color[1] = 130;
+    color[2] = 110;
+    ncnn::draw_circle_c3(a, a.w, a.h, 10, -4, 6, _color, -1);
+    ncnn::draw_circle_c3(b, b.w, b.h, -4, 10, 6, _color, -1);
 
     // draw circle out of image
     color[0] = 130;
@@ -214,6 +263,17 @@ static int test_mat_pixel_drawing_c3(int w, int h)
         ncnn::draw_text_c3(c, c.w, c.h, ch, tx + tw / 8 * (i - 7), ty + th / 2, fontpixelsize, _color);
     }
 
+    // draw text out of image
+    fontpixelsize = std::max(a.w, a.h) / 2;
+    color[0] = 228;
+    color[1] = 0;
+    color[2] = 128;
+    ncnn::draw_text_c3(a, a.w, a.h, "qwqwqwq", -13, -15, fontpixelsize, _color);
+    ncnn::get_text_drawing_size("qwqwqwq", fontpixelsize, &tw, &th);
+    ncnn::draw_text_c3(c, c.w, c.h, "qwq", -13, -15, fontpixelsize, _color);
+    ncnn::draw_text_c3(c, c.w, c.h, "w", -13 + tw / 7 * 3, -15, fontpixelsize, _color);
+    ncnn::draw_text_c3(c, c.w, c.h, "qwq", -13 + tw / 7 * 4, -15, fontpixelsize, _color);
+
     if (memcmp(a, c, w * h * 3) != 0)
     {
         fprintf(stderr, "test_mat_pixel_drawing_c3 failed w=%d h=%d\n", w, h);
@@ -251,6 +311,20 @@ static int test_mat_pixel_drawing_c4(int w, int h)
     ncnn::draw_rectangle_c4(a, a.w, a.h, rx, ry, rw, rh, _color, 3);
     ncnn::draw_rectangle_c4(b, b.w, b.h, ry, rx, rh, rw, _color, 3);
 
+    // draw filled rectangle out of image
+    color[0] = 144;
+    color[1] = 133;
+    color[2] = 122;
+    color[3] = 30;
+    ncnn::draw_rectangle_c4(a, a.w, a.h, a.w - 10, -10, 20, 30, _color, -1);
+    ncnn::draw_rectangle_c4(b, b.w, b.h, -10, a.w - 10, 30, 20, _color, -1);
+    color[0] = 166;
+    color[1] = 133;
+    color[2] = 122;
+    color[3] = 20;
+    ncnn::draw_rectangle_c4(a, a.w, a.h, -rw / 2, -rh / 3, rw, rh, _color, 7);
+    ncnn::draw_rectangle_c4(b, b.w, b.h, -rh / 3, -rw / 2, rh, rw, _color, 7);
+
     // draw rectangle out of image
     color[0] = 44;
     color[1] = 144;
@@ -258,6 +332,12 @@ static int test_mat_pixel_drawing_c4(int w, int h)
     color[3] = 144;
     ncnn::draw_rectangle_c4(a, a.w, a.h, rx + a.w / 2, ry + a.h / 2, rw, rh, _color, 1);
     ncnn::draw_rectangle_c4(b, b.w, b.h, ry + b.w / 2, rx + b.h / 2, rh, rw, _color, 1);
+    color[0] = 66;
+    color[1] = 44;
+    color[2] = 33;
+    color[3] = 112;
+    ncnn::draw_rectangle_c4(a, a.w, a.h, -rw / 2, -rh / 3, rw, rh, _color, 7);
+    ncnn::draw_rectangle_c4(b, b.w, b.h, -rh / 3, -rw / 2, rh, rw, _color, 7);
 
     // draw filled circle
     int cx = RandomInt(0, a.w);
@@ -269,6 +349,14 @@ static int test_mat_pixel_drawing_c4(int w, int h)
     color[3] = 20;
     ncnn::draw_circle_c4(a, a.w, a.h, cx, cy, radius, _color, -1);
     ncnn::draw_circle_c4(b, b.w, b.h, cy, cx, radius, _color, -1);
+
+    // draw filled circle out of image
+    color[0] = 230;
+    color[1] = 130;
+    color[2] = 110;
+    color[3] = 5;
+    ncnn::draw_circle_c4(a, a.w, a.h, 10, -4, 6, _color, -1);
+    ncnn::draw_circle_c4(b, b.w, b.h, -4, 10, 6, _color, -1);
 
     // draw circle out of image
     color[0] = 130;
@@ -331,6 +419,18 @@ static int test_mat_pixel_drawing_c4(int w, int h)
         const char ch[2] = {text[i], '\0'};
         ncnn::draw_text_c4(c, c.w, c.h, ch, tx + tw / 5 * (i - 10), ty + th / 3 * 2, fontpixelsize, _color);
     }
+
+    // draw text out of image
+    fontpixelsize = std::max(a.w, a.h) / 3;
+    color[0] = 228;
+    color[1] = 0;
+    color[2] = 128;
+    color[3] = 200;
+    ncnn::draw_text_c4(a, a.w, a.h, "=_+!//zzzz", -13, -15, fontpixelsize, _color);
+    ncnn::get_text_drawing_size("=_+!//zzzz", fontpixelsize, &tw, &th);
+    ncnn::draw_text_c4(c, c.w, c.h, "=_+", -13, -15, fontpixelsize, _color);
+    ncnn::draw_text_c4(c, c.w, c.h, "!", -13 + tw / 10 * 3, -15, fontpixelsize, _color);
+    ncnn::draw_text_c4(c, c.w, c.h, "//zzzz", -13 + tw / 10 * 4, -15, fontpixelsize, _color);
 
     if (memcmp(a, c, w * h * 4) != 0)
     {
