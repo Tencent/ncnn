@@ -59,13 +59,13 @@ static void qsort_descent_inplace(std::vector<FaceObject>& faceobjects, int left
         }
     }
 
-#pragma omp parallel sections
+    #pragma omp parallel sections
     {
-#pragma omp section
+        #pragma omp section
         {
             if (left < j) qsort_descent_inplace(faceobjects, left, j);
         }
-#pragma omp section
+        #pragma omp section
         {
             if (i < right) qsort_descent_inplace(faceobjects, i, right);
         }
