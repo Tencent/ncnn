@@ -140,8 +140,7 @@ static int draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects, 
                                         "toilet", "tvmonitor", "laptop", "mouse", "remote", "keyboard",
                                         "cell phone", "microwave", "oven", "toaster", "sink",
                                         "refrigerator", "book", "clock", "vase", "scissors",
-                                        "teddy bear", "hair drier", "toothbrush"
-                                       };
+                                        "teddy bear", "hair drier", "toothbrush"};
 
     for (size_t i = 0; i < objects.size(); i++)
     {

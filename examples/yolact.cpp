@@ -62,13 +62,13 @@ static void qsort_descent_inplace(std::vector<Object>& objects, int left, int ri
         }
     }
 
-    #pragma omp parallel sections
+#pragma omp parallel sections
     {
-        #pragma omp section
+#pragma omp section
         {
             if (left < j) qsort_descent_inplace(objects, left, j);
         }
-        #pragma omp section
+#pragma omp section
         {
             if (i < right) qsort_descent_inplace(objects, i, right);
         }
@@ -400,8 +400,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
                                         "potted plant", "bed", "dining table", "toilet", "tv", "laptop",
                                         "mouse", "remote", "keyboard", "cell phone", "microwave", "oven",
                                         "toaster", "sink", "refrigerator", "book", "clock", "vase",
-                                        "scissors", "teddy bear", "hair drier", "toothbrush"
-                                       };
+                                        "scissors", "teddy bear", "hair drier", "toothbrush"};
 
     static const unsigned char colors[81][3] = {
         {56, 0, 255},
@@ -484,8 +483,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         {0, 255, 75},
         {0, 255, 151},
         {255, 56, 0},
-        {245, 255, 0}
-    };
+        {245, 255, 0}};
 
     int color_index = 0;
 
