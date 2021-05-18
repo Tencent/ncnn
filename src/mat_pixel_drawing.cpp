@@ -26,22 +26,27 @@ namespace ncnn {
 
 #include "mat_pixel_drawing_font.h"
 
-void draw_rectangle_c1(unsigned char* src, int srcw, int srch, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+void draw_rectangle_c1(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
 {
-    return draw_rectangle_c1(src, srcw, srch, srcw, rx, ry, rw, rh, color, thickness);
+    return draw_rectangle_c1(pixels, w, h, w, rx, ry, rw, rh, color, thickness);
 }
 
-void draw_rectangle_c3(unsigned char* src, int srcw, int srch, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+void draw_rectangle_c2(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
 {
-    return draw_rectangle_c3(src, srcw, srch, srcw * 3, rx, ry, rw, rh, color, thickness);
+    return draw_rectangle_c2(pixels, w, h, w * 2, rx, ry, rw, rh, color, thickness);
 }
 
-void draw_rectangle_c4(unsigned char* src, int srcw, int srch, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+void draw_rectangle_c3(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
 {
-    return draw_rectangle_c4(src, srcw, srch, srcw * 4, rx, ry, rw, rh, color, thickness);
+    return draw_rectangle_c3(pixels, w, h, w * 3, rx, ry, rw, rh, color, thickness);
 }
 
-void draw_rectangle_c1(unsigned char* src, int srcw, int srch, int srcstride, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+void draw_rectangle_c4(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+{
+    return draw_rectangle_c4(pixels, w, h, w * 4, rx, ry, rw, rh, color, thickness);
+}
+
+void draw_rectangle_c1(unsigned char* pixels, int w, int h, int stride, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
 {
     const unsigned char* border_color = (const unsigned char*)&color;
 
@@ -53,17 +58,17 @@ void draw_rectangle_c1(unsigned char* src, int srcw, int srch, int srcstride, in
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             for (int x = rx; x < rx + rw; x++)
             {
                 if (x < 0)
                     continue;
 
-                if (x >= srcw)
+                if (x >= w)
                     break;
 
                 p[x] = border_color[0];
@@ -83,17 +88,17 @@ void draw_rectangle_c1(unsigned char* src, int srcw, int srch, int srcstride, in
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             for (int x = rx - t0; x < rx + rw + t1; x++)
             {
                 if (x < 0)
                     continue;
 
-                if (x >= srcw)
+                if (x >= w)
                     break;
 
                 p[x] = border_color[0];
@@ -108,17 +113,17 @@ void draw_rectangle_c1(unsigned char* src, int srcw, int srch, int srcstride, in
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             for (int x = rx - t0; x < rx + rw + t1; x++)
             {
                 if (x < 0)
                     continue;
 
-                if (x >= srcw)
+                if (x >= w)
                     break;
 
                 p[x] = border_color[0];
@@ -132,7 +137,7 @@ void draw_rectangle_c1(unsigned char* src, int srcw, int srch, int srcstride, in
         if (x < 0)
             continue;
 
-        if (x >= srcw)
+        if (x >= w)
             break;
 
         for (int y = ry + t1; y < ry + rh - t0; y++)
@@ -140,10 +145,10 @@ void draw_rectangle_c1(unsigned char* src, int srcw, int srch, int srcstride, in
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             p[x] = border_color[0];
         }
@@ -155,7 +160,7 @@ void draw_rectangle_c1(unsigned char* src, int srcw, int srch, int srcstride, in
         if (x < 0)
             continue;
 
-        if (x >= srcw)
+        if (x >= w)
             break;
 
         for (int y = ry + t1; y < ry + rh - t0; y++)
@@ -163,17 +168,17 @@ void draw_rectangle_c1(unsigned char* src, int srcw, int srch, int srcstride, in
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             p[x] = border_color[0];
         }
     }
 }
 
-void draw_rectangle_c3(unsigned char* src, int srcw, int srch, int srcstride, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+void draw_rectangle_c2(unsigned char* pixels, int w, int h, int stride, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
 {
     const unsigned char* border_color = (const unsigned char*)&color;
 
@@ -185,17 +190,154 @@ void draw_rectangle_c3(unsigned char* src, int srcw, int srch, int srcstride, in
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             for (int x = rx; x < rx + rw; x++)
             {
                 if (x < 0)
                     continue;
 
-                if (x >= srcw)
+                if (x >= w)
+                    break;
+
+                p[x * 2 + 0] = border_color[0];
+                p[x * 2 + 1] = border_color[1];
+            }
+        }
+
+        return;
+    }
+
+    const int t0 = thickness / 2;
+    const int t1 = thickness - t0;
+
+    // draw top
+    {
+        for (int y = ry - t0; y < ry + t1; y++)
+        {
+            if (y < 0)
+                continue;
+
+            if (y >= h)
+                break;
+
+            unsigned char* p = pixels + stride * y;
+
+            for (int x = rx - t0; x < rx + rw + t1; x++)
+            {
+                if (x < 0)
+                    continue;
+
+                if (x >= w)
+                    break;
+
+                p[x * 2 + 0] = border_color[0];
+                p[x * 2 + 1] = border_color[1];
+            }
+        }
+    }
+
+    // draw bottom
+    {
+        for (int y = ry + rh - t0; y < ry + rh + t1; y++)
+        {
+            if (y < 0)
+                continue;
+
+            if (y >= h)
+                break;
+
+            unsigned char* p = pixels + stride * y;
+
+            for (int x = rx - t0; x < rx + rw + t1; x++)
+            {
+                if (x < 0)
+                    continue;
+
+                if (x >= w)
+                    break;
+
+                p[x * 2 + 0] = border_color[0];
+                p[x * 2 + 1] = border_color[1];
+            }
+        }
+    }
+
+    // draw left
+    for (int x = rx - t0; x < rx + t1; x++)
+    {
+        if (x < 0)
+            continue;
+
+        if (x >= w)
+            break;
+
+        for (int y = ry + t1; y < ry + rh - t0; y++)
+        {
+            if (y < 0)
+                continue;
+
+            if (y >= h)
+                break;
+
+            unsigned char* p = pixels + stride * y;
+
+            p[x * 2 + 0] = border_color[0];
+            p[x * 2 + 1] = border_color[1];
+        }
+    }
+
+    // draw right
+    for (int x = rx + rw - t0; x < rx + rw + t1; x++)
+    {
+        if (x < 0)
+            continue;
+
+        if (x >= w)
+            break;
+
+        for (int y = ry + t1; y < ry + rh - t0; y++)
+        {
+            if (y < 0)
+                continue;
+
+            if (y >= h)
+                break;
+
+            unsigned char* p = pixels + stride * y;
+
+            p[x * 2 + 0] = border_color[0];
+            p[x * 2 + 1] = border_color[1];
+        }
+    }
+}
+
+void draw_rectangle_c3(unsigned char* pixels, int w, int h, int stride, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+{
+    const unsigned char* border_color = (const unsigned char*)&color;
+
+    if (thickness == -1)
+    {
+        // filled
+        for (int y = ry; y < ry + rh; y++)
+        {
+            if (y < 0)
+                continue;
+
+            if (y >= h)
+                break;
+
+            unsigned char* p = pixels + stride * y;
+
+            for (int x = rx; x < rx + rw; x++)
+            {
+                if (x < 0)
+                    continue;
+
+                if (x >= w)
                     break;
 
                 p[x * 3 + 0] = border_color[0];
@@ -217,17 +359,17 @@ void draw_rectangle_c3(unsigned char* src, int srcw, int srch, int srcstride, in
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             for (int x = rx - t0; x < rx + rw + t1; x++)
             {
                 if (x < 0)
                     continue;
 
-                if (x >= srcw)
+                if (x >= w)
                     break;
 
                 p[x * 3 + 0] = border_color[0];
@@ -244,17 +386,17 @@ void draw_rectangle_c3(unsigned char* src, int srcw, int srch, int srcstride, in
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             for (int x = rx - t0; x < rx + rw + t1; x++)
             {
                 if (x < 0)
                     continue;
 
-                if (x >= srcw)
+                if (x >= w)
                     break;
 
                 p[x * 3 + 0] = border_color[0];
@@ -270,7 +412,7 @@ void draw_rectangle_c3(unsigned char* src, int srcw, int srch, int srcstride, in
         if (x < 0)
             continue;
 
-        if (x >= srcw)
+        if (x >= w)
             break;
 
         for (int y = ry + t1; y < ry + rh - t0; y++)
@@ -278,10 +420,10 @@ void draw_rectangle_c3(unsigned char* src, int srcw, int srch, int srcstride, in
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             p[x * 3 + 0] = border_color[0];
             p[x * 3 + 1] = border_color[1];
@@ -295,7 +437,7 @@ void draw_rectangle_c3(unsigned char* src, int srcw, int srch, int srcstride, in
         if (x < 0)
             continue;
 
-        if (x >= srcw)
+        if (x >= w)
             break;
 
         for (int y = ry + t1; y < ry + rh - t0; y++)
@@ -303,10 +445,10 @@ void draw_rectangle_c3(unsigned char* src, int srcw, int srch, int srcstride, in
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             p[x * 3 + 0] = border_color[0];
             p[x * 3 + 1] = border_color[1];
@@ -315,7 +457,7 @@ void draw_rectangle_c3(unsigned char* src, int srcw, int srch, int srcstride, in
     }
 }
 
-void draw_rectangle_c4(unsigned char* src, int srcw, int srch, int srcstride, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
+void draw_rectangle_c4(unsigned char* pixels, int w, int h, int stride, int rx, int ry, int rw, int rh, unsigned int color, int thickness)
 {
     const unsigned char* border_color = (const unsigned char*)&color;
 
@@ -327,17 +469,17 @@ void draw_rectangle_c4(unsigned char* src, int srcw, int srch, int srcstride, in
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             for (int x = rx; x < rx + rw; x++)
             {
                 if (x < 0)
                     continue;
 
-                if (x >= srcw)
+                if (x >= w)
                     break;
 
                 p[x * 4 + 0] = border_color[0];
@@ -360,17 +502,17 @@ void draw_rectangle_c4(unsigned char* src, int srcw, int srch, int srcstride, in
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             for (int x = rx - t0; x < rx + rw + t1; x++)
             {
                 if (x < 0)
                     continue;
 
-                if (x >= srcw)
+                if (x >= w)
                     break;
 
                 p[x * 4 + 0] = border_color[0];
@@ -388,17 +530,17 @@ void draw_rectangle_c4(unsigned char* src, int srcw, int srch, int srcstride, in
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             for (int x = rx - t0; x < rx + rw + t1; x++)
             {
                 if (x < 0)
                     continue;
 
-                if (x >= srcw)
+                if (x >= w)
                     break;
 
                 p[x * 4 + 0] = border_color[0];
@@ -415,7 +557,7 @@ void draw_rectangle_c4(unsigned char* src, int srcw, int srch, int srcstride, in
         if (x < 0)
             continue;
 
-        if (x >= srcw)
+        if (x >= w)
             break;
 
         for (int y = ry + t1; y < ry + rh - t0; y++)
@@ -423,10 +565,10 @@ void draw_rectangle_c4(unsigned char* src, int srcw, int srch, int srcstride, in
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             p[x * 4 + 0] = border_color[0];
             p[x * 4 + 1] = border_color[1];
@@ -441,7 +583,7 @@ void draw_rectangle_c4(unsigned char* src, int srcw, int srch, int srcstride, in
         if (x < 0)
             continue;
 
-        if (x >= srcw)
+        if (x >= w)
             break;
 
         for (int y = ry + t1; y < ry + rh - t0; y++)
@@ -449,10 +591,10 @@ void draw_rectangle_c4(unsigned char* src, int srcw, int srch, int srcstride, in
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             p[x * 4 + 0] = border_color[0];
             p[x * 4 + 1] = border_color[1];
@@ -462,29 +604,43 @@ void draw_rectangle_c4(unsigned char* src, int srcw, int srch, int srcstride, in
     }
 }
 
-static inline float distance(int x0, int y0, int x1, int y1)
+static inline bool distance_lessequal(int x0, int y0, int x1, int y1, float r)
 {
     int dx = x0 - x1;
     int dy = y0 - y1;
-    return (float)sqrt(dx * dx + dy * dy);
+    int q = dx * dx + dy * dy;
+    return q <= r * r;
 }
 
-void draw_circle_c1(unsigned char* src, int srcw, int srch, int cx, int cy, int radius, unsigned int color, int thickness)
+static inline bool distance_inrange(int x0, int y0, int x1, int y1, float r0, float r1)
 {
-    return draw_circle_c1(src, srcw, srch, srcw, cx, cy, radius, color, thickness);
+    int dx = x0 - x1;
+    int dy = y0 - y1;
+    int q = dx * dx + dy * dy;
+    return q >= r0 * r0 && q < r1 * r1;
 }
 
-void draw_circle_c3(unsigned char* src, int srcw, int srch, int cx, int cy, int radius, unsigned int color, int thickness)
+void draw_circle_c1(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
 {
-    return draw_circle_c3(src, srcw, srch, srcw * 3, cx, cy, radius, color, thickness);
+    return draw_circle_c1(pixels, w, h, w, cx, cy, radius, color, thickness);
 }
 
-void draw_circle_c4(unsigned char* src, int srcw, int srch, int cx, int cy, int radius, unsigned int color, int thickness)
+void draw_circle_c2(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
 {
-    return draw_circle_c4(src, srcw, srch, srcw * 4, cx, cy, radius, color, thickness);
+    return draw_circle_c2(pixels, w, h, w * 2, cx, cy, radius, color, thickness);
 }
 
-void draw_circle_c1(unsigned char* src, int srcw, int srch, int srcstride, int cx, int cy, int radius, unsigned int color, int thickness)
+void draw_circle_c3(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
+{
+    return draw_circle_c3(pixels, w, h, w * 3, cx, cy, radius, color, thickness);
+}
+
+void draw_circle_c4(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness)
+{
+    return draw_circle_c4(pixels, w, h, w * 4, cx, cy, radius, color, thickness);
+}
+
+void draw_circle_c1(unsigned char* pixels, int w, int h, int stride, int cx, int cy, int radius, unsigned int color, int thickness)
 {
     const unsigned char* border_color = (const unsigned char*)&color;
 
@@ -496,22 +652,21 @@ void draw_circle_c1(unsigned char* src, int srcw, int srch, int srcstride, int c
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             for (int x = cx - (radius - 1); x < cx + radius; x++)
             {
                 if (x < 0)
                     continue;
 
-                if (x >= srcw)
+                if (x >= w)
                     break;
 
                 // distance from cx cy
-                float dis = distance(x, y, cx, cy);
-                if (dis <= radius)
+                if (distance_lessequal(x, y, cx, cy, radius))
                 {
                     p[x] = border_color[0];
                 }
@@ -529,22 +684,21 @@ void draw_circle_c1(unsigned char* src, int srcw, int srch, int srcstride, int c
         if (y < 0)
             continue;
 
-        if (y >= srch)
+        if (y >= h)
             break;
 
-        unsigned char* p = src + srcstride * y;
+        unsigned char* p = pixels + stride * y;
 
         for (int x = cx - (radius - 1) - t0; x < cx + radius + t1; x++)
         {
             if (x < 0)
                 continue;
 
-            if (x >= srcw)
+            if (x >= w)
                 break;
 
             // distance from cx cy
-            float dis = distance(x, y, cx, cy);
-            if (dis >= radius - t0 && dis < radius + t1)
+            if (distance_inrange(x, y, cx, cy, radius - t0, radius + t1))
             {
                 p[x] = border_color[0];
             }
@@ -552,7 +706,7 @@ void draw_circle_c1(unsigned char* src, int srcw, int srch, int srcstride, int c
     }
 }
 
-void draw_circle_c3(unsigned char* src, int srcw, int srch, int srcstride, int cx, int cy, int radius, unsigned int color, int thickness)
+void draw_circle_c2(unsigned char* pixels, int w, int h, int stride, int cx, int cy, int radius, unsigned int color, int thickness)
 {
     const unsigned char* border_color = (const unsigned char*)&color;
 
@@ -564,22 +718,89 @@ void draw_circle_c3(unsigned char* src, int srcw, int srch, int srcstride, int c
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             for (int x = cx - (radius - 1); x < cx + radius; x++)
             {
                 if (x < 0)
                     continue;
 
-                if (x >= srcw)
+                if (x >= w)
                     break;
 
                 // distance from cx cy
-                float dis = distance(x, y, cx, cy);
-                if (dis <= radius)
+                if (distance_lessequal(x, y, cx, cy, radius))
+                {
+                    p[x * 2 + 0] = border_color[0];
+                    p[x * 2 + 1] = border_color[1];
+                }
+            }
+        }
+
+        return;
+    }
+
+    const float t0 = thickness / 2.f;
+    const float t1 = thickness - t0;
+
+    for (int y = cy - radius - t0; y < cy + radius + t1; y++)
+    {
+        if (y < 0)
+            continue;
+
+        if (y >= h)
+            break;
+
+        unsigned char* p = pixels + stride * y;
+
+        for (int x = cx - radius - t0; x < cx + radius + t1; x++)
+        {
+            if (x < 0)
+                continue;
+
+            if (x >= w)
+                break;
+
+            // distance from cx cy
+            if (distance_inrange(x, y, cx, cy, radius - t0, radius + t1))
+            {
+                p[x * 2 + 0] = border_color[0];
+                p[x * 2 + 1] = border_color[1];
+            }
+        }
+    }
+}
+
+void draw_circle_c3(unsigned char* pixels, int w, int h, int stride, int cx, int cy, int radius, unsigned int color, int thickness)
+{
+    const unsigned char* border_color = (const unsigned char*)&color;
+
+    if (thickness == -1)
+    {
+        // filled
+        for (int y = cy - (radius - 1); y < cy + radius; y++)
+        {
+            if (y < 0)
+                continue;
+
+            if (y >= h)
+                break;
+
+            unsigned char* p = pixels + stride * y;
+
+            for (int x = cx - (radius - 1); x < cx + radius; x++)
+            {
+                if (x < 0)
+                    continue;
+
+                if (x >= w)
+                    break;
+
+                // distance from cx cy
+                if (distance_lessequal(x, y, cx, cy, radius))
                 {
                     p[x * 3 + 0] = border_color[0];
                     p[x * 3 + 1] = border_color[1];
@@ -599,22 +820,21 @@ void draw_circle_c3(unsigned char* src, int srcw, int srch, int srcstride, int c
         if (y < 0)
             continue;
 
-        if (y >= srch)
+        if (y >= h)
             break;
 
-        unsigned char* p = src + srcstride * y;
+        unsigned char* p = pixels + stride * y;
 
         for (int x = cx - radius - t0; x < cx + radius + t1; x++)
         {
             if (x < 0)
                 continue;
 
-            if (x >= srcw)
+            if (x >= w)
                 break;
 
             // distance from cx cy
-            float dis = distance(x, y, cx, cy);
-            if (dis >= radius - t0 && dis < radius + t1)
+            if (distance_inrange(x, y, cx, cy, radius - t0, radius + t1))
             {
                 p[x * 3 + 0] = border_color[0];
                 p[x * 3 + 1] = border_color[1];
@@ -624,7 +844,7 @@ void draw_circle_c3(unsigned char* src, int srcw, int srch, int srcstride, int c
     }
 }
 
-void draw_circle_c4(unsigned char* src, int srcw, int srch, int srcstride, int cx, int cy, int radius, unsigned int color, int thickness)
+void draw_circle_c4(unsigned char* pixels, int w, int h, int stride, int cx, int cy, int radius, unsigned int color, int thickness)
 {
     const unsigned char* border_color = (const unsigned char*)&color;
 
@@ -636,22 +856,21 @@ void draw_circle_c4(unsigned char* src, int srcw, int srch, int srcstride, int c
             if (y < 0)
                 continue;
 
-            if (y >= srch)
+            if (y >= h)
                 break;
 
-            unsigned char* p = src + srcstride * y;
+            unsigned char* p = pixels + stride * y;
 
             for (int x = cx - (radius - 1); x < cx + radius; x++)
             {
                 if (x < 0)
                     continue;
 
-                if (x >= srcw)
+                if (x >= w)
                     break;
 
                 // distance from cx cy
-                float dis = distance(x, y, cx, cy);
-                if (dis <= radius)
+                if (distance_lessequal(x, y, cx, cy, radius))
                 {
                     p[x * 4 + 0] = border_color[0];
                     p[x * 4 + 1] = border_color[1];
@@ -672,22 +891,21 @@ void draw_circle_c4(unsigned char* src, int srcw, int srch, int srcstride, int c
         if (y < 0)
             continue;
 
-        if (y >= srch)
+        if (y >= h)
             break;
 
-        unsigned char* p = src + srcstride * y;
+        unsigned char* p = pixels + stride * y;
 
         for (int x = cx - (radius - 1) - t0; x < cx + radius + t1; x++)
         {
             if (x < 0)
                 continue;
 
-            if (x >= srcw)
+            if (x >= w)
                 break;
 
             // distance from cx cy
-            float dis = distance(x, y, cx, cy);
-            if (dis >= radius - t0 && dis < radius + t1)
+            if (distance_inrange(x, y, cx, cy, radius - t0, radius + t1))
             {
                 p[x * 4 + 0] = border_color[0];
                 p[x * 4 + 1] = border_color[1];
@@ -698,7 +916,7 @@ void draw_circle_c4(unsigned char* src, int srcw, int srch, int srcstride, int c
     }
 }
 
-static inline float distance(int x, int y, int x0, int y0, int x1, int y1)
+static inline bool distance_lessthan(int x, int y, int x0, int y0, int x1, int y1, float t)
 {
     int dx01 = x1 - x0;
     int dy01 = y1 - y0;
@@ -708,31 +926,37 @@ static inline float distance(int x, int y, int x0, int y0, int x1, int y1)
     float r = (float)(dx0 * dx01 + dy0 * dy01) / (dx01 * dx01 + dy01 * dy01);
 
     if (r < 0 || r > 1)
-        return FLT_MAX;
+        return false;
 
     float px = x0 + dx01 * r;
     float py = y0 + dy01 * r;
     float dx = x - px;
     float dy = y - py;
-    return (float)sqrt(dx * dx + dy * dy);
+    float p = dx * dx + dy * dy;
+    return p < t;
 }
 
-void draw_line_c1(unsigned char* src, int srcw, int srch, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+void draw_line_c1(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
 {
-    draw_line_c1(src, srcw, srch, srcw, x0, y0, x1, y1, color, thickness);
+    draw_line_c1(pixels, w, h, w, x0, y0, x1, y1, color, thickness);
 }
 
-void draw_line_c3(unsigned char* src, int srcw, int srch, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+void draw_line_c2(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
 {
-    draw_line_c3(src, srcw, srch, srcw * 3, x0, y0, x1, y1, color, thickness);
+    draw_line_c2(pixels, w, h, w * 2, x0, y0, x1, y1, color, thickness);
 }
 
-void draw_line_c4(unsigned char* src, int srcw, int srch, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+void draw_line_c3(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
 {
-    draw_line_c4(src, srcw, srch, srcw * 4, x0, y0, x1, y1, color, thickness);
+    draw_line_c3(pixels, w, h, w * 3, x0, y0, x1, y1, color, thickness);
 }
 
-void draw_line_c1(unsigned char* src, int srcw, int srch, int srcstride, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+void draw_line_c4(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    draw_line_c4(pixels, w, h, w * 4, x0, y0, x1, y1, color, thickness);
+}
+
+void draw_line_c1(unsigned char* pixels, int w, int h, int stride, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
 {
     const unsigned char* border_color = (const unsigned char*)&color;
 
@@ -749,22 +973,21 @@ void draw_line_c1(unsigned char* src, int srcw, int srch, int srcstride, int x0,
         if (y < 0)
             continue;
 
-        if (y >= srch)
+        if (y >= h)
             break;
 
-        unsigned char* p = src + srcstride * y;
+        unsigned char* p = pixels + stride * y;
 
         for (int x = x_min - t0; x < x_max + t1; x++)
         {
             if (x < 0)
                 continue;
 
-            if (x >= srcw)
+            if (x >= w)
                 break;
 
             // distance from line
-            float dis = distance(x, y, x0, y0, x1, y1);
-            if (dis < t1)
+            if (distance_lessthan(x, y, x0, y0, x1, y1, t1))
             {
                 p[x] = border_color[0];
             }
@@ -772,7 +995,7 @@ void draw_line_c1(unsigned char* src, int srcw, int srch, int srcstride, int x0,
     }
 }
 
-void draw_line_c3(unsigned char* src, int srcw, int srch, int srcstride, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+void draw_line_c2(unsigned char* pixels, int w, int h, int stride, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
 {
     const unsigned char* border_color = (const unsigned char*)&color;
 
@@ -789,22 +1012,61 @@ void draw_line_c3(unsigned char* src, int srcw, int srch, int srcstride, int x0,
         if (y < 0)
             continue;
 
-        if (y >= srch)
+        if (y >= h)
             break;
 
-        unsigned char* p = src + srcstride * y;
+        unsigned char* p = pixels + stride * y;
 
         for (int x = x_min - t0; x < x_max + t1; x++)
         {
             if (x < 0)
                 continue;
 
-            if (x >= srcw)
+            if (x >= w)
                 break;
 
             // distance from line
-            float dis = distance(x, y, x0, y0, x1, y1);
-            if (dis < t1)
+            if (distance_lessthan(x, y, x0, y0, x1, y1, t1))
+            {
+                p[x * 2 + 0] = border_color[0];
+                p[x * 2 + 1] = border_color[1];
+            }
+        }
+    }
+}
+
+void draw_line_c3(unsigned char* pixels, int w, int h, int stride, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+{
+    const unsigned char* border_color = (const unsigned char*)&color;
+
+    const float t0 = thickness / 2.f;
+    const float t1 = thickness - t0;
+
+    int x_min = std::min(x0, x1);
+    int x_max = std::max(x0, x1);
+    int y_min = std::min(y0, y1);
+    int y_max = std::max(y0, y1);
+
+    for (int y = y_min - t0; y < y_max + t1; y++)
+    {
+        if (y < 0)
+            continue;
+
+        if (y >= h)
+            break;
+
+        unsigned char* p = pixels + stride * y;
+
+        for (int x = x_min - t0; x < x_max + t1; x++)
+        {
+            if (x < 0)
+                continue;
+
+            if (x >= w)
+                break;
+
+            // distance from line
+            if (distance_lessthan(x, y, x0, y0, x1, y1, t1))
             {
                 p[x * 3 + 0] = border_color[0];
                 p[x * 3 + 1] = border_color[1];
@@ -814,7 +1076,7 @@ void draw_line_c3(unsigned char* src, int srcw, int srch, int srcstride, int x0,
     }
 }
 
-void draw_line_c4(unsigned char* src, int srcw, int srch, int srcstride, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
+void draw_line_c4(unsigned char* pixels, int w, int h, int stride, int x0, int y0, int x1, int y1, unsigned int color, int thickness)
 {
     const unsigned char* border_color = (const unsigned char*)&color;
 
@@ -831,22 +1093,21 @@ void draw_line_c4(unsigned char* src, int srcw, int srch, int srcstride, int x0,
         if (y < 0)
             continue;
 
-        if (y >= srch)
+        if (y >= h)
             break;
 
-        unsigned char* p = src + srcstride * y;
+        unsigned char* p = pixels + stride * y;
 
         for (int x = x_min - t0; x < x_max + t1; x++)
         {
             if (x < 0)
                 continue;
 
-            if (x >= srcw)
+            if (x >= w)
                 break;
 
             // distance from line
-            float dis = distance(x, y, x0, y0, x1, y1);
-            if (dis < t1)
+            if (distance_lessthan(x, y, x0, y0, x1, y1, t1))
             {
                 p[x * 4 + 0] = border_color[0];
                 p[x * 4 + 1] = border_color[1];
@@ -887,22 +1148,27 @@ void get_text_drawing_size(const char* text, int fontpixelsize, int* w, int* h)
     *h += fontpixelsize * 2;
 }
 
-void draw_text_c1(unsigned char* src, int srcw, int srch, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+void draw_text_c1(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
 {
-    return draw_text_c1(src, srcw, srch, srcw, text, x, y, fontpixelsize, color);
+    return draw_text_c1(pixels, w, h, w, text, x, y, fontpixelsize, color);
 }
 
-void draw_text_c3(unsigned char* src, int srcw, int srch, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+void draw_text_c2(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
 {
-    return draw_text_c3(src, srcw, srch, srcw * 3, text, x, y, fontpixelsize, color);
+    return draw_text_c2(pixels, w, h, w * 2, text, x, y, fontpixelsize, color);
 }
 
-void draw_text_c4(unsigned char* src, int srcw, int srch, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+void draw_text_c3(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
 {
-    return draw_text_c4(src, srcw, srch, srcw * 4, text, x, y, fontpixelsize, color);
+    return draw_text_c3(pixels, w, h, w * 3, text, x, y, fontpixelsize, color);
 }
 
-void draw_text_c1(unsigned char* src, int srcw, int srch, int srcstride, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+void draw_text_c4(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+{
+    return draw_text_c4(pixels, w, h, w * 4, text, x, y, fontpixelsize, color);
+}
+
+void draw_text_c1(unsigned char* pixels, int w, int h, int stride, const char* text, int x, int y, int fontpixelsize, unsigned int color)
 {
     const unsigned char* border_color = (const unsigned char*)&color;
 
@@ -935,18 +1201,18 @@ void draw_text_c1(unsigned char* src, int srcw, int srch, int srcstride, const c
                 if (j < 0)
                     continue;
 
-                if (j >= srch)
+                if (j >= h)
                     break;
 
                 const unsigned char* palpha = resized_font_bitmap + (j - cursor_y) * fontpixelsize;
-                unsigned char* p = src + srcstride * j;
+                unsigned char* p = pixels + stride * j;
 
                 for (int k = cursor_x; k < cursor_x + fontpixelsize; k++)
                 {
                     if (k < 0)
                         continue;
 
-                    if (k >= srcw)
+                    if (k >= w)
                         break;
 
                     unsigned char alpha = palpha[k - cursor_x];
@@ -962,7 +1228,7 @@ void draw_text_c1(unsigned char* src, int srcw, int srch, int srcstride, const c
     delete[] resized_font_bitmap;
 }
 
-void draw_text_c3(unsigned char* src, int srcw, int srch, int srcstride, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+void draw_text_c2(unsigned char* pixels, int w, int h, int stride, const char* text, int x, int y, int fontpixelsize, unsigned int color)
 {
     const unsigned char* border_color = (const unsigned char*)&color;
 
@@ -996,18 +1262,80 @@ void draw_text_c3(unsigned char* src, int srcw, int srch, int srcstride, const c
                 if (j < 0)
                     continue;
 
-                if (j >= srch)
+                if (j >= h)
                     break;
 
                 const unsigned char* palpha = resized_font_bitmap + (j - cursor_y) * fontpixelsize;
-                unsigned char* p = src + srcstride * j;
+                unsigned char* p = pixels + stride * j;
 
                 for (int k = cursor_x; k < cursor_x + fontpixelsize; k++)
                 {
                     if (k < 0)
                         continue;
 
-                    if (k >= srcw)
+                    if (k >= w)
+                        break;
+
+                    unsigned char alpha = palpha[k - cursor_x];
+
+                    p[k * 2 + 0] = (p[k * 2 + 0] * (255 - alpha) + border_color[0] * alpha) / 255;
+                    p[k * 2 + 1] = (p[k * 2 + 1] * (255 - alpha) + border_color[1] * alpha) / 255;
+                }
+            }
+
+            cursor_x += fontpixelsize;
+        }
+    }
+
+    delete[] resized_font_bitmap;
+}
+
+void draw_text_c3(unsigned char* pixels, int w, int h, int stride, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+{
+    const unsigned char* border_color = (const unsigned char*)&color;
+
+    unsigned char* resized_font_bitmap = new unsigned char[fontpixelsize * fontpixelsize * 2];
+
+    const int n = strlen(text);
+
+    int cursor_x = x;
+    int cursor_y = y;
+    for (int i = 0; i < n; i++)
+    {
+        char ch = text[i];
+
+        if (ch == '\n')
+        {
+            // newline
+            cursor_x = x;
+            cursor_y += fontpixelsize * 2;
+        }
+
+        if (isprint(ch) != 0)
+        {
+            int font_bitmap_index = ch - ' ';
+            const unsigned char* font_bitmap = mono_font_data[font_bitmap_index];
+
+            // draw resized character
+            resize_bilinear_c1(font_bitmap, 20, 40, resized_font_bitmap, fontpixelsize, fontpixelsize * 2);
+
+            for (int j = cursor_y; j < cursor_y + fontpixelsize * 2; j++)
+            {
+                if (j < 0)
+                    continue;
+
+                if (j >= h)
+                    break;
+
+                const unsigned char* palpha = resized_font_bitmap + (j - cursor_y) * fontpixelsize;
+                unsigned char* p = pixels + stride * j;
+
+                for (int k = cursor_x; k < cursor_x + fontpixelsize; k++)
+                {
+                    if (k < 0)
+                        continue;
+
+                    if (k >= w)
                         break;
 
                     unsigned char alpha = palpha[k - cursor_x];
@@ -1025,7 +1353,7 @@ void draw_text_c3(unsigned char* src, int srcw, int srch, int srcstride, const c
     delete[] resized_font_bitmap;
 }
 
-void draw_text_c4(unsigned char* src, int srcw, int srch, int srcstride, const char* text, int x, int y, int fontpixelsize, unsigned int color)
+void draw_text_c4(unsigned char* pixels, int w, int h, int stride, const char* text, int x, int y, int fontpixelsize, unsigned int color)
 {
     const unsigned char* border_color = (const unsigned char*)&color;
 
@@ -1058,18 +1386,18 @@ void draw_text_c4(unsigned char* src, int srcw, int srch, int srcstride, const c
                 if (j < 0)
                     continue;
 
-                if (j >= srch)
+                if (j >= h)
                     break;
 
                 const unsigned char* palpha = resized_font_bitmap + (j - cursor_y) * fontpixelsize;
-                unsigned char* p = src + srcstride * j;
+                unsigned char* p = pixels + stride * j;
 
                 for (int k = cursor_x; k < cursor_x + fontpixelsize; k++)
                 {
                     if (k < 0)
                         continue;
 
-                    if (k >= srcw)
+                    if (k >= w)
                         break;
 
                     unsigned char alpha = palpha[k - cursor_x];
