@@ -20,6 +20,7 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Parser.h>
+#include <mlir/Pass/Pass.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 
@@ -264,8 +265,7 @@ int main(int argc, char** argv)
 
     mlir::PassManager pm(&context);
 
-    // Add a run of the canonicalizer to optimize the mlir module.
-    pm.addNestedPass<mlir::FuncOp>(mlir::createCanonicalizerPass());
+    pm.addNestedPass<mlir::FuncOp>(mlir::ncnn::createNCNNOptimizePass());
     if (pm.run(*m).failed())
     {
         fprintf(stderr, "canonicalizer pass failed\n");

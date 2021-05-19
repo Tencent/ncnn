@@ -461,6 +461,9 @@ int ModelWriter::estimate_memory_footprint()
         if (blob.producer == -1 || blob.consumer != -1)
             continue;
 
+        if (layers[blob.producer]->type == "ncnnfused")
+            continue;
+
         // treat blob without any consumers as output
         ncnn::Mat m;
         ex.extract(int(i), m);

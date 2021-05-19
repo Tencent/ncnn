@@ -274,6 +274,8 @@ int main(int argc, char** argv)
 
     benchmark("efficientnet_b0", ncnn::Mat(224, 224, 3), opt);
 
+    benchmark("efficientnetv2_b0", ncnn::Mat(224, 224, 3), opt);
+
     benchmark("regnety_400m", ncnn::Mat(224, 224, 3), opt);
 
     benchmark("blazeface", ncnn::Mat(128, 128, 3), opt);
