@@ -263,8 +263,6 @@ int main(int argc, char** argv)
     mlir::OwningModuleRef m = mlir::parseSourceFile(mlirpath, &context);
 
     mlir::PassManager pm(&context);
-    // Apply any generic pass manager command line options and run the pipeline.
-    applyPassManagerCLOptions(pm);
 
     // Add a run of the canonicalizer to optimize the mlir module.
     pm.addNestedPass<mlir::FuncOp>(mlir::createCanonicalizerPass());
@@ -619,6 +617,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "InstanceNorm");
         }
+        else if (op == "ncnn.Swish")
+        {
+            fprintf(pp, "%-16s", "Swish");
+        }
         else if (op == "tf.AddN")
         {
             fprintf(pp, "%-16s", "Eltwise");
@@ -706,7 +708,6 @@ int main(int argc, char** argv)
             }
             else
             {
-                fprintf(stderr, "tf.Mean is not global avg pooling\n");
                 fprintf(pp, "%-16s", "Reduction");
             }
         }
@@ -1002,6 +1003,10 @@ int main(int argc, char** argv)
 
             fwrite(gv.data(), sizeof(float), gv.size(), bp);
             fwrite(bv.data(), sizeof(float), bv.size(), bp);
+        }
+        else if (op == "ncnn.Swish")
+        {
+            // no param
         }
         else if (op == "tf.AddN")
         {
@@ -1462,7 +1467,20 @@ int main(int argc, char** argv)
             }
             else
             {
-                // TODO
+                // Reduction mean
+                fprintf(pp, " 0=3");
+                fprintf(pp, " 1=0"); // reduce_all
+                fprintf(pp, " -23303=%d", (int)v.size());
+                for (int i = 0; i < (int)v.size(); i++)
+                {
+                    if (v[i] == 1)
+                        fprintf(pp, ",2");
+                    if (v[i] == 2)
+                        fprintf(pp, ",3");
+                    if (v[i] == 3)
+                        fprintf(pp, ",1");
+                }
+                fprintf(pp, " 4=%d", keep_dims);
             }
         }
         else if (op == "tf.Minimum")

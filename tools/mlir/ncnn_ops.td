@@ -131,4 +131,17 @@ def NCNN_InstanceNormAffineOp : NCNN_Op<"InstanceNormAffine", [NoSideEffect]> {
   let hasCanonicalizer = 1;
 }
 
+def NCNN_SwishOp : NCNN_Op<"Swish", [NoSideEffect]> {
+
+  let arguments = (ins
+    F32Tensor:$x
+  );
+
+  let results = (outs
+    F32Tensor:$y
+  );
+
+  let hasCanonicalizer = 1;
+}
+
 #endif // NCNN_OPS_TD

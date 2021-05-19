@@ -37,6 +37,7 @@ void BinaryOpOp::getCanonicalizationPatterns(OwningRewritePatternList& results, 
 void KerasConv2DOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
 {
     results.insert<FuseKerasConv2DOpPattern>(context);
+    results.insert<FuseKerasConv2DOpPattern1>(context);
 }
 
 void KerasDenseOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
@@ -58,6 +59,11 @@ void InstanceNormOp::getCanonicalizationPatterns(OwningRewritePatternList& resul
 void InstanceNormAffineOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
 {
     results.insert<FuseInstanceNormAffinePattern>(context);
+}
+
+void SwishOp::getCanonicalizationPatterns(OwningRewritePatternList& results, MLIRContext* context)
+{
+    results.insert<FuseSwishPattern>(context);
 }
 
 } // namespace ncnn
