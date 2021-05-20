@@ -17,9 +17,15 @@
 
 #cmakedefine01 NCNN_STDIO
 #cmakedefine01 NCNN_STRING
+#ifndef NCNN_SIMPLEOCV
 #cmakedefine01 NCNN_SIMPLEOCV
+#endif // NCNN_SIMPLEOCV
+#ifndef NCNN_SIMPLEOMP
 #cmakedefine01 NCNN_SIMPLEOMP
+#endif // NCNN_SIMPLEOMP
+#ifndef NCNN_SIMPLESTL
 #cmakedefine01 NCNN_SIMPLESTL
+#endif // NCNN_SIMPLESTL
 #cmakedefine01 NCNN_THREADS
 #cmakedefine01 NCNN_BENCHMARK
 #cmakedefine01 NCNN_PLATFORM_API
