@@ -42,7 +42,7 @@ void NCNNOptimizePass::runOnFunction()
     (void)mlir::applyPatternsAndFoldGreedily(getFunction(), std::move(patterns));
 }
 
-std::unique_ptr<OperationPass<FuncOp>> createNCNNOptimizePass()
+std::unique_ptr<OperationPass<FuncOp> > createNCNNOptimizePass()
 {
     return std::make_unique<NCNNOptimizePass>();
 }

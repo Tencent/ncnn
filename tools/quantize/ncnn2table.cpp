@@ -30,6 +30,8 @@
 
 #if defined(USE_NCNN_SIMPLEOCV)
 #include "simpleocv.h"
+#elif defined(USE_LOCAL_IMREADWRITE)
+#include "imreadwrite.h"
 #else
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>

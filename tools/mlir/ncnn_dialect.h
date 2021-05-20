@@ -35,7 +35,7 @@ public:
     }
 };
 
-std::unique_ptr<OperationPass<FuncOp>> createNCNNOptimizePass();
+std::unique_ptr<OperationPass<FuncOp> > createNCNNOptimizePass();
 
 } // namespace ncnn
 
