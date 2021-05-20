@@ -71,6 +71,8 @@ jobs:
         cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
         strip -g ${{ env.PACKAGENAME }}/bin/*
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -112,6 +114,8 @@ jobs:
         cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
         strip -g ${{ env.PACKAGENAME }}/bin/*
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -153,6 +157,8 @@ jobs:
         cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
         strip -g ${{ env.PACKAGENAME }}/bin/*
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -194,6 +200,8 @@ jobs:
         cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
         strip -g ${{ env.PACKAGENAME }}/bin/*
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -235,6 +243,8 @@ jobs:
         cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
         strip -g ${{ env.PACKAGENAME }}/bin/*
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -276,6 +286,8 @@ jobs:
         cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
         strip -g ${{ env.PACKAGENAME }}/bin/*
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -1398,6 +1410,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
@@ -1405,6 +1419,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v2
@@ -1482,6 +1498,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
@@ -1489,6 +1507,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v2
@@ -1568,6 +1588,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
@@ -1575,6 +1597,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v2
@@ -1652,6 +1676,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
@@ -1659,6 +1685,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v2
@@ -1738,6 +1766,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
@@ -1745,6 +1775,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v2
@@ -1822,6 +1854,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
@@ -1829,6 +1863,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v2
