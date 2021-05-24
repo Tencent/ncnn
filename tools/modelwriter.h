@@ -90,6 +90,13 @@
 #include "layer/yolodetectionoutput.h"
 #include "layer/yolov3detectionoutput.h"
 
+// for gen_random_weight
+#include "../tests/prng.h"
+
+static struct prng_rand_t g_prng_rand_state;
+#define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
+#define RAND()      prng_rand(&g_prng_rand_state)
+
 class MemoryFootprintAllocator : public ncnn::Allocator
 {
 public:
@@ -197,6 +204,8 @@ public:
     // 0=fp32 1=fp16
     int storage_type;
 
+    int gen_random_weight;
+
     // Cut param and bin -1=no cut
     int cutstart;
     int cutend;
@@ -221,8 +230,11 @@ ModelWriter::ModelWriter()
     : blobs(mutable_blobs()), layers(mutable_layers())
 {
     has_custom_layer = false;
+    gen_random_weight = false;
     cutstart = -1;
     cutend = -1;
+
+    SRAND(7767517);
 }
 
 ncnn::Layer* ModelWriter::create_custom_layer(const char* type)
@@ -524,11 +536,49 @@ static void replace_denormals_with_zero(float* data, size_t data_length)
     }
 }
 
+static float RandomFloat(float a = -1.2f, float b = 1.2f)
+{
+    float random = ((float)RAND()) / (float)uint64_t(-1); //RAND_MAX;
+    float diff = b - a;
+    float r = random * diff;
+    return a + r;
+}
+
+static void Randomize(ncnn::Mat& m, float a = -1.2f, float b = 1.2f)
+{
+    if (m.elemsize == 4)
+    {
+        for (size_t i = 0; i < m.total(); i++)
+        {
+            m[i] = RandomFloat(a, b);
+        }
+    }
+    else if (m.elemsize == 2)
+    {
+        unsigned short* p = m;
+        for (size_t i = 0; i < m.total(); i++)
+        {
+            p[i] = ncnn::float32_to_float16(RandomFloat(a, b));
+        }
+    }
+    else if (m.elemsize == 1)
+    {
+        signed char* p = m;
+        for (size_t i = 0; i < m.total(); i++)
+        {
+            p[i] = (signed char)RandomFloat(-127, 127);
+        }
+    }
+}
+
 int ModelWriter::fwrite_weight_tag_data(int tag, const ncnn::Mat& data, FILE* bp)
 {
     int p0 = ftell(bp);
 
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
+    if (gen_random_weight)
+        Randomize(data_flattened);
+
     if (storage_type == 1 && tag == 0)
     {
         tag = 0x01306B47; // fp16 magic
@@ -568,6 +618,9 @@ int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp)
     int p0 = ftell(bp);
 
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
+    if (gen_random_weight)
+        Randomize(data_flattened);
+
     if (data_flattened.elemsize == 4) // fp32
     {
         replace_denormals_with_zero(data_flattened, data_flattened.w);

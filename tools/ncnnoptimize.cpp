@@ -2668,6 +2668,7 @@ int main(int argc, char** argv)
     {
         DataReaderFromEmpty dr;
         optimizer.load_model(dr);
+        optimizer.gen_random_weight = true;
     }
     else
         optimizer.load_model(inbin);
