@@ -2585,6 +2585,12 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             feat = feat_fp32;
         }
     }
+    else if (feat.elembits() == 8 && (type == 0))
+    {
+        Mat feat_fp32;
+        cast_int8_to_float32(feat, feat_fp32, d->opt);
+        feat = feat_fp32;
+    }
     // *INDENT-ON*
     // clang-format on
 
