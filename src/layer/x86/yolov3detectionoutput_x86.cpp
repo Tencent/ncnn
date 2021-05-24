@@ -106,9 +106,9 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
                     float class_score = -FLT_MAX;
                     float* ptr = ((float*)scores.data) + i * w + j;
                     float* end = ptr + num_class * cs;
-                    float* end8 = ptr + (num_class & -8) * cs;
                     int q = 0;
 #if __AVX__
+                    float* end8 = ptr + (num_class & -8) * cs;
                     unsigned long index;
 
                     for (; ptr < end8; ptr += 8 * cs, q += 8)

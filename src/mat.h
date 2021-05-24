@@ -33,10 +33,12 @@
 #endif // NCNN_VULKAN
 
 #if NCNN_PIXEL
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
 #include <android/bitmap.h>
 #include <jni.h>
 #endif // __ANDROID_API__ >= 9
+#endif // NCNN_PLATFORM_API
 #endif // NCNN_PIXEL
 
 namespace ncnn {
@@ -47,7 +49,7 @@ class VkImageMat;
 #endif // NCNN_VULKAN
 
 // the three dimension matrix
-class Mat
+class NCNN_EXPORT Mat
 {
 public:
     // empty
@@ -88,6 +90,8 @@ public:
 #if __ARM_NEON
     void fill(float32x4_t _v);
     void fill(uint16x4_t _v);
+    void fill(int32x4_t _v);
+    void fill(int32x4_t _v0, int32x4_t _v1);
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     void fill(float16x4_t _v);
     void fill(float16x8_t _v);
@@ -101,6 +105,8 @@ public:
     void fill(T v);
     // deep copy
     Mat clone(Allocator* allocator = 0) const;
+    // deep copy from other mat, inplace
+    void clone_from(const ncnn::Mat& mat, Allocator* allocator = 0);
     // reshape vec
     Mat reshape(int w, Allocator* allocator = 0) const;
     // reshape image
@@ -215,6 +221,14 @@ public:
     static Mat from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int target_width, int target_height, Allocator* allocator = 0);
     // convenient construct from pixel data and resize to specific size with stride(bytes-per-row) parameter
     static Mat from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int stride, int target_width, int target_height, Allocator* allocator = 0);
+    // convenient construct from pixel data roi
+    static Mat from_pixels_roi(const unsigned char* pixels, int type, int w, int h, int roix, int roiy, int roiw, int roih, Allocator* allocator = 0);
+    // convenient construct from pixel data roi with stride(bytes-per-row) parameter
+    static Mat from_pixels_roi(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, Allocator* allocator = 0);
+    // convenient construct from pixel data roi and resize to specific size
+    static Mat from_pixels_roi_resize(const unsigned char* pixels, int type, int w, int h, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator = 0);
+    // convenient construct from pixel data roi and resize to specific size with stride(bytes-per-row) parameter
+    static Mat from_pixels_roi_resize(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator = 0);
 
     // convenient export to pixel data
     void to_pixels(unsigned char* pixels, int type) const;
@@ -225,20 +239,26 @@ public:
     // convenient export to pixel data and resize to specific size with stride(bytes-per-row) parameter
     void to_pixels_resize(unsigned char* pixels, int type, int target_width, int target_height, int target_stride) const;
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
     // convenient construct from android Bitmap
     static Mat from_android_bitmap(JNIEnv* env, jobject bitmap, int type_to, Allocator* allocator = 0);
     // convenient construct from android Bitmap and resize to specific size
     static Mat from_android_bitmap_resize(JNIEnv* env, jobject bitmap, int type_to, int target_width, int target_height, Allocator* allocator = 0);
+    // convenient construct from android Bitmap roi
+    static Mat from_android_bitmap_roi(JNIEnv* env, jobject bitmap, int type_to, int roix, int roiy, int roiw, int roih, Allocator* allocator = 0);
+    // convenient construct from android Bitmap roi and resize to specific size
+    static Mat from_android_bitmap_roi_resize(JNIEnv* env, jobject bitmap, int type_to, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator = 0);
     // convenient export to android Bitmap and resize to the android Bitmap size
     void to_android_bitmap(JNIEnv* env, jobject bitmap, int type_from) const;
 #endif // __ANDROID_API__ >= 9
+#endif // NCNN_PLATFORM_API
 #endif // NCNN_PIXEL
 
     // substract channel-wise mean values, then multiply by normalize values, pass 0 to skip
     void substract_mean_normalize(const float* mean_vals, const float* norm_vals);
 
-    // convenient construct from half precisoin floating point data
+    // convenient construct from half precision floating point data
     static Mat from_float16(const unsigned short* data, int size);
 
     // pointer to the data
@@ -277,7 +297,7 @@ public:
 #if NCNN_VULKAN
 
 // the three dimension matrix, vulkan version
-class VkMat
+class NCNN_EXPORT VkMat
 {
 public:
     // empty
@@ -387,7 +407,7 @@ public:
     size_t cstep;
 };
 
-class VkImageMat
+class NCNN_EXPORT VkImageMat
 {
 public:
     // empty
@@ -463,10 +483,12 @@ public:
     VkImage image() const;
     VkImageView imageview() const;
 
+#if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
     // convenient construct from android hardware buffer
     static VkImageMat from_android_hardware_buffer(VkAndroidHardwareBufferImageAllocator* allocator);
 #endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
 
     // device image
     VkImageMemory* data;
@@ -516,21 +538,23 @@ union vk_constant_type
 // misc function
 #if NCNN_PIXEL
 // convert yuv420sp(nv21) to rgb, the fast approximate version
-void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
+NCNN_EXPORT void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
+// convert yuv420sp(nv12) to rgb, the fast approximate version
+NCNN_EXPORT void yuv420sp2rgb_nv12(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
 // convert yuv420sp(nv21) to rgb with half resize, the faster approximate version
-void yuv420sp2rgb_half(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
+NCNN_EXPORT void yuv420sp2rgb_half(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
 // image pixel bilinear resize
-void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
-void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
-void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
-void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+NCNN_EXPORT void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+NCNN_EXPORT void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+NCNN_EXPORT void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+NCNN_EXPORT void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 // image pixel bilinear resize with stride(bytes-per-row) parameter
-void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
-void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
-void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
-void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
-// image pixel bilinear resize, convenient wrapper for yuv420sp(nv21)
-void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
+NCNN_EXPORT void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
+NCNN_EXPORT void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
+NCNN_EXPORT void resize_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
+NCNN_EXPORT void resize_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride);
+// image pixel bilinear resize, convenient wrapper for yuv420sp(nv21/nv12)
+NCNN_EXPORT void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 #endif // NCNN_PIXEL
 #if NCNN_PIXEL_ROTATE
 // type is the from type, 6 means rotating from 6 to 1
@@ -545,26 +569,98 @@ void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsi
 //
 // ref http://sylvana.net/jpegcrop/exif_orientation.html
 // image pixel kanna rotate
-void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
-void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
-void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
-void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+NCNN_EXPORT void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+NCNN_EXPORT void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+NCNN_EXPORT void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+NCNN_EXPORT void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
 // image pixel kanna rotate with stride(bytes-per-row) parameter
-void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
-void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
-void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
-void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
-// image pixel kanna rotate, convenient wrapper for yuv420sp(nv21)
-void kanna_rotate_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
+NCNN_EXPORT void kanna_rotate_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+NCNN_EXPORT void kanna_rotate_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+NCNN_EXPORT void kanna_rotate_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+NCNN_EXPORT void kanna_rotate_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, int type);
+// image pixel kanna rotate, convenient wrapper for yuv420sp(nv21/nv12)
+NCNN_EXPORT void kanna_rotate_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, int type);
 #endif // NCNN_PIXEL_ROTATE
+#if NCNN_PIXEL_AFFINE
+// resolve affine transform matrix from rotation angle, scale factor and x y offset
+NCNN_EXPORT void get_rotation_matrix(float angle, float scale, float dx, float dy, float* tm);
+// resolve affine transform matrix from two set of points, num_point must be >= 2
+NCNN_EXPORT void get_affine_transform(const float* points_from, const float* points_to, int num_point, float* tm);
+// resolve the inversion affine transform matrix
+NCNN_EXPORT void invert_affine_transform(const float* tm, float* tm_inv);
+// image pixel bilinear warpaffine inverse transform, set -233 for transparent border color, the color RGBA is little-endian encoded
+NCNN_EXPORT void warpaffine_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int type = 0, unsigned int v = 0);
+NCNN_EXPORT void warpaffine_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int type = 0, unsigned int v = 0);
+NCNN_EXPORT void warpaffine_bilinear_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int type = 0, unsigned int v = 0);
+NCNN_EXPORT void warpaffine_bilinear_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int type = 0, unsigned int v = 0);
+// image pixel bilinear warpaffine inverse transform with stride(bytes-per-row) parameter, set -233 for transparent border color, the color RGBA is little-endian encoded
+NCNN_EXPORT void warpaffine_bilinear_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int type = 0, unsigned int v = 0);
+NCNN_EXPORT void warpaffine_bilinear_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int type = 0, unsigned int v = 0);
+NCNN_EXPORT void warpaffine_bilinear_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int type = 0, unsigned int v = 0);
+NCNN_EXPORT void warpaffine_bilinear_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride, const float* tm, int type = 0, unsigned int v = 0);
+// image pixel bilinear warpaffine, convenient wrapper for yuv420sp(nv21/nv12), set -233 for transparent border color, the color YUV_ is little-endian encoded
+NCNN_EXPORT void warpaffine_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h, const float* tm, int type = 0, unsigned int v = 0);
+#endif // NCNN_PIXEL_AFFINE
+#if NCNN_PIXEL_DRAWING
+// draw rectangle, set thickness -1 for filled rectangle, the color RGBA is little-endian encoded
+NCNN_EXPORT void draw_rectangle_c1(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
+NCNN_EXPORT void draw_rectangle_c2(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
+NCNN_EXPORT void draw_rectangle_c3(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
+NCNN_EXPORT void draw_rectangle_c4(unsigned char* pixels, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
+// draw rectangle with stride(bytes-per-row) parameter, set thickness -1 for filled rectangle, the color RGBA is little-endian encoded
+NCNN_EXPORT void draw_rectangle_c1(unsigned char* pixels, int w, int h, int stride, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
+NCNN_EXPORT void draw_rectangle_c2(unsigned char* pixels, int w, int h, int stride, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
+NCNN_EXPORT void draw_rectangle_c3(unsigned char* pixels, int w, int h, int stride, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
+NCNN_EXPORT void draw_rectangle_c4(unsigned char* pixels, int w, int h, int stride, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
+// draw rectangle, convenient wrapper for yuv420sp(nv21/nv12), set thickness -1 for filled rectangle, the color YUV_ is little-endian encoded
+NCNN_EXPORT void draw_rectangle_yuv420sp(unsigned char* yuv420sp, int w, int h, int rx, int ry, int rw, int rh, unsigned int color, int thickness);
+// draw circle, set thickness -1 for filled circle, the color RGBA is little-endian encoded
+NCNN_EXPORT void draw_circle_c1(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness);
+NCNN_EXPORT void draw_circle_c2(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness);
+NCNN_EXPORT void draw_circle_c3(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness);
+NCNN_EXPORT void draw_circle_c4(unsigned char* pixels, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness);
+// draw circle with stride(bytes-per-row) parameter, set thickness -1 for filled circle, the color RGBA is little-endian encoded
+NCNN_EXPORT void draw_circle_c1(unsigned char* pixels, int w, int h, int stride, int cx, int cy, int radius, unsigned int color, int thickness);
+NCNN_EXPORT void draw_circle_c2(unsigned char* pixels, int w, int h, int stride, int cx, int cy, int radius, unsigned int color, int thickness);
+NCNN_EXPORT void draw_circle_c3(unsigned char* pixels, int w, int h, int stride, int cx, int cy, int radius, unsigned int color, int thickness);
+NCNN_EXPORT void draw_circle_c4(unsigned char* pixels, int w, int h, int stride, int cx, int cy, int radius, unsigned int color, int thickness);
+// draw circle, convenient wrapper for yuv420sp(nv21/nv12), set thickness -1 for filled circle, the color YUV_ is little-endian encoded
+NCNN_EXPORT void draw_circle_yuv420sp(unsigned char* yuv420sp, int w, int h, int cx, int cy, int radius, unsigned int color, int thickness);
+// draw line, the color RGBA is little-endian encoded
+NCNN_EXPORT void draw_line_c1(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void draw_line_c2(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void draw_line_c3(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void draw_line_c4(unsigned char* pixels, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+// draw line with stride(bytes-per-row) parameter, the color RGBA is little-endian encoded
+NCNN_EXPORT void draw_line_c1(unsigned char* pixels, int w, int h, int stride, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void draw_line_c2(unsigned char* pixels, int w, int h, int stride, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void draw_line_c3(unsigned char* pixels, int w, int h, int stride, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+NCNN_EXPORT void draw_line_c4(unsigned char* pixels, int w, int h, int stride, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+// draw line, convenient wrapper for yuv420sp(nv21/nv12), the color YUV_ is little-endian encoded
+NCNN_EXPORT void draw_line_yuv420sp(unsigned char* yuv420sp, int w, int h, int x0, int y0, int x1, int y1, unsigned int color, int thickness);
+// resolve text bounding box size
+NCNN_EXPORT void get_text_drawing_size(const char* text, int fontpixelsize, int* w, int* h);
+// draw ascii printables and newline, the color RGBA is little-endian encoded
+NCNN_EXPORT void draw_text_c1(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+NCNN_EXPORT void draw_text_c2(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+NCNN_EXPORT void draw_text_c3(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+NCNN_EXPORT void draw_text_c4(unsigned char* pixels, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+// draw ascii printables and newline with stride(bytes-per-row) parameter, the color RGBA is little-endian encoded
+NCNN_EXPORT void draw_text_c1(unsigned char* pixels, int w, int h, int stride, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+NCNN_EXPORT void draw_text_c2(unsigned char* pixels, int w, int h, int stride, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+NCNN_EXPORT void draw_text_c3(unsigned char* pixels, int w, int h, int stride, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+NCNN_EXPORT void draw_text_c4(unsigned char* pixels, int w, int h, int stride, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+// draw ascii printables and newline, convenient wrapper for yuv420sp(nv21/nv12), the color YUV_ is little-endian encoded
+NCNN_EXPORT void draw_text_yuv420sp(unsigned char* yuv420sp, int w, int h, const char* text, int x, int y, int fontpixelsize, unsigned int color);
+#endif // NCNN_PIXEL_DRAWING
 
 // type conversion
 // convert float to half precision floating point
-unsigned short float32_to_float16(float value);
+NCNN_EXPORT unsigned short float32_to_float16(float value);
 // convert half precision floating point to float
-float float16_to_float32(unsigned short value);
+NCNN_EXPORT float float16_to_float32(unsigned short value);
 // convert float to brain half
-inline unsigned short float32_to_bfloat16(float value)
+NCNN_EXPORT inline unsigned short float32_to_bfloat16(float value)
 {
     // 16 : 16
     union
@@ -576,7 +672,7 @@ inline unsigned short float32_to_bfloat16(float value)
     return tmp.u >> 16;
 }
 // convert brain half to float
-inline float bfloat16_to_float32(unsigned short value)
+NCNN_EXPORT inline float bfloat16_to_float32(unsigned short value)
 {
     // 16 : 16
     union
@@ -588,11 +684,11 @@ inline float bfloat16_to_float32(unsigned short value)
     return tmp.f;
 }
 #if __ARM_NEON
-inline uint16x4_t vcvt_bf16_f32(float32x4_t _v)
+NCNN_EXPORT inline uint16x4_t vcvt_bf16_f32(float32x4_t _v)
 {
     return vshrn_n_u32(vreinterpretq_u32_f32(_v), 16);
 }
-inline float32x4_t vcvt_f32_bf16(uint16x4_t _v)
+NCNN_EXPORT inline float32x4_t vcvt_f32_bf16(uint16x4_t _v)
 {
     return vreinterpretq_f32_u32(vshll_n_u16(_v, 16));
 }
@@ -603,22 +699,23 @@ enum BorderType
 {
     BORDER_CONSTANT = 0,
     BORDER_REPLICATE = 1,
+    BORDER_TRANSPARENT = -233,
 };
-void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, const Option& opt = Option());
-void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, const Option& opt = Option());
-void resize_nearest(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
-void resize_bilinear(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
-void resize_bicubic(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
-void convert_packing(const Mat& src, Mat& dst, int elempack, const Option& opt = Option());
-void flatten(const Mat& src, Mat& dst, const Option& opt = Option());
-void cast_float32_to_float16(const Mat& src, Mat& dst, const Option& opt = Option());
-void cast_float16_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
-void cast_int8_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
-void cast_float32_to_bfloat16(const Mat& src, Mat& dst, const Option& opt = Option());
-void cast_bfloat16_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
-void quantize_float32_to_int8(const Mat& src, Mat& dst, float scale, const Option& opt = Option());
-void dequantize_int32_to_float32(Mat& m, float scale, const float* bias, int bias_data_size, const Option& opt = Option());
-void requantize_int8_to_int8(const Mat& src, Mat& dst, float scale_in, float scale_out, const float* bias, int bias_data_size, int fusion_relu, const Option& opt = Option());
+NCNN_EXPORT void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, const Option& opt = Option());
+NCNN_EXPORT void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, const Option& opt = Option());
+NCNN_EXPORT void resize_nearest(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
+NCNN_EXPORT void resize_bilinear(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
+NCNN_EXPORT void resize_bicubic(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
+NCNN_EXPORT void convert_packing(const Mat& src, Mat& dst, int elempack, const Option& opt = Option());
+NCNN_EXPORT void flatten(const Mat& src, Mat& dst, const Option& opt = Option());
+NCNN_EXPORT void cast_float32_to_float16(const Mat& src, Mat& dst, const Option& opt = Option());
+NCNN_EXPORT void cast_float16_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
+NCNN_EXPORT void cast_int8_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
+NCNN_EXPORT void cast_float32_to_bfloat16(const Mat& src, Mat& dst, const Option& opt = Option());
+NCNN_EXPORT void cast_bfloat16_to_float32(const Mat& src, Mat& dst, const Option& opt = Option());
+NCNN_EXPORT void quantize_to_int8(const Mat& src, Mat& dst, const Mat& scale_data, const Option& opt = Option());
+NCNN_EXPORT void dequantize_from_int32(const Mat& src, Mat& dst, const Mat& scale_data, const Mat& bias_data, const Option& opt = Option());
+NCNN_EXPORT void requantize_from_int32_to_int8(const Mat& src, Mat& dst, const Mat& scale_in_data, const Mat& scale_out_data, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt = Option());
 
 inline Mat::Mat()
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
@@ -664,8 +761,7 @@ inline Mat::Mat(int _w, int _h, int _c, size_t _elemsize, int _elempack, Allocat
 inline Mat::Mat(const Mat& m)
     : data(m.data), refcount(m.refcount), elemsize(m.elemsize), elempack(m.elempack), allocator(m.allocator), dims(m.dims), w(m.w), h(m.h), c(m.c), cstep(m.cstep)
 {
-    if (refcount)
-        NCNN_XADD(refcount, 1);
+    addref();
 }
 
 inline Mat::Mat(int _w, void* _data, size_t _elemsize, Allocator* _allocator)
@@ -677,13 +773,13 @@ inline Mat::Mat(int _w, void* _data, size_t _elemsize, Allocator* _allocator)
 inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(2), w(_w), h(_h), c(1)
 {
-    cstep = w * h;
+    cstep = (size_t)w * h;
 }
 
 inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(3), w(_w), h(_h), c(_c)
 {
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 inline Mat::Mat(int _w, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
@@ -695,44 +791,18 @@ inline Mat::Mat(int _w, void* _data, size_t _elemsize, int _elempack, Allocator*
 inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), c(1)
 {
-    cstep = w * h;
+    cstep = (size_t)w * h;
 }
 
 inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(3), w(_w), h(_h), c(_c)
 {
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
+    cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
 inline Mat::~Mat()
 {
     release();
-}
-
-inline Mat& Mat::operator=(const Mat& m)
-{
-    if (this == &m)
-        return *this;
-
-    if (m.refcount)
-        NCNN_XADD(m.refcount, 1);
-
-    release();
-
-    data = m.data;
-    refcount = m.refcount;
-    elemsize = m.elemsize;
-    elempack = m.elempack;
-    allocator = m.allocator;
-
-    dims = m.dims;
-    w = m.w;
-    h = m.h;
-    c = m.c;
-
-    cstep = m.cstep;
-
-    return *this;
 }
 
 inline void Mat::fill(float _v)
@@ -842,7 +912,7 @@ inline void Mat::fill(int _v)
 #if __ARM_NEON
 inline void Mat::fill(float32x4_t _v)
 {
-    int size = total();
+    int size = (int)total();
     float* ptr = (float*)data;
     for (int i = 0; i < size; i++)
     {
@@ -850,9 +920,10 @@ inline void Mat::fill(float32x4_t _v)
         ptr += 4;
     }
 }
+
 inline void Mat::fill(uint16x4_t _v)
 {
-    int size = total();
+    int size = (int)total();
     unsigned short* ptr = (unsigned short*)data;
     for (int i = 0; i < size; i++)
     {
@@ -860,10 +931,33 @@ inline void Mat::fill(uint16x4_t _v)
         ptr += 4;
     }
 }
+
+inline void Mat::fill(int32x4_t _v)
+{
+    int size = (int)total();
+    int* ptr = (int*)data;
+    for (int i = 0; i < size; i++)
+    {
+        vst1q_s32(ptr, _v);
+        ptr += 4;
+    }
+}
+
+inline void Mat::fill(int32x4_t _v0, int32x4_t _v1)
+{
+    int size = (int)total();
+    int* ptr = (int*)data;
+    for (int i = 0; i < size; i++)
+    {
+        vst1q_s32(ptr, _v0);
+        vst1q_s32(ptr + 4, _v1);
+        ptr += 8;
+    }
+}
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 inline void Mat::fill(float16x4_t _v)
 {
-    int size = total();
+    int size = (int)total();
     __fp16* ptr = (__fp16*)data;
     for (int i = 0; i < size; i++)
     {
@@ -874,7 +968,7 @@ inline void Mat::fill(float16x4_t _v)
 
 inline void Mat::fill(float16x8_t _v)
 {
-    int size = total();
+    int size = (int)total();
     __fp16* ptr = (__fp16*)data;
     for (int i = 0; i < size; i++)
     {
@@ -887,7 +981,7 @@ inline void Mat::fill(float16x8_t _v)
 #if __AVX__
 inline void Mat::fill(__m256 _v)
 {
-    int size = total();
+    int size = (int)total();
     float* ptr = (float*)data;
     for (int i = 0; i < size; i++)
     {
@@ -897,7 +991,7 @@ inline void Mat::fill(__m256 _v)
 }
 inline void Mat::fill(__m128i _v)
 {
-    int size = total();
+    int size = (int)total();
     unsigned short* ptr = (unsigned short*)data;
     for (int i = 0; i < size; i++)
     {
@@ -910,7 +1004,7 @@ inline void Mat::fill(__m128i _v)
 template<typename T>
 inline void Mat::fill(T _v)
 {
-    int size = total();
+    int size = (int)total();
     T* ptr = (T*)data;
     for (int i = 0; i < size; i++)
     {
@@ -918,349 +1012,31 @@ inline void Mat::fill(T _v)
     }
 }
 
-inline Mat Mat::clone(Allocator* allocator) const
+inline Mat& Mat::operator=(const Mat& m)
 {
-    if (empty())
-        return Mat();
+    if (this == &m)
+        return *this;
 
-    Mat m;
-    if (dims == 1)
-        m.create(w, elemsize, elempack, allocator);
-    else if (dims == 2)
-        m.create(w, h, elemsize, elempack, allocator);
-    else if (dims == 3)
-        m.create(w, h, c, elemsize, elempack, allocator);
-
-    if (total() > 0)
-    {
-        memcpy(m.data, data, total() * elemsize);
-    }
-
-    return m;
-}
-
-inline Mat Mat::reshape(int _w, Allocator* _allocator) const
-{
-    if (w * h * c != _w)
-        return Mat();
-
-    if (dims == 3 && cstep != (size_t)w * h)
-    {
-        Mat m;
-        m.create(_w, elemsize, elempack, _allocator);
-
-        // flatten
-        for (int i = 0; i < c; i++)
-        {
-            const void* ptr = (unsigned char*)data + i * cstep * elemsize;
-            void* mptr = (unsigned char*)m.data + i * w * h * elemsize;
-            memcpy(mptr, ptr, w * h * elemsize);
-        }
-
-        return m;
-    }
-
-    Mat m = *this;
-
-    m.dims = 1;
-    m.w = _w;
-    m.h = 1;
-    m.c = 1;
-
-    m.cstep = _w;
-
-    return m;
-}
-
-inline Mat Mat::reshape(int _w, int _h, Allocator* _allocator) const
-{
-    if (w * h * c != _w * _h)
-        return Mat();
-
-    if (dims == 3 && cstep != (size_t)w * h)
-    {
-        Mat m;
-        m.create(_w, _h, elemsize, elempack, _allocator);
-
-        // flatten
-        for (int i = 0; i < c; i++)
-        {
-            const void* ptr = (unsigned char*)data + i * cstep * elemsize;
-            void* mptr = (unsigned char*)m.data + i * w * h * elemsize;
-            memcpy(mptr, ptr, w * h * elemsize);
-        }
-
-        return m;
-    }
-
-    Mat m = *this;
-
-    m.dims = 2;
-    m.w = _w;
-    m.h = _h;
-    m.c = 1;
-
-    m.cstep = _w * _h;
-
-    return m;
-}
-
-inline Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
-{
-    if (w * h * c != _w * _h * _c)
-        return Mat();
-
-    if (dims < 3)
-    {
-        if ((size_t)_w * _h != alignSize(_w * _h * elemsize, 16) / elemsize)
-        {
-            Mat m;
-            m.create(_w, _h, _c, elemsize, elempack, _allocator);
-
-            // align channel
-            for (int i = 0; i < _c; i++)
-            {
-                const void* ptr = (unsigned char*)data + i * _w * _h * elemsize;
-                void* mptr = (unsigned char*)m.data + i * m.cstep * m.elemsize;
-                memcpy(mptr, ptr, _w * _h * elemsize);
-            }
-
-            return m;
-        }
-    }
-    else if (c != _c)
-    {
-        // flatten and then align
-        Mat tmp = reshape(_w * _h * _c, _allocator);
-        return tmp.reshape(_w, _h, _c, _allocator);
-    }
-
-    Mat m = *this;
-
-    m.dims = 3;
-    m.w = _w;
-    m.h = _h;
-    m.c = _c;
-
-    m.cstep = alignSize(_w * _h * elemsize, 16) / elemsize;
-
-    return m;
-}
-
-inline void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
-{
-    if (dims == 1 && w == _w && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
-        return;
+    if (m.refcount)
+        NCNN_XADD(m.refcount, 1);
 
     release();
 
-    elemsize = _elemsize;
-    elempack = 1;
-    allocator = _allocator;
+    data = m.data;
+    refcount = m.refcount;
+    elemsize = m.elemsize;
+    elempack = m.elempack;
+    allocator = m.allocator;
 
-    dims = 1;
-    w = _w;
-    h = 1;
-    c = 1;
+    dims = m.dims;
+    w = m.w;
+    h = m.h;
+    c = m.c;
 
-    cstep = w;
+    cstep = m.cstep;
 
-    if (total() > 0)
-    {
-        size_t totalsize = alignSize(total() * elemsize, 4);
-        if (allocator)
-            data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
-        else
-            data = fastMalloc(totalsize + (int)sizeof(*refcount));
-        refcount = (int*)(((unsigned char*)data) + totalsize);
-        *refcount = 1;
-    }
+    return *this;
 }
-
-inline void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
-{
-    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = 1;
-    allocator = _allocator;
-
-    dims = 2;
-    w = _w;
-    h = _h;
-    c = 1;
-
-    cstep = w * h;
-
-    if (total() > 0)
-    {
-        size_t totalsize = alignSize(total() * elemsize, 4);
-        if (allocator)
-            data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
-        else
-            data = fastMalloc(totalsize + (int)sizeof(*refcount));
-        refcount = (int*)(((unsigned char*)data) + totalsize);
-        *refcount = 1;
-    }
-}
-
-inline void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator)
-{
-    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = 1;
-    allocator = _allocator;
-
-    dims = 3;
-    w = _w;
-    h = _h;
-    c = _c;
-
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
-
-    if (total() > 0)
-    {
-        size_t totalsize = alignSize(total() * elemsize, 4);
-        if (allocator)
-            data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
-        else
-            data = fastMalloc(totalsize + (int)sizeof(*refcount));
-        refcount = (int*)(((unsigned char*)data) + totalsize);
-        *refcount = 1;
-    }
-}
-
-inline void Mat::create(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
-{
-    if (dims == 1 && w == _w && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = _elempack;
-    allocator = _allocator;
-
-    dims = 1;
-    w = _w;
-    h = 1;
-    c = 1;
-
-    cstep = w;
-
-    if (total() > 0)
-    {
-        size_t totalsize = alignSize(total() * elemsize, 4);
-        if (allocator)
-            data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
-        else
-            data = fastMalloc(totalsize + (int)sizeof(*refcount));
-        refcount = (int*)(((unsigned char*)data) + totalsize);
-        *refcount = 1;
-    }
-}
-
-inline void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _allocator)
-{
-    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = _elempack;
-    allocator = _allocator;
-
-    dims = 2;
-    w = _w;
-    h = _h;
-    c = 1;
-
-    cstep = w * h;
-
-    if (total() > 0)
-    {
-        size_t totalsize = alignSize(total() * elemsize, 4);
-        if (allocator)
-            data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
-        else
-            data = fastMalloc(totalsize + (int)sizeof(*refcount));
-        refcount = (int*)(((unsigned char*)data) + totalsize);
-        *refcount = 1;
-    }
-}
-
-inline void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, Allocator* _allocator)
-{
-    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = _elempack;
-    allocator = _allocator;
-
-    dims = 3;
-    w = _w;
-    h = _h;
-    c = _c;
-
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
-
-    if (total() > 0)
-    {
-        size_t totalsize = alignSize(total() * elemsize, 4);
-        if (allocator)
-            data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
-        else
-            data = fastMalloc(totalsize + (int)sizeof(*refcount));
-        refcount = (int*)(((unsigned char*)data) + totalsize);
-        *refcount = 1;
-    }
-}
-
-inline void Mat::create_like(const Mat& m, Allocator* _allocator)
-{
-    int _dims = m.dims;
-    if (_dims == 1)
-        create(m.w, m.elemsize, m.elempack, _allocator);
-    if (_dims == 2)
-        create(m.w, m.h, m.elemsize, m.elempack, _allocator);
-    if (_dims == 3)
-        create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator);
-}
-
-#if NCNN_VULKAN
-inline void Mat::create_like(const VkMat& m, Allocator* _allocator)
-{
-    int _dims = m.dims;
-    if (_dims == 1)
-        create(m.w, m.elemsize, m.elempack, _allocator);
-    if (_dims == 2)
-        create(m.w, m.h, m.elemsize, m.elempack, _allocator);
-    if (_dims == 3)
-        create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator);
-}
-
-inline void Mat::create_like(const VkImageMat& im, Allocator* _allocator)
-{
-    int _dims = im.dims;
-    if (_dims == 1)
-        create(im.w, im.elemsize, im.elempack, _allocator);
-    if (_dims == 2)
-        create(im.w, im.h, im.elemsize, im.elempack, _allocator);
-    if (_dims == 3)
-        create(im.w, im.h, im.c, im.elemsize, im.elempack, _allocator);
-}
-#endif // NCNN_VULKAN
 
 inline void Mat::addref()
 {
@@ -1305,7 +1081,7 @@ inline size_t Mat::total() const
 
 inline int Mat::elembits() const
 {
-    return elempack ? elemsize * 8 / elempack : 0;
+    return elempack ? static_cast<int>(elemsize * 8) / elempack : 0;
 }
 
 inline Mat Mat::shape() const
@@ -1332,24 +1108,24 @@ inline const Mat Mat::channel(int _c) const
 
 inline float* Mat::row(int y)
 {
-    return (float*)((unsigned char*)data + w * y * elemsize);
+    return (float*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
 inline const float* Mat::row(int y) const
 {
-    return (const float*)((unsigned char*)data + w * y * elemsize);
+    return (const float*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
 template<typename T>
 inline T* Mat::row(int y)
 {
-    return (T*)((unsigned char*)data + w * y * elemsize);
+    return (T*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
 template<typename T>
 inline const T* Mat::row(int y) const
 {
-    return (const T*)((unsigned char*)data + w * y * elemsize);
+    return (const T*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
 inline Mat Mat::channel_range(int _c, int channels)
@@ -1364,12 +1140,12 @@ inline const Mat Mat::channel_range(int _c, int channels) const
 
 inline Mat Mat::row_range(int y, int rows)
 {
-    return Mat(w, rows, (unsigned char*)data + w * y * elemsize, elemsize, elempack, allocator);
+    return Mat(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
 }
 
 inline const Mat Mat::row_range(int y, int rows) const
 {
-    return Mat(w, rows, (unsigned char*)data + w * y * elemsize, elemsize, elempack, allocator);
+    return Mat(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
 }
 
 inline Mat Mat::range(int x, int n)
@@ -1450,8 +1226,7 @@ inline VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkA
 inline VkMat::VkMat(const VkMat& m)
     : data(m.data), refcount(m.refcount), elemsize(m.elemsize), elempack(m.elempack), allocator(m.allocator), dims(m.dims), w(m.w), h(m.h), c(m.c)
 {
-    if (refcount)
-        NCNN_XADD(refcount, 1);
+    addref();
 
     cstep = m.cstep;
 }
@@ -1521,213 +1296,6 @@ inline VkMat& VkMat::operator=(const VkMat& m)
     cstep = m.cstep;
 
     return *this;
-}
-
-inline void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
-{
-    if (dims == 1 && w == _w && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = 1;
-    allocator = _allocator;
-
-    dims = 1;
-    w = _w;
-    h = 1;
-    c = 1;
-
-    cstep = w;
-
-    if (total() > 0)
-    {
-        size_t totalsize = alignSize(total() * elemsize, 4);
-
-        data = allocator->fastMalloc(totalsize);
-
-        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
-        *refcount = 1;
-    }
-}
-
-inline void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
-{
-    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = 1;
-    allocator = _allocator;
-
-    dims = 2;
-    w = _w;
-    h = _h;
-    c = 1;
-
-    cstep = w * h;
-
-    if (total() > 0)
-    {
-        size_t totalsize = alignSize(total() * elemsize, 4);
-
-        data = allocator->fastMalloc(totalsize);
-
-        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
-        *refcount = 1;
-    }
-}
-
-inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _allocator)
-{
-    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = 1;
-    allocator = _allocator;
-
-    dims = 3;
-    w = _w;
-    h = _h;
-    c = _c;
-
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
-
-    if (total() > 0)
-    {
-        size_t totalsize = alignSize(total() * elemsize, 4);
-
-        data = allocator->fastMalloc(totalsize);
-
-        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
-        *refcount = 1;
-    }
-}
-
-inline void VkMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* _allocator)
-{
-    if (dims == 1 && w == _w && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = _elempack;
-    allocator = _allocator;
-
-    dims = 1;
-    w = _w;
-    h = 1;
-    c = 1;
-
-    cstep = w;
-
-    if (total() > 0)
-    {
-        size_t totalsize = alignSize(total() * elemsize, 4);
-
-        data = allocator->fastMalloc(totalsize);
-
-        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
-        *refcount = 1;
-    }
-}
-
-inline void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator* _allocator)
-{
-    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = _elempack;
-    allocator = _allocator;
-
-    dims = 2;
-    w = _w;
-    h = _h;
-    c = 1;
-
-    cstep = w * h;
-
-    if (total() > 0)
-    {
-        size_t totalsize = alignSize(total() * elemsize, 4);
-
-        data = allocator->fastMalloc(totalsize);
-
-        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
-        *refcount = 1;
-    }
-}
-
-inline void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
-{
-    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = _elempack;
-    allocator = _allocator;
-
-    dims = 3;
-    w = _w;
-    h = _h;
-    c = _c;
-
-    cstep = alignSize(w * h * elemsize, 16) / elemsize;
-
-    if (total() > 0)
-    {
-        size_t totalsize = alignSize(total() * elemsize, 4);
-
-        data = allocator->fastMalloc(totalsize);
-
-        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
-        *refcount = 1;
-    }
-}
-
-inline void VkMat::create_like(const Mat& m, VkAllocator* _allocator)
-{
-    int _dims = m.dims;
-    if (_dims == 1)
-        create(m.w, m.elemsize, m.elempack, _allocator);
-    if (_dims == 2)
-        create(m.w, m.h, m.elemsize, m.elempack, _allocator);
-    if (_dims == 3)
-        create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator);
-}
-
-inline void VkMat::create_like(const VkMat& m, VkAllocator* _allocator)
-{
-    int _dims = m.dims;
-    if (_dims == 1)
-        create(m.w, m.elemsize, m.elempack, _allocator);
-    if (_dims == 2)
-        create(m.w, m.h, m.elemsize, m.elempack, _allocator);
-    if (_dims == 3)
-        create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator);
-}
-
-inline void VkMat::create_like(const VkImageMat& im, VkAllocator* _allocator)
-{
-    int _dims = im.dims;
-    if (_dims == 1)
-        create(im.w, im.elemsize, im.elempack, _allocator);
-    if (_dims == 2)
-        create(im.w, im.h, im.elemsize, im.elempack, _allocator);
-    if (_dims == 3)
-        create(im.w, im.h, im.c, im.elemsize, im.elempack, _allocator);
 }
 
 inline Mat VkMat::mapped() const
@@ -1872,8 +1440,7 @@ inline VkImageMat::VkImageMat(int _w, int _h, int _c, size_t _elemsize, int _ele
 inline VkImageMat::VkImageMat(const VkImageMat& m)
     : data(m.data), refcount(m.refcount), elemsize(m.elemsize), elempack(m.elempack), allocator(m.allocator), dims(m.dims), w(m.w), h(m.h), c(m.c)
 {
-    if (refcount)
-        NCNN_XADD(refcount, 1);
+    addref();
 }
 
 inline VkImageMat::VkImageMat(int _w, VkImageMemory* _data, size_t _elemsize, VkAllocator* _allocator)
@@ -1933,201 +1500,6 @@ inline VkImageMat& VkImageMat::operator=(const VkImageMat& m)
     c = m.c;
 
     return *this;
-}
-
-inline void VkImageMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
-{
-    if (dims == 1 && w == _w && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = 1;
-    allocator = _allocator;
-
-    dims = 1;
-    w = _w;
-    h = 1;
-    c = 1;
-
-    if (total() > 0)
-    {
-        data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
-        if (!data)
-            return;
-
-        refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
-        *refcount = 1;
-    }
-}
-
-inline void VkImageMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
-{
-    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = 1;
-    allocator = _allocator;
-
-    dims = 2;
-    w = _w;
-    h = _h;
-    c = 1;
-
-    if (total() > 0)
-    {
-        data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
-        if (!data)
-            return;
-
-        refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
-        *refcount = 1;
-    }
-}
-
-inline void VkImageMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _allocator)
-{
-    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = 1;
-    allocator = _allocator;
-
-    dims = 3;
-    w = _w;
-    h = _h;
-    c = _c;
-
-    if (total() > 0)
-    {
-        data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
-        if (!data)
-            return;
-
-        refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
-        *refcount = 1;
-    }
-}
-
-inline void VkImageMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* _allocator)
-{
-    if (dims == 1 && w == _w && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = _elempack;
-    allocator = _allocator;
-
-    dims = 1;
-    w = _w;
-    h = 1;
-    c = 1;
-
-    if (total() > 0)
-    {
-        data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
-        if (!data)
-            return;
-
-        refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
-        *refcount = 1;
-    }
-}
-
-inline void VkImageMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator* _allocator)
-{
-    if (dims == 2 && w == _w && h == _h && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = _elempack;
-    allocator = _allocator;
-
-    dims = 2;
-    w = _w;
-    h = _h;
-    c = 1;
-
-    if (total() > 0)
-    {
-        data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
-        if (!data)
-            return;
-
-        refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
-        *refcount = 1;
-    }
-}
-
-inline void VkImageMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
-{
-    if (dims == 3 && w == _w && h == _h && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
-        return;
-
-    release();
-
-    elemsize = _elemsize;
-    elempack = _elempack;
-    allocator = _allocator;
-
-    dims = 3;
-    w = _w;
-    h = _h;
-    c = _c;
-
-    if (total() > 0)
-    {
-        data = allocator->fastMalloc(dims, w, h, c, elemsize, elempack);
-        if (!data)
-            return;
-
-        refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
-        *refcount = 1;
-    }
-}
-
-inline void VkImageMat::create_like(const Mat& m, VkAllocator* _allocator)
-{
-    int _dims = m.dims;
-    if (_dims == 1)
-        create(m.w, m.elemsize, m.elempack, _allocator);
-    if (_dims == 2)
-        create(m.w, m.h, m.elemsize, m.elempack, _allocator);
-    if (_dims == 3)
-        create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator);
-}
-
-inline void VkImageMat::create_like(const VkMat& m, VkAllocator* _allocator)
-{
-    int _dims = m.dims;
-    if (_dims == 1)
-        create(m.w, m.elemsize, m.elempack, _allocator);
-    if (_dims == 2)
-        create(m.w, m.h, m.elemsize, m.elempack, _allocator);
-    if (_dims == 3)
-        create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator);
-}
-
-inline void VkImageMat::create_like(const VkImageMat& im, VkAllocator* _allocator)
-{
-    int _dims = im.dims;
-    if (_dims == 1)
-        create(im.w, im.elemsize, im.elempack, _allocator);
-    if (_dims == 2)
-        create(im.w, im.h, im.elemsize, im.elempack, _allocator);
-    if (_dims == 3)
-        create(im.w, im.h, im.c, im.elemsize, im.elempack, _allocator);
 }
 
 inline Mat VkImageMat::mapped() const

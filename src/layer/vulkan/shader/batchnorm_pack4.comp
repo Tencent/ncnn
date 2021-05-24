@@ -29,14 +29,10 @@ layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
 layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler1D bottom_blob_1d;
-layout (binding = 0) uniform unfp sampler2D bottom_blob_2d;
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image1D top_blob_1d;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob_3d;
-layout (binding = 2) uniform unfp sampler1D a;
-layout (binding = 3) uniform unfp sampler1D b;
+layout (binding = 2) uniform unfp sampler3D a;
+layout (binding = 3) uniform unfp sampler3D b;
 #else
 layout (binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 layout (binding = 1) readonly buffer a { sfpvec4 a_data[]; };
@@ -62,19 +58,7 @@ void main()
         return;
 
 #if NCNN_image_shader
-    afpvec4 v;
-    if (psc(dims) == 1)
-    {
-        v = image1d_ld4(bottom_blob_1d, gx);
-    }
-    else if (psc(dims) == 2)
-    {
-        v = image2d_ld4(bottom_blob_2d, ivec2(gx, gy));
-    }
-    else // if (psc(dims) == 3)
-    {
-        v = image3d_ld4(bottom_blob_3d, ivec3(gx, gy, gz));
-    }
+    afpvec4 v = image3d_ld4(bottom_blob_3d, ivec3(gx, gy, gz));
 #else
     const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
@@ -85,8 +69,8 @@ void main()
     const int abi = gxyz[psc(dims) - 1];
 
 #if NCNN_image_shader
-    afpvec4 b = image1d_ld4(b, abi);
-    afpvec4 a = image1d_ld4(a, abi);
+    afpvec4 b = image3d_ld4(b, ivec3(abi, 0, 0));
+    afpvec4 a = image3d_ld4(a, ivec3(abi, 0, 0));
 #else
     afpvec4 b = buffer_ld4(b_data, abi);
     afpvec4 a = buffer_ld4(a_data, abi);
@@ -95,18 +79,7 @@ void main()
     v = b * v + a;
 
 #if NCNN_image_shader
-    if (psc(dims) == 1)
-    {
-        image1d_st4(top_blob_1d, gx, v);
-    }
-    else if (psc(dims) == 2)
-    {
-        image2d_st4(top_blob_2d, ivec2(gx, gy), v);
-    }
-    else // if (psc(dims) == 3)
-    {
-        image3d_st4(top_blob_3d, ivec3(gx, gy, gz), v);
-    }
+    image3d_st4(top_blob_3d, ivec3(gx, gy, gz), v);
 #else
     buffer_st4(bottom_top_blob_data, gi, v);
 #endif

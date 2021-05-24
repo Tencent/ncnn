@@ -15,9 +15,8 @@
 #include "swish_arm.h"
 
 #if __ARM_NEON
-#include "neon_mathfun.h"
-
 #include <arm_neon.h>
+#include "neon_mathfun.h"
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "neon_mathfun_fp16s.h"
 #endif
@@ -124,31 +123,6 @@ int Swish_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
     int channels = bottom_top_blob.c;
     int size = w * h;
     int elempack = bottom_top_blob.elempack;
-
-    if (elempack == 8)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            __fp16* ptr = bottom_top_blob.channel(q);
-
-            float32x4_t _one = vdupq_n_f32(1.f);
-            for (int i = 0; i < size; i++)
-            {
-                float16x8_t _p = vld1q_f16(ptr);
-                float32x4_t _p_low = vcvt_f32_f16(vget_low_f16(_p));
-                float32x4_t _p_high = vcvt_f32_f16(vget_high_f16(_p));
-                _p_low = div_ps(_p_low, vaddq_f32(_one, exp_ps(vnegq_f32(_p_low))));
-                _p_high = div_ps(_p_high, vaddq_f32(_one, exp_ps(vnegq_f32(_p_high))));
-                _p = vcombine_f16(vcvt_f16_f32(_p_low), vcvt_f16_f32(_p_high));
-                vst1q_f16(ptr, _p);
-
-                ptr += 8;
-            }
-        }
-
-        return 0;
-    }
 
     if (elempack == 4)
     {

@@ -12,7 +12,11 @@ add_subdirectory(caffe)
 add_subdirectory(mxnet)
 add_subdirectory(onnx)
 add_subdirectory(darknet)
-add_subdirectory(quantize)
+if(NCNN_INT8)
+    add_subdirectory(quantize)
+else()
+    message(WARNING "NCNN_INT8 disabled, quantize tools won't be built")
+endif()
 
 add_executable(ncnn2mem ncnn2mem.cpp)
 target_link_libraries(ncnn2mem PRIVATE ncnn)
@@ -26,6 +30,9 @@ if(NCNN_VULKAN)
     target_link_libraries(ncnnoptimize PRIVATE ${Vulkan_LIBRARY})
 endif()
 
+add_executable(ncnnmerge ncnnmerge.cpp)
+
 # add all tools to a virtual project group
 set_property(TARGET ncnn2mem PROPERTY FOLDER "tools")
 set_property(TARGET ncnnoptimize PROPERTY FOLDER "tools")
+set_property(TARGET ncnnmerge PROPERTY FOLDER "tools")

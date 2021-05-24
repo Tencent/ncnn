@@ -42,8 +42,30 @@ Pooling_arm::Pooling_arm()
     support_bf16_storage = true;
 }
 
+int Pooling_arm::create_pipeline(const Option& /*opt*/)
+{
+    if (adaptive_pooling)
+    {
+        support_packing = false;
+
+        support_bf16_storage = false;
+        support_fp16_storage = false;
+        support_int8_storage = false;
+        support_image_storage = false;
+        support_tensor_storage = false;
+
+        support_weight_fp16_storage = false;
+    }
+    return 0;
+}
+
 int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    if (adaptive_pooling)
+    {
+        return Pooling::forward(bottom_blob, top_blob, opt);
+    }
+
     int elembits = bottom_blob.elembits();
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC

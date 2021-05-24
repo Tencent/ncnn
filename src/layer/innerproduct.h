@@ -31,7 +31,11 @@ public:
     virtual int create_pipeline(const Option& opt);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-    virtual int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+
+protected:
+#if NCNN_INT8
+    int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
 
 public:
     // param
@@ -50,8 +54,10 @@ public:
     Mat weight_data;
     Mat bias_data;
 
+#if NCNN_INT8
     Mat weight_data_int8_scales;
-    float bottom_blob_int8_scale;
+    Mat bottom_blob_int8_scales;
+#endif
 };
 
 } // namespace ncnn

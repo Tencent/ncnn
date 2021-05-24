@@ -15,9 +15,10 @@
 #ifndef NCNN_DIALECT_H
 #define NCNN_DIALECT_H
 
+#include <mlir/IR/BuiltinTypes.h>
 #include <mlir/IR/Dialect.h>
-#include <mlir/IR/Function.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
+#include <mlir/Pass/Pass.h>
 
 namespace mlir {
 
@@ -34,10 +35,12 @@ public:
     }
 };
 
-#define GET_OP_CLASSES
-#include "ncnn_ops.h.inc"
+std::unique_ptr<OperationPass<FuncOp> > createNCNNOptimizePass();
 
 } // namespace ncnn
+
+#define GET_OP_CLASSES
+#include "ncnn_ops.h.inc"
 
 } // namespace mlir
 

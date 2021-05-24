@@ -32,14 +32,8 @@ layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
 layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
 #if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler1D bottom_blob1_1d;
-layout (binding = 0) uniform unfp sampler2D bottom_blob1_2d;
 layout (binding = 0) uniform unfp sampler3D bottom_blob1_3d;
-layout (binding = 1) uniform unfp sampler1D bottom_blob2_1d;
-layout (binding = 1) uniform unfp sampler2D bottom_blob2_2d;
 layout (binding = 1) uniform unfp sampler3D bottom_blob2_3d;
-layout (binding = 2, imfmtc1) writeonly uniform unfp image1D top_blob_1d;
-layout (binding = 2, imfmtc1) writeonly uniform unfp image2D top_blob_2d;
 layout (binding = 2, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
 #else
 layout (binding = 0) readonly buffer bottom_blob1 { sfp bottom_blob1_data[]; };
@@ -69,23 +63,8 @@ void main()
         return;
 
 #if NCNN_image_shader
-    afp v1;
-    afp v2;
-    if (psc(dims) == 1)
-    {
-        v1 = image1d_ld1(bottom_blob1_1d, gx);
-        v2 = image1d_ld1(bottom_blob2_1d, gx);
-    }
-    else if (psc(dims) == 2)
-    {
-        v1 = image2d_ld1(bottom_blob1_2d, ivec2(gx, gy));
-        v2 = image2d_ld1(bottom_blob2_2d, ivec2(gx, gy));
-    }
-    else // if (psc(dims) == 3)
-    {
-        v1 = image3d_ld1(bottom_blob1_3d, ivec3(gx, gy, gz));
-        v2 = image3d_ld1(bottom_blob2_3d, ivec3(gx, gy, gz));
-    }
+    afp v1 = image3d_ld1(bottom_blob1_3d, ivec3(gx, gy, gz));
+    afp v2 = image3d_ld1(bottom_blob2_3d, ivec3(gx, gy, gz));
 #else
     const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
@@ -119,18 +98,7 @@ void main()
     }
 
 #if NCNN_image_shader
-    if (psc(dims) == 1)
-    {
-        image1d_st1(top_blob_1d, gx, res);
-    }
-    else if (psc(dims) == 2)
-    {
-        image2d_st1(top_blob_2d, ivec2(gx, gy), res);
-    }
-    else // if (psc(dims) == 3)
-    {
-        image3d_st1(top_blob_3d, ivec3(gx, gy, gz), res);
-    }
+    image3d_st1(top_blob_3d, ivec3(gx, gy, gz), res);
 #else
     buffer_st1(top_blob_data, gi, res);
 #endif

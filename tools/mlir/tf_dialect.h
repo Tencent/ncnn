@@ -16,9 +16,10 @@
 #define TF_DIALECT_H
 
 #include <mlir/Dialect/Traits.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/Dialect.h>
-#include <mlir/IR/Function.h>
 #include <mlir/IR/OpImplementation.h>
+#include <mlir/Interfaces/ControlFlowInterfaces.h>
 #include <mlir/Interfaces/DerivedAttributeOpInterface.h>
 #include <mlir/Interfaces/InferTypeOpInterface.h>
 #include <mlir/Interfaces/LoopLikeInterface.h>
@@ -29,8 +30,6 @@
 namespace mlir {
 
 namespace TF {
-
-#include "tf_op_interfaces.h.inc"
 
 class TensorFlowDialect : public mlir::Dialect
 {
@@ -48,22 +47,22 @@ public:
     Type parseType(DialectAsmParser& parser) const override;
 
     // Parses resource type with potential subtypes.
-    Type ParseResourceType(DialectAsmParser& parser, Location loc) const;
+    Type ParseResourceType(DialectAsmParser& parser) const;
 
     // Parse and print variant type. It may have subtypes inferred using shape
     // inference.
-    Type ParseVariantType(DialectAsmParser& parser, Location loc) const;
+    Type ParseVariantType(DialectAsmParser& parser) const;
 
     // Registered hook to materialize a constant operation from a given attribute
     // value with the desired resultant type.
     Operation* materializeConstant(OpBuilder& builder, Attribute value, Type type, Location loc) override;
 };
 
-#define GET_OP_CLASSES
-#include "tf_all_ops.h.inc"
-
 } // namespace TF
 
 } // namespace mlir
+
+#define GET_OP_CLASSES
+#include "tf_all_ops.h.inc"
 
 #endif // TF_DIALECT_H

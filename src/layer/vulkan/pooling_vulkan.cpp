@@ -33,6 +33,9 @@ Pooling_vulkan::Pooling_vulkan()
     pipeline_pooling_global = 0;
     pipeline_pooling_global_pack4 = 0;
     pipeline_pooling_global_pack8 = 0;
+    pipeline_pooling_adaptive = 0;
+    pipeline_pooling_adaptive_pack4 = 0;
+    pipeline_pooling_adaptive_pack8 = 0;
 }
 
 int Pooling_vulkan::create_pipeline(const Option& _opt)
@@ -193,6 +196,53 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
             pipeline_pooling_global_pack8->create(LayerShaderType::pooling_global_pack8, opt, specializations);
         }
     }
+    else if (adaptive_pooling)
+    {
+        std::vector<vk_specialization_type> specializations(1 + 10);
+        specializations[0].i = pooling_type;
+        specializations[1 + 0].i = shape_bordered_packed.dims;
+        specializations[1 + 1].i = shape_bordered_packed.w;
+        specializations[1 + 2].i = shape_bordered_packed.h;
+        specializations[1 + 3].i = shape_bordered_packed.c;
+        specializations[1 + 4].i = shape_bordered_packed.cstep;
+        specializations[1 + 5].i = out_shape_packed.dims;
+        specializations[1 + 6].i = out_shape_packed.w;
+        specializations[1 + 7].i = out_shape_packed.h;
+        specializations[1 + 8].i = out_shape_packed.c;
+        specializations[1 + 9].i = out_shape_packed.cstep;
+
+        Mat local_size_xyz;
+        if (out_shape_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(4, out_shape_packed.w);
+            local_size_xyz.h = std::min(4, out_shape_packed.h);
+            local_size_xyz.c = std::min(4, out_shape_packed.c);
+        }
+
+        // pack1
+        if (shape.dims == 0 || elempack == 1)
+        {
+            pipeline_pooling_adaptive = new Pipeline(vkdev);
+            pipeline_pooling_adaptive->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_pooling_adaptive->create(LayerShaderType::pooling_adaptive, opt, specializations);
+        }
+
+        // pack4
+        if (shape.dims == 0 || elempack == 4)
+        {
+            pipeline_pooling_adaptive_pack4 = new Pipeline(vkdev);
+            pipeline_pooling_adaptive_pack4->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_pooling_adaptive_pack4->create(LayerShaderType::pooling_adaptive_pack4, opt, specializations);
+        }
+
+        // pack8
+        if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
+        {
+            pipeline_pooling_adaptive_pack8 = new Pipeline(vkdev);
+            pipeline_pooling_adaptive_pack8->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_pooling_adaptive_pack8->create(LayerShaderType::pooling_adaptive_pack8, opt, specializations);
+        }
+    }
     else
     {
         std::vector<vk_specialization_type> specializations(12 + 10);
@@ -285,6 +335,15 @@ int Pooling_vulkan::destroy_pipeline(const Option& _opt)
     delete pipeline_pooling_global_pack8;
     pipeline_pooling_global_pack8 = 0;
 
+    delete pipeline_pooling_adaptive;
+    pipeline_pooling_adaptive = 0;
+
+    delete pipeline_pooling_adaptive_pack4;
+    pipeline_pooling_adaptive_pack4 = 0;
+
+    delete pipeline_pooling_adaptive_pack8;
+    pipeline_pooling_adaptive_pack8 = 0;
+
     return 0;
 }
 
@@ -331,6 +390,37 @@ int Pooling_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_pack8
                                    : elempack == 4 ? pipeline_pooling_global_pack4
                                    : pipeline_pooling_global;
+
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+        return 0;
+    }
+
+    if (adaptive_pooling)
+    {
+        top_blob.create(out_w, out_h, channels, elemsize, elempack, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkMat> bindings(2);
+        bindings[0] = bottom_blob;
+        bindings[1] = top_blob;
+
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_blob.dims;
+        constants[1].i = bottom_blob.w;
+        constants[2].i = bottom_blob.h;
+        constants[3].i = bottom_blob.c;
+        constants[4].i = bottom_blob.cstep;
+        constants[5].i = top_blob.dims;
+        constants[6].i = top_blob.w;
+        constants[7].i = top_blob.h;
+        constants[8].i = top_blob.c;
+        constants[9].i = top_blob.cstep;
+
+        const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_adaptive_pack8
+                                   : elempack == 4 ? pipeline_pooling_adaptive_pack4
+                                   : pipeline_pooling_adaptive;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 
@@ -507,6 +597,37 @@ int Pooling_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_global_pack8
                                    : elempack == 4 ? pipeline_pooling_global_pack4
                                    : pipeline_pooling_global;
+
+        cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+
+        return 0;
+    }
+
+    if (adaptive_pooling)
+    {
+        top_blob.create(out_w, out_h, channels, elemsize, elempack, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkImageMat> bindings(2);
+        bindings[0] = bottom_blob;
+        bindings[1] = top_blob;
+
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_blob.dims;
+        constants[1].i = bottom_blob.w;
+        constants[2].i = bottom_blob.h;
+        constants[3].i = bottom_blob.c;
+        constants[4].i = 0; //bottom_blob.cstep;
+        constants[5].i = top_blob.dims;
+        constants[6].i = top_blob.w;
+        constants[7].i = top_blob.h;
+        constants[8].i = top_blob.c;
+        constants[9].i = 0; //top_blob.cstep;
+
+        const Pipeline* pipeline = elempack == 8 ? pipeline_pooling_adaptive_pack8
+                                   : elempack == 4 ? pipeline_pooling_adaptive_pack4
+                                   : pipeline_pooling_adaptive;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
 

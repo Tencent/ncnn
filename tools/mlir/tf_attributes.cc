@@ -15,8 +15,6 @@ limitations under the License.
 
 #include "tf_attributes.h"
 
-#include "mlir/IR/Attributes.h" // from @llvm-project
-
 namespace mlir {
 namespace TF {
 
@@ -94,6 +92,15 @@ ShapeAttr ShapeAttr::get(mlir::MLIRContext* context,
     return Base::get(context, ArrayRef<int64_t>(), /*unranked=*/true);
 }
 
+// Get or create a shape attribute.
+ShapeAttr ShapeAttr::get(mlir::MLIRContext* context, ShapedType shaped_type)
+{
+    if (shaped_type.hasRank())
+        return Base::get(context, shaped_type.getShape(), /*unranked=*/false);
+
+    return Base::get(context, ArrayRef<int64_t>(), /*unranked=*/true);
+}
+
 llvm::Optional<ArrayRef<int64_t> > ShapeAttr::getValue() const
 {
     if (hasRank()) return getShape();
@@ -132,7 +139,7 @@ bool ShapeAttr::hasStaticShape() const
 FuncAttr FuncAttr::get(mlir::MLIRContext* context, llvm::StringRef name,
                        DictionaryAttr attr)
 {
-    auto symbol = SymbolRefAttr::get(name, context);
+    auto symbol = SymbolRefAttr::get(context, name);
     return Base::get(context, symbol, attr);
 }
 

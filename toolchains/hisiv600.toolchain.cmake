@@ -12,9 +12,8 @@ SET ( CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY )
 SET ( CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY )
 
 # set ${CMAKE_C_FLAGS} and ${CMAKE_CXX_FLAGS}flag for cross-compiled process
-SET ( CMAKE_CXX_FLAGS "-std=c++11 -march=armv7-a -mfloat-abi=softfp -mfpu=neon ${CMAKE_CXX_FLAGS}" )
+SET ( CMAKE_CXX_FLAGS "-march=armv7-a -mfloat-abi=softfp -mfpu=neon ${CMAKE_CXX_FLAGS}" )
 
-# other settings
-add_definitions(-D__ARM_NEON)
-add_definitions(-D__ANDROID__)
-SET ( ANDROID true)
+# cache flags
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "c++ flags")

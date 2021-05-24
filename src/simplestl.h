@@ -25,15 +25,23 @@
 
 #else
 
-// operator new and delete
-void* operator new(size_t sz) noexcept;
-void* operator new(size_t sz, void*) noexcept;
-void* operator new[](size_t sz) noexcept;
-void* operator new[](size_t sz, void*) noexcept;
-void operator delete(void *ptr) noexcept;
-void operator delete(void *ptr, size_t sz) noexcept;
-void operator delete[](void *ptr) noexcept;
-void operator delete[](void *ptr, size_t sz) noexcept;
+// allocation functions
+NCNN_EXPORT void* operator new(size_t size);
+NCNN_EXPORT void* operator new[](size_t size);
+// placement allocation functions
+NCNN_EXPORT void* operator new(size_t size, void* ptr);
+NCNN_EXPORT void* operator new[](size_t size, void* ptr);
+// deallocation functions
+NCNN_EXPORT void operator delete(void* ptr);
+NCNN_EXPORT void operator delete[](void* ptr);
+// deallocation functions since c++14
+#if __cplusplus >= 201402L
+NCNN_EXPORT void operator delete(void* ptr, size_t sz);
+NCNN_EXPORT void operator delete[](void* ptr, size_t sz);
+#endif
+// placement deallocation functions
+NCNN_EXPORT void operator delete(void* ptr, void* voidptr2);
+NCNN_EXPORT void operator delete[](void* ptr, void* voidptr2);
 
 #endif
 
@@ -121,11 +129,11 @@ struct node
     T data_;
 
     node()
-        : prev_(nullptr), next_(nullptr), data_()
+        : prev_(0), next_(0), data_()
     {
     }
     node(const T& t)
-        : prev_(nullptr), next_(nullptr), data_(t)
+        : prev_(0), next_(0), data_(t)
     {
     }
 };
@@ -134,7 +142,7 @@ template<typename T>
 struct iter_list
 {
     iter_list()
-        : curr_(nullptr)
+        : curr_(0)
     {
     }
     iter_list(node<T>* n)
@@ -244,7 +252,7 @@ struct list
         {
             head_ = head_->next_;
             delete head_->prev_;
-            head_->prev_ = nullptr;
+            head_->prev_ = 0;
             --count_;
         }
     }
@@ -271,7 +279,7 @@ struct list
         if (count_ == 0)
         {
             head_ = new node<T>(t);
-            head_->prev_ = nullptr;
+            head_->prev_ = 0;
             head_->next_ = tail_;
             tail_->prev_ = head_;
             count_ = 1;
@@ -295,7 +303,7 @@ struct list
             if (temp == head_)
             {
                 ++pos;
-                temp->next_->prev_ = nullptr;
+                temp->next_->prev_ = 0;
                 head_ = temp->next_;
             }
             else
@@ -339,10 +347,10 @@ template<typename RandomAccessIter, typename Compare>
 void partial_sort(RandomAccessIter first, RandomAccessIter middle, RandomAccessIter last, Compare comp)
 {
     // [TODO] heap sort should be used here, but we simply use bubble sort now
-    for (auto i = first; i < middle; ++i)
+    for (RandomAccessIter i = first; i < middle; ++i)
     {
         // bubble sort
-        for (auto j = last - 1; j > first; --j)
+        for (RandomAccessIter j = last - 1; j > first; --j)
         {
             if (comp(*j, *(j - 1)))
             {
@@ -356,9 +364,11 @@ template<typename T>
 struct vector
 {
     vector()
+        : data_(0), size_(0), capacity_(0)
     {
     }
     vector(const size_t new_size, const T& value = T())
+        : data_(0), size_(0), capacity_(0)
     {
         resize(new_size, value);
     }
@@ -367,6 +377,7 @@ struct vector
         clear();
     }
     vector(const vector& v)
+        : data_(0), size_(0), capacity_(0)
     {
         resize(v.size());
         for (size_t i = 0; i < size_; i++)
@@ -417,7 +428,7 @@ struct vector
             data_[i].~T();
         }
         delete[](char*) data_;
-        data_ = nullptr;
+        data_ = 0;
         size_ = 0;
         capacity_ = 0;
     }
@@ -456,7 +467,7 @@ struct vector
 
     void insert(T* pos, T* b, T* e)
     {
-        vector* v = nullptr;
+        vector* v = 0;
         if (b >= begin() && b < end())
         {
             //the same vector
@@ -488,9 +499,9 @@ struct vector
     }
 
 protected:
-    T* data_ = nullptr;
-    size_t size_ = 0;
-    size_t capacity_ = 0;
+    T* data_;
+    size_t size_;
+    size_t capacity_;
     void try_alloc(size_t new_size)
     {
         if (new_size * 3 / 2 > capacity_ / 2)
@@ -508,7 +519,7 @@ protected:
     }
 };
 
-struct string : public vector<char>
+struct NCNN_EXPORT string : public vector<char>
 {
     string()
     {

@@ -1,0 +1,5 @@
+numpy
+tqdm
+requests
+portalocker
+opencv-python

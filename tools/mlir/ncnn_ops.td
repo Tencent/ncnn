@@ -51,8 +51,6 @@ def NCNN_KerasConv2DOp : NCNN_Op<"KerasConv2D", [NoSideEffect]> {
   let results = (outs
     F32Tensor:$y
   );
-
-  let hasCanonicalizer = 1;
 }
 
 def NCNN_KerasDenseOp : NCNN_Op<"KerasDense", [NoSideEffect]> {
@@ -66,8 +64,19 @@ def NCNN_KerasDenseOp : NCNN_Op<"KerasDense", [NoSideEffect]> {
   let results = (outs
     F32Tensor:$y
   );
+}
 
-  let hasCanonicalizer = 1;
+def NCNN_KerasBatchNormOp : NCNN_Op<"KerasBatchNorm", [NoSideEffect]> {
+
+  let arguments = (ins
+    F32Tensor:$x,
+    F32Tensor:$gamma,
+    F32Tensor:$bias
+  );
+
+  let results = (outs
+    F32Tensor:$y
+  );
 }
 
 def NCNN_BinaryOpOp : NCNN_Op<"BinaryOp", [NoSideEffect]> {
@@ -82,8 +91,6 @@ def NCNN_BinaryOpOp : NCNN_Op<"BinaryOp", [NoSideEffect]> {
   let results = (outs
     F32Tensor:$y
   );
-
-  let hasCanonicalizer = 1;
 }
 
 def NCNN_InstanceNormOp : NCNN_Op<"InstanceNorm", [NoSideEffect]> {
@@ -96,8 +103,6 @@ def NCNN_InstanceNormOp : NCNN_Op<"InstanceNorm", [NoSideEffect]> {
   let results = (outs
     F32Tensor:$y
   );
-
-  let hasCanonicalizer = 1;
 }
 
 def NCNN_InstanceNormAffineOp : NCNN_Op<"InstanceNormAffine", [NoSideEffect]> {
@@ -112,8 +117,17 @@ def NCNN_InstanceNormAffineOp : NCNN_Op<"InstanceNormAffine", [NoSideEffect]> {
   let results = (outs
     F32Tensor:$y
   );
+}
 
-  let hasCanonicalizer = 1;
+def NCNN_SwishOp : NCNN_Op<"Swish", [NoSideEffect]> {
+
+  let arguments = (ins
+    F32Tensor:$x
+  );
+
+  let results = (outs
+    F32Tensor:$y
+  );
 }
 
 #endif // NCNN_OPS_TD

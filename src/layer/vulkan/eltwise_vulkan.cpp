@@ -149,14 +149,10 @@ int Eltwise_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<
     const VkMat& bottom_blob = bottom_blobs[0];
     const VkMat& bottom_blob1 = bottom_blobs[1];
 
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
     VkMat& top_blob = top_blobs[0];
-    top_blob.create(w, h, channels, elemsize, elempack, opt.blob_vkallocator);
+    top_blob.create_like(bottom_blob, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 
@@ -211,14 +207,10 @@ int Eltwise_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::ve
     const VkImageMat& bottom_blob = bottom_blobs[0];
     const VkImageMat& bottom_blob1 = bottom_blobs[1];
 
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
     VkImageMat& top_blob = top_blobs[0];
-    top_blob.create(w, h, channels, elemsize, elempack, opt.blob_vkallocator);
+    top_blob.create_like(bottom_blob, opt.blob_vkallocator);
     if (top_blob.empty())
         return -100;
 

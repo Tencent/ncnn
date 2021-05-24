@@ -15,22 +15,16 @@
 #include "layer/padding.h"
 #include "testutil.h"
 
-static int test_padding(int w, int h, int c, int top, int bottom, int left, int right, int type, float value, int per_channel_pad_data_size, int front, int behind)
+static int test_padding(const ncnn::Mat& a, int top, int bottom, int left, int right, int front, int behind, int type, float value, int per_channel_pad_data_size)
 {
-    ncnn::Mat a = RandomMat(w, h, c);
-
     ncnn::ParamDict pd;
-    pd.set(0, top);    // top
-    pd.set(1, bottom); // bottom
-    pd.set(2, left);   // left
-    pd.set(3, right);  // right
-    pd.set(4, type);   // type
-    pd.set(5, value);  // value
-    if (per_channel_pad_data_size != 0)
-    {
-        per_channel_pad_data_size = c + front + behind;
-    }
-    pd.set(6, per_channel_pad_data_size); // per_channel_pad_data_size
+    pd.set(0, top);
+    pd.set(1, bottom);
+    pd.set(2, left);
+    pd.set(3, right);
+    pd.set(4, type);
+    pd.set(5, value);
+    pd.set(6, per_channel_pad_data_size);
     pd.set(7, front);
     pd.set(8, behind);
 
@@ -41,7 +35,7 @@ static int test_padding(int w, int h, int c, int top, int bottom, int left, int 
     int ret = test_layer<ncnn::Padding>("Padding", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_padding failed w=%d h=%d c=%d top=%d bottom=%d left=%d right=%d front=%d behind=%d type=%d value=%f per_channel_pad_data_size=%d\n", w, h, c, top, bottom, left, right, front, behind, type, value, per_channel_pad_data_size);
+        fprintf(stderr, "test_padding failed a.dims=%d a=(%d %d %d) top=%d bottom=%d left=%d right=%d front=%d behind=%d type=%d value=%f per_channel_pad_data_size=%d\n", a.dims, a.w, a.h, a.c, top, bottom, left, right, front, behind, type, value, per_channel_pad_data_size);
     }
 
     return ret;
@@ -49,28 +43,151 @@ static int test_padding(int w, int h, int c, int top, int bottom, int left, int 
 
 static int test_padding_0()
 {
+    ncnn::Mat a = RandomMat(9, 11, 24);
+    ncnn::Mat b = RandomMat(10, 13, 12);
+    ncnn::Mat c = RandomMat(8, 9, 13);
+
     return 0
-           || test_padding(5, 7, 16, 1, 1, 1, 1, 0, 0.f, 0, 4, 0)
-           || test_padding(5, 7, 16, 4, 3, 4, 3, 1, 0.f, 0, 4, 0)
-           || test_padding(5, 7, 16, 4, 3, 4, 3, 2, 0.f, 0, 4, 0)
-           || test_padding(5, 7, 16, 1, 1, 1, 1, 0, 0.f, 0, 0, 4)
-           || test_padding(5, 7, 17, 2, 3, 2, 3, 1, 0.f, 0, 4, 9)
-           || test_padding(5, 7, 12, 4, 3, 4, 3, 0, 1.f, 0, 4, 8)
-           || test_padding(5, 7, 16, 4, 3, 4, 3, 2, 0.f, 0, 4, 8)
-           || test_padding(5, 7, 16, 4, 3, 4, 3, 0, 0.f, 16, 4, 2)
-           || test_padding(5, 7, 8, 2, 3, 2, 3, 1, 0.f, 22, 8, 0)
-           || test_padding(5, 7, 6, 4, 3, 4, 3, 2, 0.f, 0, 2, 4)
-           || test_padding(5, 7, 7, 0, 1, 0, 1, 0, 233.f, 0, 3, 1)
-           || test_padding(5, 7, 3, 2, 1, 2, 1, 0, 0.f, 3, 0, 4)
-           || test_padding(5, 7, 16, 2, 1, 2, 1, 2, 0.f, 3, 4, 4)
-           || test_padding(5, 7, 16, 2, 1, 2, 1, 0, 0.f, 3, 8, 8)
-           || test_padding(5, 7, 16, 2, 1, 2, 1, 1, 0.f, 3, 8, 8)
-           || test_padding(5, 7, 16, 2, 1, 2, 1, 2, 0.f, 3, 8, 8);
+           || test_padding(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+           || test_padding(b, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+           || test_padding(c, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+
+           || test_padding(a, 2, 2, 2, 2, 0, 0, 0, 1.f, 0)
+           || test_padding(b, 2, 2, 2, 2, 0, 0, 0, 2.f, 0)
+           || test_padding(c, 2, 2, 2, 2, 0, 0, 0, -3.f, 0)
+
+           || test_padding(a, 2, 1, 2, 1, 0, 0, 0, 0.f, a.c)
+           || test_padding(b, 2, 1, 2, 1, 0, 0, 0, 0.f, b.c)
+           || test_padding(c, 2, 1, 2, 1, 0, 0, 0, 0.f, c.c)
+
+           || test_padding(a, 0, 1, 0, 1, 0, 0, 1, 0.f, 0)
+           || test_padding(b, 0, 1, 0, 1, 0, 0, 1, 0.f, 0)
+           || test_padding(c, 0, 1, 0, 1, 0, 0, 1, 0.f, 0)
+
+           || test_padding(a, 1, 2, 3, 4, 0, 0, 1, 0.f, 0)
+           || test_padding(b, 1, 2, 3, 4, 0, 0, 1, 0.f, 0)
+           || test_padding(c, 1, 2, 3, 4, 0, 0, 1, 0.f, 0)
+
+           || test_padding(a, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
+           || test_padding(b, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
+           || test_padding(c, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
+
+           || test_padding(a, 1, 1, 1, 1, 1, 1, 0, -1.f, 0)
+           || test_padding(b, 1, 1, 1, 1, 1, 1, 0, -2.f, 0)
+           || test_padding(c, 1, 1, 1, 1, 1, 1, 0, 3.f, 0)
+
+           || test_padding(a, 2, 1, 0, 0, 2, 3, 0, 0.f, a.c + 5)
+           || test_padding(b, 2, 1, 0, 0, 2, 3, 0, 0.f, b.c + 5)
+           || test_padding(c, 2, 1, 0, 0, 2, 3, 0, 0.f, c.c + 5)
+
+           || test_padding(a, 1, 2, 3, 4, 8, 4, 0, 0.f, a.c + 12)
+           || test_padding(b, 1, 2, 3, 4, 8, 4, 0, 0.f, b.c + 12)
+           || test_padding(c, 1, 2, 3, 4, 8, 4, 0, 0.f, c.c + 12)
+
+           || test_padding(a, 0, 0, 0, 0, 3, 1, 1, 0.f, 0)
+           || test_padding(b, 0, 0, 0, 0, 3, 1, 1, 0.f, 0)
+           || test_padding(c, 0, 0, 0, 0, 3, 1, 1, 0.f, 0)
+
+           || test_padding(a, 2, 0, 1, 0, 4, 4, 1, 0.f, 0)
+           || test_padding(b, 2, 0, 1, 0, 4, 4, 1, 0.f, 0)
+           || test_padding(c, 2, 0, 1, 0, 4, 4, 1, 0.f, 0)
+
+           || test_padding(a, 2, 0, 2, 0, 0, 2, 2, 0.f, 0)
+           || test_padding(b, 2, 0, 2, 0, 0, 2, 2, 0.f, 0)
+           || test_padding(c, 2, 0, 2, 0, 0, 2, 2, 0.f, 0)
+
+           || test_padding(a, 4, 2, 1, 3, 3, 5, 2, 0.f, 0)
+           || test_padding(b, 4, 2, 1, 3, 3, 5, 2, 0.f, 0)
+           || test_padding(c, 4, 2, 1, 3, 3, 5, 2, 0.f, 0);
+}
+
+static int test_padding_1()
+{
+    ncnn::Mat a = RandomMat(15, 24);
+    ncnn::Mat b = RandomMat(19, 12);
+    ncnn::Mat c = RandomMat(17, 15);
+
+    return 0
+           || test_padding(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+           || test_padding(b, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+           || test_padding(c, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+
+           || test_padding(a, 0, 0, 1, 1, 0, 0, 0, 1.f, 0)
+           || test_padding(b, 0, 0, 1, 1, 0, 0, 0, 2.f, 0)
+           || test_padding(c, 0, 0, 1, 1, 0, 0, 0, -3.f, 0)
+
+           || test_padding(a, 0, 0, 3, 4, 0, 0, 1, 0.f, 0)
+           || test_padding(b, 0, 0, 3, 4, 0, 0, 1, 0.f, 0)
+           || test_padding(c, 0, 0, 3, 4, 0, 0, 1, 0.f, 0)
+
+           || test_padding(a, 0, 0, 3, 2, 0, 0, 2, 0.f, 0)
+           || test_padding(b, 0, 0, 3, 2, 0, 0, 2, 0.f, 0)
+           || test_padding(c, 0, 0, 3, 2, 0, 0, 2, 0.f, 0)
+
+           || test_padding(a, 2, 2, 2, 2, 0, 0, 0, 1.f, 0)
+           || test_padding(b, 2, 2, 2, 2, 0, 0, 0, 2.f, 0)
+           || test_padding(c, 2, 2, 2, 2, 0, 0, 0, -3.f, 0)
+
+           || test_padding(a, 8, 8, 2, 5, 0, 0, 0, -1.f, 0)
+           || test_padding(b, 8, 8, 2, 5, 0, 0, 0, -2.f, 0)
+           || test_padding(c, 8, 8, 2, 5, 0, 0, 0, 3.f, 0)
+
+           || test_padding(a, 3, 1, 3, 1, 0, 0, 1, 0.f, 0)
+           || test_padding(b, 3, 1, 3, 1, 0, 0, 1, 0.f, 0)
+           || test_padding(c, 3, 1, 3, 1, 0, 0, 1, 0.f, 0)
+
+           || test_padding(a, 4, 4, 0, 1, 0, 0, 1, 0.f, 0)
+           || test_padding(b, 4, 4, 0, 1, 0, 0, 1, 0.f, 0)
+           || test_padding(c, 4, 4, 0, 1, 0, 0, 1, 0.f, 0)
+
+           || test_padding(a, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
+           || test_padding(b, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
+           || test_padding(c, 2, 3, 2, 3, 0, 0, 2, 0.f, 0)
+
+           || test_padding(a, 2, 6, 1, 0, 0, 0, 2, 0.f, 0)
+           || test_padding(b, 2, 6, 1, 0, 0, 0, 2, 0.f, 0)
+           || test_padding(c, 2, 6, 1, 0, 0, 0, 2, 0.f, 0);
+}
+
+static int test_padding_2()
+{
+    ncnn::Mat a = RandomMat(128);
+    ncnn::Mat b = RandomMat(124);
+    ncnn::Mat c = RandomMat(127);
+
+    return 0
+           || test_padding(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+           || test_padding(b, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+           || test_padding(c, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
+
+           || test_padding(a, 0, 0, 2, 2, 0, 0, 0, 1.f, 0)
+           || test_padding(b, 0, 0, 2, 2, 0, 0, 0, 2.f, 0)
+           || test_padding(c, 0, 0, 2, 2, 0, 0, 0, -3.f, 0)
+
+           || test_padding(a, 0, 0, 16, 8, 0, 0, 0, -1.f, 0)
+           || test_padding(b, 0, 0, 16, 8, 0, 0, 0, -2.f, 0)
+           || test_padding(c, 0, 0, 16, 8, 0, 0, 0, 3.f, 0)
+
+           || test_padding(a, 0, 0, 0, 1, 0, 0, 1, 0.f, 0)
+           || test_padding(b, 0, 0, 0, 1, 0, 0, 1, 0.f, 0)
+           || test_padding(c, 0, 0, 0, 1, 0, 0, 1, 0.f, 0)
+
+           || test_padding(a, 0, 0, 4, 12, 0, 0, 1, 0.f, 0)
+           || test_padding(b, 0, 0, 4, 12, 0, 0, 1, 0.f, 0)
+           || test_padding(c, 0, 0, 4, 12, 0, 0, 1, 0.f, 0)
+
+           || test_padding(a, 0, 0, 2, 3, 0, 0, 2, 0.f, 0)
+           || test_padding(b, 0, 0, 2, 3, 0, 0, 2, 0.f, 0)
+           || test_padding(c, 0, 0, 2, 3, 0, 0, 2, 0.f, 0)
+
+           || test_padding(a, 0, 0, 10, 6, 0, 0, 2, 0.f, 0)
+           || test_padding(b, 0, 0, 10, 6, 0, 0, 2, 0.f, 0)
+           || test_padding(c, 0, 0, 10, 6, 0, 0, 2, 0.f, 0);
 }
 
 int main()
 {
     SRAND(7767517);
 
-    return test_padding_0();
+    return test_padding_0() || test_padding_1() || test_padding_2();
 }

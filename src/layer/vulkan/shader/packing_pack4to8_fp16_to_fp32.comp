@@ -41,11 +41,7 @@ layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout (binding = 1) writeonly buffer top_blob_fp32 { mat2x4 top_blob_fp32_data[]; };
 #if NCNN_image_shader
-layout (binding = 2) uniform unfp sampler1D bottom_blob_1d;
-layout (binding = 2) uniform unfp sampler2D bottom_blob_2d;
 layout (binding = 2) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 3, rgba32f) writeonly uniform highp image1D top_blob_1d_fp32;
-layout (binding = 3, rgba32f) writeonly uniform highp image2D top_blob_2d_fp32;
 layout (binding = 3, rgba32f) writeonly uniform highp image3D top_blob_3d_fp32;
 #endif
 
@@ -91,8 +87,8 @@ void main()
         {
             int x2 = gx * 2;
 
-            v[0] = image1d_ld4(bottom_blob_1d, x2 + 0);
-            v[1] = image1d_ld4(bottom_blob_1d, x2 + 1);
+            v[0] = image3d_ld4(bottom_blob_3d, ivec3(x2 + 0, 0, 0));
+            v[1] = image3d_ld4(bottom_blob_3d, ivec3(x2 + 1, 0, 0));
         }
 #endif
 
@@ -105,7 +101,7 @@ void main()
 #if NCNN_image_shader
         if (storage_type_to == 1)
         {
-            image1d_st8(top_blob_1d_fp32, gx, v);
+            image3d_st8(top_blob_3d_fp32, ivec3(gx, 0, 0), v);
         }
 #endif
     }
@@ -125,8 +121,8 @@ void main()
         {
             int y2 = gy * 2;
 
-            v[0] = image2d_ld4(bottom_blob_2d, ivec2(gx, y2 + 0));
-            v[1] = image2d_ld4(bottom_blob_2d, ivec2(gx, y2 + 1));
+            v[0] = image3d_ld4(bottom_blob_3d, ivec3(gx, y2 + 0, 0));
+            v[1] = image3d_ld4(bottom_blob_3d, ivec3(gx, y2 + 1, 0));
         }
 #endif
 
@@ -139,7 +135,7 @@ void main()
 #if NCNN_image_shader
         if (storage_type_to == 1)
         {
-            image2d_st8(top_blob_2d_fp32, ivec2(gx, gy), v);
+            image3d_st8(top_blob_3d_fp32, ivec3(gx, gy, 0), v);
         }
 #endif
     }

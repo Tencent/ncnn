@@ -38,8 +38,8 @@ layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob;
 layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
-layout (binding = 2) uniform unfp sampler1D coeffs_blob;
-layout (binding = 3) uniform unfp sampler1D scale_blob;
+layout (binding = 2) uniform unfp sampler3D coeffs_blob;
+layout (binding = 3) uniform unfp sampler3D scale_blob;
 #else
 layout (binding = 0) buffer bottom_top_blob { sfpvec8 bottom_top_blob_data[]; };
 layout (binding = 1) readonly buffer coeffs_blob { sfpvec8 coeffs_blob_data[]; };
@@ -77,7 +77,7 @@ void main()
     if (across_spatial == 1 && across_channel == 1)
     {
 #if NCNN_image_shader
-        a = image1d_ld8(coeffs_blob, 0);
+        a = image3d_ld8(coeffs_blob, ivec3(0, 0, 0));
 #else
         a = buffer_ld8(coeffs_blob_data, 0);
 #endif
@@ -86,7 +86,7 @@ void main()
     if (across_spatial == 1 && across_channel == 0)
     {
 #if NCNN_image_shader
-        a = image1d_ld8(coeffs_blob, gz);
+        a = image3d_ld8(coeffs_blob, ivec3(gz, 0, 0));
 #else
         a = buffer_ld8(coeffs_blob_data, gz);
 #endif
@@ -95,7 +95,7 @@ void main()
     if (across_spatial == 0 && across_channel == 1)
     {
 #if NCNN_image_shader
-        a = image1d_ld8(coeffs_blob, gy * psc(w) + gx);
+        a = image3d_ld8(coeffs_blob, ivec3(gy * psc(w) + gx, 0, 0));
 #else
         a = buffer_ld8(coeffs_blob_data, gy * psc(w) + gx);
 #endif
@@ -123,7 +123,7 @@ void main()
         else
         {
 #if NCNN_image_shader
-            afpvec8 scale = image1d_ld8(scale_blob, gz);
+            afpvec8 scale = image3d_ld8(scale_blob, ivec3(gz, 0, 0));
 #else
             afpvec8 scale = buffer_ld8(scale_blob_data, gz);
 #endif

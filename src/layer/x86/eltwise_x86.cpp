@@ -12,19 +12,22 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#include "eltwise_x86.h"
+
+#if __SSE2__
+#include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif // __AVX__
-
-#include "eltwise_x86.h"
+#endif // __SSE2__
 
 namespace ncnn {
 
 Eltwise_x86::Eltwise_x86()
 {
-#if __AVX__
+#if __SSE2__
     support_packing = true;
-#endif // __AVX__
+#endif // __SSE2__
 }
 
 int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -33,15 +36,15 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
     int size = w * h;
 
     Mat& top_blob = top_blobs[0];
-    top_blob.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
+    top_blob.create_like(bottom_blob, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
+#if __SSE2__
 #if __AVX__
     if (elempack == 8)
     {
@@ -71,11 +74,11 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
             for (size_t b = 2; b < bottom_blobs.size(); b++)
             {
-                const Mat& bottom_blob1 = bottom_blobs[b];
+                const Mat& bottom_blob2 = bottom_blobs[b];
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
-                    const float* ptr = bottom_blob1.channel(q);
+                    const float* ptr = bottom_blob2.channel(q);
                     float* outptr = top_blob.channel(q);
 
                     for (int i = 0; i < size; i++)
@@ -119,11 +122,11 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
                 for (size_t b = 2; b < bottom_blobs.size(); b++)
                 {
-                    const Mat& bottom_blob1 = bottom_blobs[b];
+                    const Mat& bottom_blob2 = bottom_blobs[b];
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
-                        const float* ptr = bottom_blob1.channel(q);
+                        const float* ptr = bottom_blob2.channel(q);
                         float* outptr = top_blob.channel(q);
 
                         for (int i = 0; i < size; i++)
@@ -168,12 +171,12 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
                 for (size_t b = 2; b < bottom_blobs.size(); b++)
                 {
-                    const Mat& bottom_blob1 = bottom_blobs[b];
+                    const Mat& bottom_blob2 = bottom_blobs[b];
                     __m256 _coeff = _mm256_set1_ps(coeffs[b]);
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
-                        const float* ptr = bottom_blob1.channel(q);
+                        const float* ptr = bottom_blob2.channel(q);
                         float* outptr = top_blob.channel(q);
 
                         for (int i = 0; i < size; i++)
@@ -216,11 +219,11 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
             for (size_t b = 2; b < bottom_blobs.size(); b++)
             {
-                const Mat& bottom_blob1 = bottom_blobs[b];
+                const Mat& bottom_blob2 = bottom_blobs[b];
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
-                    const float* ptr = bottom_blob1.channel(q);
+                    const float* ptr = bottom_blob2.channel(q);
                     float* outptr = top_blob.channel(q);
 
                     for (int i = 0; i < size; i++)
@@ -240,6 +243,206 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         return 0;
     }
 #endif // __AVX__
+
+    if (elempack == 4)
+    {
+        if (op_type == Operation_PROD)
+        {
+            // first blob
+            const Mat& bottom_blob1 = bottom_blobs[1];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+                const float* ptr1 = bottom_blob1.channel(q);
+                float* outptr = top_blob.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    __m128 _p = _mm_load_ps(ptr);
+                    __m128 _p1 = _mm_load_ps(ptr1);
+                    _p = _mm_mul_ps(_p, _p1);
+                    _mm_store_ps(outptr, _p);
+
+                    ptr += 4;
+                    ptr1 += 4;
+                    outptr += 4;
+                }
+            }
+
+            for (size_t b = 2; b < bottom_blobs.size(); b++)
+            {
+                const Mat& bottom_blob2 = bottom_blobs[b];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = bottom_blob2.channel(q);
+                    float* outptr = top_blob.channel(q);
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        __m128 _p = _mm_load_ps(outptr);
+                        __m128 _p1 = _mm_load_ps(ptr);
+                        _p = _mm_mul_ps(_p, _p1);
+                        _mm_store_ps(outptr, _p);
+
+                        ptr += 4;
+                        outptr += 4;
+                    }
+                }
+            }
+        }
+        if (op_type == Operation_SUM)
+        {
+            if (coeffs.w == 0)
+            {
+                // first blob
+                const Mat& bottom_blob1 = bottom_blobs[1];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = bottom_blob.channel(q);
+                    const float* ptr1 = bottom_blob1.channel(q);
+                    float* outptr = top_blob.channel(q);
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        __m128 _p = _mm_load_ps(ptr);
+                        __m128 _p1 = _mm_load_ps(ptr1);
+                        _p = _mm_add_ps(_p, _p1);
+                        _mm_store_ps(outptr, _p);
+
+                        ptr += 4;
+                        ptr1 += 4;
+                        outptr += 4;
+                    }
+                }
+
+                for (size_t b = 2; b < bottom_blobs.size(); b++)
+                {
+                    const Mat& bottom_blob2 = bottom_blobs[b];
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q = 0; q < channels; q++)
+                    {
+                        const float* ptr = bottom_blob2.channel(q);
+                        float* outptr = top_blob.channel(q);
+
+                        for (int i = 0; i < size; i++)
+                        {
+                            __m128 _p = _mm_load_ps(outptr);
+                            __m128 _p1 = _mm_load_ps(ptr);
+                            _p = _mm_add_ps(_p, _p1);
+                            _mm_store_ps(outptr, _p);
+
+                            ptr += 4;
+                            outptr += 4;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // first blob
+                const Mat& bottom_blob1 = bottom_blobs[1];
+                __m128 _coeff0 = _mm_set1_ps(coeffs[0]);
+                __m128 _coeff1 = _mm_set1_ps(coeffs[1]);
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = bottom_blob.channel(q);
+                    const float* ptr1 = bottom_blob1.channel(q);
+                    float* outptr = top_blob.channel(q);
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        __m128 _p = _mm_load_ps(ptr);
+                        __m128 _p1 = _mm_load_ps(ptr1);
+                        _p = _mm_mul_ps(_p, _coeff0);
+                        _p1 = _mm_mul_ps(_p1, _coeff1);
+                        _p = _mm_add_ps(_p1, _p);
+                        _mm_store_ps(outptr, _p);
+
+                        ptr += 4;
+                        ptr1 += 4;
+                        outptr += 4;
+                    }
+                }
+
+                for (size_t b = 2; b < bottom_blobs.size(); b++)
+                {
+                    const Mat& bottom_blob2 = bottom_blobs[b];
+                    __m128 _coeff = _mm_set1_ps(coeffs[b]);
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q = 0; q < channels; q++)
+                    {
+                        const float* ptr = bottom_blob2.channel(q);
+                        float* outptr = top_blob.channel(q);
+
+                        for (int i = 0; i < size; i++)
+                        {
+                            __m128 _p1 = _mm_load_ps(ptr);
+                            __m128 _p = _mm_load_ps(outptr);
+                            _p1 = _mm_mul_ps(_p1, _coeff);
+                            _p = _mm_add_ps(_p1, _p);
+                            _mm_store_ps(outptr, _p);
+
+                            ptr += 4;
+                            outptr += 4;
+                        }
+                    }
+                }
+            }
+        }
+        if (op_type == Operation_MAX)
+        {
+            // first blob
+            const Mat& bottom_blob1 = bottom_blobs[1];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+                const float* ptr1 = bottom_blob1.channel(q);
+                float* outptr = top_blob.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    __m128 _p = _mm_load_ps(ptr);
+                    __m128 _p1 = _mm_load_ps(ptr1);
+                    _p = _mm_max_ps(_p, _p1);
+                    _mm_store_ps(outptr, _p);
+
+                    ptr += 4;
+                    ptr1 += 4;
+                    outptr += 4;
+                }
+            }
+
+            for (size_t b = 2; b < bottom_blobs.size(); b++)
+            {
+                const Mat& bottom_blob2 = bottom_blobs[b];
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = bottom_blob2.channel(q);
+                    float* outptr = top_blob.channel(q);
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        __m128 _p = _mm_load_ps(outptr);
+                        __m128 _p1 = _mm_load_ps(ptr);
+                        _p = _mm_max_ps(_p, _p1);
+                        _mm_store_ps(outptr, _p);
+
+                        ptr += 4;
+                        outptr += 4;
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+#endif // __SSE2__
 
     if (op_type == Operation_PROD)
     {
@@ -264,11 +467,11 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
         for (size_t b = 2; b < bottom_blobs.size(); b++)
         {
-            const Mat& bottom_blob1 = bottom_blobs[b];
+            const Mat& bottom_blob2 = bottom_blobs[b];
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob1.channel(q);
+                const float* ptr = bottom_blob2.channel(q);
                 float* outptr = top_blob.channel(q);
                 int remain = size;
 
@@ -308,11 +511,11 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
             for (size_t b = 2; b < bottom_blobs.size(); b++)
             {
-                const Mat& bottom_blob1 = bottom_blobs[b];
+                const Mat& bottom_blob2 = bottom_blobs[b];
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
-                    const float* ptr = bottom_blob1.channel(q);
+                    const float* ptr = bottom_blob2.channel(q);
                     float* outptr = top_blob.channel(q);
 
                     int remain = size;
@@ -351,12 +554,12 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
             for (size_t b = 2; b < bottom_blobs.size(); b++)
             {
-                const Mat& bottom_blob1 = bottom_blobs[b];
+                const Mat& bottom_blob2 = bottom_blobs[b];
                 float coeff = coeffs[b];
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
-                    const float* ptr = bottom_blob1.channel(q);
+                    const float* ptr = bottom_blob2.channel(q);
                     float* outptr = top_blob.channel(q);
 
                     int remain = size;
@@ -395,11 +598,11 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
         for (size_t b = 2; b < bottom_blobs.size(); b++)
         {
-            const Mat& bottom_blob1 = bottom_blobs[b];
+            const Mat& bottom_blob2 = bottom_blobs[b];
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob1.channel(q);
+                const float* ptr = bottom_blob2.channel(q);
                 float* outptr = top_blob.channel(q);
 
                 int remain = size;

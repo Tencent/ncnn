@@ -35,7 +35,9 @@ public:
 protected:
     void make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, const Option& opt) const;
 
+#if NCNN_INT8
     int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
 
 public:
     // param
@@ -65,11 +67,11 @@ public:
     Mat weight_data;
     Mat bias_data;
 
+#if NCNN_INT8
     Mat weight_data_int8_scales;
-    float bottom_blob_int8_scale;
-    float top_blob_int8_scale; // TODO load param
-
-    bool use_int8_requantize;
+    Mat bottom_blob_int8_scales;
+    Mat top_blob_int8_scales;
+#endif
 
     // implementation type, 0 means do not use auto pack model
     int impl_type;

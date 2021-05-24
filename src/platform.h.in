@@ -17,18 +17,29 @@
 
 #cmakedefine01 NCNN_STDIO
 #cmakedefine01 NCNN_STRING
-#cmakedefine01 NCNN_OPENCV
+#cmakedefine01 NCNN_SIMPLEOCV
+#cmakedefine01 NCNN_SIMPLEOMP
 #cmakedefine01 NCNN_SIMPLESTL
 #cmakedefine01 NCNN_THREADS
 #cmakedefine01 NCNN_BENCHMARK
+#cmakedefine01 NCNN_PLATFORM_API
 #cmakedefine01 NCNN_PIXEL
 #cmakedefine01 NCNN_PIXEL_ROTATE
+#cmakedefine01 NCNN_PIXEL_AFFINE
+#cmakedefine01 NCNN_PIXEL_DRAWING
 #cmakedefine01 NCNN_VULKAN
-#cmakedefine01 NCNN_VULKAN_ONLINE_SPIRV
-#cmakedefine01 NCNN_REQUANT
 #cmakedefine01 NCNN_RUNTIME_CPU
 #cmakedefine01 NCNN_AVX2
 #cmakedefine01 NCNN_ARM82
+#cmakedefine01 NCNN_ARM82DOT
+#cmakedefine01 NCNN_RVV
+#cmakedefine01 NCNN_INT8
+
+#cmakedefine NCNN_VERSION_STRING "@NCNN_VERSION_STRING@"
+
+#include "ncnn_export.h"
+
+#ifdef __cplusplus
 
 #if NCNN_THREADS
 #if (defined _WIN32 && !(defined __MINGW32__))
@@ -48,7 +59,7 @@ namespace ncnn {
 
 #if NCNN_THREADS
 #if (defined _WIN32 && !(defined __MINGW32__))
-class Mutex
+class NCNN_EXPORT Mutex
 {
 public:
     Mutex() { InitializeSRWLock(&srwlock); }
@@ -60,31 +71,8 @@ private:
     // NOTE SRWLock is available from windows vista
     SRWLOCK srwlock;
 };
-#else // _WIN32
-class Mutex
-{
-public:
-    Mutex() { pthread_mutex_init(&mutex, 0); }
-    ~Mutex() { pthread_mutex_destroy(&mutex); }
-    void lock() { pthread_mutex_lock(&mutex); }
-    void unlock() { pthread_mutex_unlock(&mutex); }
-private:
-    friend class ConditionVariable;
-    pthread_mutex_t mutex;
-};
-#endif // _WIN32
 
-class MutexLockGuard
-{
-public:
-    MutexLockGuard(Mutex& _mutex) : mutex(_mutex) { mutex.lock(); }
-    ~MutexLockGuard() { mutex.unlock(); }
-private:
-    Mutex& mutex;
-};
-
-#if (defined _WIN32 && !(defined __MINGW32__))
-class ConditionVariable
+class NCNN_EXPORT ConditionVariable
 {
 public:
     ConditionVariable() { InitializeConditionVariable(&condvar); }
@@ -95,23 +83,9 @@ public:
 private:
     CONDITION_VARIABLE condvar;
 };
-#else // _WIN32
-class ConditionVariable
-{
-public:
-    ConditionVariable() { pthread_cond_init(&cond, 0); }
-    ~ConditionVariable() { pthread_cond_destroy(&cond); }
-    void wait(Mutex& mutex) { pthread_cond_wait(&cond, &mutex.mutex); }
-    void broadcast() { pthread_cond_broadcast(&cond); }
-    void signal() { pthread_cond_signal(&cond); }
-private:
-    pthread_cond_t cond;
-};
-#endif // _WIN32
 
-#if (defined _WIN32 && !(defined __MINGW32__))
 static unsigned __stdcall start_wrapper(void* args);
-class Thread
+class NCNN_EXPORT Thread
 {
 public:
     Thread(void* (*start)(void*), void* args = 0) { _start = start; _args = args; handle = (HANDLE)_beginthreadex(0, 0, start_wrapper, this, 0, 0); }
@@ -129,8 +103,42 @@ private:
     void* _args;
 };
 
-#else // _WIN32
-class Thread
+class NCNN_EXPORT ThreadLocalStorage
+{
+public:
+    ThreadLocalStorage() { key = TlsAlloc(); }
+    ~ThreadLocalStorage() { TlsFree(key); }
+    void set(void* value) { TlsSetValue(key, (LPVOID)value); }
+    void* get() { return (void*)TlsGetValue(key); }
+private:
+    DWORD key;
+};
+#else // (defined _WIN32 && !(defined __MINGW32__))
+class NCNN_EXPORT Mutex
+{
+public:
+    Mutex() { pthread_mutex_init(&mutex, 0); }
+    ~Mutex() { pthread_mutex_destroy(&mutex); }
+    void lock() { pthread_mutex_lock(&mutex); }
+    void unlock() { pthread_mutex_unlock(&mutex); }
+private:
+    friend class ConditionVariable;
+    pthread_mutex_t mutex;
+};
+
+class NCNN_EXPORT ConditionVariable
+{
+public:
+    ConditionVariable() { pthread_cond_init(&cond, 0); }
+    ~ConditionVariable() { pthread_cond_destroy(&cond); }
+    void wait(Mutex& mutex) { pthread_cond_wait(&cond, &mutex.mutex); }
+    void broadcast() { pthread_cond_broadcast(&cond); }
+    void signal() { pthread_cond_signal(&cond); }
+private:
+    pthread_cond_t cond;
+};
+
+class NCNN_EXPORT Thread
 {
 public:
     Thread(void* (*start)(void*), void* args = 0) { pthread_create(&t, 0, start, args); }
@@ -139,9 +147,20 @@ public:
 private:
     pthread_t t;
 };
-#endif // _WIN32
+
+class NCNN_EXPORT ThreadLocalStorage
+{
+public:
+    ThreadLocalStorage() { pthread_key_create(&key, 0); }
+    ~ThreadLocalStorage() { pthread_key_delete(key); }
+    void set(void* value) { pthread_setspecific(key, value); }
+    void* get() { return pthread_getspecific(key); }
+private:
+    pthread_key_t key;
+};
+#endif // (defined _WIN32 && !(defined __MINGW32__))
 #else // NCNN_THREADS
-class Mutex
+class NCNN_EXPORT Mutex
 {
 public:
     Mutex() {}
@@ -150,7 +169,7 @@ public:
     void unlock() {}
 };
 
-class ConditionVariable
+class NCNN_EXPORT ConditionVariable
 {
 public:
     ConditionVariable() {}
@@ -160,14 +179,34 @@ public:
     void signal() {}
 };
 
-class Thread
+class NCNN_EXPORT Thread
 {
 public:
     Thread(void* (*/*start*/)(void*), void* /*args*/ = 0) {}
     ~Thread() {}
     void join() {}
 };
+
+class NCNN_EXPORT ThreadLocalStorage
+{
+public:
+    ThreadLocalStorage() { data = 0; }
+    ~ThreadLocalStorage() {}
+    void set(void* value) { data = value; }
+    void* get() { return data; }
+private:
+    void* data;
+};
 #endif // NCNN_THREADS
+
+class NCNN_EXPORT MutexLockGuard
+{
+public:
+    MutexLockGuard(Mutex& _mutex) : mutex(_mutex) { mutex.lock(); }
+    ~MutexLockGuard() { mutex.unlock(); }
+private:
+    Mutex& mutex;
+};
 
 } // namespace ncnn
 
@@ -180,17 +219,19 @@ public:
 #include <string>
 #endif
 
+#endif // __cplusplus
+
 #if NCNN_STDIO
-#if __ANDROID_API__ >= 8
+#if NCNN_PLATFORM_API && __ANDROID_API__ >= 8
 #include <android/log.h>
 #define NCNN_LOGE(...) do { \
     fprintf(stderr, ##__VA_ARGS__); fprintf(stderr, "\n"); \
     __android_log_print(ANDROID_LOG_WARN, "ncnn", ##__VA_ARGS__); } while(0)
-#else // __ANDROID_API__ >= 8
+#else // NCNN_PLATFORM_API && __ANDROID_API__ >= 8
 #include <stdio.h>
 #define NCNN_LOGE(...) do { \
     fprintf(stderr, ##__VA_ARGS__); fprintf(stderr, "\n"); } while(0)
-#endif // __ANDROID_API__ >= 8
+#endif // NCNN_PLATFORM_API && __ANDROID_API__ >= 8
 #else
 #define NCNN_LOGE(...)
 #endif

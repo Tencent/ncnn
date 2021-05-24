@@ -18,10 +18,10 @@ limitations under the License.
 #ifndef TENSORFLOW_COMPILER_MLIR_TENSORFLOW_IR_TF_TYPES_H_
 #define TENSORFLOW_COMPILER_MLIR_TENSORFLOW_IR_TF_TYPES_H_
 
+#include "mlir/IR/BuiltinTypes.h"  // from @llvm-project
 #include "mlir/IR/Diagnostics.h"   // from @llvm-project
 #include "mlir/IR/Location.h"      // from @llvm-project
 #include "mlir/IR/Operation.h"     // from @llvm-project
-#include "mlir/IR/StandardTypes.h" // from @llvm-project
 #include "mlir/IR/TypeUtilities.h" // from @llvm-project
 #include "mlir/IR/Types.h"         // from @llvm-project
 
@@ -123,14 +123,14 @@ public:
     static TensorFlowType getChecked(Type type, MLIRContext* context,
                                      Location loc)
     {
-        if (failed(verifyConstructionInvariants(loc, type)))
+        if (failed(verify(loc, type)))
         {
             return TensorFlowRefType();
         }
         return get(type);
     }
 
-    static LogicalResult verifyConstructionInvariants(Location loc, Type type)
+    static LogicalResult verify(Location loc, Type type)
     {
         // type should be a valid TensorFlow type.
         if (!IsValidTFTensorType(type))
@@ -237,21 +237,27 @@ public:
     {
         return Base::getChecked(loc, subtypes);
     }
+    static Derived getChecked(function_ref<InFlightDiagnostic()> emitError,
+                              MLIRContext* context,
+                              ArrayRef<TensorType> subtypes)
+    {
+        return Base::getChecked(emitError, context, subtypes);
+    }
 
     static Derived get(MLIRContext* context)
     {
         return get({}, context);
     }
 
-    static LogicalResult verifyConstructionInvariants(
-        Location loc, ArrayRef<TensorType> subtypes)
+    static LogicalResult verify(function_ref<InFlightDiagnostic()> emitError,
+                                ArrayRef<TensorType> subtypes)
     {
         // Each of the subtypes should be a valid TensorFlow type.
         for (TensorType subtype : subtypes)
         {
             if (!IsValidTFTensorType(subtype))
             {
-                return emitError(loc) << "invalid " << Derived::getTypeName()
+                return emitError() << "invalid " << Derived::getTypeName()
                        << " subtype: " << subtype;
             }
         }
@@ -318,8 +324,17 @@ public:
     }
 };
 
+// Given two types `a` and `b`, returns a refined type which is cast compatible
+// with both `a` and `b` and is equal to or more precise than both of them. It
+// returns empty Type if the input types are not cast compatible.
+// Provides option to ignore ref types on 'a'. This is useful for TF ops that
+// might allow operands to either be same as result type or be a ref type
+// corresponding to it.
+mlir::Type GetCastCompatibleType(mlir::Type a, mlir::Type b,
+                                 bool may_ignore_ref_type_a);
+
 // Returns whether two arrays of Type are broadcast compatible.
-bool BroadcastCompatible(ArrayRef<Type> lhs, ArrayRef<Type> rhs);
+bool BroadcastCompatible(TypeRange lhs, TypeRange rhs);
 
 // Returns whether the two elemental types are compatible. Shapes are compatible
 // if:
@@ -337,7 +352,11 @@ bool HasCompatibleElementTypes(Type lhs, Type rhs,
 // another. In other words, a single run-time value is legal for both the types.
 // For example, tensor<*xf32>, tensor<?xf32> and tensor<3xf32> are cast
 // compatible.
-bool AreCastCompatible(ArrayRef<Type> types);
+bool AreCastCompatible(TypeRange types);
+
+// Returns true if corresponding elements of lhs and rhs AreCastCompatible and
+// lhs and rhs are the same length.
+bool ArraysAreCastCompatible(TypeRange lhs, TypeRange rhs);
 
 // If `ty` is a tensor type and its element type has subtypes, then returns a
 // new type of same shape but dropped subtypes for the element type.

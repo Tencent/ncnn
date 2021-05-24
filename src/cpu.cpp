@@ -21,12 +21,20 @@
 #include <string.h>
 
 #ifdef _OPENMP
+#if NCNN_SIMPLEOMP
+#include "simpleomp.h"
+#else
 #include <omp.h>
+#endif
 #endif
 
 #ifdef _MSC_VER
 #include <intrin.h>    // __cpuid()
 #include <immintrin.h> // _xgetbv()
+#endif
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten/threading.h>
 #endif
 
 #if defined __ANDROID__ || defined __linux__
@@ -36,13 +44,35 @@
 #endif
 
 #if __APPLE__
-#include "TargetConditionals.h"
-#if TARGET_OS_IPHONE
+#include <mach/mach.h>
 #include <mach/machine.h>
+#include <mach/thread_act.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
+#include "TargetConditionals.h"
+#if TARGET_OS_IPHONE
 #define __IOS__ 1
 #endif
+// define missing cpu model for old sdk
+#ifndef CPUFAMILY_ARM_HURRICANE
+#define CPUFAMILY_ARM_HURRICANE 0x67ceee93
+#endif
+#ifndef CPUFAMILY_ARM_MONSOON_MISTRAL
+#define CPUFAMILY_ARM_MONSOON_MISTRAL 0xe81e7ef6
+#endif
+#ifndef CPUFAMILY_ARM_VORTEX_TEMPEST
+#define CPUFAMILY_ARM_VORTEX_TEMPEST 0x07d34b9f
+#endif
+#ifndef CPUFAMILY_ARM_LIGHTNING_THUNDER
+#define CPUFAMILY_ARM_LIGHTNING_THUNDER 0x462504d2
+#endif
+#ifndef CPUFAMILY_ARM_FIRESTORM_ICESTORM
+#define CPUFAMILY_ARM_FIRESTORM_ICESTORM 0x1b588bb3
+#endif
+#endif
+
+#if defined(__SSE3__)
+#include <immintrin.h>
 #endif
 
 namespace ncnn {
@@ -60,8 +90,7 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv()
 
 #define AT_HWCAP  16
 #define AT_HWCAP2 26
-#if __aarch64__
-
+#if __aarch64__ || __riscv_xlen == 64
     struct
     {
         uint64_t tag;
@@ -104,15 +133,21 @@ static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
 // from arch/arm64/include/uapi/asm/hwcap.h
 #define HWCAP_ASIMD   (1 << 1)
 #define HWCAP_ASIMDHP (1 << 10)
+#define HWCAP_ASIMDDP (1 << 20)
 #else
 // from arch/arm/include/uapi/asm/hwcap.h
 #define HWCAP_NEON  (1 << 12)
 #define HWCAP_VFPv4 (1 << 16)
 #endif
 
+#if __riscv
+// from arch/riscv/include/uapi/asm/hwcap.h
+#define COMPAT_HWCAP_ISA_V (1 << ('V' - 'A'))
+#endif
+
 #endif // defined __ANDROID__ || defined __linux__
 
-#if __IOS__
+#if __APPLE__
 static unsigned int get_hw_cpufamily()
 {
     unsigned int value = 0;
@@ -140,7 +175,109 @@ static cpu_subtype_t get_hw_cpusubtype()
 static unsigned int g_hw_cpufamily = get_hw_cpufamily();
 static cpu_type_t g_hw_cputype = get_hw_cputype();
 static cpu_subtype_t g_hw_cpusubtype = get_hw_cpusubtype();
-#endif // __IOS__
+#endif // __APPLE__
+
+#if defined __ANDROID__ || defined __linux__
+CpuSet::CpuSet()
+{
+    disable_all();
+}
+
+void CpuSet::enable(int cpu)
+{
+    CPU_SET(cpu, &cpu_set);
+}
+
+void CpuSet::disable(int cpu)
+{
+    CPU_CLR(cpu, &cpu_set);
+}
+
+void CpuSet::disable_all()
+{
+    CPU_ZERO(&cpu_set);
+}
+
+bool CpuSet::is_enabled(int cpu) const
+{
+    return CPU_ISSET(cpu, &cpu_set);
+}
+
+int CpuSet::num_enabled() const
+{
+    int num_enabled = 0;
+    for (int i = 0; i < (int)sizeof(cpu_set_t) * 8; i++)
+    {
+        if (is_enabled(i))
+            num_enabled++;
+    }
+
+    return num_enabled;
+}
+#elif __APPLE__
+CpuSet::CpuSet()
+{
+    disable_all();
+}
+
+void CpuSet::enable(int cpu)
+{
+    policy |= (1 << cpu);
+}
+
+void CpuSet::disable(int cpu)
+{
+    policy &= ~(1 << cpu);
+}
+
+void CpuSet::disable_all()
+{
+    policy = 0;
+}
+
+bool CpuSet::is_enabled(int cpu) const
+{
+    return policy & (1 << cpu);
+}
+
+int CpuSet::num_enabled() const
+{
+    int num_enabled = 0;
+    for (int i = 0; i < (int)sizeof(policy) * 8; i++)
+    {
+        if (is_enabled(i))
+            num_enabled++;
+    }
+
+    return num_enabled;
+}
+#else
+CpuSet::CpuSet()
+{
+}
+
+void CpuSet::enable(int /* cpu */)
+{
+}
+
+void CpuSet::disable(int /* cpu */)
+{
+}
+
+void CpuSet::disable_all()
+{
+}
+
+bool CpuSet::is_enabled(int /* cpu */) const
+{
+    return true;
+}
+
+int CpuSet::num_enabled() const
+{
+    return get_cpu_count();
+}
+#endif
 
 int cpu_support_arm_neon()
 {
@@ -150,7 +287,7 @@ int cpu_support_arm_neon()
 #else
     return g_hwcaps & HWCAP_NEON;
 #endif
-#elif __IOS__
+#elif __APPLE__
 #if __aarch64__
     return g_hw_cputype == CPU_TYPE_ARM64;
 #else
@@ -170,7 +307,7 @@ int cpu_support_arm_vfpv4()
 #else
     return g_hwcaps & HWCAP_VFPv4;
 #endif
-#elif __IOS__
+#elif __APPLE__
 #if __aarch64__
     return g_hw_cputype == CPU_TYPE_ARM64;
 #else
@@ -189,21 +326,28 @@ int cpu_support_arm_asimdhp()
 #else
     return 0;
 #endif
-#elif __IOS__
+#elif __APPLE__
 #if __aarch64__
-#ifndef CPUFAMILY_ARM_HURRICANE
-#define CPUFAMILY_ARM_HURRICANE 0x67ceee93
+    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM;
+#else
+    return 0;
 #endif
-#ifndef CPUFAMILY_ARM_MONSOON_MISTRAL
-#define CPUFAMILY_ARM_MONSOON_MISTRAL 0xe81e7ef6
+#else
+    return 0;
 #endif
-#ifndef CPUFAMILY_ARM_VORTEX_TEMPEST
-#define CPUFAMILY_ARM_VORTEX_TEMPEST 0x07d34b9f
+}
+
+int cpu_support_arm_asimddp()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps & HWCAP_ASIMDDP;
+#else
+    return 0;
 #endif
-#ifndef CPUFAMILY_ARM_LIGHTNING_THUNDER
-#define CPUFAMILY_ARM_LIGHTNING_THUNDER 0x462504d2
-#endif
-    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER;
+#elif __APPLE__
+#if __aarch64__
+    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM;
 #else
     return 0;
 #endif
@@ -240,7 +384,7 @@ int cpu_support_x86_avx2()
     __builtin_cpu_init();
 #endif
     return __builtin_cpu_supports("avx2");
-#elif defined(__GNUC__)
+#elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)
     __builtin_cpu_init();
     return __builtin_cpu_supports("avx2");
 #else
@@ -253,10 +397,73 @@ int cpu_support_x86_avx2()
 #endif
 }
 
+int cpu_support_riscv_v()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    return g_hwcaps & COMPAT_HWCAP_ISA_V;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_riscv_zfh()
+{
+#if __riscv
+#if __riscv_zfh
+    // https://github.com/riscv/riscv-zfinx/blob/master/Zfinx_spec.adoc#5-discovery
+    __fp16 a = 0;
+    asm volatile(
+        "fneg.h     %0, %0  \n"
+        : "=f"(a)
+        : "0"(a)
+        :);
+    union
+    {
+        __fp16 a;
+        unsigned short u;
+    } tmp;
+    tmp.a = a;
+    return tmp.u != 0 ? 1 : 0;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_riscv_vlenb()
+{
+#if __riscv
+    if (!cpu_support_riscv_v())
+        return 0;
+
+    int a = 0;
+    asm volatile(
+        ".word  0xc22026f3  \n" // csrr  a3, vlenb
+        "mv     %0, a3      \n"
+        : "=r"(a)
+        :
+        : "memory", "a3");
+    return a;
+#else
+    return 0;
+#endif
+}
+
 static int get_cpucount()
 {
     int count = 0;
-#if defined __ANDROID__ || defined __linux__
+#ifdef __EMSCRIPTEN__
+    if (emscripten_has_threading_support())
+        count = emscripten_num_logical_cores();
+    else
+        count = 1;
+#elif defined __ANDROID__ || defined __linux__
     // get cpu count from /proc/cpuinfo
     FILE* fp = fopen("/proc/cpuinfo", "rb");
     if (!fp)
@@ -276,7 +483,7 @@ static int get_cpucount()
     }
 
     fclose(fp);
-#elif __IOS__
+#elif __APPLE__
     size_t len = sizeof(count);
     sysctlbyname("hw.ncpu", &count, &len, NULL, 0);
 #else
@@ -290,11 +497,6 @@ static int get_cpucount()
     if (count < 1)
         count = 1;
 
-    if (count > (int)sizeof(size_t) * 8)
-    {
-        NCNN_LOGE("more than %d cpu detected, thread affinity may not work properly :(", (int)sizeof(size_t) * 8);
-    }
-
     return count;
 }
 
@@ -303,6 +505,17 @@ static int g_cpucount = get_cpucount();
 int get_cpu_count()
 {
     return g_cpucount;
+}
+
+int get_little_cpu_count()
+{
+    return get_cpu_thread_affinity_mask(1).num_enabled();
+}
+
+int get_big_cpu_count()
+{
+    int big_cpu_count = get_cpu_thread_affinity_mask(2).num_enabled();
+    return big_cpu_count ? big_cpu_count : g_cpucount;
 }
 
 #if defined __ANDROID__ || defined __linux__
@@ -352,8 +565,11 @@ static int get_max_freq_khz(int cpuid)
                 return -1;
 
             int max_freq_khz = -1;
-            fscanf(fp, "%d", &max_freq_khz);
-
+            int nscan = fscanf(fp, "%d", &max_freq_khz);
+            if (nscan != 1)
+            {
+                NCNN_LOGE("fscanf cpuinfo_max_freq error %d", nscan);
+            }
             fclose(fp);
 
             return max_freq_khz;
@@ -377,44 +593,20 @@ static int get_max_freq_khz(int cpuid)
     return max_freq_khz;
 }
 
-static int set_sched_affinity(size_t thread_affinity_mask)
+static int set_sched_affinity(const CpuSet& thread_affinity_mask)
 {
-    // cpu_set_t definition
-    // ref http://stackoverflow.com/questions/16319725/android-set-thread-affinity
-#define NCNN_CPU_SETSIZE 1024
-#define __NCNN_NCPUBITS  (8 * sizeof(unsigned long))
-    typedef struct
-    {
-        unsigned long __bits[NCNN_CPU_SETSIZE / __NCNN_NCPUBITS];
-    } cpu_set_t;
-
-#define NCNN_CPU_SET(cpu, cpusetp) \
-    ((cpusetp)->__bits[(cpu) / __NCNN_NCPUBITS] |= (1UL << ((cpu) % __NCNN_NCPUBITS)))
-
-#define NCNN_CPU_ZERO(cpusetp) \
-    memset((cpusetp), 0, sizeof(cpu_set_t))
-
     // set affinity for thread
-#ifdef __GLIBC__
+#if defined(__GLIBC__) || defined(__OHOS__)
     pid_t pid = syscall(SYS_gettid);
 #else
-#ifdef PI3
+#if defined(PI3) || (defined(__MUSL__) && __MUSL_MINOR__ <= 14)
     pid_t pid = getpid();
 #else
     pid_t pid = gettid();
 #endif
 #endif
-    cpu_set_t mask;
-    NCNN_CPU_ZERO(&mask);
-    for (int i = 0; i < (int)sizeof(size_t) * 8; i++)
-    {
-        if (thread_affinity_mask & (1ul << i))
-        {
-            NCNN_CPU_SET(i, &mask);
-        }
-    }
 
-    int syscallret = syscall(__NR_sched_setaffinity, pid, sizeof(mask), &mask);
+    int syscallret = syscall(__NR_sched_setaffinity, pid, sizeof(cpu_set_t), &thread_affinity_mask.cpu_set);
     if (syscallret)
     {
         NCNN_LOGE("syscall error %d", syscallret);
@@ -424,6 +616,42 @@ static int set_sched_affinity(size_t thread_affinity_mask)
     return 0;
 }
 #endif // defined __ANDROID__ || defined __linux__
+
+#if __APPLE__
+static int set_sched_affinity(const CpuSet& thread_affinity_mask)
+{
+    // https://developer.apple.com/library/archive/releasenotes/Performance/RN-AffinityAPI/index.html
+    // http://www.hybridkernel.com/2015/01/18/binding_threads_to_cores_osx.html
+    // https://gist.github.com/Coneko/4234842
+
+    // This is a quite outdated document. Apple will not allow developers to set CPU affinity.
+    // In OS X 10.5 it worked, later it became a suggestion to OS X, then in 10.10 or so (as well in later ones), macOS will ignore any affinity settings.
+    // see https://github.com/Tencent/ncnn/pull/2335#discussion_r528233919   --- AmeAkio
+
+    int affinity_tag = THREAD_AFFINITY_TAG_NULL;
+    for (int i = 0; i < (int)sizeof(thread_affinity_mask.policy) * 8; i++)
+    {
+        if (thread_affinity_mask.is_enabled(i))
+        {
+            affinity_tag = i + 1;
+            break;
+        }
+    }
+
+    mach_port_t tid = pthread_mach_thread_np(pthread_self());
+
+    thread_affinity_policy_data_t policy_data;
+    policy_data.affinity_tag = affinity_tag;
+    int ret = thread_policy_set(tid, THREAD_AFFINITY_POLICY, (thread_policy_t)&policy_data, THREAD_AFFINITY_POLICY_COUNT);
+    if (ret && ret != KERN_NOT_SUPPORTED)
+    {
+        NCNN_LOGE("thread_policy_set error %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+#endif // __APPLE__
 
 static int g_powersave = 0;
 
@@ -440,7 +668,7 @@ int set_cpu_powersave(int powersave)
         return -1;
     }
 
-    size_t thread_affinity_mask = get_cpu_thread_affinity_mask(powersave);
+    const CpuSet& thread_affinity_mask = get_cpu_thread_affinity_mask(powersave);
 
     int ret = set_cpu_thread_affinity(thread_affinity_mask);
     if (ret != 0)
@@ -451,13 +679,13 @@ int set_cpu_powersave(int powersave)
     return 0;
 }
 
-static size_t g_thread_affinity_mask_all = 0;
-static size_t g_thread_affinity_mask_little = 0;
-static size_t g_thread_affinity_mask_big = 0;
+static CpuSet g_thread_affinity_mask_all;
+static CpuSet g_thread_affinity_mask_little;
+static CpuSet g_thread_affinity_mask_big;
 
 static int setup_thread_affinity_masks()
 {
-    g_thread_affinity_mask_all = (1ul << g_cpucount) - 1;
+    g_thread_affinity_mask_all.disable_all();
 
 #if defined __ANDROID__ || defined __linux__
     int max_freq_khz_min = INT_MAX;
@@ -480,7 +708,7 @@ static int setup_thread_affinity_masks()
     int max_freq_khz_medium = (max_freq_khz_min + max_freq_khz_max) / 2;
     if (max_freq_khz_medium == max_freq_khz_max)
     {
-        g_thread_affinity_mask_little = 0;
+        g_thread_affinity_mask_little.disable_all();
         g_thread_affinity_mask_big = g_thread_affinity_mask_all;
         return 0;
     }
@@ -488,32 +716,64 @@ static int setup_thread_affinity_masks()
     for (int i = 0; i < g_cpucount; i++)
     {
         if (cpu_max_freq_khz[i] < max_freq_khz_medium)
-            g_thread_affinity_mask_little |= (1ul << i);
+            g_thread_affinity_mask_little.enable(i);
         else
-            g_thread_affinity_mask_big |= (1ul << i);
+            g_thread_affinity_mask_big.enable(i);
+    }
+#elif __APPLE__
+    // affinity info from cpu model
+    if (g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL)
+    {
+        // 2 + 4
+        g_thread_affinity_mask_big.enable(0);
+        g_thread_affinity_mask_big.enable(1);
+        g_thread_affinity_mask_little.enable(2);
+        g_thread_affinity_mask_little.enable(3);
+        g_thread_affinity_mask_little.enable(4);
+        g_thread_affinity_mask_little.enable(5);
+    }
+    else if (g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM)
+    {
+        // 2 + 4 or 4 + 4
+        if (get_cpu_count() == 6)
+        {
+            g_thread_affinity_mask_big.enable(0);
+            g_thread_affinity_mask_big.enable(1);
+            g_thread_affinity_mask_little.enable(2);
+            g_thread_affinity_mask_little.enable(3);
+            g_thread_affinity_mask_little.enable(4);
+            g_thread_affinity_mask_little.enable(5);
+        }
+        else
+        {
+            g_thread_affinity_mask_big.enable(0);
+            g_thread_affinity_mask_big.enable(1);
+            g_thread_affinity_mask_big.enable(2);
+            g_thread_affinity_mask_big.enable(3);
+            g_thread_affinity_mask_little.enable(4);
+            g_thread_affinity_mask_little.enable(5);
+            g_thread_affinity_mask_little.enable(6);
+            g_thread_affinity_mask_little.enable(7);
+        }
+    }
+    else
+    {
+        // smp models
+        g_thread_affinity_mask_little.disable_all();
+        g_thread_affinity_mask_big = g_thread_affinity_mask_all;
     }
 #else
     // TODO implement me for other platforms
-    g_thread_affinity_mask_little = 0;
+    g_thread_affinity_mask_little.disable_all();
     g_thread_affinity_mask_big = g_thread_affinity_mask_all;
 #endif
 
     return 0;
 }
 
-size_t get_cpu_thread_affinity_mask(int powersave)
+const CpuSet& get_cpu_thread_affinity_mask(int powersave)
 {
-    if (g_thread_affinity_mask_all == 0)
-    {
-        setup_thread_affinity_masks();
-    }
-
-    if (g_thread_affinity_mask_little == 0)
-    {
-        // SMP cpu powersave not supported
-        // fallback to all cores anyway
-        return g_thread_affinity_mask_all;
-    }
+    setup_thread_affinity_masks();
 
     if (powersave == 0)
         return g_thread_affinity_mask_all;
@@ -530,15 +790,10 @@ size_t get_cpu_thread_affinity_mask(int powersave)
     return g_thread_affinity_mask_all;
 }
 
-int set_cpu_thread_affinity(size_t thread_affinity_mask)
+int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 {
 #if defined __ANDROID__ || defined __linux__
-    int num_threads = 0;
-    for (int i = 0; i < (int)sizeof(size_t) * 8; i++)
-    {
-        if (thread_affinity_mask & (1ul << i))
-            num_threads++;
-    }
+    int num_threads = thread_affinity_mask.num_enabled();
 
 #ifdef _OPENMP
     // set affinity for each thread
@@ -561,10 +816,54 @@ int set_cpu_thread_affinity(size_t thread_affinity_mask)
 #endif
 
     return 0;
-#elif __IOS__
-    // thread affinity not supported on ios
-    (void)thread_affinity_mask;
-    return -1;
+#elif __APPLE__
+
+#ifdef _OPENMP
+    int num_threads = thread_affinity_mask.num_enabled();
+
+    // set affinity for each thread
+    set_omp_num_threads(num_threads);
+    std::vector<int> ssarets(num_threads, 0);
+    #pragma omp parallel for num_threads(num_threads)
+    for (int i = 0; i < num_threads; i++)
+    {
+        // assign one core for each thread
+        int core = -1 - i;
+        for (int j = 0; j < (int)sizeof(thread_affinity_mask.policy) * 8; j++)
+        {
+            if (thread_affinity_mask.is_enabled(j))
+            {
+                if (core == -1)
+                {
+                    core = j;
+                    break;
+                }
+                else
+                {
+                    core++;
+                }
+            }
+        }
+        CpuSet this_thread_affinity_mask;
+        if (core != -1 - i)
+        {
+            this_thread_affinity_mask.enable(core);
+        }
+
+        ssarets[i] = set_sched_affinity(this_thread_affinity_mask);
+    }
+    for (int i = 0; i < num_threads; i++)
+    {
+        if (ssarets[i] != 0)
+            return -1;
+    }
+#else
+    int ssaret = set_sched_affinity(thread_affinity_mask);
+    if (ssaret != 0)
+        return -1;
+#endif
+
+    return 0;
 #else
     // TODO
     (void)thread_affinity_mask;
@@ -632,6 +931,53 @@ void set_kmp_blocktime(int time_ms)
     kmp_set_blocktime(time_ms);
 #else
     (void)time_ms;
+#endif
+}
+
+static ncnn::ThreadLocalStorage tls_flush_denormals;
+
+int get_flush_denormals()
+{
+#if defined(__SSE3__)
+    return (int)reinterpret_cast<size_t>(tls_flush_denormals.get());
+#else
+    return 0;
+#endif
+}
+
+int set_flush_denormals(int flush_denormals)
+{
+    if (flush_denormals < 0 || flush_denormals > 3)
+    {
+        NCNN_LOGE("denormals_zero %d not supported", flush_denormals);
+        return -1;
+    }
+#if defined(__SSE3__)
+    if (flush_denormals == 0)
+    {
+        _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_OFF);
+        _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_OFF);
+    }
+    else if (flush_denormals == 1)
+    {
+        _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+        _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_OFF);
+    }
+    else if (flush_denormals == 2)
+    {
+        _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_OFF);
+        _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+    }
+    else if (flush_denormals == 3)
+    {
+        _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+        _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+    }
+
+    tls_flush_denormals.set(reinterpret_cast<void*>((size_t)flush_denormals));
+    return 0;
+#else
+    return 0;
 #endif
 }
 

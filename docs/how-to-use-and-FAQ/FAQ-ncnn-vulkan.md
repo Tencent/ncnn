@@ -1,21 +1,15 @@
-### how to enable ncnn vulkan capablity
+### how to enable ncnn vulkan capability
 
 follow [the build and install instruction](how-to-build)
 
 make sure you have installed vulkan sdk from [lunarg vulkan sdk website](https://vulkan.lunarg.com/sdk/home)
 
-Usually, you can enable the vulkan compute inference feature by adding only three lines of code to your application.
+Usually, you can enable the vulkan compute inference feature by adding only one line of code to your application.
 
 ```cpp
-// initialize when app starts
-ncnn::create_gpu_instance();// line1
-
 // enable vulkan compute feature before loading
 ncnn::Net net;
-net.opt.use_vulkan_compute = 1;// line2
-
-// deinitialize when app exits
-ncnn::destroy_gpu_instance();// line3
+net.opt.use_vulkan_compute = 1;
 ```
 
 ### does my graphics device support vulkan
@@ -32,7 +26,7 @@ Some platforms have been tested and known working. In theory, if your platform s
 |amd|Y|Y|/|?|/|
 |nvidia|Y|Y|?|/|/|
 |qcom|/|/|Y|/|/|
-|apple|/|/|/|?|Y|
+|apple|/|/|/|Y|Y|
 |arm|/|?|Y|/|/|
 
 You can search [the vulkan database](https://vulkan.gpuinfo.org) to see if your device supports vulkan.
@@ -90,3 +84,41 @@ Thus, it is usually not a serious issue if your network only has some special he
 The current vulkan inference implementation is far from the preferred state. Many handful optimization techniques are planned, such as winograd convolution, operator fusion, fp16 storage and arithmetic etc.
 
 It is common that your model runs slower on gpu than cpu on arm devices like mobile phones, since we have quite good arm optimization in ncnn ;)
+
+### vulkan device not found / extra high cpu utility while vulkan is enabled on nvidia gpu
+
+There are severel reasons could lead to this outcome. First please check your driver status with `nvidia-smi`. If you have correctly installed your driver, you should see something like this:
+
+```bash
+$ nvidia-smi
+Sat Mar 06 19:53:16 2021
++-----------------------------------------------------------------------------+
+| NVIDIA-SMI 451.48       Driver Version: 451.48       CUDA Version: 11.0     |
+|-------------------------------+----------------------+----------------------+
+| GPU  Name            TCC/WDDM | Bus-Id        Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+|===============================+======================+======================|
+|   0  GeForce GTX 1060   WDDM  | 00000000:02:00.0 Off |                  N/A |
+| N/A   31C    P8     5W /  N/A |     90MiB /  6144MiB |      0%      Default |
++-------------------------------+----------------------+----------------------+
+
++-----------------------------------------------------------------------------+
+| Processes:                                                                  |
+|  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
+|        ID   ID                                                   Usage      |
+|=============================================================================|
+|  No running processes found                                                 |
++-----------------------------------------------------------------------------+
+```
+
+If `nvidia-smi` crashes or cannot be found, please reinstall your graphics driver.
+
+If ncnn *is* utilizing the Tesla GPU, you can see your program in the `Processes` block at the bottom. In that case, it's likely some operators are not yet supported in Vulkan, and have fallbacked to the CPU, thus leading to a low utilization of the GPU.
+
+If you *couldn't* find your process running, plase check the active driver model, which can be found to the right of your device name. For Geforce and Titan GPUs, the default driver model is WDDM (Windows Desktop Driver Model), which supports both rendering graphics as well as computing. But for Tesla GPUs, without configuration, the driver model is defualted to TCC ([Tesla Computing Cluster](https://docs.nvidia.com/gameworks/content/developertools/desktop/tesla_compute_cluster.htm)). NVIDIA's TCC driver does not support Vulkan, so you need to use the following command to set the driver model back to WDDM, to use Vulkan:
+
+```bash
+$ nvidia-smi -g 0 -dm 0
+```
+
+The number following `-g` is the GPU ID (which can be found to the left of your device name in `nvidia-smi` output); and `-dm` stands for driver model, 0 refers to WDDM and 1 means TCC.

@@ -417,7 +417,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
     int elempack = bottom_top_blob.elempack;
 
     // mean
-    VkMat mean_workspace(c, elemsize, elempack, opt.workspace_vkallocator);
+    VkMat mean_workspace(c, 4u * elempack, elempack, opt.workspace_vkallocator);
     {
         // reduce sum
         VkMat sum_workspace;
@@ -508,7 +508,7 @@ int InstanceNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd,
     }
 
     // var
-    VkMat var_workspace(c, elemsize, elempack, opt.workspace_vkallocator);
+    VkMat var_workspace(c, 4u * elempack, elempack, opt.workspace_vkallocator);
     {
         // sub mean and square
         VkMat square_workspace;
@@ -654,7 +654,7 @@ int InstanceNorm_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute&
     int elempack = bottom_top_blob.elempack;
 
     // mean
-    VkImageMat mean_workspace(c, elemsize, elempack, opt.workspace_vkallocator);
+    VkImageMat mean_workspace(c, 4u * elempack, elempack, opt.workspace_vkallocator);
     {
         // reduce sum
         VkImageMat sum_workspace;
@@ -745,7 +745,7 @@ int InstanceNorm_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute&
     }
 
     // var
-    VkImageMat var_workspace(c, elemsize, elempack, opt.workspace_vkallocator);
+    VkImageMat var_workspace(c, 4u * elempack, elempack, opt.workspace_vkallocator);
     {
         // sub mean and square
         VkImageMat square_workspace;

@@ -208,7 +208,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             opt.use_image_storage = false;
         }
 
-        if (vkdev->info.vendor_id == 0x5143 && vkdev->info.api_version < VK_MAKE_VERSION(1, 0, 66))
+        if (vkdev->info.vendor_id() == 0x5143 && vkdev->info.api_version() < VK_MAKE_VERSION(1, 0, 66))
         {
             // FIXME workaround qcom adreno image shader produce wrong result on old drivers
             support_image_storage = false;

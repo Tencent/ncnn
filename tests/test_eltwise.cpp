@@ -135,6 +135,186 @@ static int test_eltwise_3()
            || test_eltwise(a, 2, RandomMat(5));
 }
 
+static int test_eltwise_4()
+{
+    std::vector<ncnn::Mat> a(2);
+    a[0] = RandomMat(16, 12);
+    a[1] = RandomMat(16, 12);
+
+    std::vector<ncnn::Mat> b(2);
+    b[0] = RandomMat(11, 24);
+    b[1] = RandomMat(11, 24);
+
+    std::vector<ncnn::Mat> c(2);
+    c[0] = RandomMat(9, 7);
+    c[1] = RandomMat(9, 7);
+
+    return 0
+           || test_eltwise(a, 0, ncnn::Mat())
+           || test_eltwise(a, 1, ncnn::Mat())
+           || test_eltwise(a, 2, ncnn::Mat())
+           || test_eltwise(b, 0, ncnn::Mat())
+           || test_eltwise(b, 1, ncnn::Mat())
+           || test_eltwise(b, 2, ncnn::Mat())
+           || test_eltwise(c, 0, ncnn::Mat())
+           || test_eltwise(c, 1, ncnn::Mat())
+           || test_eltwise(c, 2, ncnn::Mat())
+
+           || test_eltwise(a, 0, RandomMat(2))
+           || test_eltwise(a, 1, RandomMat(2))
+           || test_eltwise(a, 2, RandomMat(2))
+           || test_eltwise(b, 0, RandomMat(2))
+           || test_eltwise(b, 1, RandomMat(2))
+           || test_eltwise(b, 2, RandomMat(2))
+           || test_eltwise(c, 0, RandomMat(2))
+           || test_eltwise(c, 1, RandomMat(2))
+           || test_eltwise(c, 2, RandomMat(2));
+}
+
+static int test_eltwise_5()
+{
+    std::vector<ncnn::Mat> a(3);
+    a[0] = RandomMat(15, 16);
+    a[1] = RandomMat(15, 16);
+    a[2] = RandomMat(15, 16);
+
+    return 0
+           || test_eltwise(a, 0, ncnn::Mat())
+           || test_eltwise(a, 1, ncnn::Mat())
+           || test_eltwise(a, 2, ncnn::Mat())
+
+           || test_eltwise(a, 0, RandomMat(3))
+           || test_eltwise(a, 1, RandomMat(3))
+           || test_eltwise(a, 2, RandomMat(3));
+}
+
+static int test_eltwise_6()
+{
+    std::vector<ncnn::Mat> a(4);
+    a[0] = RandomMat(7, 5);
+    a[1] = RandomMat(7, 5);
+    a[2] = RandomMat(7, 5);
+    a[3] = RandomMat(7, 5);
+
+    return 0
+           || test_eltwise(a, 0, ncnn::Mat())
+           || test_eltwise(a, 1, ncnn::Mat())
+           || test_eltwise(a, 2, ncnn::Mat())
+
+           || test_eltwise(a, 0, RandomMat(4))
+           || test_eltwise(a, 1, RandomMat(4))
+           || test_eltwise(a, 2, RandomMat(4));
+}
+
+static int test_eltwise_7()
+{
+    std::vector<ncnn::Mat> a(5);
+    a[0] = RandomMat(12, 16);
+    a[1] = RandomMat(12, 16);
+    a[2] = RandomMat(12, 16);
+    a[3] = RandomMat(12, 16);
+    a[4] = RandomMat(12, 16);
+
+    return 0
+           || test_eltwise(a, 0, ncnn::Mat())
+           || test_eltwise(a, 1, ncnn::Mat())
+           || test_eltwise(a, 2, ncnn::Mat())
+
+           || test_eltwise(a, 0, RandomMat(5))
+           || test_eltwise(a, 1, RandomMat(5))
+           || test_eltwise(a, 2, RandomMat(5));
+}
+
+static int test_eltwise_8()
+{
+    std::vector<ncnn::Mat> a(2);
+    a[0] = RandomMat(12);
+    a[1] = RandomMat(12);
+
+    std::vector<ncnn::Mat> b(2);
+    b[0] = RandomMat(24);
+    b[1] = RandomMat(24);
+
+    std::vector<ncnn::Mat> c(2);
+    c[0] = RandomMat(19);
+    c[1] = RandomMat(19);
+
+    return 0
+           || test_eltwise(a, 0, ncnn::Mat())
+           || test_eltwise(a, 1, ncnn::Mat())
+           || test_eltwise(a, 2, ncnn::Mat())
+           || test_eltwise(b, 0, ncnn::Mat())
+           || test_eltwise(b, 1, ncnn::Mat())
+           || test_eltwise(b, 2, ncnn::Mat())
+           || test_eltwise(c, 0, ncnn::Mat())
+           || test_eltwise(c, 1, ncnn::Mat())
+           || test_eltwise(c, 2, ncnn::Mat())
+
+           || test_eltwise(a, 0, RandomMat(2))
+           || test_eltwise(a, 1, RandomMat(2))
+           || test_eltwise(a, 2, RandomMat(2))
+           || test_eltwise(b, 0, RandomMat(2))
+           || test_eltwise(b, 1, RandomMat(2))
+           || test_eltwise(b, 2, RandomMat(2))
+           || test_eltwise(c, 0, RandomMat(2))
+           || test_eltwise(c, 1, RandomMat(2))
+           || test_eltwise(c, 2, RandomMat(2));
+}
+
+static int test_eltwise_9()
+{
+    std::vector<ncnn::Mat> a(3);
+    a[0] = RandomMat(36);
+    a[1] = RandomMat(36);
+    a[2] = RandomMat(36);
+
+    return 0
+           || test_eltwise(a, 0, ncnn::Mat())
+           || test_eltwise(a, 1, ncnn::Mat())
+           || test_eltwise(a, 2, ncnn::Mat())
+
+           || test_eltwise(a, 0, RandomMat(3))
+           || test_eltwise(a, 1, RandomMat(3))
+           || test_eltwise(a, 2, RandomMat(3));
+}
+
+static int test_eltwise_10()
+{
+    std::vector<ncnn::Mat> a(4);
+    a[0] = RandomMat(15);
+    a[1] = RandomMat(15);
+    a[2] = RandomMat(15);
+    a[3] = RandomMat(15);
+
+    return 0
+           || test_eltwise(a, 0, ncnn::Mat())
+           || test_eltwise(a, 1, ncnn::Mat())
+           || test_eltwise(a, 2, ncnn::Mat())
+
+           || test_eltwise(a, 0, RandomMat(4))
+           || test_eltwise(a, 1, RandomMat(4))
+           || test_eltwise(a, 2, RandomMat(4));
+}
+
+static int test_eltwise_11()
+{
+    std::vector<ncnn::Mat> a(5);
+    a[0] = RandomMat(16);
+    a[1] = RandomMat(16);
+    a[2] = RandomMat(16);
+    a[3] = RandomMat(16);
+    a[4] = RandomMat(16);
+
+    return 0
+           || test_eltwise(a, 0, ncnn::Mat())
+           || test_eltwise(a, 1, ncnn::Mat())
+           || test_eltwise(a, 2, ncnn::Mat())
+
+           || test_eltwise(a, 0, RandomMat(5))
+           || test_eltwise(a, 1, RandomMat(5))
+           || test_eltwise(a, 2, RandomMat(5));
+}
+
 int main()
 {
     SRAND(7767517);
@@ -143,5 +323,13 @@ int main()
            || test_eltwise_0()
            || test_eltwise_1()
            || test_eltwise_2()
-           || test_eltwise_3();
+           || test_eltwise_3()
+           || test_eltwise_4()
+           || test_eltwise_5()
+           || test_eltwise_6()
+           || test_eltwise_7()
+           || test_eltwise_8()
+           || test_eltwise_9()
+           || test_eltwise_10()
+           || test_eltwise_11();
 }

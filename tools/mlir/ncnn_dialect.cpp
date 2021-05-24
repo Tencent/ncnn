@@ -15,7 +15,6 @@
 #include "ncnn_dialect.h"
 
 #include <mlir/IR/Builders.h>
-#include <mlir/IR/StandardTypes.h>
 
 namespace mlir {
 
@@ -34,9 +33,9 @@ NCNNDialect::NCNNDialect(mlir::MLIRContext* context)
     allowUnknownOperations();
 }
 
+} // namespace ncnn
+
 #define GET_OP_CLASSES
 #include "ncnn_ops.cc.inc"
-
-} // namespace ncnn
 
 } // namespace mlir

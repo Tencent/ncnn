@@ -38,10 +38,18 @@ int Clip_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         asm volatile(
             "L0:                        \n"
             "vsetvli    t0, %1, e32, m8 \n"
+#ifdef RVV_SPEC_0_7
+            "vle.v      v0, (%0)        \n"
+#else
             "vle32.v    v0, (%0)        \n"
+#endif
             "vfmax.vf   v0, v0, %4      \n"
             "vfmin.vf   v0, v0, %5      \n"
+#ifdef RVV_SPEC_0_7
+            "vse.v      v0, (%0)        \n"
+#else
             "vse32.v    v0, (%0)        \n"
+#endif
             "slli       t1, t0, 2       \n"
             "add        %0, %0, t1      \n"
             "sub        %1, %1, t0      \n"
@@ -52,7 +60,7 @@ int Clip_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             "1"(remain),
             "f"(min), // %4
             "f"(max)  // %5
-            : "cc", "memory", "t0", "t1");
+            : "cc", "memory", "t0", "t1", "v0");
 #else  // __riscv_vector
         for (; remain > 0; remain--)
         {

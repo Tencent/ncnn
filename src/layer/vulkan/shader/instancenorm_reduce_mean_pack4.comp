@@ -29,10 +29,10 @@ layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform highp sampler3D bottom_top_blob;
-layout (binding = 1, imfmtc4) writeonly uniform unfp image1D mean_blob;
+layout (binding = 1, rgba32f) writeonly uniform highp image3D mean_blob;
 #else
 layout (binding = 0) readonly buffer bottom_top_blob { vec4 bottom_top_blob_data[]; };
-layout (binding = 1) writeonly buffer mean_blob { sfpvec4 mean_data[]; };
+layout (binding = 1) writeonly buffer mean_blob { vec4 mean_data[]; };
 #endif
 
 layout (push_constant) uniform parameter
@@ -53,14 +53,14 @@ void main()
     if (gx >= psc(c) || gy >= 1 || gz >= 1)
         return;
 
-    afpvec4 sum = afpvec4(0.f);
+    vec4 sum = vec4(0.f);
 
 #if NCNN_image_shader
     for (int i = 0; i < p.h; i++)
     {
         for (int j = 0; j < p.w; j++)
         {
-            sum += afpvec4(texelFetch(bottom_top_blob, ivec3(j, i, gx), 0));
+            sum += texelFetch(bottom_top_blob, ivec3(j, i, gx), 0);
         }
     }
 #else
@@ -68,16 +68,16 @@ void main()
 
     for (int i = 0; i < p.w; i++)
     {
-        sum += afpvec4(bottom_top_blob_data[v_offset]);
+        sum += bottom_top_blob_data[v_offset];
         v_offset += 1;
     }
 #endif
 
-    afpvec4 mean = sum / afp(p.area);
+    vec4 mean = sum / p.area;
 
 #if NCNN_image_shader
-    image1d_st4(mean_blob, gx, mean);
+    imageStore(mean_blob, ivec3(gx, 0, 0), mean);
 #else
-    buffer_st4(mean_data, gx, mean);
+    mean_data[gx] = mean;
 #endif
 }

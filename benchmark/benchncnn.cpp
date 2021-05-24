@@ -1,4 +1,4 @@
-// Tencent is pleased to support the open source community by making ncnn available.
+﻿// Tencent is pleased to support the open source community by making ncnn available.
 //
 // Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
 //
@@ -21,6 +21,10 @@
 #include <windows.h> // Sleep()
 #else
 #include <unistd.h> // sleep()
+#endif
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
 #endif
 
 #include "benchmark.h"
@@ -83,12 +87,21 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     }
 #endif // NCNN_VULKAN
 
+#ifdef __EMSCRIPTEN__
+#define MODEL_DIR "/working/"
+#else
+#define MODEL_DIR ""
+#endif
+
     char parampath[256];
-    sprintf(parampath, "%s.param", comment);
+    sprintf(parampath, MODEL_DIR "%s.param", comment);
     net.load_param(parampath);
 
     DataReaderFromEmpty dr;
     net.load_model(dr);
+
+    const std::vector<const char*>& input_names = net.input_names();
+    const std::vector<const char*>& output_names = net.output_names();
 
     if (g_enable_cooling_down)
     {
@@ -113,8 +126,8 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     for (int i = 0; i < g_warmup_loop_count; i++)
     {
         ncnn::Extractor ex = net.create_extractor();
-        ex.input("data", in);
-        ex.extract("output", out);
+        ex.input(input_names[0], in);
+        ex.extract(output_names[0], out);
     }
 
     double time_min = DBL_MAX;
@@ -127,8 +140,8 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
 
         {
             ncnn::Extractor ex = net.create_extractor();
-            ex.input("data", in);
-            ex.extract("output", out);
+            ex.input(input_names[0], in);
+            ex.extract(output_names[0], out);
         }
 
         double end = ncnn::get_current_time();
@@ -173,6 +186,12 @@ int main(int argc, char** argv)
     {
         cooling_down = atoi(argv[5]);
     }
+
+#ifdef __EMSCRIPTEN__
+    EM_ASM(
+        FS.mkdir('/working');
+        FS.mount(NODEFS, {root: '.'}, '/working'););
+#endif // __EMSCRIPTEN__
 
     bool use_vulkan_compute = gpu_device != -1;
 
@@ -254,6 +273,8 @@ int main(int argc, char** argv)
     benchmark("proxylessnasnet", ncnn::Mat(224, 224, 3), opt);
 
     benchmark("efficientnet_b0", ncnn::Mat(224, 224, 3), opt);
+
+    benchmark("efficientnetv2_b0", ncnn::Mat(224, 224, 3), opt);
 
     benchmark("regnety_400m", ncnn::Mat(224, 224, 3), opt);
 

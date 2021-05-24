@@ -2,7 +2,8 @@
 |operation|param id|param phase|default value|weight order|
 |:---:|:---:|:---:|:---:|:---:|
 |AbsVal|||
-|ArgMax TODO|||
+|ArgMax|0|out_max_val|0|
+||1|topk|1|
 |BatchNorm|0|channels|0|slope mean variance bias|
 ||1|eps|0.f|
 |Bias|0|bias_data_size|0|
@@ -192,7 +193,7 @@
 ||8|behind|0|
 |Permute|0|order_type|0|
 |PixelShuffle|0|upscale_factor|1|
-|Pooling|0|pooling_type|0|
+|Pooling|0|pooling_type(0: max 1: avg)|0|
 ||1|kernel_w|0|
 ||11|kernel_h|kernel_w|
 ||2|stride_w|1|
@@ -269,7 +270,8 @@
 ||1|axis|0|
 |Softmax|0|axis|0|
 |Split|||
-|SPP TODO|||
+|SPP|0|pooling_type|0|
+||1|pyramid_height|1|
 |Squeeze|0|squeeze_w|0|
 ||1|squeeze_h|0|
 ||2|squeeze_c|0|
@@ -278,7 +280,8 @@
 |Swish|||
 |TanH|||
 |Threshold|0|threshold|0.f|
-|Tile TODO|||
+|Tile|0|dim|0|
+||1|tiles|1|
 |UnaryOp|0|op_type|0|
 |YoloDetectionOutput|0|num_class|20|
 ||1|num_box|5|
@@ -292,4 +295,9 @@
 ||4|biases|[]|
 ||5|mask|[]|
 ||6|anchors_scale|[]|
-|RNN TODO|||
+|RNN|0|num_output|0|
+||1|weight_data_size|0|
+||2|direction|0|
+|MultiHeadAttention|0|embed_dim|0|
+||1|num_head|1|
+||2|weight_data_size|0|

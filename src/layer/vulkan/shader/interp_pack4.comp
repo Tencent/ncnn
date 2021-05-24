@@ -22,8 +22,9 @@
 #endif
 
 layout (constant_id = 0) const int resize_type = 0;
+layout (constant_id = 1) const int align_corner = 0;
 
-#define shape_constant_id_offset 1
+#define shape_constant_id_offset 2
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
@@ -71,6 +72,19 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
+    if (psc(dims) == 1)
+    {
+#if NCNN_image_shader
+        image3d_cp4(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(gz, 0, 0));
+#else
+        const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+        buffer_cp4(top_blob_data, gi, bottom_blob_data, gz);
+#endif
+
+        return;
+    }
+
     if (resize_type == 1) // nearest
     {
         afpvec2 gxy = afpvec2(gx, gy);
@@ -93,7 +107,15 @@ void main()
     if (resize_type == 2) // bilinear
     {
         afpvec2 gxy = afpvec2(gx, gy);
-        afpvec2 fxy = (gxy + afp(0.5f)) * afpvec2(p.scale_x, p.scale_y) - afp(0.5f);
+        afpvec2 fxy;
+        if (align_corner == 1)
+        {
+            fxy = gxy * afpvec2(p.scale_x, p.scale_y);
+        }
+        else
+        {
+            fxy = (gxy + afp(0.5f)) * afpvec2(p.scale_x, p.scale_y) - afp(0.5f);
+        }
 
         ivec2 sxy = ivec2(floor(fxy));
 

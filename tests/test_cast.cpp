@@ -177,8 +177,8 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
 
     ncnn::Layer* op = ncnn::create_layer("Cast");
 
@@ -293,8 +293,8 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
 
     ncnn::Layer* op = ncnn::create_layer("Cast");
 
@@ -403,9 +403,6 @@ static int test_cast_gpu_image_fp16p(const ncnn::Mat& a, int type_from, int type
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
-    if (vkdev->info.bug_layout_binding_id_alias)
-        return 0;
-
     ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
     ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
 
@@ -413,8 +410,8 @@ static int test_cast_gpu_image_fp16p(const ncnn::Mat& a, int type_from, int type
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
 
     ncnn::Layer* op = ncnn::create_layer("Cast");
 
@@ -522,9 +519,6 @@ static int test_cast_gpu_image_fp16p_pack8(const ncnn::Mat& a, int type_from, in
 
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
-    if (vkdev->info.bug_layout_binding_id_alias)
-        return 0;
-
     ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
     ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
 
@@ -532,8 +526,8 @@ static int test_cast_gpu_image_fp16p_pack8(const ncnn::Mat& a, int type_from, in
     opt.workspace_vkallocator = blob_vkallocator;
     opt.staging_vkallocator = staging_vkallocator;
 
-    if (!vkdev->info.support_fp16_packed) opt.use_fp16_packed = false;
-    if (!vkdev->info.support_fp16_storage) opt.use_fp16_storage = false;
+    if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
+    if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
 
     ncnn::Layer* op = ncnn::create_layer("Cast");
 

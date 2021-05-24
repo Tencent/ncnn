@@ -19,6 +19,10 @@
 #include <math.h>
 #include <string.h>
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4250)
+#endif
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Woverloaded-virtual"
@@ -26,6 +30,9 @@
 #include "layer_declaration.h"
 #ifdef __clang__
 #pragma clang diagnostic pop
+#endif
+#ifdef _MSC_VER
+#pragma warning(pop)
 #endif
 
 namespace ncnn {
@@ -39,14 +46,19 @@ Layer::Layer()
 
     support_bf16_storage = false;
     support_fp16_storage = false;
+    support_int8_storage = false;
     support_image_storage = false;
+    support_tensor_storage = false;
 
-    use_int8_inference = false;
     support_weight_fp16_storage = false;
+
+    typeindex = -1;
 
 #if NCNN_VULKAN
     vkdev = 0;
 #endif // NCNN_VULKAN
+
+    userdata = 0;
 }
 
 Layer::~Layer()
@@ -202,6 +214,18 @@ static const layer_registry_entry layer_registry_arm82[] = {
 };
 #endif // NCNN_RUNTIME_CPU && NCNN_ARM82
 
+#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT
+static const layer_registry_entry layer_registry_arm82dot[] = {
+#include "layer_registry_arm82dot.h"
+};
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM82DOT
+
+#if NCNN_RUNTIME_CPU && NCNN_RVV
+static const layer_registry_entry layer_registry_rvv[] = {
+#include "layer_registry_rvv.h"
+};
+#endif // NCNN_RUNTIME_CPU && NCNN_RVV
+
 static const int layer_registry_entry_count = sizeof(layer_registry) / sizeof(layer_registry_entry);
 
 #if NCNN_STRING
@@ -241,6 +265,13 @@ Layer* create_layer(int index)
     }
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_AVX2
+#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT
+    if (ncnn::cpu_support_arm_asimdhp() && ncnn::cpu_support_arm_asimddp())
+    {
+        layer_creator = layer_registry_arm82dot[index].creator;
+    }
+    else
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM82DOT
 #if NCNN_RUNTIME_CPU && NCNN_ARM82
     if (ncnn::cpu_support_arm_asimdhp())
     {
@@ -248,6 +279,13 @@ Layer* create_layer(int index)
     }
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_ARM82
+#if NCNN_RUNTIME_CPU && NCNN_RVV
+    if (ncnn::cpu_support_riscv_v())
+    {
+        layer_creator = layer_registry_rvv[index].creator;
+    }
+    else
+#endif // NCNN_RUNTIME_CPU && NCNN_RVV
     {
         layer_creator = layer_registry[index].creator;
     }
@@ -256,7 +294,7 @@ Layer* create_layer(int index)
     if (!layer_creator)
         return 0;
 
-    Layer* layer = layer_creator();
+    Layer* layer = layer_creator(0);
     layer->typeindex = index;
     return layer;
 }

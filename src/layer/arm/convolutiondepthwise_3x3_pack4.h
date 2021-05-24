@@ -14,10 +14,12 @@
 
 static void convdw3x3s1_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
-    int w = bottom_blob.w;
+#if __aarch64__
+    const int w = bottom_blob.w;
+#endif
 
-    int outw = top_blob.w;
-    int outh = top_blob.h;
+    const int outw = top_blob.w;
+    const int outh = top_blob.h;
 
     const int group = bottom_blob.c;
 
@@ -33,14 +35,12 @@ static void convdw3x3s1_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const 
         const float* k0 = kernel.row(g);
 
         float* outptr0 = out.row(0);
-        float* outptr1 = out.row(1);
 
         const Mat img0 = bottom_blob.channel(g);
 
         const float* r0 = img0.row(0);
         const float* r1 = img0.row(1);
         const float* r2 = img0.row(2);
-        const float* r3 = img0.row(3);
 
         float32x4_t _k00 = vld1q_f32(k0);
         float32x4_t _k01 = vld1q_f32(k0 + 4);
@@ -55,6 +55,9 @@ static void convdw3x3s1_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const 
         int i = 0;
 
 #if __aarch64__
+        float* outptr1 = out.row(1);
+        const float* r3 = img0.row(3);
+
         for (; i + 1 < outh; i += 2)
         {
             int j = 0;

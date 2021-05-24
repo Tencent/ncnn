@@ -19,15 +19,14 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/DialectImplementation.h>
-#include <mlir/IR/Function.h>
 #include <mlir/IR/Location.h>
+#include <mlir/IR/Matchers.h>
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/OpImplementation.h>
 #include <mlir/IR/Operation.h>
 #include <mlir/IR/OperationSupport.h>
 #include <mlir/IR/PatternMatch.h>
-#include <mlir/IR/StandardTypes.h>
 #include <mlir/IR/TypeUtilities.h>
 #include <mlir/IR/Types.h>
 #include <mlir/IR/Value.h>
@@ -179,8 +178,6 @@ Type TensorFlowDialect::parseType(DialectAsmParser& parser) const
     StringRef data;
     if (parser.parseKeyword(&data)) return Type();
 
-    Location loc = parser.getEncodedSourceLoc(parser.getNameLoc());
-
 #define HANDLE_TF_TYPE(tftype, enumerant, name) \
     if (data == name) return tftype##Type::get(getContext());
 // Custom TensorFlow types are handled separately at the end as they do partial
@@ -189,15 +186,25 @@ Type TensorFlowDialect::parseType(DialectAsmParser& parser) const
 // NOLINTNEXTLINE
 #include "tf_types.def"
 
-    if (data.startswith("resource")) return ParseResourceType(parser, loc);
-    if (data.startswith("variant")) return ParseVariantType(parser, loc);
-    return (emitError(loc, "unknown TensorFlow type: " + data), nullptr);
+    llvm::SMLoc loc = parser.getNameLoc();
+    if (data.startswith("resource"))
+    {
+        Type ret = ParseResourceType(parser);
+        if (!ret) parser.emitError(loc, "invalid resource type");
+        return ret;
+    }
+    if (data.startswith("variant"))
+    {
+        Type ret = ParseVariantType(parser);
+        if (!ret) parser.emitError(loc, "invalid variant type");
+        return ret;
+    }
+    return (parser.emitError(loc, "unknown TensorFlow type: " + data), nullptr);
 }
 
 namespace {
 template<typename TypeWithSubtype>
-Type ParseTypeWithSubtype(MLIRContext* context, DialectAsmParser& parser,
-                          Location loc)
+Type ParseTypeWithSubtype(MLIRContext* context, DialectAsmParser& parser)
 {
     // Default type without inferred subtypes.
     if (failed(parser.parseOptionalLess())) return TypeWithSubtype::get(context);
@@ -208,24 +215,31 @@ Type ParseTypeWithSubtype(MLIRContext* context, DialectAsmParser& parser,
     {
         TensorType tensor_ty;
         if (parser.parseType(tensor_ty)) return Type();
+
+        // Each of the subtypes should be a valid TensorFlow type.
+        // TODO(jpienaar): Remove duplication.
+        if (!IsValidTFTensorType(tensor_ty))
+        {
+            parser.emitError(parser.getNameLoc()) << "invalid subtype: " << tensor_ty;
+            return Type();
+        }
         subtypes.push_back(tensor_ty);
     } while (succeeded(parser.parseOptionalComma()));
 
     if (parser.parseGreater()) return Type();
-    return TypeWithSubtype::getChecked(subtypes, context, loc);
+
+    return TypeWithSubtype::get(subtypes, context);
 }
 } // anonymous namespace
 
-Type TensorFlowDialect::ParseResourceType(DialectAsmParser& parser,
-        Location loc) const
+Type TensorFlowDialect::ParseResourceType(DialectAsmParser& parser) const
 {
-    return ParseTypeWithSubtype<ResourceType>(getContext(), parser, loc);
+    return ParseTypeWithSubtype<ResourceType>(getContext(), parser);
 }
 
-Type TensorFlowDialect::ParseVariantType(DialectAsmParser& parser,
-        Location loc) const
+Type TensorFlowDialect::ParseVariantType(DialectAsmParser& parser) const
 {
-    return ParseTypeWithSubtype<VariantType>(getContext(), parser, loc);
+    return ParseTypeWithSubtype<VariantType>(getContext(), parser);
 }
 
 Operation* TensorFlowDialect::materializeConstant(OpBuilder& builder,
@@ -234,9 +248,6 @@ Operation* TensorFlowDialect::materializeConstant(OpBuilder& builder,
 {
     return builder.create<ConstOp>(loc, type, value);
 }
-
-#define GET_OP_CLASSES
-#include "tf_all_ops.cc.inc"
 
 // Builds a constant op with the specified attribute `value`. The result
 // op's type is deduced from `value`; if `value` is of scalar type,
@@ -280,23 +291,6 @@ void ConstOp::build(OpBuilder& builder, OperationState& result, Type type,
     assert(type == result.types[0] && "type mismatch in construction");
 }
 
-LogicalResult ConstOp::inferReturnTypes(
-    MLIRContext* context, Optional<Location> location, ValueRange operands,
-    DictionaryAttr attributes, RegionRange regions,
-    SmallVectorImpl<Type>& inferredReturnTypes)
-{
-    auto value = attributes.get("value");
-    if (!value) return emitOptionalError(location, "missing attribute 'value'");
-    if (auto elem_attr = value.dyn_cast<ElementsAttr>())
-    {
-        inferredReturnTypes.assign({elem_attr.getType()});
-        return success();
-    }
-    return emitOptionalError(location,
-                             "attribute 'value' failed to satisfy constraint: "
-                             "constant vector/tensor");
-}
-
 Region& WhileRegionOp::getLoopBody()
 {
     return body();
@@ -324,3 +318,6 @@ LogicalResult WhileRegionOp::moveOutOfLoop(
 } // namespace TF
 
 } // namespace mlir
+
+#define GET_OP_CLASSES
+#include "tf_all_ops.cc.inc"

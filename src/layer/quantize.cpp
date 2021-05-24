@@ -26,7 +26,16 @@ Quantize::Quantize()
 
 int Quantize::load_param(const ParamDict& pd)
 {
-    scale = pd.get(0, 1.f);
+    scale_data_size = pd.get(0, 1);
+
+    return 0;
+}
+
+int Quantize::load_model(const ModelBin& mb)
+{
+    scale_data = mb.load(scale_data_size, 1);
+    if (scale_data.empty())
+        return -100;
 
     return 0;
 }
@@ -54,10 +63,23 @@ int Quantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         const float* ptr = bottom_blob;
         signed char* outptr = top_blob;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < w; i++)
+        if (scale_data_size == 1)
         {
-            outptr[i] = float2int8(ptr[i] * scale);
+            const float scale = scale_data[0];
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < w; i++)
+            {
+                outptr[i] = float2int8(ptr[i] * scale);
+            }
+        }
+        else
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < w; i++)
+            {
+                outptr[i] = float2int8(ptr[i] * scale_data[i]);
+            }
         }
     }
 
@@ -65,19 +87,23 @@ int Quantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
-        int size = w * h;
 
         top_blob.create(w, h, (size_t)1u, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
-        const float* ptr = bottom_blob;
-        signed char* outptr = top_blob;
-
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < size; i++)
+        for (int i = 0; i < h; i++)
         {
-            outptr[i] = float2int8(ptr[i] * scale);
+            const float* ptr0 = bottom_blob.row(i);
+            signed char* outptr0 = top_blob.row<signed char>(i);
+
+            const float scale = scale_data_size == 1 ? scale_data[0] : scale_data[i];
+
+            for (int j = 0; j < w; j++)
+            {
+                outptr0[j] = float2int8(ptr0[j] * scale);
+            }
         }
     }
 
@@ -97,6 +123,8 @@ int Quantize::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         {
             const float* ptr = bottom_blob.channel(q);
             signed char* outptr = top_blob.channel(q);
+
+            const float scale = scale_data_size == 1 ? scale_data[0] : scale_data[q];
 
             for (int i = 0; i < size; i++)
             {
