@@ -1,4 +1,6 @@
-# step1 create a new empty class
+# how to implement custom layer step by step
+
+## step1 create a new empty class
 ```cpp
 // mylayer.h
 #include "layer.h"
@@ -14,7 +16,7 @@ class MyLayer : public Layer
 DEFINE_LAYER_CREATOR(MyLayer)
 ```
 
-# step2 declare layer parameters and weights
+## step2 declare layer parameters and weights
 ```cpp
 // mylayer.h
 #include "layer.h"
@@ -33,7 +35,7 @@ private:
 DEFINE_LAYER_CREATOR(MyLayer)
 ```
 
-# step3 implement load functions for parameters and weights
+## step3 implement load functions for parameters and weights
 ```cpp
 // mylayer.h
 #include "layer.h"
@@ -88,7 +90,7 @@ int MyLayer::load_model(const ModelBin& mb)
 }
 ```
 
-# step4 determine forward behavior
+## step4 determine forward behavior
 ```cpp
 // mylayer.h
 #include "layer.h"
@@ -157,7 +159,7 @@ int MyLayer::load_model(const ModelBin& mb)
 }
 ```
 
-# step5 choose proper interface based on forward behavior
+## step5 choose proper interface based on forward behavior
 ```cpp
 // The base class Layer defines four interfaces for each forward behavior combination
 
@@ -186,7 +188,7 @@ sometimes the graph inference path cannot call forward_inplace directly due to d
 |true|false| |must| | |
 |true|true| |optional| |must|
 
-# step6 implement forward function
+## step6 implement forward function
 ```cpp
 // mylayer.h
 #include "layer.h"
@@ -298,7 +300,7 @@ int MyLayer::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 }
 ```
 
-# step7 integrate with ncnn library
+## step7 integrate with ncnn library
 you may probably need to modify caffe2ncnn or mxnet2ncnn etc. to write your layer specific parameters and weights into ncnn param and model file
 
 the param and model file structure [param-and-model-file-structure](param-and-model-file-structure)

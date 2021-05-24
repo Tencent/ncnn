@@ -1,3 +1,4 @@
+# operators
 
 * [absval](#absval)
 * [argmax](#argmax)
@@ -66,7 +67,7 @@
 * [threshold](#threshold)
 * [unaryop](#unaryop)
 
-# absval
+## absval
 ```
 y = abs(x)
 ```
@@ -74,7 +75,7 @@ y = abs(x)
 * one_blob_only
 * support_inplace
 
-# argmax
+## argmax
 ```
 y = argmax(x, out_max_val, topk)
 ```
@@ -86,7 +87,7 @@ y = argmax(x, out_max_val, topk)
 | 0         | out_max_val   | int   | 0         |                   |
 | 1         | topk          | int   | 1         |                   |
 
-# batchnorm
+## batchnorm
 ```
 y = (x - mean) / sqrt(var + eps) * slope + bias
 ```
@@ -106,7 +107,7 @@ y = (x - mean) / sqrt(var + eps) * slope + bias
 | var_data      | float | [channels]            |
 | bias_data     | float | [channels]            |
 
-# bias
+## bias
 ```
 y = x + bias
 ```
@@ -122,7 +123,7 @@ y = x + bias
 | ------------- | ----- | --------------------- |
 | bias_data     | float | [channels]            |
 
-# binaryop
+## binaryop
  This operation is used for binary computation, and the calculation rule depends on the [broadcasting rule](https://github.com/Tencent/ncnn/wiki/binaryop-broadcasting).
 ```
 C = binaryop(A, B)
@@ -148,7 +149,7 @@ Operation type:
 - 7 = RSUB
 - 8 = RDIV
 
-# bnll
+## bnll
 ```
 y = log(1 + e^(-x)) , x > 0
 y = log(1 + e^x),     x < 0
@@ -157,7 +158,7 @@ y = log(1 + e^x),     x < 0
 * one_blob_only
 * support_inplace
 
-# cast
+## cast
 ```
 y = cast(x)
 ```
@@ -177,7 +178,7 @@ Element type:
 - 3 = int8
 - 4 = bfloat16
 
-# clip
+## clip
 ```
 y = clamp(x, min, max)
 ```
@@ -190,7 +191,7 @@ y = clamp(x, min, max)
 | 0         | min           | float | -FLT_MAX  |                   |
 | 1         | max           | float | FLT_MAX   |                   |
 
-# concat
+## concat
 ```
 y = concat(x0, x1, x2, ...) by axis
 ```
@@ -199,7 +200,7 @@ y = concat(x0, x1, x2, ...) by axis
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | axis          | int   | 0         |                   |
 
-# convolution
+## convolution
 ```
 x2 = pad(x, pads, pad_value)
 x3 = conv(x2, weight, kernel, stride, dilation) + bias
@@ -236,7 +237,7 @@ y = activation(x3, act_type, act_params)
 | bottom_blob_int8_scales| float | [1]          |
 | top_blob_int8_scales| float | [1]             |
 
-# convolutiondepthwise
+## convolutiondepthwise
 ```
 x2 = pad(x, pads, pad_value)
 x3 = conv(x2, weight, kernel, stride, dilation, group) + bias
@@ -274,7 +275,7 @@ y = activation(x3, act_type, act_params)
 | bottom_blob_int8_scales| float | [1]          |
 | top_blob_int8_scales| float | [1]             |
 
-# crop
+## crop
 ```
 y = crop(x)
 ```
@@ -365,7 +366,7 @@ y = activation(x3, act_type, act_params)
 | weight_data   | float/fp16/int8 | [kernel_w, kernel_h, num_input / group, num_output / group, group] |
 | bias_data     | float | [num_output]          |
 
-# dequantize
+## dequantize
 ```
 y = x * scale + bias
 ```
@@ -680,7 +681,7 @@ Region type:
 - 0 = ACROSS_CHANNELS
 - 1 = WITHIN_CHANNEL
 
-# lstm
+## lstm
 Apply a single-layer LSTM to a feature sequence of `T` timesteps. The input blob shape is `[w=input_size, h=T]` and the output blob shape is `[w=num_output, h=T]`.
 
 ```
@@ -1125,7 +1126,7 @@ if reverse == 1     y = shufflechannel(x) by channel / group
 | 0         | group         | int  | 1         |                   |
 | 1         | reverse       | int  | 0         |                   |
 
-# sigmoid
+## sigmoid
 ```
 y = 1 / (1 + exp(-x))
 ```
@@ -1177,7 +1178,7 @@ y = x / (1 + exp(-x))
 * one_blob_only
 * support_inplace
 
-# tanh
+## tanh
 ```
 y = tanh(x)
 ```

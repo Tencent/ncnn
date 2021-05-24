@@ -1,3 +1,5 @@
+# arm a53 a55 dual issue
+
 ## natural assembly
 * no register dependency, no penalty
 ```

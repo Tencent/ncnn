@@ -1,3 +1,5 @@
+# element packing
+
 ### what is packing and why
 
 packing is the form of storing multiple short-sized values as one long-sized value.

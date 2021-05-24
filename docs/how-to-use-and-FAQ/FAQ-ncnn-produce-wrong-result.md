@@ -1,3 +1,5 @@
+# FAQ ncnn produce wrong result
+
 ### caffemodel should be row-major
 
 `caffe2ncnn` tool assumes the caffemodel is row-major (produced by c++ caffe train command).

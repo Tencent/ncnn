@@ -1,4 +1,4 @@
-### 如何提交代码
+# how to be a contributor
 
 #### 一、fork 分支
 在浏览器中打开 [ncnn](https://github.com/tencent/ncnn), `fork` 到自己的 repositories，例如

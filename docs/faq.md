@@ -1,12 +1,12 @@
+# faq
 
+## 如何加入技术交流QQ群？
 
-# 如何加入技术交流QQ群？
-
-# 如何看作者b站直播？
+## 如何看作者b站直播？
    
 - nihui的bilibili直播间：[水竹院落](https://live.bilibili.com/1264617)
 
-# 编译
+## 编译
 
 - ## 怎样下载完整源码？
 
@@ -106,7 +106,7 @@
    - 尝试升级 Android Studio 的 NDK 版本
 
 
-# 怎样添加ncnn库到项目中？cmake方式怎么用？
+## 怎样添加ncnn库到项目中？cmake方式怎么用？
 
 编译ncnn，make install。linux/windows set/export ncnn_DIR 指向 isntall目录下下包含ncnnConfig.cmake 的目录
 
@@ -123,7 +123,7 @@
 - ## arm linux
 
 
-# 转模型问题
+## 转模型问题
 
 - ## caffe
 
@@ -200,7 +200,7 @@
    ONNX_ATEN_FALLBACK
 完全自定义的op，先改成能导出的（如 concat slice），转到 ncnn 后再修改 param
 
-# 使用
+## 使用
 
 - ## vkEnumeratePhysicalDevices failed -3
 
@@ -426,7 +426,7 @@ net.register_custom_layer("MAERegressionOutput", Noop_layer_creator);
     
       reference: https://stackoverflow.com/questions/34439956/vc-crash-when-freeing-a-dll-built-with-openmp
 
-# 跑出来的结果对不上
+## 跑出来的结果对不上
 
 [ncnn-produce-wrong-result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result)
 
@@ -540,7 +540,7 @@ void visualize(const char* title, const ncnn::Mat& m)
    [ncnn-produce-wrong-result](https://github.com/Tencent/ncnn/wiki/FAQ-ncnn-produce-wrong-result)
 
 
-# 如何跑得更快？内存占用更少？库体积更小？
+## 如何跑得更快？内存占用更少？库体积更小？
 
 - ## fp32 fp16
 
@@ -624,11 +624,11 @@ net.opt.use_bf16_storage = true;
 
    对内存消耗的影响
 
-# 白嫖项目
+## 白嫖项目
 
 - ## nanodet
 
-# 其他
+## 其他
 
 - ## up主用的什么系统/编辑器/开发环境？
 
