@@ -1,8 +1,8 @@
 name: release-python
 on:
   push:
-    tags:
-      - '*'
+    branches: [master]
+    paths-ignore: ['**.md']
 
 jobs:
   build_sdist:
