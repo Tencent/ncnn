@@ -75,10 +75,9 @@ jobs:
         path: wheelhouse/*.whl
 
   upload_all:
-    name: Upload if release
+    name: Upload
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'published'
 
     steps:
     - uses: actions/setup-python@v2
