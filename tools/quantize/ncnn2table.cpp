@@ -1267,7 +1267,7 @@ static std::vector<std::vector<std::string> > parse_comma_path_list(char* s)
     return aps;
 }
 
-static float vstr_to_float(const char vstr[16])
+static float vstr_to_float(const char vstr[20])
 {
     double v = 0.0;
 
@@ -1281,7 +1281,7 @@ static float vstr_to_float(const char vstr[16])
     }
 
     // digits before decimal point or exponent
-    unsigned int v1 = 0;
+    uint64_t v1 = 0;
     while (isdigit(*p))
     {
         v1 = v1 * 10 + (*p - '0');
@@ -1295,8 +1295,8 @@ static float vstr_to_float(const char vstr[16])
     {
         p++;
 
-        unsigned int pow10 = 1;
-        unsigned int v2 = 0;
+        uint64_t pow10 = 1;
+        uint64_t v2 = 0;
 
         while (isdigit(*p))
         {
@@ -1321,7 +1321,7 @@ static float vstr_to_float(const char vstr[16])
         }
 
         // digits of exponent
-        unsigned int expon = 0;
+        uint64_t expon = 0;
         while (isdigit(*p))
         {
             expon = expon * 10 + (*p - '0');
@@ -1355,9 +1355,9 @@ static std::vector<std::vector<float> > parse_comma_float_array_list(char* s)
     while (pch != NULL)
     {
         // parse a,b,c
-        char vstr[16];
+        char vstr[20];
         int nconsumed = 0;
-        int nscan = sscanf(pch, "%15[^,]%n", vstr, &nconsumed);
+        int nscan = sscanf(pch, "%19[^,]%n", vstr, &nconsumed);
         if (nscan == 1)
         {
             // ok we get array
@@ -1367,7 +1367,7 @@ static std::vector<std::vector<float> > parse_comma_float_array_list(char* s)
             float v = vstr_to_float(vstr);
             af.push_back(v);
 
-            nscan = sscanf(pch, ",%15[^,]%n", vstr, &nconsumed);
+            nscan = sscanf(pch, ",%19[^,]%n", vstr, &nconsumed);
             while (nscan == 1)
             {
                 pch += nconsumed;
@@ -1375,7 +1375,7 @@ static std::vector<std::vector<float> > parse_comma_float_array_list(char* s)
                 float v = vstr_to_float(vstr);
                 af.push_back(v);
 
-                nscan = sscanf(pch, ",%15[^,]%n", vstr, &nconsumed);
+                nscan = sscanf(pch, ",%19[^,]%n", vstr, &nconsumed);
             }
 
             // array end
