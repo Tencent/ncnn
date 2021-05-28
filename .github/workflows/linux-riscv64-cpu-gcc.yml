@@ -18,7 +18,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.5
+      uses: actions/cache@v2.1.6
       with:
         path: qemu-install
         key: qemu-riscv64-install-1
@@ -65,7 +65,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.5
+      uses: actions/cache@v2.1.6
       with:
         path: qemu-install
         key: qemu-riscv64-rvv-install-20210504
@@ -101,7 +101,7 @@ jobs:
 
     - name: cache-riscv
       id: cache-riscv
-      uses: actions/cache@v2.1.5
+      uses: actions/cache@v2.1.6
       with:
         path: rv64gcv-install
         key: rv64gcv-linux-install-20210504

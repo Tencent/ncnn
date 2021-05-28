@@ -26,7 +26,7 @@ jobs:
       run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v2.1.5
+      uses: actions/cache@v2.1.6
       with:
         path: "1.2.148.1"
         key: vulkansdk-linux-x86_64-1.2.148.1
@@ -39,7 +39,7 @@ jobs:
         find 1.2.148.1 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v2.1.5
+      uses: actions/cache@v2.1.6
       with:
         path: swiftshader-install
         key: swiftshader-linux-install-20200508

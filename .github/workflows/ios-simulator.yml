@@ -19,7 +19,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v2.1.5
+      uses: actions/cache@v2.1.6
       with:
         path: openmp-install
         key: openmp-ios-simulator-install-20201213
