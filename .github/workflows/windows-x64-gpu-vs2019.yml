@@ -19,7 +19,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v2.1.5
+      uses: actions/cache@v2.1.6
       with:
         path: "protobuf-install"
         key: protobuf-windows-install
@@ -34,7 +34,7 @@ jobs:
         cmake --build . --config Release --target install
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v2.1.5
+      uses: actions/cache@v2.1.6
       with:
         path: "VulkanSDK"
         key: VulkanSDK-1.1.114.0-Installer
@@ -46,7 +46,7 @@ jobs:
         Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\glslang, .\VulkanSDK\Samples, .\VulkanSDK\shaderc, .\VulkanSDK\spirv-tools, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v2.1.5
+      uses: actions/cache@v2.1.6
       with:
         path: swiftshader-install
         key: swiftshader-windows-install-20200508
