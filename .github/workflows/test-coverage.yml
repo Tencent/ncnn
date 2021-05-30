@@ -49,7 +49,7 @@ jobs:
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
         cd swiftshader
-        git submodule update --init --recursive
+        git -c submodule."third_party/git-hooks".update=none submodule update --init --recursive
     - name: swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
