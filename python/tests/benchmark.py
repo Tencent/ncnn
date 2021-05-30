@@ -51,6 +51,9 @@ def benchmark(comment, _in, opt):
     dr = ncnn.DataReaderFromEmpty()
     net.load_model(dr)
 
+    input_names = net.input_names()
+    output_names = net.output_names()
+
     if g_enable_cooling_down:
         time.sleep(10)
 
@@ -58,8 +61,8 @@ def benchmark(comment, _in, opt):
     for i in range(g_warmup_loop_count):
         # test with statement
         with net.create_extractor() as ex:
-            ex.input("data", _in)
-            ex.extract("output")
+            ex.input(input_names[0], _in)
+            ex.extract(output_names[0])
 
     time_min = sys.float_info.max
     time_max = -sys.float_info.max
@@ -70,8 +73,8 @@ def benchmark(comment, _in, opt):
 
         # test net keep alive until ex freed
         ex = net.create_extractor()
-        ex.input("data", _in)
-        ex.extract("output")
+        ex.input(input_names[0], _in)
+        ex.extract(output_names[0])
 
         end = time.time()
 

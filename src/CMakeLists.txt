@@ -27,6 +27,7 @@ set(ncnn_SRCS
     mat.cpp
     mat_pixel.cpp
     mat_pixel_affine.cpp
+    mat_pixel_drawing.cpp
     mat_pixel_resize.cpp
     mat_pixel_rotate.cpp
     modelbin.cpp
@@ -154,6 +155,8 @@ configure_file(layer_declaration.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_declarat
 configure_file(layer_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h)
 configure_file(layer_registry_avx2.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry_avx2.h)
 configure_file(layer_registry_arm82.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry_arm82.h)
+configure_file(layer_registry_arm82dot.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry_arm82dot.h)
+configure_file(layer_registry_rvv.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry_rvv.h)
 configure_file(layer_type_enum.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h)
 configure_file(layer_shader_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h)
 configure_file(layer_shader_spv_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_spv_data.h)
@@ -344,8 +347,22 @@ if(NCNN_TARGET_ARCH STREQUAL "x86")
 endif()
 
 if(((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)")))
-    if (NOT NCNN_RUNTIME_CPU AND NCNN_ARM82)
-        target_compile_options(ncnn PRIVATE -march=armv8.2-a+fp16)
+    if(NOT NCNN_RUNTIME_CPU AND NCNN_ARM82)
+        if(NCNN_ARM82DOT)
+            target_compile_options(ncnn PRIVATE -march=armv8.2-a+fp16+dotprod)
+        else()
+            target_compile_options(ncnn PRIVATE -march=armv8.2-a+fp16)
+        endif()
+    endif()
+endif()
+
+if(NCNN_TARGET_ARCH STREQUAL "riscv" AND NOT C906)
+    if(NOT NCNN_RUNTIME_CPU AND NCNN_RVV)
+        if(NCNN_COMPILER_SUPPORT_RVV_FP16)
+            target_compile_options(ncnn PRIVATE -march=rv64gcv_zfh)
+        elseif(NCNN_COMPILER_SUPPORT_RVV)
+            target_compile_options(ncnn PRIVATE -march=rv64gcv)
+        endif()
     endif()
 endif()
 

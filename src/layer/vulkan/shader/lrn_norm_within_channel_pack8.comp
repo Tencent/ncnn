@@ -76,15 +76,15 @@ void main()
 
     // support region_type == 1 only
 
-    afpvec8 sum = afpvec8(afpvec4(0.f), afpvec4(0.f));
+    mat2x4 sum = mat2x4(0.f);
 
 #if NCNN_image_shader
     for (int y = 0; y < local_size; y++)
     {
         for (int x = 0; x < local_size; x++)
         {
-            sum[0] += afpvec4(texelFetch(square_workspace, ivec3((gx + x) * 2, gy + y, gz), 0));
-            sum[1] += afpvec4(texelFetch(square_workspace, ivec3((gx + x) * 2 + 1, gy + y, gz), 0));
+            sum[0] += texelFetch(square_workspace, ivec3((gx + x) * 2, gy + y, gz), 0);
+            sum[1] += texelFetch(square_workspace, ivec3((gx + x) * 2 + 1, gy + y, gz), 0);
         }
     }
 #else
@@ -94,17 +94,17 @@ void main()
     {
         for (int x = 0; x < local_size; x++)
         {
-            sum += afpvec8(square_workspace_data[v_offset + x]);
+            sum += square_workspace_data[v_offset + x];
         }
 
         v_offset += psc(w);
     }
 #endif
 
-    const afp alpha_div_size = afp(alpha / (local_size * local_size));
+    const float alpha_div_size = alpha / (local_size * local_size);
     afpvec8 scale;
-    scale[0] = pow(afp(bias_constant) + alpha_div_size * sum[0], afpvec4(-beta));
-    scale[1] = pow(afp(bias_constant) + alpha_div_size * sum[1], afpvec4(-beta));
+    scale[0] = afpvec4(pow(bias_constant + alpha_div_size * sum[0], vec4(-beta)));
+    scale[1] = afpvec4(pow(bias_constant + alpha_div_size * sum[1], vec4(-beta)));
 
 #if NCNN_image_shader
     afpvec8 v = image3d_ld8(bottom_blob, ivec3(gx, gy, gz));

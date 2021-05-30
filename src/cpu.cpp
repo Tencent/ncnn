@@ -90,8 +90,7 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv()
 
 #define AT_HWCAP  16
 #define AT_HWCAP2 26
-#if __aarch64__
-
+#if __aarch64__ || __riscv_xlen == 64
     struct
     {
         uint64_t tag;
@@ -134,10 +133,16 @@ static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
 // from arch/arm64/include/uapi/asm/hwcap.h
 #define HWCAP_ASIMD   (1 << 1)
 #define HWCAP_ASIMDHP (1 << 10)
+#define HWCAP_ASIMDDP (1 << 20)
 #else
 // from arch/arm/include/uapi/asm/hwcap.h
 #define HWCAP_NEON  (1 << 12)
 #define HWCAP_VFPv4 (1 << 16)
+#endif
+
+#if __riscv
+// from arch/riscv/include/uapi/asm/hwcap.h
+#define COMPAT_HWCAP_ISA_V (1 << ('V' - 'A'))
 #endif
 
 #endif // defined __ANDROID__ || defined __linux__
@@ -332,6 +337,25 @@ int cpu_support_arm_asimdhp()
 #endif
 }
 
+int cpu_support_arm_asimddp()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps & HWCAP_ASIMDDP;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
 int cpu_support_x86_avx2()
 {
 #if (_M_AMD64 || __x86_64__) || (_M_IX86 || __i386__)
@@ -368,6 +392,64 @@ int cpu_support_x86_avx2()
     NCNN_LOGE("AVX2 detection method is unknown for current compiler");
     return 0;
 #endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_riscv_v()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    return g_hwcaps & COMPAT_HWCAP_ISA_V;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_riscv_zfh()
+{
+#if __riscv
+#if __riscv_zfh
+    // https://github.com/riscv/riscv-zfinx/blob/master/Zfinx_spec.adoc#5-discovery
+    __fp16 a = 0;
+    asm volatile(
+        "fneg.h     %0, %0  \n"
+        : "=f"(a)
+        : "0"(a)
+        :);
+    union
+    {
+        __fp16 a;
+        unsigned short u;
+    } tmp;
+    tmp.a = a;
+    return tmp.u != 0 ? 1 : 0;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_riscv_vlenb()
+{
+#if __riscv
+    if (!cpu_support_riscv_v())
+        return 0;
+
+    int a = 0;
+    asm volatile(
+        ".word  0xc22026f3  \n" // csrr  a3, vlenb
+        "mv     %0, a3      \n"
+        : "=r"(a)
+        :
+        : "memory", "a3");
+    return a;
 #else
     return 0;
 #endif

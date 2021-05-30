@@ -35,7 +35,12 @@ int InnerProduct::load_param(const ParamDict& pd)
 
     if (int8_scale_term)
     {
+#if NCNN_INT8
         support_int8_storage = true;
+#else
+        NCNN_LOGE("please build ncnn with NCNN_INT8 enabled for int8 inference");
+        return -1;
+#endif
     }
 
     return 0;
@@ -54,17 +59,20 @@ int InnerProduct::load_model(const ModelBin& mb)
             return -100;
     }
 
+#if NCNN_INT8
     if (int8_scale_term)
     {
         weight_data_int8_scales = mb.load(num_output, 1);
         bottom_blob_int8_scales = mb.load(1, 1);
     }
+#endif // NCNN_INT8
 
     return 0;
 }
 
 int InnerProduct::create_pipeline(const Option& opt)
 {
+#if NCNN_INT8
     // runtime quantize the weight data
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)4u && int8_scale_term)
     {
@@ -81,16 +89,19 @@ int InnerProduct::create_pipeline(const Option& opt)
 
         weight_data = weight_data_int8.reshape(weight_data_size);
     }
+#endif // NCNN_INT8
 
     return 0;
 }
 
 int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return forward_int8(bottom_blob, top_blob, opt);
     }
+#endif
 
     const int num_input = weight_data_size / num_output;
 
@@ -185,6 +196,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 sum += m[i] * w[i];
             }
         }
+
         if (activation_type == 1)
         {
             sum = std::max(sum, 0.f);
@@ -218,6 +230,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     return 0;
 }
 
+#if NCNN_INT8
 int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int num_input = weight_data_size / num_output;
@@ -277,6 +290,28 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
                 {
                     sumfp32 = std::max(sumfp32, 0.f);
                 }
+                else if (activation_type == 2)
+                {
+                    float slope = activation_params[0];
+                    sumfp32 = sumfp32 > 0.f ? sumfp32 : sumfp32 * slope;
+                }
+                else if (activation_type == 3)
+                {
+                    float min = activation_params[0];
+                    float max = activation_params[1];
+                    if (sumfp32 < min)
+                        sumfp32 = min;
+                    if (sumfp32 > max)
+                        sumfp32 = max;
+                }
+                else if (activation_type == 4)
+                {
+                    sumfp32 = static_cast<float>(1.f / (1.f + exp(-sumfp32)));
+                }
+                else if (activation_type == 5)
+                {
+                    sumfp32 = static_cast<float>(sumfp32 * tanh(log(exp(sumfp32) + 1.f)));
+                }
 
                 outptr[p] = sumfp32;
             }
@@ -326,11 +361,34 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         {
             sumfp32 = std::max(sumfp32, 0.f);
         }
+        else if (activation_type == 2)
+        {
+            float slope = activation_params[0];
+            sumfp32 = sumfp32 > 0.f ? sumfp32 : sumfp32 * slope;
+        }
+        else if (activation_type == 3)
+        {
+            float min = activation_params[0];
+            float max = activation_params[1];
+            if (sumfp32 < min)
+                sumfp32 = min;
+            if (sumfp32 > max)
+                sumfp32 = max;
+        }
+        else if (activation_type == 4)
+        {
+            sumfp32 = static_cast<float>(1.f / (1.f + exp(-sumfp32)));
+        }
+        else if (activation_type == 5)
+        {
+            sumfp32 = static_cast<float>(sumfp32 * tanh(log(exp(sumfp32) + 1.f)));
+        }
 
         outptr[p] = sumfp32;
     }
 
     return 0;
 }
+#endif // NCNN_INT8
 
 } // namespace ncnn

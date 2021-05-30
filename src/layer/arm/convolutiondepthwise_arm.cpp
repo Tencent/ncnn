@@ -26,14 +26,22 @@
 namespace ncnn {
 
 #include "convolutiondepthwise_3x3.h"
-#include "convolutiondepthwise_3x3_int8.h"
 #include "convolutiondepthwise_5x5.h"
+
+#if NCNN_INT8
+#include "convolutiondepthwise_3x3_int8.h"
+#endif // NCNN_INT8
 
 #if __ARM_NEON
 #include "convolutiondepthwise_3x3_pack4.h"
 #include "convolutiondepthwise_3x3_pack4_bf16s.h"
 #include "convolutiondepthwise_5x5_pack4.h"
 #include "convolutiondepthwise_5x5_pack4_bf16s.h"
+
+#if NCNN_INT8
+#include "convolutiondepthwise_3x3_pack8_int8.h"
+#endif // NCNN_INT8
+
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "convolutiondepthwise_3x3_fp16s.h"
 #include "convolutiondepthwise_3x3_pack8_fp16s.h"
@@ -101,10 +109,12 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
         activation->create_pipeline(opt);
     }
 
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return create_pipeline_int8_arm(opt);
     }
+#endif
 
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
@@ -266,6 +276,7 @@ int ConvolutionDepthWise_arm::create_group_ops(const Option& opt)
             weights[0] = weight_data_g;
             weights[1] = bias_data_g;
 
+#if NCNN_INT8
             if (int8_scale_term)
             {
                 Mat weight_data_int8_scales_g(num_output_g);
@@ -277,6 +288,7 @@ int ConvolutionDepthWise_arm::create_group_ops(const Option& opt)
             {
                 weights[4] = top_blob_int8_scales.range(g, 1);
             }
+#endif
 
             op->load_model(ModelBinFromMatArray(weights));
         }
@@ -285,6 +297,7 @@ int ConvolutionDepthWise_arm::create_group_ops(const Option& opt)
             ncnn::Mat weights[4];
             weights[0] = weight_data_g;
 
+#if NCNN_INT8
             if (int8_scale_term)
             {
                 Mat weight_data_int8_scales_g(num_output_g);
@@ -296,6 +309,7 @@ int ConvolutionDepthWise_arm::create_group_ops(const Option& opt)
             {
                 weights[3] = top_blob_int8_scales.range(g, 1);
             }
+#endif
 
             op->load_model(ModelBinFromMatArray(weights));
         }
@@ -329,13 +343,12 @@ int ConvolutionDepthWise_arm::destroy_pipeline(const Option& opt)
 
 int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    // convolv with NxN kernel
-    // value = value + bias
-
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return forward_int8_arm(bottom_blob, top_blob, opt);
     }
+#endif
 
     int elembits = bottom_blob.elembits();
 
@@ -1444,6 +1457,7 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
     return 0;
 }
 
+#if NCNN_INT8
 int ConvolutionDepthWise_arm::create_pipeline_int8_arm(const Option& opt)
 {
     const int maxk = kernel_w * kernel_h;
@@ -1524,31 +1538,31 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
 
-    int out_elempack = 1;
-#if __ARM_NEON
-    if (opt.use_packing_layout)
-    {
-        out_elempack = num_output % 8 == 0 ? 8 : 1;
-    }
-#endif // __ARM_NEON
-    bool use_int8_requantize = int8_scale_term > 100;
-    size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage)
-    {
-        out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
-    }
-#endif
-    if (opt.use_bf16_storage)
-        out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
-
-    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
     // depth-wise
     if (channels * elempack == group && group == num_output)
     {
+        int out_elempack = 1;
+#if __ARM_NEON
+        if (opt.use_packing_layout)
+        {
+            out_elempack = num_output % 8 == 0 ? 8 : 1;
+        }
+#endif // __ARM_NEON
+        bool use_int8_requantize = int8_scale_term > 100;
+        size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+        if (opt.use_fp16_storage)
+        {
+            out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+        }
+#endif
+        if (opt.use_bf16_storage)
+            out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+
+        top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
         // TODO use fp16 / bf16
         out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
         top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -1558,6 +1572,79 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
 #if __ARM_NEON
         if (elempack == 8)
         {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (activation_type == 0 || activation_type == 1))
+            {
+                Mat top_blob_int32;
+                top_blob_int32.create(outw, outh, num_output / out_elempack, (size_t)4u * out_elempack, out_elempack, opt.workspace_allocator);
+                if (top_blob_int32.empty())
+                    return -100;
+
+                convdw3x3s1_pack8_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data_int8, opt);
+
+                Mat scale_in_data(group);
+                for (int g = 0; g < group; g++)
+                {
+                    // dequantize
+                    float scale_in;
+                    if (weight_data_int8_scales[g] == 0)
+                        scale_in = 0;
+                    else
+                        scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+                    scale_in_data[g] = scale_in;
+                }
+
+                if (use_int8_requantize)
+                {
+                    requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
+                }
+                else
+                {
+                    dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
+
+                    if (activation)
+                    {
+                        activation->forward_inplace(top_blob, opt);
+                    }
+                }
+            }
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2 && (activation_type == 0 || activation_type == 1))
+            {
+                Mat top_blob_int32;
+                top_blob_int32.create(outw, outh, num_output / out_elempack, (size_t)4u * out_elempack, out_elempack, opt.workspace_allocator);
+                if (top_blob_int32.empty())
+                    return -100;
+
+                convdw3x3s2_pack8_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data_int8, opt);
+
+                Mat scale_in_data(group);
+                for (int g = 0; g < group; g++)
+                {
+                    // dequantize
+                    float scale_in;
+                    if (weight_data_int8_scales[g] == 0)
+                        scale_in = 0;
+                    else
+                        scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+                    scale_in_data[g] = scale_in;
+                }
+
+                if (use_int8_requantize)
+                {
+                    requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
+                }
+                else
+                {
+                    dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
+
+                    if (activation)
+                    {
+                        activation->forward_inplace(top_blob, opt);
+                    }
+                }
+            }
+            else
             {
                 const int maxk = kernel_w * kernel_h;
 
@@ -1847,6 +1934,28 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
         return 0;
     }
 
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif // __ARM_NEON
+    bool use_int8_requantize = int8_scale_term > 100;
+    size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (opt.use_fp16_storage)
+    {
+        out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+    }
+#endif
+    if (opt.use_bf16_storage)
+        out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
     // group convolution
     const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
@@ -1857,7 +1966,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
     if (opt.use_packing_layout)
     {
         g_elempack = channels_g % 8 == 0 ? 8 : 1;
-        out_g_elempack = num_output_g % 8 == 0 ? 8 : 1;
+        out_g_elempack = num_output_g % 4 == 0 ? 4 : 1;
     }
 #endif // __ARM_NEON
 
@@ -1905,5 +2014,6 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
 
     return 0;
 }
+#endif // NCNN_INT8
 
 } // namespace ncnn

@@ -36,7 +36,9 @@ namespace ncnn {
 #endif
 #endif // __SSE2__
 #include "convolutiondepthwise_3x3.h"
+#if NCNN_INT8
 #include "convolutiondepthwise_3x3_int8.h"
+#endif // NCNN_INT8
 
 ConvolutionDepthWise_x86::ConvolutionDepthWise_x86()
 {
@@ -102,10 +104,12 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
         activation->create_pipeline(opt);
     }
 
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return create_pipeline_int8_x86(opt);
     }
+#endif
 
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
@@ -235,6 +239,7 @@ int ConvolutionDepthWise_x86::create_group_ops(const Option& opt)
             weights[0] = weight_data_g;
             weights[1] = bias_data_g;
 
+#if NCNN_INT8
             if (int8_scale_term)
             {
                 Mat weight_data_int8_scales_g(num_output_g);
@@ -246,6 +251,7 @@ int ConvolutionDepthWise_x86::create_group_ops(const Option& opt)
             {
                 weights[4] = top_blob_int8_scales.range(g, 1);
             }
+#endif
 
             op->load_model(ModelBinFromMatArray(weights));
         }
@@ -254,6 +260,7 @@ int ConvolutionDepthWise_x86::create_group_ops(const Option& opt)
             ncnn::Mat weights[4];
             weights[0] = weight_data_g;
 
+#if NCNN_INT8
             if (int8_scale_term)
             {
                 Mat weight_data_int8_scales_g(num_output_g);
@@ -265,6 +272,7 @@ int ConvolutionDepthWise_x86::create_group_ops(const Option& opt)
             {
                 weights[3] = top_blob_int8_scales.range(g, 1);
             }
+#endif
 
             op->load_model(ModelBinFromMatArray(weights));
         }
@@ -298,13 +306,12 @@ int ConvolutionDepthWise_x86::destroy_pipeline(const Option& opt)
 
 int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    // convolv with NxN kernel
-    // value = value + bias
-
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return forward_int8_x86(bottom_blob, top_blob, opt);
     }
+#endif
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -628,6 +635,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     return 0;
 }
 
+#if NCNN_INT8
 int ConvolutionDepthWise_x86::create_pipeline_int8_x86(const Option& opt)
 {
     const int maxk = kernel_w * kernel_h;
@@ -708,23 +716,23 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
 
-    int out_elempack = 1;
-#if __SSE2__
-    if (opt.use_packing_layout)
-    {
-        out_elempack = num_output % 8 == 0 ? 8 : 1;
-    }
-#endif // __SSE2__
-    bool use_int8_requantize = int8_scale_term > 100;
-    size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
-
-    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
     // depth-wise
     if (channels * elempack == group && group == num_output)
     {
+        int out_elempack = 1;
+#if __SSE2__
+        if (opt.use_packing_layout)
+        {
+            out_elempack = num_output % 8 == 0 ? 8 : 1;
+        }
+#endif // __SSE2__
+        bool use_int8_requantize = int8_scale_term > 100;
+        size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+
+        top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
 #if __SSE2__
         if (elempack == 8)
         {
@@ -822,7 +830,7 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
                                 __m128 _scale_out1 = _mm_loadu_ps((const float*)top_blob_int8_scales + g * 8 + 4);
                                 _sumfp32_0 = _mm_mul_ps(_sumfp32_0, _scale_out0);
                                 _sumfp32_1 = _mm_mul_ps(_sumfp32_1, _scale_out1);
-                                int64_t _sum8 = float2int8(_sumfp32_0, _sumfp32_1);
+                                int64_t _sum8 = float2int8_sse(_sumfp32_0, _sumfp32_1);
 
                                 *(int64_t*)outptr_s8 = _sum8;
                                 outptr_s8 += 8;
@@ -1003,6 +1011,20 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
         return 0;
     }
 
+    int out_elempack = 1;
+#if __SSE2__
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif // __SSE2__
+    bool use_int8_requantize = int8_scale_term > 100;
+    size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
     // group convolution
     const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
@@ -1013,7 +1035,7 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
     if (opt.use_packing_layout)
     {
         g_elempack = channels_g % 8 == 0 ? 8 : 1;
-        out_g_elempack = num_output_g % 8 == 0 ? 8 : 1;
+        out_g_elempack = num_output_g % 4 == 0 ? 4 : 1;
     }
 #endif // __SSE2__
 
@@ -1061,5 +1083,6 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
 
     return 0;
 }
+#endif // NCNN_INT8
 
 } // namespace ncnn

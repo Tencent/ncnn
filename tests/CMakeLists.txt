@@ -30,6 +30,10 @@ if(NCNN_PIXEL_AFFINE)
     ncnn_add_test(mat_pixel_affine)
 endif()
 
+if(NCNN_PIXEL_DRAWING)
+    ncnn_add_test(mat_pixel_drawing)
+endif()
+
 if(NCNN_PIXEL_ROTATE)
     ncnn_add_test(mat_pixel_rotate)
 endif()

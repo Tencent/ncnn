@@ -114,6 +114,10 @@ static int test_convolution_0()
     }
 
     return 0
+           || test_convolution(7, 5, 1, 4, 3, 1, 1, 1, 1)
+           || test_convolution(14, 5, 1, 4, 3, 1, 2, 1, 1)
+           || test_convolution(15, 11, 4, 4, 3, 1, 1, 1, 1)
+           || test_convolution(15, 11, 8, 8, 3, 1, 1, 1, 1)
            || test_convolution(11, 11, 8, 16, 3, 1, 1, 1, 1)
            || test_convolution(13, 16, 16, 24, 3, 1, 1, 1, 1)
            || test_convolution(8, 8, 16, 24, 3, 1, 1, 1, 0)
@@ -171,6 +175,7 @@ static int test_convolution_2()
            || test_convolution_vec(64, 128, 1, 1, 1, 0, 0);
 }
 
+#if NCNN_INT8
 static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, bool requant = false)
 {
     ncnn::Mat a = RandomMat(w, h, c);
@@ -290,18 +295,28 @@ static int test_convolution_1()
     }
 
     return 0
+           || test_convolution_int8(11, 11, 8, 16, 3, 1, 1, 1, 1)
            || test_convolution_int8(13, 16, 16, 24, 3, 1, 1, 1, 1)
            || test_convolution_int8(8, 8, 16, 24, 3, 1, 1, 1, 0)
            || test_convolution_int8(4, 8, 16, 24, 3, 1, 1, 1, 1)
            || test_convolution_int8(4, 20, 16, 24, 3, 1, 1, 1, 0)
-           || test_convolution_int8(6, 7, 64, 64, 3, 1, 2, 0, 1);
+           || test_convolution_int8(6, 7, 64, 64, 3, 1, 2, 0, 1)
+           || test_convolution_int8(25, 33, 16, 15, 3, 1, 1, 1, 0);
 }
+#endif // NCNN_INT8
 
 int main()
 {
     SRAND(7767517);
+
+#if NCNN_INT8
     return 0
            || test_convolution_0()
            || test_convolution_1()
            || test_convolution_2();
+#else
+    return 0
+           || test_convolution_0()
+           || test_convolution_2();
+#endif
 }
