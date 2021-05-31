@@ -298,6 +298,21 @@ int ModelWriter::shape_inference()
     const size_t layer_count = layers.size();
     const size_t blob_count = blobs.size();
 
+    // recreate layer pipeline for param and weight changes
+    for (size_t i = 0; i < layer_count; i++)
+    {
+        ncnn::Layer* layer = layers[i];
+
+        layer->destroy_pipeline(opt);
+
+        int cret = layer->create_pipeline(opt);
+        if (cret != 0)
+        {
+            NCNN_LOGE("layer create_pipeline %d %s failed", (int)i, layer->name.c_str());
+            return -1;
+        }
+    }
+
     ncnn::Extractor ex = create_extractor();
 
     // prepare Input blobs
