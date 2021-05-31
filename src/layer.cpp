@@ -208,11 +208,11 @@ static const layer_registry_entry layer_registry_avx2[] = {
 };
 #endif // NCNN_RUNTIME_CPU && NCNN_AVX2
 
-#if NCNN_RUNTIME_CPU && NCNN_ARM82
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
 static const layer_registry_entry layer_registry_arm82[] = {
 #include "layer_registry_arm82.h"
 };
-#endif // NCNN_RUNTIME_CPU && NCNN_ARM82
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
 
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT
 static const layer_registry_entry layer_registry_arm82dot[] = {
@@ -272,13 +272,13 @@ Layer* create_layer(int index)
     }
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_ARM82DOT
-#if NCNN_RUNTIME_CPU && NCNN_ARM82
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
     if (ncnn::cpu_support_arm_asimdhp())
     {
         layer_creator = layer_registry_arm82[index].creator;
     }
     else
-#endif // NCNN_RUNTIME_CPU && NCNN_ARM82
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
 #if NCNN_RUNTIME_CPU && NCNN_RVV
     if (ncnn::cpu_support_riscv_v())
     {
