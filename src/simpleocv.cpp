@@ -31,6 +31,91 @@
 
 namespace cv {
 
+Mat imread(const unsigned char* buffer, int len, int flags)
+{
+    int desired_channels = 0;
+    if (flags == IMREAD_UNCHANGED)
+    {
+        desired_channels = 0;
+    }
+    else if (flags == IMREAD_GRAYSCALE)
+    {
+        desired_channels = 1;
+    }
+    else if (flags == IMREAD_COLOR)
+    {
+        desired_channels = 3;
+    }
+    else
+    {
+        // unknown flags
+        return Mat();
+    }
+
+    int w, h, c;
+    unsigned char* pixeldata = stbi_load_from_memory(
+        buffer, len,
+        &w, &h, &c,
+        desired_channels);
+    if (!pixeldata)
+    {
+        // load failed
+        return Mat();
+    }
+
+    if (desired_channels)
+    {
+        c = desired_channels;
+    }
+
+    // copy pixeldata to Mat
+    Mat img;
+    if (c == 1)
+    {
+        img.create(h, w, CV_8UC1);
+    }
+    else if (c == 3)
+    {
+        img.create(h, w, CV_8UC3);
+    }
+    else if (c == 4)
+    {
+        img.create(h, w, CV_8UC4);
+    }
+    else
+    {
+        // unexpected channels
+        stbi_image_free(pixeldata);
+        return Mat();
+    }
+
+    memcpy(img.data, pixeldata, w * h * c);
+
+    stbi_image_free(pixeldata);
+
+    // rgb to bgr
+    if (c == 3)
+    {
+        uchar* p = img.data;
+        for (int i = 0; i < w * h; i++)
+        {
+            std::swap(p[0], p[2]);
+            p += 3;
+        }
+    }
+    if (c == 4)
+    {
+        uchar* p = img.data;
+        for (int i = 0; i < w * h; i++)
+        {
+            std::swap(p[0], p[2]);
+            p += 4;
+        }
+    }
+
+    return img;
+}
+
 Mat imread(const std::string& path, int flags)
 {
     int desired_channels = 0;

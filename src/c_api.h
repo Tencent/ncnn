@@ -303,6 +303,7 @@ NCNN_EXPORT int ncnn_extractor_extract_index(ncnn_extractor_t ex, int index, ncn
 typedef struct __ncnn_cv_mat_t* ncnn_cv_mat_t;
 
 NCNN_EXPORT ncnn_cv_mat_t ncnn_cv_imread(const char* path, int flags);
+NCNN_EXPORT ncnn_cv_mat_t ncnn_cv_imread_mem(const unsigned char* buffer, int len, int flags);
 NCNN_EXPORT int ncnn_cv_imwrite(ncnn_cv_mat_t mat, const char* path);
 NCNN_EXPORT ncnn_cv_mat_t ncnn_cv_mat_clone(ncnn_cv_mat_t mat);
 NCNN_EXPORT void ncnn_cv_mat_destroy(ncnn_cv_mat_t mat);

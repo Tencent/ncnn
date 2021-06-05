@@ -1332,6 +1332,12 @@ ncnn_cv_mat_t ncnn_cv_imread(const char* path, int flags)
     return _ncnn_cv_mat_clone_ptr(&mat);
 }
 
+ncnn_cv_mat_t ncnn_cv_imread_mem(const unsigned char* buffer, int len, int flags)
+{
+    cv::Mat mat = cv::imread(buffer, len, flags);
+    return _ncnn_cv_mat_clone_ptr(&mat);
+}
+
 int ncnn_cv_imwrite(ncnn_cv_mat_t mat, const char* path)
 {
     std::string pathstr(path);

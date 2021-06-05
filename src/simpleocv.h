@@ -429,6 +429,7 @@ enum ImreadModes
 };
 
 NCNN_EXPORT Mat imread(const std::string& path, int flags = IMREAD_COLOR);
+NCNN_EXPORT Mat imread(const unsigned char* buffer, int len, int flags = IMREAD_COLOR);
 
 enum ImwriteFlags
 {
