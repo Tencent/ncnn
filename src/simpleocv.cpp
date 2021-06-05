@@ -220,6 +220,47 @@ Mat imread(const std::string& path, int flags)
     return img;
 }
 
+unsigned char* imwrite(int* len, const Mat& m)
+{
+    Mat img = m.clone();
+    int c = 0;
+
+    if (img.type() == CV_8UC1)
+    {
+        c = 1;
+    }
+    else if (img.type() == CV_8UC3)
+    {
+        c = 3;
+        uchar* p = img.data;
+        for (int i = 0; i < img.cols * img.rows; i++)
+        {
+            std::swap(p[0], p[2]);
+            p += 3;
+        }
+    }
+    else if (img.type() == CV_8UC4)
+    {
+        c = 4;
+        uchar* p = img.data;
+        for (int i = 0; i < img.cols * img.rows; i++)
+        {
+            std::swap(p[0], p[2]);
+            p += 4;
+        }
+    }
+    else
+    {
+        // unexpected image channels
+        img.release();
+        return NULL;
+    }
+
+    unsigned char* result = stbi_write_png_to_mem((const unsigned char*)img.data, 0, img.cols, img.rows, c, len);
+    img.release();
+    return result;
+}
+
 bool imwrite(const std::string& path, const Mat& m, const std::vector<int>& params)
 {
     const char* _ext = strrchr(path.c_str(), '.');
@@ -261,6 +302,7 @@ bool imwrite(const std::string& path, const Mat& m, const std::vector<int>& para
     else
     {
         // unexpected image channels
+        img.release();
         return false;
     }
 
@@ -290,9 +332,11 @@ bool imwrite(const std::string& path, const Mat& m, const std::vector<int>& para
     else
     {
         // unknown extension type
+        img.release();
         return false;
     }
 
+    img.release();
     return success;
 }
 

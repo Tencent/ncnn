@@ -1347,6 +1347,18 @@ int ncnn_cv_imwrite(ncnn_cv_mat_t mat, const char* path)
         std::vector<int>());
 }
 
+unsigned char* ncnn_cv_imwrite_mem(ncnn_cv_mat_t mat, int* len)
+{
+    return cv::imwrite(
+        len,
+        *((const cv::Mat*)mat));
+}
+
+void ncnn_cv_imwrite_mem_destroy(unsigned char* buff)
+{
+    free((void*)buff);
+}
+
 ncnn_cv_mat_t ncnn_cv_mat_clone(ncnn_cv_mat_t mat)
 {
     cv::Mat clone = ((const cv::Mat*)mat)->clone();
