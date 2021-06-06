@@ -302,11 +302,18 @@ NCNN_EXPORT int ncnn_extractor_extract_index(ncnn_extractor_t ex, int index, ncn
 #if NCNN_SIMPLEOCV
 typedef struct __ncnn_cv_mat_t* ncnn_cv_mat_t;
 
+struct _ncnn_cv_mat_point
+{
+    unsigned int x, y;
+};
+typedef struct _ncnn_cv_mat_point ncnn_cv_mat_point;
+
 NCNN_EXPORT ncnn_cv_mat_t ncnn_cv_imread(const char* path, int flags);
 NCNN_EXPORT ncnn_cv_mat_t ncnn_cv_imread_mem(const unsigned char* buffer, int len, int flags);
 NCNN_EXPORT int ncnn_cv_imwrite(ncnn_cv_mat_t mat, const char* path);
 NCNN_EXPORT unsigned char* ncnn_cv_imwrite_mem(ncnn_cv_mat_t mat, int* len);
 NCNN_EXPORT void ncnn_cv_imwrite_mem_destroy(unsigned char* buffer);
+NCNN_EXPORT ncnn_cv_mat_t ncnn_cv_resize(ncnn_cv_mat_t src, ncnn_cv_mat_point size, float sw, float sh, int flags);
 NCNN_EXPORT ncnn_cv_mat_t ncnn_cv_mat_clone(ncnn_cv_mat_t mat);
 NCNN_EXPORT void ncnn_cv_mat_destroy(ncnn_cv_mat_t mat);
 NCNN_EXPORT int ncnn_cv_mat_get_empty(ncnn_cv_mat_t mat);
@@ -315,12 +322,6 @@ NCNN_EXPORT int ncnn_cv_mat_get_type(ncnn_cv_mat_t mat);
 NCNN_EXPORT void* ncnn_cv_mat_get_data(ncnn_cv_mat_t mat);
 NCNN_EXPORT int ncnn_cv_mat_get_rows(ncnn_cv_mat_t mat);
 NCNN_EXPORT int ncnn_cv_mat_get_cols(ncnn_cv_mat_t mat);
-
-struct _ncnn_cv_mat_point
-{
-    unsigned int x, y;
-};
-typedef struct _ncnn_cv_mat_point ncnn_cv_mat_point;
 
 struct _ncnn_cv_mat_rect
 {

@@ -1359,6 +1359,15 @@ void ncnn_cv_imwrite_mem_destroy(unsigned char* buff)
     free((void*)buff);
 }
 
+ncnn_cv_mat_t ncnn_cv_resize(ncnn_cv_mat_t src, ncnn_cv_mat_point size, float sw, float sh, int flags)
+{
+    const cv::Mat s = *((const cv::Mat*)src);
+    cv::Mat dst;
+    cv::Size sz(size.x, size.y);
+    cv::resize(s, dst, sz, sw, sh, flags);
+    return _ncnn_cv_mat_clone_ptr(&dst);
+}
+
 ncnn_cv_mat_t ncnn_cv_mat_clone(ncnn_cv_mat_t mat)
 {
     cv::Mat clone = ((const cv::Mat*)mat)->clone();
