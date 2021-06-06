@@ -54,9 +54,9 @@ Mat imread(const unsigned char* buffer, int len, int flags)
 
     int w, h, c;
     unsigned char* pixeldata = stbi_load_from_memory(
-                                   buffer, len,
-                                   &w, &h, &c,
-                                   desired_channels);
+        buffer, len,
+        &w, &h, &c,
+        desired_channels);
     if (!pixeldata)
     {
         // load failed
