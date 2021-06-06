@@ -316,6 +316,16 @@ void* ncnn_mat_get_channel_data(const ncnn_mat_t mat, int c)
     return ((const Mat*)mat)->channel(c).data;
 }
 
+float ncnn_mat_get_data_float(const ncnn_mat_t mat, int index)
+{
+    return (*((const Mat*)mat))[index];
+}
+
+void ncnn_mat_set_data_float(const ncnn_mat_t mat, int index, float value)
+{
+    (*((Mat*)mat))[index] = value;
+}
+
 #if NCNN_PIXEL
 
 /* mat pixel api */

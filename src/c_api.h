@@ -83,6 +83,8 @@ NCNN_EXPORT size_t ncnn_mat_get_elemsize(const ncnn_mat_t mat);
 NCNN_EXPORT int ncnn_mat_get_elempack(const ncnn_mat_t mat);
 NCNN_EXPORT size_t ncnn_mat_get_cstep(const ncnn_mat_t mat);
 NCNN_EXPORT void* ncnn_mat_get_data(const ncnn_mat_t mat);
+NCNN_EXPORT float ncnn_mat_get_data_float(const ncnn_mat_t mat, int index);
+NCNN_EXPORT void ncnn_mat_set_data_float(const ncnn_mat_t mat, int index, float value);
 
 NCNN_EXPORT void* ncnn_mat_get_channel_data(const ncnn_mat_t mat, int c);
 
