@@ -351,7 +351,7 @@ NCNN_EXPORT int ncnn_cv_mat_get_cols(ncnn_cv_mat_t mat);
 
 struct _ncnn_cv_mat_rect
 {
-    unsigned int x, y, w, h; 
+    unsigned int x, y, w, h;
 };
 typedef struct _ncnn_cv_mat_rect ncnn_cv_mat_rect;
 
@@ -362,7 +362,7 @@ struct _ncnn_cv_mat_color
 typedef struct _ncnn_cv_mat_color ncnn_cv_mat_color;
 
 NCNN_EXPORT void ncnn_cv_mat_rectangle(
-    ncnn_cv_mat_t mat, 
+    ncnn_cv_mat_t mat,
     ncnn_cv_mat_rect rect,
     ncnn_cv_mat_color color,
     int thickness);

@@ -1432,8 +1432,8 @@ int ncnn_cv_imwrite(ncnn_cv_mat_t mat, const char* path)
 {
     std::string pathstr(path);
     return (int)cv::imwrite(
-        pathstr, 
-        *((const cv::Mat*)mat), 
+        pathstr,
+        *((const cv::Mat*)mat),
         std::vector<int>());
 }
 
@@ -1501,7 +1501,7 @@ int ncnn_cv_mat_get_cols(ncnn_cv_mat_t mat)
 }
 
 void ncnn_cv_mat_rectangle(
-    ncnn_cv_mat_t mat, 
+    ncnn_cv_mat_t mat,
     ncnn_cv_mat_rect rect,
     ncnn_cv_mat_color color,
     int thickness)
