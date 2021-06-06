@@ -51,6 +51,30 @@ NCNN_EXPORT void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads)
 NCNN_EXPORT int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt);
 NCNN_EXPORT void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute);
 
+NCNN_EXPORT int ncnn_option_get_use_winograd_convolution(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_winograd_convolution(ncnn_option_t opt, int use_winograd_convolution);
+
+NCNN_EXPORT int ncnn_option_get_use_sgemm_convolution(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_sgemm_convolution(ncnn_option_t opt, int use_sgemm_convolution);
+
+NCNN_EXPORT int ncnn_option_get_use_fp16_storage(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_fp16_storage(ncnn_option_t opt, int use_fp16_storage);
+
+NCNN_EXPORT int ncnn_option_get_use_fp16_packed(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_fp16_packed(ncnn_option_t opt, int use_fp16_packed);
+
+NCNN_EXPORT int ncnn_option_get_use_fp16_arithmetic(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_fp16_arithmetic(ncnn_option_t opt, int use_fp16_arithmetic);
+
+NCNN_EXPORT int ncnn_option_get_use_packing_layout(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_packing_layout(ncnn_option_t option, int use_packing_layout);
+
+NCNN_EXPORT int ncnn_option_get_use_shader_pack8(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_shader_pack8(ncnn_option_t opt, int use_shader_pack8);
+
+NCNN_EXPORT int ncnn_option_get_use_image_storage(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_image_storage(ncnn_option_t opt, int use_image_storage);
+
 /* mat api */
 typedef struct __ncnn_mat_t* ncnn_mat_t;
 

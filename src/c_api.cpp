@@ -180,6 +180,86 @@ void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_comput
 #endif
 }
 
+int ncnn_option_get_use_winograd_convolution(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_winograd_convolution;
+}
+
+void ncnn_option_set_use_winograd_convolution(ncnn_option_t opt, int use_winograd_convolution)
+{
+    ((Option*)opt)->use_winograd_convolution = use_winograd_convolution;
+}
+
+int ncnn_option_get_use_sgemm_convolution(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_sgemm_convolution;
+}
+
+void ncnn_option_set_use_sgemm_convolution(ncnn_option_t opt, int use_sgemm_convolution)
+{
+    ((Option*)opt)->use_sgemm_convolution = use_sgemm_convolution;
+}
+
+int ncnn_option_get_use_fp16_storage(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_fp16_storage;
+}
+
+void ncnn_option_set_use_fp16_storage(ncnn_option_t opt, int use_fp16_storage)
+{
+    ((Option*)opt)->use_fp16_storage = use_fp16_storage;
+}
+
+int ncnn_option_get_use_fp16_packed(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_fp16_packed;
+}
+
+void ncnn_option_set_use_fp16_packed(ncnn_option_t opt, int use_fp16_packed)
+{
+    ((Option*)opt)->use_fp16_packed = use_fp16_packed;
+}
+
+int ncnn_option_get_use_fp16_arithmetic(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_fp16_arithmetic;
+}
+
+void ncnn_option_set_use_fp16_arithmetic(ncnn_option_t opt, int use_fp16_arithmetic)
+{
+    ((Option*)opt)->use_fp16_arithmetic = use_fp16_arithmetic;
+}
+
+int ncnn_option_get_use_packing_layout(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_packing_layout;
+}
+
+void ncnn_option_set_use_packing_layout(ncnn_option_t opt, int use_packing_layout)
+{
+    ((Option*)opt)->use_packing_layout = use_packing_layout;
+}
+
+int ncnn_option_get_use_shader_pack8(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_shader_pack8;
+}
+
+void ncnn_option_set_use_shader_pack8(ncnn_option_t opt, int use_shader_pack8)
+{
+    ((Option*)opt)->use_shader_pack8 = use_shader_pack8;
+}
+
+int ncnn_option_get_use_image_storage(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_image_storage;
+}
+
+void ncnn_option_set_use_image_storage(ncnn_option_t opt, int use_image_storage)
+{
+    ((Option*)opt)->use_image_storage = use_image_storage;
+}
+
 /* mat api */
 ncnn_mat_t ncnn_mat_create_1d(int w, ncnn_allocator_t allocator)
 {
