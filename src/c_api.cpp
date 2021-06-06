@@ -1432,16 +1432,16 @@ int ncnn_cv_imwrite(ncnn_cv_mat_t mat, const char* path)
 {
     std::string pathstr(path);
     return (int)cv::imwrite(
-        pathstr,
-        *((const cv::Mat*)mat),
-        std::vector<int>());
+               pathstr,
+               *((const cv::Mat*)mat),
+               std::vector<int>());
 }
 
 unsigned char* ncnn_cv_imwrite_mem(ncnn_cv_mat_t mat, int* len)
 {
     return cv::imwrite(
-        len,
-        *((const cv::Mat*)mat));
+               len,
+               *((const cv::Mat*)mat));
 }
 
 void ncnn_cv_imwrite_mem_destroy(unsigned char* buff)
