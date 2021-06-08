@@ -16,11 +16,37 @@
 * [dequantize](#dequantize)
 * [dropout](#dropout)
 * [eltwise](#eltwise)
+* [elu](#elu)
+* [exp](#exp)
+* [flatten](#flatten)
+* [gelu](#gelu)
+* [gemm](#gemm)
+* [groupnorm](#groupnorm)
+* [gru](#gru)
+* [hardsigmoid](#hardsigmoid)
+* [hardswish](#hardswish)
+* [innerproduct](#innerproduct)
+* [input](#input)
+* [instancenorm](#instancenorm)
+* [interp](#interp)
+* [layernorm](#layernorm)
+* [log](#log)
+* [lrn](#lrn)
 * [lstm](#lstm)
+* [memorydata](#memorydata)
+* [mish](#mish)
+* [multiheadattention](#multiheadattention)
 * [pooling](#pooling)
+* [selu](#selu)
 * [sigmoid](#sigmoid)
+* [slice](#slice)
 * [softmax](#softmax)
+* [softplus](#softplus)
+* [split](#split)
+* [swish](#swish)
 * [tanh](#tanh)
+* [threshold](#threshold)
+* [unaryop](#unaryop)
 
 # absval
 ```
@@ -189,6 +215,9 @@ y = activation(x3, act_type, act_params)
 | ------------- | ----- | --------------------- |
 | weight_data   | float/fp16/int8 | [kernel_w, kernel_h, num_input, num_output] |
 | bias_data     | float | [num_output]          |
+| weight_data_int8_scales| float | [num_output] |
+| bottom_blob_int8_scales| float | [1]          |
+| top_blob_int8_scales| float | [1]             |
 
 # convolutiondepthwise
 ```
@@ -224,6 +253,9 @@ y = activation(x3, act_type, act_params)
 | ------------- | ----- | --------------------- |
 | weight_data   | float/fp16/int8 | [kernel_w, kernel_h, num_input / group, num_output / group, group] |
 | bias_data     | float | [num_output]          |
+| weight_data_int8_scales| float | [group]      |
+| bottom_blob_int8_scales| float | [1]          |
+| top_blob_int8_scales| float | [1]             |
 
 # crop
 ```
@@ -357,6 +389,271 @@ Operation type:
 - 1 = SUM
 - 2 = MAX
 
+# elu
+```
+if x < 0    y = (exp(x) - 1) * alpha
+else        y = x
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | alpha         | float | 0.1f      |                   |
+
+# exp
+```
+if base == -1   y = exp(shift + x * scale)
+else            y = pow(base, (shift + x * scale))
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | base          | float | -1.f      |                   |
+| 1         | scale         | float | 1.f       |                   |
+| 2         | shift         | float | 0.f       |                   |
+
+# flatten
+Reshape blob to 1 dimension
+
+* one_blob_only
+
+# gelu
+```
+if fast_gelu == 1   y = 0.5 * x * (1 + tanh(0.79788452 * (x + 0.044715 * x * x * x)));
+else                y = 0.5 * x * erfc(-0.70710678 * x)
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | fast_gelu     | int   | 0         | use approximation |
+
+# gemm
+```
+a = transA ? transpose(x0) : x0
+b = transb ? transpose(x1) : x1
+c = x2
+y = gemm(a, b) * alpha + c * beta
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | alpha         | float | 1.f       |                   |
+| 1         | beta          | float | 1.f       |                   |
+| 2         | transA        | int   | 0         |                   |
+| 3         | transb        | int   | 0         |                   |
+
+# groupnorm
+```
+split x along channel axis into group x0, x1 ...
+l2 normalize for each group x0, x1 ...
+y = x * gamma + beta
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | group         | int   | 1         |                   |
+| 1         | channels      | int   | 0         |                   |
+| 2         | eps           | float | 0.001f    | x = x / sqrt(var + eps) |
+| 3         | affine        | int   | 1         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| gamma_data    | float | [channels]            |
+| beta_data     | float | [channels]            |
+
+# gru
+Apply a single-layer GRU to a feature sequence of `T` timesteps. The input blob shape is `[w=input_size, h=T]` and the output blob shape is `[w=num_output, h=T]`.
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         | hidden size of output |
+| 1         | weight_data_size| int | 0         | total size of weight matrix |
+| 2         | direction     | int   | 0         | 0=forward, 1=reverse, 2=bidirectional |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_xc_data| float | [input_size, num_output * 3, num_directions] |
+| bias_c_data   | float | [num_output, 4, num_directions] |
+| weight_hc_data| float | [num_output, num_output * 3, num_directions] |
+
+# hardsigmoid
+```
+y = clamp(x * alpha + beta, 0, 1)
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | alpha         | float | 0.2f      |                   |
+| 1         | beta          | float | 0.5f      |                   |
+
+# hardswish
+```
+y = x * clamp(x * alpha + beta, 0, 1)
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | alpha         | float | 0.2f      |                   |
+| 1         | beta          | float | 0.5f      |                   |
+
+# innerproduct
+```
+x2 = innerproduct(x, weight) + bias
+y = activation(x2, act_type, act_params)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | bias_term     | int   | 0         |                   |
+| 2         | weight_data_size| int | 0         |                   |
+| 8         | int8_scale_term| int  | 0         |                   |
+| 9         | activation_type| int  | 0         |                   |
+| 10        | activation_params| array | [ ]    |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_data   | float/fp16/int8 | [num_input, num_output] |
+| bias_data     | float | [num_output]          |
+| weight_data_int8_scales| float | [num_output] |
+| bottom_blob_int8_scales| float | [1]          |
+
+# input
+```
+y = input
+```
+
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | w             | int   | 0         |                   |
+| 1         | h             | int   | 0         |                   |
+| 2         | c             | int   | 0         |                   |
+
+# instancenorm
+```
+split x along channel axis into instance x0, x1 ...
+l2 normalize for each channel instance x0, x1 ...
+y = x * gamma + beta
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | channels      | int   | 0         |                   |
+| 1         | eps           | float | 0.001f    | x = x / sqrt(var + eps) |
+| 2         | affine        | int   | 1         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| gamma_data    | float | [channels]            |
+| beta_data     | float | [channels]            |
+
+# interp
+```
+if dynamic_target_size == 0     y = resize(x) by fixed size or scale
+else                            y = resize(x0, size(x1))
+```
+
+* one_blob_only if dynamic_target_size == 0
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | resize_type   | int   | 0         |                   |
+| 1         | height_scale  | float | 1.f       |                   |
+| 2         | width_scale   | float | 1.f       |                   |
+| 3         | output_height | int   | 0         |                   |
+| 4         | output_width  | int   | 0         |                   |
+| 5         | dynamic_target_size| int | 0      |                   |
+| 6         | align_corner  | int   | 0         |                   |
+
+Resize type:
+- 1 = Nearest
+- 2 = Bilinear
+- 3 = Bicubic
+
+# layernorm
+```
+split x along outmost axis into part x0, x1 ...
+l2 normalize for each part x0, x1 ...
+y = x * gamma + beta by elementwise
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | affine_size   | int   | 0         |                   |
+| 1         | eps           | float | 0.001f    | x = x / sqrt(var + eps) |
+| 2         | affine        | int   | 1         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| gamma_data    | float | [affine_size]         |
+| beta_data     | float | [affine_size]         |
+
+# log
+```
+if base == -1   y = log(shift + x * scale)
+else            y = log(shift + x * scale) / log(base)
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | base          | float | -1.f      |                   |
+| 1         | scale         | float | 1.f       |                   |
+| 2         | shift         | float | 0.f       |                   |
+
+# lrn
+```
+if region_type == ACROSS_CHANNELS   square_sum = sum of channel window of local_size
+if region_type == WITHIN_CHANNEL    square_sum = sum of spatial window of local_size
+y = x * pow(bias + alpha * square_sum / (local_size * local_size), -beta)
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | region_type   | int   | 0         |                   |
+| 1         | local_size    | int   | 5         |                   |
+| 2         | alpha         | float | 1.f       |                   |
+| 3         | beta          | float | 0.75f     |                   |
+| 4         | bias          | float | 1.f       |                   |
+
+Region type:
+- 0 = ACROSS_CHANNELS
+- 1 = WITHIN_CHANNEL
+
 # lstm
 Apply a single-layer LSTM to a feature sequence of `T` timesteps. The input blob shape is `[w=input_size, h=T]` and the output blob shape is `[w=num_output, h=T]`.
 
@@ -368,11 +665,65 @@ Apply a single-layer LSTM to a feature sequence of `T` timesteps. The input blob
 | 1         | weight_data_size| int | 0         | total size of IFOG weight matrix |
 | 2         | direction     | int   | 0         | 0=forward, 1=reverse, 2=bidirectional |
 
-| weight        | type  | shape                 | description       |
-| ------------- | ----- | --------------------- | ----------------- |
-| weight_xc_data| float | [input_size, num_output * 4, num_directions] ||
-| bias_c_data   | float | [num_output, 4, num_directions] ||
-| weight_hc_data| float | [num_output, num_output * 4, num_directions] ||
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_xc_data| float | [input_size, num_output * 4, num_directions] |
+| bias_c_data   | float | [num_output, 4, num_directions] |
+| weight_hc_data| float | [num_output, num_output * 4, num_directions] |
+
+# memorydata
+```
+y = data
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | w             | int   | 0         |                   |
+| 1         | h             | int   | 0         |                   |
+| 2         | c             | int   | 0         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| data          | float | [w, h, c]             |
+
+# mish
+```
+y = x * tanh(log(exp(x) + 1))
+```
+
+* one_blob_only
+* support_inplace
+
+# multiheadattention
+```
+split q k v into num_head part q0, k0, v0, q1, k1, v1 ...
+for each num_head part
+    xq = affine(q) / (embed_dim / num_head)
+    xk = affine(k)
+    xv = affine(v)
+    xqk = xq * xk
+    softmax_inplace(xqk)
+    xqkv = xqk * xv
+    merge xqkv to out
+y = affine(out)
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | embed_dim     | int   | 0         |                   |
+| 1         | num_head      | int   | 1         |                   |
+| 2         | weight_data_size| int | 0         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| q_weight_data | float/fp16/int8 | [weight_data_size] |
+| q_bias_data   | float | [embed_dim]           |
+| k_weight_data | float/fp16/int8 | [weight_data_size] |
+| k_bias_data   | float | [embed_dim]           |
+| v_weight_data | float/fp16/int8 | [weight_data_size] |
+| v_bias_data   | float | [embed_dim]           |
+| out_weight_data| float/fp16/int8 | [weight_data_size] |
+| out_bias_data | float | [embed_dim]           |
 
 # pooling
 
@@ -405,6 +756,20 @@ Pad mode:
 - 2 = tensorflow padding=SAME or onnx padding=SAME_UPPER
 - 3 = onnx padding=SAME_LOWER
 
+# selu
+```
+if x < 0    y = (exp(x) - 1.f) * alpha * lambda
+else        y = x * lambda
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | alpha         | float | 1.67326324f|                  |
+| 1         | lambda        | float | 1.050700987f|                 |
+
 # sigmoid
 ```
 y = 1 / (1 + exp(-x))
@@ -412,6 +777,16 @@ y = 1 / (1 + exp(-x))
 
 * one_blob_only
 * support_inplace
+
+# slice
+```
+split x along axis into slices, each part slice size is based on slices array
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | slices        | array | [ ]       |                   |
+| 1         | axis          | int   | 0         |                   |
 
 # softmax
 ```
@@ -426,6 +801,27 @@ softmax(x, axis)
 | 0         | axis          | int   | 0         |                   |
 | 1         | fixbug0       | int   | 0         | hack for bug fix, should be 1 |
 
+# softplus
+```
+y = log(exp(x) + 1)
+```
+
+* one_blob_only
+* support_inplace
+
+# split
+```
+y0, y1 ... = x
+```
+
+# swish
+```
+y = x / (1 + exp(-x))
+```
+
+* one_blob_only
+* support_inplace
+
 # tanh
 ```
 y = tanh(x)
@@ -433,3 +829,47 @@ y = tanh(x)
 
 * one_blob_only
 * support_inplace
+
+# threshold
+```
+if x > threshold    y = 1
+else                y = 0
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | threshold     | float | 0.f       |                   |
+
+# unaryop
+```
+y = unaryop(x)
+```
+
+- one_blob_only
+- support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | op_type       | int   | 0         | Operation type as follows |
+
+Operation type:
+- 0 = ABS
+- 1 = NEG
+- 2 = FLOOR
+- 3 = CEIL
+- 4 = SQUARE
+- 5 = SQRT
+- 6 = RSQ
+- 7 = EXP
+- 8 = LOG
+- 9 = SIN
+- 10 = COS
+- 11 = TAN
+- 12 = ASIN
+- 13 = ACOS
+- 14 = ATAN
+- 15 = RECIPROCAL
+- 16 = TANH
