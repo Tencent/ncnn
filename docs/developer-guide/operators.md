@@ -36,7 +36,20 @@
 * [memorydata](#memorydata)
 * [mish](#mish)
 * [multiheadattention](#multiheadattention)
+* [mvn](#mvn)
+* [noop](#noop)
+* [normalize](#normalize)
+* [packing](#packing)
+* [padding](#padding)
+* [permute](#permute)
+* [pixelshuffle](#pixelshuffle)
 * [pooling](#pooling)
+* [power](#power)
+* [prelu](#prelu)
+* [quantize](#quantize)
+* [reduction](#reduction)
+* [relu](#relu)
+* [reorg](#reorg)
 * [selu](#selu)
 * [sigmoid](#sigmoid)
 * [slice](#slice)
@@ -374,7 +387,6 @@ y = x * scale
 | 0         | scale         | float | 1.f       |                   |
 
 # eltwise
-
 ```
 y = elementwise_op(x0, x1, ...)
 ```
@@ -725,26 +737,141 @@ y = affine(out)
 | out_weight_data| float/fp16/int8 | [weight_data_size] |
 | out_bias_data | float | [embed_dim]           |
 
-# pooling
+# mvn
+```
+if normalize_variance == 1 && across_channels == 1      y = (x - mean) / (sqrt(var) + eps) of whole blob
+if normalize_variance == 1 && across_channels == 0      y = (x - mean) / (sqrt(var) + eps) of each channel
+if normalize_variance == 0 && across_channels == 1      y = x - mean of whole blob
+if normalize_variance == 0 && across_channels == 0      y = x - mean of each channel
+```
 
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | normalize_variance| int | 0       |                   |
+| 1         | across_channels| int  | 0         |                   |
+| 2         | eps           | float | 0.0001f   | x = x / (sqrt(var) + eps) |
+
+# noop
+```
+y = x
+```
+
+# normalize
+```
+if across_spatial == 1 && across_channel == 1      x2 = normalize(x) of whole blob
+if across_spatial == 1 && across_channel == 0      x2 = normalize(x) of each channel
+if across_spatial == 0 && across_channel == 1      x2 = normalize(x) of each position
+y = x2 * scale
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | across_spatial| int   | 0         |                   |
+| 1         | channel_shared| int   | 0         |                   |
+| 2         | eps           | float | 0.0001f   | see eps mode      |
+| 3         | scale_data_size| int  | 0         |                   |
+| 4         | across_channel| int   | 0         |                   |
+| 9         | eps_mode      | int   | 0         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| scale_data    | float | [scale_data_size]     |
+
+Eps Mode:
+- 0 = caffe/mxnet   x = x / sqrt(var + eps)
+- 1 = pytorch       x = x / max(sqrt(var), eps)
+- 2 = tensorflow    x = x / sqrt(max(var, eps))
+
+# packing
+```
+y = wrap_packing(x)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | out_elempack  | int   | 1         |                   |
+| 1         | use_padding   | int   | 0         |                   |
+| 2         | cast_type_from| float | 0         |                   |
+| 3         | cast_type_to  | int   | 0         |                   |
+| 4         | storage_type_from| int | 0        |                   |
+| 5         | storage_type_to| int  | 0         |                   |
+
+# padding
+```
+if pads != -233/-234    y = pad(x, pads)
+else                    y = pad(x0, pads param from x1)
+```
+
+| param id  | name          | type | default   | description       |
+| --------- | ------------- | ---- | --------- | ----------------- |
+| 0         | top           | int  | 0         |                   |
+| 1         | bottom        | int  | 0         |                   |
+| 2         | left          | int  | 0         |                   |
+| 3         | right         | int  | 0         |                   |
+| 4         | type          | int  | 0         |                   |
+| 5         | value         | int  | 0         |                   |
+| 6         | per_channel_pad_data_size| int | 0 |                 |
+| 7         | front         | int  | stride_w  |                   |
+| 8         | behind        | int  | pad_left  |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| per_channel_pad_data| float | [per_channel_pad_data_size] |
+
+# permute
+```
+y = reorder(x)
+```
+
+| param id  | name          | type | default   | description       |
+| --------- | ------------- | ---- | --------- | ----------------- |
+| 0         | order_type    | int  | 0         |                   |
+
+Order Type:
+- 0 = WH WHC
+- 1 = HW HWC
+- 2 = WCH
+- 3 = CWH
+- 4 = HCW
+- 5 = CHW
+
+# pixelshuffle
+```
+if mode == 0    y = depth_to_space(x) where x channel order is sw-sh-outc
+if mode == 1    y = depth_to_space(x) where x channel order is outc-sw-sh
+```
+
+| param id  | name          | type | default   | description       |
+| --------- | ------------- | ---- | --------- | ----------------- |
+| 0         | upscale_factor| int  | 1         |                   |
+| 1         | mode          | int  | 0         |                   |
+
+# pooling
 ```
 x2 = pad(x, pads)
 x3 = pooling(x2, kernel, stride)
 ```
 
-| param id  | name           | type | default   | description       |
-| --------- | -------------- | ---- | --------- | ----------------- |
-| 0         | pooling_type   | int  | 0         |                   |
-| 1         | kernel_w       | int  | 0         |                   |
-| 2         | stride_w       | int  | 1         |                   |
-| 3         | pad_left       | int  | 0         |                   |
-| 4         | global_pooling | int  | 0         |                   |
-| 5         | pad_mode       | int  | 0         |                   |
-| 11        | kernel_h       | int  | kernel_w  |                   |
-| 12        | stride_h       | int  | stride_w  |                   |
-| 13        | pad_top        | int  | pad_left  |                   |
-| 14        | pad_right      | int  | pad_left  |                   |
-| 15        | pad_bottom     | int  | pad_top   |                   |
+| param id  | name          | type | default   | description       |
+| --------- | --------------| ---- | --------- | ----------------- |
+| 0         | pooling_type  | int  | 0         |                   |
+| 1         | kernel_w      | int  | 0         |                   |
+| 2         | stride_w      | int  | 1         |                   |
+| 3         | pad_left      | int  | 0         |                   |
+| 4         | global_pooling| int  | 0         |                   |
+| 5         | pad_mode      | int  | 0         |                   |
+| 11        | kernel_h      | int  | kernel_w  |                   |
+| 12        | stride_h      | int  | stride_w  |                   |
+| 13        | pad_top       | int  | pad_left  |                   |
+| 14        | pad_right     | int  | pad_left  |                   |
+| 15        | pad_bottom    | int  | pad_top   |                   |
 
 Pooling type:
 - 0 = MAX
@@ -755,6 +882,104 @@ Pad mode:
 - 1 = valid padding
 - 2 = tensorflow padding=SAME or onnx padding=SAME_UPPER
 - 3 = onnx padding=SAME_LOWER
+
+# power
+```
+y = pow((shift + x * scale), power)
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | power         | float | 1.f       |                   |
+| 1         | scale         | float | 1.f       |                   |
+| 2         | shift         | float | 0.f       |                   |
+
+# prelu
+```
+if x < 0    y = x * slope
+else        y = x
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_slope     | int   | 0         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| slope_data    | float | [num_slope]           |
+
+# quantize
+```
+y = float2int8(x * scale)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | scale_data_size| int  | 0         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| scale_data    | float | [scale_data_size]     |
+
+# reduction
+```
+y = reduce_op(x * coeff)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | operation     | int   | 0         |                   |
+| 1         | reduce_all    | int   | 1         |                   |
+| 2         | coeff         | float | 1.f       |                   |
+| 3         | axes          | array | [ ]       |                   |
+| 4         | keepdims      | int   | 0         |                   |
+
+Operation type:
+- 0 = SUM
+- 1 = ASUM
+- 2 = SUMSQ
+- 3 = MEAN
+- 4 = MAX
+- 5 = MIN
+- 6 = PROD
+- 7 = L1
+- 8 = L2
+- 9 = LogSum
+- 10 = LogSumExp
+
+# relu
+```
+if x < 0    y = x * slope
+else        y = x
+```
+
+* one_blob_only
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | slope         | float | 0.f       |                   |
+
+# reorg
+```
+if mode == 0    y = space_to_depth(x) where x channel order is sw-sh-outc
+if mode == 1    y = space_to_depth(x) where x channel order is outc-sw-sh
+```
+
+| param id  | name          | type | default   | description       |
+| --------- | ------------- | ---- | --------- | ----------------- |
+| 0         | stride        | int  | 1         |                   |
+| 1         | mode          | int  | 0         |                   |
 
 # selu
 ```
