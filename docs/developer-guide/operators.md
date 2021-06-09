@@ -50,7 +50,12 @@
 * [reduction](#reduction)
 * [relu](#relu)
 * [reorg](#reorg)
+* [requantize](#requantize)
+* [reshape](#reshape)
+* [rnn](#rnn)
+* [scale](#scale)
 * [selu](#selu)
+* [shufflechannel](#shufflechannel)
 * [sigmoid](#sigmoid)
 * [slice](#slice)
 * [softmax](#softmax)
@@ -166,7 +171,6 @@ y = cast(x)
 | 1         | type_to       | int   | 0         |                   |
 
 Element type:
-
 - 0 = auto
 - 1 = float32
 - 2 = float16
@@ -487,7 +491,12 @@ y = x * gamma + beta
 # gru
 Apply a single-layer GRU to a feature sequence of `T` timesteps. The input blob shape is `[w=input_size, h=T]` and the output blob shape is `[w=num_output, h=T]`.
 
-* one_blob_only
+```
+y = gru(x)
+y0, hidden y1 = gru(x0, hidden x1)
+```
+
+* one_blob_only if bidirectional
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
@@ -500,6 +509,11 @@ Apply a single-layer GRU to a feature sequence of `T` timesteps. The input blob 
 | weight_xc_data| float | [input_size, num_output * 3, num_directions] |
 | bias_c_data   | float | [num_output, 4, num_directions] |
 | weight_hc_data| float | [num_output, num_output * 3, num_directions] |
+
+Direction flag:
+- 0 = forward only
+- 1 = reverse only
+- 2 = bidirectional
 
 # hardsigmoid
 ```
@@ -669,7 +683,12 @@ Region type:
 # lstm
 Apply a single-layer LSTM to a feature sequence of `T` timesteps. The input blob shape is `[w=input_size, h=T]` and the output blob shape is `[w=num_output, h=T]`.
 
-* one_blob_only
+```
+y = lstm(x)
+y0, hidden y1, cell y2 = lstm(x0, hidden x1, cell x2)
+```
+
+* one_blob_only if bidirectional
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
@@ -682,6 +701,11 @@ Apply a single-layer LSTM to a feature sequence of `T` timesteps. The input blob
 | weight_xc_data| float | [input_size, num_output * 4, num_directions] |
 | bias_c_data   | float | [num_output, 4, num_directions] |
 | weight_hc_data| float | [num_output, num_output * 4, num_directions] |
+
+Direction flag:
+- 0 = forward only
+- 1 = reverse only
+- 2 = bidirectional
 
 # memorydata
 ```
@@ -848,6 +872,8 @@ if mode == 0    y = depth_to_space(x) where x channel order is sw-sh-outc
 if mode == 1    y = depth_to_space(x) where x channel order is outc-sw-sh
 ```
 
+* one_blob_only
+
 | param id  | name          | type | default   | description       |
 | --------- | ------------- | ---- | --------- | ----------------- |
 | 0         | upscale_factor| int  | 1         |                   |
@@ -976,10 +1002,101 @@ if mode == 0    y = space_to_depth(x) where x channel order is sw-sh-outc
 if mode == 1    y = space_to_depth(x) where x channel order is outc-sw-sh
 ```
 
+* one_blob_only
+
 | param id  | name          | type | default   | description       |
 | --------- | ------------- | ---- | --------- | ----------------- |
 | 0         | stride        | int  | 1         |                   |
 | 1         | mode          | int  | 0         |                   |
+
+# requantize
+```
+x2 = x * scale_in + bias
+x3 = activation(x2)
+y = float2int8(x3 * scale_out)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | scale_in_data_size| int | 1       |                   |
+| 1         | scale_out_data_size| int | 1      |                   |
+| 2         | bias_data_size| int   | 0         |                   |
+| 3         | activation_type| int  | 0         |                   |
+| 4         | activation_params| int | [ ]      |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| scale_in_data | float | [scale_in_data_size]  |
+| scale_out_data| float | [scale_out_data_size] |
+| bias_data     | float | [bias_data_size]      |
+
+# reshape
+```
+if permute == 1     y = hwc2chw(reshape(chw2hwc(x)))
+else                y = reshape(x)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | w             | int   | -233      |                   |
+| 1         | h             | int   | -233      |                   |
+| 2         | c             | int   | -233      |                   |
+| 3         | permute       | int   | 0         |                   |
+
+Reshape flag:
+- 0 = copy from bottom
+- -1 = remaining
+- -233 = drop this dim(default)
+
+# rnn
+Apply a single-layer RNN to a feature sequence of `T` timesteps. The input blob shape is `[w=input_size, h=T]` and the output blob shape is `[w=num_output, h=T]`.
+
+```
+y = rnn(x)
+y0, hidden y1 = rnn(x0, hidden x1)
+```
+
+* one_blob_only if bidirectional
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         | hidden size of output |
+| 1         | weight_data_size| int | 0         | total size of weight matrix |
+| 2         | direction     | int   | 0         | 0=forward, 1=reverse, 2=bidirectional |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_xc_data| float | [input_size, num_output, num_directions] |
+| bias_c_data   | float | [num_output, 1, num_directions] |
+| weight_hc_data| float | [num_output, num_output, num_directions] |
+
+Direction flag:
+- 0 = forward only
+- 1 = reverse only
+- 2 = bidirectional
+
+# scale
+```
+if scale_data_size == -233  y = x0 * x1
+else                        y = x * scale + bias
+```
+
+* one_blob_only if scale_data_size != -233
+* support_inplace
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | scale_data_size| int  | 0         |                   |
+| 1         | bias_term     | int   | 0         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| scale_data    | float | [scale_data_size]     |
+| bias_data     | float | [scale_data_size]     |
 
 # selu
 ```
@@ -994,6 +1111,19 @@ else        y = x * lambda
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | alpha         | float | 1.67326324f|                  |
 | 1         | lambda        | float | 1.050700987f|                 |
+
+# shufflechannel
+```
+if reverse == 0     y = shufflechannel(x) by group
+if reverse == 1     y = shufflechannel(x) by channel / group
+```
+
+* one_blob_only
+
+| param id  | name          | type | default   | description       |
+| --------- | ------------- | ---- | --------- | ----------------- |
+| 0         | group         | int  | 1         |                   |
+| 1         | reverse       | int  | 0         |                   |
 
 # sigmoid
 ```
