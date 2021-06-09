@@ -333,8 +333,7 @@ _RVV_FLOAT16_COS_OP(8, 2)
         y = vfadd_vv_f16m##LMUL(y, x, vl);                                                                                            \
                                                                                                                                       \
         /* abs(x) > HALFMAXLOGF */                                                                                                    \
-        vbool##MLEN##_t mask_pos = vmfgt_vf_f16m##LMUL##_b##MLEN(x, 0.f, vl);                                                         \
-        vfloat16m##LMUL##_t y1 = vfmerge_vfm_f16m##LMUL(mask_pos, vfmv_v_f_f16m##LMUL(1.f, vl), -1.f, vl);                            \
+        vfloat16m##LMUL##_t y1 = vfsgnj_vv_f16m##LMUL(vfmv_v_f_f16m##LMUL(1.f, vl), x, vl);                                           \
                                                                                                                                       \
         y = vmerge_vvm_f16m##LMUL(mask_l, y, y0, vl);                                                                                 \
         y = vmerge_vvm_f16m##LMUL(mask_l2, y, y1, vl);                                                                                \
