@@ -74,7 +74,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.0
+      uses: codecov/codecov-action@v1.5.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -102,7 +102,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.0
+      uses: codecov/codecov-action@v1.5.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -130,7 +130,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.0
+      uses: codecov/codecov-action@v1.5.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -191,7 +191,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.0
+      uses: codecov/codecov-action@v1.5.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -252,7 +252,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.0
+      uses: codecov/codecov-action@v1.5.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -313,7 +313,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.0
+      uses: codecov/codecov-action@v1.5.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -374,7 +374,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.0
+      uses: codecov/codecov-action@v1.5.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -435,7 +435,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.0
+      uses: codecov/codecov-action@v1.5.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -496,7 +496,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.0
+      uses: codecov/codecov-action@v1.5.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -558,7 +558,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.0
+      uses: codecov/codecov-action@v1.5.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -671,7 +671,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.0
+      uses: codecov/codecov-action@v1.5.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
