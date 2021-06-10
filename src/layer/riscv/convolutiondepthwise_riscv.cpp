@@ -224,7 +224,7 @@ int ConvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob, c
 
     int elembits = bottom_blob.elembits();
 
-#if __riscv_zfh
+#if __riscv_vector && __riscv_zfh
     if (opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
@@ -235,7 +235,9 @@ int ConvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob, c
 #endif
 
     const int packn = csrr_vlenb() / 4;
+#if __riscv_vector
     const word_type vl = vsetvl_e32m1(packn);
+#endif
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;

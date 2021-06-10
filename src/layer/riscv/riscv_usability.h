@@ -15,6 +15,7 @@
 #ifndef RISCV_USABILITY_H
 #define RISCV_USABILITY_H
 
+#if __riscv_vector
 static inline int csrr_vl()
 {
     int a = 0;
@@ -44,5 +45,6 @@ static inline int csrr_vlenb()
                  : "memory");
     return a;
 }
+#endif // __riscv_vector
 
 #endif // RISCV_USABILITY_H

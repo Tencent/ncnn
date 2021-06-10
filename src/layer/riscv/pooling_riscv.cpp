@@ -22,8 +22,6 @@
 #else
 #include <riscv_vector.h>
 #endif
-#include "rvv_mathfun.h"
-#include "rvv_mathfun_fp16s.h"
 #endif // __riscv_vector
 
 #include "riscv_usability.h"
@@ -80,7 +78,9 @@ int Pooling_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     // avg value in NxN window
 
     const int packn = csrr_vlenb() / 4;
+#if __riscv_vector
     const word_type vl = vsetvl_e32m1(packn);
+#endif
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
