@@ -205,7 +205,9 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     }
 #endif
 
+#if __riscv_vector
     const int packn = csrr_vlenb() / 4;
+#endif
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -229,7 +231,13 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (opt.use_packing_layout && num_output % packn == 0) ? packn : 1;
+    int out_elempack = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % packn == 0 ? packn : 1;
+    }
+#endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);

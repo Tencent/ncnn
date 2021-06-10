@@ -234,8 +234,8 @@ int ConvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob, c
     }
 #endif
 
-    const int packn = csrr_vlenb() / 4;
 #if __riscv_vector
+    const int packn = csrr_vlenb() / 4;
     const word_type vl = vsetvl_e32m1(packn);
 #endif
 
@@ -258,7 +258,13 @@ int ConvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob, c
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (opt.use_packing_layout && num_output % packn == 0) ? packn : 1;
+    int out_elempack = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % packn == 0 ? packn : 1;
+    }
+#endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -399,12 +405,19 @@ int ConvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob, c
     const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
 
-    int g_elempack = (opt.use_packing_layout && channels_g % packn == 0) ? packn : 1;
-    int out_g_elempack = (opt.use_packing_layout && num_output_g % packn == 0) ? packn : 1;
+    int g_elempack = 1;
+    int out_g_elempack = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+        g_elempack = channels_g % packn == 0 ? packn : 1;
+        out_g_elempack = num_output_g % packn == 0 ? packn : 1;
+    }
+#endif
 
     // unpacking
     Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
-    if (elempack == packn && g_elempack == 1)
+    if (elempack > g_elempack)
     {
         Option opt_p = opt;
         opt_p.blob_allocator = opt.workspace_allocator;
@@ -412,7 +425,7 @@ int ConvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob, c
     }
 
     Mat top_blob_unpacked = top_blob;
-    if (out_g_elempack == 1 && out_elempack == packn)
+    if (out_g_elempack < out_elempack)
     {
         top_blob_unpacked.create(outw, outh, num_output, out_elemsize / out_elempack, 1, opt.workspace_allocator);
         if (top_blob_unpacked.empty())
@@ -434,9 +447,9 @@ int ConvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob, c
     }
 
     // packing
-    if (out_g_elempack == 1 && out_elempack == packn)
+    if (out_g_elempack < out_elempack)
     {
-        convert_packing(top_blob_unpacked, top_blob, packn, opt);
+        convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
     }
     else
     {

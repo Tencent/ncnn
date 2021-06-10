@@ -77,8 +77,8 @@ int Pooling_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     // max value in NxN window
     // avg value in NxN window
 
-    const int packn = csrr_vlenb() / 4;
 #if __riscv_vector
+    const int packn = csrr_vlenb() / 4;
     const word_type vl = vsetvl_e32m1(packn);
 #endif
 

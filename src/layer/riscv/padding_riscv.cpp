@@ -80,9 +80,17 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     if (ret != 0)
         return ret;
 
+#if __riscv_vector
     const int packn = csrr_vlenb() / 4;
+#endif
 
-    int out_elempack = (opt.use_packing_layout && top_blob_unpacked.c % packn == 0) ? packn : 1;
+    int out_elempack = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+        out_elempack = top_blob_unpacked.c % packn == 0 ? packn : 1;
+    }
+#endif
 
     convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
 
@@ -112,9 +120,17 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
     if (ret != 0)
         return ret;
 
+#if __riscv_vector
     const int packn = csrr_vlenb() / 2;
+#endif
 
-    int out_elempack = (opt.use_packing_layout && top_blob_unpacked.c % packn == 0) ? packn : 1;
+    int out_elempack = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+        out_elempack = top_blob_unpacked.c % packn == 0 ? packn : 1;
+    }
+#endif
 
     convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
 
@@ -144,9 +160,17 @@ int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
     if (ret != 0)
         return ret;
 
+#if __riscv_vector
     const int packn = csrr_vlenb() / 1;
+#endif
 
-    int out_elempack = (opt.use_packing_layout && top_blob_unpacked.c % packn == 0) ? packn : 1;
+    int out_elempack = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+        out_elempack = top_blob_unpacked.c % packn == 0 ? packn : 1;
+    }
+#endif
 
     convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
 
