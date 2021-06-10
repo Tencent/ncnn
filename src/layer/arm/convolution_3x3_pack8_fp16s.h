@@ -2246,7 +2246,6 @@ static void conv3x3s1_winograd42_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& 
 
 static void conv3x3s1_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
-    int w = bottom_blob.w;
     int inch = bottom_blob.c;
     int outw = top_blob.w;
     int outh = top_blob.h;
