@@ -12,25 +12,42 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_PACKING_RISCV_H
-#define LAYER_PACKING_RISCV_H
+#ifndef LAYER_CONVOLUTIONDEPTHWISE_RISCV_H
+#define LAYER_CONVOLUTIONDEPTHWISE_RISCV_H
 
-#include "packing.h"
+#include "convolutiondepthwise.h"
 
 namespace ncnn {
 
-class Packing_riscv : virtual public Packing
+class ConvolutionDepthWise_riscv : virtual public ConvolutionDepthWise
 {
 public:
-    Packing_riscv();
+    ConvolutionDepthWise_riscv();
+
+    virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
-    int forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-    int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    int create_group_ops(const Option& opt);
+#if __riscv_vector && __riscv_zfh
+    int create_pipeline_fp16s(const Option& opt);
+    int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
+
+public:
+    std::vector<ncnn::Layer*> group_ops;
+
+    // packing
+    Mat weight_data_packed;
+
+    // fp16
+    Mat weight_data_fp16;
+    Mat bias_data_fp16;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_PACKING_RISCV_H
+#endif // LAYER_CONVOLUTIONDEPTHWISE_RISCV_H

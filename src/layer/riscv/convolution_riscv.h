@@ -12,25 +12,39 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_PACKING_RISCV_H
-#define LAYER_PACKING_RISCV_H
+#ifndef LAYER_CONVOLUTION_RISCV_H
+#define LAYER_CONVOLUTION_RISCV_H
 
-#include "packing.h"
+#include "convolution.h"
 
 namespace ncnn {
 
-class Packing_riscv : virtual public Packing
+class Convolution_riscv : virtual public Convolution
 {
 public:
-    Packing_riscv();
+    Convolution_riscv();
+
+    virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
-    int forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-    int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#if __riscv_vector && __riscv_zfh
+    int create_pipeline_fp16s(const Option& opt);
+    int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
+
+public:
+    // packn
+    Mat weight_data_packed;
+
+    // fp16
+    Mat weight_data_fp16;
+    Mat bias_data_fp16;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_PACKING_RISCV_H
+#endif // LAYER_CONVOLUTION_RISCV_H

@@ -12,25 +12,37 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_PACKING_RISCV_H
-#define LAYER_PACKING_RISCV_H
+#ifndef RISCV_USABILITY_H
+#define RISCV_USABILITY_H
 
-#include "packing.h"
-
-namespace ncnn {
-
-class Packing_riscv : virtual public Packing
+static inline int csrr_vl()
 {
-public:
-    Packing_riscv();
+    int a = 0;
+    asm volatile("csrr %0, vl"
+                 : "=r"(a)
+                 :
+                 : "memory");
+    return a;
+}
 
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+static inline int csrr_vtype()
+{
+    int a = 0;
+    asm volatile("csrr %0, vtype"
+                 : "=r"(a)
+                 :
+                 : "memory");
+    return a;
+}
 
-protected:
-    int forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-    int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-};
+static inline int csrr_vlenb()
+{
+    int a = 0;
+    asm volatile("csrr %0, vlenb"
+                 : "=r"(a)
+                 :
+                 : "memory");
+    return a;
+}
 
-} // namespace ncnn
-
-#endif // LAYER_PACKING_RISCV_H
+#endif // RISCV_USABILITY_H
