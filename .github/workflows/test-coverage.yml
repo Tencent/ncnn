@@ -580,7 +580,7 @@ jobs:
       uses: actions/cache@v2.1.6
       with:
         path: qemu-install
-        key: qemu-riscv64-rvv-install-20210504
+        key: qemu-riscv64-rvv-install-20210610
 
     - name: install-qemu-build-deps
       if: steps.cache-qemu.outputs.cache-hit != 'true'
@@ -594,16 +594,17 @@ jobs:
       with:
         repository: sifive/qemu
         path: qemu
-        ref: 6498588f9d2d8a97e3f3b6202262e1129b426be6
+        ref: 7a3e8e23b4cf1422ec48e9d4b4009337a05a635d
     - name: qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
-        wget https://download.qemu.org/qemu-5.2.0.tar.xz
-        tar -xf qemu-5.2.0.tar.xz
-        cp -r qemu/fpu qemu-5.2.0/
-        cp -r qemu/target/riscv qemu-5.2.0/target/
-        cp qemu/include/tcg/tcg-op.h qemu-5.2.0/include/tcg/
-        cd qemu-5.2.0
+        wget https://download.qemu.org/qemu-6.0.0.tar.xz
+        tar -xf qemu-6.0.0.tar.xz
+        cp -r qemu/fpu qemu-6.0.0/
+        cp -r qemu/include/fpu qemu-6.0.0/include/
+        cp -r qemu/target/riscv qemu-6.0.0/target/
+        cp -r qemu/linux-user/elfload.c qemu-6.0.0/linux-user/
+        cd qemu-6.0.0
         mkdir build
         cd build
         ../configure --prefix=`pwd`/install --target-list=riscv64-linux-user --disable-system
@@ -662,7 +663,7 @@ jobs:
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,x-v=true,x-k=true,vlen=256,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,x-v=true,x-Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
 
     - name: lcov-collect
       run: |
