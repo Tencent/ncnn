@@ -65,18 +65,22 @@ int Convolution_riscv::create_pipeline(const Option& opt)
     }
 #endif
 
+#if __riscv_vector
     const int packn = csrr_vlenb() / 4;
+#endif
 
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
     int elempack = 1;
     int out_elempack = 1;
+#if __riscv_vector
     if (opt.use_packing_layout)
     {
         elempack = num_input % packn == 0 ? packn : 1;
         out_elempack = num_output % packn == 0 ? packn : 1;
     }
+#endif
 
     // src = kw-kh-inch-outch
     // dst = pb-pa-kw-kh-inch/pa-outch/pb

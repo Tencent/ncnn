@@ -48,7 +48,9 @@ int ConvolutionDepthWise_riscv::create_pipeline(const Option& opt)
     }
 #endif
 
+#if __riscv_vector
     const int packn = csrr_vlenb() / 4;
+#endif
 
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
@@ -57,10 +59,12 @@ int ConvolutionDepthWise_riscv::create_pipeline(const Option& opt)
     if (channels == group && group == num_output)
     {
         int elempack = 1;
+#if __riscv_vector
         if (opt.use_packing_layout)
         {
             elempack = channels % packn == 0 ? packn : 1;
         }
+#endif
 
 #if __riscv_vector
         // packn
