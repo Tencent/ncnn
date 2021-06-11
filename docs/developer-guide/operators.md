@@ -380,7 +380,7 @@ y = x * scale + bias
 | 1         | bias_term     | int   | 0         |                   |
 | 2         | bias_data_size| int   | 0         |                   |
 
-# dropout
+## dropout
 ```
 y = x * scale
 ```
@@ -391,7 +391,7 @@ y = x * scale
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | scale         | float | 1.f       |                   |
 
-# eltwise
+## eltwise
 ```
 y = elementwise_op(x0, x1, ...)
 ```
@@ -406,7 +406,7 @@ Operation type:
 - 1 = SUM
 - 2 = MAX
 
-# elu
+## elu
 ```
 if x < 0    y = (exp(x) - 1) * alpha
 else        y = x
@@ -419,7 +419,7 @@ else        y = x
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | alpha         | float | 0.1f      |                   |
 
-# exp
+## exp
 ```
 if base == -1   y = exp(shift + x * scale)
 else            y = pow(base, (shift + x * scale))
@@ -434,12 +434,12 @@ else            y = pow(base, (shift + x * scale))
 | 1         | scale         | float | 1.f       |                   |
 | 2         | shift         | float | 0.f       |                   |
 
-# flatten
+## flatten
 Reshape blob to 1 dimension
 
 * one_blob_only
 
-# gelu
+## gelu
 ```
 if fast_gelu == 1   y = 0.5 * x * (1 + tanh(0.79788452 * (x + 0.044715 * x * x * x)));
 else                y = 0.5 * x * erfc(-0.70710678 * x)
@@ -452,7 +452,7 @@ else                y = 0.5 * x * erfc(-0.70710678 * x)
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | fast_gelu     | int   | 0         | use approximation |
 
-# gemm
+## gemm
 ```
 a = transA ? transpose(x0) : x0
 b = transb ? transpose(x1) : x1
@@ -467,7 +467,7 @@ y = gemm(a, b) * alpha + c * beta
 | 2         | transA        | int   | 0         |                   |
 | 3         | transb        | int   | 0         |                   |
 
-# groupnorm
+## groupnorm
 ```
 split x along channel axis into group x0, x1 ...
 l2 normalize for each group x0, x1 ...
@@ -489,7 +489,7 @@ y = x * gamma + beta
 | gamma_data    | float | [channels]            |
 | beta_data     | float | [channels]            |
 
-# gru
+## gru
 Apply a single-layer GRU to a feature sequence of `T` timesteps. The input blob shape is `[w=input_size, h=T]` and the output blob shape is `[w=num_output, h=T]`.
 
 ```
@@ -516,7 +516,7 @@ Direction flag:
 - 1 = reverse only
 - 2 = bidirectional
 
-# hardsigmoid
+## hardsigmoid
 ```
 y = clamp(x * alpha + beta, 0, 1)
 ```
@@ -529,7 +529,7 @@ y = clamp(x * alpha + beta, 0, 1)
 | 0         | alpha         | float | 0.2f      |                   |
 | 1         | beta          | float | 0.5f      |                   |
 
-# hardswish
+## hardswish
 ```
 y = x * clamp(x * alpha + beta, 0, 1)
 ```
@@ -542,7 +542,7 @@ y = x * clamp(x * alpha + beta, 0, 1)
 | 0         | alpha         | float | 0.2f      |                   |
 | 1         | beta          | float | 0.5f      |                   |
 
-# innerproduct
+## innerproduct
 ```
 x2 = innerproduct(x, weight) + bias
 y = activation(x2, act_type, act_params)
@@ -566,7 +566,7 @@ y = activation(x2, act_type, act_params)
 | weight_data_int8_scales| float | [num_output] |
 | bottom_blob_int8_scales| float | [1]          |
 
-# input
+## input
 ```
 y = input
 ```
@@ -579,7 +579,7 @@ y = input
 | 1         | h             | int   | 0         |                   |
 | 2         | c             | int   | 0         |                   |
 
-# instancenorm
+## instancenorm
 ```
 split x along channel axis into instance x0, x1 ...
 l2 normalize for each channel instance x0, x1 ...
@@ -600,7 +600,7 @@ y = x * gamma + beta
 | gamma_data    | float | [channels]            |
 | beta_data     | float | [channels]            |
 
-# interp
+## interp
 ```
 if dynamic_target_size == 0     y = resize(x) by fixed size or scale
 else                            y = resize(x0, size(x1))
@@ -623,7 +623,7 @@ Resize type:
 - 2 = Bilinear
 - 3 = Bicubic
 
-# layernorm
+## layernorm
 ```
 split x along outmost axis into part x0, x1 ...
 l2 normalize for each part x0, x1 ...
@@ -644,7 +644,7 @@ y = x * gamma + beta by elementwise
 | gamma_data    | float | [affine_size]         |
 | beta_data     | float | [affine_size]         |
 
-# log
+## log
 ```
 if base == -1   y = log(shift + x * scale)
 else            y = log(shift + x * scale) / log(base)
@@ -659,7 +659,7 @@ else            y = log(shift + x * scale) / log(base)
 | 1         | scale         | float | 1.f       |                   |
 | 2         | shift         | float | 0.f       |                   |
 
-# lrn
+## lrn
 ```
 if region_type == ACROSS_CHANNELS   square_sum = sum of channel window of local_size
 if region_type == WITHIN_CHANNEL    square_sum = sum of spatial window of local_size
@@ -708,7 +708,7 @@ Direction flag:
 - 1 = reverse only
 - 2 = bidirectional
 
-# memorydata
+## memorydata
 ```
 y = data
 ```
@@ -723,7 +723,7 @@ y = data
 | ------------- | ----- | --------------------- |
 | data          | float | [w, h, c]             |
 
-# mish
+## mish
 ```
 y = x * tanh(log(exp(x) + 1))
 ```
@@ -731,7 +731,7 @@ y = x * tanh(log(exp(x) + 1))
 * one_blob_only
 * support_inplace
 
-# multiheadattention
+## multiheadattention
 ```
 split q k v into num_head part q0, k0, v0, q1, k1, v1 ...
 for each num_head part
@@ -762,7 +762,7 @@ y = affine(out)
 | out_weight_data| float/fp16/int8 | [weight_data_size] |
 | out_bias_data | float | [embed_dim]           |
 
-# mvn
+## mvn
 ```
 if normalize_variance == 1 && across_channels == 1      y = (x - mean) / (sqrt(var) + eps) of whole blob
 if normalize_variance == 1 && across_channels == 0      y = (x - mean) / (sqrt(var) + eps) of each channel
@@ -778,12 +778,12 @@ if normalize_variance == 0 && across_channels == 0      y = x - mean of each cha
 | 1         | across_channels| int  | 0         |                   |
 | 2         | eps           | float | 0.0001f   | x = x / (sqrt(var) + eps) |
 
-# noop
+## noop
 ```
 y = x
 ```
 
-# normalize
+## normalize
 ```
 if across_spatial == 1 && across_channel == 1      x2 = normalize(x) of whole blob
 if across_spatial == 1 && across_channel == 0      x2 = normalize(x) of each channel
@@ -812,7 +812,7 @@ Eps Mode:
 - 1 = pytorch       x = x / max(sqrt(var), eps)
 - 2 = tensorflow    x = x / sqrt(max(var, eps))
 
-# packing
+## packing
 ```
 y = wrap_packing(x)
 ```
@@ -828,7 +828,7 @@ y = wrap_packing(x)
 | 4         | storage_type_from| int | 0        |                   |
 | 5         | storage_type_to| int  | 0         |                   |
 
-# padding
+## padding
 ```
 if pads != -233/-234    y = pad(x, pads)
 else                    y = pad(x0, pads param from x1)
@@ -850,7 +850,7 @@ else                    y = pad(x0, pads param from x1)
 | ------------- | ----- | --------------------- |
 | per_channel_pad_data| float | [per_channel_pad_data_size] |
 
-# permute
+## permute
 ```
 y = reorder(x)
 ```
@@ -867,7 +867,7 @@ Order Type:
 - 4 = HCW
 - 5 = CHW
 
-# pixelshuffle
+## pixelshuffle
 ```
 if mode == 0    y = depth_to_space(x) where x channel order is sw-sh-outc
 if mode == 1    y = depth_to_space(x) where x channel order is outc-sw-sh
@@ -880,7 +880,7 @@ if mode == 1    y = depth_to_space(x) where x channel order is outc-sw-sh
 | 0         | upscale_factor| int  | 1         |                   |
 | 1         | mode          | int  | 0         |                   |
 
-# pooling
+## pooling
 ```
 x2 = pad(x, pads)
 x3 = pooling(x2, kernel, stride)
@@ -910,7 +910,7 @@ Pad mode:
 - 2 = tensorflow padding=SAME or onnx padding=SAME_UPPER
 - 3 = onnx padding=SAME_LOWER
 
-# power
+## power
 ```
 y = pow((shift + x * scale), power)
 ```
@@ -924,7 +924,7 @@ y = pow((shift + x * scale), power)
 | 1         | scale         | float | 1.f       |                   |
 | 2         | shift         | float | 0.f       |                   |
 
-# prelu
+## prelu
 ```
 if x < 0    y = x * slope
 else        y = x
@@ -941,7 +941,7 @@ else        y = x
 | ------------- | ----- | --------------------- |
 | slope_data    | float | [num_slope]           |
 
-# quantize
+## quantize
 ```
 y = float2int8(x * scale)
 ```
@@ -956,7 +956,7 @@ y = float2int8(x * scale)
 | ------------- | ----- | --------------------- |
 | scale_data    | float | [scale_data_size]     |
 
-# reduction
+## reduction
 ```
 y = reduce_op(x * coeff)
 ```
@@ -984,7 +984,7 @@ Operation type:
 - 9 = LogSum
 - 10 = LogSumExp
 
-# relu
+## relu
 ```
 if x < 0    y = x * slope
 else        y = x
@@ -997,7 +997,7 @@ else        y = x
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | slope         | float | 0.f       |                   |
 
-# reorg
+## reorg
 ```
 if mode == 0    y = space_to_depth(x) where x channel order is sw-sh-outc
 if mode == 1    y = space_to_depth(x) where x channel order is outc-sw-sh
@@ -1010,7 +1010,7 @@ if mode == 1    y = space_to_depth(x) where x channel order is outc-sw-sh
 | 0         | stride        | int  | 1         |                   |
 | 1         | mode          | int  | 0         |                   |
 
-# requantize
+## requantize
 ```
 x2 = x * scale_in + bias
 x3 = activation(x2)
@@ -1033,7 +1033,7 @@ y = float2int8(x3 * scale_out)
 | scale_out_data| float | [scale_out_data_size] |
 | bias_data     | float | [bias_data_size]      |
 
-# reshape
+## reshape
 ```
 if permute == 1     y = hwc2chw(reshape(chw2hwc(x)))
 else                y = reshape(x)
@@ -1053,7 +1053,7 @@ Reshape flag:
 - -1 = remaining
 - -233 = drop this dim(default)
 
-# rnn
+## rnn
 Apply a single-layer RNN to a feature sequence of `T` timesteps. The input blob shape is `[w=input_size, h=T]` and the output blob shape is `[w=num_output, h=T]`.
 
 ```
@@ -1080,7 +1080,7 @@ Direction flag:
 - 1 = reverse only
 - 2 = bidirectional
 
-# scale
+## scale
 ```
 if scale_data_size == -233  y = x0 * x1
 else                        y = x * scale + bias
@@ -1099,7 +1099,7 @@ else                        y = x * scale + bias
 | scale_data    | float | [scale_data_size]     |
 | bias_data     | float | [scale_data_size]     |
 
-# selu
+## selu
 ```
 if x < 0    y = (exp(x) - 1.f) * alpha * lambda
 else        y = x * lambda
@@ -1113,7 +1113,7 @@ else        y = x * lambda
 | 0         | alpha         | float | 1.67326324f|                  |
 | 1         | lambda        | float | 1.050700987f|                 |
 
-# shufflechannel
+## shufflechannel
 ```
 if reverse == 0     y = shufflechannel(x) by group
 if reverse == 1     y = shufflechannel(x) by channel / group
@@ -1126,7 +1126,7 @@ if reverse == 1     y = shufflechannel(x) by channel / group
 | 0         | group         | int  | 1         |                   |
 | 1         | reverse       | int  | 0         |                   |
 
-## sigmoid
+### sigmoid
 ```
 y = 1 / (1 + exp(-x))
 ```
@@ -1134,7 +1134,7 @@ y = 1 / (1 + exp(-x))
 * one_blob_only
 * support_inplace
 
-# slice
+## slice
 ```
 split x along axis into slices, each part slice size is based on slices array
 ```
@@ -1144,7 +1144,7 @@ split x along axis into slices, each part slice size is based on slices array
 | 0         | slices        | array | [ ]       |                   |
 | 1         | axis          | int   | 0         |                   |
 
-# softmax
+## softmax
 ```
 softmax(x, axis)
 ```
@@ -1157,7 +1157,7 @@ softmax(x, axis)
 | 0         | axis          | int   | 0         |                   |
 | 1         | fixbug0       | int   | 0         | hack for bug fix, should be 1 |
 
-# softplus
+## softplus
 ```
 y = log(exp(x) + 1)
 ```
@@ -1165,12 +1165,12 @@ y = log(exp(x) + 1)
 * one_blob_only
 * support_inplace
 
-# split
+## split
 ```
 y0, y1 ... = x
 ```
 
-# swish
+## swish
 ```
 y = x / (1 + exp(-x))
 ```
@@ -1186,7 +1186,7 @@ y = tanh(x)
 * one_blob_only
 * support_inplace
 
-# threshold
+## threshold
 ```
 if x > threshold    y = 1
 else                y = 0
@@ -1199,7 +1199,7 @@ else                y = 0
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | threshold     | float | 0.f       |                   |
 
-# unaryop
+## unaryop
 ```
 y = unaryop(x)
 ```
