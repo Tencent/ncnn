@@ -297,7 +297,7 @@ y = crop(x)
 | 10        | ends          | array | [ ]       |                   |
 | 11        | axes          | array | [ ]       |                   |
 
-# deconvolution
+## deconvolution
 ```
 x2 = deconv(x, weight, kernel, stride, dilation) + bias
 x3 = depad(x2, pads, pad_value)
@@ -331,7 +331,7 @@ y = activation(x3, act_type, act_params)
 | weight_data   | float/fp16/int8 | [kernel_w, kernel_h, num_input, num_output] |
 | bias_data     | float | [num_output]          |
 
-# deconvolutiondepthwise
+## deconvolutiondepthwise
 ```
 x2 = deconv(x, weight, kernel, stride, dilation, group) + bias
 x3 = depad(x2, pads, pad_value)
