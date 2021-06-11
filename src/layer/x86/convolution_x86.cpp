@@ -1177,7 +1177,6 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
     int h = bottom_blob_bordered.h;
     int channels = bottom_blob_bordered.c;
     int elempack = bottom_blob_bordered.elempack;
-    size_t elemsize = bottom_blob_bordered.elemsize;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;

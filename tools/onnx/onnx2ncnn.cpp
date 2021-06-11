@@ -3272,6 +3272,10 @@ int main(int argc, char** argv)
     {
         const std::string& input_name = it->first;
 
+        // there may be some weight nodes in initializer but none of the graph node use them
+        // add them to blob_names so we could get proper blob count later
+        blob_names.insert(input_name);
+
         int refcount = node_reference[input_name];
         if (refcount == 0)
             zero_reference_weight_node_count++;

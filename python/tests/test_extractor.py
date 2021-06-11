@@ -20,9 +20,8 @@ alloctor = ncnn.PoolAllocator()
 
 
 def test_extractor():
-    with pytest.raises(TypeError) as execinfo:
+    with pytest.raises(TypeError, match="No constructor"):
         ex = ncnn.Extractor()
-        assert "No constructor" in str(execinfo.value)
 
     dr = ncnn.DataReaderFromEmpty()
 
@@ -53,9 +52,8 @@ def test_extractor():
 
 
 def test_extractor_index():
-    with pytest.raises(TypeError) as execinfo:
+    with pytest.raises(TypeError, match="No constructor"):
         ex = ncnn.Extractor()
-        assert "No constructor" in str(execinfo.value)
 
     dr = ncnn.DataReaderFromEmpty()
 

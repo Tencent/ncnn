@@ -11,13 +11,13 @@ jobs:
     runs-on: windows-latest
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.7.0
+      uses: styfle/cancel-workflow-action@0.9.0
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: "protobuf-install"
         key: protobuf-windows-install

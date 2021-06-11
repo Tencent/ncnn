@@ -14,7 +14,7 @@ jobs:
         python-version: [3.6, 3.8]
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.7.0
+      uses: styfle/cancel-workflow-action@0.9.0
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -26,7 +26,7 @@ jobs:
       run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: "1.2.148.1"
         key: vulkansdk-linux-x86_64-1.2.148.1
@@ -39,7 +39,7 @@ jobs:
         find 1.2.148.1 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: swiftshader-install
         key: swiftshader-linux-install-20200508

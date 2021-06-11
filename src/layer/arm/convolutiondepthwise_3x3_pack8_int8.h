@@ -36,7 +36,7 @@ static void convdw3x3s1_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
         const signed char* r0 = img0.row<const signed char>(0);
         const signed char* r1 = img0.row<const signed char>(1);
         const signed char* r2 = img0.row<const signed char>(2);
-        const signed char* r3 = img0.row<const signed char>(2);
+        const signed char* r3 = img0.row<const signed char>(3);
 
         int8x8_t _k00 = vld1_s8(k0);
         int8x8_t _k01 = vld1_s8(k0 + 8);
@@ -149,6 +149,7 @@ static void convdw3x3s1_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
                 r0 += 16;
                 r1 += 16;
                 r2 += 16;
+                r3 += 16;
                 outptr0 += 16;
                 outptr1 += 16;
             }
@@ -220,6 +221,9 @@ static void convdw3x3s1_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
             r1 += 2 * 8 + w * 8;
             r2 += 2 * 8 + w * 8;
             r3 += 2 * 8 + w * 8;
+
+            outptr0 += outw * 8;
+            outptr1 += outw * 8;
         }
         for (; i < outh; i++)
         {
@@ -422,7 +426,7 @@ static void convdw3x3s2_pack8_int8_neon(const Mat& bottom_blob, Mat& top_blob, c
 
                 vst1q_s32(outptr0, _sum00);
                 vst1q_s32(outptr0 + 4, _sum01);
-                vst1q_s32(outptr0 + 8, _sum11);
+                vst1q_s32(outptr0 + 8, _sum10);
                 vst1q_s32(outptr0 + 12, _sum11);
 
                 r0 += 32;
