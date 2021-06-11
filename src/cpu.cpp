@@ -142,6 +142,7 @@ static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
 
 #if __riscv
 // from arch/riscv/include/uapi/asm/hwcap.h
+#define COMPAT_HWCAP_ISA_F (1 << ('F' - 'A'))
 #define COMPAT_HWCAP_ISA_V (1 << ('V' - 'A'))
 #endif
 
@@ -412,22 +413,11 @@ int cpu_support_riscv_v()
 
 int cpu_support_riscv_zfh()
 {
+#if defined __ANDROID__ || defined __linux__
 #if __riscv
-#if __riscv_zfh
-    // https://github.com/riscv/riscv-zfinx/blob/master/Zfinx_spec.adoc#5-discovery
-    __fp16 a = 0;
-    asm volatile(
-        "fneg.h     %0, %0  \n"
-        : "=f"(a)
-        : "0"(a)
-        :);
-    union
-    {
-        __fp16 a;
-        unsigned short u;
-    } tmp;
-    tmp.a = a;
-    return tmp.u != 0 ? 1 : 0;
+    // v + f does not imply zfh, but how to discover zfh properly ?
+    // upstream issue https://github.com/riscv/riscv-isa-manual/issues/414
+    return g_hwcaps & COMPAT_HWCAP_ISA_V && g_hwcaps & COMPAT_HWCAP_ISA_F;
 #else
     return 0;
 #endif
