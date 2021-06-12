@@ -2,10 +2,26 @@ name: elf-riscv32-cpu-gcc
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/elf-riscv32-cpu-gcc.yml'
+    - 'toolchains/riscv32-unknown-elf.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/elf-riscv32-cpu-gcc.yml'
+    - 'toolchains/riscv32-unknown-elf.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
 jobs:
   newlib-rv32imc-gcc:
     runs-on: ubuntu-20.04

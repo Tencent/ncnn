@@ -2,10 +2,24 @@ name: linux-ppc64-cpu-gcc
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/linux-ppc64-cpu-gcc.yml'
+    - 'toolchains/powerpc64le-linux-gnu.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'tests/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/linux-ppc64-cpu-gcc.yml'
+    - 'toolchains/powerpc64le-linux-gnu.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'tests/**'
 jobs:
   linux-gcc-ppc64le:
     runs-on: ubuntu-20.04
