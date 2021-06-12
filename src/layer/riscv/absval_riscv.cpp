@@ -116,7 +116,7 @@ int AbsVal_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt)
             word_type vl = vsetvl_e16m4(n);
 
             vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
-            _p = vfabs_v_f32m8_absval(_p,vl);
+            _p = vfabs_v_f32m8_absval(_p, vl);
             vse16_v_f16m4(ptr, vfncvt_f_f_w_f16m4(_p, vl), vl);
 
             ptr += vl;
