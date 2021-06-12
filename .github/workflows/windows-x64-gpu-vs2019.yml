@@ -2,10 +2,30 @@ name: windows-x64-gpu-vs2019
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/windows-x64-gpu-vs2019.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+    - 'tools/**'
+    - 'examples/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/windows-x64-gpu-vs2019.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+    - 'tools/**'
+    - 'examples/**'
 jobs:
   windows-vs2019-gpu:
     runs-on: windows-latest

@@ -2,6 +2,9 @@ name: sync-wiki
 on:
   push:
     branches: [master]
+    paths:
+    - '.github/workflows/sync-wiki.yml'
+    - 'docs/**'
 
 jobs:
   sync-wiki:

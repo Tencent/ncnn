@@ -2,10 +2,22 @@ name: test-coverage
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/test-coverage.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/**'
+    - 'tests/**'
+    - 'toolchains/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/test-coverage.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/**'
+    - 'tests/**'
+    - 'toolchains/**'
 jobs:
   linux-gcc-gpu:
     runs-on: ubuntu-latest

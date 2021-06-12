@@ -2,10 +2,26 @@ name: ios-arm64-gpu
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/ios-arm64-gpu.yml'
+    - 'toolchains/ios.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/vulkan/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/ios-arm64-gpu.yml'
+    - 'toolchains/ios.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/vulkan/**'
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
 jobs:

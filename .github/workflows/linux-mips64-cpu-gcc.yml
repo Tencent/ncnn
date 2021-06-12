@@ -2,10 +2,28 @@ name: linux-mips64-cpu-gcc
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/linux-mips64-cpu-gcc.yml'
+    - 'toolchains/mips64el-linux-gnuabi64.toolchain.cmake'
+    - 'toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/mips/**'
+    - 'tests/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/linux-mips64-cpu-gcc.yml'
+    - 'toolchains/mips64el-linux-gnuabi64.toolchain.cmake'
+    - 'toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/mips/**'
+    - 'tests/**'
 jobs:
   linux-gcc-mips64el:
     runs-on: ubuntu-20.04
