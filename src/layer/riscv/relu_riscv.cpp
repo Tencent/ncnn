@@ -20,8 +20,6 @@
 #else
 #include <riscv_vector.h>
 #endif
-#include "rvv_mathfun.h"
-#include "rvv_mathfun_fp16s.h"
 #endif // __riscv_vector
 
 namespace ncnn {
@@ -43,10 +41,7 @@ int ReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __riscv_vector && __riscv_zfh
     if (opt.use_fp16_storage && elembits == 16)
     {
-        if (opt.use_fp16_arithmetic)
-            return forward_inplace_fp16sa(bottom_top_blob, opt);
-        else
-            return forward_inplace_fp16s(bottom_top_blob, opt);
+        return forward_inplace_fp16s(bottom_top_blob, opt);
     }
 #endif
 
@@ -114,55 +109,7 @@ int ReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 }
 
 #if __riscv_vector && __riscv_zfh
-
 int ReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
-    int size = w * h;
-    int elempack = bottom_top_blob.elempack;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
-    {
-        __fp16* ptr = bottom_top_blob.channel(q);
-        if (slope == 0.f)
-        {
-            int n = size * elempack;
-            while (n > 0)
-            {
-                word_type vl = vsetvl_e16m4(n);
-
-                vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
-                _p = vfmax_vf_f32m8(_p, (float32_t)0.f, vl);
-                vse16_v_f16m4(ptr, vfncvt_f_f_w_f16m4(_p, vl), vl);
-
-                ptr += vl;
-                n -= vl;
-            }
-        }
-        else
-        {
-            int n = size * elempack;
-            while (n > 0)
-            {
-                word_type vl = vsetvl_e16m4(n);
-
-                vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
-                _p = vfmul_vf_f32m8_m(vmflt_vf_f32m8_b4(_p, .0f, vl), _p, _p, slope, vl); //slope: float(float32_t)
-                vse16_v_f16m4(ptr, vfncvt_f_f_w_f16m4(_p, vl), vl);
-
-                ptr += vl;
-                n -= vl;
-            }
-        }
-    }
-
-    return 0;
-}
-
-int ReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
