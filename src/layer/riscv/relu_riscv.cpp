@@ -93,7 +93,7 @@ int ReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 word_type vl = vsetvl_e32m8(n);
 
                 vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                _p = vfmul_vf_f32m8(_p, slope, vl); //slope: float(float32_t)
+                _p = vfmul_vf_f32m8_m(vmflt_vf_f32m8_b4(_p, .0f, vl), _p, _p, slope, vl); //slope: float(float32_t)
                 vse32_v_f32m8(ptr, _p, vl);
 
                 ptr += vl;
@@ -150,7 +150,7 @@ int ReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
                 word_type vl = vsetvl_e16m4(n);
 
                 vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
-                _p = vfmul_vf_f32m8(_p, slope, vl); //slope: float(float32_t)
+                _p = vfmul_vf_f32m8_m(vmflt_vf_f32m8_b4(_p, .0f, vl), _p, _p, slope, vl); //slope: float(float32_t)
                 vse16_v_f16m4(ptr, vfncvt_f_f_w_f16m4(_p, vl), vl);
 
                 ptr += vl;
@@ -198,7 +198,7 @@ int ReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) 
                 word_type vl = vsetvl_e16m8(n);
 
                 vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                _p = vfmul_vf_f16m8(_p, _slope, vl);
+                _p = vfmul_vf_f16m8_m(vmflt_vf_f16m8_b2(_p, .0f, vl), _p, _p, _slope, vl);
                 vse16_v_f16m8(ptr, _p, vl);
 
                 ptr += vl;
