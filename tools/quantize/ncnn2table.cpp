@@ -1571,7 +1571,7 @@ static void show_usage()
     fprintf(stderr, "Usage: ncnn2table [ncnnparam] [ncnnbin] [list,...] [ncnntable] [(key=value)...]\n");
     fprintf(stderr, "  mean=[104.0,117.0,123.0],...\n");
     fprintf(stderr, "  norm=[1.0,1.0,1.0],...\n");
-    fprintf(stderr, "  shape=[224,224,3],...\n");
+    fprintf(stderr, "  shape=[224,224,3],...[w,h,c] or [w,h]\n");
     fprintf(stderr, "  pixel=RAW/RGB/BGR/GRAY/RGBA/BGRA,...\n");
     fprintf(stderr, "  thread=8\n");
     fprintf(stderr, "  method=kl/aciq/eq\n");
