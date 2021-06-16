@@ -23,6 +23,14 @@
 #if __AVX__
 #include <immintrin.h>
 #endif
+#if __riscv_vector
+#ifdef RVV_SPEC_0_7
+#include "riscv_v_071_fix.h"
+#else
+#include <riscv_vector.h>
+#endif
+#include "cpu.h" // cpu_riscv_vlenb()
+#endif
 
 #include "allocator.h"
 #include "option.h"
@@ -101,6 +109,14 @@ public:
     void fill(__m256 _v);
     void fill(__m128i _v);
 #endif // __AVX__
+#if __riscv_vector
+    void fill(vfloat32m1_t _v);
+    void fill(vuint16m1_t _v);
+    void fill(vint8m1_t _v);
+#if __riscv_zfh
+    void fill(vfloat16m1_t _v);
+#endif // __riscv_zfh
+#endif // __riscv_vector
     template<typename T>
     void fill(T v);
     // deep copy
@@ -1000,6 +1016,65 @@ inline void Mat::fill(__m128i _v)
     }
 }
 #endif // __AVX__
+
+#if __riscv_vector
+inline void Mat::fill(vfloat32m1_t _v)
+{
+    const int packn = cpu_riscv_vlenb() / 4;
+    const word_type vl = vsetvl_e32m1(packn);
+
+    int size = (int)total();
+    float* ptr = (float*)data;
+    for (int i = 0; i < size; i++)
+    {
+        vse32_v_f32m1(ptr, _v, vl);
+        ptr += packn;
+    }
+}
+
+inline void Mat::fill(vuint16m1_t _v)
+{
+    const int packn = cpu_riscv_vlenb() / 2;
+    const word_type vl = vsetvl_e16m1(packn);
+
+    int size = (int)total();
+    unsigned short* ptr = (unsigned short*)data;
+    for (int i = 0; i < size; i++)
+    {
+        vse16_v_u16m1(ptr, _v, vl);
+        ptr += packn;
+    }
+}
+
+inline void Mat::fill(vint8m1_t _v)
+{
+    const int packn = cpu_riscv_vlenb() / 1;
+    const word_type vl = vsetvl_e8m1(packn);
+
+    int size = (int)total();
+    signed char* ptr = (signed char*)data;
+    for (int i = 0; i < size; i++)
+    {
+        vse8_v_i8m1(ptr, _v, vl);
+        ptr += packn;
+    }
+}
+#if __riscv_zfh
+inline void Mat::fill(vfloat16m1_t _v)
+{
+    const int packn = cpu_riscv_vlenb() / 2;
+    const word_type vl = vsetvl_e16m1(packn);
+
+    int size = (int)total();
+    __fp16* ptr = (__fp16*)data;
+    for (int i = 0; i < size; i++)
+    {
+        vse16_v_f16m1(ptr, _v, vl);
+        ptr += packn;
+    }
+}
+#endif // __riscv_zfh
+#endif // __riscv_vector
 
 template<typename T>
 inline void Mat::fill(T _v)
