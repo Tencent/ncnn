@@ -832,8 +832,14 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             }
             if (elembits == 8)
             {
+#if NCNN_RVV
+                const int packn = ncnn::cpu_riscv_vlenb() / 1;
+                if (elemcount % packn == 0)
+                    dst_elempack = packn;
+#else
                 if (elemcount % 8 == 0)
                     dst_elempack = 8;
+#endif
             }
         }
 

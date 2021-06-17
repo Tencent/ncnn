@@ -205,7 +205,7 @@ static int test_padding_int8(const ncnn::Mat& a, int top, int bottom, int left, 
     if (per_channel_pad_data_size)
         weights[0] = RandomMat(per_channel_pad_data_size);
 
-    int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING;
+    int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING | TEST_LAYER_DISABLE_GPU_TESTING;
     int ret = test_layer<ncnn::Padding>("Padding", pd, weights, a, 0.001, 0, flag);
     if (ret != 0)
     {

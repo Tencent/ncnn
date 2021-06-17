@@ -453,8 +453,14 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             }
             if (elembits == 8)
             {
+#if NCNN_RVV
+                const int packn = ncnn::cpu_riscv_vlenb() / 1;
+                if (elemcount % packn == 0)
+                    dst_elempack = packn;
+#else
                 if (elemcount % 8 == 0)
                     dst_elempack = 8;
+#endif
             }
 
             if (flag & TEST_LAYER_ENABLE_FORCE_INPUT_PACK8)
@@ -877,8 +883,14 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         }
         if (elembits == 8)
         {
+#if NCNN_RVV
+            const int packn = ncnn::cpu_riscv_vlenb() / 1;
+            if (elemcount % packn == 0)
+                dst_elempack = packn;
+#else
             if (elemcount % 8 == 0)
                 dst_elempack = 8;
+#endif
         }
 
         if (flag & TEST_LAYER_ENABLE_FORCE_INPUT_PACK8)

@@ -53,7 +53,7 @@ static int test_flatten_int8(const ncnn::Mat& a)
 
     std::vector<ncnn::Mat> weights(0);
 
-    int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING;
+    int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING | TEST_LAYER_DISABLE_GPU_TESTING;
     int ret = test_layer<ncnn::Flatten>("Flatten", pd, weights, a, 0.001, 0, flag);
     if (ret != 0)
     {
