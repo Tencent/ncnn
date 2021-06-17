@@ -46,11 +46,40 @@ static float RandomFloat(float a = -1.2f, float b = 1.2f)
     return a + r;
 }
 
+static int RandomInt(int a = -10000, int b = 10000)
+{
+    float random = ((float)RAND()) / (float)uint64_t(-1); //RAND_MAX;
+    int diff = b - a;
+    float r = random * diff;
+    return a + (int)r;
+}
+
+static signed char RandomS8()
+{
+    return (signed char)RandomInt(-127, 127);
+}
+
 static void Randomize(ncnn::Mat& m, float a = -1.2f, float b = 1.2f)
 {
     for (size_t i = 0; i < m.total(); i++)
     {
         m[i] = RandomFloat(a, b);
+    }
+}
+
+static void RandomizeInt(ncnn::Mat& m, int a = -10000, int b = 10000)
+{
+    for (size_t i = 0; i < m.total(); i++)
+    {
+        ((int*)m)[i] = RandomInt(a, b);
+    }
+}
+
+static void RandomizeS8(ncnn::Mat& m)
+{
+    for (size_t i = 0; i < m.total(); i++)
+    {
+        ((signed char*)m)[i] = RandomS8();
     }
 }
 
@@ -72,6 +101,48 @@ static ncnn::Mat RandomMat(int w, int h, int c)
 {
     ncnn::Mat m(w, h, c);
     Randomize(m);
+    return m;
+}
+
+static ncnn::Mat RandomIntMat(int w)
+{
+    ncnn::Mat m(w);
+    RandomizeInt(m);
+    return m;
+}
+
+static ncnn::Mat RandomIntMat(int w, int h)
+{
+    ncnn::Mat m(w, h);
+    RandomizeInt(m);
+    return m;
+}
+
+static ncnn::Mat RandomIntMat(int w, int h, int c)
+{
+    ncnn::Mat m(w, h, c);
+    RandomizeInt(m);
+    return m;
+}
+
+static ncnn::Mat RandomS8Mat(int w)
+{
+    ncnn::Mat m(w, (size_t)1u);
+    RandomizeS8(m);
+    return m;
+}
+
+static ncnn::Mat RandomS8Mat(int w, int h)
+{
+    ncnn::Mat m(w, h, (size_t)1u);
+    RandomizeS8(m);
+    return m;
+}
+
+static ncnn::Mat RandomS8Mat(int w, int h, int c)
+{
+    ncnn::Mat m(w, h, c, (size_t)1u);
+    RandomizeS8(m);
     return m;
 }
 
@@ -348,24 +419,43 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
             int dst_elempack = 1;
 
+            if (elembits == 32)
+            {
 #if NCNN_AVX2
-            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
-                dst_elempack = 8;
-            else if (elemcount % 4 == 0)
-                dst_elempack = 4;
-#elif NCNN_ARM82
-            if (elemcount % 8 == 0 && opt.use_fp16_arithmetic && elembits == 16)
-                dst_elempack = 8;
-            else if (elemcount % 4 == 0)
-                dst_elempack = 4;
+                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
 #elif NCNN_RVV
-            const int packn = ncnn::cpu_riscv_vlenb() / (elembits / 8);
-            if (elemcount % packn == 0)
-                dst_elempack = packn;
+                const int packn = ncnn::cpu_riscv_vlenb() / (elembits / 8);
+                if (elemcount % packn == 0)
+                    dst_elempack = packn;
 #else
-            if (elemcount % 4 == 0)
-                dst_elempack = 4;
+                if (elemcount % 4 == 0)
+                    dst_elempack = 4;
 #endif
+            }
+            if (elembits == 16)
+            {
+#if NCNN_ARM82
+                if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && layer->support_fp16_storage)
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
+#elif NCNN_RVV
+                const int packn = ncnn::cpu_riscv_vlenb() / 2;
+                if (elemcount % packn == 0)
+                    dst_elempack = packn;
+#else
+                if (elemcount % 4 == 0)
+                    dst_elempack = 4;
+#endif
+            }
+            if (elembits == 8)
+            {
+                if (elemcount % 8 == 0)
+                    dst_elempack = 8;
+            }
 
             if (flag & TEST_LAYER_ENABLE_FORCE_INPUT_PACK8)
                 dst_elempack = 8;
@@ -753,24 +843,43 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
         int dst_elempack = 1;
 
+        if (elembits == 32)
+        {
 #if NCNN_AVX2
-        if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
-            dst_elempack = 8;
-        else if (elemcount % 4 == 0)
-            dst_elempack = 4;
-#elif NCNN_ARM82
-        if (elemcount % 8 == 0 && opt.use_fp16_arithmetic && elembits == 16)
-            dst_elempack = 8;
-        else if (elemcount % 4 == 0)
-            dst_elempack = 4;
+            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
 #elif NCNN_RVV
-        const int packn = ncnn::cpu_riscv_vlenb() / (elembits / 8);
-        if (elemcount % packn == 0)
-            dst_elempack = packn;
+            const int packn = ncnn::cpu_riscv_vlenb() / (elembits / 8);
+            if (elemcount % packn == 0)
+                dst_elempack = packn;
 #else
-        if (elemcount % 4 == 0)
-            dst_elempack = 4;
+            if (elemcount % 4 == 0)
+                dst_elempack = 4;
 #endif
+        }
+        if (elembits == 16)
+        {
+#if NCNN_ARM82
+            if (elemcount % 8 == 0 && opt.use_fp16_storage && opt.use_fp16_arithmetic && layer->support_fp16_storage)
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#elif NCNN_RVV
+            const int packn = ncnn::cpu_riscv_vlenb() / 2;
+            if (elemcount % packn == 0)
+                dst_elempack = packn;
+#else
+            if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#endif
+        }
+        if (elembits == 8)
+        {
+            if (elemcount % 8 == 0)
+                dst_elempack = 8;
+        }
 
         if (flag & TEST_LAYER_ENABLE_FORCE_INPUT_PACK8)
             dst_elempack = 8;
