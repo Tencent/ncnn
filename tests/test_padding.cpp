@@ -217,9 +217,9 @@ static int test_padding_int8(const ncnn::Mat& a, int top, int bottom, int left, 
 
 static int test_padding_3()
 {
-    ncnn::Mat a = RandomS8Mat(9, 11, 24);
-    ncnn::Mat b = RandomS8Mat(10, 13, 12);
-    ncnn::Mat c = RandomS8Mat(8, 9, 13);
+    ncnn::Mat a = RandomS8Mat(9, 11, 96);
+    ncnn::Mat b = RandomS8Mat(10, 13, 48);
+    ncnn::Mat c = RandomS8Mat(8, 9, 52);
 
     return 0
            || test_padding_int8(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)
@@ -277,9 +277,9 @@ static int test_padding_3()
 
 static int test_padding_4()
 {
-    ncnn::Mat a = RandomS8Mat(15, 24);
-    ncnn::Mat b = RandomS8Mat(19, 12);
-    ncnn::Mat c = RandomS8Mat(17, 15);
+    ncnn::Mat a = RandomS8Mat(15, 96);
+    ncnn::Mat b = RandomS8Mat(19, 48);
+    ncnn::Mat c = RandomS8Mat(17, 60);
 
     return 0
            || test_padding_int8(a, 0, 0, 0, 0, 0, 0, 0, 0.f, 0)

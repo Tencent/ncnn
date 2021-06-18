@@ -66,18 +66,18 @@ static int test_flatten_int8(const ncnn::Mat& a)
 static int test_flatten_1()
 {
     return 0
-           || test_flatten_int8(RandomS8Mat(2, 4, 4))
-           || test_flatten_int8(RandomS8Mat(3, 5, 8))
-           || test_flatten_int8(RandomS8Mat(1, 1, 16))
-           || test_flatten_int8(RandomS8Mat(9, 10, 16))
-           || test_flatten_int8(RandomS8Mat(1, 7, 1))
-           || test_flatten_int8(RandomS8Mat(6, 6, 15))
-           || test_flatten_int8(RandomS8Mat(13, 13))
-           || test_flatten_int8(RandomS8Mat(16, 16))
-           || test_flatten_int8(RandomS8Mat(8, 12))
-           || test_flatten_int8(RandomS8Mat(8, 2))
-           || test_flatten_int8(RandomS8Mat(32))
-           || test_flatten_int8(RandomS8Mat(17));
+           || test_flatten_int8(RandomS8Mat(2, 4, 16))
+           || test_flatten_int8(RandomS8Mat(3, 5, 32))
+           || test_flatten_int8(RandomS8Mat(1, 1, 64))
+           || test_flatten_int8(RandomS8Mat(9, 10, 64))
+           || test_flatten_int8(RandomS8Mat(1, 7, 4))
+           || test_flatten_int8(RandomS8Mat(6, 6, 70))
+           || test_flatten_int8(RandomS8Mat(13, 52))
+           || test_flatten_int8(RandomS8Mat(16, 64))
+           || test_flatten_int8(RandomS8Mat(8, 48))
+           || test_flatten_int8(RandomS8Mat(8, 8))
+           || test_flatten_int8(RandomS8Mat(128))
+           || test_flatten_int8(RandomS8Mat(127));
 }
 
 int main()
