@@ -1,4 +1,4 @@
-ncnn openmp 最佳实践
+# openmp 最佳实践
 
 ### ncnn占用过多cpu资源
 

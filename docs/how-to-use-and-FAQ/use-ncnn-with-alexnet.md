@@ -1,3 +1,5 @@
+# use ncnn with alexnet
+
 We use alexnet as an example
 
 ### prepare caffe prototxt and model

@@ -1,3 +1,5 @@
+# build minimal library
+
 For some reason, if you're not happy with the binary size of the ncnn library, then here is the cheatsheet that helps you to build a minimal ncnn :P
 
 ### disable c++ rtti and exceptions

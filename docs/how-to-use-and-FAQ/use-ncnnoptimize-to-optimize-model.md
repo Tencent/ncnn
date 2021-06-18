@@ -1,3 +1,5 @@
+# use ncnnoptimize to optimize model
+
 
 the typical usage
 ```

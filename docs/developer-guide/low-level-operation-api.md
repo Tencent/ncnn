@@ -37,7 +37,7 @@ void binary_add(const ncnn::Mat& a, const ncnn::Mat& b, ncnn::Mat& c)
 }
 ```
 
-# implement 3x3 box blur on three channel image using ConvolutionDepthWise operation
+## implement 3x3 box blur on three channel image using ConvolutionDepthWise operation
 
 * input must be fp32 storage without packing
 * output is expected to be fp32 storage without packing
@@ -83,7 +83,7 @@ void convolution_3x3_boxblur_RGB(const ncnn::Mat& rgb, ncnn::Mat& out)
     delete op;
 }
 ```
-# transpose Mat, chw to cwh
+## transpose Mat, chw to cwh
 
 * input must be fp32 storage with/without packing
 * output is expected to be fp32 storage packed
@@ -138,7 +138,7 @@ void transpose(const ncnn::Mat& in, ncnn::Mat& out)
     delete op;
 }
 ```
-# apply instance normalization
+## apply instance normalization
 // x = (x - mean) / sqrt(var)
 
 * input can be fp32/fp16 storage with/without packing
@@ -216,7 +216,7 @@ void normalize(const ncnn::Mat& in, ncnn::Mat& out)
 }
 ```
 
-# cpu -> gpu -> forward -> gpu -> cpu
+## cpu -> gpu -> forward -> gpu -> cpu
 
 ```cpp
 ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();

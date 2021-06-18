@@ -1,3 +1,5 @@
+# openmp best practice
+
 ncnn openmp best practice
 
 ### CPU loadaverage is too high with ncnn.

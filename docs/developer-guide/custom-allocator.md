@@ -1,3 +1,5 @@
+# custom allocator
+
 Mat structure is now allocator-aware via an extra allocator parameter with default zero value.
 
 The good-old ncnn::fastMalloc()/ncnn::fastFree() will be used for a null allocator.

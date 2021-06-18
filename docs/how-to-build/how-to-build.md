@@ -1,3 +1,5 @@
+# how to build
+
 ### Git clone ncnn repo with submodule
 
 ```

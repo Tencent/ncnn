@@ -1,3 +1,5 @@
+# ncnn tips and tricks 
+
 ### blob内存是隐含共享的
 
 ncnn的blob最初直接使用opencv的cv::Mat，后发现blob最多只支持三维，因此实现了类似的Mat
