@@ -65,6 +65,15 @@ typedef int16x4xm1_t vint16m1x4_t;
 typedef int16x4xm2_t vint16m2x4_t;
 typedef int16x8xm1_t vint16m1x8_t;
 
+typedef int8xm1_t vint8m1_t;
+typedef int8xm2_t vint8m2_t;
+typedef int8xm4_t vint8m4_t;
+typedef int8xm8_t vint8m8_t;
+
+typedef int8x4xm1_t vint8m1x4_t;
+typedef int8x4xm2_t vint8m2x4_t;
+typedef int8x8xm1_t vint8m1x8_t;
+
 typedef uint32xm1_t vuint32m1_t;
 typedef uint32xm2_t vuint32m2_t;
 typedef uint32xm4_t vuint32m4_t;
@@ -93,6 +102,11 @@ typedef uint16x8xm1_t vuint16m1x8_t;
 #define vsetvl_e16m4(n) vsetvli(n, RVV_E16, RVV_M4)
 #define vsetvl_e16m8(n) vsetvli(n, RVV_E16, RVV_M8)
 
+#define vsetvl_e8m1(n) vsetvli(n, RVV_E8, RVV_M1)
+#define vsetvl_e8m2(n) vsetvli(n, RVV_E8, RVV_M2)
+#define vsetvl_e8m4(n) vsetvli(n, RVV_E8, RVV_M4)
+#define vsetvl_e8m8(n) vsetvli(n, RVV_E8, RVV_M8)
+
 /******************************** float32 ********************************/
 #define vle32_v_f32m1 vlev_float32xm1
 #define vle32_v_f32m2 vlev_float32xm2
@@ -103,6 +117,16 @@ typedef uint16x8xm1_t vuint16m1x8_t;
 #define vse32_v_f32m2 vsev_float32xm2
 #define vse32_v_f32m4 vsev_float32xm4
 #define vse32_v_f32m8 vsev_float32xm8
+
+#define vlse32_v_f32m1 vlsev_float32xm1
+#define vlse32_v_f32m2 vlsev_float32xm2
+#define vlse32_v_f32m4 vlsev_float32xm4
+#define vlse32_v_f32m8 vlsev_float32xm8
+
+#define vsse32_v_f32m1 vssev_float32xm1
+#define vsse32_v_f32m2 vssev_float32xm2
+#define vsse32_v_f32m4 vssev_float32xm4
+#define vsse32_v_f32m8 vssev_float32xm8
 
 #define vlseg4e32_v_f32m2x4 vlseg4ev_float32x4xm2
 #define vsseg4e32_v_f32m2x4 vsseg4ev_float32x4xm2
@@ -1059,6 +1083,32 @@ static inline vfloat16m1_t vfredsum_vs_f16m8_f16m1(vfloat16m1_t dst, vfloat16m8_
 #define vreinterpret_v_f16m4_i16m4(x) reinterpret_cast<vint16m4_t>(x)
 #define vreinterpret_v_f16m8_i16m8(x) reinterpret_cast<vint16m8_t>(x)
 
+/******************************** int8 ********************************/
+#define vle8_v_i8m1 vlev_int8xm1
+#define vle8_v_i8m2 vlev_int8xm2
+#define vle8_v_i8m4 vlev_int8xm4
+#define vle8_v_i8m8 vlev_int8xm8
+
+#define vse8_v_i8m1 vsev_int8xm1
+#define vse8_v_i8m2 vsev_int8xm2
+#define vse8_v_i8m4 vsev_int8xm4
+#define vse8_v_i8m8 vsev_int8xm8
+
+#define vlse8_v_i8m1 vlsev_int8xm1
+#define vlse8_v_i8m2 vlsev_int8xm2
+#define vlse8_v_i8m4 vlsev_int8xm4
+#define vlse8_v_i8m8 vlsev_int8xm8
+
+#define vsse8_v_i8m1 vssev_int8xm1
+#define vsse8_v_i8m2 vssev_int8xm2
+#define vsse8_v_i8m4 vssev_int8xm4
+#define vsse8_v_i8m8 vssev_int8xm8
+
+#define vmv_v_x_i8m1 vmvvx_int8xm1
+#define vmv_v_x_i8m2 vmvvx_int8xm2
+#define vmv_v_x_i8m4 vmvvx_int8xm4
+#define vmv_v_x_i8m8 vmvvx_int8xm8
+
 /******************************** uint32 ********************************/
 #define vadd_vv_u32m1                           vaddvv_uint32xm1
 #define vadd_vv_u32m2                           vaddvv_uint32xm2
@@ -1232,6 +1282,16 @@ static inline vfloat16m1_t vfredsum_vs_f16m8_f16m1(vfloat16m1_t dst, vfloat16m8_
 #define vse16_v_u16m4 vsev_uint16xm4
 #define vse16_v_u16m8 vsev_uint16xm8
 
+#define vlse16_v_u16m1 vlsev_uint16xm1
+#define vlse16_v_u16m2 vlsev_uint16xm2
+#define vlse16_v_u16m4 vlsev_uint16xm4
+#define vlse16_v_u16m8 vlsev_uint16xm8
+
+#define vsse16_v_u16m1 vssev_uint16xm1
+#define vsse16_v_u16m2 vssev_uint16xm2
+#define vsse16_v_u16m4 vssev_uint16xm4
+#define vsse16_v_u16m8 vssev_uint16xm8
+
 #define vlseg8e16_v_u16m1x8 vlseg8ev_uint16x8xm1
 #define vsseg8e16_v_u16m1x8 vsseg8ev_uint16x8xm1
 
@@ -1283,6 +1343,11 @@ static inline vuint16m1x8_t vcreate_u16m1x8(vuint16m1_t v0, vuint16m1_t v1, vuin
     p = vset_u16m1x8(p, 7, v7);
     return p;
 }
+
+#define vmv_v_x_u16m1 vmvvx_uint16xm1
+#define vmv_v_x_u16m2 vmvvx_uint16xm2
+#define vmv_v_x_u16m4 vmvvx_uint16xm4
+#define vmv_v_x_u16m8 vmvvx_uint16xm8
 
 #define vadd_vv_u16m1                           vaddvv_uint16xm1
 #define vadd_vv_u16m2                           vaddvv_uint16xm2
