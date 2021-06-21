@@ -145,28 +145,28 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     const float* kptr = (const float*)weight_data + num_input * p;
                     const float* m = bottom_blob.row(j);
 
-                    const word_type gvl = vsetvl_e32m1(packn);
-                    vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, gvl);
+                    const word_type vl = vsetvl_e32m1(packn);
+                    vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
 
                     if (bias_term)
                     {
-                        _sum = vfmv_v_f_f32m1(bias_data[p], gvl);
+                        _sum = vfmv_v_f_f32m1(bias_data[p], vl);
                     }
 
                     int n = num_input;
                     while (n > 0)
                     {
-                        vfloat32m1_t _val = vle32_v_f32m1(m, gvl);
-                        _sum = vfmacc_vf_f32m1(_sum, *kptr, _val, gvl);
+                        vfloat32m1_t _val = vle32_v_f32m1(m, vl);
+                        _sum = vfmacc_vf_f32m1(_sum, *kptr, _val, vl);
 
                         m += packn;
                         kptr += 1;
                         n -= 1;
                     }
 
-                    _sum = activation_ps(_sum, activation_type, activation_params, gvl);
+                    _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                    vse32_v_f32m1(outptr, _sum, gvl);
+                    vse32_v_f32m1(outptr, _sum, vl);
                     outptr += packn;
                 }
             }
@@ -243,23 +243,23 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     const float* weight_data_ptr = weight_data;
 
 #if __riscv_vector
-    int nn_num_output = num_output >> packn;
-    int remain_num_output_start = nn_num_output << packn;
+    int nn_num_output = num_output / packn;
+    int remain_num_output_start = nn_num_output * packn;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = pp * packn;
 
-        const word_type gvl = vsetvl_e32m1(packn);
-        vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, gvl);
+        const word_type vl = vsetvl_e32m1(packn);
+        vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
 
         if (bias_term)
         {
-            _sum = vle32_v_f32m1((const float*)bias_data + p, gvl);
+            _sum = vle32_v_f32m1((const float*)bias_data + p, vl);
         }
 
-        const float* w = weight_data_ptr + size * channels * p;
+        const float* w = weight_data_ptr + num_input * p;
 
         // channels
         for (int q = 0; q < channels; q++)
@@ -269,21 +269,19 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             int n = size;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m1(n);
-
-                vfloat32m1_t _w = vlse32_v_f32m1(w, size * channels * sizeof(float), vl);
+                vfloat32m1_t _w = vlse32_v_f32m1(w, num_input * sizeof(float), vl);
 
                 _sum = vfmacc_vf_f32m1(_sum, *m, _w, vl);
 
                 m += 1;
                 w += 1;
-                n -= vl;
+                n -= 1;
             }
         }
 
-        _sum = activation_ps(_sum, activation_type, activation_params, gvl);
+        _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-        vse32_v_f32m1((float*)top_blob + p, _sum, gvl);
+        vse32_v_f32m1((float*)top_blob + p, _sum, vl);
     }
 #else  // __riscv_vector
     int remain_num_output_start = 0;
@@ -298,7 +296,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         if (bias_term)
             sum = bias_data[p];
 
-        const float* w = weight_data_ptr + size * channels * p;
+        const float* w = weight_data_ptr + num_input * p;
 
         // channels
         for (int q = 0; q < channels; q++)
@@ -386,7 +384,7 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
         {
             if (elempack == packn && num_output_elempack == packn)
             {
-                const word_type gvl = vsetvl_e16m1(packn);
+                const word_type vl = vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -397,28 +395,28 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
                         const __fp16* kptr = (const __fp16*)weight_data_fp16 + num_input * p * packn + l;
                         const __fp16* m = bottom_blob.row<const __fp16>(j);
 
-                        vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, gvl);
+                        vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, vl);
 
                         if (bias_term)
                         {
-                            _sum = vfmv_v_f_f32m2(bias_data[p * packn + l], gvl);
+                            _sum = vfmv_v_f_f32m2(bias_data[p * packn + l], vl);
                         }
 
                         int n = num_input;
                         while (n > 0)
                         {
-                            vfloat32m2_t _val = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(m, gvl), gvl);
+                            vfloat32m2_t _val = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(m, vl), vl);
 
-                            _sum = vfmacc_vf_f32m2(_sum, *kptr, _val, gvl);
+                            _sum = vfmacc_vf_f32m2(_sum, *kptr, _val, vl);
 
                             m += packn;
                             kptr += packn;
                             n -= 1;
                         }
 
-                        _sum = activation_ps(_sum, activation_type, activation_params, gvl);
+                        _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                        vse16_v_f16m1(outptr, vfncvt_f_f_w_f16m1(_sum, gvl), gvl);
+                        vse16_v_f16m1(outptr, vfncvt_f_f_w_f16m1(_sum, vl), vl);
                         outptr += packn;
                     }
                 }
@@ -426,7 +424,7 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
 
             if (elempack == 1 && num_output_elempack == packn)
             {
-                const word_type gvl = vsetvl_e16m1(packn);
+                const word_type vl = vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -435,35 +433,35 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
                     const __fp16* kptr = (const __fp16*)weight_data_fp16 + num_input * p * packn;
                     const __fp16* m = bottom_blob.row<const __fp16>(j);
 
-                    vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, gvl);
+                    vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, vl);
 
                     if (bias_term)
                     {
-                        _sum = vle32_v_f32m2((const float*)bias_data + p * packn, gvl);
+                        _sum = vle32_v_f32m2((const float*)bias_data + p * packn, vl);
                     }
 
                     int n = num_input;
                     while (n > 0)
                     {
-                        vfloat32m2_t _w = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(kptr, gvl), gvl);
+                        vfloat32m2_t _w = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(kptr, vl), vl);
 
-                        _sum = vfmacc_vf_f32m2(_sum, *m, _w, gvl);
+                        _sum = vfmacc_vf_f32m2(_sum, *m, _w, vl);
 
                         m += 1;
                         kptr += packn;
                         n -= 1;
                     }
 
-                    _sum = activation_ps(_sum, activation_type, activation_params, gvl);
+                    _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                    vse16_v_f16m1(outptr, vfncvt_f_f_w_f16m1(_sum, gvl), gvl);
+                    vse16_v_f16m1(outptr, vfncvt_f_f_w_f16m1(_sum, vl), vl);
                     outptr += packn;
                 }
             }
 
             if (elempack == packn && num_output_elempack == 1)
             {
-                const word_type gvl = vsetvl_e16m1(packn);
+                const word_type vl = vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -472,28 +470,28 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
                     const __fp16* kptr = (const __fp16*)weight_data_fp16 + num_input * p;
                     const __fp16* m = bottom_blob.row<const __fp16>(j);
 
-                    vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, gvl);
+                    vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, vl);
 
                     if (bias_term)
                     {
-                        _sum = vfmv_v_f_f32m2(bias_data[p], gvl);
+                        _sum = vfmv_v_f_f32m2(bias_data[p], vl);
                     }
 
                     int n = num_input;
                     while (n > 0)
                     {
-                        vfloat32m2_t _val = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(m, gvl), gvl);
+                        vfloat32m2_t _val = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(m, vl), vl);
 
-                        _sum = vfmacc_vf_f32m2(_sum, *kptr, _val, gvl);
+                        _sum = vfmacc_vf_f32m2(_sum, *kptr, _val, vl);
 
                         m += packn;
                         kptr += 1;
                         n -= 1;
                     }
 
-                    _sum = activation_ps(_sum, activation_type, activation_params, gvl);
+                    _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                    vse16_v_f16m1(outptr, vfncvt_f_f_w_f16m1(_sum, gvl), gvl);
+                    vse16_v_f16m1(outptr, vfncvt_f_f_w_f16m1(_sum, vl), vl);
                     outptr += packn;
                 }
             }
@@ -556,12 +554,12 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
-            const word_type gvl = vsetvl_e16m1(packn);
-            vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, gvl);
+            const word_type vl = vsetvl_e16m1(packn);
+            vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, vl);
 
             if (bias_term)
             {
-                _sum = vle32_v_f32m2((const float*)bias_data + p * packn, gvl);
+                _sum = vle32_v_f32m2((const float*)bias_data + p * packn, vl);
             }
 
             const __fp16* kptr = weight_data_fp16.row<const __fp16>(p);
@@ -571,19 +569,19 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
             int n = num_input;
             while (n > 0)
             {
-                vfloat32m2_t _w = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(kptr, gvl), gvl);
+                vfloat32m2_t _w = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(kptr, vl), vl);
 
-                _sum = vfmacc_vf_f32m2(_sum, (float)(*sptr), _w, gvl);
+                _sum = vfmacc_vf_f32m2(_sum, (float)(*sptr), _w, vl);
 
                 sptr += 1;
                 kptr += packn;
                 n -= 1;
             }
 
-            _sum = activation_ps(_sum, activation_type, activation_params, gvl);
+            _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
             __fp16* outptr = (__fp16*)top_blob;
-            vse16_v_f16m1(outptr + p * packn, vfncvt_f_f_w_f16m1(_sum, gvl), gvl);
+            vse16_v_f16m1(outptr + p * packn, vfncvt_f_f_w_f16m1(_sum, vl), vl);
         }
     }
 
@@ -648,7 +646,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
         {
             if (elempack == packn && num_output_elempack == packn)
             {
-                const word_type gvl = vsetvl_e16m1(packn);
+                const word_type vl = vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -659,28 +657,28 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
                         const __fp16* kptr = (const __fp16*)weight_data_fp16 + num_input * p * packn + l;
                         const __fp16* m = bottom_blob.row<const __fp16>(j);
 
-                        vfloat16m1_t _sum = vfmv_v_f_f16m1((__fp16)0.f, gvl);
+                        vfloat16m1_t _sum = vfmv_v_f_f16m1((__fp16)0.f, vl);
 
                         if (bias_term)
                         {
-                            _sum = vfmv_v_f_f16m1(((const __fp16*)bias_data_fp16)[p * packn + l], gvl);
+                            _sum = vfmv_v_f_f16m1(((const __fp16*)bias_data_fp16)[p * packn + l], vl);
                         }
 
                         int n = num_input;
                         while (n > 0)
                         {
-                            vfloat16m1_t _val = vle16_v_f16m1(m, gvl);
+                            vfloat16m1_t _val = vle16_v_f16m1(m, vl);
 
-                            _sum = vfmacc_vf_f16m1(_sum, *kptr, _val, gvl);
+                            _sum = vfmacc_vf_f16m1(_sum, *kptr, _val, vl);
 
                             m += packn;
                             kptr += packn;
                             n -= 1;
                         }
 
-                        _sum = activation_ps(_sum, activation_type, activation_params, gvl);
+                        _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                        vse16_v_f16m1(outptr, _sum, gvl);
+                        vse16_v_f16m1(outptr, _sum, vl);
                         outptr += packn;
                     }
                 }
@@ -688,7 +686,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
 
             if (elempack == 1 && num_output_elempack == packn)
             {
-                const word_type gvl = vsetvl_e16m1(packn);
+                const word_type vl = vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -697,35 +695,35 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
                     const __fp16* kptr = (const __fp16*)weight_data_fp16 + num_input * p * packn;
                     const __fp16* m = bottom_blob.row<const __fp16>(j);
 
-                    vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, gvl);
+                    vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, vl);
 
                     if (bias_term)
                     {
-                        _sum = vle16_v_f16m1((const __fp16*)bias_data_fp16 + p * packn, gvl);
+                        _sum = vle16_v_f16m1((const __fp16*)bias_data_fp16 + p * packn, vl);
                     }
 
                     int n = num_input;
                     while (n > 0)
                     {
-                        vfloat16m1_t _w = vle16_v_f16m1(kptr, gvl);
+                        vfloat16m1_t _w = vle16_v_f16m1(kptr, vl);
 
-                        _sum = vfmacc_vf_f16m1(_sum, *m, _w, gvl);
+                        _sum = vfmacc_vf_f16m1(_sum, *m, _w, vl);
 
                         m += 1;
                         kptr += packn;
                         n -= 1;
                     }
 
-                    _sum = activation_ps(_sum, activation_type, activation_params, gvl);
+                    _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                    vse16_v_f16m1(outptr, _sum, gvl);
+                    vse16_v_f16m1(outptr, _sum, vl);
                     outptr += packn;
                 }
             }
 
             if (elempack == packn && num_output_elempack == 1)
             {
-                const word_type gvl = vsetvl_e16m1(packn);
+                const word_type vl = vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -734,28 +732,28 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
                     const __fp16* kptr = (const __fp16*)weight_data_fp16 + num_input * p;
                     const __fp16* m = bottom_blob.row<const __fp16>(j);
 
-                    vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, gvl);
+                    vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, vl);
 
                     if (bias_term)
                     {
-                        _sum = vfmv_v_f_f16m1(((const __fp16*)bias_data_fp16)[p], gvl);
+                        _sum = vfmv_v_f_f16m1(((const __fp16*)bias_data_fp16)[p], vl);
                     }
 
                     int n = num_input;
                     while (n > 0)
                     {
-                        vfloat16m1_t _val = vle16_v_f16m1(m, gvl);
+                        vfloat16m1_t _val = vle16_v_f16m1(m, vl);
 
-                        _sum = vfmacc_vf_f16m1(_sum, *kptr, _val, gvl);
+                        _sum = vfmacc_vf_f16m1(_sum, *kptr, _val, vl);
 
                         m += packn;
                         kptr += 1;
                         n -= 1;
                     }
 
-                    _sum = activation_ps(_sum, activation_type, activation_params, gvl);
+                    _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
-                    vse16_v_f16m1(outptr, _sum, gvl);
+                    vse16_v_f16m1(outptr, _sum, vl);
                     outptr += packn;
                 }
             }
@@ -818,12 +816,12 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
-            const word_type gvl = vsetvl_e16m1(packn);
-            vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, gvl);
+            const word_type vl = vsetvl_e16m1(packn);
+            vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, vl);
 
             if (bias_term)
             {
-                _sum = vle16_v_f16m1((const __fp16*)bias_data_fp16 + p * packn, gvl);
+                _sum = vle16_v_f16m1((const __fp16*)bias_data_fp16 + p * packn, vl);
             }
 
             const __fp16* kptr = weight_data_fp16.row<const __fp16>(p);
@@ -833,19 +831,19 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
             int n = num_input;
             while (n > 0)
             {
-                vfloat16m1_t _w = vle16_v_f16m1(kptr, gvl);
+                vfloat16m1_t _w = vle16_v_f16m1(kptr, vl);
 
-                _sum = vfmacc_vf_f16m1(_sum, *sptr, _w, gvl);
+                _sum = vfmacc_vf_f16m1(_sum, *sptr, _w, vl);
 
                 sptr += 1;
                 kptr += packn;
                 n -= 1;
             }
 
-            _sum = activation_ps(_sum, activation_type, activation_params, gvl);
+            _sum = activation_ps(_sum, activation_type, activation_params, vl);
 
             __fp16* outptr = (__fp16*)top_blob;
-            vse16_v_f16m1(outptr + p * packn, _sum, gvl);
+            vse16_v_f16m1(outptr + p * packn, _sum, vl);
         }
     }
 
