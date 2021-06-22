@@ -164,7 +164,7 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 }
             }
             else // if (bottom_blob.elempack == 1 && elempack == 1) if (bottom_blob.elempack == packn && elempack == packn)
-#endif // __riscv_vector
+#endif           // __riscv_vector
             {
                 int size = w * bottom_blob.h;
 
@@ -289,7 +289,7 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 }
             }
             else // if (bottom_blob.elempack == 1 && elempack == 1) if (bottom_blob.elempack == 4 && elempack == 4)
-#endif // __riscv_vector
+#endif           // __riscv_vector
             {
                 int size = bottom_blob.total();
 
@@ -508,7 +508,7 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
                 }
             }
             else // if (bottom_blob.elempack == 1 && elempack == 1) if (bottom_blob.elempack == packn && elempack == packn)
-#endif // __riscv_vector
+#endif           // __riscv_vector
             {
                 int size = w * bottom_blob.h;
 
@@ -633,7 +633,7 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
                 }
             }
             else // if (bottom_blob.elempack == 1 && elempack == 1) if (bottom_blob.elempack == packn && elempack == packn)
-#endif // __riscv_vector
+#endif           // __riscv_vector
             {
                 int size = bottom_blob.total();
 

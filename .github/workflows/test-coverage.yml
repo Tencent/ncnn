@@ -671,19 +671,19 @@ jobs:
     - name: build
       run: cmake --build build -j 2
 
-    - name: test
+    - name: test-vlen128
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,x-v=true,x-Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,x-v=true,x-Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
 
-    - name: lcov-collect
+    - name: lcov-collect-vlen128
       run: |
         cd build
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
-    - name: codecov
+    - name: codecov-vlen128
       uses: codecov/codecov-action@v1.5.2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -693,7 +693,7 @@ jobs:
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,x-v=true,x-Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,x-v=true,x-Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
 
     - name: lcov-collect-vlen256
       run: |
