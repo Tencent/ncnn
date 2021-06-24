@@ -37,6 +37,7 @@ typedef float32xm8_t vfloat32m8_t;
 
 typedef float32x4xm1_t vfloat32m1x4_t;
 typedef float32x4xm2_t vfloat32m2x4_t;
+typedef float32x2xm4_t vfloat32m4x2_t;
 typedef float32x8xm1_t vfloat32m1x8_t;
 
 typedef float16xm1_t vfloat16m1_t;
@@ -134,13 +135,20 @@ typedef uint16x8xm1_t vuint16m1x8_t;
 #define vlseg4e32_v_f32m1x4 vlseg4ev_float32x4xm1
 #define vsseg4e32_v_f32m1x4 vsseg4ev_float32x4xm1
 
+#define vlseg2e32_v_f32m4x2 vlseg2ev_float32x2xm4
+#define vsseg2e32_v_f32m4x2 vsseg2ev_float32x2xm4
+
 #define vlseg8e32_v_f32m1x8 vlseg8ev_float32x8xm1
 #define vsseg8e32_v_f32m1x8 vsseg8ev_float32x8xm1
 
+#define vloxseg2ei32_v_f32m4x2(a, i, vl) vlxseg2ev_float32x2xm4(a, reinterpret_cast<int32xm4_t>(i), vl)
+
 #define vset_f32m1x4       vseg_element_set_float32x4xm1
 #define vset_f32m2x4       vseg_element_set_float32x4xm2
+#define vset_f32m4x2       vseg_element_set_float32x2xm4
 #define vget_f32m1x4_f32m1 vseg_element_get_float32x4xm1
 #define vget_f32m2x4_f32m2 vseg_element_get_float32x4xm2
+#define vget_f32m4x2_f32m4 vseg_element_get_float32x2xm4
 
 #define vset_f32m1x8       vseg_element_set_float32x8xm1
 #define vget_f32m1x8_f32m1 vseg_element_get_float32x8xm1
@@ -376,6 +384,20 @@ static inline vfloat32m1x8_t vcreate_f32m1x8(vfloat32m1_t v0, vfloat32m1_t v1, v
 #define vfnmsac_vf_f32m2 vfnmsacvf_float32xm2
 #define vfnmsac_vf_f32m4 vfnmsacvf_float32xm4
 #define vfnmsac_vf_f32m8 vfnmsacvf_float32xm8
+
+#define vfwmul_vv_f32m2 vfwmulvv_float32xm2_float16xm1
+#define vfwmul_vv_f32m4 vfwmulvv_float32xm4_float16xm2
+#define vfwmul_vv_f32m8 vfwmulvv_float32xm8_float16xm4
+#define vfwmul_vf_f32m2 vfwmulvf_float32xm2_float16xm1
+#define vfwmul_vf_f32m4 vfwmulvf_float32xm4_float16xm2
+#define vfwmul_vf_f32m8 vfwmulvf_float32xm8_float16xm4
+
+#define vfwmacc_vv_f32m2 vfwmaccvv_float32xm2_float16xm1
+#define vfwmacc_vv_f32m4 vfwmaccvv_float32xm4_float16xm2
+#define vfwmacc_vv_f32m8 vfwmaccvv_float32xm8_float16xm4
+#define vfwmacc_vf_f32m2 vfwmaccvf_float32xm2_float16xm1
+#define vfwmacc_vf_f32m4 vfwmaccvf_float32xm4_float16xm2
+#define vfwmacc_vf_f32m8 vfwmaccvf_float32xm8_float16xm4
 
 static inline vfloat32m1_t vfredsum_vs_f32m1_f32m1(vfloat32m1_t dst, vfloat32m1_t a, vfloat32m1_t b, word_type vl)
 {
@@ -1110,6 +1132,16 @@ static inline vfloat16m1_t vfredsum_vs_f16m8_f16m1(vfloat16m1_t dst, vfloat16m8_
 #define vmv_v_x_i8m8 vmvvx_int8xm8
 
 /******************************** uint32 ********************************/
+#define vle32_v_u32m1 vlev_uint32xm1
+#define vle32_v_u32m2 vlev_uint32xm2
+#define vle32_v_u32m4 vlev_uint32xm4
+#define vle32_v_u32m8 vlev_uint32xm8
+
+#define vse32_v_u32m1 vsev_uint32xm1
+#define vse32_v_u32m2 vsev_uint32xm2
+#define vse32_v_u32m4 vsev_uint32xm4
+#define vse32_v_u32m8 vsev_uint32xm8
+
 #define vadd_vv_u32m1                           vaddvv_uint32xm1
 #define vadd_vv_u32m2                           vaddvv_uint32xm2
 #define vadd_vv_u32m4                           vaddvv_uint32xm4
@@ -1143,6 +1175,40 @@ static inline vfloat16m1_t vfredsum_vs_f16m8_f16m1(vfloat16m1_t dst, vfloat16m8_
 #define vsub_vx_u32m2_m(mask, merged, a, b, vl) vsubvx_mask_uint32xm2(merged, a, b, mask, vl)
 #define vsub_vx_u32m4_m(mask, merged, a, b, vl) vsubvx_mask_uint32xm4(merged, a, b, mask, vl)
 #define vsub_vx_u32m8_m(mask, merged, a, b, vl) vsubvx_mask_uint32xm8(merged, a, b, mask, vl)
+
+#define vmul_vv_u32m1                           vmulvv_uint32xm1
+#define vmul_vv_u32m2                           vmulvv_uint32xm2
+#define vmul_vv_u32m4                           vmulvv_uint32xm4
+#define vmul_vv_u32m8                           vmulvv_uint32xm8
+#define vmul_vx_u32m1(a, b, vl)                 vmulvv_uint32xm1(a, vmvvx_uint32xm4(b, vl), vl)
+#define vmul_vx_u32m2(a, b, vl)                 vmulvv_uint32xm2(a, vmvvx_uint32xm4(b, vl), vl)
+#define vmul_vx_u32m4(a, b, vl)                 vmulvv_uint32xm4(a, vmvvx_uint32xm4(b, vl), vl)
+#define vmul_vx_u32m8(a, b, vl)                 vmulvv_uint32xm8(a, vmvvx_uint32xm4(b, vl), vl)
+#define vmul_vv_u32m1_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm1(merged, a, b, mask, vl)
+#define vmul_vv_u32m2_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm2(merged, a, b, mask, vl)
+#define vmul_vv_u32m4_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm4(merged, a, b, mask, vl)
+#define vmul_vv_u32m8_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm8(merged, a, b, mask, vl)
+#define vmul_vx_u32m1_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm1(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
+#define vmul_vx_u32m2_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm2(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
+#define vmul_vx_u32m4_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm4(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
+#define vmul_vx_u32m8_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm8(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
+
+#define vdiv_vv_u32m1                           vdivvv_uint32xm1
+#define vdiv_vv_u32m2                           vdivvv_uint32xm2
+#define vdiv_vv_u32m4                           vdivvv_uint32xm4
+#define vdiv_vv_u32m8                           vdivvv_uint32xm8
+#define vdiv_vx_u32m1(a, b, vl)                 vdivvv_uint32xm1(a, vmvvx_uint32xm4(b, vl), vl)
+#define vdiv_vx_u32m2(a, b, vl)                 vdivvv_uint32xm2(a, vmvvx_uint32xm4(b, vl), vl)
+#define vdiv_vx_u32m4(a, b, vl)                 vdivvv_uint32xm4(a, vmvvx_uint32xm4(b, vl), vl)
+#define vdiv_vx_u32m8(a, b, vl)                 vdivvv_uint32xm8(a, vmvvx_uint32xm4(b, vl), vl)
+#define vdiv_vv_u32m1_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm1(merged, a, b, mask, vl)
+#define vdiv_vv_u32m2_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm2(merged, a, b, mask, vl)
+#define vdiv_vv_u32m4_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm4(merged, a, b, mask, vl)
+#define vdiv_vv_u32m8_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm8(merged, a, b, mask, vl)
+#define vdiv_vx_u32m1_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm1(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
+#define vdiv_vx_u32m2_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm2(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
+#define vdiv_vx_u32m4_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm4(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
+#define vdiv_vx_u32m8_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm8(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
 
 #define vsll_vv_u32m1                           vsllvv_uint32xm1
 #define vsll_vv_u32m2                           vsllvv_uint32xm2
