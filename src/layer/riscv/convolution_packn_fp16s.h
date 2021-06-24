@@ -79,8 +79,8 @@ static void convolution_packn_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob, c
                         for (int l = 0; l < packn; l++)
                         {
                             float val = (float)*slptr++;
-                            vfloat32m2_t _w0 = vfwcvt_f_f_v_f32m2(vle16_v_f16m1(kptr, vl), vl);
-                            _sum = vfmacc_vf_f32m2(_sum, val, _w0, vl);
+                            vfloat16m1_t _w0 = vle16_v_f16m1(kptr, vl);
+                            _sum = vfwmacc_vf_f32m2(_sum, val, _w0, vl);
 
                             kptr += packn;
                         }
