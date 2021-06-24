@@ -263,8 +263,8 @@ int QuantNet::quantize_KL()
     std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
     std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
 
-// initialize conv weight scales
-    #pragma omp parallel for num_threads(quantize_num_threads)
+    // initialize conv weight scales
+#pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < conv_layer_count; i++)
     {
         const ncnn::Layer* layer = layers[conv_layers[i]];
@@ -361,8 +361,8 @@ int QuantNet::quantize_KL()
         }
     }
 
-// count the absmax
-    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
+    // count the absmax
+#pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
     for (int i = 0; i < image_count; i++)
     {
         if (i % 100 == 0)
@@ -415,7 +415,7 @@ int QuantNet::quantize_KL()
                     }
                 }
 
-                #pragma omp critical
+#pragma omp critical
                 {
                     QuantBlobStat& stat = quant_blob_stats[j];
                     stat.absmax = std::max(stat.absmax, absmax);
@@ -424,8 +424,8 @@ int QuantNet::quantize_KL()
         }
     }
 
-// initialize histogram
-    #pragma omp parallel for num_threads(quantize_num_threads)
+    // initialize histogram
+#pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < conv_bottom_blob_count; i++)
     {
         QuantBlobStat& stat = quant_blob_stats[i];
@@ -434,8 +434,8 @@ int QuantNet::quantize_KL()
         stat.histogram_normed.resize(num_histogram_bins, 0);
     }
 
-// build histogram
-    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
+    // build histogram
+#pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
     for (int i = 0; i < image_count; i++)
     {
         if (i % 100 == 0)
@@ -495,7 +495,7 @@ int QuantNet::quantize_KL()
                     }
                 }
 
-                #pragma omp critical
+#pragma omp critical
                 {
                     QuantBlobStat& stat = quant_blob_stats[j];
 
@@ -508,8 +508,8 @@ int QuantNet::quantize_KL()
         }
     }
 
-// using kld to find the best threshold value
-    #pragma omp parallel for num_threads(quantize_num_threads)
+    // using kld to find the best threshold value
+#pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < conv_bottom_blob_count; i++)
     {
         QuantBlobStat& stat = quant_blob_stats[i];
@@ -723,8 +723,8 @@ int QuantNet::quantize_ACIQ()
     std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
     std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
 
-// initialize conv weight scales
-    #pragma omp parallel for num_threads(quantize_num_threads)
+    // initialize conv weight scales
+#pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < conv_layer_count; i++)
     {
         const ncnn::Layer* layer = layers[conv_layers[i]];
@@ -825,8 +825,8 @@ int QuantNet::quantize_ACIQ()
         }
     }
 
-// count the absmax
-    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
+    // count the absmax
+#pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
     for (int i = 0; i < image_count; i++)
     {
         if (i % 100 == 0)
@@ -879,7 +879,7 @@ int QuantNet::quantize_ACIQ()
                     }
                 }
 
-                #pragma omp critical
+#pragma omp critical
                 {
                     QuantBlobStat& stat = quant_blob_stats[j];
                     stat.absmax = std::max(stat.absmax, absmax);
@@ -889,8 +889,8 @@ int QuantNet::quantize_ACIQ()
         }
     }
 
-// alpha gaussian
-    #pragma omp parallel for num_threads(quantize_num_threads)
+    // alpha gaussian
+#pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < conv_bottom_blob_count; i++)
     {
         QuantBlobStat& stat = quant_blob_stats[i];
@@ -1069,7 +1069,7 @@ int QuantNet::quantize_EQ()
 
             std::vector<double> avgsims(search_steps, 0.0);
 
-            #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
+#pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
             for (int ii = 0; ii < image_count; ii++)
             {
                 if (ii % 100 == 0)
@@ -1142,7 +1142,7 @@ int QuantNet::quantize_EQ()
 
                 delete layer_int8;
 
-                #pragma omp critical
+#pragma omp critical
                 {
                     for (int k = 0; k < search_steps; k++)
                     {
@@ -1178,7 +1178,7 @@ int QuantNet::quantize_EQ()
 
             std::vector<double> avgsims(search_steps, 0.0);
 
-            #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
+#pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
             for (int ii = 0; ii < image_count; ii++)
             {
                 if (ii % 100 == 0)
@@ -1251,7 +1251,7 @@ int QuantNet::quantize_EQ()
 
                 delete layer_int8;
 
-                #pragma omp critical
+#pragma omp critical
                 {
                     for (int k = 0; k < search_steps; k++)
                     {
