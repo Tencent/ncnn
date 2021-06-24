@@ -202,6 +202,42 @@ void QuantNet::print_quant_info() const
     }
 }
 
+/**
+ * Read and resize image
+ * shape is input as [w,h,...]
+ * if w and h both are given, image will be resized to exactly size.
+ * if w and h both are zero or negative, image will not be resized.
+ * if only h is zero or negative, image's width will scaled resize to w, keeping aspect ratio.
+ * if only w is zero or negative, image's height will scaled resize to h
+ * @return ncnn::Mat
+ */
+
+inline ncnn::Mat read_and_resize_image(const std::vector<int>& shape, const std::string& imagepath, int pixel_convert_type)
+{
+    int target_w = shape[0];
+    int target_h = shape[1];
+    cv::Mat bgr = cv::imread(imagepath, 1);
+    if (target_h <= 0 && target_w <= 0)
+    {
+        return ncnn::Mat::from_pixels(bgr.data, pixel_convert_type, bgr.cols, bgr.rows);
+    }
+    if (target_h <= 0 || target_w <= 0)
+    {
+        float scale = 1.0;
+        if (target_h <= 0)
+        {
+            scale = 1.0 * bgr.cols / target_w;
+            target_h = int(1.0 * bgr.rows / scale);
+        }
+        if (target_w <= 0)
+        {
+            scale = 1.0 * bgr.rows / target_h;
+            target_w = int(1.0 * bgr.cols / scale);
+        }
+    }
+    return ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
+}
+
 static float compute_kl_divergence(const std::vector<float>& a, const std::vector<float>& b)
 {
     const size_t length = a.size();
@@ -342,8 +378,6 @@ int QuantNet::quantize_KL()
 
         for (int j = 0; j < input_blob_count; j++)
         {
-            const std::string& imagepath = listspaths[j][i];
-            const std::vector<int>& shape = shapes[j];
             const int type_to_pixel = type_to_pixels[j];
             const std::vector<float>& mean_vals = means[j];
             const std::vector<float>& norm_vals = norms[j];
@@ -353,12 +387,8 @@ int QuantNet::quantize_KL()
             {
                 pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
             }
-            const int target_w = shape[0];
-            const int target_h = shape[1];
 
-            cv::Mat bgr = cv::imread(imagepath, 1);
-
-            ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
+            ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
 
             in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
 
@@ -421,8 +451,6 @@ int QuantNet::quantize_KL()
 
         for (int j = 0; j < input_blob_count; j++)
         {
-            const std::string& imagepath = listspaths[j][i];
-            const std::vector<int>& shape = shapes[j];
             const int type_to_pixel = type_to_pixels[j];
             const std::vector<float>& mean_vals = means[j];
             const std::vector<float>& norm_vals = norms[j];
@@ -432,12 +460,8 @@ int QuantNet::quantize_KL()
             {
                 pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
             }
-            const int target_w = shape[0];
-            const int target_h = shape[1];
 
-            cv::Mat bgr = cv::imread(imagepath, 1);
-
-            ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
+            ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
 
             in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
 
@@ -818,8 +842,6 @@ int QuantNet::quantize_ACIQ()
 
         for (int j = 0; j < input_blob_count; j++)
         {
-            const std::string& imagepath = listspaths[j][i];
-            const std::vector<int>& shape = shapes[j];
             const int type_to_pixel = type_to_pixels[j];
             const std::vector<float>& mean_vals = means[j];
             const std::vector<float>& norm_vals = norms[j];
@@ -829,12 +851,8 @@ int QuantNet::quantize_ACIQ()
             {
                 pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
             }
-            const int target_w = shape[0];
-            const int target_h = shape[1];
 
-            cv::Mat bgr = cv::imread(imagepath, 1);
-
-            ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
+            ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
 
             in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
 
@@ -1067,8 +1085,6 @@ int QuantNet::quantize_EQ()
 
                 for (int jj = 0; jj < input_blob_count; jj++)
                 {
-                    const std::string& imagepath = listspaths[jj][ii];
-                    const std::vector<int>& shape = shapes[jj];
                     const int type_to_pixel = type_to_pixels[jj];
                     const std::vector<float>& mean_vals = means[jj];
                     const std::vector<float>& norm_vals = norms[jj];
@@ -1078,12 +1094,8 @@ int QuantNet::quantize_EQ()
                     {
                         pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
                     }
-                    const int target_w = shape[0];
-                    const int target_h = shape[1];
 
-                    cv::Mat bgr = cv::imread(imagepath, 1);
-
-                    ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
+                    ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
 
                     in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
 
@@ -1182,8 +1194,6 @@ int QuantNet::quantize_EQ()
 
                 for (int jj = 0; jj < input_blob_count; jj++)
                 {
-                    const std::string& imagepath = listspaths[jj][ii];
-                    const std::vector<int>& shape = shapes[jj];
                     const int type_to_pixel = type_to_pixels[jj];
                     const std::vector<float>& mean_vals = means[jj];
                     const std::vector<float>& norm_vals = norms[jj];
@@ -1193,12 +1203,8 @@ int QuantNet::quantize_EQ()
                     {
                         pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
                     }
-                    const int target_w = shape[0];
-                    const int target_h = shape[1];
 
-                    cv::Mat bgr = cv::imread(imagepath, 1);
-
-                    ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
+                    ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
 
                     in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
 
@@ -1571,7 +1577,7 @@ static void show_usage()
     fprintf(stderr, "Usage: ncnn2table [ncnnparam] [ncnnbin] [list,...] [ncnntable] [(key=value)...]\n");
     fprintf(stderr, "  mean=[104.0,117.0,123.0],...\n");
     fprintf(stderr, "  norm=[1.0,1.0,1.0],...\n");
-    fprintf(stderr, "  shape=[224,224,3],...[w,h,c] or [w,h]\n");
+    fprintf(stderr, "  shape=[224,224,3],...[w,h,c] or [w,h] **[0,0] will not resize\n");
     fprintf(stderr, "  pixel=RAW/RGB/BGR/GRAY/RGBA/BGRA,...\n");
     fprintf(stderr, "  thread=8\n");
     fprintf(stderr, "  method=kl/aciq/eq\n");
