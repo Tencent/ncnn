@@ -1,5 +1,6 @@
 ---
 name: :chart_with_upwards_trend: quantization
+about: best wishes for your low bit quantization has a low accuracy loss...\(^▽^)/...2333... 
 ---
 
 ## expectation | 诉求 | 期待する

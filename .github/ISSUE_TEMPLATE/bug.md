@@ -1,5 +1,6 @@
 ---
 name: :bug: bug issue
+about: submit a bug report +_+
 ---
 
 ## error log | 日志或报错信息 | ログ

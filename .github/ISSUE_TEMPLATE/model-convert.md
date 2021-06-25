@@ -1,5 +1,6 @@
 ---
-name: :rocket: model convert
+name: :rocket: model convert issue
+about: "Life is Short, Use convertmodel.com"
 ---
 
 ## error log | 日志或报错信息 | ログ
