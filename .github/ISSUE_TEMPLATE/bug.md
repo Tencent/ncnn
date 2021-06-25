@@ -1,5 +1,5 @@
 ---
-name: ":bug: bug issue"
+name: "\U0001F41B bug issue"
 about: submit a bug report +_+
 ---
 

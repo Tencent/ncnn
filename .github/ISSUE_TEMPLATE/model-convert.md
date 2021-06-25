@@ -1,5 +1,5 @@
 ---
-name: model convert issue
+name: "\U0001F6B8 model convert issue"
 about: "Life is Short, Use convertmodel.com"
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: others
+name: "\U0001F4DD others"
 about: discussion, suggestion and question
 ---
 
