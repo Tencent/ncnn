@@ -1,6 +1,5 @@
 ---
-name: Quantization
-about: use this template to describe your quantization question
+name: :chart_with_upwards_trend: quantization
 ---
 
 ## expectation | 诉求 | 期待する

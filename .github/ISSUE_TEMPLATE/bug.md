@@ -1,9 +1,8 @@
 ---
-name: Bug
-about: bug issue
+name: :bug: bug issue
 ---
 
-## log | 日志或报错信息 | ログ
+## error log | 日志或报错信息 | ログ
 
 ## context | 编译/运行环境 | バックグラウンド
 

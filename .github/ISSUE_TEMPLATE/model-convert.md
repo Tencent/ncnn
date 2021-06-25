@@ -1,6 +1,5 @@
 ---
-name: Model Convert
-about: use this template to describe convert problem
+name: :rocket: model convert
 ---
 
 ## error log | 日志或报错信息 | ログ
