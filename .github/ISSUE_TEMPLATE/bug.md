@@ -1,5 +1,5 @@
 ---
-name: bug issue
+name: ":bug: bug issue"
 about: submit a bug report +_+
 ---
 
