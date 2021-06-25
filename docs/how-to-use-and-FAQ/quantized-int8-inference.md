@@ -24,7 +24,14 @@ find images/ -type f > imagelist.txt
 ```
 
 * mean and norm are the values you passed to ```Mat::substract_mean_normalize()```
-* shape is the blob shape of your model
+* shape is the blob shape of your model, [w,h] or [w,h,c]
+
+>
+    * if w and h both are given, image will be resized to exactly size.
+    * if w and h both are zero or negative, image will not be resized.
+    * if only h is zero or negative, image's width will scaled resize to w, keeping aspect ratio.
+    * if only w is zero or negative, image's height will scaled resize to h
+
 * pixel is the pixel format of your model, image pixels will be converted to this type before ```Extractor::input()```
 * thread is the CPU thread count that could be used for parallel inference
 * method is the post training quantization algorithm, kl and aciq are currently supported

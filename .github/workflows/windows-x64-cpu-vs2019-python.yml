@@ -2,10 +2,24 @@ name: windows-x64-cpu-vs2019-python
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/windows-x64-cpu-vs2019-python.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'python/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/windows-x64-cpu-vs2019-python.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'python/**'
 jobs:
   windows-vs2019-python:
     runs-on: windows-latest

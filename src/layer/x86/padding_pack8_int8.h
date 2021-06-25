@@ -60,10 +60,9 @@ static void padding_replicate_pack8_int8_sse(const Mat& src, Mat& dst, int top, 
     for (int y = 0; y < top; y++)
     {
         const int64_t* ptr0 = ptr;
-        int64_t _p = *ptr0;
         for (int x = 0; x < left; x++)
         {
-            *outptr++ = _p;
+            *outptr++ = *ptr0;
         }
         for (int x = 0; x < src.w; x++)
         {
@@ -71,16 +70,15 @@ static void padding_replicate_pack8_int8_sse(const Mat& src, Mat& dst, int top, 
         }
         for (int x = 0; x < right; x++)
         {
-            *outptr++ = _p;
+            *outptr++ = ptr0[-1];
         }
     }
     // fill center
     for (int y = 0; y < src.h; y++)
     {
-        int64_t _p = *ptr;
         for (int x = 0; x < left; x++)
         {
-            *outptr++ = _p;
+            *outptr++ = *ptr;
         }
         for (int x = 0; x < src.w; x++)
         {
@@ -88,7 +86,7 @@ static void padding_replicate_pack8_int8_sse(const Mat& src, Mat& dst, int top, 
         }
         for (int x = 0; x < right; x++)
         {
-            *outptr++ = _p;
+            *outptr++ = ptr[-1];
         }
     }
     // fill bottom
@@ -96,10 +94,9 @@ static void padding_replicate_pack8_int8_sse(const Mat& src, Mat& dst, int top, 
     for (int y = 0; y < bottom; y++)
     {
         const int64_t* ptr0 = ptr;
-        int64_t _p = *ptr0;
         for (int x = 0; x < left; x++)
         {
-            *outptr++ = _p;
+            *outptr++ = *ptr0;
         }
         for (int x = 0; x < src.w; x++)
         {
@@ -107,7 +104,7 @@ static void padding_replicate_pack8_int8_sse(const Mat& src, Mat& dst, int top, 
         }
         for (int x = 0; x < right; x++)
         {
-            *outptr++ = _p;
+            *outptr++ = ptr0[-1];
         }
     }
 }

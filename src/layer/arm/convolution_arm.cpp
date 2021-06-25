@@ -1073,7 +1073,6 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
@@ -1618,7 +1617,6 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
@@ -1994,7 +1992,6 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     int h = bottom_blob_bordered.h;
     int channels = bottom_blob_bordered.c;
     int elempack = bottom_blob_bordered.elempack;
-    size_t elemsize = bottom_blob_bordered.elemsize;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
@@ -2026,7 +2023,9 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     if (top_blob.empty())
         return -100;
 
+#if __ARM_FEATURE_DOTPROD
     const int num_input = channels * elempack;
+#endif
 
     Mat top_blob_int32;
     top_blob_int32.create(outw, outh, num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.workspace_allocator);

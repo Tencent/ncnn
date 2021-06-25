@@ -2,10 +2,24 @@ name: android-x86-gpu
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/android-x86-gpu.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/android-x86-gpu.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
 jobs:
   android-x86-gpu:
     runs-on: ubuntu-latest

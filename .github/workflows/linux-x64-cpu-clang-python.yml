@@ -2,10 +2,24 @@ name: linux-x64-cpu-clang-python
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/linux-x64-cpu-clang-python.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'python/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/linux-x64-cpu-clang-python.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'python/**'
 jobs:
   linux-clang-python:
     runs-on: ubuntu-latest

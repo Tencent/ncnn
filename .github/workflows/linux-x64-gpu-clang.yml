@@ -2,10 +2,30 @@ name: linux-x64-gpu-clang
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/linux-x64-gpu-clang.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+    - 'tools/**'
+    - 'examples/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/linux-x64-gpu-clang.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'tests/**'
+    - 'tools/**'
+    - 'examples/**'
 jobs:
   linux-clang-gpu:
     runs-on: ubuntu-latest

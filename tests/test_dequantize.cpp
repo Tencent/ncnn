@@ -15,43 +15,6 @@
 #include "layer/dequantize.h"
 #include "testutil.h"
 
-static int RandomInt(int a = -10000, int b = 10000)
-{
-    float random = ((float)RAND()) / (float)uint64_t(-1); //RAND_MAX;
-    int diff = b - a;
-    float r = random * diff;
-    return a + (int)r;
-}
-
-static void RandomizeInt(ncnn::Mat& m, int a = -10000, int b = 10000)
-{
-    for (size_t i = 0; i < m.total(); i++)
-    {
-        ((int*)m)[i] = RandomInt(a, b);
-    }
-}
-
-static ncnn::Mat RandomIntMat(int w)
-{
-    ncnn::Mat m(w);
-    RandomizeInt(m);
-    return m;
-}
-
-static ncnn::Mat RandomIntMat(int w, int h)
-{
-    ncnn::Mat m(w, h);
-    RandomizeInt(m);
-    return m;
-}
-
-static ncnn::Mat RandomIntMat(int w, int h, int c)
-{
-    ncnn::Mat m(w, h, c);
-    RandomizeInt(m);
-    return m;
-}
-
 static int test_dequantize(const ncnn::Mat& a, int scale_data_size, int bias_data_size)
 {
     ncnn::ParamDict pd;
