@@ -1,5 +1,5 @@
 ---
-name: "\U0001F4CB quantization"
+name: "\U0001F4C8 quantization"
 about: best wishes for your low bit quantization has a low accuracy loss...\(^▽^)/...2333... 
 ---
 
