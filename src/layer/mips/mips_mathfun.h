@@ -37,6 +37,93 @@ _MIPS_FLOAT_CONST(c_2, 2.0f);
 _MIPS_FLOAT_CONST(c_n1, -1.0f);
 _MIPS_FLOAT_CONST(c_0p5, 0.5f);
 
+#define c_inv_mant_mask ~0x7f800000u
+_MIPS_FLOAT_CONST(c_cephes_SQRTHF, 0.707106781186547524);
+_MIPS_FLOAT_CONST(c_cephes_log_p0, 7.0376836292E-2);
+_MIPS_FLOAT_CONST(c_cephes_log_p1, -1.1514610310E-1);
+_MIPS_FLOAT_CONST(c_cephes_log_p2, 1.1676998740E-1);
+_MIPS_FLOAT_CONST(c_cephes_log_p3, -1.2420140846E-1);
+_MIPS_FLOAT_CONST(c_cephes_log_p4, +1.4249322787E-1);
+_MIPS_FLOAT_CONST(c_cephes_log_p5, -1.6668057665E-1);
+_MIPS_FLOAT_CONST(c_cephes_log_p6, +2.0000714765E-1);
+_MIPS_FLOAT_CONST(c_cephes_log_p7, -2.4999993993E-1);
+_MIPS_FLOAT_CONST(c_cephes_log_p8, +3.3333331174E-1);
+_MIPS_FLOAT_CONST(c_cephes_log_q1, -2.12194440e-4);
+_MIPS_FLOAT_CONST(c_cephes_log_q2, 0.693359375);
+
+/* natural logarithm computed for 4 simultaneous float
+ *   return NaN for x <= 0
+ */
+static inline v4f32 log_ps(v4f32 x)
+{
+    v4f32 one = (v4f32)__msa_fill_w(c_1.i);
+
+    x = __msa_fmax_w(x, (v4f32)__msa_fill_w(0)); /* force flush to zero on denormal values */
+    v4i32 invalid_mask = __msa_fcle_w(x, (v4f32)__msa_fill_w(0));
+
+    v4i32 ux = (v4i32)(x);
+
+    v4i32 emm0 = __msa_srl_w(ux, (v4i32)__msa_fill_w(23));
+
+    /* keep only the fractional part */
+    ux = (v4i32)__msa_and_v((v16u8)ux, (v16u8)__msa_fill_w(c_inv_mant_mask));
+    ux = (v4i32)__msa_or_v((v16u8)ux, (v16u8)__msa_fill_w(c_0p5.i));
+    x = (v4f32)(ux);
+
+    emm0 = __msa_subv_w(emm0, (v4i32)__msa_fill_w(0x7f));
+    v4f32 e = __msa_ffint_s_w(emm0);
+
+    e = __msa_fadd_w(e, one);
+
+    /* part2:
+     *     if( x < SQRTHF ) {
+     *       e -= 1;
+     *       x = x + x - 1.0;
+     *     } else { x = x - 1.0; }
+     */
+    v4i32 mask = __msa_fclt_w(x, (v4f32)__msa_fill_w(c_cephes_SQRTHF.i));
+    v4f32 tmp = (v4f32)(__msa_and_v((v16u8)(x), (v16u8)mask));
+    x = __msa_fsub_w(x, one);
+    e = __msa_fsub_w(e, (v4f32)(__msa_and_v((v16u8)(one), (v16u8)mask)));
+    x = __msa_fadd_w(x, tmp);
+
+    v4f32 z = __msa_fmul_w(x, x);
+
+    v4f32 y = (v4f32)__msa_fill_w(c_cephes_log_p0.i);
+
+    y = __msa_fmul_w(y, x);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p1.i));
+    y = __msa_fmul_w(y, x);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p2.i));
+    y = __msa_fmul_w(y, x);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p3.i));
+    y = __msa_fmul_w(y, x);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p4.i));
+    y = __msa_fmul_w(y, x);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p5.i));
+    y = __msa_fmul_w(y, x);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p6.i));
+    y = __msa_fmul_w(y, x);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p7.i));
+    y = __msa_fmul_w(y, x);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p8.i));
+    y = __msa_fmul_w(y, x);
+
+    y = __msa_fmul_w(y, z);
+
+    tmp = __msa_fmul_w(e, (v4f32)__msa_fill_w(c_cephes_log_q1.i));
+    y = __msa_fadd_w(y, tmp);
+
+    tmp = __msa_fmul_w(z, (v4f32)__msa_fill_w(c_0p5.i));
+    y = __msa_fsub_w(y, tmp);
+
+    tmp = __msa_fmul_w(e, (v4f32)__msa_fill_w(c_cephes_log_q2.i));
+    x = __msa_fadd_w(x, y);
+    x = __msa_fadd_w(x, tmp);
+    x = (v4f32)(__msa_or_v((v16u8)(x), (v16u8)invalid_mask)); // negative arg will be NAN
+    return x;
+}
+
 _MIPS_FLOAT_CONST(c_exp_hi, 88.3762626647949f);
 _MIPS_FLOAT_CONST(c_exp_lo, -88.3762626647949f);
 
@@ -79,24 +166,19 @@ static inline v4f32 exp_ps(v4f32 x)
     x = __msa_fsub_w(x, z);
 
     v4f32 y = (v4f32)__msa_fill_w(c_cephes_exp_p0.i);
-    v4f32 c1 = (v4f32)__msa_fill_w(c_cephes_exp_p1.i);
-    v4f32 c2 = (v4f32)__msa_fill_w(c_cephes_exp_p2.i);
-    v4f32 c3 = (v4f32)__msa_fill_w(c_cephes_exp_p3.i);
-    v4f32 c4 = (v4f32)__msa_fill_w(c_cephes_exp_p4.i);
-    v4f32 c5 = (v4f32)__msa_fill_w(c_cephes_exp_p5.i);
 
     y = __msa_fmul_w(y, x);
     z = __msa_fmul_w(x, x);
 
-    y = __msa_fadd_w(y, c1);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_exp_p1.i));
     y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, c2);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_exp_p2.i));
     y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, c3);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_exp_p3.i));
     y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, c4);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_exp_p4.i));
     y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, c5);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_exp_p5.i));
 
     y = __msa_fmul_w(y, z);
     y = __msa_fadd_w(y, x);
@@ -148,21 +230,17 @@ static inline v4f32 tanh_ps(v4f32 x)
         + x;
     */
     v4f32 y = (v4f32)__msa_fill_w(c_cephes_tanh_p0.i);
-    v4f32 c1 = (v4f32)__msa_fill_w(c_cephes_tanh_p1.i);
-    v4f32 c2 = (v4f32)__msa_fill_w(c_cephes_tanh_p2.i);
-    v4f32 c3 = (v4f32)__msa_fill_w(c_cephes_tanh_p3.i);
-    v4f32 c4 = (v4f32)__msa_fill_w(c_cephes_tanh_p4.i);
 
     v4f32 z = __msa_fmul_w(x, x);
 
     y = __msa_fmul_w(y, z);
-    y = __msa_fadd_w(y, c1);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_tanh_p1.i));
     y = __msa_fmul_w(y, z);
-    y = __msa_fadd_w(y, c2);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_tanh_p2.i));
     y = __msa_fmul_w(y, z);
-    y = __msa_fadd_w(y, c3);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_tanh_p3.i));
     y = __msa_fmul_w(y, z);
-    y = __msa_fadd_w(y, c4);
+    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_tanh_p4.i));
 
     y = __msa_fmul_w(y, z);
     y = __msa_fmul_w(y, x);
