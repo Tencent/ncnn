@@ -170,11 +170,11 @@ static inline v4f32 tanh_ps(v4f32 x)
 
     // abs(x) > HALFMAXLOGF
     // return 1.0 or -1.0
-    v4i32_w mask_pos = __msa_fcle_w((v4f32)__msa_fill_w(0), x2);
-    v4f32 y1 = (v4f32)__msa_bsel_v((v16u8)mask_pos, (v16u8)__msa_fill_w(c_1.i), (v16u8)__msa_fill_w(c_n1.i));
+    v4i32_w mask_pos = __msa_fcle_w((v4f32)__msa_fill_w(0), x);
+    v4f32 y1 = (v4f32)__msa_bsel_v((v16u8)mask_pos, (v16u8)__msa_fill_w(c_n1.i), (v16u8)__msa_fill_w(c_1.i));
 
-    y = (v4f32)__msa_bsel_v((v16u8)mask_l, (v16u8)y0, (v16u8)y);
-    y = (v4f32)__msa_bsel_v((v16u8)mask_l2, (v16u8)y1, (v16u8)y);
+    y = (v4f32)__msa_bsel_v((v16u8)mask_l, (v16u8)y, (v16u8)y0);
+    y = (v4f32)__msa_bsel_v((v16u8)mask_l2, (v16u8)y, (v16u8)y1);
     return y;
 }
 
