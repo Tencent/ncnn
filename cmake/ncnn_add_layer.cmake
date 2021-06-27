@@ -169,6 +169,18 @@ macro(ncnn_add_layer class)
         endif()
     endif()
 
+    if(NCNN_RUNTIME_CPU AND NCNN_MSA AND NCNN_TARGET_ARCH STREQUAL "mips")
+        if(NCNN_COMPILER_SUPPORT_MIPS_MSA)
+            ncnn_add_arch_opt_layer(${class} msa "-mmsa")
+        endif()
+    endif()
+
+    if(NCNN_RUNTIME_CPU AND NCNN_MMI AND NCNN_TARGET_ARCH STREQUAL "mips")
+        if(NCNN_COMPILER_SUPPORT_LOONGSON_MMI)
+            ncnn_add_arch_opt_layer(${class} mmi "-mmsa -mloongson-mmi")
+        endif()
+    endif()
+
     if(NCNN_RUNTIME_CPU AND NCNN_RVV AND NCNN_TARGET_ARCH STREQUAL "riscv")
         if(NCNN_COMPILER_SUPPORT_RVV_FP16)
             ncnn_add_arch_opt_layer(${class} rvv "-march=rv64gcv_zfh")

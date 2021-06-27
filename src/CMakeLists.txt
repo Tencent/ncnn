@@ -352,6 +352,16 @@ if(((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (APPLE AND CMAKE_OSX_AR
     endif()
 endif()
 
+if(NCNN_TARGET_ARCH STREQUAL "mips")
+    if(NOT NCNN_RUNTIME_CPU AND NCNN_MSA)
+        if(NCNN_MMI)
+            target_compile_options(ncnn PRIVATE -mmsa -mloongson-mmi)
+        else()
+            target_compile_options(ncnn PRIVATE -mmsa)
+        endif()
+    endif()
+endif()
+
 if(NCNN_TARGET_ARCH STREQUAL "riscv" AND NOT C906)
     if(NOT NCNN_RUNTIME_CPU AND NCNN_RVV)
         if(NCNN_COMPILER_SUPPORT_RVV_FP16)

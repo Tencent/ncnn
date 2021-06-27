@@ -253,6 +253,20 @@ Layer* create_layer(int index)
     }
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
+#if NCNN_RUNTIME_CPU && NCNN_MMI
+    if (ncnn::cpu_support_mips_msa() && ncnn::cpu_support_loongson_mmi())
+    {
+        layer_creator = layer_registry_mmi[index].creator;
+    }
+    else
+#endif // NCNN_RUNTIME_CPU && NCNN_MMI
+#if NCNN_RUNTIME_CPU && NCNN_MSA
+    if (ncnn::cpu_support_mips_msa())
+    {
+        layer_creator = layer_registry_msa[index].creator;
+    }
+    else
+#endif // NCNN_RUNTIME_CPU && NCNN_MSA
 #if NCNN_RUNTIME_CPU && NCNN_RVV
     if (ncnn::cpu_support_riscv_v())
     {

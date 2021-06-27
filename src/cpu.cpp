@@ -140,6 +140,12 @@ static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
 #define HWCAP_VFPv4 (1 << 16)
 #endif
 
+#if __mips__
+// from arch/mips/include/uapi/asm/hwcap.h
+#define HWCAP_MIPS_MSA     (1 << 1)
+#define HWCAP_LOONGSON_MMI (1 << 11)
+#endif
+
 #if __riscv
 // from arch/riscv/include/uapi/asm/hwcap.h
 #define COMPAT_HWCAP_ISA_F (1 << ('F' - 'A'))
@@ -391,6 +397,32 @@ int cpu_support_x86_avx2()
 #else
     // TODO: other x86 compilers checking avx2 here
     NCNN_LOGE("AVX2 detection method is unknown for current compiler");
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_mips_msa()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __mips__
+    return g_hwcaps & HWCAP_MIPS_MSA;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_loongson_mmi()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __mips__
+    return g_hwcaps & HWCAP_LOONGSON_MMI;
+#else
     return 0;
 #endif
 #else
