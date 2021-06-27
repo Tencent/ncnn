@@ -198,33 +198,7 @@ int Layer::forward_inplace(VkImageMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, 
 }
 #endif // NCNN_VULKAN
 
-static const layer_registry_entry layer_registry[] = {
 #include "layer_registry.h"
-};
-
-#if NCNN_RUNTIME_CPU && NCNN_AVX2
-static const layer_registry_entry layer_registry_avx2[] = {
-#include "layer_registry_avx2.h"
-};
-#endif // NCNN_RUNTIME_CPU && NCNN_AVX2
-
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
-static const layer_registry_entry layer_registry_arm82[] = {
-#include "layer_registry_arm82.h"
-};
-#endif // NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
-
-#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT
-static const layer_registry_entry layer_registry_arm82dot[] = {
-#include "layer_registry_arm82dot.h"
-};
-#endif // NCNN_RUNTIME_CPU && NCNN_ARM82DOT
-
-#if NCNN_RUNTIME_CPU && NCNN_RVV
-static const layer_registry_entry layer_registry_rvv[] = {
-#include "layer_registry_rvv.h"
-};
-#endif // NCNN_RUNTIME_CPU && NCNN_RVV
 
 static const int layer_registry_entry_count = sizeof(layer_registry) / sizeof(layer_registry_entry);
 
