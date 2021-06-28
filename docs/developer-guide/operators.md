@@ -9,6 +9,7 @@
 * [clip](#clip)
 * [concat](#concat)
 * [convolution](#convolution)
+* [convolution1d](#convolution1d)
 * [convolutiondepthwise](#convolutiondepthwise)
 * [crop](#crop)
 * [deconvolution](#deconvolution)
@@ -44,6 +45,7 @@
 * [permute](#permute)
 * [pixelshuffle](#pixelshuffle)
 * [pooling](#pooling)
+* [pooling1d](#pooling1d)
 * [power](#power)
 * [prelu](#prelu)
 * [quantize](#quantize)
@@ -235,6 +237,34 @@ y = activation(x3, act_type, act_params)
 | weight_data_int8_scales| float | [num_output] |
 | bottom_blob_int8_scales| float | [1]          |
 | top_blob_int8_scales| float | [1]             |
+
+# convolution1d
+```
+x2 = pad(x, pads, pad_value)
+x3 = conv1d(x2, weight, kernel, stride, dilation) + bias
+y = activation(x3, act_type, act_params)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | kernel_w      | int   | 0         |                   |
+| 2         | dilation_w    | int   | 1         |                   |
+| 3         | stride_w      | int   | 1         |                   |
+| 4         | pad_left      | int   | 0         |                   |
+| 5         | bias_term     | int   | 0         |                   |
+| 6         | weight_data_size| int | 0         |                   |
+| 9         | activation_type| int  | 0         |                   |
+| 10        | activation_params| array | [ ]    |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
+| 18        | pad_value     | float | 0.f       |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_data   | float/fp16/int8 | [kernel_w, num_input, num_output] |
+| bias_data     | float | [num_output]          |
 
 # convolutiondepthwise
 ```
@@ -893,11 +923,44 @@ x3 = pooling(x2, kernel, stride)
 | 3         | pad_left      | int  | 0         |                   |
 | 4         | global_pooling| int  | 0         |                   |
 | 5         | pad_mode      | int  | 0         |                   |
+| 6         | avgpool_count_include_pad| int | 0 |                 |
+| 7         | adaptive_pooling| int | 0        |                   |
+| 8         | out_w         | int  | 0         |                   |
 | 11        | kernel_h      | int  | kernel_w  |                   |
 | 12        | stride_h      | int  | stride_w  |                   |
 | 13        | pad_top       | int  | pad_left  |                   |
 | 14        | pad_right     | int  | pad_left  |                   |
 | 15        | pad_bottom    | int  | pad_top   |                   |
+| 18        | out_h         | int  | 0         |                   |
+
+Pooling type:
+- 0 = MAX
+- 1 = AVG
+
+Pad mode:
+- 0 = full padding
+- 1 = valid padding
+- 2 = tensorflow padding=SAME or onnx padding=SAME_UPPER
+- 3 = onnx padding=SAME_LOWER
+
+# pooling1d
+```
+x2 = pad(x, pads)
+x3 = pooling1d(x2, kernel, stride)
+```
+
+| param id  | name          | type | default   | description       |
+| --------- | --------------| ---- | --------- | ----------------- |
+| 0         | pooling_type  | int  | 0         |                   |
+| 1         | kernel_w      | int  | 0         |                   |
+| 2         | stride_w      | int  | 1         |                   |
+| 3         | pad_left      | int  | 0         |                   |
+| 4         | global_pooling| int  | 0         |                   |
+| 5         | pad_mode      | int  | 0         |                   |
+| 6         | avgpool_count_include_pad| int | 0 |                 |
+| 7         | adaptive_pooling| int | 0        |                   |
+| 8         | out_w         | int  | 0         |                   |
+| 14        | pad_right     | int  | pad_left  |                   |
 
 Pooling type:
 - 0 = MAX
