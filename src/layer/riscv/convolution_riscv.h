@@ -37,6 +37,8 @@ protected:
 #endif
 
 public:
+    Layer* activation;
+
     // packn
     Mat weight_data_packed;
 
