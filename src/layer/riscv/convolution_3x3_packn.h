@@ -324,6 +324,22 @@ static void conv3x3s1_winograd64_packn_rvv(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
+#if RVV_SPEC_0_7
+                    for (int l = 0; l < packn; l++)
+                    {
+                        tmpptr[0] = r0[l];
+                        tmpptr[1] = r0[l + packn];
+                        tmpptr[2] = r0[l + packn * 2];
+                        tmpptr[3] = r0[l + packn * 3];
+                        tmpptr[4] = r0[l + packn * 4];
+                        tmpptr[5] = r0[l + packn * 5];
+                        tmpptr[6] = r0[l + packn * 6];
+                        tmpptr[7] = r0[l + packn * 7];
+                        tmpptr += 8;
+                    }
+
+                    r0 += bottom_blob_tm.cstep * packn;
+#else
                     vfloat32m1_t _val0 = vle32_v_f32m1(r0, vl);
                     vfloat32m1_t _val1 = vle32_v_f32m1(r0 + packn, vl);
                     vfloat32m1_t _val2 = vle32_v_f32m1(r0 + packn * 2, vl);
@@ -336,6 +352,7 @@ static void conv3x3s1_winograd64_packn_rvv(const Mat& bottom_blob, Mat& top_blob
 
                     r0 += bottom_blob_tm.cstep * packn;
                     tmpptr += packn * 8;
+#endif
                 }
             }
             for (; i + 3 < tiles; i += 4)
@@ -348,6 +365,18 @@ static void conv3x3s1_winograd64_packn_rvv(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
+#if RVV_SPEC_0_7
+                    for (int l = 0; l < packn; l++)
+                    {
+                        tmpptr[0] = r0[l];
+                        tmpptr[1] = r0[l + packn];
+                        tmpptr[2] = r0[l + packn * 2];
+                        tmpptr[3] = r0[l + packn * 3];
+                        tmpptr += 4;
+                    }
+
+                    r0 += bottom_blob_tm.cstep * packn;
+#else
                     vfloat32m1_t _val0 = vle32_v_f32m1(r0, vl);
                     vfloat32m1_t _val1 = vle32_v_f32m1(r0 + packn, vl);
                     vfloat32m1_t _val2 = vle32_v_f32m1(r0 + packn * 2, vl);
@@ -356,6 +385,7 @@ static void conv3x3s1_winograd64_packn_rvv(const Mat& bottom_blob, Mat& top_blob
 
                     r0 += bottom_blob_tm.cstep * packn;
                     tmpptr += packn * 4;
+#endif
                 }
             }
             for (; i + 1 < tiles; i += 2)
@@ -368,12 +398,23 @@ static void conv3x3s1_winograd64_packn_rvv(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
+#if RVV_SPEC_0_7
+                    for (int l = 0; l < packn; l++)
+                    {
+                        tmpptr[0] = r0[l];
+                        tmpptr[1] = r0[l + packn];
+                        tmpptr += 2;
+                    }
+
+                    r0 += bottom_blob_tm.cstep * packn;
+#else
                     vfloat32m1_t _val0 = vle32_v_f32m1(r0, vl);
                     vfloat32m1_t _val1 = vle32_v_f32m1(r0 + packn, vl);
                     vsseg2e32_v_f32m1x2(tmpptr, vcreate_f32m1x2(_val0, _val1), vl);
 
                     r0 += bottom_blob_tm.cstep * packn;
                     tmpptr += packn * 2;
+#endif
                 }
             }
             for (; i < tiles; i++)
@@ -958,6 +999,22 @@ static void conv3x3s1_winograd42_packn_rvv(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
+#if RVV_SPEC_0_7
+                    for (int l = 0; l < packn; l++)
+                    {
+                        tmpptr[0] = r0[l];
+                        tmpptr[1] = r0[l + packn];
+                        tmpptr[2] = r0[l + packn * 2];
+                        tmpptr[3] = r0[l + packn * 3];
+                        tmpptr[4] = r0[l + packn * 4];
+                        tmpptr[5] = r0[l + packn * 5];
+                        tmpptr[6] = r0[l + packn * 6];
+                        tmpptr[7] = r0[l + packn * 7];
+                        tmpptr += 8;
+                    }
+
+                    r0 += bottom_blob_tm.cstep * packn;
+#else
                     vfloat32m1_t _val0 = vle32_v_f32m1(r0, vl);
                     vfloat32m1_t _val1 = vle32_v_f32m1(r0 + packn, vl);
                     vfloat32m1_t _val2 = vle32_v_f32m1(r0 + packn * 2, vl);
@@ -970,6 +1027,7 @@ static void conv3x3s1_winograd42_packn_rvv(const Mat& bottom_blob, Mat& top_blob
 
                     r0 += bottom_blob_tm.cstep * packn;
                     tmpptr += packn * 8;
+#endif
                 }
             }
             for (; i + 3 < tiles; i += 4)
@@ -982,6 +1040,18 @@ static void conv3x3s1_winograd42_packn_rvv(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
+#if RVV_SPEC_0_7
+                    for (int l = 0; l < packn; l++)
+                    {
+                        tmpptr[0] = r0[l];
+                        tmpptr[1] = r0[l + packn];
+                        tmpptr[2] = r0[l + packn * 2];
+                        tmpptr[3] = r0[l + packn * 3];
+                        tmpptr += 4;
+                    }
+
+                    r0 += bottom_blob_tm.cstep * packn;
+#else
                     vfloat32m1_t _val0 = vle32_v_f32m1(r0, vl);
                     vfloat32m1_t _val1 = vle32_v_f32m1(r0 + packn, vl);
                     vfloat32m1_t _val2 = vle32_v_f32m1(r0 + packn * 2, vl);
@@ -990,6 +1060,7 @@ static void conv3x3s1_winograd42_packn_rvv(const Mat& bottom_blob, Mat& top_blob
 
                     r0 += bottom_blob_tm.cstep * packn;
                     tmpptr += packn * 4;
+#endif
                 }
             }
             for (; i + 1 < tiles; i += 2)
@@ -1002,12 +1073,23 @@ static void conv3x3s1_winograd42_packn_rvv(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
+#if RVV_SPEC_0_7
+                    for (int l = 0; l < packn; l++)
+                    {
+                        tmpptr[0] = r0[l];
+                        tmpptr[1] = r0[l + packn];
+                        tmpptr += 2;
+                    }
+
+                    r0 += bottom_blob_tm.cstep * packn;
+#else
                     vfloat32m1_t _val0 = vle32_v_f32m1(r0, vl);
                     vfloat32m1_t _val1 = vle32_v_f32m1(r0 + packn, vl);
                     vsseg2e32_v_f32m1x2(tmpptr, vcreate_f32m1x2(_val0, _val1), vl);
 
                     r0 += bottom_blob_tm.cstep * packn;
                     tmpptr += packn * 2;
+#endif
                 }
             }
             for (; i < tiles; i++)
