@@ -19,7 +19,7 @@ static void im2col_sgemm_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, con
     const word_type vl = vsetvl_e16m1(packn);
 #endif
 
-    // Mat bottom_im2col(size, maxk, inch, 4u, 1, opt.workspace_allocator);
+    // Mat bottom_im2col(size, maxk, inch, 2u, 1, opt.workspace_allocator);
 
     const int size = bottom_im2col.w;
     const int maxk = bottom_im2col.h;
@@ -33,9 +33,9 @@ static void im2col_sgemm_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, con
     Mat tmp;
 #if __riscv_vector
     if (size >= packn)
-        tmp.create(packn * maxk, inch, size / packn + size % packn, 4u, 1, opt.workspace_allocator);
+        tmp.create(packn * maxk, inch, size / packn + size % packn, 2u, 1, opt.workspace_allocator);
     else
-        tmp.create(maxk, inch, size, 4u, 1, opt.workspace_allocator);
+        tmp.create(maxk, inch, size, 2u, 1, opt.workspace_allocator);
     {
         int nn_size = size / packn;
 
@@ -80,7 +80,7 @@ static void im2col_sgemm_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, con
         }
     }
 #else // __riscv_vector
-    tmp.create(maxk, inch, size, 4u, 1, opt.workspace_allocator);
+    tmp.create(maxk, inch, size, 2u, 1, opt.workspace_allocator);
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < size; i++)
@@ -502,7 +502,7 @@ static void convolution_im2col_sgemm_fp16sa_rvv(const Mat& bottom_blob, Mat& top
     const int maxk = kernel_w * kernel_h;
 
     // im2col
-    Mat bottom_im2col(size, maxk, inch, 4u, 1, opt.workspace_allocator);
+    Mat bottom_im2col(size, maxk, inch, 2u, 1, opt.workspace_allocator);
     {
         const int gap = w * stride_h - outw * stride_w;
 
