@@ -40,6 +40,7 @@ namespace ncnn {
 
 #include "convolution_sgemm_packn.h"
 #include "convolution_1x1_packn.h"
+#include "convolution_3x3_packn.h"
 
 #if __riscv_zfh
 #include "convolution_fp16s.h"
@@ -49,6 +50,7 @@ namespace ncnn {
 
 #include "convolution_sgemm_packn_fp16s.h"
 #include "convolution_1x1_packn_fp16s.h"
+#include "convolution_3x3_packn_fp16s.h"
 #endif
 #endif // __riscv_vector
 
@@ -171,6 +173,11 @@ int Convolution_riscv::create_pipeline(const Option& opt)
     // packn
     if (elempack == packn && out_elempack == packn)
     {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
+        {
+            conv3x3s1_winograd64_transform_kernel_packn_rvv(weight_data, weight_data_packed, num_input, num_output);
+            conv3x3s1_winograd42_transform_kernel_packn_rvv(weight_data, weight_3x3_winograd42_data_packed, num_input, num_output);
+        }
     }
 
     // pack1ton
@@ -306,6 +313,8 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     if (top_blob.empty())
         return -100;
 
+    const int num_input = channels * elempack;
+
 #if __riscv_vector
     if (elempack == packn && out_elempack == packn)
     {
@@ -321,6 +330,23 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             conv1x1s2_packn_rvv(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
+        {
+            // we need more proper conditions
+            if ((w <= 10 || (w >= 15 && w <= 18) || w == 21 || w == 22) && (h <= 10 || (h >= 15 && h <= 18) || h == 21 || h == 22))
+            {
+                conv3x3s1_winograd42_packn_rvv(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data_packed, bias_data, opt);
+            }
+            else
+            {
+                conv3x3s1_winograd64_packn_rvv(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+            }
 
             if (activation)
             {
@@ -483,6 +509,11 @@ int Convolution_riscv::create_pipeline_fp16s(const Option& opt)
     // packn
     if (elempack == packn && out_elempack == packn)
     {
+        if (opt.use_fp16_arithmetic && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
+        {
+            conv3x3s1_winograd64_transform_kernel_packn_fp16sa_rvv(weight_data, weight_data_fp16, num_input, num_output);
+            conv3x3s1_winograd42_transform_kernel_packn_fp16sa_rvv(weight_data, weight_3x3_winograd42_data_packed, num_input, num_output);
+        }
     }
 
     // pack1ton
@@ -573,6 +604,7 @@ int Convolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
@@ -598,6 +630,8 @@ int Convolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
     if (top_blob.empty())
         return -100;
 
+    const int num_input = channels * elempack;
+
     if (elempack == packn && out_elempack == packn)
     {
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -612,6 +646,23 @@ int Convolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             conv1x1s2_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
+        {
+            // we need more proper conditions
+            if ((w <= 10 || (w >= 15 && w <= 18) || w == 21 || w == 22) && (h <= 10 || (h >= 15 && h <= 18) || h == 21 || h == 22))
+            {
+                conv3x3s1_winograd42_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data_packed, bias_data_fp16, opt);
+            }
+            else
+            {
+                conv3x3s1_winograd64_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+            }
 
             if (activation)
             {
