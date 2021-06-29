@@ -52,7 +52,7 @@ Parameter
 Typical output (executed in android adb shell)
 
 
-### AMD Ryzen Threadripper 3970X 32-Core Processor
+### AMD Ryzen Threadripper 3970X (Zen2 3.7 GHz ~ 4.5 GHz x 32)
 ```
 i@s:~/qtang/ncnn/benchmark$ ../build-vulkan/benchmark/benchncnn 10 1 0 -1 0
 loop_count = 10
@@ -83,7 +83,7 @@ cooling_down = 0
          yolov4-tiny  min =   85.65  max =   85.97  avg =   85.79
 ```
 
-### Quadro RTX 8000
+### NVIDIA Quadro RTX 8000 (TU102 SM x 72 + Tensor Core x 576)
 ```
 i@s:~/qtang/ncnn/benchmark$ ../build-vulkan/benchmark/benchncnn 256 1 0 1 0
 [0 Quadro RTX 8000]  queueC=2[8]  queueG=0[16]  queueT=1[2]
@@ -122,6 +122,209 @@ cooling_down = 0
          yolov4-tiny  min =    9.32  max =   72.92  avg =   14.01
 
 ```
+
+### NVIDIA RTX3090 (GA102 SM x 82 + Tensor Core 328)
+```
+(base) i@t:~/wls/ncnn/benchmark$ ../build/benchmark/benchncnn 32 1 0 0 0
+[0 GeForce RTX 3090]  queueC=2[8]  queueG=0[16]  queueT=1[2]
+[0 GeForce RTX 3090]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[0 GeForce RTX 3090]  fp16-p/s/a=1/1/1  int8-p/s/a=1/1/1
+[0 GeForce RTX 3090]  subgroup=32  basic=1  vote=1  ballot=1  shuffle=1
+[1 GeForce RTX 3090]  queueC=2[8]  queueG=0[16]  queueT=1[2]
+[1 GeForce RTX 3090]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[1 GeForce RTX 3090]  fp16-p/s/a=1/1/1  int8-p/s/a=1/1/1
+[1 GeForce RTX 3090]  subgroup=32  basic=1  vote=1  ballot=1  shuffle=1
+loop_count = 32
+num_threads = 1
+powersave = 0
+gpu_device = 0
+cooling_down = 0
+          squeezenet  min =    1.76  max =    2.74  avg =    1.80
+     squeezenet_int8  min =   47.10  max =   47.75  avg =   47.21
+           mobilenet  min =    4.77  max =    5.79  avg =    5.20
+      mobilenet_int8  min =   64.19  max =   67.05  avg =   64.39
+        mobilenet_v2  min =    2.44  max =   20.89  avg =    6.98
+        mobilenet_v3  min =    2.75  max =    2.87  avg =    2.77
+          shufflenet  min =    2.20  max =    2.62  avg =    2.46
+       shufflenet_v2  min =    5.10  max =    7.43  avg =    5.75
+             mnasnet  min =    3.47  max =    3.50  avg =    3.48
+     proxylessnasnet  min =    2.59  max =    9.08  avg =    7.28
+     efficientnet_b0  min =    3.87  max =    4.65  avg =    3.91
+   efficientnetv2_b0  min =   29.48  max =   41.90  avg =   30.14
+        regnety_400m  min =    2.89  max =    2.99  avg =    2.91
+           blazeface  min =    1.55  max =    2.14  avg =    1.60
+           googlenet  min =    4.33  max =   17.89  avg =    6.05
+      googlenet_int8  min =  174.46  max =  178.19  avg =  174.74
+            resnet18  min =    2.14  max =   11.04  avg =    5.33
+       resnet18_int8  min =  193.37  max =  193.83  avg =  193.55
+             alexnet  min =    2.37  max =   15.99  avg =    4.50
+               vgg16  min =    4.55  max =   16.65  avg =    5.22
+          vgg16_int8  min = 1538.76  max = 1544.81  avg = 1540.79
+            resnet50  min =    4.13  max =   25.86  avg =    5.80
+       resnet50_int8  min =  400.89  max =  401.72  avg =  401.29
+      squeezenet_ssd  min =    6.95  max =    7.81  avg =    7.07
+ squeezenet_ssd_int8  min =  158.51  max =  159.04  avg =  158.68
+       mobilenet_ssd  min =    4.36  max =   18.98  avg =    9.40
+  mobilenet_ssd_int8  min =  130.74  max =  130.92  avg =  130.83
+      mobilenet_yolo  min =    3.96  max =   11.94  avg =    6.48
+  mobilenetv2_yolov3  min =    6.07  max =    6.21  avg =    6.13
+         yolov4-tiny  min =   13.01  max =   26.78  avg =   14.87
+```
+
+### AMD Ryzen Embedded V1605B (Zen 2.0 GHz ~ 3.6 GHz x 4 + Radeon Vega 8 1.1GHz 8CU)
+```
+C:\Users\i\Desktop\benchmark>benchncnn.exe 32 1 0 -1 0
+loop_count = 32
+num_threads = 1
+powersave = 0
+gpu_device = -1
+cooling_down = 0
+          squeezenet  min =   22.13  max =   24.07  avg =   22.88
+     squeezenet_int8  min =   58.54  max =   62.21  avg =   59.55
+           mobilenet  min =   40.99  max =   43.67  avg =   41.70
+      mobilenet_int8  min =   98.06  max =  111.37  avg =  101.15
+        mobilenet_v2  min =   26.53  max =   28.96  avg =   27.81
+        mobilenet_v3  min =   22.96  max =   25.25  avg =   23.30
+          shufflenet  min =   20.17  max =   28.78  avg =   21.09
+       shufflenet_v2  min =   19.06  max =   19.72  avg =   19.47
+             mnasnet  min =   25.11  max =   39.53  avg =   27.54
+     proxylessnasnet  min =   28.84  max =   35.16  avg =   30.03
+     efficientnet_b0  min =   43.16  max =   46.03  avg =   43.65
+   efficientnetv2_b0  min =   48.64  max =   52.07  avg =   49.62
+        regnety_400m  min =   33.43  max =   35.87  avg =   33.97
+           blazeface  min =    5.43  max =    6.04  avg =    5.56
+           googlenet  min =   85.80  max =   90.93  avg =   87.65
+      googlenet_int8  min =  214.37  max =  230.75  avg =  219.50
+            resnet18  min =   76.58  max =   80.38  avg =   77.34
+       resnet18_int8  min =  231.16  max =  255.22  avg =  236.65
+             alexnet  min =   60.69  max =   64.06  avg =   61.34
+               vgg16  min =  286.45  max =  307.04  avg =  290.86
+          vgg16_int8  min = 1797.58  max = 2079.73  avg = 1844.78
+            resnet50  min =  198.27  max =  215.03  avg =  201.37
+       resnet50_int8  min =  493.52  max =  499.67  avg =  496.95
+      squeezenet_ssd  min =  189.97  max =  198.53  avg =  192.10
+ squeezenet_ssd_int8  min =  198.81  max =  214.55  avg =  203.59
+       mobilenet_ssd  min =   87.56  max =   92.72  avg =   89.03
+  mobilenet_ssd_int8  min =  196.97  max =  209.51  avg =  201.95
+      mobilenet_yolo  min =  206.87  max =  218.48  avg =  210.84
+  mobilenetv2_yolov3  min =  102.72  max =  108.18  avg =  104.62
+         yolov4-tiny  min =  117.97  max =  134.73  avg =  121.26
+
+C:\Users\i\Desktop\benchmark>benchncnn.exe 32 2 0 -1 0
+loop_count = 32
+num_threads = 2
+powersave = 0
+gpu_device = -1
+cooling_down = 0
+          squeezenet  min =   13.43  max =   14.35  avg =   13.62
+     squeezenet_int8  min =   32.29  max =   50.76  avg =   33.56
+           mobilenet  min =   23.42  max =   25.10  avg =   24.09
+      mobilenet_int8  min =   51.99  max =   55.42  avg =   53.01
+        mobilenet_v2  min =   15.45  max =   15.75  avg =   15.59
+        mobilenet_v3  min =   14.32  max =   14.75  avg =   14.39
+          shufflenet  min =   12.64  max =   12.83  avg =   12.69
+       shufflenet_v2  min =   11.45  max =   12.44  avg =   11.60
+             mnasnet  min =   14.43  max =   20.45  avg =   15.11
+     proxylessnasnet  min =   16.18  max =   16.38  avg =   16.24
+     efficientnet_b0  min =   25.25  max =   28.42  avg =   26.59
+   efficientnetv2_b0  min =   27.57  max =   32.05  avg =   30.04
+        regnety_400m  min =   22.74  max =   24.75  avg =   23.31
+           blazeface  min =    3.44  max =    3.83  avg =    3.62
+           googlenet  min =   49.39  max =   66.76  avg =   53.76
+      googlenet_int8  min =  113.89  max =  136.75  avg =  119.29
+            resnet18  min =   43.77  max =   67.24  avg =   46.14
+       resnet18_int8  min =  121.44  max =  148.01  avg =  126.95
+             alexnet  min =   34.46  max =   37.38  avg =   35.50
+               vgg16  min =  177.16  max =  207.25  avg =  184.19
+          vgg16_int8  min =  951.86  max = 1155.60  avg =  990.51
+            resnet50  min =  112.28  max =  137.18  avg =  115.64
+       resnet50_int8  min =  260.69  max =  272.26  avg =  265.89
+      squeezenet_ssd  min =  108.07  max =  121.66  avg =  110.35
+ squeezenet_ssd_int8  min =  109.01  max =  126.86  avg =  111.96
+       mobilenet_ssd  min =   49.60  max =   52.62  avg =   50.46
+  mobilenet_ssd_int8  min =  104.22  max =  111.07  avg =  106.33
+      mobilenet_yolo  min =  117.42  max =  136.73  avg =  122.92
+  mobilenetv2_yolov3  min =   61.66  max =   65.22  avg =   63.01
+         yolov4-tiny  min =   72.64  max =   77.09  avg =   74.30
+
+C:\Users\i\Desktop\benchmark>benchncnn.exe 32 4 0 -1 0
+loop_count = 32
+num_threads = 4
+powersave = 0
+gpu_device = -1
+cooling_down = 0
+          squeezenet  min =    9.19  max =   14.82  avg =   11.15
+     squeezenet_int8  min =   19.00  max =   40.30  avg =   24.80
+           mobilenet  min =   18.02  max =   39.84  avg =   27.38
+      mobilenet_int8  min =   28.04  max =   57.59  avg =   34.15
+        mobilenet_v2  min =   10.26  max =   17.79  avg =   13.36
+        mobilenet_v3  min =    8.87  max =   10.87  avg =    9.11
+          shufflenet  min =    8.93  max =   11.96  avg =    9.34
+       shufflenet_v2  min =    7.37  max =   13.10  avg =    8.72
+             mnasnet  min =    9.24  max =   14.90  avg =   11.32
+     proxylessnasnet  min =   10.21  max =   11.89  avg =   10.39
+     efficientnet_b0  min =   16.22  max =   23.71  avg =   16.59
+   efficientnetv2_b0  min =   17.44  max =   31.42  avg =   22.85
+        regnety_400m  min =   18.32  max =   24.02  avg =   18.90
+           blazeface  min =    2.22  max =    2.81  avg =    2.30
+           googlenet  min =   31.52  max =   51.80  avg =   42.11
+      googlenet_int8  min =   65.47  max =  114.41  avg =   75.98
+            resnet18  min =   28.90  max =   64.62  avg =   37.58
+       resnet18_int8  min =   71.29  max =  136.67  avg =  103.03
+             alexnet  min =   23.67  max =   34.01  avg =   29.78
+               vgg16  min =  142.18  max =  211.00  avg =  170.46
+          vgg16_int8  min =  531.36  max =  871.25  avg =  625.60
+            resnet50  min =   69.23  max =  108.67  avg =   73.68
+       resnet50_int8  min =  149.18  max =  309.88  avg =  168.68
+      squeezenet_ssd  min =   68.83  max =   81.70  avg =   71.01
+ squeezenet_ssd_int8  min =   66.34  max =  118.16  avg =   74.34
+       mobilenet_ssd  min =   29.96  max =   34.32  avg =   30.74
+  mobilenet_ssd_int8  min =   56.87  max =   92.24  avg =   65.57
+      mobilenet_yolo  min =   74.26  max =  113.91  avg =   81.28
+  mobilenetv2_yolov3  min =   42.16  max =   63.49  avg =   45.34
+         yolov4-tiny  min =   53.06  max =   69.84  avg =   55.81
+
+C:\Users\i\Desktop\benchmark>benchncnn.exe 32 1 0 0 0
+[0 AMD Radeon(TM) Vega 8 Graphics]  queueC=1[2]  queueG=0[1]  queueT=2[1]
+[0 AMD Radeon(TM) Vega 8 Graphics]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[0 AMD Radeon(TM) Vega 8 Graphics]  fp16-p/s/a=1/1/1  int8-p/s/a=1/1/1
+[0 AMD Radeon(TM) Vega 8 Graphics]  subgroup=64  basic=1  vote=1  ballot=1  shuffle=1
+loop_count = 32
+num_threads = 1
+powersave = 0
+gpu_device = 0
+cooling_down = 0
+          squeezenet  min =    6.78  max =    7.09  avg =    6.91
+     squeezenet_int8  min =   58.93  max =   62.53  avg =   60.11
+           mobilenet  min =    8.08  max =    8.39  avg =    8.25
+      mobilenet_int8  min =   97.74  max =  116.77  avg =  100.17
+        mobilenet_v2  min =    7.95  max =    8.27  avg =    8.14
+        mobilenet_v3  min =    8.70  max =    9.70  avg =    9.02
+          shufflenet  min =    6.36  max =    7.64  avg =    7.01
+       shufflenet_v2  min =    7.04  max =    8.12  avg =    7.50
+             mnasnet  min =    8.07  max =    9.08  avg =    8.38
+     proxylessnasnet  min =    8.56  max =    9.66  avg =    8.81
+     efficientnet_b0  min =   16.68  max =   18.00  avg =   17.30
+   efficientnetv2_b0  min =  394.82  max =  404.88  avg =  401.05
+        regnety_400m  min =   11.92  max =   12.17  avg =   12.03
+           blazeface  min =    4.82  max =    6.50  avg =    5.42
+           googlenet  min =   18.44  max =   19.66  avg =   19.18
+      googlenet_int8  min =  213.41  max =  231.79  avg =  218.31
+            resnet18  min =   14.27  max =   14.72  avg =   14.44
+       resnet18_int8  min =  228.79  max =  249.65  avg =  236.06
+             alexnet  min =   17.31  max =   18.31  avg =   17.69
+               vgg16  min =  111.85  max =  123.35  avg =  112.98
+          vgg16_int8  min = 1789.64  max = 1838.84  avg = 1826.05
+            resnet50  min =   31.61  max =   32.86  avg =   32.12
+       resnet50_int8  min =  483.57  max =  505.72  avg =  491.76
+      squeezenet_ssd  min =   99.66  max =  105.68  avg =  104.57
+ squeezenet_ssd_int8  min =  200.48  max =  208.71  avg =  203.02
+       mobilenet_ssd  min =   33.45  max =   35.64  avg =   34.75
+  mobilenet_ssd_int8  min =  195.14  max =  205.35  avg =  200.18
+      mobilenet_yolo  min =   59.20  max =   61.06  avg =   60.47
+  mobilenetv2_yolov3  min =   31.48  max =   33.25  avg =   32.84
+         yolov4-tiny  min =   93.75  max =   97.45  avg =   96.00
+ ```
 
 ### Qualcomm SM8150-AC Snapdragon 855+ (Kyro485 2.96 GHz + 2.42 GHz x 3 + 1.80 GHz x 4 + Adreno 640)
 ```
