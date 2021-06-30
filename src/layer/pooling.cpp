@@ -116,8 +116,8 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 const float* inptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                const int hk = std::max(h - out_h + 1, h);
-                const int wk = std::max(w - out_w + 1, w);
+                const int hk = std::max(h - out_h + 1, 1);
+                const int wk = std::max(w - out_w + 1, 1);
 
                 for (int i = 0; i < out_h; i++)
                 {
@@ -151,8 +151,8 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 const float* inptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                const int hk = std::max(h - out_h + 1, h);
-                const int wk = std::max(w - out_w + 1, w);
+                const int hk = std::max(h - out_h + 1, 1);
+                const int wk = std::max(w - out_w + 1, 1);
 
                 for (int i = 0; i < out_h; i++)
                 {
