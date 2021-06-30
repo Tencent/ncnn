@@ -3490,7 +3490,15 @@ int main(int argc, char** argv)
         }
         else if (op == "AveragePool" || op == "MaxPool")
         {
-            fprintf(pp, "%-16s", "Pooling");
+            std::vector<int> kernel_shape = get_node_attr_ai(node, "kernel_shape");
+            if (kernel_shape.size() == 1)
+            {
+                fprintf(pp, "%-16s", "Pooling1D");
+            }
+            else
+            {
+                fprintf(pp, "%-16s", "Pooling");
+            }
         }
         else if (op == "BatchNormalization")
         {
@@ -3518,14 +3526,22 @@ int main(int argc, char** argv)
         }
         else if (op == "Conv")
         {
-            int group = get_node_attr_i(node, "group", 1);
-            if (group > 1)
+            std::vector<int> kernel_shape = get_node_attr_ai(node, "kernel_shape");
+            if (kernel_shape.size() == 1)
             {
-                fprintf(pp, "%-16s", "ConvolutionDepthWise");
+                fprintf(pp, "%-16s", "Convolution1D");
             }
             else
             {
-                fprintf(pp, "%-16s", "Convolution");
+                int group = get_node_attr_i(node, "group", 1);
+                if (group > 1)
+                {
+                    fprintf(pp, "%-16s", "ConvolutionDepthWise");
+                }
+                else
+                {
+                    fprintf(pp, "%-16s", "Convolution");
+                }
             }
         }
         else if (op == "ConvTranspose")

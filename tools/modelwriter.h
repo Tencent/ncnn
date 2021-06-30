@@ -35,6 +35,7 @@
 #include "layer/clip.h"
 #include "layer/concat.h"
 #include "layer/convolution.h"
+#include "layer/convolution1d.h"
 #include "layer/convolutiondepthwise.h"
 #include "layer/crop.h"
 #include "layer/deconvolution.h"
@@ -65,6 +66,7 @@
 #include "layer/permute.h"
 #include "layer/pixelshuffle.h"
 #include "layer/pooling.h"
+#include "layer/pooling1d.h"
 #include "layer/power.h"
 #include "layer/prelu.h"
 #include "layer/priorbox.h"
@@ -886,6 +888,39 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 mac += (uint64_t)op->kernel_h * op->kernel_w * outw * outh * outc * inc;
             }
         }
+        else if (layer->type == "Convolution1D")
+        {
+            ncnn::Convolution1D* op = (ncnn::Convolution1D*)layer;
+            ncnn::Convolution1D* op_default = (ncnn::Convolution1D*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", kernel_w)
+            fprintf_param_value(" 2=%d", dilation_w)
+            fprintf_param_value(" 3=%d", stride_w)
+            fprintf_param_value(" 4=%d", pad_left)
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            fprintf_param_value(" 18=%e", pad_value)
+            fprintf_param_value(" 5=%d", bias_term)
+            fprintf_param_value(" 6=%d", weight_data_size)
+            fprintf_param_value(" 9=%d", activation_type)
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
+
+            fwrite_weight_tag_data(op->weight_data, bp);
+            fwrite_weight_data(op->bias_data, bp);
+
+            if (shape_ready)
+            {
+                int inh = blobs[layer->bottoms[0]].shape.h;
+                int outw = blobs[layer->tops[0]].shape.w;
+                int outh = blobs[layer->tops[0]].shape.h;
+
+                mac += (uint64_t)op->kernel_w * outw * outh * inh;
+            }
+        }
         else if (layer->type == "ConvolutionDepthWise")
         {
             ncnn::ConvolutionDepthWise* op = (ncnn::ConvolutionDepthWise*)layer;
@@ -1410,6 +1445,24 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (op->out_h != op->out_w) fprintf(pp, " 18=%d", op->out_h);
             }
+        }
+        else if (layer->type == "Pooling1D")
+        {
+            ncnn::Pooling1D* op = (ncnn::Pooling1D*)layer;
+            ncnn::Pooling1D* op_default = (ncnn::Pooling1D*)layer_default;
+
+            fprintf_param_value(" 0=%d", pooling_type)
+            fprintf_param_value(" 1=%d", kernel_w)
+            fprintf_param_value(" 2=%d", stride_w)
+            fprintf_param_value(" 3=%d", pad_left)
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 14=%d", op->pad_right);
+            }
+            fprintf_param_value(" 4=%d", global_pooling)
+            fprintf_param_value(" 5=%d", pad_mode)
+            fprintf_param_value(" 6=%d", avgpool_count_include_pad)
+            fprintf_param_value(" 7=%d", adaptive_pooling)
+            fprintf_param_value(" 8=%d", out_w)
         }
         else if (layer->type == "Power")
         {
