@@ -114,6 +114,8 @@ int Convolution1D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
                     sptr += dilation_w;
                 }
+
+                kptr += kernel_w;
             }
 
             if (activation_type == 1)
