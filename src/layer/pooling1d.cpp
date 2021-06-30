@@ -105,10 +105,12 @@ int Pooling1D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 const float* inptr = bottom_blob.row(q);
                 float* outptr = top_blob.row(q);
 
+                const int wk = std::max(w - out_w + 1, w);
+
                 for (int j = 0; j < out_w; j++)
                 {
                     int iw0 = floor((float)(j * w) / out_w);
-                    int iw1 = ceil((float)((j + 1) * w) / out_w);
+                    int iw1 = iw0 + wk;
 
                     float max = inptr[iw0];
                     for (int iw = iw0; iw < iw1; iw++)
@@ -128,11 +130,12 @@ int Pooling1D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 const float* inptr = bottom_blob.row(q);
                 float* outptr = top_blob.row(q);
 
+                const int wk = std::max(w - out_w + 1, w);
+
                 for (int j = 0; j < out_w; j++)
                 {
                     int iw0 = floor((float)(j * w) / out_w);
-                    int iw1 = ceil((float)((j + 1) * w) / out_w);
-                    int wk = iw1 - iw0;
+                    int iw1 = iw0 + wk;
 
                     float sum = 0;
                     for (int iw = iw0; iw < iw1; iw++)
