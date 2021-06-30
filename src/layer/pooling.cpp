@@ -121,11 +121,11 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
                 for (int i = 0; i < out_h; i++)
                 {
-                    int ih0 = floor((float)(i * h) / out_h);
+                    int ih0 = i * h / out_h;
                     int ih1 = ih0 + hk;
                     for (int j = 0; j < out_w; j++)
                     {
-                        int iw0 = floor((float)(j * w) / out_w);
+                        int iw0 = j * w / out_w;
                         int iw1 = iw0 + wk;
 
                         float max = inptr[ih0 * w + iw0];
@@ -156,11 +156,11 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
                 for (int i = 0; i < out_h; i++)
                 {
-                    int ih0 = floor((float)(i * h) / out_h);
+                    int ih0 = i * h / out_h;
                     int ih1 = ih0 + hk;
                     for (int j = 0; j < out_w; j++)
                     {
-                        int iw0 = floor((float)(j * w) / out_w);
+                        int iw0 = j * w / out_w;
                         int iw1 = iw0 + wk;
 
                         float sum = 0;
