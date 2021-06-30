@@ -38,6 +38,7 @@ protected:
 #endif
 
 public:
+    Layer* activation;
     std::vector<ncnn::Layer*> group_ops;
 
     // packing

@@ -29,6 +29,16 @@
 
 namespace ncnn {
 
+#if __riscv_vector
+#include "convolutiondepthwise_3x3_packn.h"
+#include "convolutiondepthwise_5x5_packn.h"
+
+#if __riscv_zfh
+#include "convolutiondepthwise_3x3_packn_fp16s.h"
+#include "convolutiondepthwise_5x5_packn_fp16s.h"
+#endif
+#endif // __riscv_vector
+
 ConvolutionDepthWise_riscv::ConvolutionDepthWise_riscv()
 {
 #if __riscv_vector
@@ -37,10 +47,56 @@ ConvolutionDepthWise_riscv::ConvolutionDepthWise_riscv()
     support_fp16_storage = true;
 #endif
 #endif // __riscv_vector
+
+    activation = 0;
 }
 
 int ConvolutionDepthWise_riscv::create_pipeline(const Option& opt)
 {
+    if (activation_type == 1)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 2)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]); // slope
+        activation->load_param(pd);
+    }
+    else if (activation_type == 3)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Clip);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]); // min
+        pd.set(1, activation_params[1]); // max
+        activation->load_param(pd);
+    }
+    else if (activation_type == 4)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 5)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Mish);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+
+    if (activation)
+    {
+        activation->create_pipeline(opt);
+    }
+
 #if __riscv_vector && __riscv_zfh
     if (opt.use_fp16_storage)
     {
@@ -187,6 +243,13 @@ int ConvolutionDepthWise_riscv::create_group_ops(const Option& opt)
 
 int ConvolutionDepthWise_riscv::destroy_pipeline(const Option& opt)
 {
+    if (activation)
+    {
+        activation->destroy_pipeline(opt);
+        delete activation;
+        activation = 0;
+    }
+
     for (int i = 0; i < (int)group_ops.size(); i++)
     {
         group_ops[i]->destroy_pipeline(opt);
@@ -281,6 +344,43 @@ int ConvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob, c
 #if __riscv_vector
         if (elempack == packn)
         {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                convdw3x3s1_packn_rvv(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw3x3s2_packn_rvv(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                convdw5x5s1_packn_rvv(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw5x5s2_packn_rvv(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else
             {
                 const int maxk = kernel_w * kernel_h;
 
@@ -752,6 +852,43 @@ int ConvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_
     {
         if (elempack == packn)
         {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                convdw3x3s1_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw3x3s2_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                convdw5x5s1_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw5x5s2_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else
             {
                 const int maxk = kernel_w * kernel_h;
 
