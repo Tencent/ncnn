@@ -240,8 +240,18 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
                 kptr0 += packn;
             }
 
+#if RVV_SPEC_0_7
+            vsse16_v_f16m1(outptr0, top_blob.cstep * sizeof(__fp16), _sum0, vl);
+            vsse16_v_f16m1(outptr0 + 1, top_blob.cstep * sizeof(__fp16), _sum1, vl);
+            vsse16_v_f16m1(outptr0 + 2, top_blob.cstep * sizeof(__fp16), _sum2, vl);
+            vsse16_v_f16m1(outptr0 + 3, top_blob.cstep * sizeof(__fp16), _sum3, vl);
+            vsse16_v_f16m1(outptr0 + 4, top_blob.cstep * sizeof(__fp16), _sum4, vl);
+            vsse16_v_f16m1(outptr0 + 5, top_blob.cstep * sizeof(__fp16), _sum5, vl);
+            vsse16_v_f16m1(outptr0 + 6, top_blob.cstep * sizeof(__fp16), _sum6, vl);
+            vsse16_v_f16m1(outptr0 + 7, top_blob.cstep * sizeof(__fp16), _sum7, vl);
+#else
             vssseg8e16_v_f16m1x8(outptr0, top_blob.cstep * sizeof(__fp16), vcreate_f16m1x8(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7), vl);
-
+#endif
             outptr0 += 8;
         }
         for (; i + 3 < size; i += 4)
@@ -271,8 +281,14 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
                 kptr0 += packn;
             }
 
+#if RVV_SPEC_0_7
+            vsse16_v_f16m1(outptr0, top_blob.cstep * sizeof(__fp16), _sum0, vl);
+            vsse16_v_f16m1(outptr0 + 1, top_blob.cstep * sizeof(__fp16), _sum1, vl);
+            vsse16_v_f16m1(outptr0 + 2, top_blob.cstep * sizeof(__fp16), _sum2, vl);
+            vsse16_v_f16m1(outptr0 + 3, top_blob.cstep * sizeof(__fp16), _sum3, vl);
+#else
             vssseg4e16_v_f16m1x4(outptr0, top_blob.cstep * sizeof(__fp16), vcreate_f16m1x4(_sum0, _sum1, _sum2, _sum3), vl);
-
+#endif
             outptr0 += 4;
         }
         for (; i + 1 < size; i += 2)
@@ -296,8 +312,12 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
                 kptr0 += packn;
             }
 
+#if RVV_SPEC_0_7
+            vsse16_v_f16m1(outptr0, top_blob.cstep * sizeof(__fp16), _sum0, vl);
+            vsse16_v_f16m1(outptr0 + 1, top_blob.cstep * sizeof(__fp16), _sum1, vl);
+#else
             vssseg2e16_v_f16m1x2(outptr0, top_blob.cstep * sizeof(__fp16), vcreate_f16m1x2(_sum0, _sum1), vl);
-
+#endif
             outptr0 += 2;
         }
         for (; i < size; i++)

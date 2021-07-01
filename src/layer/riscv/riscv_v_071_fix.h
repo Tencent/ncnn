@@ -147,6 +147,10 @@ typedef uint16x8xm1_t vuint16m1x8_t;
 #define vlseg2e32_v_f32m4x2 vlseg2ev_float32x2xm4
 #define vsseg2e32_v_f32m4x2 vsseg2ev_float32x2xm4
 
+#define vssseg8e32_v_f32m1x8 vssseg8ev_float32x8xm1
+#define vssseg4e32_v_f32m1x4 vssseg4ev_float32x4xm1
+#define vssseg2e32_v_f32m1x2 vssseg2ev_float32x2xm1
+
 #define vloxseg2ei32_v_f32m4x2(a, i, vl) vlxseg2ev_float32x2xm4(a, reinterpret_cast<int32xm4_t>(i), vl)
 
 #define vset_f32m1x2       vseg_element_set_float32x2xm1
@@ -566,6 +570,16 @@ static inline vfloat32m1_t vfredsum_vs_f32m8_f32m1(vfloat32m1_t dst, vfloat32m8_
 #define vse16_v_f16m4 vsev_float16xm4
 #define vse16_v_f16m8 vsev_float16xm8
 
+#define vlse16_v_f16m1 vlsev_float16xm1
+#define vlse16_v_f16m2 vlsev_float16xm2
+#define vlse16_v_f16m4 vlsev_float16xm4
+#define vlse16_v_f16m8 vlsev_float16xm8
+
+#define vsse16_v_f16m1 vssev_float16xm1
+#define vsse16_v_f16m2 vssev_float16xm2
+#define vsse16_v_f16m4 vssev_float16xm4
+#define vsse16_v_f16m8 vssev_float16xm8
+
 #define vlseg2e16_v_f16m1x2 vlseg2ev_float16x2xm1
 #define vsseg2e16_v_f16m1x2 vsseg2ev_float16x2xm1
 
@@ -577,6 +591,10 @@ static inline vfloat32m1_t vfredsum_vs_f32m8_f32m1(vfloat32m1_t dst, vfloat32m8_
 
 #define vlseg4e16_v_f16m2x4 vlseg4ev_float16x4xm2
 #define vsseg4e16_v_f16m2x4 vsseg4ev_float16x4xm2
+
+#define vssseg8e16_v_f16m1x8 vssseg8ev_float16x8xm1
+#define vssseg4e16_v_f16m1x4 vssseg4ev_float16x4xm1
+#define vssseg2e16_v_f16m1x2 vssseg2ev_float16x2xm1
 
 #define vset_f16m1x2       vseg_element_set_float16x2xm1
 #define vset_f16m1x4       vseg_element_set_float16x4xm1
