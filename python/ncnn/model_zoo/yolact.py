@@ -213,7 +213,7 @@ class Yolact:
                             w = scale * ar / self.target_size
                             h = scale / ar / self.target_size
 
-                            # This is for backward compatability with a bug where I made everything square by accident
+                            # This is for backward compatibility with a bug where I made everything square by accident
                             h = w
 
                             prior_data += [cx, cy, w, h]

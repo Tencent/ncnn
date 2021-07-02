@@ -71,7 +71,7 @@ cmake -DNCNN_PIXEL_ROTATE=OFF -DNCNN_PIXEL_AFFINE=OFF ..
 cmake -DNCNN_PIXEL=OFF ..
 ```
 
-* Cannot use functions transfering from image to pixels like `Mat::from_pixels / from_pixels_resize / to_pixels / to_pixels_resize`, and need create a Mat and fill in data by hand.
+* Cannot use functions transferring from image to pixels like `Mat::from_pixels / from_pixels_resize / to_pixels / to_pixels_resize`, and need create a Mat and fill in data by hand.
 
 ### disable openmp
 

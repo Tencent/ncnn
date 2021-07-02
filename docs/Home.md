@@ -120,7 +120,7 @@ memory usage is the RSS item in top utility output
 |inference time(8 thread)|152ms|38ms|
 |memory usage|138.16M|21.56M|
 |library binary size|6.9M|<500K|
-|compability|armeabi-v7a-hard with neon or arm64-v8a|armeabi-v7a with neon or arm64-v8a|
+|compatibility|armeabi-v7a-hard with neon or arm64-v8a|armeabi-v7a with neon or arm64-v8a|
 |thirdparty dependency|boost gflags glog lmdb openblas opencv protobuf|none|
 
 ### FAQ
