@@ -289,7 +289,6 @@ static void conv3x3s1_pack1ton_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob,
 
 static void conv3x3s2_pack1ton_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
-    fprintf(stderr, "conv3x3s2_pack1ton_fp16sa_rvv\n");
     const int packn = csrr_vlenb() / 2;
     const word_type vl = vsetvl_e16m1(packn);
 
