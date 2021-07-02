@@ -48,6 +48,8 @@ namespace ncnn {
 #include "convolution_1x1_pack1ton.h"
 #include "convolution_1x1_packnto1.h"
 #include "convolution_3x3_packn.h"
+#include "convolution_3x3_pack1ton.h"
+#include "convolution_7x7_pack1ton.h"
 
 #if __riscv_zfh
 #include "convolution_fp16s.h"
@@ -64,6 +66,8 @@ namespace ncnn {
 #include "convolution_1x1_pack1ton_fp16s.h"
 #include "convolution_1x1_packnto1_fp16s.h"
 #include "convolution_3x3_packn_fp16s.h"
+#include "convolution_3x3_pack1ton_fp16s.h"
+#include "convolution_7x7_pack1ton_fp16s.h"
 
 #endif
 #endif // __riscv_vector
@@ -395,6 +399,33 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv1x1s1_sgemm_pack1ton_rvv(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_pack1ton_rvv(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv3x3s2_pack1ton_rvv(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv7x7s2_pack1ton_rvv(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
 
             if (activation)
             {
@@ -785,6 +816,33 @@ int Convolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv1x1s1_sgemm_pack1ton_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_pack1ton_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv3x3s2_pack1ton_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv7x7s2_pack1ton_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
 
             if (activation)
             {
