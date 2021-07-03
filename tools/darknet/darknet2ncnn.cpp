@@ -956,7 +956,7 @@ int main(int argc, char** argv)
         printf("NOTE: There are %d unmerged yolo output layer. Make sure all outputs are processed with nms.\n", yolo_layer_count);
     if (letter_box_enabled)
         printf("NOTE: Make sure your pre-processing and post-processing support letter_box.\n");
-    printf("NOTE: Remeber to use ncnnoptimize for better performance.\n");
+    printf("NOTE: Remember to use ncnnoptimize for better performance.\n");
 
     return 0;
 }
