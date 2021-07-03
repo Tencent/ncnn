@@ -179,3 +179,4 @@ Reshape                  Reshape_431              1 1 933 935 0=-1 1=80
 Permute                  Transpose_432            1 1 935 cls_pred_stride_32 0=1
 Reshape                  Reshape_434              1 1 932 938 0=-1 1=32
 Permute                  Transpose_435            1 1 938 dis_pred_stride_32 0=1
+Noop                     Output                   6 1 cls_pred_stride_8 cls_pred_stride_16 cls_pred_stride_32 dis_pred_stride_8 dis_pred_stride_16 dis_pred_stride_32 output
