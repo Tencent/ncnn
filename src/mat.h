@@ -23,6 +23,9 @@
 #if __AVX__
 #include <immintrin.h>
 #endif
+#if __mips_msa
+#include <msa.h>
+#endif
 #if __riscv_vector
 #ifdef RVV_SPEC_0_7
 #include "layer/riscv/riscv_v_071_fix.h"
@@ -109,6 +112,9 @@ public:
     void fill(__m256 _v);
     void fill(__m128i _v);
 #endif // __AVX__
+#if __mips_msa
+    void fill(v4f32 _v);
+#endif // __mips_msa
 #if __riscv_vector
     void fill(vfloat32m1_t _v);
     void fill(vuint16m1_t _v);
@@ -1016,6 +1022,19 @@ inline void Mat::fill(__m128i _v)
     }
 }
 #endif // __AVX__
+
+#if __mips_msa
+inline void Mat::fill(v4f32 _v)
+{
+    int size = (int)total();
+    float* ptr = (float*)data;
+    for (int i = 0; i < size; i++)
+    {
+        __msa_st_w((v4i32)_v, ptr, 0);
+        ptr += 4;
+    }
+}
+#endif // __mips_msa
 
 #if __riscv_vector
 inline void Mat::fill(vfloat32m1_t _v)

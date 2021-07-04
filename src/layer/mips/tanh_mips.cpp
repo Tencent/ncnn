@@ -16,7 +16,7 @@
 
 #if __mips_msa
 #include <msa.h>
-#include "mips_mathfun.h"
+#include "msa_mathfun.h"
 #endif // __mips_msa
 
 #include <math.h>

@@ -15,11 +15,11 @@
 #include "sigmoid_mips.h"
 
 #if __mips_msa
-#include "mips_common.h"
-#include "mips_mathfun.h"
-
 #include <msa.h>
+#include "msa_mathfun.h"
 #endif // __mips_msa
+
+#include "mips_usability.h"
 
 #include <math.h>
 

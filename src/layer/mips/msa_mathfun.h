@@ -25,10 +25,10 @@
  *  (this is the zlib license)
  */
 
-#ifndef LAYER_MIPS_MATHFUN_H
-#define LAYER_MIPS_MATHFUN_H
+#ifndef MSA_MATHFUN_H
+#define MSA_MATHFUN_H
 
-#include "mips_common.h"
+#include "mips_usability.h"
 
 #include <msa.h>
 
@@ -256,4 +256,13 @@ static inline v4f32 tanh_ps(v4f32 x)
     return y;
 }
 
-#endif // LAYER_MIPS_MATHFUN_H
+static inline v4f32 sigmoid_ps(v4f32 _v)
+{
+    v4f32 _one = __msa_fill_w_f32(1.f);
+    _v = (v4f32)__msa_bnegi_w((v4u32)_v, 31);
+    _v = exp_ps(_v);
+    _v = __msa_fadd_w(_v, _one);
+    return __msa_fdiv_w(_one, _v);
+}
+
+#endif // MSA_MATHFUN_H

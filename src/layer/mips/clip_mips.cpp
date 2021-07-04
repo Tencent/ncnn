@@ -15,10 +15,10 @@
 #include "clip_mips.h"
 
 #if __mips_msa
-#include "mips_common.h"
-
 #include <msa.h>
 #endif // __mips_msa
+
+#include "mips_usability.h"
 
 namespace ncnn {
 
