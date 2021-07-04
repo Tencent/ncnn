@@ -132,7 +132,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     {
                         v4f32 _val = (v4f32)__msa_ld_w(m, 0);
                         v4f32 _k = __msa_fill_w_f32(kptr[0]);
-                        _sum = __msa_fmadd_w(_sum, _val, _k);
+                        _sum = __msa_fadd_w(_sum, __msa_fmul_w(_val, _k));
 
                         m += 4;
                         kptr += 1;
@@ -261,16 +261,16 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 v4f32 _m = (v4f32)__msa_ld_w(m, 0);
 
                 v4f32 _w0 = (v4f32)__msa_ld_w(w0, 0);
-                _sum0 = __msa_fmadd_w(_sum0, _m, _w0);
+                _sum0 = __msa_fadd_w(_sum0, __msa_fmul_w(_m, _w0));
 
                 v4f32 _w1 = (v4f32)__msa_ld_w(w1, 0);
-                _sum1 = __msa_fmadd_w(_sum1, _m, _w1);
+                _sum1 = __msa_fadd_w(_sum1, __msa_fmul_w(_m, _w1));
 
                 v4f32 _w2 = (v4f32)__msa_ld_w(w2, 0);
-                _sum2 = __msa_fmadd_w(_sum2, _m, _w2);
+                _sum2 = __msa_fadd_w(_sum2, __msa_fmul_w(_m, _w2));
 
                 v4f32 _w3 = (v4f32)__msa_ld_w(w3, 0);
-                _sum3 = __msa_fmadd_w(_sum3, _m, _w3);
+                _sum3 = __msa_fadd_w(_sum3, __msa_fmul_w(_m, _w3));
 
                 m += 4;
                 w0 += 4;
