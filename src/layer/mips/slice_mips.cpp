@@ -165,7 +165,7 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             q += slice;
         }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int j = 0; j < h; j++)
         {
             const float* ptr = bottom_blob.row(j);
@@ -290,7 +290,7 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             q += slice;
         }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < channels; p++)
         {
             const float* ptr = bottom_blob.channel(p);
@@ -333,7 +333,7 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             q += slice;
         }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < channels; p++)
         {
             const float* ptr = bottom_blob.channel(p);

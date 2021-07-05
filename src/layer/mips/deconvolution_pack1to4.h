@@ -30,7 +30,7 @@ static void deconvolution_pack1to4_msa(const Mat& bottom_blob, Mat& top_blob, co
     const float* bias_data_ptr = bias_data;
 
     // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         float* outptr = top_blob.channel(p);
