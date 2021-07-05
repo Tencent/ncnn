@@ -152,7 +152,7 @@ static inline v4f32 exp_ps(v4f32 x)
     fx = __msa_fadd_w(fx, (v4f32)__msa_fill_w(c_0p5.i));
 
     /* perform a floorf */
-    tmp = __msa_ffint_s_w(__msa_ftrunc_s_w(fx));
+    tmp = __msa_ffint_s_w(__msa_ftint_s_w(fx));
 
     /* if greater, substract 1 */
     v4i32_w mask = __msa_fslt_w(fx, tmp);
@@ -254,6 +254,12 @@ static inline v4f32 tanh_ps(v4f32 x)
     y = (v4f32)__msa_bsel_v((v16u8)mask_l, (v16u8)y, (v16u8)y0);
     y = (v4f32)__msa_bsel_v((v16u8)mask_l2, (v16u8)y, (v16u8)y1);
     return y;
+}
+
+static inline v4f32 pow_ps(v4f32 a, v4f32 b)
+{
+    // pow(x, m) = exp(m * log(x))
+    return exp_ps(__msa_fmul_w(b, log_ps(a)));
 }
 
 static inline v4f32 sigmoid_ps(v4f32 _v)
