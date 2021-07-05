@@ -12,24 +12,23 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_PADDING_MIPS_H
-#define LAYER_PADDING_MIPS_H
+#ifndef LAYER_BINARYOP_MIPS_H
+#define LAYER_BINARYOP_MIPS_H
 
-#include "padding.h"
+#include "binaryop.h"
 
 namespace ncnn {
 
-class Padding_mips : virtual public Padding
+class BinaryOp_mips : virtual public BinaryOp
 {
 public:
-    Padding_mips();
+    BinaryOp_mips();
 
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
-protected:
-    int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_PADDING_MIPS_H
+#endif // LAYER_BINARYOP_MIPS_H

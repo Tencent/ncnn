@@ -55,12 +55,12 @@ static inline v4f32 activation_ps(v4f32 _v, int activation_type, const ncnn::Mat
 {
     if (activation_type == 1)
     {
-        v4f32 _zero = (v4f32)__msa_fill_w_f32(0.f);
+        v4f32 _zero = (v4f32)__msa_fill_w(0);
         _v = __msa_fmax_w(_v, _zero);
     }
     else if (activation_type == 2)
     {
-        v4f32 _zero = (v4f32)__msa_fill_w_f32(0.f);
+        v4f32 _zero = (v4f32)__msa_fill_w(0);
         v4f32 _slope = (v4f32)__msa_fill_w_f32(activation_params[0]);
         v4i32_w _lemask = __msa_fcle_w(_v, _zero);
         v4f32 _ps = __msa_fmul_w(_v, _slope);

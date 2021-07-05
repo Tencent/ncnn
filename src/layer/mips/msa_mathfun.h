@@ -152,7 +152,7 @@ static inline v4f32 exp_ps(v4f32 x)
     fx = __msa_fadd_w(fx, (v4f32)__msa_fill_w(c_0p5.i));
 
     /* perform a floorf */
-    tmp = __msa_ffint_s_w(__msa_ftrunc_s_w(fx));
+    tmp = __msa_ffint_s_w(__msa_ftint_s_w(fx));
 
     /* if greater, substract 1 */
     v4i32_w mask = __msa_fslt_w(fx, tmp);
@@ -194,66 +194,67 @@ static inline v4f32 exp_ps(v4f32 x)
     return y;
 }
 
-_MIPS_FLOAT_CONST(c_cephes_HALFMAXLOGF, 44.014845935754205f);
-_MIPS_FLOAT_CONST(c_cephes_tanh_C1, 0.625f);
-
-_MIPS_FLOAT_CONST(c_cephes_tanh_p0, -5.70498872745E-3);
-_MIPS_FLOAT_CONST(c_cephes_tanh_p1, +2.06390887954E-2);
-_MIPS_FLOAT_CONST(c_cephes_tanh_p2, -5.37397155531E-2);
-_MIPS_FLOAT_CONST(c_cephes_tanh_p3, +1.33314422036E-1);
-_MIPS_FLOAT_CONST(c_cephes_tanh_p4, -3.33332819422E-1);
+_MIPS_FLOAT_CONST(c_tanh_tiny, 1e-4f);
+_MIPS_FLOAT_CONST(c_tanh_hi, 9.0f);
+// The monomial coefficients of the numerator polynomial (odd).
+_MIPS_FLOAT_CONST(c_tanh_alpha_1, 4.89352455891786e-3f);
+_MIPS_FLOAT_CONST(c_tanh_alpha_3, 6.37261928875436e-4f);
+_MIPS_FLOAT_CONST(c_tanh_alpha_5, 1.48572235717979e-5f);
+_MIPS_FLOAT_CONST(c_tanh_alpha_7, 5.12229709037114e-8f);
+_MIPS_FLOAT_CONST(c_tanh_alpha_9, -8.60467152213735e-11f);
+_MIPS_FLOAT_CONST(c_tanh_alpha_11, 2.00018790482477e-13f);
+_MIPS_FLOAT_CONST(c_tanh_alpha_13, -2.76076847742355e-16f);
+// The monomial coefficients of the denominator polynomial (even).
+_MIPS_FLOAT_CONST(c_tanh_beta_0, 4.89352518554385e-3f);
+_MIPS_FLOAT_CONST(c_tanh_beta_2, 2.26843463243900e-3f);
+_MIPS_FLOAT_CONST(c_tanh_beta_4, 1.18534705686654e-4f);
+_MIPS_FLOAT_CONST(c_tanh_beta_6, 1.19825839466702e-6f);
 
 /* tanh() computed for 4 float at once */
 static inline v4f32 tanh_ps(v4f32 x)
 {
     v4f32 x2 = (v4f32)__msa_bclri_w((v4u32)x, 31);
+    v4i32 tiny_mask = __msa_fclt_w(x2, (v4f32)__msa_fill_w(c_tanh_tiny.i));
 
-    v4i32_w mask_l = __msa_fclt_w((v4f32)__msa_fill_w(c_cephes_tanh_C1.i), x2);
-    v4i32_w mask_l2 = __msa_fcle_w((v4f32)__msa_fill_w(c_cephes_HALFMAXLOGF.i), x2);
+    // clamp the inputs to the range [-9, 9] since anything outside
+    // this range is -/+1.0f in single-precision.
+    x2 = (v4f32)__msa_bsel_v((v16u8)__msa_fclt_w((v4f32)__msa_fill_w(c_tanh_hi.i), x2), (v16u8)x2, (v16u8)__msa_fill_w(c_tanh_hi.i));
 
-    // abs(x) >= 0.625
-    // tanh(x) = 1 − 2 / (exp(2x) + 1)
-    v4f32 _one = (v4f32)__msa_fill_w(c_1.i);
-    v4f32 _two = (v4f32)__msa_fill_w(c_2.i);
-    v4f32 exp_x_x = exp_ps(__msa_fadd_w(x, x));
-    v4f32 y0 = __msa_fsub_w(_one, __msa_fdiv_w(_two, __msa_fadd_w(exp_x_x, _one)));
+    // since the polynomials are odd/even, we need x**2.
+    v4f32 z = __msa_fmul_w(x2, x2);
 
-    // abs(x) < 0.625
-    /*
-        z = x2 * x2;
-        z =
-        (((( -5.70498872745E-3 * z
-        + 2.06390887954E-2) * z
-        - 5.37397155531E-2) * z
-        + 1.33314422036E-1) * z
-        - 3.33332819422E-1) * z * x
-        + x;
-    */
-    v4f32 y = (v4f32)__msa_fill_w(c_cephes_tanh_p0.i);
+    // evaluate the numerator polynomial y.
+    v4f32 y = (v4f32)__msa_fill_w(c_tanh_alpha_13.i);
+    y = __msa_fadd_w(__msa_fmul_w(y, z), (v4f32)__msa_fill_w(c_tanh_alpha_11.i));
+    y = __msa_fadd_w(__msa_fmul_w(y, z), (v4f32)__msa_fill_w(c_tanh_alpha_9.i));
+    y = __msa_fadd_w(__msa_fmul_w(y, z), (v4f32)__msa_fill_w(c_tanh_alpha_7.i));
+    y = __msa_fadd_w(__msa_fmul_w(y, z), (v4f32)__msa_fill_w(c_tanh_alpha_5.i));
+    y = __msa_fadd_w(__msa_fmul_w(y, z), (v4f32)__msa_fill_w(c_tanh_alpha_3.i));
+    y = __msa_fadd_w(__msa_fmul_w(y, z), (v4f32)__msa_fill_w(c_tanh_alpha_1.i));
+    y = __msa_fmul_w(y, x2);
 
-    v4f32 z = __msa_fmul_w(x, x);
+    // evaluate the denominator polynomial w.
+    v4f32 w = (v4f32)__msa_fill_w(c_tanh_beta_6.i);
+    w = __msa_fadd_w(__msa_fmul_w(w, z), (v4f32)__msa_fill_w(c_tanh_beta_4.i));
+    w = __msa_fadd_w(__msa_fmul_w(w, z), (v4f32)__msa_fill_w(c_tanh_beta_2.i));
+    w = __msa_fadd_w(__msa_fmul_w(w, z), (v4f32)__msa_fill_w(c_tanh_beta_0.i));
 
-    y = __msa_fmul_w(y, z);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_tanh_p1.i));
-    y = __msa_fmul_w(y, z);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_tanh_p2.i));
-    y = __msa_fmul_w(y, z);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_tanh_p3.i));
-    y = __msa_fmul_w(y, z);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_tanh_p4.i));
+    // divide the numerator by the denominator.
+    y = __msa_fdiv_w(y, w);
 
-    y = __msa_fmul_w(y, z);
-    y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, x);
+    // reinstate the sign.
+    y = (v4f32)__msa_binsli_w((v4u32)y, (v4u32)x, 0);
 
-    // abs(x) > HALFMAXLOGF
-    // return 1.0 or -1.0
-    v4i32_w mask_pos = __msa_fcle_w((v4f32)__msa_fill_w(0), x);
-    v4f32 y1 = (v4f32)__msa_bsel_v((v16u8)mask_pos, (v16u8)__msa_fill_w(c_n1.i), (v16u8)__msa_fill_w(c_1.i));
+    // when the argument is very small in magnitude it's more accurate to just return it.
+    y = (v4f32)__msa_bsel_v((v16u8)tiny_mask, (v16u8)y, (v16u8)x);
 
-    y = (v4f32)__msa_bsel_v((v16u8)mask_l, (v16u8)y, (v16u8)y0);
-    y = (v4f32)__msa_bsel_v((v16u8)mask_l2, (v16u8)y, (v16u8)y1);
     return y;
+}
+
+static inline v4f32 pow_ps(v4f32 a, v4f32 b)
+{
+    // pow(x, m) = exp(m * log(x))
+    return exp_ps(__msa_fmul_w(b, log_ps(a)));
 }
 
 static inline v4f32 sigmoid_ps(v4f32 _v)

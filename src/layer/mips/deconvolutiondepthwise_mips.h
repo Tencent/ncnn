@@ -12,24 +12,33 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_PADDING_MIPS_H
-#define LAYER_PADDING_MIPS_H
+#ifndef LAYER_DECONVOLUTIONDEPTHWISE_MIPS_H
+#define LAYER_DECONVOLUTIONDEPTHWISE_MIPS_H
 
-#include "padding.h"
+#include "deconvolutiondepthwise.h"
 
 namespace ncnn {
 
-class Padding_mips : virtual public Padding
+class DeconvolutionDepthWise_mips : virtual public DeconvolutionDepthWise
 {
 public:
-    Padding_mips();
+    DeconvolutionDepthWise_mips();
+
+    virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
-    int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    int create_group_ops(const Option& opt);
+
+public:
+    std::vector<ncnn::Layer*> group_ops;
+
+    // packing
+    Mat weight_data_packed;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_PADDING_MIPS_H
+#endif // LAYER_DECONVOLUTIONDEPTHWISE_MIPS_H

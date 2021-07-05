@@ -51,6 +51,24 @@ static inline float __msa_fhadd_w(v4f32 _v)
     __msa_st_w((v4i32)_v, tmp, 0);
     return tmp[0] + tmp[1] + tmp[2] + tmp[3];
 }
+
+static inline int __msa_cfcmsa_msacsr()
+{
+    int v;
+    asm volatile("cfcmsa %0, $1 \n"
+                 : "=r"(v)
+                 :
+                 :);
+    return v;
+}
+
+static inline void __msa_ctcmsa_msacsr(int v)
+{
+    asm volatile("ctcmsa $1, %0 \n"
+                 :
+                 : "r"(v)
+                 :);
+}
 #endif // __mips_msa
 
 #endif // MIPS_USABILITY_H

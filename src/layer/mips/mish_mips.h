@@ -22,6 +22,8 @@ namespace ncnn {
 class Mish_mips : virtual public Mish
 {
 public:
+    Mish_mips();
+
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 

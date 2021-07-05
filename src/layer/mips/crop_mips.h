@@ -12,24 +12,23 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_PADDING_MIPS_H
-#define LAYER_PADDING_MIPS_H
+#ifndef LAYER_CROP_MIPS_H
+#define LAYER_CROP_MIPS_H
 
-#include "padding.h"
+#include "crop.h"
 
 namespace ncnn {
 
-class Padding_mips : virtual public Padding
+class Crop_mips : virtual public Crop
 {
 public:
-    Padding_mips();
+    Crop_mips();
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
-protected:
-    int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_PADDING_MIPS_H
+#endif // LAYER_CROP_MIPS_H
