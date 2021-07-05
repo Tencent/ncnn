@@ -78,9 +78,11 @@ struct unary_op_floor_pack4
 {
     v4f32 operator()(const v4f32& x) const
     {
-        v4i32 _xi = __msa_ftint_s_w(x);
-        v4i32 _mask = __msa_fcle_w(x, __msa_ffint_s_w(_xi));
-        return __msa_ffint_s_w(__msa_adds_s_w(_xi, _mask));
+        int old_msacsr = __msa_cfcmsa_msacsr();
+        __msa_ctcmsa_msacsr(old_msacsr | 3); // round towards -inf
+        v4f32 y = __msa_frint_w(x);
+        __msa_ctcmsa_msacsr(old_msacsr);
+        return y;
     }
 };
 
@@ -88,9 +90,11 @@ struct unary_op_ceil_pack4
 {
     v4f32 operator()(const v4f32& x) const
     {
-        v4i32 _xi = __msa_ftint_s_w(x);
-        v4i32 _mask = __msa_fcle_w(__msa_ffint_s_w(_xi), x);
-        return __msa_ffint_s_w(__msa_adds_s_w(_xi, _mask));
+        int old_msacsr = __msa_cfcmsa_msacsr();
+        __msa_ctcmsa_msacsr((old_msacsr | 3) ^ 1); // round towards +inf
+        v4f32 y = __msa_frint_w(x);
+        __msa_ctcmsa_msacsr(old_msacsr);
+        return y;
     }
 };
 
