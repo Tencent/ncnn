@@ -22,6 +22,8 @@ namespace ncnn {
 class Sigmoid_mips : virtual public Sigmoid
 {
 public:
+    Sigmoid_mips();
+
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 

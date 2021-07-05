@@ -12,21 +12,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_MISH_MIPS_H
-#define LAYER_MISH_MIPS_H
+#ifndef LAYER_RELU_MIPS_H
+#define LAYER_RELU_MIPS_H
 
-#include "mish.h"
+#include "relu.h"
 
 namespace ncnn {
 
-class Mish_mips : virtual public Mish
+class ReLU_mips : virtual public ReLU
 {
 public:
-    Mish_mips();
+    ReLU_mips();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_MISH_MIPS_H
+#endif // LAYER_RELU_MIPS_H
