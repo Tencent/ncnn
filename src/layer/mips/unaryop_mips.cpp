@@ -78,11 +78,19 @@ struct unary_op_floor_pack4
 {
     v4f32 operator()(const v4f32& x) const
     {
-        int old_msacsr = __msa_cfcmsa_msacsr();
-        __msa_ctcmsa_msacsr(old_msacsr | 3); // round towards -inf
-        v4f32 y = __msa_frint_w(x);
-        __msa_ctcmsa_msacsr(old_msacsr);
-        return y;
+        // TODO msa optimize
+        float tmp[4];
+        __msa_st_w((v4i32)x, tmp, 0);
+        tmp[0] = floor(tmp[0]);
+        tmp[1] = floor(tmp[1]);
+        tmp[2] = floor(tmp[2]);
+        tmp[3] = floor(tmp[3]);
+        return (v4f32)__msa_ld_w(tmp, 0);
+        // int old_msacsr = __msa_cfcmsa_msacsr();
+        // __msa_ctcmsa_msacsr(old_msacsr | 3); // round towards -inf
+        // v4f32 y = __msa_frint_w(x);
+        // __msa_ctcmsa_msacsr(old_msacsr);
+        // return y;
     }
 };
 
@@ -90,11 +98,19 @@ struct unary_op_ceil_pack4
 {
     v4f32 operator()(const v4f32& x) const
     {
-        int old_msacsr = __msa_cfcmsa_msacsr();
-        __msa_ctcmsa_msacsr((old_msacsr | 3) ^ 1); // round towards +inf
-        v4f32 y = __msa_frint_w(x);
-        __msa_ctcmsa_msacsr(old_msacsr);
-        return y;
+        // TODO msa optimize
+        float tmp[4];
+        __msa_st_w((v4i32)x, tmp, 0);
+        tmp[0] = ceil(tmp[0]);
+        tmp[1] = ceil(tmp[1]);
+        tmp[2] = ceil(tmp[2]);
+        tmp[3] = ceil(tmp[3]);
+        return (v4f32)__msa_ld_w(tmp, 0);
+        // int old_msacsr = __msa_cfcmsa_msacsr();
+        // __msa_ctcmsa_msacsr((old_msacsr | 3) ^ 1); // round towards +inf
+        // v4f32 y = __msa_frint_w(x);
+        // __msa_ctcmsa_msacsr(old_msacsr);
+        // return y;
     }
 };
 
