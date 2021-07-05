@@ -80,7 +80,7 @@ struct unary_op_floor_pack4
     {
         v4i32 _xi = __msa_ftint_s_w(x);
         v4i32 _mask = __msa_fcle_w(x, __msa_ffint_s_w(_xi));
-        return __msa_ffint_s_w(__msa_add_a_w(_xi, _mask));
+        return __msa_ffint_s_w(__msa_adds_s_w(_xi, _mask));
     }
 };
 
@@ -90,7 +90,7 @@ struct unary_op_ceil_pack4
     {
         v4i32 _xi = __msa_ftint_s_w(x);
         v4i32 _mask = __msa_fcle_w(__msa_ffint_s_w(_xi), x);
-        return __msa_ffint_s_w(__msa_add_a_w(_xi, _mask));
+        return __msa_ffint_s_w(__msa_adds_s_w(_xi, _mask));
     }
 };
 
