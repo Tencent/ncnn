@@ -203,8 +203,8 @@ int Deconvolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     if (elempack == 1 && out_elempack == 1)
     {
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 float* outptr = top_blob_bordered.channel(p);
