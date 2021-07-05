@@ -217,7 +217,7 @@ int DeconvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, 
         if (elempack == 4)
         {
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int g = 0; g < channels; g++)
                 {
                     float* outptr = top_blob_bordered.channel(g);
@@ -279,7 +279,7 @@ int DeconvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, 
 
         if (elempack == 1)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int g = 0; g < channels; g++)
             {
                 float* outptr = top_blob_bordered.channel(g);

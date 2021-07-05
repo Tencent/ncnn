@@ -63,7 +63,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 #if __mips_msa
         if (elempack == 4)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < w; q++)
             {
                 Mat top_blob_c = top_blob.channel(q);
@@ -75,7 +75,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         }
 #endif // __mips_msa
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < w; q++)
         {
             Mat top_blob_c = top_blob.channel(q);
@@ -104,7 +104,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             const float hs = outh ? h / (float)outh : 1.f / height_scale;
             const float ws = outw ? w / (float)outw : 1.f / width_scale;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat src = bottom_blob.channel(q);
@@ -142,7 +142,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             linear_coeffs(w, outw, xofs, alpha, align_corner);
             linear_coeffs(h, outh, yofs, beta, align_corner);
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat src = bottom_blob.channel(q);
@@ -167,7 +167,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             cubic_coeffs(w, outw, xofs, alpha);
             cubic_coeffs(h, outh, yofs, beta);
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const Mat src = bottom_blob.channel(q);
@@ -188,7 +188,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         const float hs = outh ? h / (float)outh : 1.f / height_scale;
         const float ws = outw ? w / (float)outw : 1.f / width_scale;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const Mat src = bottom_blob.channel(q);
@@ -222,7 +222,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         linear_coeffs(w, outw, xofs, alpha, align_corner);
         linear_coeffs(h, outh, yofs, beta, align_corner);
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const Mat src = bottom_blob.channel(q);
@@ -247,7 +247,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         cubic_coeffs(w, outw, xofs, alpha);
         cubic_coeffs(h, outh, yofs, beta);
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const Mat src = bottom_blob.channel(q);
