@@ -41,7 +41,7 @@ static int unary_op_inplace_pack4(Mat& a, const Option& opt)
     int channels = a.c;
     int size = w * h;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = a.channel(q);

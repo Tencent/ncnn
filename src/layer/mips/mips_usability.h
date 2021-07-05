@@ -55,13 +55,19 @@ static inline float __msa_fhadd_w(v4f32 _v)
 static inline int __msa_cfcmsa_msacsr()
 {
     int v;
-    asm volatile("cfcmsa %0, $1 \n" : "=r"(v) : :);
+    asm volatile("cfcmsa %0, $1 \n"
+                 : "=r"(v)
+                 :
+                 :);
     return v;
 }
 
 static inline void __msa_ctcmsa_msacsr(int v)
 {
-    asm volatile("ctcmsa $1, %0 \n" : : "r"(v) :);
+    asm volatile("ctcmsa $1, %0 \n"
+                 :
+                 : "r"(v)
+                 :);
 }
 #endif // __mips_msa
 
