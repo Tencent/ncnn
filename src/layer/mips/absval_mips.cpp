@@ -39,7 +39,7 @@ int AbsVal_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __mips_msa
     if (elempack == 4)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -58,7 +58,7 @@ int AbsVal_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
 #endif // __mips_msa
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
