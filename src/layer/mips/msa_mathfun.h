@@ -91,22 +91,14 @@ static inline v4f32 log_ps(v4f32 x)
 
     v4f32 y = (v4f32)__msa_fill_w(c_cephes_log_p0.i);
 
-    y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p1.i));
-    y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p2.i));
-    y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p3.i));
-    y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p4.i));
-    y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p5.i));
-    y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p6.i));
-    y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p7.i));
-    y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_log_p8.i));
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_log_p1.i), y, x);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_log_p2.i), y, x);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_log_p3.i), y, x);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_log_p4.i), y, x);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_log_p5.i), y, x);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_log_p6.i), y, x);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_log_p7.i), y, x);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_log_p8.i), y, x);
     y = __msa_fmul_w(y, x);
 
     y = __msa_fmul_w(y, z);
@@ -167,18 +159,13 @@ static inline v4f32 exp_ps(v4f32 x)
 
     v4f32 y = (v4f32)__msa_fill_w(c_cephes_exp_p0.i);
 
-    y = __msa_fmul_w(y, x);
     z = __msa_fmul_w(x, x);
 
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_exp_p1.i));
-    y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_exp_p2.i));
-    y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_exp_p3.i));
-    y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_exp_p4.i));
-    y = __msa_fmul_w(y, x);
-    y = __msa_fadd_w(y, (v4f32)__msa_fill_w(c_cephes_exp_p5.i));
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_exp_p1.i), y, x);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_exp_p2.i), y, x);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_exp_p3.i), y, x);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_exp_p4.i), y, x);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_cephes_exp_p5.i), y, x);
 
     y = __msa_fmul_w(y, z);
     y = __msa_fadd_w(y, x);
@@ -225,19 +212,19 @@ static inline v4f32 tanh_ps(v4f32 x)
 
     // evaluate the numerator polynomial y.
     v4f32 y = (v4f32)__msa_fill_w(c_tanh_alpha_13.i);
-    y = __msa_fadd_w(__msa_fmul_w(y, z), (v4f32)__msa_fill_w(c_tanh_alpha_11.i));
-    y = __msa_fadd_w(__msa_fmul_w(y, z), (v4f32)__msa_fill_w(c_tanh_alpha_9.i));
-    y = __msa_fadd_w(__msa_fmul_w(y, z), (v4f32)__msa_fill_w(c_tanh_alpha_7.i));
-    y = __msa_fadd_w(__msa_fmul_w(y, z), (v4f32)__msa_fill_w(c_tanh_alpha_5.i));
-    y = __msa_fadd_w(__msa_fmul_w(y, z), (v4f32)__msa_fill_w(c_tanh_alpha_3.i));
-    y = __msa_fadd_w(__msa_fmul_w(y, z), (v4f32)__msa_fill_w(c_tanh_alpha_1.i));
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_tanh_alpha_11.i), y, z);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_tanh_alpha_9.i), y, z);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_tanh_alpha_7.i), y, z);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_tanh_alpha_5.i), y, z);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_tanh_alpha_3.i), y, z);
+    y = __msa_fmadd_w((v4f32)__msa_fill_w(c_tanh_alpha_1.i), y, z);
     y = __msa_fmul_w(y, x2);
 
     // evaluate the denominator polynomial w.
     v4f32 w = (v4f32)__msa_fill_w(c_tanh_beta_6.i);
-    w = __msa_fadd_w(__msa_fmul_w(w, z), (v4f32)__msa_fill_w(c_tanh_beta_4.i));
-    w = __msa_fadd_w(__msa_fmul_w(w, z), (v4f32)__msa_fill_w(c_tanh_beta_2.i));
-    w = __msa_fadd_w(__msa_fmul_w(w, z), (v4f32)__msa_fill_w(c_tanh_beta_0.i));
+    w = __msa_fmadd_w((v4f32)__msa_fill_w(c_tanh_beta_4.i), w, z);
+    w = __msa_fmadd_w((v4f32)__msa_fill_w(c_tanh_beta_2.i), w, z);
+    w = __msa_fmadd_w((v4f32)__msa_fill_w(c_tanh_beta_0.i), w, z);
 
     // divide the numerator by the denominator.
     y = __msa_fdiv_w(y, w);

@@ -261,7 +261,7 @@ int DeconvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, 
 
                                     v4f32 _val = (v4f32)__msa_ld_w(sptr, 0);
                                     v4f32 _w = (v4f32)__msa_ld_w(kptr + k * 4, 0);
-                                    _sum = __msa_fadd_w(_sum, __msa_fmul_w(_val, _w));
+                                    _sum = __msa_fmadd_w(_sum, _val, _w);
                                 }
                             }
 

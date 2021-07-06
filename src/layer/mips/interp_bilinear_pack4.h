@@ -55,7 +55,7 @@ static void resize_bilinear_image_pack4(const Mat& src, Mat& dst, float* alpha, 
                 v4f32 _S10 = (v4f32)__msa_ld_w(S1p, 0);
                 v4f32 _S11 = (v4f32)__msa_ld_w(S1p + 4, 0);
                 v4f32 _rows1 = __msa_fmul_w(_S10, _a0);
-                _rows1 = __msa_fadd_w(_rows1, __msa_fmul_w(_S11, _a1));
+                _rows1 = __msa_fmadd_w(_rows1, _S11, _a1);
                 __msa_st_w((v4i32)_rows1, rows1p + dx * 4, 0);
 
                 alphap += 2;
@@ -86,8 +86,8 @@ static void resize_bilinear_image_pack4(const Mat& src, Mat& dst, float* alpha, 
                 v4f32 _S11 = (v4f32)__msa_ld_w(S1p + 4, 0);
                 v4f32 _rows0 = __msa_fmul_w(_S00, _a0);
                 v4f32 _rows1 = __msa_fmul_w(_S10, _a0);
-                _rows0 = __msa_fadd_w(_rows0, __msa_fmul_w(_S01, _a1));
-                _rows1 = __msa_fadd_w(_rows1, __msa_fmul_w(_S11, _a1));
+                _rows0 = __msa_fmadd_w(_rows0, _S01, _a1);
+                _rows1 = __msa_fmadd_w(_rows1, _S11, _a1);
                 __msa_st_w((v4i32)_rows0, rows0p + dx * 4, 0);
                 __msa_st_w((v4i32)_rows1, rows1p + dx * 4, 0);
 
@@ -110,7 +110,7 @@ static void resize_bilinear_image_pack4(const Mat& src, Mat& dst, float* alpha, 
             v4f32 _rows0 = (v4f32)__msa_ld_w(rows0p, 0);
             v4f32 _rows1 = (v4f32)__msa_ld_w(rows1p, 0);
             v4f32 _D = __msa_fmul_w(_rows0, _b0);
-            _D = __msa_fadd_w(_D, __msa_fmul_w(_rows1, _b1));
+            _D = __msa_fmadd_w(_D, _rows1, _b1);
             __msa_st_w((v4i32)_D, Dp, 0);
 
             Dp += 4;

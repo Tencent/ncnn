@@ -12,31 +12,15 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_CONVOLUTION_MIPS_H
-#define LAYER_CONVOLUTION_MIPS_H
-
-#include "convolution.h"
-
-namespace ncnn {
-
-class Convolution_mips : virtual public Convolution
+static void conv1x1s1_sgemm_msa(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
-public:
-    Convolution_mips();
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    const int size = w * h;
 
-    virtual int create_pipeline(const Option& opt);
-    virtual int destroy_pipeline(const Option& opt);
+    Mat bottom_im2col = bottom_blob;
+    bottom_im2col.w = size;
+    bottom_im2col.h = 1;
 
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-
-public:
-    Layer* activation;
-
-    // packn
-    Mat weight_data_packed;
-    Mat weight_3x3_winograd42_data_packed;
-};
-
-} // namespace ncnn
-
-#endif // LAYER_CONVOLUTION_MIPS_H
+    im2col_sgemm_msa(bottom_im2col, top_blob, kernel, _bias, opt);
+}
