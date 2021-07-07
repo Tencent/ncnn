@@ -226,24 +226,19 @@ static void im2col_sgemm_pack4_msa(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                v4f32 _val0 = __msa_fill_w_f32(*tmpptr++);
-                v4f32 _val1 = __msa_fill_w_f32(*tmpptr++);
-                v4f32 _val2 = __msa_fill_w_f32(*tmpptr++);
-                v4f32 _val3 = __msa_fill_w_f32(*tmpptr++);
-                v4f32 _val4 = __msa_fill_w_f32(*tmpptr++);
-                v4f32 _val5 = __msa_fill_w_f32(*tmpptr++);
-                v4f32 _val6 = __msa_fill_w_f32(*tmpptr++);
-                v4f32 _val7 = __msa_fill_w_f32(*tmpptr++);
+                v4i32 _val0123 = __msa_ld_w(tmpptr, 0);
+                v4i32 _val4567 = __msa_ld_w(tmpptr + 4, 0);
                 v4f32 _w0 = (v4f32)__msa_ld_w(kptr0, 0);
-                _sum0 = __msa_fmadd_w(_sum0, _val0, _w0);
-                _sum1 = __msa_fmadd_w(_sum1, _val1, _w0);
-                _sum2 = __msa_fmadd_w(_sum2, _val2, _w0);
-                _sum3 = __msa_fmadd_w(_sum3, _val3, _w0);
-                _sum4 = __msa_fmadd_w(_sum4, _val4, _w0);
-                _sum5 = __msa_fmadd_w(_sum5, _val5, _w0);
-                _sum6 = __msa_fmadd_w(_sum6, _val6, _w0);
-                _sum7 = __msa_fmadd_w(_sum7, _val7, _w0);
+                _sum0 = __msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val0123, 0), _w0);
+                _sum1 = __msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val0123, 1), _w0);
+                _sum2 = __msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val0123, 2), _w0);
+                _sum3 = __msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val0123, 3), _w0);
+                _sum4 = __msa_fmadd_w(_sum4, (v4f32)__msa_splati_w(_val4567, 0), _w0);
+                _sum5 = __msa_fmadd_w(_sum5, (v4f32)__msa_splati_w(_val4567, 1), _w0);
+                _sum6 = __msa_fmadd_w(_sum6, (v4f32)__msa_splati_w(_val4567, 2), _w0);
+                _sum7 = __msa_fmadd_w(_sum7, (v4f32)__msa_splati_w(_val4567, 3), _w0);
 
+                tmpptr += 8;
                 kptr0 += 4;
             }
 
@@ -280,16 +275,14 @@ static void im2col_sgemm_pack4_msa(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                v4f32 _val0 = __msa_fill_w_f32(*tmpptr++);
-                v4f32 _val1 = __msa_fill_w_f32(*tmpptr++);
-                v4f32 _val2 = __msa_fill_w_f32(*tmpptr++);
-                v4f32 _val3 = __msa_fill_w_f32(*tmpptr++);
+                v4i32 _val0123 = __msa_ld_w(tmpptr, 0);
                 v4f32 _w0 = (v4f32)__msa_ld_w(kptr0, 0);
-                _sum0 = __msa_fmadd_w(_sum0, _val0, _w0);
-                _sum1 = __msa_fmadd_w(_sum1, _val1, _w0);
-                _sum2 = __msa_fmadd_w(_sum2, _val2, _w0);
-                _sum3 = __msa_fmadd_w(_sum3, _val3, _w0);
+                _sum0 = __msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val0123, 0), _w0);
+                _sum1 = __msa_fmadd_w(_sum1, (v4f32)__msa_splati_w(_val0123, 1), _w0);
+                _sum2 = __msa_fmadd_w(_sum2, (v4f32)__msa_splati_w(_val0123, 2), _w0);
+                _sum3 = __msa_fmadd_w(_sum3, (v4f32)__msa_splati_w(_val0123, 3), _w0);
 
+                tmpptr += 4;
                 kptr0 += 4;
             }
 

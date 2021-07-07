@@ -190,22 +190,20 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                v4f32 _w0 = __msa_fill_w_f32(*kptr0++);
-                v4f32 _w1 = __msa_fill_w_f32(*kptr0++);
-                v4f32 _w2 = __msa_fill_w_f32(*kptr0++);
-                v4f32 _w3 = __msa_fill_w_f32(*kptr0++);
+                v4i32 _w0123 = __msa_ld_w(kptr0, 0);
                 v4f32 _val0 = (v4f32)__msa_ld_w(tmpptr, 0);
                 v4f32 _val1 = (v4f32)__msa_ld_w(tmpptr + 4, 0);
-                _sum0 = __msa_fmadd_w(_sum0, _val0, _w0);
-                _sum1 = __msa_fmadd_w(_sum1, _val1, _w0);
-                _sum2 = __msa_fmadd_w(_sum2, _val0, _w1);
-                _sum3 = __msa_fmadd_w(_sum3, _val1, _w1);
-                _sum4 = __msa_fmadd_w(_sum4, _val0, _w2);
-                _sum5 = __msa_fmadd_w(_sum5, _val1, _w2);
-                _sum6 = __msa_fmadd_w(_sum6, _val0, _w3);
-                _sum7 = __msa_fmadd_w(_sum7, _val1, _w3);
+                _sum0 = __msa_fmadd_w(_sum0, _val0, (v4f32)__msa_splati_w(_w0123, 0));
+                _sum1 = __msa_fmadd_w(_sum1, _val1, (v4f32)__msa_splati_w(_w0123, 0));
+                _sum2 = __msa_fmadd_w(_sum2, _val0, (v4f32)__msa_splati_w(_w0123, 1));
+                _sum3 = __msa_fmadd_w(_sum3, _val1, (v4f32)__msa_splati_w(_w0123, 1));
+                _sum4 = __msa_fmadd_w(_sum4, _val0, (v4f32)__msa_splati_w(_w0123, 2));
+                _sum5 = __msa_fmadd_w(_sum5, _val1, (v4f32)__msa_splati_w(_w0123, 2));
+                _sum6 = __msa_fmadd_w(_sum6, _val0, (v4f32)__msa_splati_w(_w0123, 3));
+                _sum7 = __msa_fmadd_w(_sum7, _val1, (v4f32)__msa_splati_w(_w0123, 3));
 
                 tmpptr += 8;
+                kptr0 += 4;
             }
 
             __msa_st_w((v4i32)_sum0, outptr0, 0);
@@ -236,17 +234,15 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                v4f32 _w0 = __msa_fill_w_f32(*kptr0++);
-                v4f32 _w1 = __msa_fill_w_f32(*kptr0++);
-                v4f32 _w2 = __msa_fill_w_f32(*kptr0++);
-                v4f32 _w3 = __msa_fill_w_f32(*kptr0++);
+                v4i32 _w0123 = __msa_ld_w(kptr0, 0);
                 v4f32 _val0 = (v4f32)__msa_ld_w(tmpptr, 0);
-                _sum0 = __msa_fmadd_w(_sum0, _val0, _w0);
-                _sum1 = __msa_fmadd_w(_sum1, _val0, _w1);
-                _sum2 = __msa_fmadd_w(_sum2, _val0, _w2);
-                _sum3 = __msa_fmadd_w(_sum3, _val0, _w3);
+                _sum0 = __msa_fmadd_w(_sum0, _val0, (v4f32)__msa_splati_w(_w0123, 0));
+                _sum1 = __msa_fmadd_w(_sum1, _val0, (v4f32)__msa_splati_w(_w0123, 1));
+                _sum2 = __msa_fmadd_w(_sum2, _val0, (v4f32)__msa_splati_w(_w0123, 2));
+                _sum3 = __msa_fmadd_w(_sum3, _val0, (v4f32)__msa_splati_w(_w0123, 3));
 
                 tmpptr += 4;
+                kptr0 += 4;
             }
 
             __msa_st_w((v4i32)_sum0, outptr0, 0);
