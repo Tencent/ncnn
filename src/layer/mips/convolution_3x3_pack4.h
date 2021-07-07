@@ -327,20 +327,44 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
-                    for (int l = 0; l < 4; l++)
-                    {
-                        tmpptr[0] = r0[l];
-                        tmpptr[1] = r0[l + 4];
-                        tmpptr[2] = r0[l + 4 * 2];
-                        tmpptr[3] = r0[l + 4 * 3];
-                        tmpptr[4] = r0[l + 4 * 4];
-                        tmpptr[5] = r0[l + 4 * 5];
-                        tmpptr[6] = r0[l + 4 * 6];
-                        tmpptr[7] = r0[l + 4 * 7];
-                        tmpptr += 8;
-                    }
+                    // transpose 4x8
+                    v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(r0 + 4, 0);
+                    v4f32 _r2 = (v4f32)__msa_ld_w(r0 + 4 * 2, 0);
+                    v4f32 _r3 = (v4f32)__msa_ld_w(r0 + 4 * 3, 0);
+                    v4f32 _r4 = (v4f32)__msa_ld_w(r0 + 4 * 4, 0);
+                    v4f32 _r5 = (v4f32)__msa_ld_w(r0 + 4 * 5, 0);
+                    v4f32 _r6 = (v4f32)__msa_ld_w(r0 + 4 * 6, 0);
+                    v4f32 _r7 = (v4f32)__msa_ld_w(r0 + 4 * 7, 0);
+
+                    v4i32 _r01r = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r01l = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r23r = __msa_ilvr_w((v4i32)_r3, (v4i32)_r2);
+                    v4i32 _r23l = __msa_ilvl_w((v4i32)_r3, (v4i32)_r2);
+                    v4i32 _r45r = __msa_ilvr_w((v4i32)_r5, (v4i32)_r4);
+                    v4i32 _r45l = __msa_ilvl_w((v4i32)_r5, (v4i32)_r4);
+                    v4i32 _r67r = __msa_ilvr_w((v4i32)_r7, (v4i32)_r6);
+                    v4i32 _r67l = __msa_ilvl_w((v4i32)_r7, (v4i32)_r6);
+                    v2i64 _r0123_0 = __msa_ilvr_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_1 = __msa_ilvl_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_2 = __msa_ilvr_d((v2i64)_r23l, (v2i64)_r01l);
+                    v2i64 _r0123_3 = __msa_ilvl_d((v2i64)_r23l, (v2i64)_r01l);
+                    v2i64 _r4567_0 = __msa_ilvr_d((v2i64)_r67r, (v2i64)_r45r);
+                    v2i64 _r4567_1 = __msa_ilvl_d((v2i64)_r67r, (v2i64)_r45r);
+                    v2i64 _r4567_2 = __msa_ilvr_d((v2i64)_r67l, (v2i64)_r45l);
+                    v2i64 _r4567_3 = __msa_ilvl_d((v2i64)_r67l, (v2i64)_r45l);
+
+                    __msa_st_w((v4i32)_r0123_0, tmpptr, 0);
+                    __msa_st_w((v4i32)_r4567_0, tmpptr + 4, 0);
+                    __msa_st_w((v4i32)_r0123_1, tmpptr + 4 * 2, 0);
+                    __msa_st_w((v4i32)_r4567_1, tmpptr + 4 * 3, 0);
+                    __msa_st_w((v4i32)_r0123_2, tmpptr + 4 * 4, 0);
+                    __msa_st_w((v4i32)_r4567_2, tmpptr + 4 * 5, 0);
+                    __msa_st_w((v4i32)_r0123_3, tmpptr + 4 * 6, 0);
+                    __msa_st_w((v4i32)_r4567_3, tmpptr + 4 * 7, 0);
 
                     r0 += bottom_blob_tm.cstep * 4;
+                    tmpptr += 32;
                 }
             }
             for (; i + 3 < tiles; i += 4)
@@ -353,16 +377,28 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
-                    for (int l = 0; l < 4; l++)
-                    {
-                        tmpptr[0] = r0[l];
-                        tmpptr[1] = r0[l + 4];
-                        tmpptr[2] = r0[l + 4 * 2];
-                        tmpptr[3] = r0[l + 4 * 3];
-                        tmpptr += 4;
-                    }
+                    // transpose 4x4
+                    v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(r0 + 4, 0);
+                    v4f32 _r2 = (v4f32)__msa_ld_w(r0 + 4 * 2, 0);
+                    v4f32 _r3 = (v4f32)__msa_ld_w(r0 + 4 * 3, 0);
+
+                    v4i32 _r01r = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r01l = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r23r = __msa_ilvr_w((v4i32)_r3, (v4i32)_r2);
+                    v4i32 _r23l = __msa_ilvl_w((v4i32)_r3, (v4i32)_r2);
+                    v2i64 _r0123_0 = __msa_ilvr_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_1 = __msa_ilvl_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_2 = __msa_ilvr_d((v2i64)_r23l, (v2i64)_r01l);
+                    v2i64 _r0123_3 = __msa_ilvl_d((v2i64)_r23l, (v2i64)_r01l);
+
+                    __msa_st_w((v4i32)_r0123_0, tmpptr, 0);
+                    __msa_st_w((v4i32)_r0123_1, tmpptr + 4, 0);
+                    __msa_st_w((v4i32)_r0123_2, tmpptr + 4 * 2, 0);
+                    __msa_st_w((v4i32)_r0123_3, tmpptr + 4 * 3, 0);
 
                     r0 += bottom_blob_tm.cstep * 4;
+                    tmpptr += 16;
                 }
             }
             for (; i + 1 < tiles; i += 2)
@@ -375,14 +411,18 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
-                    for (int l = 0; l < 4; l++)
-                    {
-                        tmpptr[0] = r0[l];
-                        tmpptr[1] = r0[l + 4];
-                        tmpptr += 2;
-                    }
+                    // transpose 4x2
+                    v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(r0 + 4, 0);
+
+                    v4i32 _r01_0 = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r01_1 = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+
+                    __msa_st_w((v4i32)_r01_0, tmpptr, 0);
+                    __msa_st_w((v4i32)_r01_1, tmpptr + 4, 0);
 
                     r0 += bottom_blob_tm.cstep * 4;
+                    tmpptr += 8;
                 }
             }
             for (; i < tiles; i++)
@@ -972,20 +1012,44 @@ static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
-                    for (int l = 0; l < 4; l++)
-                    {
-                        tmpptr[0] = r0[l];
-                        tmpptr[1] = r0[l + 4];
-                        tmpptr[2] = r0[l + 4 * 2];
-                        tmpptr[3] = r0[l + 4 * 3];
-                        tmpptr[4] = r0[l + 4 * 4];
-                        tmpptr[5] = r0[l + 4 * 5];
-                        tmpptr[6] = r0[l + 4 * 6];
-                        tmpptr[7] = r0[l + 4 * 7];
-                        tmpptr += 8;
-                    }
+                    // transpose 4x8
+                    v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(r0 + 4, 0);
+                    v4f32 _r2 = (v4f32)__msa_ld_w(r0 + 4 * 2, 0);
+                    v4f32 _r3 = (v4f32)__msa_ld_w(r0 + 4 * 3, 0);
+                    v4f32 _r4 = (v4f32)__msa_ld_w(r0 + 4 * 4, 0);
+                    v4f32 _r5 = (v4f32)__msa_ld_w(r0 + 4 * 5, 0);
+                    v4f32 _r6 = (v4f32)__msa_ld_w(r0 + 4 * 6, 0);
+                    v4f32 _r7 = (v4f32)__msa_ld_w(r0 + 4 * 7, 0);
+
+                    v4i32 _r01r = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r01l = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r23r = __msa_ilvr_w((v4i32)_r3, (v4i32)_r2);
+                    v4i32 _r23l = __msa_ilvl_w((v4i32)_r3, (v4i32)_r2);
+                    v4i32 _r45r = __msa_ilvr_w((v4i32)_r5, (v4i32)_r4);
+                    v4i32 _r45l = __msa_ilvl_w((v4i32)_r5, (v4i32)_r4);
+                    v4i32 _r67r = __msa_ilvr_w((v4i32)_r7, (v4i32)_r6);
+                    v4i32 _r67l = __msa_ilvl_w((v4i32)_r7, (v4i32)_r6);
+                    v2i64 _r0123_0 = __msa_ilvr_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_1 = __msa_ilvl_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_2 = __msa_ilvr_d((v2i64)_r23l, (v2i64)_r01l);
+                    v2i64 _r0123_3 = __msa_ilvl_d((v2i64)_r23l, (v2i64)_r01l);
+                    v2i64 _r4567_0 = __msa_ilvr_d((v2i64)_r67r, (v2i64)_r45r);
+                    v2i64 _r4567_1 = __msa_ilvl_d((v2i64)_r67r, (v2i64)_r45r);
+                    v2i64 _r4567_2 = __msa_ilvr_d((v2i64)_r67l, (v2i64)_r45l);
+                    v2i64 _r4567_3 = __msa_ilvl_d((v2i64)_r67l, (v2i64)_r45l);
+
+                    __msa_st_w((v4i32)_r0123_0, tmpptr, 0);
+                    __msa_st_w((v4i32)_r4567_0, tmpptr + 4, 0);
+                    __msa_st_w((v4i32)_r0123_1, tmpptr + 4 * 2, 0);
+                    __msa_st_w((v4i32)_r4567_1, tmpptr + 4 * 3, 0);
+                    __msa_st_w((v4i32)_r0123_2, tmpptr + 4 * 4, 0);
+                    __msa_st_w((v4i32)_r4567_2, tmpptr + 4 * 5, 0);
+                    __msa_st_w((v4i32)_r0123_3, tmpptr + 4 * 6, 0);
+                    __msa_st_w((v4i32)_r4567_3, tmpptr + 4 * 7, 0);
 
                     r0 += bottom_blob_tm.cstep * 4;
+                    tmpptr += 32;
                 }
             }
             for (; i + 3 < tiles; i += 4)
@@ -998,16 +1062,28 @@ static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
-                    for (int l = 0; l < 4; l++)
-                    {
-                        tmpptr[0] = r0[l];
-                        tmpptr[1] = r0[l + 4];
-                        tmpptr[2] = r0[l + 4 * 2];
-                        tmpptr[3] = r0[l + 4 * 3];
-                        tmpptr += 4;
-                    }
+                    // transpose 4x4
+                    v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(r0 + 4, 0);
+                    v4f32 _r2 = (v4f32)__msa_ld_w(r0 + 4 * 2, 0);
+                    v4f32 _r3 = (v4f32)__msa_ld_w(r0 + 4 * 3, 0);
+
+                    v4i32 _r01r = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r01l = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r23r = __msa_ilvr_w((v4i32)_r3, (v4i32)_r2);
+                    v4i32 _r23l = __msa_ilvl_w((v4i32)_r3, (v4i32)_r2);
+                    v2i64 _r0123_0 = __msa_ilvr_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_1 = __msa_ilvl_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_2 = __msa_ilvr_d((v2i64)_r23l, (v2i64)_r01l);
+                    v2i64 _r0123_3 = __msa_ilvl_d((v2i64)_r23l, (v2i64)_r01l);
+
+                    __msa_st_w((v4i32)_r0123_0, tmpptr, 0);
+                    __msa_st_w((v4i32)_r0123_1, tmpptr + 4, 0);
+                    __msa_st_w((v4i32)_r0123_2, tmpptr + 4 * 2, 0);
+                    __msa_st_w((v4i32)_r0123_3, tmpptr + 4 * 3, 0);
 
                     r0 += bottom_blob_tm.cstep * 4;
+                    tmpptr += 16;
                 }
             }
             for (; i + 1 < tiles; i += 2)
@@ -1020,14 +1096,18 @@ static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
-                    for (int l = 0; l < 4; l++)
-                    {
-                        tmpptr[0] = r0[l];
-                        tmpptr[1] = r0[l + 4];
-                        tmpptr += 2;
-                    }
+                    // transpose 4x2
+                    v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(r0 + 4, 0);
+
+                    v4i32 _r01_0 = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r01_1 = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+
+                    __msa_st_w((v4i32)_r01_0, tmpptr, 0);
+                    __msa_st_w((v4i32)_r01_1, tmpptr + 4, 0);
 
                     r0 += bottom_blob_tm.cstep * 4;
+                    tmpptr += 8;
                 }
             }
             for (; i < tiles; i++)

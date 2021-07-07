@@ -47,9 +47,7 @@ static inline v4f32 __msa_fill_w_f32(float val)
 static inline float __msa_fhadd_w(v4f32 _v)
 {
     // TODO find a more efficient way
-    float tmp[4];
-    __msa_st_w((v4i32)_v, tmp, 0);
-    return tmp[0] + tmp[1] + tmp[2] + tmp[3];
+    return _v[0] + _v[1] + _v[2] + _v[3];
 }
 
 static inline int __msa_cfcmsa_msacsr()
