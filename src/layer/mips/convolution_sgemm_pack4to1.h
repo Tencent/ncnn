@@ -25,7 +25,9 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
     const float* bias = _bias;
 
     Mat tmp;
-    if (size >= 8)
+    if (size >= 12)
+        tmp.create(12 * maxk, inch, size / 12 + (size % 12) / 8 + (size % 12 % 8) / 4 + size % 12 % 4, 4u * 4, 4, opt.workspace_allocator);
+    else if (size >= 8)
         tmp.create(8 * maxk, inch, size / 8 + (size % 8) / 4 + size % 4, 4u * 4, 4, opt.workspace_allocator);
     else if (size >= 4)
         tmp.create(4 * maxk, inch, size / 4 + size % 4, 4u * 4, 4, opt.workspace_allocator);
@@ -33,14 +35,88 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
         tmp.create(maxk, inch, size, 4u * 4, 4, opt.workspace_allocator);
     {
         int remain_size_start = 0;
-        int nn_size = size >> 3;
+        int nn_size = size / 12;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
+        {
+            int i = remain_size_start + ii * 12;
+
+            float* tmpptr = tmp.channel(i / 12);
+
+            for (int q = 0; q < inch; q++)
+            {
+                const float* img0 = (const float*)bottom_im2col.channel(q) + i * 4;
+
+                for (int k = 0; k < maxk; k++)
+                {
+                    // transpose 4x12
+                    v4f32 _r0 = (v4f32)__msa_ld_w(img0, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(img0 + 4, 0);
+                    v4f32 _r2 = (v4f32)__msa_ld_w(img0 + 4 * 2, 0);
+                    v4f32 _r3 = (v4f32)__msa_ld_w(img0 + 4 * 3, 0);
+                    v4f32 _r4 = (v4f32)__msa_ld_w(img0 + 4 * 4, 0);
+                    v4f32 _r5 = (v4f32)__msa_ld_w(img0 + 4 * 5, 0);
+                    v4f32 _r6 = (v4f32)__msa_ld_w(img0 + 4 * 6, 0);
+                    v4f32 _r7 = (v4f32)__msa_ld_w(img0 + 4 * 7, 0);
+                    v4f32 _r8 = (v4f32)__msa_ld_w(img0 + 4 * 8, 0);
+                    v4f32 _r9 = (v4f32)__msa_ld_w(img0 + 4 * 9, 0);
+                    v4f32 _ra = (v4f32)__msa_ld_w(img0 + 4 * 10, 0);
+                    v4f32 _rb = (v4f32)__msa_ld_w(img0 + 4 * 11, 0);
+
+                    v4i32 _r01r = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r01l = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r23r = __msa_ilvr_w((v4i32)_r3, (v4i32)_r2);
+                    v4i32 _r23l = __msa_ilvl_w((v4i32)_r3, (v4i32)_r2);
+                    v4i32 _r45r = __msa_ilvr_w((v4i32)_r5, (v4i32)_r4);
+                    v4i32 _r45l = __msa_ilvl_w((v4i32)_r5, (v4i32)_r4);
+                    v4i32 _r67r = __msa_ilvr_w((v4i32)_r7, (v4i32)_r6);
+                    v4i32 _r67l = __msa_ilvl_w((v4i32)_r7, (v4i32)_r6);
+                    v4i32 _r89r = __msa_ilvr_w((v4i32)_r9, (v4i32)_r8);
+                    v4i32 _r89l = __msa_ilvl_w((v4i32)_r9, (v4i32)_r8);
+                    v4i32 _rabr = __msa_ilvr_w((v4i32)_rb, (v4i32)_ra);
+                    v4i32 _rabl = __msa_ilvl_w((v4i32)_rb, (v4i32)_ra);
+                    v2i64 _r0123_0 = __msa_ilvr_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_1 = __msa_ilvl_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_2 = __msa_ilvr_d((v2i64)_r23l, (v2i64)_r01l);
+                    v2i64 _r0123_3 = __msa_ilvl_d((v2i64)_r23l, (v2i64)_r01l);
+                    v2i64 _r4567_0 = __msa_ilvr_d((v2i64)_r67r, (v2i64)_r45r);
+                    v2i64 _r4567_1 = __msa_ilvl_d((v2i64)_r67r, (v2i64)_r45r);
+                    v2i64 _r4567_2 = __msa_ilvr_d((v2i64)_r67l, (v2i64)_r45l);
+                    v2i64 _r4567_3 = __msa_ilvl_d((v2i64)_r67l, (v2i64)_r45l);
+                    v2i64 _r89ab_0 = __msa_ilvr_d((v2i64)_rabr, (v2i64)_r89r);
+                    v2i64 _r89ab_1 = __msa_ilvl_d((v2i64)_rabr, (v2i64)_r89r);
+                    v2i64 _r89ab_2 = __msa_ilvr_d((v2i64)_rabl, (v2i64)_r89l);
+                    v2i64 _r89ab_3 = __msa_ilvl_d((v2i64)_rabl, (v2i64)_r89l);
+
+                    __msa_st_w((v4i32)_r0123_0, tmpptr, 0);
+                    __msa_st_w((v4i32)_r4567_0, tmpptr + 4, 0);
+                    __msa_st_w((v4i32)_r89ab_0, tmpptr + 4 * 2, 0);
+                    __msa_st_w((v4i32)_r0123_1, tmpptr + 4 * 3, 0);
+                    __msa_st_w((v4i32)_r4567_1, tmpptr + 4 * 4, 0);
+                    __msa_st_w((v4i32)_r89ab_1, tmpptr + 4 * 5, 0);
+                    __msa_st_w((v4i32)_r0123_2, tmpptr + 4 * 6, 0);
+                    __msa_st_w((v4i32)_r4567_2, tmpptr + 4 * 7, 0);
+                    __msa_st_w((v4i32)_r89ab_2, tmpptr + 4 * 8, 0);
+                    __msa_st_w((v4i32)_r0123_3, tmpptr + 4 * 9, 0);
+                    __msa_st_w((v4i32)_r4567_3, tmpptr + 4 * 10, 0);
+                    __msa_st_w((v4i32)_r89ab_3, tmpptr + 4 * 11, 0);
+
+                    img0 += size * 4;
+                    tmpptr += 48;
+                }
+            }
+        }
+
+        remain_size_start += nn_size * 12;
+        nn_size = (size - remain_size_start) >> 3;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 8;
 
-            float* tmpptr = tmp.channel(i / 8);
+            float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8);
 
             for (int q = 0; q < inch; q++)
             {
@@ -98,7 +174,7 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
         {
             int i = remain_size_start + ii * 4;
 
-            float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+            float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
 
             for (int q = 0; q < inch; q++)
             {
@@ -137,7 +213,7 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < size; i++)
         {
-            float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
+            float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + i % 12 % 4);
 
             for (int q = 0; q < inch; q++)
             {
@@ -172,9 +248,72 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
         const float* biasptr = bias ? bias + p : zeros;
 
         int i = 0;
+        for (; i + 11 < size; i += 12)
+        {
+            const float* tmpptr = tmp.channel(i / 12);
+            const float* kptr0 = kernel.channel(p / 4);
+
+            int nn = inch * maxk * 4; // inch always > 0
+
+            v4f32 _sum0 = (v4f32)__msa_ld_w(biasptr, 0);
+            v4f32 _sum1 = (v4f32)__msa_ld_w(biasptr, 0);
+            v4f32 _sum2 = (v4f32)__msa_ld_w(biasptr, 0);
+            v4f32 _sum3 = (v4f32)__msa_ld_w(biasptr, 0);
+            v4f32 _sum4 = (v4f32)__msa_ld_w(biasptr, 0);
+            v4f32 _sum5 = (v4f32)__msa_ld_w(biasptr, 0);
+            v4f32 _sum6 = (v4f32)__msa_ld_w(biasptr, 0);
+            v4f32 _sum7 = (v4f32)__msa_ld_w(biasptr, 0);
+            v4f32 _sum8 = (v4f32)__msa_ld_w(biasptr, 0);
+            v4f32 _sum9 = (v4f32)__msa_ld_w(biasptr, 0);
+            v4f32 _suma = (v4f32)__msa_ld_w(biasptr, 0);
+            v4f32 _sumb = (v4f32)__msa_ld_w(biasptr, 0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                __builtin_prefetch(tmpptr + 96);
+                __builtin_prefetch(kptr0 + 32);
+                v4f32 _val0 = (v4f32)__msa_ld_w(tmpptr, 0);
+                v4f32 _val1 = (v4f32)__msa_ld_w(tmpptr + 4, 0);
+                v4f32 _val2 = (v4f32)__msa_ld_w(tmpptr + 8, 0);
+                v4i32 _w0123 = __msa_ld_w(kptr0, 0);
+                _sum0 = __msa_fmadd_w(_sum0, _val0, (v4f32)__msa_splati_w(_w0123, 0));
+                _sum1 = __msa_fmadd_w(_sum1, _val1, (v4f32)__msa_splati_w(_w0123, 0));
+                _sum2 = __msa_fmadd_w(_sum2, _val2, (v4f32)__msa_splati_w(_w0123, 0));
+                _sum3 = __msa_fmadd_w(_sum3, _val0, (v4f32)__msa_splati_w(_w0123, 1));
+                _sum4 = __msa_fmadd_w(_sum4, _val1, (v4f32)__msa_splati_w(_w0123, 1));
+                _sum5 = __msa_fmadd_w(_sum5, _val2, (v4f32)__msa_splati_w(_w0123, 1));
+                _sum6 = __msa_fmadd_w(_sum6, _val0, (v4f32)__msa_splati_w(_w0123, 2));
+                _sum7 = __msa_fmadd_w(_sum7, _val1, (v4f32)__msa_splati_w(_w0123, 2));
+                _sum8 = __msa_fmadd_w(_sum8, _val2, (v4f32)__msa_splati_w(_w0123, 2));
+                _sum9 = __msa_fmadd_w(_sum9, _val0, (v4f32)__msa_splati_w(_w0123, 3));
+                _suma = __msa_fmadd_w(_suma, _val1, (v4f32)__msa_splati_w(_w0123, 3));
+                _sumb = __msa_fmadd_w(_sumb, _val2, (v4f32)__msa_splati_w(_w0123, 3));
+
+                tmpptr += 12;
+                kptr0 += 4;
+            }
+
+            __msa_st_w((v4i32)_sum0, outptr0, 0);
+            __msa_st_w((v4i32)_sum1, outptr0 + 4, 0);
+            __msa_st_w((v4i32)_sum2, outptr0 + 8, 0);
+            __msa_st_w((v4i32)_sum3, outptr1, 0);
+            __msa_st_w((v4i32)_sum4, outptr1 + 4, 0);
+            __msa_st_w((v4i32)_sum5, outptr1 + 8, 0);
+            __msa_st_w((v4i32)_sum6, outptr2, 0);
+            __msa_st_w((v4i32)_sum7, outptr2 + 4, 0);
+            __msa_st_w((v4i32)_sum8, outptr2 + 8, 0);
+            __msa_st_w((v4i32)_sum9, outptr3, 0);
+            __msa_st_w((v4i32)_suma, outptr3 + 4, 0);
+            __msa_st_w((v4i32)_sumb, outptr3 + 8, 0);
+
+            outptr0 += 12;
+            outptr1 += 12;
+            outptr2 += 12;
+            outptr3 += 12;
+        }
         for (; i + 7 < size; i += 8)
         {
-            const float* tmpptr = tmp.channel(i / 8);
+            const float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8);
             const float* kptr0 = kernel.channel(p / 4);
 
             int nn = inch * maxk * 4; // inch always > 0
@@ -190,9 +329,11 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                v4i32 _w0123 = __msa_ld_w(kptr0, 0);
+                __builtin_prefetch(tmpptr + 64);
+                __builtin_prefetch(kptr0 + 32);
                 v4f32 _val0 = (v4f32)__msa_ld_w(tmpptr, 0);
                 v4f32 _val1 = (v4f32)__msa_ld_w(tmpptr + 4, 0);
+                v4i32 _w0123 = __msa_ld_w(kptr0, 0);
                 _sum0 = __msa_fmadd_w(_sum0, _val0, (v4f32)__msa_splati_w(_w0123, 0));
                 _sum1 = __msa_fmadd_w(_sum1, _val1, (v4f32)__msa_splati_w(_w0123, 0));
                 _sum2 = __msa_fmadd_w(_sum2, _val0, (v4f32)__msa_splati_w(_w0123, 1));
@@ -222,7 +363,7 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
         }
         for (; i + 3 < size; i += 4)
         {
-            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+            const float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
             const float* kptr0 = kernel.channel(p / 4);
 
             int nn = inch * maxk * 4; // inch always > 0
@@ -234,8 +375,10 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                v4i32 _w0123 = __msa_ld_w(kptr0, 0);
+                __builtin_prefetch(tmpptr + 32);
+                __builtin_prefetch(kptr0 + 32);
                 v4f32 _val0 = (v4f32)__msa_ld_w(tmpptr, 0);
+                v4i32 _w0123 = __msa_ld_w(kptr0, 0);
                 _sum0 = __msa_fmadd_w(_sum0, _val0, (v4f32)__msa_splati_w(_w0123, 0));
                 _sum1 = __msa_fmadd_w(_sum1, _val0, (v4f32)__msa_splati_w(_w0123, 1));
                 _sum2 = __msa_fmadd_w(_sum2, _val0, (v4f32)__msa_splati_w(_w0123, 2));
@@ -257,7 +400,7 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
         }
         for (; i < size; i++)
         {
-            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
+            const float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + i % 12 % 4);
             const float* kptr0 = kernel.channel(p / 4);
 
             int nn = inch * maxk * 4; // inch always > 0
@@ -266,6 +409,8 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
+                __builtin_prefetch(tmpptr + 8);
+                __builtin_prefetch(kptr0 + 32);
                 v4f32 _val0 = __msa_fill_w_f32(*tmpptr++);
                 v4f32 _w0 = (v4f32)__msa_ld_w(kptr0, 0);
                 _sum = __msa_fmadd_w(_sum, _val0, _w0);
@@ -293,9 +438,42 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
         const float bias0 = bias ? bias[p] : 0.f;
 
         int i = 0;
+        for (; i + 11 < size; i += 12)
+        {
+            const float* tmpptr = tmp.channel(i / 12);
+            const float* kptr0 = kernel.channel(p / 4 + p % 4);
+
+            int nn = inch * maxk * 4; // inch always > 0
+
+            v4f32 _sum0 = __msa_fill_w_f32(bias0);
+            v4f32 _sum1 = __msa_fill_w_f32(bias0);
+            v4f32 _sum2 = __msa_fill_w_f32(bias0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                __builtin_prefetch(tmpptr + 64);
+                __builtin_prefetch(kptr0 + 8);
+                v4f32 _val0 = (v4f32)__msa_ld_w(tmpptr, 0);
+                v4f32 _val1 = (v4f32)__msa_ld_w(tmpptr + 4, 0);
+                v4f32 _val2 = (v4f32)__msa_ld_w(tmpptr + 8, 0);
+                v4f32 _w0 = __msa_fill_w_f32(*kptr0);
+                _sum0 = __msa_fmadd_w(_sum0, _w0, _val0);
+                _sum1 = __msa_fmadd_w(_sum1, _w0, _val1);
+                _sum2 = __msa_fmadd_w(_sum2, _w0, _val2);
+
+                tmpptr += 12;
+                kptr0 += 1;
+            }
+
+            __msa_st_w((v4i32)_sum0, outptr0, 0);
+            __msa_st_w((v4i32)_sum1, outptr0 + 4, 0);
+            __msa_st_w((v4i32)_sum2, outptr0 + 8, 0);
+
+            outptr0 += 12;
+        }
         for (; i + 7 < size; i += 8)
         {
-            const float* tmpptr = tmp.channel(i / 8);
+            const float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8);
             const float* kptr0 = kernel.channel(p / 4 + p % 4);
 
             int nn = inch * maxk * 4; // inch always > 0
@@ -305,6 +483,8 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
+                __builtin_prefetch(tmpptr + 32);
+                __builtin_prefetch(kptr0 + 8);
                 v4f32 _val0 = (v4f32)__msa_ld_w(tmpptr, 0);
                 v4f32 _val1 = (v4f32)__msa_ld_w(tmpptr + 4, 0);
                 v4f32 _w0 = __msa_fill_w_f32(*kptr0);
@@ -322,7 +502,7 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
         }
         for (; i + 3 < size; i += 4)
         {
-            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+            const float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
             const float* kptr0 = kernel.channel(p / 4 + p % 4);
 
             int nn = inch * maxk * 4; // inch always > 0
@@ -331,6 +511,8 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
+                __builtin_prefetch(tmpptr + 16);
+                __builtin_prefetch(kptr0 + 8);
                 v4f32 _val0 = (v4f32)__msa_ld_w(tmpptr, 0);
                 v4f32 _w0 = __msa_fill_w_f32(*kptr0);
                 _sum0 = __msa_fmadd_w(_sum0, _w0, _val0);
@@ -345,7 +527,7 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
         }
         for (; i < size; i++)
         {
-            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
+            const float* tmpptr = tmp.channel(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + i % 12 % 4);
             const float* kptr0 = kernel.channel(p / 4 + p % 4);
 
             int nn = inch * maxk; // inch always > 0
@@ -356,6 +538,8 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
+                __builtin_prefetch(tmpptr + 16);
+                __builtin_prefetch(kptr0 + 16);
                 v4f32 _val0 = (v4f32)__msa_ld_w(tmpptr, 0);
                 v4f32 _w0 = (v4f32)__msa_ld_w(kptr0, 0);
                 _sum0 = __msa_fmadd_w(_sum0, _val0, _w0);

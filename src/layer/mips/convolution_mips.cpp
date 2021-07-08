@@ -229,8 +229,6 @@ int Convolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         return Convolution::forward(bottom_blob, top_blob, opt);
     }
 
-    int elembits = bottom_blob.elembits();
-
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;

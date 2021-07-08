@@ -35,6 +35,7 @@ static void padding_constant_pack4_msa(const Mat& src, Mat& dst, int top, int bo
         }
         for (int x = 0; x < src.w; x++)
         {
+            __builtin_prefetch(ptr + 32);
             __msa_st_w(__msa_ld_w(ptr, 0), outptr, 0);
             ptr += 4;
             outptr += 4;
