@@ -144,7 +144,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             v4f32 _rows1 = (v4f32)__msa_ld_w(rows1p, 0);
 
             v4f32 _D = __msa_fmul_w(_rows0, _b0);
-            _D = __msa_fadd_w(_D, __msa_fmul_w(_rows1, _b1));
+            _D = __msa_fmadd_w(_D, _rows1, _b1);
 
             __msa_st_w((v4i32)_D, Dp, 0);
 
@@ -152,7 +152,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             v4f32 _rows1n = (v4f32)__msa_ld_w(rows1p + 4, 0);
 
             v4f32 _Dn = __msa_fmul_w(_rows0n, _b0);
-            _Dn = __msa_fadd_w(_Dn, __msa_fmul_w(_rows1n, _b1));
+            _Dn = __msa_fmadd_w(_Dn, _rows1n, _b1);
 
             __msa_st_w((v4i32)_Dn, Dp + 4, 0);
 

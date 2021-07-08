@@ -51,6 +51,7 @@ int ReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                 for (int i = 0; i < size; i++)
                 {
+                    __builtin_prefetch(ptr + 32);
                     v4f32 _ptr = (v4f32)__msa_ld_w(ptr, 0);
                     _ptr = __msa_fmax_w(_ptr, _zero);
                     __msa_st_w((v4i32)_ptr, ptr, 0);
@@ -65,6 +66,7 @@ int ReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                 for (int i = 0; i < size; i++)
                 {
+                    __builtin_prefetch(ptr + 32);
                     v4f32 _ptr = (v4f32)__msa_ld_w(ptr, 0);
                     v4i32_w _lemask = __msa_fcle_w(_ptr, _zero);
                     v4f32 _ps = __msa_fmul_w(_ptr, _slope);
@@ -93,6 +95,7 @@ int ReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr + 32);
                 v4f32 _ptr = (v4f32)__msa_ld_w(ptr, 0);
                 _ptr = __msa_fmax_w(_ptr, _zero);
                 __msa_st_w((v4i32)_ptr, ptr, 0);
@@ -116,6 +119,7 @@ int ReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(ptr + 32);
                 v4f32 _ptr = (v4f32)__msa_ld_w(ptr, 0);
                 v4i32_w _lemask = __msa_fcle_w(_ptr, _zero);
                 v4f32 _ps = __msa_fmul_w(_ptr, _slope);

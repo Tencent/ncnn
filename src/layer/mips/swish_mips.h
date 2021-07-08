@@ -12,31 +12,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_CONVOLUTION_MIPS_H
-#define LAYER_CONVOLUTION_MIPS_H
+#ifndef LAYER_SWISH_MIPS_H
+#define LAYER_SWISH_MIPS_H
 
-#include "convolution.h"
+#include "swish.h"
 
 namespace ncnn {
 
-class Convolution_mips : virtual public Convolution
+class Swish_mips : virtual public Swish
 {
 public:
-    Convolution_mips();
+    Swish_mips();
 
-    virtual int create_pipeline(const Option& opt);
-    virtual int destroy_pipeline(const Option& opt);
-
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-
-public:
-    Layer* activation;
-
-    // packn
-    Mat weight_data_packed;
-    Mat weight_3x3_winograd42_data_packed;
+    virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_CONVOLUTION_MIPS_H
+#endif // LAYER_SWISH_MIPS_H

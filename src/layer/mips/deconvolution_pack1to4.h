@@ -81,7 +81,7 @@ static void deconvolution_pack1to4_msa(const Mat& bottom_blob, Mat& top_blob, co
 
                             v4f32 _val = (v4f32)__msa_fill_w_f32(val);
                             v4f32 _w = (v4f32)__msa_ld_w(kptr + k * 4, 0);
-                            _sum = __msa_fadd_w(_sum, __msa_fmul_w(_val, _w));
+                            _sum = __msa_fmadd_w(_sum, _val, _w);
                         }
                     }
 
