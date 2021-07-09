@@ -14,6 +14,10 @@
 
 #include "packing_mips.h"
 
+#if __mips_msa
+#include <msa.h>
+#endif // __mips_msa
+
 namespace ncnn {
 
 Packing_mips::Packing_mips()
@@ -113,6 +117,36 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 float* outptr = top_blob.row(i);
 
                 int j = 0;
+#if __mips_msa
+                for (; j + 3 < w; j += 4)
+                {
+                    // transpose 4x4
+                    v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(r1, 0);
+                    v4f32 _r2 = (v4f32)__msa_ld_w(r2, 0);
+                    v4f32 _r3 = (v4f32)__msa_ld_w(r3, 0);
+
+                    v4i32 _r01r = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r01l = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r23r = __msa_ilvr_w((v4i32)_r3, (v4i32)_r2);
+                    v4i32 _r23l = __msa_ilvl_w((v4i32)_r3, (v4i32)_r2);
+                    v2i64 _r0123_0 = __msa_ilvr_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_1 = __msa_ilvl_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_2 = __msa_ilvr_d((v2i64)_r23l, (v2i64)_r01l);
+                    v2i64 _r0123_3 = __msa_ilvl_d((v2i64)_r23l, (v2i64)_r01l);
+
+                    __msa_st_w((v4i32)_r0123_0, outptr, 0);
+                    __msa_st_w((v4i32)_r0123_1, outptr + 4, 0);
+                    __msa_st_w((v4i32)_r0123_2, outptr + 4 * 2, 0);
+                    __msa_st_w((v4i32)_r0123_3, outptr + 4 * 3, 0);
+
+                    r0 += 4;
+                    r1 += 4;
+                    r2 += 4;
+                    r3 += 4;
+                    outptr += 16;
+                }
+#endif // __mips_msa
                 for (; j < w; j++)
                 {
                     outptr[0] = *r0++;
@@ -137,6 +171,36 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 float* outptr3 = top_blob.row(i * 4 + 3);
 
                 int j = 0;
+#if __mips_msa
+                for (; j + 3 < w; j += 4)
+                {
+                    // transpose 4x4
+                    v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(r0 + 4, 0);
+                    v4f32 _r2 = (v4f32)__msa_ld_w(r0 + 4 * 2, 0);
+                    v4f32 _r3 = (v4f32)__msa_ld_w(r0 + 4 * 3, 0);
+
+                    v4i32 _r01r = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r01l = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r23r = __msa_ilvr_w((v4i32)_r3, (v4i32)_r2);
+                    v4i32 _r23l = __msa_ilvl_w((v4i32)_r3, (v4i32)_r2);
+                    v2i64 _r0123_0 = __msa_ilvr_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_1 = __msa_ilvl_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_2 = __msa_ilvr_d((v2i64)_r23l, (v2i64)_r01l);
+                    v2i64 _r0123_3 = __msa_ilvl_d((v2i64)_r23l, (v2i64)_r01l);
+
+                    __msa_st_w((v4i32)_r0123_0, outptr0, 0);
+                    __msa_st_w((v4i32)_r0123_1, outptr1, 0);
+                    __msa_st_w((v4i32)_r0123_2, outptr2, 0);
+                    __msa_st_w((v4i32)_r0123_3, outptr3, 0);
+
+                    r0 += 16;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                    outptr2 += 4;
+                    outptr3 += 4;
+                }
+#endif // __mips_msa
                 for (; j < w; j++)
                 {
                     *outptr0++ = r0[0];
@@ -175,6 +239,36 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 float* outptr = top_blob.channel(q);
 
                 int i = 0;
+#if __mips_msa
+                for (; i + 3 < size; i += 4)
+                {
+                    // transpose 4x4
+                    v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(r1, 0);
+                    v4f32 _r2 = (v4f32)__msa_ld_w(r2, 0);
+                    v4f32 _r3 = (v4f32)__msa_ld_w(r3, 0);
+
+                    v4i32 _r01r = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r01l = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r23r = __msa_ilvr_w((v4i32)_r3, (v4i32)_r2);
+                    v4i32 _r23l = __msa_ilvl_w((v4i32)_r3, (v4i32)_r2);
+                    v2i64 _r0123_0 = __msa_ilvr_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_1 = __msa_ilvl_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_2 = __msa_ilvr_d((v2i64)_r23l, (v2i64)_r01l);
+                    v2i64 _r0123_3 = __msa_ilvl_d((v2i64)_r23l, (v2i64)_r01l);
+
+                    __msa_st_w((v4i32)_r0123_0, outptr, 0);
+                    __msa_st_w((v4i32)_r0123_1, outptr + 4, 0);
+                    __msa_st_w((v4i32)_r0123_2, outptr + 4 * 2, 0);
+                    __msa_st_w((v4i32)_r0123_3, outptr + 4 * 3, 0);
+
+                    r0 += 4;
+                    r1 += 4;
+                    r2 += 4;
+                    r3 += 4;
+                    outptr += 16;
+                }
+#endif // __mips_msa
                 for (; i < size; i++)
                 {
                     outptr[0] = *r0++;
@@ -199,6 +293,36 @@ int Packing_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 float* outptr3 = top_blob.channel(q * 4 + 3);
 
                 int i = 0;
+#if __mips_msa
+                for (; i + 3 < size; i += 4)
+                {
+                    // transpose 4x4
+                    v4f32 _r0 = (v4f32)__msa_ld_w(r0, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(r0 + 4, 0);
+                    v4f32 _r2 = (v4f32)__msa_ld_w(r0 + 4 * 2, 0);
+                    v4f32 _r3 = (v4f32)__msa_ld_w(r0 + 4 * 3, 0);
+
+                    v4i32 _r01r = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r01l = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r23r = __msa_ilvr_w((v4i32)_r3, (v4i32)_r2);
+                    v4i32 _r23l = __msa_ilvl_w((v4i32)_r3, (v4i32)_r2);
+                    v2i64 _r0123_0 = __msa_ilvr_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_1 = __msa_ilvl_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_2 = __msa_ilvr_d((v2i64)_r23l, (v2i64)_r01l);
+                    v2i64 _r0123_3 = __msa_ilvl_d((v2i64)_r23l, (v2i64)_r01l);
+
+                    __msa_st_w((v4i32)_r0123_0, outptr0, 0);
+                    __msa_st_w((v4i32)_r0123_1, outptr1, 0);
+                    __msa_st_w((v4i32)_r0123_2, outptr2, 0);
+                    __msa_st_w((v4i32)_r0123_3, outptr3, 0);
+
+                    r0 += 16;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                    outptr2 += 4;
+                    outptr3 += 4;
+                }
+#endif // __mips_msa
                 for (; i < size; i++)
                 {
                     *outptr0++ = r0[0];

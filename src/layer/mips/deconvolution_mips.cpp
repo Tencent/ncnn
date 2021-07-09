@@ -135,8 +135,6 @@ int Deconvolution_mips::destroy_pipeline(const Option& opt)
 
 int Deconvolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    int elembits = bottom_blob.elembits();
-
     // deconvolv with NxN kernel
     // value = value + bias
 

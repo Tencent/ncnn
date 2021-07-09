@@ -1,6 +1,6 @@
-// Leo is pleased to support the open source community by making ncnn available.
+// Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2019 Leo <leo@nullptr.com.cn>. All rights reserved.
+// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "clip_mips.h"
+#include "hardswish_mips.h"
 
 #if __mips_msa
 #include <msa.h>
@@ -22,14 +22,14 @@
 
 namespace ncnn {
 
-Clip_mips::Clip_mips()
+HardSwish_mips::HardSwish_mips()
 {
 #if __mips_msa
     support_packing = true;
-#endif
+#endif // __mips_msa
 }
 
-int Clip_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+int HardSwish_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -45,15 +45,19 @@ int Clip_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            v4f32 _max = (v4f32)__msa_fill_w_f32(max);
-            v4f32 _min = (v4f32)__msa_fill_w_f32(min);
+            v4f32 _zero = (v4f32)__msa_fill_w(0);
+            v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+            v4f32 _alpha = (v4f32)__msa_fill_w_f32(alpha);
+            v4f32 _beta = (v4f32)__msa_fill_w_f32(beta);
 
             for (int i = 0; i < size; i++)
             {
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                _p = __msa_fmax_w(_p, _min);
-                _p = __msa_fmin_w(_p, _max);
-                __msa_st_w((v4i32)_p, ptr, 0);
+                v4f32 _outp = __msa_fmadd_w(_beta, _p, _alpha);
+                _outp = __msa_fmax_w(_outp, _zero);
+                _outp = __msa_fmin_w(_outp, _one);
+                _outp = __msa_fmul_w(_outp, _p);
+                __msa_st_w((v4i32)_outp, ptr, 0);
 
                 ptr += 4;
             }
@@ -70,28 +74,32 @@ int Clip_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         int i = 0;
 #if __mips_msa
-        v4f32 _max = (v4f32)__msa_fill_w_f32(max);
-        v4f32 _min = (v4f32)__msa_fill_w_f32(min);
+        v4f32 _zero = (v4f32)__msa_fill_w(0);
+        v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+        v4f32 _alpha = (v4f32)__msa_fill_w_f32(alpha);
+        v4f32 _beta = (v4f32)__msa_fill_w_f32(beta);
 
         for (; i + 3 < size; i += 4)
         {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-            _p = __msa_fmax_w(_p, _min);
-            _p = __msa_fmin_w(_p, _max);
-            __msa_st_w((v4i32)_p, ptr, 0);
+            v4f32 _outp = __msa_fmadd_w(_beta, _p, _alpha);
+            _outp = __msa_fmax_w(_outp, _zero);
+            _outp = __msa_fmin_w(_outp, _one);
+            _outp = __msa_fmul_w(_outp, _p);
+            __msa_st_w((v4i32)_outp, ptr, 0);
 
             ptr += 4;
         }
 #endif // __mips_msa
         for (; i < size; i++)
         {
-            if (*ptr < min)
-                *ptr = min;
-
-            if (*ptr > max)
-                *ptr = max;
-
-            ptr++;
+            if (*ptr < lower)
+                *ptr = 0.f;
+            else if (*ptr > upper)
+                ;
+            else
+                *ptr = *ptr * (*ptr * alpha + beta);
+            ++ptr;
         }
     }
 

@@ -42,6 +42,8 @@ namespace ncnn {
 #include "convolution_1x1_pack4.h"
 #include "convolution_1x1_pack4to1.h"
 #include "convolution_3x3_pack4.h"
+#include "convolution_3x3_pack1to4.h"
+#include "convolution_7x7_pack1to4.h"
 #endif // __mips_msa
 
 Convolution_mips::Convolution_mips()
@@ -320,6 +322,34 @@ int Convolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     if (elempack == 1 && out_elempack == 4)
     {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_pack1to4_msa(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv3x3s2_pack1to4_msa(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 7 && kernel_h == 7 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv7x7s2_pack1to4_msa(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else
         {
             convolution_pack1to4_msa(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }

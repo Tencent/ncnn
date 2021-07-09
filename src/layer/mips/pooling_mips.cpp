@@ -55,8 +55,6 @@ int Pooling_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         return Pooling::forward(bottom_blob, top_blob, opt);
     }
 
-    int elembits = bottom_blob.elembits();
-
     // max value in NxN window
     // avg value in NxN window
 
