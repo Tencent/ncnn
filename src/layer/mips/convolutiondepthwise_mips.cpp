@@ -266,8 +266,6 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
     }
 #endif
 
-    int elembits = bottom_blob.elembits();
-
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int channels = bottom_blob.c;

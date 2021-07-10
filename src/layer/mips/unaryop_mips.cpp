@@ -48,6 +48,7 @@ static int unary_op_inplace_pack4(Mat& a, const Option& opt)
 
         for (int i = 0; i < size; i++)
         {
+            __builtin_prefetch(ptr + 32);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             _p = op(_p);
             __msa_st_w((v4i32)_p, ptr, 0);
