@@ -2030,10 +2030,10 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
         if (nn > 0)
         {
             asm volatile(
+                "0:                             \n"
                 "pld        [%3, #128]          \n"
                 "vld1.u8    {d2}, [%3]!         \n"
                 "vsub.s8    d2, d2, %12         \n"
-                "0:                             \n"
                 "pld        [%1, #128]          \n"
                 "vld1.u8    {d0}, [%1]!         \n"
                 "pld        [%2, #128]          \n"
@@ -2060,14 +2060,10 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
                 "vqshrun.s16 d25, q9, #6        \n"
                 "vqshrun.s16 d6, q3, #6         \n"
                 "vqshrun.s16 d5, q11, #6        \n"
-                "pld        [%3, #128]          \n"
-                "vld1.u8    {d2}, [%3]!         \n"
                 "subs       %0, #1              \n"
                 "vst3.u8    {d24-d26}, [%4]!    \n"
-                "vsub.s8    d2, d2, %12         \n"
                 "vst3.u8    {d4-d6}, [%5]!      \n"
                 "bne        0b                  \n"
-                "sub        %3, #8              \n"
                 : "=r"(nn),    // %0
                 "=r"(yptr0), // %1
                 "=r"(yptr1), // %2
@@ -2225,10 +2221,10 @@ void yuv420sp2rgb_nv12(const unsigned char* yuv420sp, int w, int h, unsigned cha
         if (nn > 0)
         {
             asm volatile(
+                "0:                             \n"
                 "pld        [%3, #128]          \n"
                 "vld1.u8    {d2}, [%3]!         \n"
                 "vsub.s8    d2, d2, %12         \n"
-                "0:                             \n"
                 "pld        [%1, #128]          \n"
                 "vld1.u8    {d0}, [%1]!         \n"
                 "pld        [%2, #128]          \n"
@@ -2255,14 +2251,10 @@ void yuv420sp2rgb_nv12(const unsigned char* yuv420sp, int w, int h, unsigned cha
                 "vqshrun.s16 d25, q9, #6        \n"
                 "vqshrun.s16 d6, q3, #6         \n"
                 "vqshrun.s16 d5, q11, #6        \n"
-                "pld        [%3, #128]          \n"
-                "vld1.u8    {d2}, [%3]!         \n"
                 "subs       %0, #1              \n"
                 "vst3.u8    {d24-d26}, [%4]!    \n"
-                "vsub.s8    d2, d2, %12         \n"
                 "vst3.u8    {d4-d6}, [%5]!      \n"
                 "bne        0b                  \n"
-                "sub        %3, #8              \n"
                 : "=r"(nn),    // %0
                 "=r"(yptr0), // %1
                 "=r"(yptr1), // %2
