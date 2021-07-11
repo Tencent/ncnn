@@ -140,8 +140,15 @@ static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
 #define HWCAP_VFPv4 (1 << 16)
 #endif
 
+#if __mips__
+// from arch/mips/include/uapi/asm/hwcap.h
+#define HWCAP_MIPS_MSA     (1 << 1)
+#define HWCAP_LOONGSON_MMI (1 << 11)
+#endif
+
 #if __riscv
 // from arch/riscv/include/uapi/asm/hwcap.h
+#define COMPAT_HWCAP_ISA_F (1 << ('F' - 'A'))
 #define COMPAT_HWCAP_ISA_V (1 << ('V' - 'A'))
 #endif
 
@@ -397,6 +404,32 @@ int cpu_support_x86_avx2()
 #endif
 }
 
+int cpu_support_mips_msa()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __mips__
+    return g_hwcaps & HWCAP_MIPS_MSA;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_loongson_mmi()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __mips__
+    return g_hwcaps & HWCAP_LOONGSON_MMI;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
 int cpu_support_riscv_v()
 {
 #if defined __ANDROID__ || defined __linux__
@@ -412,22 +445,11 @@ int cpu_support_riscv_v()
 
 int cpu_support_riscv_zfh()
 {
+#if defined __ANDROID__ || defined __linux__
 #if __riscv
-#if __riscv_zfh
-    // https://github.com/riscv/riscv-zfinx/blob/master/Zfinx_spec.adoc#5-discovery
-    __fp16 a = 0;
-    asm volatile(
-        "fneg.h     %0, %0  \n"
-        : "=f"(a)
-        : "0"(a)
-        :);
-    union
-    {
-        __fp16 a;
-        unsigned short u;
-    } tmp;
-    tmp.a = a;
-    return tmp.u != 0 ? 1 : 0;
+    // v + f does not imply zfh, but how to discover zfh properly ?
+    // upstream issue https://github.com/riscv/riscv-isa-manual/issues/414
+    return g_hwcaps & COMPAT_HWCAP_ISA_V && g_hwcaps & COMPAT_HWCAP_ISA_F;
 #else
     return 0;
 #endif

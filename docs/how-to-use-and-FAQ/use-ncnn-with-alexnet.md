@@ -44,7 +44,7 @@ caffe2ncnn deploy.prototxt bvlc_alexnet.caffemodel alexnet.param alexnet.bin
 
 ### strip visible string
 
-It is already enough for deploying with param and bin file only, but there are visible strings in param file, it may not be suitable to distrubute plain neural network information in your APP.
+It is already enough for deploying with param and bin file only, but there are visible strings in param file, it may not be suitable to distribute plain neural network information in your APP.
 
 You can use ncnn2mem tool to convert plain model file to binary representation. It will generate alexnet.param.bin and two static array code files.
 ```
@@ -85,7 +85,7 @@ net.clear();
 
 ncnn Mat is the data structure for input and output data
 
-Input image should be converted to Mat, and substracted mean values and normalized when needed
+Input image should be converted to Mat, and subtracted mean values and normalized when needed
 
 ```cpp
 #include "mat.h"

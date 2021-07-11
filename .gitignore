@@ -46,3 +46,8 @@ build*/
 .idea
 cmake-build-debug
 cmake-build-release
+
+# Compiled python
+__pycache__
+*.pyc
+*.pyd

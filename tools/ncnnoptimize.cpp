@@ -1320,6 +1320,75 @@ int NetOptimize::fuse_convolution_activation()
         activation->type = "ncnnfused";
     }
 
+    for (size_t i = 0; i < layer_count; i++)
+    {
+        if (layers[i]->type != "Convolution1D")
+            continue;
+
+        // Convolution1D - Activation
+        int top_blob_index = layers[i]->tops[0];
+
+        size_t j = i + 1;
+        for (; j < layer_count; j++)
+        {
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip" && layers[j]->type != "Sigmoid" && layers[j]->type != "Mish")
+                continue;
+
+            if (layers[j]->bottoms.size() != 1)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        // fuse Convolution1D - Activation to Convolution1D
+        ncnn::Convolution1D* convolution = (ncnn::Convolution1D*)layers[i];
+        ncnn::Layer* activation = layers[j];
+
+        fprintf(stderr, "fuse_convolution1d_activation %s %s\n", convolution->name.c_str(), activation->name.c_str());
+
+        if (activation->type == "ReLU")
+        {
+            ncnn::ReLU* relu = (ncnn::ReLU*)activation;
+
+            if (relu->slope == 0.f)
+            {
+                convolution->activation_type = 1;
+            }
+            else
+            {
+                convolution->activation_type = 2;
+                convolution->activation_params = ncnn::Mat(1);
+                convolution->activation_params[0] = relu->slope;
+            }
+        }
+        else if (activation->type == "Clip")
+        {
+            ncnn::Clip* clip = (ncnn::Clip*)activation;
+
+            convolution->activation_type = 3;
+            convolution->activation_params = ncnn::Mat(2);
+            convolution->activation_params[0] = clip->min;
+            convolution->activation_params[1] = clip->max;
+        }
+        else if (activation->type == "Sigmoid")
+        {
+            convolution->activation_type = 4;
+        }
+        else if (activation->type == "Mish")
+        {
+            convolution->activation_type = 5;
+        }
+
+        int top_blob_index_final = activation->tops[0];
+        convolution->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        activation->type = "ncnnfused";
+    }
+
     return 0;
 }
 

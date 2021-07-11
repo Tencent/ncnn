@@ -2,10 +2,28 @@ name: macos-x64-cpu
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/macos-x64-cpu.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+    - 'tools/**'
+    - 'examples/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/macos-x64-cpu.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+    - 'tools/**'
+    - 'examples/**'
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
 jobs:

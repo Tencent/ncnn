@@ -211,6 +211,19 @@ bool imwrite(const std::string& path, const Mat& m, const std::vector<int>& para
     return success;
 }
 
+void imshow(const std::string& name, const Mat& m)
+{
+    NCNN_LOGE("imshow save image to %s.png", name.c_str());
+
+    imwrite(name + ".png", m);
+}
+
+int waitKey(int delay)
+{
+    NCNN_LOGE("waitKey stub");
+    return -1;
+}
+
 #if NCNN_PIXEL
 void resize(const Mat& src, Mat& dst, const Size& size, float sw, float sh, int flags)
 {

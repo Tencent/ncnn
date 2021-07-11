@@ -2,10 +2,30 @@ name: linux-x64-cpu-clang
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/linux-x64-cpu-clang.yml'
+    - 'toolchains/host-c.clang.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+    - 'tools/**'
+    - 'examples/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/linux-x64-cpu-clang.yml'
+    - 'toolchains/host-c.clang.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+    - 'tools/**'
+    - 'examples/**'
 jobs:
   linux-clang:
     runs-on: ubuntu-latest

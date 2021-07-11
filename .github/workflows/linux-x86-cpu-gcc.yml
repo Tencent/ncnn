@@ -2,10 +2,26 @@ name: linux-x86-cpu-gcc
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/linux-x86-cpu-gcc.yml'
+    - 'toolchains/host.gcc-m32.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/linux-x86-cpu-gcc.yml'
+    - 'toolchains/host.gcc-m32.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
 jobs:
   linux-gcc:
     runs-on: ubuntu-latest

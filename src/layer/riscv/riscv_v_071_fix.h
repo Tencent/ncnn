@@ -35,15 +35,20 @@ typedef float32xm2_t vfloat32m2_t;
 typedef float32xm4_t vfloat32m4_t;
 typedef float32xm8_t vfloat32m8_t;
 
+typedef float32x2xm1_t vfloat32m1x2_t;
 typedef float32x4xm1_t vfloat32m1x4_t;
+typedef float32x8xm1_t vfloat32m1x8_t;
 typedef float32x4xm2_t vfloat32m2x4_t;
+typedef float32x2xm4_t vfloat32m4x2_t;
 
 typedef float16xm1_t vfloat16m1_t;
 typedef float16xm2_t vfloat16m2_t;
 typedef float16xm4_t vfloat16m4_t;
 typedef float16xm8_t vfloat16m8_t;
 
+typedef float16x2xm1_t vfloat16m1x2_t;
 typedef float16x4xm1_t vfloat16m1x4_t;
+typedef float16x8xm1_t vfloat16m1x8_t;
 typedef float16x4xm2_t vfloat16m2x4_t;
 
 typedef int32xm1_t vint32m1_t;
@@ -63,6 +68,15 @@ typedef int16xm8_t vint16m8_t;
 typedef int16x4xm1_t vint16m1x4_t;
 typedef int16x4xm2_t vint16m2x4_t;
 typedef int16x8xm1_t vint16m1x8_t;
+
+typedef int8xm1_t vint8m1_t;
+typedef int8xm2_t vint8m2_t;
+typedef int8xm4_t vint8m4_t;
+typedef int8xm8_t vint8m8_t;
+
+typedef int8x4xm1_t vint8m1x4_t;
+typedef int8x4xm2_t vint8m2x4_t;
+typedef int8x8xm1_t vint8m1x8_t;
 
 typedef uint32xm1_t vuint32m1_t;
 typedef uint32xm2_t vuint32m2_t;
@@ -92,6 +106,11 @@ typedef uint16x8xm1_t vuint16m1x8_t;
 #define vsetvl_e16m4(n) vsetvli(n, RVV_E16, RVV_M4)
 #define vsetvl_e16m8(n) vsetvli(n, RVV_E16, RVV_M8)
 
+#define vsetvl_e8m1(n) vsetvli(n, RVV_E8, RVV_M1)
+#define vsetvl_e8m2(n) vsetvli(n, RVV_E8, RVV_M2)
+#define vsetvl_e8m4(n) vsetvli(n, RVV_E8, RVV_M4)
+#define vsetvl_e8m8(n) vsetvli(n, RVV_E8, RVV_M8)
+
 /******************************** float32 ********************************/
 #define vle32_v_f32m1 vlev_float32xm1
 #define vle32_v_f32m2 vlev_float32xm2
@@ -103,14 +122,65 @@ typedef uint16x8xm1_t vuint16m1x8_t;
 #define vse32_v_f32m4 vsev_float32xm4
 #define vse32_v_f32m8 vsev_float32xm8
 
-#define vlseg4e32_v_f32m2x4 vlseg4ev_float32x4xm2
-#define vsseg4e32_v_f32m2x4 vsseg4ev_float32x4xm2
+#define vlse32_v_f32m1 vlsev_float32xm1
+#define vlse32_v_f32m2 vlsev_float32xm2
+#define vlse32_v_f32m4 vlsev_float32xm4
+#define vlse32_v_f32m8 vlsev_float32xm8
+
+#define vsse32_v_f32m1 vssev_float32xm1
+#define vsse32_v_f32m2 vssev_float32xm2
+#define vsse32_v_f32m4 vssev_float32xm4
+#define vsse32_v_f32m8 vssev_float32xm8
+
+#define vlseg2e32_v_f32m1x2 vlseg2ev_float32x2xm1
+#define vsseg2e32_v_f32m1x2 vsseg2ev_float32x2xm1
 
 #define vlseg4e32_v_f32m1x4 vlseg4ev_float32x4xm1
 #define vsseg4e32_v_f32m1x4 vsseg4ev_float32x4xm1
 
+#define vlseg8e32_v_f32m1x8 vlseg8ev_float32x8xm1
+#define vsseg8e32_v_f32m1x8 vsseg8ev_float32x8xm1
+
+#define vlseg4e32_v_f32m2x4 vlseg4ev_float32x4xm2
+#define vsseg4e32_v_f32m2x4 vsseg4ev_float32x4xm2
+
+#define vlseg2e32_v_f32m4x2 vlseg2ev_float32x2xm4
+#define vsseg2e32_v_f32m4x2 vsseg2ev_float32x2xm4
+
+#define vssseg8e32_v_f32m1x8 vssseg8ev_float32x8xm1
+#define vssseg4e32_v_f32m1x4 vssseg4ev_float32x4xm1
+#define vssseg2e32_v_f32m1x2 vssseg2ev_float32x2xm1
+
+#define vloxseg2ei32_v_f32m4x2(a, i, vl) vlxseg2ev_float32x2xm4(a, reinterpret_cast<int32xm4_t>(i), vl)
+
+#define vset_f32m1x2       vseg_element_set_float32x2xm1
+#define vset_f32m1x4       vseg_element_set_float32x4xm1
+#define vset_f32m1x8       vseg_element_set_float32x8xm1
 #define vset_f32m2x4       vseg_element_set_float32x4xm2
+#define vset_f32m4x2       vseg_element_set_float32x2xm4
+#define vget_f32m1x2_f32m1 vseg_element_get_float32x2xm1
+#define vget_f32m1x4_f32m1 vseg_element_get_float32x4xm1
+#define vget_f32m1x8_f32m1 vseg_element_get_float32x8xm1
 #define vget_f32m2x4_f32m2 vseg_element_get_float32x4xm2
+#define vget_f32m4x2_f32m4 vseg_element_get_float32x2xm4
+
+static inline vfloat32m1x2_t vcreate_f32m1x2(vfloat32m1_t v0, vfloat32m1_t v1)
+{
+    vfloat32m1x2_t p;
+    p = vset_f32m1x2(p, 0, v0);
+    p = vset_f32m1x2(p, 1, v1);
+    return p;
+}
+
+static inline vfloat32m1x4_t vcreate_f32m1x4(vfloat32m1_t v0, vfloat32m1_t v1, vfloat32m1_t v2, vfloat32m1_t v3)
+{
+    vfloat32m1x4_t p;
+    p = vset_f32m1x4(p, 0, v0);
+    p = vset_f32m1x4(p, 1, v1);
+    p = vset_f32m1x4(p, 2, v2);
+    p = vset_f32m1x4(p, 3, v3);
+    return p;
+}
 
 static inline vfloat32m2x4_t vcreate_f32m2x4(vfloat32m2_t v0, vfloat32m2_t v1, vfloat32m2_t v2, vfloat32m2_t v3)
 {
@@ -122,10 +192,24 @@ static inline vfloat32m2x4_t vcreate_f32m2x4(vfloat32m2_t v0, vfloat32m2_t v1, v
     return p;
 }
 
-#define vfmv_s_f_f32m1 vfmvsf_float32xm1
-#define vfmv_s_f_f32m2 vfmvsf_float32xm2
-#define vfmv_s_f_f32m4 vfmvsf_float32xm4
-#define vfmv_s_f_f32m8 vfmvsf_float32xm8
+static inline vfloat32m1x8_t vcreate_f32m1x8(vfloat32m1_t v0, vfloat32m1_t v1, vfloat32m1_t v2, vfloat32m1_t v3, vfloat32m1_t v4, vfloat32m1_t v5, vfloat32m1_t v6, vfloat32m1_t v7)
+{
+    vfloat32m1x8_t p;
+    p = vset_f32m1x8(p, 0, v0);
+    p = vset_f32m1x8(p, 1, v1);
+    p = vset_f32m1x8(p, 2, v2);
+    p = vset_f32m1x8(p, 3, v3);
+    p = vset_f32m1x8(p, 4, v4);
+    p = vset_f32m1x8(p, 5, v5);
+    p = vset_f32m1x8(p, 6, v6);
+    p = vset_f32m1x8(p, 7, v7);
+    return p;
+}
+
+#define vfmv_s_f_f32m1(a, b, vl) vfmvsf_float32xm1(b, vl)
+#define vfmv_s_f_f32m2(a, b, vl) vfmvsf_float32xm2(b, vl)
+#define vfmv_s_f_f32m4(a, b, vl) vfmvsf_float32xm4(b, vl)
+#define vfmv_s_f_f32m8(a, b, vl) vfmvsf_float32xm8(b, vl)
 
 #define vfmv_f_s_f32m1_f32(x) vfmvfs_float32xm1(x, vl)
 #define vfmv_f_s_f32m2_f32(x) vfmvfs_float32xm2(x, vl)
@@ -304,6 +388,10 @@ static inline vfloat32m2x4_t vcreate_f32m2x4(vfloat32m2_t v0, vfloat32m2_t v1, v
 #define vfrsqrt7_v_f32m4(x, vl) vfrdivvf_float32xm4(vfsqrtv_float32xm4(x, vl), 1.f, vl)
 #define vfrsqrt7_v_f32m8(x, vl) vfrdivvf_float32xm8(vfsqrtv_float32xm8(x, vl), 1.f, vl)
 
+#define vfmacc_vv_f32m1 vfmaccvv_float32xm1
+#define vfmacc_vv_f32m2 vfmaccvv_float32xm2
+#define vfmacc_vv_f32m4 vfmaccvv_float32xm4
+#define vfmacc_vv_f32m8 vfmaccvv_float32xm8
 #define vfmacc_vf_f32m1 vfmaccvf_float32xm1
 #define vfmacc_vf_f32m2 vfmaccvf_float32xm2
 #define vfmacc_vf_f32m4 vfmaccvf_float32xm4
@@ -313,6 +401,61 @@ static inline vfloat32m2x4_t vcreate_f32m2x4(vfloat32m2_t v0, vfloat32m2_t v1, v
 #define vfnmsac_vv_f32m2 vfnmsacvv_float32xm2
 #define vfnmsac_vv_f32m4 vfnmsacvv_float32xm4
 #define vfnmsac_vv_f32m8 vfnmsacvv_float32xm8
+#define vfnmsac_vf_f32m1 vfnmsacvf_float32xm1
+#define vfnmsac_vf_f32m2 vfnmsacvf_float32xm2
+#define vfnmsac_vf_f32m4 vfnmsacvf_float32xm4
+#define vfnmsac_vf_f32m8 vfnmsacvf_float32xm8
+
+#define vfwmul_vv_f32m2 vfwmulvv_float32xm2_float16xm1
+#define vfwmul_vv_f32m4 vfwmulvv_float32xm4_float16xm2
+#define vfwmul_vv_f32m8 vfwmulvv_float32xm8_float16xm4
+#define vfwmul_vf_f32m2 vfwmulvf_float32xm2_float16xm1
+#define vfwmul_vf_f32m4 vfwmulvf_float32xm4_float16xm2
+#define vfwmul_vf_f32m8 vfwmulvf_float32xm8_float16xm4
+
+#define vfwmacc_vv_f32m2 vfwmaccvv_float32xm2_float16xm1
+#define vfwmacc_vv_f32m4 vfwmaccvv_float32xm4_float16xm2
+#define vfwmacc_vv_f32m8 vfwmaccvv_float32xm8_float16xm4
+#define vfwmacc_vf_f32m2 vfwmaccvf_float32xm2_float16xm1
+#define vfwmacc_vf_f32m4 vfwmaccvf_float32xm4_float16xm2
+#define vfwmacc_vf_f32m8 vfwmaccvf_float32xm8_float16xm4
+
+static inline vfloat32m1_t vfredsum_vs_f32m1_f32m1(vfloat32m1_t dst, vfloat32m1_t a, vfloat32m1_t b, word_type vl)
+{
+    return vfredsumvs_float32xm1(a, b, vl);
+}
+static inline vfloat32m1_t vfredsum_vs_f32m2_f32m1(vfloat32m1_t dst, vfloat32m2_t a, vfloat32m1_t b, word_type vl)
+{
+    float32xm2_u b2;
+    b2.m1[0] = b;
+    b2.m1[1] = vfmvvf_float32xm1(0.f, vl);
+    b2.v = vfredsumvs_float32xm2(a, b2.v, vl);
+    return vfaddvv_float32xm1(b2.m1[0], b2.m1[1], vl);
+}
+static inline vfloat32m1_t vfredsum_vs_f32m4_f32m1(vfloat32m1_t dst, vfloat32m4_t a, vfloat32m1_t b, word_type vl)
+{
+    float32xm4_u b4;
+    b4.m1[0] = b;
+    b4.m1[1] = vfmvvf_float32xm1(0.f, vl);
+    b4.m1[2] = vfmvvf_float32xm1(0.f, vl);
+    b4.m1[3] = vfmvvf_float32xm1(0.f, vl);
+    b4.v = vfredsumvs_float32xm4(a, b4.v, vl);
+    return vfaddvv_float32xm1(vfaddvv_float32xm1(b4.m1[0], b4.m1[1], vl), vfaddvv_float32xm1(b4.m1[2], b4.m1[3], vl), vl);
+}
+static inline vfloat32m1_t vfredsum_vs_f32m8_f32m1(vfloat32m1_t dst, vfloat32m8_t a, vfloat32m1_t b, word_type vl)
+{
+    float32xm8_u b8;
+    b8.m1[0] = b;
+    b8.m1[1] = vfmvvf_float32xm1(0.f, vl);
+    b8.m1[2] = vfmvvf_float32xm1(0.f, vl);
+    b8.m1[3] = vfmvvf_float32xm1(0.f, vl);
+    b8.m1[4] = vfmvvf_float32xm1(0.f, vl);
+    b8.m1[5] = vfmvvf_float32xm1(0.f, vl);
+    b8.m1[6] = vfmvvf_float32xm1(0.f, vl);
+    b8.m1[7] = vfmvvf_float32xm1(0.f, vl);
+    b8.v = vfredsumvs_float32xm8(a, b8.v, vl);
+    return vfaddvv_float32xm1(vfaddvv_float32xm1(vfaddvv_float32xm1(b8.m1[0], b8.m1[1], vl), vfaddvv_float32xm1(b8.m1[2], b8.m1[3], vl), vl), vfaddvv_float32xm1(vfaddvv_float32xm1(b8.m1[4], b8.m1[5], vl), vfaddvv_float32xm1(b8.m1[6], b8.m1[7], vl), vl), vl);
+}
 
 #define vmfeq_vv_f32m1_b32 vmfeqvv_e32xm1_float32xm1
 #define vmfeq_vv_f32m2_b16 vmfeqvv_e32xm2_float32xm2
@@ -427,14 +570,80 @@ static inline vfloat32m2x4_t vcreate_f32m2x4(vfloat32m2_t v0, vfloat32m2_t v1, v
 #define vse16_v_f16m4 vsev_float16xm4
 #define vse16_v_f16m8 vsev_float16xm8
 
+#define vlse16_v_f16m1 vlsev_float16xm1
+#define vlse16_v_f16m2 vlsev_float16xm2
+#define vlse16_v_f16m4 vlsev_float16xm4
+#define vlse16_v_f16m8 vlsev_float16xm8
+
+#define vsse16_v_f16m1 vssev_float16xm1
+#define vsse16_v_f16m2 vssev_float16xm2
+#define vsse16_v_f16m4 vssev_float16xm4
+#define vsse16_v_f16m8 vssev_float16xm8
+
+#define vlseg2e16_v_f16m1x2 vlseg2ev_float16x2xm1
+#define vsseg2e16_v_f16m1x2 vsseg2ev_float16x2xm1
+
+#define vlseg4e16_v_f16m1x4 vlseg4ev_float16x4xm1
+#define vsseg4e16_v_f16m1x4 vsseg4ev_float16x4xm1
+
 #define vlseg8e16_v_f16m1x8 vlseg8ev_float16x8xm1
 #define vsseg8e16_v_f16m1x8 vsseg8ev_float16x8xm1
 
 #define vlseg4e16_v_f16m2x4 vlseg4ev_float16x4xm2
 #define vsseg4e16_v_f16m2x4 vsseg4ev_float16x4xm2
 
-#define vlseg4e16_v_f16m1x4 vlseg4ev_float16x4xm1
-#define vsseg4e16_v_f16m1x4 vsseg4ev_float16x4xm1
+#define vssseg8e16_v_f16m1x8 vssseg8ev_float16x8xm1
+#define vssseg4e16_v_f16m1x4 vssseg4ev_float16x4xm1
+#define vssseg2e16_v_f16m1x2 vssseg2ev_float16x2xm1
+
+#define vset_f16m1x2       vseg_element_set_float16x2xm1
+#define vset_f16m1x4       vseg_element_set_float16x4xm1
+#define vset_f16m1x8       vseg_element_set_float16x8xm1
+#define vget_f16m1x2_f16m1 vseg_element_get_float16x2xm1
+#define vget_f16m1x4_f16m1 vseg_element_get_float16x4xm1
+#define vget_f16m1x8_f16m1 vseg_element_get_float16x8xm1
+
+static inline vfloat16m1x2_t vcreate_f16m1x2(vfloat16m1_t v0, vfloat16m1_t v1)
+{
+    vfloat16m1x2_t p;
+    p = vset_f16m1x2(p, 0, v0);
+    p = vset_f16m1x2(p, 1, v1);
+    return p;
+}
+
+static inline vfloat16m1x4_t vcreate_f16m1x4(vfloat16m1_t v0, vfloat16m1_t v1, vfloat16m1_t v2, vfloat16m1_t v3)
+{
+    vfloat16m1x4_t p;
+    p = vset_f16m1x4(p, 0, v0);
+    p = vset_f16m1x4(p, 1, v1);
+    p = vset_f16m1x4(p, 2, v2);
+    p = vset_f16m1x4(p, 3, v3);
+    return p;
+}
+
+static inline vfloat16m1x8_t vcreate_f16m1x8(vfloat16m1_t v0, vfloat16m1_t v1, vfloat16m1_t v2, vfloat16m1_t v3, vfloat16m1_t v4, vfloat16m1_t v5, vfloat16m1_t v6, vfloat16m1_t v7)
+{
+    vfloat16m1x8_t p;
+    p = vset_f16m1x8(p, 0, v0);
+    p = vset_f16m1x8(p, 1, v1);
+    p = vset_f16m1x8(p, 2, v2);
+    p = vset_f16m1x8(p, 3, v3);
+    p = vset_f16m1x8(p, 4, v4);
+    p = vset_f16m1x8(p, 5, v5);
+    p = vset_f16m1x8(p, 6, v6);
+    p = vset_f16m1x8(p, 7, v7);
+    return p;
+}
+
+#define vfmv_s_f_f16m1(a, b, vl) vfmvsf_float16xm1(b, vl)
+#define vfmv_s_f_f16m2(a, b, vl) vfmvsf_float16xm2(b, vl)
+#define vfmv_s_f_f16m4(a, b, vl) vfmvsf_float16xm4(b, vl)
+#define vfmv_s_f_f16m8(a, b, vl) vfmvsf_float16xm8(b, vl)
+
+#define vfmv_f_s_f16m1_f16(x) vfmvfs_float16xm1(x, vl)
+#define vfmv_f_s_f16m2_f16(x) vfmvfs_float16xm2(x, vl)
+#define vfmv_f_s_f16m4_f16(x) vfmvfs_float16xm4(x, vl)
+#define vfmv_f_s_f16m8_f16(x) vfmvfs_float16xm8(x, vl)
 
 #define vfmv_v_f_f16m1 vfmvvf_float16xm1
 #define vfmv_v_f_f16m2 vfmvvf_float16xm2
@@ -608,6 +817,10 @@ static inline vfloat32m2x4_t vcreate_f32m2x4(vfloat32m2_t v0, vfloat32m2_t v1, v
 #define vfrsqrt7_v_f16m4(x, vl) vfrdivvf_float16xm4(vfsqrtv_float16xm4(x, vl), 1.f, vl)
 #define vfrsqrt7_v_f16m8(x, vl) vfrdivvf_float16xm8(vfsqrtv_float16xm8(x, vl), 1.f, vl)
 
+#define vfmacc_vv_f16m1 vfmaccvv_float16xm1
+#define vfmacc_vv_f16m2 vfmaccvv_float16xm2
+#define vfmacc_vv_f16m4 vfmaccvv_float16xm4
+#define vfmacc_vv_f16m8 vfmaccvv_float16xm8
 #define vfmacc_vf_f16m1 vfmaccvf_float16xm1
 #define vfmacc_vf_f16m2 vfmaccvf_float16xm2
 #define vfmacc_vf_f16m4 vfmaccvf_float16xm4
@@ -617,6 +830,47 @@ static inline vfloat32m2x4_t vcreate_f32m2x4(vfloat32m2_t v0, vfloat32m2_t v1, v
 #define vfnmsac_vv_f16m2 vfnmsacvv_float16xm2
 #define vfnmsac_vv_f16m4 vfnmsacvv_float16xm4
 #define vfnmsac_vv_f16m8 vfnmsacvv_float16xm8
+#define vfnmsac_vf_f16m1 vfnmsacvf_float16xm1
+#define vfnmsac_vf_f16m2 vfnmsacvf_float16xm2
+#define vfnmsac_vf_f16m4 vfnmsacvf_float16xm4
+#define vfnmsac_vf_f16m8 vfnmsacvf_float16xm8
+
+static inline vfloat16m1_t vfredsum_vs_f16m1_f16m1(vfloat16m1_t dst, vfloat16m1_t a, vfloat16m1_t b, word_type vl)
+{
+    return vfredsumvs_float16xm1(a, b, vl);
+}
+static inline vfloat16m1_t vfredsum_vs_f16m2_f16m1(vfloat16m1_t dst, vfloat16m2_t a, vfloat16m1_t b, word_type vl)
+{
+    float16xm2_u b2;
+    b2.m1[0] = b;
+    b2.m1[1] = vfmvvf_float16xm1(0.f, vl);
+    b2.v = vfredsumvs_float16xm2(a, b2.v, vl);
+    return vfaddvv_float16xm1(b2.m1[0], b2.m1[1], vl);
+}
+static inline vfloat16m1_t vfredsum_vs_f16m4_f16m1(vfloat16m1_t dst, vfloat16m4_t a, vfloat16m1_t b, word_type vl)
+{
+    float16xm4_u b4;
+    b4.m1[0] = b;
+    b4.m1[1] = vfmvvf_float16xm1(0.f, vl);
+    b4.m1[2] = vfmvvf_float16xm1(0.f, vl);
+    b4.m1[3] = vfmvvf_float16xm1(0.f, vl);
+    b4.v = vfredsumvs_float16xm4(a, b4.v, vl);
+    return vfaddvv_float16xm1(vfaddvv_float16xm1(b4.m1[0], b4.m1[1], vl), vfaddvv_float16xm1(b4.m1[2], b4.m1[3], vl), vl);
+}
+static inline vfloat16m1_t vfredsum_vs_f16m8_f16m1(vfloat16m1_t dst, vfloat16m8_t a, vfloat16m1_t b, word_type vl)
+{
+    float16xm8_u b8;
+    b8.m1[0] = b;
+    b8.m1[1] = vfmvvf_float16xm1(0.f, vl);
+    b8.m1[2] = vfmvvf_float16xm1(0.f, vl);
+    b8.m1[3] = vfmvvf_float16xm1(0.f, vl);
+    b8.m1[4] = vfmvvf_float16xm1(0.f, vl);
+    b8.m1[5] = vfmvvf_float16xm1(0.f, vl);
+    b8.m1[6] = vfmvvf_float16xm1(0.f, vl);
+    b8.m1[7] = vfmvvf_float16xm1(0.f, vl);
+    b8.v = vfredsumvs_float16xm8(a, b8.v, vl);
+    return vfaddvv_float16xm1(vfaddvv_float16xm1(vfaddvv_float16xm1(b8.m1[0], b8.m1[1], vl), vfaddvv_float16xm1(b8.m1[2], b8.m1[3], vl), vl), vfaddvv_float16xm1(vfaddvv_float16xm1(b8.m1[4], b8.m1[5], vl), vfaddvv_float16xm1(b8.m1[6], b8.m1[7], vl), vl), vl);
+}
 
 #define vmfeq_vv_f16m1_b16 vmfeqvv_e16xm1_float16xm1
 #define vmfeq_vv_f16m2_b8  vmfeqvv_e16xm2_float16xm2
@@ -928,7 +1182,43 @@ static inline vfloat32m2x4_t vcreate_f32m2x4(vfloat32m2_t v0, vfloat32m2_t v1, v
 #define vreinterpret_v_f16m4_i16m4(x) reinterpret_cast<vint16m4_t>(x)
 #define vreinterpret_v_f16m8_i16m8(x) reinterpret_cast<vint16m8_t>(x)
 
+/******************************** int8 ********************************/
+#define vle8_v_i8m1 vlev_int8xm1
+#define vle8_v_i8m2 vlev_int8xm2
+#define vle8_v_i8m4 vlev_int8xm4
+#define vle8_v_i8m8 vlev_int8xm8
+
+#define vse8_v_i8m1 vsev_int8xm1
+#define vse8_v_i8m2 vsev_int8xm2
+#define vse8_v_i8m4 vsev_int8xm4
+#define vse8_v_i8m8 vsev_int8xm8
+
+#define vlse8_v_i8m1 vlsev_int8xm1
+#define vlse8_v_i8m2 vlsev_int8xm2
+#define vlse8_v_i8m4 vlsev_int8xm4
+#define vlse8_v_i8m8 vlsev_int8xm8
+
+#define vsse8_v_i8m1 vssev_int8xm1
+#define vsse8_v_i8m2 vssev_int8xm2
+#define vsse8_v_i8m4 vssev_int8xm4
+#define vsse8_v_i8m8 vssev_int8xm8
+
+#define vmv_v_x_i8m1 vmvvx_int8xm1
+#define vmv_v_x_i8m2 vmvvx_int8xm2
+#define vmv_v_x_i8m4 vmvvx_int8xm4
+#define vmv_v_x_i8m8 vmvvx_int8xm8
+
 /******************************** uint32 ********************************/
+#define vle32_v_u32m1 vlev_uint32xm1
+#define vle32_v_u32m2 vlev_uint32xm2
+#define vle32_v_u32m4 vlev_uint32xm4
+#define vle32_v_u32m8 vlev_uint32xm8
+
+#define vse32_v_u32m1 vsev_uint32xm1
+#define vse32_v_u32m2 vsev_uint32xm2
+#define vse32_v_u32m4 vsev_uint32xm4
+#define vse32_v_u32m8 vsev_uint32xm8
+
 #define vadd_vv_u32m1                           vaddvv_uint32xm1
 #define vadd_vv_u32m2                           vaddvv_uint32xm2
 #define vadd_vv_u32m4                           vaddvv_uint32xm4
@@ -962,6 +1252,40 @@ static inline vfloat32m2x4_t vcreate_f32m2x4(vfloat32m2_t v0, vfloat32m2_t v1, v
 #define vsub_vx_u32m2_m(mask, merged, a, b, vl) vsubvx_mask_uint32xm2(merged, a, b, mask, vl)
 #define vsub_vx_u32m4_m(mask, merged, a, b, vl) vsubvx_mask_uint32xm4(merged, a, b, mask, vl)
 #define vsub_vx_u32m8_m(mask, merged, a, b, vl) vsubvx_mask_uint32xm8(merged, a, b, mask, vl)
+
+#define vmul_vv_u32m1                           vmulvv_uint32xm1
+#define vmul_vv_u32m2                           vmulvv_uint32xm2
+#define vmul_vv_u32m4                           vmulvv_uint32xm4
+#define vmul_vv_u32m8                           vmulvv_uint32xm8
+#define vmul_vx_u32m1(a, b, vl)                 vmulvv_uint32xm1(a, vmvvx_uint32xm4(b, vl), vl)
+#define vmul_vx_u32m2(a, b, vl)                 vmulvv_uint32xm2(a, vmvvx_uint32xm4(b, vl), vl)
+#define vmul_vx_u32m4(a, b, vl)                 vmulvv_uint32xm4(a, vmvvx_uint32xm4(b, vl), vl)
+#define vmul_vx_u32m8(a, b, vl)                 vmulvv_uint32xm8(a, vmvvx_uint32xm4(b, vl), vl)
+#define vmul_vv_u32m1_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm1(merged, a, b, mask, vl)
+#define vmul_vv_u32m2_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm2(merged, a, b, mask, vl)
+#define vmul_vv_u32m4_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm4(merged, a, b, mask, vl)
+#define vmul_vv_u32m8_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm8(merged, a, b, mask, vl)
+#define vmul_vx_u32m1_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm1(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
+#define vmul_vx_u32m2_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm2(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
+#define vmul_vx_u32m4_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm4(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
+#define vmul_vx_u32m8_m(mask, merged, a, b, vl) vmulvv_mask_uint32xm8(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
+
+#define vdiv_vv_u32m1                           vdivvv_uint32xm1
+#define vdiv_vv_u32m2                           vdivvv_uint32xm2
+#define vdiv_vv_u32m4                           vdivvv_uint32xm4
+#define vdiv_vv_u32m8                           vdivvv_uint32xm8
+#define vdiv_vx_u32m1(a, b, vl)                 vdivvv_uint32xm1(a, vmvvx_uint32xm4(b, vl), vl)
+#define vdiv_vx_u32m2(a, b, vl)                 vdivvv_uint32xm2(a, vmvvx_uint32xm4(b, vl), vl)
+#define vdiv_vx_u32m4(a, b, vl)                 vdivvv_uint32xm4(a, vmvvx_uint32xm4(b, vl), vl)
+#define vdiv_vx_u32m8(a, b, vl)                 vdivvv_uint32xm8(a, vmvvx_uint32xm4(b, vl), vl)
+#define vdiv_vv_u32m1_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm1(merged, a, b, mask, vl)
+#define vdiv_vv_u32m2_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm2(merged, a, b, mask, vl)
+#define vdiv_vv_u32m4_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm4(merged, a, b, mask, vl)
+#define vdiv_vv_u32m8_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm8(merged, a, b, mask, vl)
+#define vdiv_vx_u32m1_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm1(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
+#define vdiv_vx_u32m2_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm2(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
+#define vdiv_vx_u32m4_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm4(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
+#define vdiv_vx_u32m8_m(mask, merged, a, b, vl) vdivvv_mask_uint32xm8(merged, a, vmvvx_uint32xm4(b, vl), mask, vl)
 
 #define vsll_vv_u32m1                           vsllvv_uint32xm1
 #define vsll_vv_u32m2                           vsllvv_uint32xm2
@@ -1101,6 +1425,16 @@ static inline vfloat32m2x4_t vcreate_f32m2x4(vfloat32m2_t v0, vfloat32m2_t v1, v
 #define vse16_v_u16m4 vsev_uint16xm4
 #define vse16_v_u16m8 vsev_uint16xm8
 
+#define vlse16_v_u16m1 vlsev_uint16xm1
+#define vlse16_v_u16m2 vlsev_uint16xm2
+#define vlse16_v_u16m4 vlsev_uint16xm4
+#define vlse16_v_u16m8 vlsev_uint16xm8
+
+#define vsse16_v_u16m1 vssev_uint16xm1
+#define vsse16_v_u16m2 vssev_uint16xm2
+#define vsse16_v_u16m4 vssev_uint16xm4
+#define vsse16_v_u16m8 vssev_uint16xm8
+
 #define vlseg8e16_v_u16m1x8 vlseg8ev_uint16x8xm1
 #define vsseg8e16_v_u16m1x8 vsseg8ev_uint16x8xm1
 
@@ -1152,6 +1486,11 @@ static inline vuint16m1x8_t vcreate_u16m1x8(vuint16m1_t v0, vuint16m1_t v1, vuin
     p = vset_u16m1x8(p, 7, v7);
     return p;
 }
+
+#define vmv_v_x_u16m1 vmvvx_uint16xm1
+#define vmv_v_x_u16m2 vmvvx_uint16xm2
+#define vmv_v_x_u16m4 vmvvx_uint16xm4
+#define vmv_v_x_u16m8 vmvvx_uint16xm8
 
 #define vadd_vv_u16m1                           vaddvv_uint16xm1
 #define vadd_vv_u16m2                           vaddvv_uint16xm2

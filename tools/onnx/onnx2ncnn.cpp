@@ -3272,6 +3272,10 @@ int main(int argc, char** argv)
     {
         const std::string& input_name = it->first;
 
+        // there may be some weight nodes in initializer but none of the graph node use them
+        // add them to blob_names so we could get proper blob count later
+        blob_names.insert(input_name);
+
         int refcount = node_reference[input_name];
         if (refcount == 0)
             zero_reference_weight_node_count++;
@@ -3486,7 +3490,15 @@ int main(int argc, char** argv)
         }
         else if (op == "AveragePool" || op == "MaxPool")
         {
-            fprintf(pp, "%-16s", "Pooling");
+            std::vector<int> kernel_shape = get_node_attr_ai(node, "kernel_shape");
+            if (kernel_shape.size() == 1)
+            {
+                fprintf(pp, "%-16s", "Pooling1D");
+            }
+            else
+            {
+                fprintf(pp, "%-16s", "Pooling");
+            }
         }
         else if (op == "BatchNormalization")
         {
@@ -3514,14 +3526,22 @@ int main(int argc, char** argv)
         }
         else if (op == "Conv")
         {
-            int group = get_node_attr_i(node, "group", 1);
-            if (group > 1)
+            std::vector<int> kernel_shape = get_node_attr_ai(node, "kernel_shape");
+            if (kernel_shape.size() == 1)
             {
-                fprintf(pp, "%-16s", "ConvolutionDepthWise");
+                fprintf(pp, "%-16s", "Convolution1D");
             }
             else
             {
-                fprintf(pp, "%-16s", "Convolution");
+                int group = get_node_attr_i(node, "group", 1);
+                if (group > 1)
+                {
+                    fprintf(pp, "%-16s", "ConvolutionDepthWise");
+                }
+                else
+                {
+                    fprintf(pp, "%-16s", "Convolution");
+                }
             }
         }
         else if (op == "ConvTranspose")
