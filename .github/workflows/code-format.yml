@@ -26,9 +26,10 @@ jobs:
         make -j2 clang-format
         cp -r bin/clang-format $GITHUB_WORKSPACE/clang-format-install
 
-#    - name: code-format
-#      run: clang-format-install/clang-format --version
-#      run: sh codeformat.sh
-#    - uses: stefanzweifel/git-auto-commit-action@v4
-#      with:
-#        commit_message: apply code-format changes
+    - name: code-format
+      run: |
+        export PATH=$GITHUB_WORKSPACE/clang-format-install:$PATH
+        sh codeformat.sh
+    - uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: apply code-format changes
