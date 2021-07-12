@@ -85,7 +85,7 @@ int PixelShuffle_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 #if __ARM_NEON
     if (elempack == 4 && out_elempack == 4)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outc / out_elempack; p++)
         {
             Mat m = top_blob.channel(p);
@@ -172,7 +172,7 @@ int PixelShuffle_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     if (elempack == 4 && out_elempack == 1)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outc / out_elempack; p++)
         {
             Mat m = top_blob.channel(p);
@@ -236,7 +236,8 @@ int PixelShuffle_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob,
     int out_elempack = 1;
     if (opt.use_packing_layout)
     {
-        out_elempack = opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4
+                                                                                    : 1;
     }
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -252,7 +253,7 @@ int PixelShuffle_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob,
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outc; p++)
         {
             Mat m = top_blob.channel(p);
@@ -294,7 +295,7 @@ int PixelShuffle_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob,
 #if __ARM_NEON
     if (elempack == 8 && out_elempack == 8)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outc / out_elempack; p++)
         {
             Mat m = top_blob.channel(p);
@@ -420,7 +421,7 @@ int PixelShuffle_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob,
 
     if (elempack == 8 && out_elempack == 4)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outc / out_elempack; p++)
         {
             Mat m = top_blob.channel(p);
@@ -502,7 +503,7 @@ int PixelShuffle_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob,
 
     if (elempack == 8 && out_elempack == 1)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outc / out_elempack / 2; p++)
         {
             Mat m0 = top_blob.channel(p * 2);
@@ -564,7 +565,7 @@ int PixelShuffle_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob,
 
     if (elempack == 4 && out_elempack == 4)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outc / out_elempack; p++)
         {
             Mat m = top_blob.channel(p);
@@ -655,7 +656,7 @@ int PixelShuffle_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob,
 
     if (elempack == 4 && out_elempack == 1)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outc / out_elempack; p++)
         {
             Mat m = top_blob.channel(p);
@@ -703,7 +704,7 @@ int PixelShuffle_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob,
     }
 #endif // __ARM_NEON
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outc; p++)
     {
         Mat m = top_blob.channel(p);

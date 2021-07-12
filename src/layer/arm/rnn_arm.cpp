@@ -60,7 +60,7 @@ int RNN_arm::create_pipeline(const Option& opt)
     weight_xc_data_packed.create(size * 4, num_output / 4 + num_output % 4, num_directions);
     weight_hc_data_packed.create(num_output * 4, num_output / 4 + num_output % 4, num_directions);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int dr = 0; dr < num_directions; dr++)
     {
         const Mat weight_xc = weight_xc_data.channel(dr);
@@ -778,7 +778,7 @@ int RNN_arm::create_pipeline_fp16s(const Option& opt)
         weight_hc_data_packed.create(num_output * 4, num_output / 4 + num_output % 4, num_directions, 2u, 1);
     }
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int dr = 0; dr < num_directions; dr++)
     {
         const Mat weight_xc = weight_xc_data.channel(dr);
@@ -1243,7 +1243,7 @@ int RNN_arm::create_pipeline_bf16s(const Option& opt)
     weight_xc_data_packed.create(size * 4, num_output / 4 + num_output % 4, num_directions, 2u, 1);
     weight_hc_data_packed.create(num_output * 4, num_output / 4 + num_output % 4, num_directions, 2u, 1);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int dr = 0; dr < num_directions; dr++)
     {
         const Mat weight_xc = weight_xc_data.channel(dr);

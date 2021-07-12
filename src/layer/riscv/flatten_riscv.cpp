@@ -113,7 +113,7 @@ int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 #if __riscv_vector
         if (elempack == packn) // out_elempack == packn
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 const float* ptr = bottom_blob.row(i);
@@ -141,7 +141,7 @@ int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 #if __riscv_vector
         if (elempack == packn) // out_elempack == packn
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -165,7 +165,7 @@ int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
         if (elempack == 1) // out_elempack == packn
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -255,7 +255,7 @@ int Flatten_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 #if __riscv_vector
         if (elempack == packn) // out_elempack == packn
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 const unsigned short* ptr = bottom_blob.row<unsigned short>(i);
@@ -283,7 +283,7 @@ int Flatten_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 #if __riscv_vector
         if (elempack == packn) // out_elempack == packn
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const unsigned short* ptr = bottom_blob.channel(q);
@@ -307,7 +307,7 @@ int Flatten_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 
         if (elempack == 1) // out_elempack == packn
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const unsigned short* ptr = bottom_blob.channel(q);
@@ -397,7 +397,7 @@ int Flatten_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
 #if __riscv_vector
         if (elempack == packn) // out_elempack == packn
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 const signed char* ptr = bottom_blob.row<signed char>(i);
@@ -425,7 +425,7 @@ int Flatten_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
 #if __riscv_vector
         if (elempack == packn) // out_elempack == packn
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const signed char* ptr = bottom_blob.channel(q);
@@ -449,7 +449,7 @@ int Flatten_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
 
         if (elempack == 1) // out_elempack == packn
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const signed char* ptr = bottom_blob.channel(q);

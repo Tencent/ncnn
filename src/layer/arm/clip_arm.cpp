@@ -57,7 +57,7 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __ARM_NEON
     if (elempack == 4)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -80,7 +80,7 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
 #endif // __ARM_NEON
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
@@ -121,11 +121,11 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 "bne        0b                  \n"
 
                 : "=r"(nn), // %0
-                "=r"(ptr) // %1
+                  "=r"(ptr) // %1
                 : "0"(nn),
-                "1"(ptr),
-                "w"(_min), // %q4
-                "w"(_max)  // %q5
+                  "1"(ptr),
+                  "w"(_min), // %q4
+                  "w"(_max)  // %q5
                 : "cc", "memory", "q0");
         }
 #endif // __aarch64__
@@ -157,7 +157,7 @@ int Clip_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
 
     if (elempack == 8)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             __fp16* ptr = bottom_top_blob.channel(q);
@@ -181,7 +181,7 @@ int Clip_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
 
     if (elempack == 4)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             __fp16* ptr = bottom_top_blob.channel(q);
@@ -213,7 +213,7 @@ int Clip_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
         return 0;
     }
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         __fp16* ptr = bottom_top_blob.channel(q);
@@ -275,7 +275,7 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 #if __ARM_NEON
     if (elempack == 4)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             unsigned short* ptr = bottom_top_blob.channel(q);
@@ -298,7 +298,7 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
     }
 #endif // __ARM_NEON
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         unsigned short* ptr = bottom_top_blob.channel(q);
