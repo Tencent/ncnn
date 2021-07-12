@@ -26,6 +26,11 @@ jobs:
         make -j2 clang-format
         cp -r bin/clang-format $GITHUB_WORKSPACE/clang-format-install
 
+    - name: astyle
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y astyle
+
     - name: code-format
       run: |
         export PATH=$GITHUB_WORKSPACE/clang-format-install:$PATH
