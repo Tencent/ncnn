@@ -69,10 +69,8 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
-    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4
-                   : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                       : 1;
+    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
@@ -106,10 +104,8 @@ int DeconvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
     const int channels_g = channels / group;
     const int num_output_g = num_output / group;
 
-    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4
-                     : 1;
-    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4
-                         : 1;
+    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
 
     size_t elemsize_g;
     size_t out_elemsize_g;
@@ -467,10 +463,8 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
     const int maxk = kernel_w * kernel_h;
     int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
 
-    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4
-                   : 1;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                       : 1;
+    int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
     Mat weight_data_transposed(weight_data.w);
     {
@@ -522,10 +516,8 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
     const int channels_g = channels / group;
     const int num_output_g = num_output / group;
 
-    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4
-                     : 1;
-    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4
-                         : 1;
+    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
 
     // src = kw-kh-inch-outch
     // dst = pa-pb-kw-kh-inch/pa-outch/pb
@@ -610,8 +602,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
 
     int outw = (w - 1) * stride_w + kernel_extent_w;
     int outh = (h - 1) * stride_h + kernel_extent_h;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                       : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
@@ -654,7 +645,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
         constants[8].i = top_blob_bordered.c;
         constants[9].i = top_blob_bordered.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_deconvolutiondepthwise_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_deconvolutiondepthwise_pack8
                                    : elempack == 4 ? pipeline_deconvolutiondepthwise_pack4
                                    : pipeline_deconvolutiondepthwise;
 
@@ -765,10 +756,8 @@ int DeconvolutionDepthWise_vulkan::forward(const VkMat& bottom_blob, VkMat& top_
     const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
 
-    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4
-                     : 1;
-    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4
-                         : 1;
+    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
     size_t out_elemsize_g = elemsize / elempack * out_elempack_g;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
@@ -978,8 +967,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
 
     int outw = (w - 1) * stride_w + kernel_extent_w;
     int outh = (h - 1) * stride_h + kernel_extent_h;
-    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                       : 1;
+    int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)
@@ -1022,7 +1010,7 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
         constants[8].i = top_blob_bordered.c;
         constants[9].i = 0; //top_blob_bordered.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_deconvolutiondepthwise_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_deconvolutiondepthwise_pack8
                                    : elempack == 4 ? pipeline_deconvolutiondepthwise_pack4
                                    : pipeline_deconvolutiondepthwise;
 
@@ -1133,10 +1121,8 @@ int DeconvolutionDepthWise_vulkan::forward(const VkImageMat& bottom_blob, VkImag
     const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
 
-    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4
-                     : 1;
-    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4
-                         : 1;
+    int elempack_g = opt.use_shader_pack8 && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+    int out_elempack_g = opt.use_shader_pack8 && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
     size_t out_elemsize_g = elemsize / elempack * out_elempack_g;
 
     if (opt.use_fp16_packed && !opt.use_fp16_storage)

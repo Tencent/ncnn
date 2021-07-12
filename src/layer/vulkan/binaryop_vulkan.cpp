@@ -41,33 +41,23 @@ BinaryOp_vulkan::BinaryOp_vulkan()
 int BinaryOp_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
-    const Mat& shape1 = with_scalar ? shape : bottom_shapes.empty() ? Mat()
-                        : bottom_shapes[1];
+    const Mat& shape1 = with_scalar ? shape : bottom_shapes.empty() ? Mat() : bottom_shapes[1];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4
-                                        : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4
-                                        : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4
-                                        : 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     int elempack1 = 1;
-    if (shape1.dims == 1) elempack1 = opt.use_shader_pack8 && shape1.w % 8 == 0 ? 8 : shape1.w % 4 == 0 ? 4
-                                          : 1;
-    if (shape1.dims == 2) elempack1 = opt.use_shader_pack8 && shape1.h % 8 == 0 ? 8 : shape1.h % 4 == 0 ? 4
-                                          : 1;
-    if (shape1.dims == 3) elempack1 = opt.use_shader_pack8 && shape1.c % 8 == 0 ? 8 : shape1.c % 4 == 0 ? 4
-                                          : 1;
+    if (shape1.dims == 1) elempack1 = opt.use_shader_pack8 && shape1.w % 8 == 0 ? 8 : shape1.w % 4 == 0 ? 4 : 1;
+    if (shape1.dims == 2) elempack1 = opt.use_shader_pack8 && shape1.h % 8 == 0 ? 8 : shape1.h % 4 == 0 ? 4 : 1;
+    if (shape1.dims == 3) elempack1 = opt.use_shader_pack8 && shape1.c % 8 == 0 ? 8 : shape1.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4
-                                                : 1;
-    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4
-                                                : 1;
-    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4
-                                                : 1;
+    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t elemsize1;
@@ -415,7 +405,7 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     }
     else
     {
-        pipeline = out_elempack == 8   ? pipeline_binaryop_pack8
+        pipeline = out_elempack == 8 ? pipeline_binaryop_pack8
                    : out_elempack == 4 ? pipeline_binaryop_pack4
                    : pipeline_binaryop;
     }
@@ -441,7 +431,7 @@ int BinaryOp_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, con
     constants[13].i = bottom_top_blob.c;
     constants[14].i = bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8   ? pipeline_binaryop_pack8
+    const Pipeline* pipeline = elempack == 8 ? pipeline_binaryop_pack8
                                : elempack == 4 ? pipeline_binaryop_pack4
                                : pipeline_binaryop;
 
@@ -549,7 +539,7 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
     }
     else
     {
-        pipeline = out_elempack == 8   ? pipeline_binaryop_pack8
+        pipeline = out_elempack == 8 ? pipeline_binaryop_pack8
                    : out_elempack == 4 ? pipeline_binaryop_pack4
                    : pipeline_binaryop;
     }
@@ -575,7 +565,7 @@ int BinaryOp_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd
     constants[13].i = bottom_top_blob.c;
     constants[14].i = 0; //bottom_top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8   ? pipeline_binaryop_pack8
+    const Pipeline* pipeline = elempack == 8 ? pipeline_binaryop_pack8
                                : elempack == 4 ? pipeline_binaryop_pack4
                                : pipeline_binaryop;
 

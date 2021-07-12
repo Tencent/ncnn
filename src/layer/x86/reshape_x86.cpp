@@ -54,12 +54,9 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             // resolve dst_elempack
             int dims = top_blob_unpacked.dims;
 #if __AVX__
-            if (dims == 1) out_elempack = top_blob_unpacked.w % 8 == 0 ? 8 : top_blob_unpacked.w % 4 == 0 ? 4
-                                              : 1;
-            if (dims == 2) out_elempack = top_blob_unpacked.h % 8 == 0 ? 8 : top_blob_unpacked.h % 4 == 0 ? 4
-                                              : 1;
-            if (dims == 3) out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4
-                                              : 1;
+            if (dims == 1) out_elempack = top_blob_unpacked.w % 8 == 0 ? 8 : top_blob_unpacked.w % 4 == 0 ? 4 : 1;
+            if (dims == 2) out_elempack = top_blob_unpacked.h % 8 == 0 ? 8 : top_blob_unpacked.h % 4 == 0 ? 4 : 1;
+            if (dims == 3) out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
 #else
             if (dims == 1) out_elempack = top_blob_unpacked.w % 4 == 0 ? 4 : 1;
             if (dims == 2) out_elempack = top_blob_unpacked.h % 4 == 0 ? 4 : 1;
@@ -107,8 +104,7 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (opt.use_packing_layout)
         {
 #if __AVX__
-            out_elempack = _h % 8 == 0 ? 8 : _h % 4 == 0 ? 4
-                           : 1;
+            out_elempack = _h % 8 == 0 ? 8 : _h % 4 == 0 ? 4 : 1;
 #else
             out_elempack = _h % 4 == 0 ? 4 : 1;
 #endif
@@ -295,8 +291,7 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (opt.use_packing_layout)
         {
 #if __AVX__
-            out_elempack = _c % 8 == 0 ? 8 : _c % 4 == 0 ? 4
-                           : 1;
+            out_elempack = _c % 8 == 0 ? 8 : _c % 4 == 0 ? 4 : 1;
 #else
             out_elempack = _c % 4 == 0 ? 4 : 1;
 #endif

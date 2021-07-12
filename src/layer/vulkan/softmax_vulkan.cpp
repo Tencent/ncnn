@@ -45,12 +45,9 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
     int positive_axis = axis < 0 ? shape.dims + axis : axis;
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4
-                                        : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4
-                                        : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4
-                                        : 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     if (opt.use_fp16_storage)
@@ -334,7 +331,7 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
         constants[8].i = max_workspace.c;
         constants[9].i = max_workspace.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_softmax_reduce_max_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_max_pack8
                                    : elempack == 4 ? pipeline_softmax_reduce_max_pack4
                                    : pipeline_softmax_reduce_max;
 
@@ -359,7 +356,7 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
         constants[8].i = max_workspace.c;
         constants[9].i = max_workspace.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_softmax_exp_sub_max_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_exp_sub_max_pack8
                                    : elempack == 4 ? pipeline_softmax_exp_sub_max_pack4
                                    : pipeline_softmax_exp_sub_max;
 
@@ -384,7 +381,7 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
         constants[8].i = sum_workspace.c;
         constants[9].i = sum_workspace.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_softmax_reduce_sum_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_sum_pack8
                                    : elempack == 4 ? pipeline_softmax_reduce_sum_pack4
                                    : pipeline_softmax_reduce_sum;
 
@@ -409,7 +406,7 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
         constants[8].i = sum_workspace.c;
         constants[9].i = sum_workspace.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_softmax_div_sum_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_div_sum_pack8
                                    : elempack == 4 ? pipeline_softmax_div_sum_pack4
                                    : pipeline_softmax_div_sum;
 
@@ -481,7 +478,7 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
         constants[8].i = max_workspace.c;
         constants[9].i = 0; //max_workspace.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_softmax_reduce_max_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_max_pack8
                                    : elempack == 4 ? pipeline_softmax_reduce_max_pack4
                                    : pipeline_softmax_reduce_max;
 
@@ -507,7 +504,7 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
         constants[8].i = max_workspace.c;
         constants[9].i = 0; //max_workspace.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_softmax_exp_sub_max_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_exp_sub_max_pack8
                                    : elempack == 4 ? pipeline_softmax_exp_sub_max_pack4
                                    : pipeline_softmax_exp_sub_max;
 
@@ -532,7 +529,7 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
         constants[8].i = sum_workspace.c;
         constants[9].i = 0; //sum_workspace.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_softmax_reduce_sum_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_reduce_sum_pack8
                                    : elempack == 4 ? pipeline_softmax_reduce_sum_pack4
                                    : pipeline_softmax_reduce_sum;
 
@@ -558,7 +555,7 @@ int Softmax_vulkan::forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd,
         constants[8].i = sum_workspace.c;
         constants[9].i = 0; //sum_workspace.cstep;
 
-        const Pipeline* pipeline = elempack == 8   ? pipeline_softmax_div_sum_pack8
+        const Pipeline* pipeline = elempack == 8 ? pipeline_softmax_div_sum_pack8
                                    : elempack == 4 ? pipeline_softmax_div_sum_pack4
                                    : pipeline_softmax_div_sum;
 
