@@ -33,6 +33,7 @@ jobs:
 
     - name: code-format
       run: |
+        mkdir -p ~/bin
         mv $GITHUB_WORKSPACE/clang-format-install ~/bin/clang-format
         export PATH=~/bin:$PATH
         sh codeformat.sh
