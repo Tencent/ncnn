@@ -1,0 +1,21 @@
+name: code-format
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "code-format-bot"
+
+jobs:
+  code-format:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+    - name: apt
+      run: |
+        sudo apt-get install -y astyle clang-format-10
+    - name: code-format
+      run: sh codeformat.sh
+    - uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: apply code-format changes
