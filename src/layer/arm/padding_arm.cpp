@@ -358,19 +358,28 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 {
                     Mat borderm = top_blob.channel(q);
 
+                    // clang-format off
+                    // *INDENT-OFF*
                     uint16x4_t pad_value;
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
                     if (opt.use_fp16_storage)
                     {
                         pad_value = per_channel_pad_data_size ? vreinterpret_u16_f16(vld1_f16((const __fp16*)per_channel_pad_data_fp16 + q * 4)) : vreinterpret_u16_f16(vdup_n_f16((__fp16)value));
                     }
+                    else
 #endif
 #if NCNN_BF16
-                    else
+                    if (opt.use_bf16_storage)
                     {
                         pad_value = per_channel_pad_data_size ? vld1_u16((const unsigned short*)per_channel_pad_data_bf16 + q * 4) : vdup_n_u16(value_bf16);
                     }
+                    else
 #endif
+                    {
+                    }
+                    // *INDENT-ON*
+                    // clang-format on
+
                     //Channel padding
                     if ((q - front_) < 0 || (q - front_) >= channels)
                     {

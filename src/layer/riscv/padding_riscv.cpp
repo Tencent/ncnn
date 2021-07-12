@@ -286,19 +286,28 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 {
                     Mat borderm = top_blob.channel(q);
 
+                    // clang-format off
+                    // *INDENT-OFF*
                     vuint16m1_t pad_value;
 #if __riscv_zfh
                     if (opt.use_fp16_storage)
                     {
                         pad_value = per_channel_pad_data_size ? vreinterpret_v_f16m1_u16m1(vle16_v_f16m1((const __fp16*)per_channel_pad_data_fp16 + q * packn, vl)) : vreinterpret_v_f16m1_u16m1(vfmv_v_f_f16m1((__fp16)value, vl));
                     }
+                    else
 #endif
 #if NCNN_BF16
-                    else
+                    if (opt.use_bf16_storage)
                     {
                         pad_value = per_channel_pad_data_size ? vle16_v_u16m1((const unsigned short*)per_channel_pad_data_bf16 + q * packn, vl) : vmv_v_x_u16m1(value_bf16, vl);
                     }
+                    else
 #endif
+                    {
+                    }
+                    // *INDENT-ON*
+                    // clang-format on
+
                     //Channel padding
                     if ((q - front_) < 0 || (q - front_) >= channels)
                     {
