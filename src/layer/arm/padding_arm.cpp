@@ -38,7 +38,9 @@ Padding_arm::Padding_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int Padding_arm::create_pipeline(const Option& opt)
@@ -50,12 +52,14 @@ int Padding_arm::create_pipeline(const Option& opt)
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage)
     {
         value_bf16 = float32_to_bfloat16(value);
 
         ncnn::cast_float32_to_bfloat16(per_channel_pad_data, per_channel_pad_data_bf16, opt);
     }
+#endif
 
     return 0;
 }
@@ -83,8 +87,10 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
+#endif
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;

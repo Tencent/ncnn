@@ -35,7 +35,9 @@ Flatten_riscv::Flatten_riscv()
 #endif
 #endif // __riscv_vector
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -50,8 +52,10 @@ int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
+#endif
 
     int dims = bottom_blob.dims;
 

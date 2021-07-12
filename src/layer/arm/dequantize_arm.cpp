@@ -30,7 +30,9 @@ Dequantize_arm::Dequantize_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -47,8 +49,10 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage)
         return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
 
     int dims = bottom_blob.dims;
     int elempack = bottom_blob.elempack;
@@ -2285,6 +2289,7 @@ int Dequantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const 
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int dims = bottom_blob.dims;
@@ -3038,5 +3043,6 @@ int Dequantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const O
 
     return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn
